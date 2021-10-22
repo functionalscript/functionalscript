@@ -4,37 +4,47 @@ const i = require('./index')
 const assert = () => { throw 'assert' }
 
 {
-    const r = i.parseModuleUrl('')
-    if (!('error' in r)) assert()
-    if (r.error.id !== 'expected') assert()
-    if (r.error.params[0] !== ':') assert()
+    i.parseModuleUrl('')(
+        assert,
+        e => {
+            if (e.id !== 'expected') assert()
+            if (e.params[0] !== ':') assert()
+        })
 }
 
 {
-    const r = i.parseModuleUrl(':')
-    if (!('error' in r)) assert()
-    if (r.error.id !== 'unknownProtocol') assert()
+    i.parseModuleUrl(':')(
+        assert,
+        e => {
+            if (e.id !== 'unknownProtocol') assert()
+        })
 }
 
 {
-    const r = i.parseModuleUrl('github:r')
-    if (!('error' in r)) assert()
-    if (r.error.id !== 'expected') assert()
+    i.parseModuleUrl('github:r')(
+        assert,
+        e => {
+            if (e.id !== 'expected') assert()
+        })
 }
 
 {
-    const r = i.parseModuleUrl('github:functionalscript/node-example')
-    if ('error' in r) assert()
-    if (r.value.repo.org !== 'functionalscript') assert()
-    if (r.value.repo.name !== 'node-example') assert()
-    if ('branch' in r.value) assert()
+    i.parseModuleUrl('github:functionalscript/node-example')(
+        v => {
+            if (v.repo.org !== 'functionalscript') assert()
+            if (v.repo.name !== 'node-example') assert()
+            if ('branch' in v) assert()
+        },
+        assert)
 }
 
 {
-    const r = i.parseModuleUrl('github:functionalscript/node-example#main')
-    if ('error' in r) assert()
-    if (r.value.repo.org !== 'functionalscript') assert()
-    if (r.value.repo.name !== 'node-example') assert()
-    if (!('branch' in r.value)) assert()
-    if (r.value.branch !== 'main') assert()
+    i.parseModuleUrl('github:functionalscript/node-example#main')(
+        v => {
+            if (v.repo.org !== 'functionalscript') assert()
+            if (v.repo.name !== 'node-example') assert()
+            if (!('branch' in v)) assert()
+            if (v.branch !== 'main') assert()
+        },
+        assert)
 }
