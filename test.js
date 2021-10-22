@@ -27,4 +27,14 @@ const assert = () => { throw 'assert' }
     if ('error' in r) assert()
     if (r.value.repo.org !== 'functionalscript') assert()
     if (r.value.repo.name !== 'node-example') assert()
+    if ('branch' in r.value) assert()
+}
+
+{
+    const r = i.parseModuleUrl('github:functionalscript/node-example#main')
+    if ('error' in r) assert()
+    if (r.value.repo.org !== 'functionalscript') assert()
+    if (r.value.repo.name !== 'node-example') assert()
+    if (!('branch' in r.value)) assert()
+    if (r.value.branch !== 'main') assert()
 }

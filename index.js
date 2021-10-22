@@ -47,10 +47,10 @@ const parseRepo = repo => {
 }
 
 /** @type {(repo: string, branch: string) => Result<ModuleId>} */
-const parseRepoAndBranch = (repo, branch) => errorMap(parseRepo(repo), module => value({ repo: module.repo, branch }))
+const parseRepoAndBranchCommit = (repo, branch) => errorMap(parseRepo(repo), module => value({ repo: module.repo, branch }))
 
 /** @type {(_: string) => Result<ModuleId>} */
-const parseGitHubId = id => splitOne(id, '#', parseRepoAndBranch, (_, repo) => parseRepo(repo))
+const parseGitHubId = id => splitOne(id, '#', parseRepoAndBranchCommit, (_, repo) => parseRepo(repo))
 
 /** @type {(protocol: string, id: string) => Result<ModuleId>} */
 const parseProtocolAndId = (protocol, id) => protocol === 'github'
