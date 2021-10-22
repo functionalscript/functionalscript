@@ -1,0 +1,23 @@
+{
+  "name": "functionalscript",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "tsc": "tsc",
+    "test": "tsc && node --trace-uncaught ./test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/functionalscript/functionalscript.git"
+  },
+  "author": "Natfoam",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/functionalscript/functionalscript/issues"
+  },
+  "homepage": "https://github.com/functionalscript/functionalscript#readme",
+  "devDependencies": {
+    "typescript": "^4.4.4"
+  }
+}
