@@ -48,3 +48,14 @@ const assert = () => { throw 'assert' }
         },
         assert)
 }
+
+{
+    i.parseModuleUrl('github:functionalscript/node-example#4b14a7a2b11cf53f037931eb7bef240f96dcea64')(
+        v => {
+            if (v.repo.org !== 'functionalscript') assert()
+            if (v.repo.name !== 'node-example') assert()
+            if (!('commit' in v)) assert()
+            if (v.commit !== '4b14a7a2b11cf53f037931eb7bef240f96dcea64') assert()
+        },
+        assert)
+}
