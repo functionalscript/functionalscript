@@ -1,5 +1,7 @@
 const i = require('./index')
 
+require('./lib/test')
+
 /** @type {() => never } */
 const assert = () => { throw 'assert' }
 
