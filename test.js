@@ -63,3 +63,9 @@ const assert_if = c => lib.panic_if('assert_if')(c)
     lib.panic_if('map[1]')(x[1] !== 4)
     lib.panic_if('map[2]')(x[2] !== 9)
 }
+
+{
+    lib.panic_if('join')(lib.join('/')([]) !== '')
+    lib.panic_if('join')(lib.join('/')(['a']) !== 'a')
+    lib.panic_if('join')(lib.join('/')(['a', 'b']) !== 'a/b')
+}
