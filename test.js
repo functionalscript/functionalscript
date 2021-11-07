@@ -56,17 +56,3 @@ const assert_if = c => lib.panic_if('assert_if')(c)
             v.commit !== '4b14a7a2b11cf53f037931eb7bef240f96dcea64'),
         assert)
 }
-
-{
-    const x = Array.from(lib.map(a => a ** 2)([1, 2, 3]))
-    lib.panic_if('map')(x.length !== 3)
-    lib.panic_if('map[0]')(x[0] !== 1)
-    lib.panic_if('map[1]')(x[1] !== 4)
-    lib.panic_if('map[2]')(x[2] !== 9)
-}
-
-{
-    lib.panic_if('join')(lib.join('/')([]) !== '')
-    lib.panic_if('join')(lib.join('/')(['a']) !== 'a')
-    lib.panic_if('join')(lib.join('/')(['a', 'b']) !== 'a/b')
-}
