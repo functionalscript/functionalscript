@@ -1,6 +1,7 @@
 const lib = require('./lib')
 const i = require('./')
 
+require('./module-manager/test')
 require('./lib/test')
 
 /** @type {() => never} */
