@@ -23,6 +23,8 @@ propertyId = string
 
 ## Stage 0
 
+This stage can be used as an intermediate-code for VMs.
+
 ```js
 fjsFile = expression
 expression = primitive | array | object | func | id | propertyAccessor
@@ -104,7 +106,7 @@ Regular expressions.
 
 ## Stage 1
 
-Typing using JSDoc and TypeScript types.
+Typing using [JSDoc](https://jsdoc.app/) and TypeScript types.
 
 ## Stage 2
 
