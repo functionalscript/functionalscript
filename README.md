@@ -1,10 +1,10 @@
 # FunctionalFcript
 
-FunctionalScript is a pure functional programming language as a subset of JavaScript. It's inspired by 
+FunctionalScript is a pure functional programming language as a subset of [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by 
 
-- JSON, as a subset of JavaScript;
-- Asm.JS (WebAssembly), as a subset of JavaScript;
-- TypeScript, as a superset of JavaScript.
+- [JSON](https://en.wikipedia.org/wiki/JSON), as a subset of JavaScript;
+- [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript;
+- [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
 ## JSON
 
@@ -85,12 +85,20 @@ inOperator = expression 'in' expression
 
 ### Stage 0.3. Syntax sugar
 
+Hex, binary and octal literals
 Functions with multiple parameters.
 Spread syntax. For example `...object`.
 Destructing assignments. For example `const {a,b} = exp;`, `const [a, b] = exp`.
 Property Id expression `{ [exp]: exp }`.
 Allow no semicolons.
 Optional comma in arrays and objects.
+Template literals ``const r= `onst r = ${exp}`;``.
+Multiline strings 
+```js
+'sss\
+   wwww'
+```
+Regular expressions.
 
 ## Stage 1
 
