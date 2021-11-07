@@ -107,9 +107,12 @@ Typing using JSDoc and TypeScript types.
 ## Stage 2
 
 Mutable types with exclusive ownership (similar to Rust mutability).
-`let`, `for`, `while` etc.
-Import and export `import x from "..."`, `export const x = ...`, `export default = ` e.t.c. Note: this may break `new Function` runners. 
 
-Generators `function*(){  ... yield ... }`. ?
-Async `async () => f(await exp())`. ?
-Exports object `exports.x = exp` ?
+- `let`, `for`, `while` etc.
+- Generators `function*(){  ... yield ... }`.
+- Async `async () => f(await exp())`.
+
+Controversial ideas: 
+
+- Import and export `import x from "..."`, `export const x = ...`, `export default = ` e.t.c. This may break `new Function` runners. 
+- Functional-TypeScript as a subset of TypeScript. Note: FunctionalScript doesn't require an additional build step in contrast to TypeScript.
