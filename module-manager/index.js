@@ -34,7 +34,7 @@ const pathNorm = {
         item === '..' ?
             path.slice(0, -1) :
             [...path, item],
-    value: []
+    init: []
 }
 
 module.exports = {
