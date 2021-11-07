@@ -1,4 +1,4 @@
-# FunctionalFcript
+# Functional Script
 
 FunctionalScript is a pure functional programming language as a subset of [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by 
 
