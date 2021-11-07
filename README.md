@@ -104,7 +104,7 @@ Regular expressions.
 
 ## Stage 1
 
-Typing using JSDoc and TypeScript types.
+Typing using [JSDoc](https://jsdoc.app/) and TypeScript types.
 
 ## Stage 2
 
