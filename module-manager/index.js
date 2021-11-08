@@ -1,33 +1,18 @@
+const { todo } = require('../lib')
 const lib = require('../lib')
 const iter = require('../lib/iterable')
 
 /**
  * @typedef {{
- *  package: string[],
- *  module: string[],
- * }} GlobalId
- */
-
-/**
- * @typedef {{
  *  packages: Packages
- *  module: Module
+ *  file: (_: string) => string|undefined
  * }} Package
- */
-
-/** 
- * @typedef {{ 
- *  modules: (_: string) => undefined|Module,
- *  source: string,
- *  exports: unknown,
- *  index: number,
- * }} Module 
  */
 
 /** @typedef {(_: string) => undefined|Package|Packages} Packages */
 
 /** @type {lib.Reduce<string, string[]>} */
-const pathNorm = {
+const pathNormReduce = {
     merge: path => item =>
         ['', '.'].includes(item) ?
             path :
@@ -37,8 +22,34 @@ const pathNorm = {
     init: []
 }
 
+/** @type {(_: string[]) => boolean} */
+const isRelative = localId => ['.', '..'].includes(localId[0])
+
+const pathNorm = iter.reduce(pathNormReduce)
+
+/** @type {(_: Package) => (_: string[]) => string|undefined} */
+const internal = pack => path => {
+    const n = pathNorm(path).join('/')
+    return n === '' ? 
+            pack.file('index.js') : 
+        ['.', '..', ''].includes(lib.last(path)) ? 
+            pack.file(n + '/index.js') : 
+            (pack.file(n + '.js') ?? pack.file(n) ?? pack.file(n + '/index.js'))
+}
+
+/** @type {(_: Package|Packages|undefined) => (_: string[]) => string|undefined} */
+const externalOrInternal = p => 
+    p === undefined ? () => undefined : (typeof p === 'function' ? external(p) : internal(p))
+
+/** @type {(_: Packages) => (_: string[]) => string|undefined} */
+const external = packages => path => 
+    path.length === 0 ? undefined : externalOrInternal(packages(path[0]))(path.slice(1))
+
+/** @type {(_: Package) => (_: string[]) => string|undefined} */
+const getModule = pack => path => (isRelative(path) ? internal(pack) : external(pack.packages))(path)
+
 module.exports = {
-    /** @type {(_: string[]) => boolean} */
-    isRelative: localId => ['.', '..'].includes(localId[0]),
-    pathNorm: iter.reduce(pathNorm),
+    isRelative,
+    pathNorm,
+    getModule,
 }
