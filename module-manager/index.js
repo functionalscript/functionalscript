@@ -16,6 +16,13 @@ const iter = require('../lib/iterable')
  * }} Location
  */
 
+/**
+ * @typedef {{
+ *  location: Location
+ *  source: string
+ * }} Module
+ */
+
 /** @typedef {(_: string) => undefined|Package|Packages} Packages */
 
 /** @type {lib.Reduce<string, undefined|string[]>} */
@@ -45,7 +52,7 @@ const internal = pack => path => {
                 pack.file('index.js') : 
             ['.', '..', ''].includes(lib.last(path)) ? 
                 pack.file(n + '/index.js') : 
-                (pack.file(n + '.js') ?? pack.file(n) ?? pack.file(n + '/index.js'))
+                pack.file(n + '.js') ?? pack.file(n) ?? pack.file(n + '/index.js')
     }
     return a === undefined ? undefined : norm(a.join('/'))
 }
