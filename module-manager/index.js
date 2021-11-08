@@ -26,7 +26,7 @@ const iter = require('../lib/iterable')
 
 /** @typedef {(_: string) => undefined|Package|Packages} Packages */
 
-/** @type {lib.Reducer<string, string[]>} */
+/** @type {lib.Reduce<string, string[]>} */
 const pathNorm = {
     merge: path => item =>
         ['', '.'].includes(item) ?
