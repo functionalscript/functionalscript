@@ -9,6 +9,13 @@ const iter = require('../lib/iterable')
  * }} Package
  */
 
+/**
+ * @typedef {{
+ *  pack: Package,
+ *  path: string[],
+ * }} Location
+ */
+
 /** @typedef {(_: string) => undefined|Package|Packages} Packages */
 
 /** @type {lib.Reduce<string, undefined|string[]>} */
