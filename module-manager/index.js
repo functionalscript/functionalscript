@@ -12,7 +12,7 @@ const iter = require('../lib/iterable')
 /**
  * @typedef {{
  *  pack: Package,
- *  path: string[],
+ *  local: string[],
  * }} Location
  */
 
@@ -58,8 +58,9 @@ const externalOrInternal = p =>
 const external = packages => path => 
     path.length === 0 ? undefined : externalOrInternal(packages(path[0]))(path.slice(1))
 
-/** @type {(_: Package) => (_: string[]) => string|undefined} */
-const getModule = pack => path => (isRelative(path) ? internal(pack) : external(pack.packages))(path)
+/** @type {(_: Location) => (_: string[]) => string|undefined} */
+const getModule = ({pack, local}) => path => 
+    isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.packages)(path)
 
 module.exports = {
     isRelative,
