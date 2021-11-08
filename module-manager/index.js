@@ -1,4 +1,3 @@
-const { todo } = require('../lib')
 const lib = require('../lib')
 const iter = require('../lib/iterable')
 
@@ -44,22 +43,27 @@ const isRelative = localId => ['.', '..'].includes(localId[0])
 const pathNorm = iter.reduce(pathNormReduce)
 
 /** @type {(_: Package) => (_: string[]) => Module|undefined} */
-const internal = pack => path => {
-    const local = pathNorm(path)
-    /** @type {(_: string[]) => Module|undefined} */
-    const file = n => {
-        const source = pack.file(n.join('/'))
-        return source === undefined ? undefined : { location: { pack, local: n.slice(0, -1)}, source}
+const internal = pack => {
+    /** @type {(_: string[]) => (_: string) => Module|undefined} */
+    const readFile = local => name => {
+        const source = pack.file([...local, name].join('/'))
+        return source === undefined ? undefined : { location: { pack, local }, source}
     }
     /** @type {(_: string[]) => Module|undefined} */
-    const norm = n => {
-        return n.length === 0 ? 
-                file(['index.js']) : 
-            ['.', '..', ''].includes(lib.last(path)) ? 
-                file([...n, 'index.js']) : 
-                file([...n.slice(0, -1), lib.last(n) + '.js']) ?? file(n) ?? file([...n, 'index.js'])
+    const readIndex = n => readFile(n)('index.js')
+    return path => {
+        /** @type {(_: string[]) => Module|undefined} */
+        const read = local => {
+            /** @type {(_: string) => Module|undefined} */
+            const readCustom = ext => readFile(local.slice(0, -1))(lib.last(local) + ext)
+            /** @type {(_: string[]) => Module|undefined} */
+            const norm = local => local.length === 0 || ['.', '..', ''].includes(lib.last(path)) ? 
+                readIndex(local) : 
+                readCustom('.js') ?? readCustom('') ?? readIndex(local)
+            return local === undefined ? undefined : norm(local)
+        }
+        return lib.optionMap(read)(pathNorm(path))
     }
-    return local === undefined ? undefined : norm(local)
 }
 
 /** @type {(_: Package|Packages|undefined) => (_: string[]) => Module|undefined} */
