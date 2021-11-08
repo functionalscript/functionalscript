@@ -55,7 +55,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'a/index.js': './a/index.js',
                 'a/index.js.js': './a/index.js.js',
             }
-            return f[path] 
+            return ['.js', ''].includes(path) ? lib.panic('.js') : f[path] 
         }
     }
     /** @type {(_: i.Module|undefined) => (_: i.Module) => void} */

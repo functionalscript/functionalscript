@@ -49,18 +49,17 @@ const internal = pack => {
         const source = pack.file([...local, name].join('/'))
         return source === undefined ? undefined : { location: { pack, local }, source}
     }
-    /** @type {(_: string[]) => Module|undefined} */
-    const readIndex = n => readFile(n)('index.js')
     return path => {
         /** @type {(_: string[]) => Module|undefined} */
         const read = local => {
+            const readIndex = () => readFile(local)('index.js')
             /** @type {(_: string) => Module|undefined} */
             const readCustom = ext => readFile(local.slice(0, -1))(lib.last(local) + ext)
             /** @type {(_: string[]) => Module|undefined} */
-            const norm = local => local.length === 0 || ['.', '..', ''].includes(lib.last(path)) ? 
-                readIndex(local) : 
-                readCustom('.js') ?? readCustom('') ?? readIndex(local)
-            return local === undefined ? undefined : norm(local)
+            const defined = local => ['.', '..', ''].includes(lib.last(path)) ? 
+                readIndex() : 
+                readCustom('.js') ?? readCustom('') ?? readIndex()
+            return lib.optionMap(defined)(local)
         }
         return lib.optionMap(read)(pathNorm(path))
     }
