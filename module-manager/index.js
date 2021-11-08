@@ -46,18 +46,18 @@ const pathNorm = iter.reduce(pathNormReduce)
 /** @type {(_: Package) => (_: string[]) => Module|undefined} */
 const internal = pack => path => {
     const local = pathNorm(path)
-    /** @type {(_: string[]) => (_: string|undefined) => Module|undefined} */
-    const map = local => source => source === undefined ? undefined : { location: { pack, local}, source}    
+    /** @type {(_: string[]) => Module|undefined} */
+    const file = n => {
+        const source = pack.file(n.join('/'))
+        return source === undefined ? undefined : { location: { pack, local: n.slice(0, -1)}, source}
+    }
     /** @type {(_: string[]) => Module|undefined} */
     const norm = n => {
-        const ns = n.join('/')
-        const d = map(n)
-        const f = map(n.slice(0, -1))
-        return ns === '' ? 
-                d(pack.file('index.js')) : 
+        return n.length === 0 ? 
+                file(['index.js']) : 
             ['.', '..', ''].includes(lib.last(path)) ? 
-                d(pack.file(ns + '/index.js')) : 
-                f(pack.file(ns + '.js')) ?? f(pack.file(ns)) ?? d(pack.file(ns + '/index.js'))
+                file([...n, 'index.js']) : 
+                file([...n.slice(0, -1), lib.last(n) + '.js']) ?? file(n) ?? file([...n, 'index.js'])
     }
     return local === undefined ? undefined : norm(local)
 }
