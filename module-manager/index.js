@@ -11,13 +11,15 @@ const iter = require('../lib/iterable')
 
 /** @typedef {(_: string) => undefined|Package|Packages} Packages */
 
-/** @type {lib.Reduce<string, string[]>} */
+/** @type {lib.Reduce<string, undefined|string[]>} */
 const pathNormReduce = {
     merge: path => item =>
+        path === undefined ?
+            undefined :
         ['', '.'].includes(item) ?
             path :
         item === '..' ?
-            path.slice(0, -1) :
+            (path.length === 0 ? undefined : path.slice(0, -1)) :
             [...path, item],
     init: []
 }
@@ -29,12 +31,16 @@ const pathNorm = iter.reduce(pathNormReduce)
 
 /** @type {(_: Package) => (_: string[]) => string|undefined} */
 const internal = pack => path => {
-    const n = pathNorm(path).join('/')
-    return n === '' ? 
-            pack.file('index.js') : 
-        ['.', '..', ''].includes(lib.last(path)) ? 
-            pack.file(n + '/index.js') : 
-            (pack.file(n + '.js') ?? pack.file(n) ?? pack.file(n + '/index.js'))
+    const a = pathNorm(path)
+    /** @type {(_: string) => string|undefined} */
+    const norm = n => {
+        return n === '' ? 
+                pack.file('index.js') : 
+            ['.', '..', ''].includes(lib.last(path)) ? 
+                pack.file(n + '/index.js') : 
+                (pack.file(n + '.js') ?? pack.file(n) ?? pack.file(n + '/index.js'))
+    }
+    return a === undefined ? undefined : norm(a.join('/'))
 }
 
 /** @type {(_: Package|Packages|undefined) => (_: string[]) => string|undefined} */
