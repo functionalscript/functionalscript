@@ -43,29 +43,34 @@ const isRelative = localId => ['.', '..'].includes(localId[0])
 
 const pathNorm = iter.reduce(pathNormReduce)
 
-/** @type {(_: Package) => (_: string[]) => string|undefined} */
+/** @type {(_: Package) => (_: string[]) => Module|undefined} */
 const internal = pack => path => {
-    const a = pathNorm(path)
-    /** @type {(_: string) => string|undefined} */
+    const local = pathNorm(path)
+    /** @type {(_: string[]) => (_: string|undefined) => Module|undefined} */
+    const map = local => source => source === undefined ? undefined : { location: { pack, local}, source}    
+    /** @type {(_: string[]) => Module|undefined} */
     const norm = n => {
-        return n === '' ? 
-                pack.file('index.js') : 
+        const ns = n.join('/')
+        const d = map(n)
+        const f = map(n.slice(0, -1))
+        return ns === '' ? 
+                d(pack.file('index.js')) : 
             ['.', '..', ''].includes(lib.last(path)) ? 
-                pack.file(n + '/index.js') : 
-                pack.file(n + '.js') ?? pack.file(n) ?? pack.file(n + '/index.js')
+                d(pack.file(ns + '/index.js')) : 
+                f(pack.file(ns + '.js')) ?? f(pack.file(ns)) ?? d(pack.file(ns + '/index.js'))
     }
-    return a === undefined ? undefined : norm(a.join('/'))
+    return local === undefined ? undefined : norm(local)
 }
 
-/** @type {(_: Package|Packages|undefined) => (_: string[]) => string|undefined} */
+/** @type {(_: Package|Packages|undefined) => (_: string[]) => Module|undefined} */
 const externalOrInternal = p => 
     p === undefined ? () => undefined : (typeof p === 'function' ? external(p) : internal(p))
 
-/** @type {(_: Packages) => (_: string[]) => string|undefined} */
+/** @type {(_: Packages) => (_: string[]) => Module|undefined} */
 const external = packages => path => 
     path.length === 0 ? undefined : externalOrInternal(packages(path[0]))(path.slice(1))
 
-/** @type {(_: Location) => (_: string[]) => string|undefined} */
+/** @type {(_: Location) => (_: string[]) => Module|undefined} */
 const getModule = ({pack, local}) => path => 
     isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.packages)(path)
 

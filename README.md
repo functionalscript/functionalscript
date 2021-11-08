@@ -116,6 +116,7 @@ Mutable types with exclusive ownership (similar to Rust mutability).
 - Generators `function*(){  ... yield ... }`.
 - Async `async () => f(await exp())`.
 - hopefully, we will have [ES pipe operator](https://tc39.es/proposal-pipeline-operator/) at this time.
+- [pattern matching](https://github.com/tc39/proposal-pattern-matching)
 
 Controversial ideas: 
 
