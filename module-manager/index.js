@@ -69,8 +69,13 @@ const externalOrInternal = p =>
     p === undefined ? () => undefined : (typeof p === 'function' ? external(p) : internal(p))
 
 /** @type {(_: Packages) => (_: string[]) => Module|undefined} */
-const external = packages => path => 
-    path.length === 0 ? undefined : externalOrInternal(packages(path[0]))(path.slice(1))
+const external = packages => { 
+    /** @type {(_: [string, string[]]) => Module|undefined} */
+    const defined = ([first, tail]) => externalOrInternal(packages(first))(tail)
+    /** @type {(_: string[]) => [string, string[]]|undefined} */
+    const splitFirst = lib.splitFirst
+    return lib.pipe(splitFirst)(lib.optionMap(defined))
+}
 
 /** @type {(_: Location) => (_: string[]) => Module|undefined} */
 const getModule = ({pack, local}) => path => 
