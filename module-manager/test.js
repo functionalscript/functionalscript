@@ -32,7 +32,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'index.js': 'b/c ./index.js',
                 'x/index.js': 'b/c ./x/index.js',
             }
-            return f[path]
+            return ['.js', '', 'undefined.js'].includes(path) ? lib.panic('.js') : f[path]
         }
     }
     /** @type {{ [_ in string]: i.Package|i.Packages}} */
@@ -55,7 +55,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'a/index.js': './a/index.js',
                 'a/index.js.js': './a/index.js.js',
             }
-            return ['.js', ''].includes(path) ? lib.panic('.js') : f[path] 
+            return ['.js', '', 'undefined.js'].includes(path) ? lib.panic('.js') : f[path] 
         }
     }
     /** @type {(_: i.Module|undefined) => (_: i.Module) => void} */

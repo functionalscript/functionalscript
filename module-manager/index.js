@@ -52,14 +52,13 @@ const internal = pack => {
     return path => {
         /** @type {(_: string[]) => Module|undefined} */
         const read = local => {
-            const readIndex = () => readFile(local)('index.js')
-            /** @type {(_: string) => Module|undefined} */
-            const readCustom = ext => readFile(local.slice(0, -1))(lib.last(local) + ext)
-            /** @type {(_: string[]) => Module|undefined} */
-            const defined = local => ['.', '..', ''].includes(lib.last(path)) ? 
-                readIndex() : 
-                readCustom('.js') ?? readCustom('') ?? readIndex()
-            return lib.optionMap(defined)(local)
+            /** @type {(_: [string[], string]) => Module|undefined} */
+            const tryFiles = ([head, last]) => {
+                /** @type {(_: string) => Module|undefined} */                
+                const one = ext => readFile(head)(last + ext)
+                return ['.', '..', '', undefined].includes(lib.last(path)) ? undefined : one('.js') ?? one('')
+            }
+            return lib.optionMap(tryFiles)(lib.splitLast(local)) ?? readFile(local)('index.js')
         }
         return lib.optionMap(read)(pathNorm(path))
     }
