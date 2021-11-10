@@ -1,6 +1,6 @@
 const m = require('..')
 
-/** @type {(_: m.ReadFile) => m.Package} */
+/** @type {(_: m.ReadFile) => m.Location} */
 module.exports = readFile => {
     /** @type {(_: string[]) => (_: string) => m.Package|m.Packages|undefined} */
     const packages = path => name => {
@@ -13,5 +13,5 @@ module.exports = readFile => {
         packages: packages(['node_modules']),
         file: filePath => readFile([...path, ...filePath])
     })
-    return pack([])
+    return { pack: pack([]), local: [] }
 }
