@@ -10,15 +10,15 @@ const files = {
     'c/t.js': './c/t.js',
     'node_modules/@functionalscript/functionalscript/package.json': '',
     'node_modules/@functionalscript/functionalscript/index.js': '@functionalscript/functionalscript ./index.js',
-    'node_modules/a/package.json': '',
-    'node_modules/a/src/x.js': 'a ./src/x.js',
+    'node_modules/my/package.json': '',
+    'node_modules/my/src/x.js': 'my ./src/x.js',
+    'node_modules/my/b/index.js': 'my ./b/index.js',
 }
 
 /** @type {(_: string[]) => string|undefined} */
 const readFile = path => files[path.join('/')]
 
 const root = i(readFile)
-
 
 {
     const index = mm.getModule(root)(['.'])
@@ -43,8 +43,13 @@ const root = i(readFile)
     if (fs === undefined) { throw 'no module' }
     if (fs.source !== '@functionalscript/functionalscript ./index.js') { throw 'source' }
     if (fs.location.local.join('/') !== '') { throw 'location' }
-    const aSrcX = mm.getModule(fs.location)(['a', 'src', 'x'])
-    if (aSrcX === undefined) { throw 'no module' }
-    if (aSrcX.source !== 'a ./src/x.js') { throw 'source' }
-    if (aSrcX.location.local.join('/') !== 'src') { throw 'location' }
+    if (mm.getModule(fs.location)(['my', 'src', 'x', '']) !== undefined) { throw 'no module '}
+    const mySrcX = mm.getModule(fs.location)(['my', 'src', 'x'])
+    if (mySrcX === undefined) { throw 'no module' }
+    if (mySrcX.source !== 'my ./src/x.js') { throw 'source' }
+    if (mySrcX.location.local.join('/') !== 'src') { throw 'location' }
+    const myB = mm.getModule(mySrcX.location)(['..', 'b', ''])
+    if (myB === undefined) { throw 'no module' }
+    if (myB.source !== 'my ./b/index.js') { throw 'source' }
+    if (myB.location.local.join('/') !== 'b') { throw 'location' }
 }
