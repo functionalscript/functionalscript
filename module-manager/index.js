@@ -83,32 +83,8 @@ const external = packages => {
 const getModule = ({pack, local}) => path => 
     isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.packages)(path)
 
-/**
- * @typedef {{
- *  isFile: boolean
- *  name: string
- * }} FileOrDir
- */
-
-/** @type {(_: ReadFile) => Package} */
-const node = readFile => {
-    /** @type {(_: string[]) => (_: string) => Package|Packages|undefined} */
-    const packages = path => name => {
-        const newPath = [...path, name]
-        // we only need to check if 'package.json' exist
-        return (readFile([...newPath, 'package.json']) === undefined ? packages : pack)(newPath)
-    }
-    /** @type {(_: string[]) => Package} */
-    const pack = path => ({
-        packages: packages(['node_modules']),
-        file: filePath => readFile([...path, ...filePath])
-    })
-    return pack([])
-}
-
 module.exports = {
     isRelative,
     pathNorm,
     getModule,
-    node,
 }
