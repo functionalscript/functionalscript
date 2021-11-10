@@ -1,7 +1,7 @@
 {
   "name": "@functionalscript/functionalscript",
   "version": "0.0.0",
-  "description": "",
+  "description": "FunctionalScript is a functional subset of JavaScript",
   "main": "index.js",
   "scripts": {
     "tsc": "tsc",
