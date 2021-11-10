@@ -34,7 +34,7 @@ const pathNormReduce = {
         ['', '.'].includes(item) ?
             path :
         item === '..' ?
-            (path.length === 0 ? undefined : path.slice(0, -1)) :
+            lib.head(path) :
             [...path, item],
     init: []
 }
