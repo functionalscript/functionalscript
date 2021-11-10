@@ -1,10 +1,12 @@
 const lib = require('../lib')
 const iter = require('../lib/iterable')
 
+/** @typedef {(_: string[]) => string|undefined} ReadFile */
+
 /**
  * @typedef {{
  *  packages: Packages
- *  file: (_: string) => string|undefined
+ *  file: ReadFile
  * }} Package
  */
 
@@ -46,7 +48,7 @@ const pathNorm = iter.reduce(pathNormReduce)
 const internal = pack => {
     /** @type {(_: string[]) => (_: string) => Module|undefined} */
     const readFile = local => name => {
-        const source = pack.file([...local, name].join('/'))
+        const source = pack.file([...local, name])
         return source === undefined ? undefined : { location: { pack, local }, source}
     }
     return path => {
@@ -81,8 +83,32 @@ const external = packages => {
 const getModule = ({pack, local}) => path => 
     isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.packages)(path)
 
+/**
+ * @typedef {{
+ *  isFile: boolean
+ *  name: string
+ * }} FileOrDir
+ */
+
+/** @type {(_: ReadFile) => Package} */
+const node = readFile => {
+    /** @type {(_: string[]) => (_: string) => Package|Packages|undefined} */
+    const packages = path => name => {
+        const newPath = [...path, name]
+        // we only need to check if 'package.json' exist
+        return (readFile([...newPath, 'package.json']) === undefined ? packages : pack)(newPath)
+    }
+    /** @type {(_: string[]) => Package} */
+    const pack = path => ({
+        packages: packages(['node_modules']),
+        file: filePath => readFile([...path, ...filePath])
+    })
+    return pack([])
+}
+
 module.exports = {
     isRelative,
     pathNorm,
     getModule,
+    node,
 }

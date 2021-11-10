@@ -20,19 +20,20 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
             const f = {
                 'index.js': 'a ./index.js',
             }
-            return f[path]
+            return f[path.join('/')]
         }
     }
     /** @type {i.Package} */
     const c = { 
         packages: () => undefined,
         file: path => {
+            const pathStr = path.join('/')
             /** @type {{ [_ in string]?: string}} */
             const f = {
                 'index.js': 'b/c ./index.js',
                 'x/index.js': 'b/c ./x/index.js',
             }
-            return ['.js', '', 'undefined.js'].includes(path) ? lib.panic('.js') : f[path]
+            return ['.js', '', 'undefined.js'].includes(pathStr) ? lib.panic('.js') : f[pathStr]
         }
     }
     /** @type {{ [_ in string]: i.Package|i.Packages}} */
@@ -48,6 +49,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
     const pack = {
         packages: s => packages[s],
         file: path => {
+            const pathStr = path.join('/')
             /** @type {{ [_ in string]?: string}} */
             const f = {
                 'index.js': './index.js',
@@ -55,7 +57,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'a/index.js': './a/index.js',
                 'a/index.js.js': './a/index.js.js',
             }
-            return ['.js', '', 'undefined.js'].includes(path) ? lib.panic('.js') : f[path] 
+            return ['.js', '', 'undefined.js'].includes(pathStr) ? lib.panic('.js') : f[pathStr] 
         }
     }
     /** @type {(_: i.Module|undefined) => (_: i.Module) => void} */
