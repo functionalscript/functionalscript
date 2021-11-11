@@ -10,6 +10,7 @@ module.exports = readFile => {
     }
     /** @type {(_: string[]) => m.Package} */
     const pack = path => ({
+        id: path,
         packages: packages(['node_modules']),
         file: filePath => readFile([...path, ...filePath])
     })

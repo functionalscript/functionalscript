@@ -5,6 +5,7 @@ const iter = require('../lib/iterable')
 
 /**
  * @typedef {{
+ *  id: string[]
  *  packages: Packages
  *  file: ReadFile
  * }} Package

@@ -23,7 +23,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'index.js': 'a ./index.js',
             }
             return f[path.join('/')]
-        }
+        },
+        id: ['a']
     }
     /** @type {i.Package} */
     const c = { 
@@ -36,7 +37,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'x/index.js': 'b/c ./x/index.js',
             }
             return ['.js', '', 'undefined.js'].includes(pathStr) ? lib.panic('.js') : f[pathStr]
-        }
+        },
+        id: ['c']
     }
     /** @type {{ [_ in string]: i.Package|i.Packages}} */
     const packages = {
@@ -60,7 +62,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'a/index.js.js': './a/index.js.js',
             }
             return ['.js', '', 'undefined.js'].includes(pathStr) ? lib.panic('.js') : f[pathStr] 
-        }
+        },
+        id: ['']
     }
     /** @type {(_: i.Module|undefined) => (_: i.Module) => void} */
     const expect = a => b => {            
