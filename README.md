@@ -97,6 +97,7 @@ Property Id expression `{ [exp]: exp }`.
 Allow no semicolons.
 Optional comma in arrays and objects.
 Template literals ``const r= `onst r = ${exp}`;``.
+An `if` statement `if (exp) { ... return exp }`
 Multiline strings 
 ```js
 'sss\

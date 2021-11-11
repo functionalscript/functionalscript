@@ -20,6 +20,7 @@ const iter = require('../lib/iterable')
 
 /**
  * @typedef {{
+ *  fileName: string
  *  location: Location
  *  source: string
  * }} Module
@@ -48,9 +49,9 @@ const pathNorm = iter.reduce(pathNormReduce)
 /** @type {(_: Package) => (_: string[]) => Module|undefined} */
 const internal = pack => {
     /** @type {(_: string[]) => (_: string) => Module|undefined} */
-    const readFile = local => name => {
-        const source = pack.file([...local, name])
-        return source === undefined ? undefined : { location: { pack, local }, source}
+    const readFile = local => fileName => {
+        const source = pack.file([...local, fileName])
+        return source === undefined ? undefined : { fileName, location: { pack, local }, source}
     }
     return path => {
         /** @type {(_: string[]) => Module|undefined} */
