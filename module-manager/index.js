@@ -85,8 +85,12 @@ const external = packages => {
 const getModule = ({pack, local}) => path => 
     isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.packages)(path)
 
+/** @type {(_: Module) => string} */
+const moduleId = module => [...module.location.pack.id, ...module.location.local, module.fileName].join('/') 
+
 module.exports = {
     isRelative,
     pathNorm,
     getModule,
+    moduleId,
 }
