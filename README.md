@@ -28,9 +28,12 @@ This stage can be used as an intermediate-code for VMs.
 ```js
 fjsFile = expression
 expression = primitive | array | object | func | id | propertyAccessor
-func = ('()' | id) '=>' '{' statements 'return' expression ';' '}'
+func = ('()' | id) '=>' body
+body = '{' statements 'return' expression ';' '}'
 statements = () | (statement statements)
-statement = `const` id `=` expression `;`
+statement = decl | ifStatement
+decl = `const` id `=` expression `;`
+ifStatement = `if` `(` expression `)` body
 propertyAccessor = expression `[` expression `]`
 call = expression `(` ( expression | ()) `)`
 ```
@@ -55,8 +58,9 @@ arithmeticBinaryOperator = '+' | '-' | '*' | '/' | '%' | '**'
 bitwiseBinaryOperator = '&' | '|' | '^' | '<<' | '>>' | '>>>'
 logicalBinaryOperator = '&&' | '||'
 unaryOperator = '-' | '~' | '!'
-conditionalOperator = expression '?' expression ':' expression
 ```
+
+Note: the syntax should be fixed to reflect operator precedents.
 
 No `==`, `!=`, `=...` operators.
 
@@ -114,6 +118,24 @@ Typing using [JSDoc](https://jsdoc.app/) and TypeScript types.
 Mutable types with exclusive ownership (similar to Rust mutability).
 
 - `let`, `for`, `while` etc.
+  Note: `let` can work as an object name reuse. 
+  In this case, `let` objects can't be used in nested functions. It means we can't reference `let` object.
+  ```js
+  let x = 5 // ok
+  f(x)
+  x = 'hello!' // ok
+  f(x)
+  const r = () => {
+     return x // compilation error
+  }
+  ```
+  Translated into
+  ```js
+  const x0 = 5
+  f(x0)
+  const x1 = 'hello!'  
+  f(x1)
+  ```
 - Generators `function*(){  ... yield ... }`.
 - Async `async () => f(await exp())`.
 - hopefully, we will have [ES pipe operator](https://tc39.es/proposal-pipeline-operator/) at this time.
