@@ -8,6 +8,8 @@ FunctionalScript is a pure functional programming language and a subset of [ECMA
 
 Try FunctionalScript [here](https://functionalscript.com/).
 
+Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
+
 ## JSON
 
 ```js
