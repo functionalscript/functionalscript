@@ -1,6 +1,6 @@
 # Documentation
 
-## Creating New Repository
+## Creating a New Repository
 
 1. Create a git repo on GitHub using Node template.
 2. Install [Node.js](https://nodejs.org/en/)
