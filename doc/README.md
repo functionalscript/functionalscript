@@ -1,6 +1,6 @@
 # Documentation
 
-## Creating New Package
+## Creating New Repository
 
 1. Create a git repo on GitHub using Node template.
 2. Clone the repository.
