@@ -2,6 +2,10 @@
 
 ## 1. Creating a New Repository
 
+Creating from a template https://github.com/functionalscript/template/generate
+
+## 1.1. Creating From Scratch 
+
 Prerequisites:
 
 - [Git](https://git-scm.com/).
