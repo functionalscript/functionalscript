@@ -31,7 +31,7 @@ Creating a new GitHub repository
 
 ## Language
 
-### Export
+### Exports
 
 #### Examples
 
@@ -45,4 +45,13 @@ module.exports = { a: 'hello', b: 42 }
 
 ```js
 module.exports = x => x * x
+```
+
+### Reference Another Module
+
+#### Local File
+
+```js
+const x = require('./folder/index.js')
+```
 ```
