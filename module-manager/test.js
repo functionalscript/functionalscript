@@ -3,21 +3,9 @@ const i = require('.')
 const lib = require('../lib')
 
 {
-    const test0 = require('./test0')
-
-    if (test0 !== 'test0.js') { throw './test0' }
-}
-
-{
-    const test0js = require('./test0.js')
-
-    if (test0js !== 'test0.js') { throw './test0.js'}
-}
-
-{
-    const test0jsjs = require('./test0.js.js')
-
-    if (test0jsjs !== 'test0.js.js') { throw './test0.js.js'}
+    if (require('./test0') !== 'test0.js') { throw './test0' }
+    if (require('./test0.js') !== 'test0.js') { throw './test0.js'}
+    if (require('./test0.js.js') !== 'test0.js.js') { throw './test0.js.js'}
 }
 
 require('./node/test')
