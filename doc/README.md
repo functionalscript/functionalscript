@@ -60,3 +60,10 @@ Run `npm install -D github:REPO/PACKAGE`
 ```js
 const x = require(`PACKAGE/DIR/FILE.js`)
 ```
+
+### 2.3. Functions
+
+```js
+const f = x => x * x
+const result = f(42)
+```
