@@ -6,13 +6,13 @@ module.exports = readFile => {
     const packages = path => name => {
         const newPath = [...path, name]
         // we only need to check if 'package.json' exist
-        return (readFile([...newPath, 'package.json']) === undefined ? packages : pack)(newPath)
+        return (readFile([...newPath, 'package.json'].join('/')) === undefined ? packages : pack)(newPath)
     }
     /** @type {(_: string[]) => m.Package} */
     const pack = path => ({
         id: path,
         dependencies: packages(['node_modules']),
-        file: filePath => readFile([...path, ...filePath])
+        file: filePath => readFile([...path, ...filePath.split('/')].join('/'))
     })
     return { pack: pack([]), local: [] }
 }

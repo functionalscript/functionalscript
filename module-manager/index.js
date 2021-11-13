@@ -1,7 +1,7 @@
 const lib = require('../lib')
 const iter = require('../lib/iterable')
 
-/** @typedef {(_: string[]) => string|undefined} ReadFile */
+/** @typedef {(_: string) => string|undefined} ReadFile */
 
 /**
  * @typedef {{
@@ -50,7 +50,7 @@ const pathNorm = iter.reduce(pathNormReduce)
 const internal = pack => {
     /** @type {(_: string[]) => (_: string) => Module|undefined} */
     const readFile = local => fileName => {
-        const source = pack.file([...local, fileName])
+        const source = pack.file([...local, fileName].join('/'))
         return source === undefined ? undefined : { fileName, location: { pack, local }, source}
     }
     return path => {
@@ -81,9 +81,11 @@ const external = packages => {
     return lib.pipe(splitFirst)(lib.optionMap(defined))
 }
 
-/** @type {(_: Location) => (_: string[]) => Module|undefined} */
-const getModule = ({pack, local}) => path => 
-    isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.dependencies)(path)
+/** @type {(_: Location) => (_: string) => Module|undefined} */
+const getModule = ({pack, local}) => path => {
+    const pathArray = path.split('/')
+    return isRelative(pathArray) ? internal(pack)([...local, ...pathArray]) : external(pack.dependencies)(pathArray)
+}
 
 /** @type {(_: Module) => string} */
 const moduleId = module => [...module.location.pack.id, ...module.location.local, module.fileName].join('/') 
