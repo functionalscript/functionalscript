@@ -1,5 +1,5 @@
 {
-  "name": "@functionalscript/functionalscript",
+  "name": "functionalscript",
   "version": "0.0.0",
   "description": "FunctionalScript is a functional subset of JavaScript",
   "main": "index.js",
