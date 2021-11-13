@@ -60,7 +60,7 @@ const internal = pack => {
             const tryFiles = ([head, last]) => {
                 /** @type {(_: string) => Module|undefined} */                
                 const one = ext => readFile(head)(last + ext)
-                return ['.', '..', '', undefined].includes(lib.last(path)) ? undefined : one('.js') ?? one('')
+                return ['.', '..', '', undefined].includes(lib.last(path)) ? undefined : one('') ?? one('.js')
             }
             return lib.optionMap(tryFiles)(lib.splitLast(local)) ?? readFile(local)('index.js')
         }

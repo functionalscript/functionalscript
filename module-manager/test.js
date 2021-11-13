@@ -2,6 +2,24 @@ const i = require('.')
 
 const lib = require('../lib')
 
+{
+    const test0 = require('./test0')
+
+    if (test0 !== 'test0.js') { throw './test0' }
+}
+
+{
+    const test0js = require('./test0.js')
+
+    if (test0js !== 'test0.js') { throw './test0.js'}
+}
+
+{
+    const test0jsjs = require('./test0.js.js')
+
+    if (test0jsjs !== 'test0.js.js') { throw './test0.js.js'}
+}
+
 require('./node/test')
 
 /** @type {<T>(_: T | undefined) => T} */
@@ -82,7 +100,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
         expect(g(['.', 'index', '']))({ fileName: 'index.js', location: { pack, local: ['index']}, source: './index/index.js'})
         expect(g(['.', 'a']))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g(['.', 'a', 'index']))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
-        expect(g(['.', 'a', 'index.js']))({ fileName: 'index.js.js', location: { pack, local: ['a']}, source: './a/index.js.js'})
+        expect(g(['.', 'a', 'index.js']))({ fileName: 'index.js.js', location: { pack, local: ['a']}, source: './a/index.js'})
         lib.panic_if('getModule')(g(['.', 'x']) !== undefined)
         expect(g(['a']))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
         expect(g(['a', 'index']))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
@@ -104,7 +122,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
         lib.panic_if('getModule')(g(['.', 'a']) !== undefined)
         expect(g(['..', 'a']))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g(['..', 'a', 'index']))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
-        expect(g(['..', 'a', 'index.js']))({ fileName: 'index.js.js', location: { pack, local: ['a']}, source: './a/index.js.js'})
+        expect(g(['..', 'a', 'index.js']))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
+        expect(g(['..', 'a', 'index.js.js']))({ fileName: 'index.js.js', location: { pack, local: ['a']}, source: './a/index.js.js'})
         lib.panic_if('getModule')(g(['.', 'x']) !== undefined)
         expect(g(['a']))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
         expect(g(['a', 'index']))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
