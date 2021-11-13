@@ -10,4 +10,4 @@
 6. Run `npm install -D typescript`
 7. Run `npx tsc --init`. It should create `tsconfig.json` file.
 8. Uncomment `"allowJs": true,` and `"checkJs": true` in the `tsconfig.json` file.
-9. Create an 'index.js' file in the repo root.
+9. Create an `index.js` file in the repo root.
