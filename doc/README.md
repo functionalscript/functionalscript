@@ -28,3 +28,21 @@ Creating a new GitHub repository
    1. Run `npm install -D typescript`.
    2. Run `npx tsc --init`. It should create `tsconfig.json` file.
    3. Uncomment `"allowJs": true,` and `"checkJs": true` in the `tsconfig.json` file.
+
+## Language
+
+### Export
+
+#### Examples
+
+```js
+module.exports = 'Hello world!
+```
+
+```js
+module.exports = { a: 'hello', b: 42 }
+```
+
+```js
+module.exports = x => x * x
+```
