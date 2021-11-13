@@ -11,3 +11,7 @@
 7. Run `npx tsc --init`. It should create `tsconfig.json` file.
 8. Uncomment `"allowJs": true,` and `"checkJs": true` in the `tsconfig.json` file.
 9. Create an `index.js` file in the repo root.
+10. Edit the `index.js` file. For example
+  ```js
+  module.exports = "Hello world!"
+  ```
