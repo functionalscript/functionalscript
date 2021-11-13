@@ -65,5 +65,8 @@ const x = require(`PACKAGE/DIR/FILE.js`)
 
 ```js
 const f = x => x * x
-const result = f(42)
+const fResult = f(42)
+
+const plus = a => b => a + b
+const plusResult = plus(a)(b)
 ```
