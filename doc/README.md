@@ -29,11 +29,9 @@ Creating a new GitHub repository
    2. Run `npx tsc --init`. It should create `tsconfig.json` file.
    3. Uncomment `"allowJs": true,` and `"checkJs": true` in the `tsconfig.json` file.
 
-## Language
+## 2. Language
 
-### Exports
-
-#### Examples
+### 2.1. Exports
 
 ```js
 module.exports = 'Hello world!
@@ -47,15 +45,15 @@ module.exports = { a: 'hello', b: 42 }
 module.exports = x => x * x
 ```
 
-### Reference Another Module
+### 2.2. Reference Another Module
 
-#### Local File
+#### 2.2.1. Local File
 
 ```js
 const x = require('./folder/index.js')
 ```
 
-### External Module
+### 2.2.2. External Module
 
 Run `npm install -D github:REPO/PACKAGE`
 
