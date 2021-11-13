@@ -17,7 +17,7 @@
 ### 1.1. Optional
 
 1. Install [Visual Studio Code](https://code.visualstudio.com/).
-2. Add [TypeScript] to your repository for static type checking.
+2. Add [TypeScript](https://www.typescriptlang.org/) to your repository for static type checking.
    1. Run `npm install -D typescript`.
    2. Run `npx tsc --init`. It should create `tsconfig.json` file.
    3. Uncomment `"allowJs": true,` and `"checkJs": true` in the `tsconfig.json` file.
