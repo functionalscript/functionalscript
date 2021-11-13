@@ -58,5 +58,5 @@ const x = require('./folder/index.js')
 Run `npm install -D github:REPO/PACKAGE`
 
 ```js
-const x = require(`@REPO/PACKAGE`)
+const x = require(`@REPO/PACKAGE/DIR/FILE.js`)
 ```
