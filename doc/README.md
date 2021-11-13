@@ -7,7 +7,7 @@
 3. Clone the repository.
 4. Go to the root directory of the cloned repository. 
 5. Run `npm init`. It should create `package.json` file.
-9. Create an `index.js` file in the repository root.
+9. Create an `index.js` file in the repository root directory.
 10. Edit the `index.js` file. For example
     ```js
     module.exports = "Hello world!"
