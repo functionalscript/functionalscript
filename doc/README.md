@@ -10,7 +10,7 @@ Prerequisites:
 
 Creating a new GitHub repository
 
-1. Create a git repository on GitHub using Node template.
+1. Create a public git repository on GitHub using Node template.
 2. Clone the repository.
 3. Go to the root directory of the cloned repository. 
 4. Run `npm init`. It should create `package.json` file.
