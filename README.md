@@ -6,7 +6,7 @@ FunctionalScript is a pure functional programming language and a subset of [ECMA
 - [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript;
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-Try FunctionalScript [here](https://functionalscript.herokuapp.com/).
+Try FunctionalScript [here](https://functionalscript.com/).
 
 ## JSON
 
