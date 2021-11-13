@@ -54,4 +54,11 @@ module.exports = x => x * x
 ```js
 const x = require('./folder/index.js')
 ```
+
+### External Module
+
+Run `npm install -D github:REPO/PACKAGE`
+
+```js
+const x = require(`@REPO/PACKAGE`)
 ```
