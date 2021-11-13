@@ -1,6 +1,6 @@
 # Documentation
 
-## Creating a New Repository
+## 1. Creating a New Repository
 
 1. Install [Node.js](https://nodejs.org/en/)
 2. Create a git repo on GitHub using Node template.
@@ -14,7 +14,7 @@
     ```
 11. Go to [functionalscript.com](https://functionalscript.com) and enter `github:YOUR_GITHUB_NAME/YOUR_REPOSITORY_NAME`. Press `Build`.
 
-### Optional
+### 1.1. Optional
 
 1. Install [Visual Studio Code](https://code.visualstudio.com/).
 2. Add [TypeScript] to your repository for static type checking.
