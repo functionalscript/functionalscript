@@ -71,4 +71,5 @@ const plus = a => b => a + b
 const plusResult = plus(a)(b)
 
 const sum = ar => ar.reduce((a, i) => a + i, 0)
+const sumResult = sum([1, 2, 3])
 ```
