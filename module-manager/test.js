@@ -16,7 +16,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
 {
     /** @type {i.Package} */
     const a = { 
-        packages: () => undefined,
+        dependencies: () => undefined,
         file: path => {
             /** @type {{ [_ in string]?: string}} */
             const f = {
@@ -28,7 +28,7 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
     }
     /** @type {i.Package} */
     const c = { 
-        packages: () => undefined,
+        dependencies: () => undefined,
         file: path => {
             const pathStr = path.join('/')
             /** @type {{ [_ in string]?: string}} */
@@ -40,18 +40,18 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
         },
         id: ['c']
     }
-    /** @type {{ [_ in string]: i.Package|i.Packages}} */
+    /** @type {{ [_ in string]: i.Package|i.Dependencies}} */
     const packages = {
         a,
         b: s => {
-            /** @type {{ [_ in string]: i.Package|i.Packages}} */
+            /** @type {{ [_ in string]: i.Package|i.Dependencies}} */
             const p = { c }
             return p[s]
         }
     }
     /** @type {i.Package} */
     const pack = {
-        packages: s => packages[s],
+        dependencies: s => packages[s],
         file: path => {
             const pathStr = path.join('/')
             /** @type {{ [_ in string]?: string}} */

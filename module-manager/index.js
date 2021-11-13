@@ -6,7 +6,7 @@ const iter = require('../lib/iterable')
 /**
  * @typedef {{
  *  id: string[]
- *  packages: Packages
+ *  dependencies: Dependencies
  *  file: ReadFile
  * }} Package
  */
@@ -26,7 +26,7 @@ const iter = require('../lib/iterable')
  * }} Module
  */
 
-/** @typedef {(_: string) => undefined|Package|Packages} Packages */
+/** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
 /** @type {lib.Reduce<string, undefined|string[]>} */
 const pathNormReduce = {
@@ -68,11 +68,11 @@ const internal = pack => {
     }
 }
 
-/** @type {(_: Package|Packages|undefined) => (_: string[]) => Module|undefined} */
+/** @type {(_: Package|Dependencies|undefined) => (_: string[]) => Module|undefined} */
 const externalOrInternal = p => 
     p === undefined ? () => undefined : (typeof p === 'function' ? external(p) : internal(p))
 
-/** @type {(_: Packages) => (_: string[]) => Module|undefined} */
+/** @type {(_: Dependencies) => (_: string[]) => Module|undefined} */
 const external = packages => { 
     /** @type {(_: [string, string[]]) => Module|undefined} */
     const defined = ([first, tail]) => externalOrInternal(packages(first))(tail)
@@ -83,7 +83,7 @@ const external = packages => {
 
 /** @type {(_: Location) => (_: string[]) => Module|undefined} */
 const getModule = ({pack, local}) => path => 
-    isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.packages)(path)
+    isRelative(path) ? internal(pack)([...local, ...path]) : external(pack.dependencies)(path)
 
 /** @type {(_: Module) => string} */
 const moduleId = module => [...module.location.pack.id, ...module.location.local, module.fileName].join('/') 
