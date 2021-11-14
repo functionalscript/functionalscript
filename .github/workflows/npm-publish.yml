@@ -30,7 +30,6 @@ jobs:
           node-version: 14
           registry-url: https://registry.npmjs.org/
       - run: npm ci
-      - run: git log --oneline
       - run: node ./version
       - run: npm publish
         env:
