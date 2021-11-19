@@ -15,8 +15,8 @@ https://en.wikipedia.org/wiki/B-tree
 
 `Result<T>`:
 
-- { found: `true`, value: `T`,  } |
-  { found: `false` }
+- { done: `true`, value: `T`,  } |
+  { done: `false` }
 - { replace: `Node<T>` }
 - { overflow: `Branch3<T>` }
 
@@ -45,10 +45,10 @@ Note: 5 transitional states:
 Posible actions:
 
 - found. It can return:
-  - get: { found: `true` ... }
+  - get: { done: `true` ... }
   - replace: { replace: ... }
 - notFound:
-  - none: { found: `false` }
+  - none: { done: `false` }
   - insert: { replace: ... } | { overflow: ... }
 
 |               |found.get  |found.replace  |
