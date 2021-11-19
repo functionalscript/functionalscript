@@ -58,21 +58,21 @@ Posible actions:
 
 ## Branch3 Overflow
 
-- current `[n0 v0 n1]`
+- current `[n0 v1 n2]`
 - overflow `[L VM R]`
 
 |type  |index|{ replace: Branch5 }|
 |------|-----|--------------------|
-|left  |    0|`[(L VM R) v0 n1]`  |
-|right |    2|`[n0 v0 (L VM R)]`  |
+|left  |    0|`[(L VM R) v1 n2]`  |
+|right |    2|`[n0 v1 (L VM R)]`  |
 
 ## Branch5 Overflow 
 
-- current `[n0, v0, n1, v1, n2]`
+- current `[n0, v1, n2, v3, n4]`
 - overflow `[L, VM, R]`
 
 |type  |index|Operation           |Branch7                 |{ overflow: Branch3 }       |
 |------|-----|--------------------|------------------------|----------------------------|
-|left  |    0|`[...o v0 n1 v1 n2]`|`[(L VM R) v0 n1 v1 n2]`|`[[ L VM R ] v0 [n1 v1 v2]]`|
-|middle|    2|`[n0 v0 ...o v1 n2]`|`[n0 v0 (L VM R) v1 n2]`|`[[n0 v0 L ] VM [ R v1 n2]]`|
-|right |    4|`[n0 v0 n1 v1 ...o]`|`[n0 v0 n1 v1 (L VM R)]`|`[[n0 v0 n1] v1 [ L VM R ]]`|
+|left  |    0|`[...o v1 n2 v3 n4]`|`[(L VM R) v1 n2 v3 n4]`|`[[ L VM R ] v1 [n2 v3 n4]]`|
+|middle|    2|`[n0 v1 ...o v3 n4]`|`[n0 v1 (L VM R) v3 n4]`|`[[n0 v1 L ] VM [ R v3 n4]]`|
+|right |    4|`[n0 v1 n2 v3 ...o]`|`[n0 v1 n2 v3 (L VM R)]`|`[[n0 v1 n2] v3 [ L VM R ]]`|
