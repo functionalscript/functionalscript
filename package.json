@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "tsc": "tsc",
-    "test": "tsc && node --trace-uncaught ./test"
+    "test": "tsc && npm run test-only",
+    "test-only": "node --trace-uncaught ./test"
   },
   "repository": {
     "type": "git",

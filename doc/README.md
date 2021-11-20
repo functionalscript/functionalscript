@@ -38,7 +38,7 @@ Creating a new GitHub repository
 ### 2.1. Exports
 
 ```js
-module.exports = 'Hello world!
+module.exports = 'Hello world!'
 ```
 
 ```js
@@ -59,10 +59,10 @@ const x = require('./folder/index.js')
 
 ### 2.2.2. External Module
 
-Run `npm install -D github:REPO/PACKAGE`
+Run `npm install -D github:USER/REPO`
 
 ```js
-const x = require(`PACKAGE/DIR/FILE.js`)
+const x = require(`REPO/DIR/FILE.js`)
 ```
 
 ### 2.3. Functions
@@ -76,4 +76,17 @@ const plusResult = plus(a)(b)
 
 const sum = ar => ar.reduce((a, i) => a + i, 0)
 const sumResult = sum([1, 2, 3])
+```
+
+## 3. Advanced
+
+### 3.1. Generators
+
+```js
+const range5 = {*[System.iterator]() {
+    yield 0
+    yield 1
+    yield 2
+    yield 3
+}}
 ```
