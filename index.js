@@ -1,8 +1,4 @@
-"use strict";
-
 const lib = require('./lib')
-
-const todo = () => lib.panic('not implemented')
 
 /** @type {<F>(c: string, found: (before: string, after: string) => F, notFound: (c: string, source: string) => F) => (source: string) => F} */
 const splitOne = (c, found, notFound) => source => {

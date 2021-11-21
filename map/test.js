@@ -42,13 +42,12 @@ const lib = require('../lib')
 
 {
     const m = empty.set('x')(12).set('y')(44)
-    lib.panic_if('map.get(\'x\')')(m.get('x') !== 12)
-    lib.panic_if('map.get(\'y\')')(m.get('y') !== 44)
-    lib.panic_if('map.get(\'a\')')(m.get('a') !== undefined)
+    if (m.get('x') !== 12) { throw 'error' }
+    if (m.get('y') !== 44) { throw 'error' }
+    if (m.get('a') !== undefined) { throw 'error' }
     const entries = Array.from(m.entries())
-    lib.panic_if('map.entries()')(entries.length !== 2)
+    if (entries.length !== 2) { throw 'error' }
 }
-
 
 {
     /** @type {import('.').Map<number>} */

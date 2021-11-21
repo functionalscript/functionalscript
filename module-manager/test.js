@@ -5,13 +5,16 @@ const lib = require('../lib')
 require('./node/test')
 
 /** @type {<T>(_: T | undefined) => T} */
-const cast = x => x === undefined ? lib.panic('x') : x
+const cast = x => {
+    if (x === undefined) { throw 'x' } 
+    return x
+}
 
-lib.panic_if('isRelative')(i.isRelative('a/b/c'.split('/')))
-lib.panic_if('!isRelative')(!i.isRelative('./a/b/c'.split('/')))
-lib.panic_if('pathNorm')(cast(i.pathNorm('a/../b'.split('/'))).join('/') !== 'b')
-lib.panic_if('pathNorm')(cast(i.pathNorm('a/../b/../c'.split('/'))).join('/') !== 'c')
-lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('/') !== 'b/d')
+if (i.isRelative('a/b/c'.split('/'))) { throw 'error '}
+if (!i.isRelative('./a/b/c'.split('/'))) { throw 'error ' }
+if (cast(i.pathNorm('a/../b'.split('/'))).join('/') !== 'b') { throw 'error ' }
+if (cast(i.pathNorm('a/../b/../c'.split('/'))).join('/') !== 'c') { throw 'error ' }
+if (cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('/') !== 'b/d') { throw 'error ' }
 
 {
     /** @type {i.Package} */
@@ -35,7 +38,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'index.js': 'b/c ./index.js',
                 'x/index.js': 'b/c ./x/index.js',
             }
-            return ['.js', '', 'undefined.js'].includes(path) ? lib.panic('.js') : f[path]
+            if (['.js', '', 'undefined.js'].includes(path)) { throw '.js' }
+            return f[path]
         },
         id: ['c']
     }
@@ -59,7 +63,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
                 'a/index.js': './a/index.js',
                 'a/index.js.js': './a/index.js.js',
             }
-            return ['.js', '', 'undefined.js'].includes(path) ? lib.panic('.js') : f[path] 
+            if (['.js', '', 'undefined.js'].includes(path)) { throw '.js' }
+            return  f[path] 
         },
         id: ['']
     }
@@ -72,8 +77,8 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
     }
     {        
         const g = i.getModule({pack, local: []})
-        lib.panic_if('getModule')(g('') !== undefined)
-        lib.panic_if('getModule')(g('..') !== undefined)
+        if (g('') !== undefined) { throw 'error' }
+        if (g('..') !== undefined) { throw 'error' }
         expect(g('.'))({ fileName: 'index.js', location: { pack, local: []}, source: './index.js'})
         expect(g('./index'))({ fileName: 'index.js', location: { pack, local: []}, source: './index.js'})
         expect(g('./index.js'))({ fileName: 'index.js', location: { pack, local: []}, source: './index.js'})
@@ -81,10 +86,10 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
         expect(g('./a'))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g('./a/index'))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g('./a/index.js'))({ fileName: 'index.js.js', location: { pack, local: ['a']}, source: './a/index.js'})
-        lib.panic_if('getModule')(g('./x') !== undefined)
+        if (g('./x') !== undefined) { throw 'error' }
         expect(g('a'))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
         expect(g('a/index'))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
-        lib.panic_if('getModule')(g('b') !== undefined)
+        if (g('b') !== undefined) { throw 'error' }
         expect(g('b/c'))({ fileName: 'index.js', location: { pack: c, local: []}, source: 'b/c ./index.js'})
         expect(g('b/c/index'))({ fileName: 'index.js', location: { pack: c, local: []}, source: 'b/c ./index.js'})
         expect(g('b/c/index.js'))({ fileName: 'index.js', location: { pack: c, local: []}, source: 'b/c ./index.js'})
@@ -93,21 +98,21 @@ lib.panic_if('pathNorm')(cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('
     }
     {
         const g = i.getModule({pack, local: ['index']})
-        lib.panic_if('getModule')(g('') !== undefined)
+        if (g('') !== undefined) { throw 'error' }
         expect(g('..'))({ fileName: 'index.js', location: { pack, local: []}, source: './index.js'})
         expect(g('.'))({ fileName: 'index.js', location: { pack, local: ['index']}, source: './index/index.js'})
         expect(g('./index'))({ fileName: 'index.js', location: { pack, local: ['index']}, source: './index/index.js'})
         expect(g('./index.js'))({ fileName: 'index.js', location: { pack, local: ['index']}, source: './index/index.js'})
-        lib.panic_if('getModule')(g('./index/') !== undefined)
-        lib.panic_if('getModule')(g('./a') !== undefined)
+        if (g('./index/') !== undefined) { throw 'error' }
+        if (g('./a') !== undefined) { throw 'error' }
         expect(g('../a'))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g('../a/index'))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g('../a/index.js'))({ fileName: 'index.js', location: { pack, local: ['a']}, source: './a/index.js'})
         expect(g('../a/index.js.js'))({ fileName: 'index.js.js', location: { pack, local: ['a']}, source: './a/index.js.js'})
-        lib.panic_if('getModule')(g('./x') !== undefined)
+        if (g('./x') !== undefined) { throw 'error' }
         expect(g('a'))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
         expect(g('a/index'))({ fileName: 'index.js', location: { pack: a, local: []}, source: 'a ./index.js'})
-        lib.panic_if('getModule')(g('b') !== undefined)
+        if (g('b') !== undefined) { throw 'error' }
         expect(g('b/c'))({ fileName: 'index.js', location: { pack: c, local: []}, source: 'b/c ./index.js'})
         expect(g('b/c/index'))({ fileName: 'index.js', location: { pack: c, local: []}, source: 'b/c ./index.js'})
         expect(g('b/c/index.js'))({ fileName: 'index.js', location: { pack: c, local: []}, source: 'b/c ./index.js'})

@@ -3,30 +3,30 @@ const lib = require('../lib')
 
 {
     const r = i.sum([120, 300, 42])
-    lib.panic_if('reduce')(r !== 462)
+    if (r !== 462) { throw 'error' }
 }
 
 {
-    lib.panic_if('first sum')(i.sum([1, 2]) !== 3)
-    lib.panic_if('second sum')(i.sum([1, 2]) !== 3)
+    if (i.sum([1, 2]) !== 3) { throw 'error' }
+    if (i.sum([1, 2]) !== 3) { throw 'error' }
 }
 
 {
     const x = Array.from(i.map(a => a ** 2)([1, 2, 3]))
-    lib.panic_if('map')(x.length !== 3)
-    lib.panic_if('map[0]')(x[0] !== 1)
-    lib.panic_if('map[1]')(x[1] !== 4)
-    lib.panic_if('map[2]')(x[2] !== 9)
+    if (x.length !== 3) { throw 'error' }
+    if (x[0] !== 1) { throw 'error' }
+    if (x[1] !== 4) { throw 'error' }
+    if (x[2] !== 9) { throw 'error' }
 }
 
 {
-    lib.panic_if('join')(i.join('/')([]) !== '')
-    lib.panic_if('join')(i.join('/')(['a']) !== 'a')
-    lib.panic_if('join')(i.join('/')(['a', 'b']) !== 'a/b')
+    if (i.join('/')([]) !== '') { throw 'error' }
+    if (i.join('/')(['a']) !== 'a') { throw 'error' }
+    if (i.join('/')(['a', 'b']) !== 'a/b') { throw 'error'}
 }
 
 {
-    lib.panic_if('find')(i.find(x => x === 'c')(['a', 'b', 'c']) !== 'c') 
+    if (i.find(x => x === 'c')(['a', 'b', 'c']) !== 'c') { throw 'error' }
 }
 
 {
@@ -37,5 +37,5 @@ const lib = require('../lib')
         (i.map(x => file(x())))
         (i.find(x => x !== undefined))
         ([() => p, () => `${p}.js`, () => `${p}/index.js`])
-    lib.panic_if('map.find')(x('index.js') !== 'x')
+    if (x('index.js') !== 'x') { throw 'error' }
 }

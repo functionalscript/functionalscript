@@ -6,10 +6,10 @@ require('./module-manager/test')
 require('./lib/test')
 
 /** @type {() => never} */
-const assert = () => lib.panic('assert')
+const assert = () => { throw 'assert' }
 
 /** @type {(_: boolean) => void} */
-const assert_if = c => lib.panic_if('assert_if')(c)
+const assert_if = c => { if (c) { throw 'assert_if' } }
 
 {
     i.parseModuleUrl('')(
