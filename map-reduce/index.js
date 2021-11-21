@@ -1,33 +1,39 @@
 const { pipe, id } = require('../func')
 
 /**
+ * @template S
+ * @template I
+ * @typedef {(state: S) => (value: I) => S} Merge
+ */
+
+/**
  * @template I
  * @template S
  * @template O
  * @typedef {{
- *  readonly reduce: (state: S) => (value: I) => S
+ *  readonly merge: Merge<S, I>
  *  readonly result: (state: S) => O
  *  readonly init: S
  * }} Operation
  */
 
 /** @type {<I, T>(mapFn: (value: I) => T) => <S, O>(op: Operation<T, S, O>) => Operation<I, S, O>} */
-const map = mapFn => ({ reduce, result, init}) => ({
-    reduce: pipe(reduce)(pipe(mapFn)),
+const map = mapFn => ({ merge, result, init}) => ({
+    merge: pipe(merge)(pipe(mapFn)),
     result,
     init,
 })
 
 /** @type {(separator: string) => Operation<string, string|undefined, string>} */
 const join = separator => ({ 
-    reduce: s => i => s === undefined ? i : `${s}${separator}${i}`, 
+    merge: s => i => s === undefined ? i : `${s}${separator}${i}`, 
     init: undefined,
     result: s => s === undefined ? '' : s
 })
 
 /** @type {Operation<number, number, number>} */
 const sum = { 
-    reduce: a => i => a + i, 
+    merge: a => i => a + i, 
     result: id,
     init: 0,
 }

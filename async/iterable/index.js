@@ -1,6 +1,13 @@
-const { pipe } = require('../func')
+const { todo } = require('../../dev')
+const { pipe } = require('../../func')
+const mapReduce = require('../../map-reduce')
 
-/** @type {<T, R>(f: (value: T) => Promise<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} */
+/** 
+ * @template T
+ * @typedef {Promise<T>|T} PromiseOrValue
+ */
+
+/** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} */
 const map = f => c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -30,24 +37,24 @@ const filter = f => c => ({
 })
 
 /** @type {<T, R>(f: (value: T) => AsyncIterable<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} */
-const flatMap = f => pipe(map(async x => f(x)))(flatten)
+const flatMap = f => pipe(map(f))(flatten)
 
 /** 
  * @template A
  * @template T
- * @typedef {(accumulator: A) => (value: T) => Promise<A>} ReduceFn
+ * @typedef {(accumulator: A) => (value: T) => PromiseOrValue<A>} Merge
  */
 
-/** @type {<A, T>(f: ReduceFn<A, T>) => (init: A) => (c: AsyncIterable<T>) => Promise<A>} */
-const reduce = reduceFn => init => async c => {
+/** @type {<A, T>(f: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => Promise<A>} */
+const reduce = merge => init => async c => {
     let result = init
     for await (const i of c) {
-        result = await reduceFn(result)(i)
+        result = await merge(result)(i)
     }
     return result
 }
 
-/** @type {<A, T>(f: ReduceFn<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
+/** @type {<A, T>(f: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
 const exclusiveScan = reduceFn => init => c => ({
     async *[Symbol.asyncIterator]() {
         let result = init
@@ -58,7 +65,7 @@ const exclusiveScan = reduceFn => init => c => ({
     }
 })
 
-/** @type {<A, T>(f: ReduceFn<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
+/** @type {<A, T>(f: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
 const inclusiveScan = reduceFn => init => {
     const e = exclusiveScan(reduceFn)(init)
     return c => ({
@@ -78,10 +85,14 @@ const cast = iterable => ({
     }
 })
 
-/** @type {(c: AsyncIterable<number>) => Promise<number>} */
-const sum = reduce(a => async v => a + v)(0)
+/** @type {<I, S, R>(op: mapReduce.Operation<I, S, R>) => (_: AsyncIterable<I>) => Promise<R>} */
+const apply = ({ merge, init, result }) => async c => result(await reduce(merge)(init)(c))
+
+const sum = apply(mapReduce.sum)
 
 module.exports = {
+    /** @readonly */
+    apply,
     /** @readonly */
     cast,
     /** @readonly */

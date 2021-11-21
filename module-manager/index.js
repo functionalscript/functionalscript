@@ -41,7 +41,7 @@ const mr = require('../map-reduce')
 
 /** @type {mr.Operation<string, undefined|Path, undefined|Path>} */
 const pathNormReduce = {
-    reduce: path => item =>
+    merge: path => item =>
         path === undefined ?
             undefined :
         ['', '.'].includes(item) ?

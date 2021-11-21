@@ -11,7 +11,7 @@ const reduce = merge => init => c => {
 }
 
 /** @type {<I, S, R>(op: mr.Operation<I, S, R>) => (_: Iterable<I>) => R} */
-const apply = op => pipe(reduce(op.reduce)(op.init))(op.result)
+const apply = ({ merge, init, result }) => pipe(reduce(merge)(init))(result)
 
 module.exports = {
     /** @readonly */

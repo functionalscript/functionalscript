@@ -1,6 +1,6 @@
 const i = require('./')
 
-require('./async/test')
+require('./async/iterable/test')
 require('./module-manager/test')
 
 /** @type {() => never} */
