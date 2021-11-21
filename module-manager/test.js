@@ -2,12 +2,6 @@ const i = require('.')
 
 const lib = require('../lib')
 
-{
-    if (require('./test0') !== 'test0.js') { throw './test0' }
-    if (require('./test0.js') !== 'test0.js') { throw './test0.js'}
-    if (require('./test0.js.js') !== 'test0.js.js') { throw './test0.js.js'}
-}
-
 require('./node/test')
 
 /** @type {<T>(_: T | undefined) => T} */

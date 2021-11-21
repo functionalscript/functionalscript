@@ -1,7 +1,9 @@
-const lib = require('../')
+const { pipe } = require('../lib')
+const lib = require('../lib')
+const mr = require('../map-reduce')
 
-/** @type {<T, R>(_: lib.Reduce<T, R>) => (_: Iterable<T>) => R} */
-const reduce = ({ merge, init }) => c => {
+/** @type {<T, R>(merge: (_: R) => (_: T) => R) => (init: R) => (_: Iterable<T>) => R} */
+const reduce = merge => init => c => {
     let result = init
     for (const i of c) {
         result = merge(result)(i)
@@ -9,15 +11,21 @@ const reduce = ({ merge, init }) => c => {
     return result
 }
 
+/** @type {<I, S, R>(op: mr.Operation<I, S, R>) => (_: Iterable<I>) => R} */
+const apply = op => pipe(reduce(op.reduce)(op.init))(op.result)
+
 module.exports = {
+    /** @readonly */
+    apply,
+
     /** @readonly */
     reduce,
 
     /** @readonly */
-    join: lib.pipe(lib.join)(reduce),
+    join: pipe(mr.join)(apply),
 
     /** @readonly */
-    sum: reduce(lib.sum),
+    sum: apply(mr.sum),
 
     /** 
      * @readonly
@@ -27,18 +35,6 @@ module.exports = {
         *[Symbol.iterator]() {
             for (const i of c) {
                 yield f(i)
-            }
-        }
-    }),
-
-    /**
-     * @readonly
-     * @type {<T, R>(f: (value: T) => Promise<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>}
-     */
-    asyncMap: f => c => ({
-        async *[Symbol.asyncIterator]() {
-            for await (const i of c) {
-                yield* [f(i)]
             }
         }
     }),

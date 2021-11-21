@@ -1,5 +1,5 @@
 const { empty } = require('.')
-const lib = require('..')
+const lib = require('../lib')
 
 {
     let m = empty.set('a')(1)
@@ -53,7 +53,7 @@ const lib = require('..')
 {
     /** @type {import('.').Map<number>} */
     let m = empty
-    for (let i = 0; i < 1_000_000; ++i) {
+    for (let i = 0; i < 100_000; ++i) {
         m = m.set((i*i).toString())(i)
         /*
         console.log()

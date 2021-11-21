@@ -1,5 +1,6 @@
 const lib = require('../lib')
-const iter = require('../lib/iterable')
+const iter = require('../iterable')
+const mr = require('../map-reduce')
 
 /** @typedef {(_: string) => string|undefined} ReadFile */
 
@@ -28,9 +29,9 @@ const iter = require('../lib/iterable')
 
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
-/** @type {lib.Reduce<string, undefined|string[]>} */
+/** @type {mr.Operation<string, undefined|string[], undefined|string[]>} */
 const pathNormReduce = {
-    merge: path => item =>
+    reduce: path => item =>
         path === undefined ?
             undefined :
         ['', '.'].includes(item) ?
@@ -38,13 +39,14 @@ const pathNormReduce = {
         item === '..' ?
             lib.head(path) :
             [...path, item],
-    init: []
+    init: [],
+    result: s => s,
 }
 
 /** @type {(_: string[]) => boolean} */
 const isRelative = localId => ['.', '..'].includes(localId[0])
 
-const pathNorm = iter.reduce(pathNormReduce)
+const pathNorm = iter.apply(pathNormReduce)
 
 /** @type {(_: Package) => (_: string[]) => Module|undefined} */
 const internal = pack => {
@@ -91,8 +93,12 @@ const getModule = ({pack, local}) => path => {
 const moduleId = module => [...module.location.pack.id, ...module.location.local, module.fileName].join('/') 
 
 module.exports = {
+    /** @readonly */
     isRelative,
+    /** @readonly */
     pathNorm,
+    /** @readonly */
     getModule,
+    /** @readonly */
     moduleId,
 }

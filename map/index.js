@@ -1,21 +1,21 @@
-const { optionMap } = require("..")
-const { getVisitor, setVisitor, values } = require("../tree")
+const { optionMap } = require("../lib")
+const { getVisitor, setVisitor, values } = require("../btree")
 
-/** @typedef {import("../tree/cmp").Sign} Sign */
+/** @typedef {import("../cmp").Sign} Sign */
 
 /**
  * @template T 
- * @typedef {import("../tree").Leaf1<T>} Leaf1 
+ * @typedef {import("../btree").Leaf1<T>} Leaf1 
  */
 
 /**
  * @template T
- * @typedef {import("../tree").TNode<T>} TNode
+ * @typedef {import("../btree").TNode<T>} TNode
  */
 
 /**
  * @template T
- * @typedef {import("../tree/cmp").Cmp<T>} Cmp
+ * @typedef {import("../cmp").Cmp<T>} Cmp
  */
 
 /**

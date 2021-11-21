@@ -1,35 +1,35 @@
-const { index3, index5 } = require('./cmp')
+const { index3, index5 } = require('../cmp')
 
 /**
  * @template T
- * @typedef {import('./lazy').Lazy<T>} Lazy
+ * @typedef {() => T} Lazy
  */
 
 /**
  * @template T
- * @typedef {import('./cmp').Cmp<T>} Cmp
+ * @typedef {import('../cmp').Cmp<T>} Cmp
  */
 
 /**
  * @template T
- * @typedef {import('./array').Array1<T>} Array1
+ * @typedef {import('../array').Array1<T>} Array1
  */
 
 /**
  * @template T
- * @typedef {import('./array').Array2<T>} Array2
+ * @typedef {import('../array').Array2<T>} Array2
  */
 
 /**
  * @template T
- * @typedef {import('./array').Array3<T>} Array3
+ * @typedef {import('../array').Array3<T>} Array3
  */
 
-/** @typedef {import('./array').Index2} Index2 */
+/** @typedef {import('../array').Index2} Index2 */
 
-/** @typedef {import('./array').Index3} Index3 */
+/** @typedef {import('../array').Index3} Index3 */
 
-/** @typedef {import('./array').Index5} Index5 */
+/** @typedef {import('../array').Index5} Index5 */
 
 //
 

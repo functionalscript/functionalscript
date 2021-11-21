@@ -1,5 +1,5 @@
 const i = require('.')
-const lib = require('..')
+const lib = require('../lib')
 
 {
     const r = i.sum([120, 300, 42])
