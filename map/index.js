@@ -1,4 +1,4 @@
-const { optionMap } = require("../lib")
+const option = require("../option")
 const { getVisitor, setVisitor, values } = require("../btree")
 
 /** @typedef {import("../cmp").Sign} Sign */
@@ -38,7 +38,7 @@ const cmp = a => ([b]) => a < b ? -1 : a === b ? 0 : 1
 
 /** @type {<T>(node: TNode<Entry<T>>) => Map<T>} */
 const create = root => ({
-    get: name => optionMap(([,value]) => value)(getVisitor(cmp(name))(root)),
+    get: name => option.map(([,value]) => value)(getVisitor(cmp(name))(root)),
     set: name => value => {
         const result = setVisitor(cmp(name))(() => [name, value])(root)
         if ('replace' in result) { return create(result.replace) }
@@ -53,7 +53,7 @@ const create = root => ({
  * @type {{
  *  readonly get: (name: string) => undefined
  *  readonly set: (name: string) => <T>(value: T) => Map<T>
- *  readonly entries: () => []
+ *  readonly entries: () => readonly []
  *  readonly root: undefined
  * }} 
  */

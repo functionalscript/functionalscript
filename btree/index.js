@@ -55,27 +55,37 @@ const { index3, index5 } = require('../cmp')
 
 /**
  * @template T
- * @typedef {Leaf1<T>|Leaf2<T>|Branch3<T>|Branch5<T>} TNode
+ * @typedef { Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} TNode
+ */
+
+/** @typedef {{ readonly done: false }} NotFoundDone */
+
+/** 
+ * @template T
+ * @typedef {{ 
+ *  readonly done: true 
+ *  readonly value: T 
+ * }} FoundDone 
  */
 
 /**
  * @template T
- * @typedef {{ done: false } | { done: true, value: T }} Done
+ * @typedef { NotFoundDone | FoundDone<T> } Done
  */
 
 /**
  * @template T
- * @typedef {{ replace: TNode<T> }} Replace
+ * @typedef {{ readonly replace: TNode<T> }} Replace
  */
 
 /**
  * @template T
- * @typedef {{ overflow: Branch3<T> }} Overflow
+ * @typedef {{ readonly overflow: Branch3<T> }} Overflow
  */
 
 /**
  * @template T
- * @typedef {Done<T> | Replace<T> | Overflow<T>} Result
+ * @typedef { Done<T> | Replace<T> | Overflow<T> } Result
  */
 
 /** @typedef {<T>(_: Lazy<T>) => (_: Leaf1<T>) => Result<T>} InLeaf1 */
@@ -85,35 +95,35 @@ const { index3, index5 } = require('../cmp')
 
 /** 
  * @typedef {{
- *  leaf1: InLeaf1
- *  leaf2_left: InLeaf2
- *  leaf2_right: InLeaf2
- *  branch3: InBranch3
- *  branch5_left: InBranch5
- *  branch5_right: InBranch5
+ *  readonly leaf1: InLeaf1
+ *  readonly leaf2_left: InLeaf2
+ *  readonly leaf2_right: InLeaf2
+ *  readonly branch3: InBranch3
+ *  readonly branch5_left: InBranch5
+ *  readonly branch5_right: InBranch5
  * }} Found
  */
 
 /**
  * @typedef {{
- *  leaf1_left: InLeaf1
- *  leaf1_right: InLeaf1
- *  leaf2_left: InLeaf2
- *  leaf2_middle: InLeaf2
- *  leaf2_right: InLeaf2
+ *  readonly leaf1_left: InLeaf1
+ *  readonly leaf1_right: InLeaf1
+ *  readonly leaf2_left: InLeaf2
+ *  readonly leaf2_middle: InLeaf2
+ *  readonly leaf2_right: InLeaf2
  * }} NotFound
  */
 
 /** 
  * @typedef {{
- *  found: Found
- *  notFound: NotFound
+ *  readonly found: Found
+ *  readonly notFound: NotFound
  * }} Visitor
  */
 
 /**
  * @template T
- * @typedef {readonly [TNode<T>, T, TNode<T>, T, TNode<T>, T, TNode<T>]} Branch7
+ * @typedef { readonly [TNode<T>, T, TNode<T>, T, TNode<T>, T, TNode<T>] } Branch7
  */
 
 /** @type {<T>(n: Branch7<T>) => Branch3<T>} */
@@ -221,7 +231,7 @@ const visit = ({ found, notFound }) => cmp => {
     }
 }
 
-/** @type {<T>(_: T) => Done<T>} */
+/** @type { <T>(_: T) => Done<T> } */
 const found = value => ({ done: true, value })
 
 /** @type {Found} */
@@ -233,7 +243,7 @@ const foundGet = {
     branch5_left: () => ([, value]) => found(value),
     branch5_right: () => ([, , , value]) => found(value),
 }
-/** @type {() => () => { done: false }} */
+/** @type { () => () => NotFoundDone } */
 const notFound = () => () => ({ done: false })
 
 /** @type {NotFound} */
@@ -245,7 +255,7 @@ const notFoundGet = {
     leaf2_right: notFound,
 }
 
-/** @type {<T>(_: TNode<T>) => Replace<T>} */
+/** @type { <T>(_: TNode<T>) => Replace<T> } */
 const replace = node => ({ replace: node })
 
 /** @type {Found} */
@@ -288,6 +298,7 @@ const getOrInsertVisitor = {
     notFound: notFoundInsert,
 }
 
+/** @type {Visitor} */
 const replaceVisitor = {
     found: foundReplace,
     notFound: notFoundGet,
@@ -324,7 +335,7 @@ module.exports = {
     values,
     /** 
      * @readonly
-     * @type {<T>(cmp: Cmp<T>) => (node: TNode<T>) => T|undefined}
+     * @type { <T>(cmp: Cmp<T>) => (node: TNode<T>) => T|undefined }
      */
     getVisitor: cmp => node => {
         const result = visit(getVisitor)(cmp)(() => { throw '' })(node)
