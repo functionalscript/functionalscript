@@ -90,6 +90,8 @@ const apply = ({ merge, init, result }) => async c => result(await reduce(merge)
 
 const sum = apply(mapReduce.sum)
 
+const join = pipe(mapReduce.join)(apply)
+
 module.exports = {
     /** @readonly */
     apply,
@@ -105,6 +107,8 @@ module.exports = {
     reduce,
     /** @readonly */
     sum,
+    /** @readonly */
+    join,
     /** @readonly */
     exclusiveScan,
     /** @readonly */

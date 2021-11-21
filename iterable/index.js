@@ -13,6 +13,19 @@ const reduce = merge => init => c => {
 /** @type {<I, S, R>(op: mr.Operation<I, S, R>) => (_: Iterable<I>) => R} */
 const apply = ({ merge, init, result }) => pipe(reduce(merge)(init))(result)
 
+const sum = apply(mr.sum)
+
+const join = pipe(mr.join)(apply)
+
+/** @type {<T, R>(f: (value: T) => R) => (c: Iterable<T>) => Iterable<R>} */
+const map = f => c => ({
+    *[Symbol.iterator]() {
+        for (const i of c) {
+            yield f(i)
+        }
+    }
+})
+
 module.exports = {
     /** @readonly */
     apply,
@@ -21,22 +34,13 @@ module.exports = {
     reduce,
 
     /** @readonly */
-    join: pipe(mr.join)(apply),
+    join,
 
     /** @readonly */
-    sum: apply(mr.sum),
+    sum,
 
-    /** 
-     * @readonly
-     * @type {<T, R>(f: (value: T) => R) => (c: Iterable<T>) => Iterable<R>} 
-     */
-    map: f => c => ({
-        *[Symbol.iterator]() {
-            for (const i of c) {
-                yield f(i)
-            }
-        }
-    }),
+    /** @readonly */
+    map,
 
     /** 
      * @readonly
