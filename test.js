@@ -1,9 +1,7 @@
-const lib = require('./lib')
 const i = require('./')
 
 require('./async/test')
 require('./module-manager/test')
-require('./lib/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

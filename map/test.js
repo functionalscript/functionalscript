@@ -1,5 +1,4 @@
 const { empty } = require('.')
-const lib = require('../lib')
 
 {
     let m = empty.set('a')(1)

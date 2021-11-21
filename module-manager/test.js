@@ -1,7 +1,5 @@
 const i = require('.')
 
-const lib = require('../lib')
-
 require('./node/test')
 
 /** @type {<T>(_: T | undefined) => T} */

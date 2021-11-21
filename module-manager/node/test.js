@@ -1,4 +1,3 @@
-const lib = require('../../lib')
 const mm = require('..')
 const i = require('.')
 

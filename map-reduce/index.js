@@ -1,4 +1,4 @@
-const { pipe } = require('../lib')
+const { pipe, id } = require('../func')
 
 /**
  * @template I
@@ -28,7 +28,7 @@ const join = separator => ({
 /** @type {Operation<number, number, number>} */
 const sum = { 
     reduce: a => i => a + i, 
-    result: a => a,
+    result: id,
     init: 0,
 }
 
