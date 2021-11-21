@@ -1,10 +1,15 @@
-const { todo } = require('../../dev')
 const { pipe } = require('../../func')
 const mapReduce = require('../../map-reduce')
 
 /** 
  * @template T
  * @typedef {Promise<T>|T} PromiseOrValue
+ */
+
+/** 
+ * @template T
+ * @template R
+ * @typedef {(f: (value: T) => PromiseOrValue<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} Map
  */
 
 /** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} */
@@ -45,7 +50,7 @@ const flatMap = f => pipe(map(f))(flatten)
  * @typedef {(accumulator: A) => (value: T) => PromiseOrValue<A>} Merge
  */
 
-/** @type {<A, T>(f: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => Promise<A>} */
+/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => Promise<A>} */
 const reduce = merge => init => async c => {
     let result = init
     for await (const i of c) {
@@ -54,20 +59,20 @@ const reduce = merge => init => async c => {
     return result
 }
 
-/** @type {<A, T>(f: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
-const exclusiveScan = reduceFn => init => c => ({
+/** @type {<A, T>(merg: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
+const exclusiveScan = merge => init => c => ({
     async *[Symbol.asyncIterator]() {
         let result = init
         for await (const i of c) {
-            result = await reduceFn(result)(i)
+            result = await merge(result)(i)
             yield result
         }
     }
 })
 
-/** @type {<A, T>(f: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
-const inclusiveScan = reduceFn => init => {
-    const e = exclusiveScan(reduceFn)(init)
+/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
+const inclusiveScan = merge => init => {
+    const e = exclusiveScan(merge)(init)
     return c => ({
         async *[Symbol.asyncIterator]() {
             yield init
