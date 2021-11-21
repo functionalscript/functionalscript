@@ -1,5 +1,4 @@
-const { pipe } = require('../lib')
-const lib = require('../lib')
+const { pipe } = require('../func')
 const mr = require('../map-reduce')
 
 /** @type {<T, R>(merge: (_: R) => (_: T) => R) => (init: R) => (_: Iterable<T>) => R} */

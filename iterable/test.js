@@ -1,5 +1,5 @@
 const i = require('.')
-const lib = require('../lib')
+const { pipe } = require('../func')
 
 {
     const r = i.sum([120, 300, 42])
@@ -33,7 +33,7 @@ const lib = require('../lib')
     /** @type {(_: string) => string|undefined} */
     const file = _ => 'x'
     /** @type {(_: string) => string|undefined} */
-    const x = p => lib.pipe
+    const x = p => pipe
         (i.map(x => file(x())))
         (i.find(x => x !== undefined))
         ([() => p, () => `${p}.js`, () => `${p}/index.js`])

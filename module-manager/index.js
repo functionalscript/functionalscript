@@ -1,5 +1,5 @@
 const array = require('../array')
-const lib = require('../lib')
+const { pipe } = require('../func')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../iterable')
@@ -90,7 +90,9 @@ const external = packages => {
     const defined = ([first, tail]) => externalOrInternal(packages(first))(tail)
     /** @type {(_: Path) => readonly [string, Path]|undefined} */
     const sf = splitFirst
-    return lib.pipe(sf)(option.map(defined))
+    return pipe
+        (sf)
+        (option.map(defined))
 }
 
 /** @type {(_: Location) => (_: string) => Module|undefined} */

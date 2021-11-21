@@ -1,4 +1,4 @@
-const { pipe } = require('../lib')
+const { pipe } = require('../func')
 
 /** @type {<T, R>(f: (value: T) => Promise<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} */
 const map = f => c => ({
