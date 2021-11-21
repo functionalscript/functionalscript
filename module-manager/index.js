@@ -10,7 +10,7 @@ const mr = require('../map-reduce')
  * @typedef {array.Array<T>} Array
  */
 
-/** @typedef {array.Array<string>} Path */
+/** @typedef {Array<string>} Path */
 
 /** @typedef {(_: string) => string|undefined} ReadFile */
 
