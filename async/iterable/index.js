@@ -1,5 +1,5 @@
 const { pipe } = require('../../func')
-const mapReduce = require('../../map-reduce')
+const mr = require('../../map-reduce')
 
 /** 
  * @template T
@@ -71,15 +71,12 @@ const exclusiveScan = merge => init => c => ({
 })
 
 /** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AsyncIterable<T>) => AsyncIterable<A>} */
-const inclusiveScan = merge => init => {
-    const e = exclusiveScan(merge)(init)
-    return c => ({
-        async *[Symbol.asyncIterator]() {
-            yield init
-            yield *e(c)
-        }
-    })
-}
+const inclusiveScan = merge => init => c => ({
+    async *[Symbol.asyncIterator]() {
+        yield init
+        yield* exclusiveScan(merge)(init)(c)
+    }
+})
 
 /** @type {<T>(iterable: Iterable<T>) => AsyncIterable<T>} */
 const cast = iterable => ({
@@ -90,12 +87,12 @@ const cast = iterable => ({
     }
 })
 
-/** @type {<I, S, R>(op: mapReduce.Operation<I, S, R>) => (_: AsyncIterable<I>) => Promise<R>} */
+/** @type {<I, S, R>(op: mr.Operation<I, S, R>) => (_: AsyncIterable<I>) => Promise<R>} */
 const apply = ({ merge, init, result }) => async c => result(await reduce(merge)(init)(c))
 
-const sum = apply(mapReduce.sum)
+const sum = apply(mr.sum)
 
-const join = pipe(mapReduce.join)(apply)
+const join = pipe(mr.join)(apply)
 
 module.exports = {
     /** @readonly */

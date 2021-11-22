@@ -3,7 +3,6 @@ const { pipe } = require('../func')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../iterable')
-const mr = require('../map-reduce')
 
 /**
  * @template T
@@ -39,7 +38,7 @@ const mr = require('../map-reduce')
 
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
-/** @type {mr.Operation<string, undefined|Path, undefined|Path>} */
+/** @type {import('../map-reduce').Operation<string, undefined|Path, undefined|Path>} */
 const pathNormReduce = {
     merge: path => item =>
         path === undefined ?
@@ -56,7 +55,7 @@ const pathNormReduce = {
 /** @type {(_: Array<string>) => boolean} */
 const isRelative = localId => ['.', '..'].includes(localId[0])
 
-const pathNorm = iter.apply(pathNormReduce)
+const pathNorm = iter.mapReduce(pathNormReduce)
 
 /** @type {(_: Package) => (_: Path) => Module|undefined} */
 const internal = pack => {
