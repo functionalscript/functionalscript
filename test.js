@@ -1,7 +1,7 @@
 const i = require('./')
 
-require('./sequence/iterable/test')
-require('./async/iterable/test')
+require('./sequence/sync/test')
+require('./sequence/async/test')
 require('./module-manager/test')
 
 /** @type {() => never} */

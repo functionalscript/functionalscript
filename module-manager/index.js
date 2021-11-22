@@ -2,7 +2,7 @@ const array = require('../array')
 const { pipe } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
-const iter = require('../sequence/iterable')
+const iter = require('../sequence/sync')
 const seq = require('../sequence')
 
 /**
