@@ -17,6 +17,12 @@ const option = require('../option')
  * @typedef {readonly [T, T]} Array2
  */
 
+/**
+ * @template T0
+ * @template T1
+ * @typedef {readonly [T0, T1]} Tuple2
+ */
+
 /** @typedef {0|1} Index2 */
 
 /**

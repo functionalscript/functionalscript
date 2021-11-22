@@ -39,3 +39,13 @@ const { pipe } = require('../func')
         ([() => p, () => `${p}.js`, () => `${p}/index.js`])
     if (x('index.js') !== 'x') { throw 'error' }
 }
+
+{
+    const x = JSON.stringify(Array.from(i.entries(['a', 'b', 'c'])))
+    if (x !== '[[0,"a"],[1,"b"],[2,"c"]]') { throw x }
+}
+
+{
+    const x = JSON.stringify(Array.from(i.entries([])))
+    if (x !== '[]') { throw x }
+}

@@ -55,7 +55,7 @@ const pathNormReduce = {
 /** @type {(_: Array<string>) => boolean} */
 const isRelative = localId => ['.', '..'].includes(localId[0])
 
-const pathNorm = iter.mapReduce(pathNormReduce)
+const pathNorm = iter.apply(pathNormReduce)
 
 /** @type {(_: Package) => (_: Path) => Module|undefined} */
 const internal = pack => {

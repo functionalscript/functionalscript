@@ -38,6 +38,35 @@ const sum = {
     init: 0,
 }
 
+/**
+ * @type {{
+ *  readonly merge: (counter: number) => () => number
+ *  readonly result: (counter: number) => number
+ *  readonly init: number
+ * }}
+ */
+const size = {
+    merge: counter => () => counter + 1,
+    init: 0,
+    result: id,
+}
+
+/**
+ * @template T
+ * @template R
+ * @typedef {(value: T) => readonly [R, ExlusiveScan<T, R>]} ExlusiveScan
+ */
+
+/** 
+ * @template T
+ * @typedef {readonly[number, T]} Entry
+ */
+
+/** @type {(index: number) => <T>(value: T) => readonly[Entry<T>, ExlusiveScan<T, Entry<T>>]} */
+const entriesFrom = index => value => [[index, value], entriesFrom(index + 1)]
+
+const entries = entriesFrom(0)
+
 module.exports = {
     /** @readonly */
     map,
@@ -45,4 +74,8 @@ module.exports = {
     join,
     /** @readonly */
     sum,
+    /** @readonly */
+    size,
+    /** @readonly */
+    entries,
 }
