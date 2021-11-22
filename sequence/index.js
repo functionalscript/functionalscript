@@ -1,11 +1,4 @@
-const { todo } = require('../dev')
-const { id } = require('../function')
-
-/**
- * @template R
- * @template T
- * @typedef {(prior: R) => (value: T) => R} BinaryOperator
- */
+const op = require('../function/operator')
 
 /**
  * @template T0
@@ -34,9 +27,9 @@ const { id } = require('../function')
  * }} InclusiveScan
  */
 
-/** @type {<R, T>(operator: BinaryOperator<R, T>) => (prior: R) => Scan<T, R>} */
+/** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (prior: R) => Scan<T, R>} */
 const operatorScan = operator => {
-    /** @typedef {typeof operator extends BinaryOperator<infer R, infer T> ? [R, T] : never} RT */
+    /** @typedef {typeof operator extends op.BinaryOperator<infer R, infer T> ? [R, T] : never} RT */
     /** @typedef {RT[0]} R */
     /** @typedef {RT[1]} T */
     /** @type {(prior: R) => Scan<T, R>} */
@@ -47,8 +40,8 @@ const operatorScan = operator => {
     return f
 } 
 
-/** @type {<R, T>(operator: BinaryOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
-const inclusiveOperatorScan = operator => first => ({
+/** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
+const operatorInclusiveScan = operator => first => ({
     scan: operatorScan(operator)(first),
     first,
 })
@@ -63,25 +56,19 @@ const createEntries = index => value => [[index, value], createEntries(index + 1
 
 const entries = createEntries(0)
 
-/** @type {(separator: string) => BinaryOperator<string, string>} */
-const joinOperator = separator => prior => value => `${prior}${separator}${value}`
-
 /** @type {(separator: string) => InclusiveScan<string, string>} */
 const join = separator => ({
-    scan: value => [value, operatorScan(joinOperator(separator))(value)],
+    scan: value => [value, operatorScan(op.join(separator))(value)],
     first: ''
 })
 
-/** @type {(sum: number) => (value: number) => number} */
-const addition = a => b => a + b
+const sum = operatorInclusiveScan(op.addition)(0)
 
-const sum = inclusiveOperatorScan(addition)(0)
-
-const size = inclusiveOperatorScan(a => () => a + 1)(0)
+const size = operatorInclusiveScan(a => () => a + 1)(0)
 
 module.exports = {
     /** @readonly */
-    inclusiveOperatorScan,
+    operatorInclusiveScan,
     /** @readonly */
     join,
     /** @readonly */

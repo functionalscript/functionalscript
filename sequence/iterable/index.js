@@ -1,5 +1,5 @@
-const { pipe } = require('../function')
-const seq = require('../sequence')
+const { pipe } = require('../../function')
+const seq = require('..')
 
 /**
  * @template S

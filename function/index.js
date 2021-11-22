@@ -13,21 +13,6 @@ const pipe = g => f => x => f(g(x))
 /** @type {<T>(value: T) => T} */
 const id = value => value
 
-/**
- * @template I
- * @template O
- * @typedef {{
- *  readonly pipe: <R>(f: Func<O, R>) => Pipe<I, R>
- *  readonly call: Func<I, O>
- * }} Pipe
- */
-
-/** @type {<I, O>(f: Func<I, O>) => Pipe<I, O>} */
-const pipex = call => ({
-    pipe: f => pipex(pipe(call)(f)),
-    call,
-}) 
-
 module.exports = {
     /** @readonly */
     id,
@@ -35,6 +20,4 @@ module.exports = {
     pipe,
     /** @readonly */
     combine,
-    /** @readonly */
-    pipex,
 }

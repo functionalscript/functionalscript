@@ -1,6 +1,6 @@
 const i = require('./')
 
-require('./iterable/test')
+require('./sequence/iterable/test')
 require('./async/iterable/test')
 require('./module-manager/test')
 

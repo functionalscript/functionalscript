@@ -2,7 +2,7 @@ const array = require('../array')
 const { pipe } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
-const iter = require('../iterable')
+const iter = require('../sequence/iterable')
 const seq = require('../sequence')
 
 /**
@@ -40,7 +40,7 @@ const seq = require('../sequence')
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
 /** @type {seq.InclusiveScan<string, undefined|Path>} */
-const pathNormReduce = seq.inclusiveOperatorScan
+const pathNormReduce = seq.operatorInclusiveScan
     (path => item =>
         path === undefined ?
             undefined :
