@@ -83,7 +83,7 @@ const exclusiveScan = merge => init => c => ({
     }
 })
 
-/** @type {<T, R>(es: seq.ExlusiveScan<T, R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
+/** @type {<T, R>(es: seq.Scan<T, R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
 const applyExclusiveScan = es => c => ({
     async *[Symbol.asyncIterator]() {
         let ies = es

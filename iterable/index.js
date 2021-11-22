@@ -38,8 +38,8 @@ const exclusiveScan = merge => init => c => ({
 /** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: Iterable<T>) => Iterable<A>} */
 const inclusiveScan = merge => init => c => concat([init])(exclusiveScan(merge)(init)(c))
 
-/** @type {<T, R>(es: seq.ExlusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
-const applyExclusiveScan = es => c => ({
+/** @type {<T, R>(es: seq.Scan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
+const applyScan = es => c => ({
     *[Symbol.iterator]() {
         let ies = es
         for (const i of c) {
@@ -50,7 +50,10 @@ const applyExclusiveScan = es => c => ({
     }
 })
 
-const entries = applyExclusiveScan(seq.entries)
+/** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
+const applyInclusiveScan = ({scan, first}) => c => concat([first])(applyScan(scan)(c))
+
+const entries = applyScan(seq.entries)
 
 /** @type {<I, S, R>(op: seq.Operation<I, S, R>) => (_: Iterable<I>) => R} */
 const apply = ({ merge, init, result }) => pipe(reduce(merge)(init))(result)
