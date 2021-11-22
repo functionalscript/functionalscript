@@ -3,6 +3,7 @@ const { pipe } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../iterable')
+const seq = require('../sequence')
 
 /**
  * @template T
@@ -38,24 +39,22 @@ const iter = require('../iterable')
 
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
-/** @type {import('../sequence').Operation<string, undefined|Path, undefined|Path>} */
-const pathNormReduce = {
-    merge: path => item =>
+/** @type {seq.InclusiveScan<string, undefined|Path>} */
+const pathNormReduce = seq.inclusiveOperatorScan
+    (path => item =>
         path === undefined ?
             undefined :
         ['', '.'].includes(item) ?
             path :
         item === '..' ?
             head(path) :
-            [...path, item],
-    init: [],
-    result: s => s,
-}
+            [...path, item])
+    ([])
 
 /** @type {(_: Array<string>) => boolean} */
 const isRelative = localId => ['.', '..'].includes(localId[0])
 
-const pathNorm = iter.apply(pathNormReduce)
+const pathNorm = iter.applyReduce(pathNormReduce)
 
 /** @type {(_: Package) => (_: Path) => Module|undefined} */
 const internal = pack => {

@@ -84,7 +84,7 @@ const exclusiveScan = merge => init => c => ({
 })
 
 /** @type {<T, R>(es: seq.Scan<T, R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
-const applyExclusiveScan = es => c => ({
+const applyScan = es => c => ({
     async *[Symbol.asyncIterator]() {
         let ies = es
         for await (const i of c) {
@@ -98,18 +98,24 @@ const applyExclusiveScan = es => c => ({
 /** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => AsyncIterable<A>} */
 const inclusiveScan = merge => init => c => concat([init])(exclusiveScan(merge)(init)(c))
 
-/** @type {<I, S, R>(op: seq.Operation<I, S, R>) => (_: AnyIterable<I>) => Promise<R>} */
-const apply = ({ merge, init, result }) => async c => result(await reduce(merge)(init)(c))
+/** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: AnyIterable<T>) => Promise<R>} */
+const applyReduce = is => async c => {
+    let result = is.first
+    for await (const i of applyScan(is.scan)(c)) {
+        result = i
+    }
+    return result
+}
 
-const sum = apply(seq.sum)
+const sum = applyReduce(seq.sum)
 
-const join = pipe(seq.join)(apply)
+const join = pipe(seq.join)(applyReduce)
 
-const size = apply(seq.size)
+const size = applyReduce(seq.size)
 
 module.exports = {
     /** @readonly */
-    apply,
+    applyReduce,
     /** @readonly */
     concat,
     /** @readonly */

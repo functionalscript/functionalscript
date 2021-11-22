@@ -2,6 +2,12 @@ const { todo } = require('../dev')
 const { id } = require('../function')
 
 /**
+ * @template R
+ * @template T
+ * @typedef {(prior: R) => (value: T) => R} BinaryOperator
+ */
+
+/**
  * @template T0
  * @template T1
  * @typedef {import('../array').Tuple2<T0, T1>} Tuple2
@@ -26,12 +32,6 @@ const { id } = require('../function')
  *  readonly scan: Scan<T, R>
  *  readonly first: R
  * }} InclusiveScan
- */
-
-/**
- * @template R
- * @template T
- * @typedef {(prior: R) => (value: T) => R} BinaryOperator
  */
 
 /** @type {<R, T>(operator: BinaryOperator<R, T>) => (prior: R) => Scan<T, R>} */
@@ -64,64 +64,26 @@ const createEntries = index => value => [[index, value], createEntries(index + 1
 const entries = createEntries(0)
 
 /** @type {(separator: string) => BinaryOperator<string, string>} */
-const joinOperation = separator => prior => value => `${prior}${separator}${value}`
+const joinOperator = separator => prior => value => `${prior}${separator}${value}`
 
 /** @type {(separator: string) => InclusiveScan<string, string>} */
-const join2 = separator => ({
-    scan: value => [value, operatorScan(joinOperation(separator))(value)],
+const join = separator => ({
+    scan: value => [value, operatorScan(joinOperator(separator))(value)],
     first: ''
 })
 
 /** @type {(sum: number) => (value: number) => number} */
 const addition = a => b => a + b
 
-/** @type {InclusiveScan<number, number>} */
-const sum2 = inclusiveOperatorScan(addition)(0)
+const sum = inclusiveOperatorScan(addition)(0)
 
-////
-
-/**
- * @template I
- * @template S
- * @template O
- * @typedef {{
- *  readonly merge: BinaryOperator<S, I>
- *  readonly result: (state: S) => O
- *  readonly init: S
- * }} Operation
- */
-
-/** @type {(separator: string) => Operation<string, string|undefined, string>} */
-const join = separator => ({ 
-    merge: s => i => s === undefined ? i : `${s}${separator}${i}`, 
-    init: undefined,
-    result: s => s === undefined ? '' : s
-})
-
-/** @type {Operation<number, number, number>} */
-const sum = { 
-    merge: a => i => a + i, 
-    result: id,
-    init: 0,
-}
-
-/**
- * @type {{
- *  readonly merge: (counter: number) => () => number
- *  readonly result: (counter: number) => number
- *  readonly init: number
- * }}
- */
-const size = {
-    merge: counter => () => counter + 1,
-    init: 0,
-    result: id,
-}
+const size = inclusiveOperatorScan(a => () => a + 1)(0)
 
 module.exports = {
     /** @readonly */
+    inclusiveOperatorScan,
+    /** @readonly */
     join,
-    join2,
     /** @readonly */
     sum,
     /** @readonly */

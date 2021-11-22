@@ -53,16 +53,22 @@ const applyScan = es => c => ({
 /** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
 const applyInclusiveScan = ({scan, first}) => c => concat([first])(applyScan(scan)(c))
 
+/** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => R} */
+const applyReduce = is => c => {
+    let result = is.first
+    for (const i of applyScan(is.scan)(c)) {
+        result = i
+    }
+    return result
+}
+
 const entries = applyScan(seq.entries)
 
-/** @type {<I, S, R>(op: seq.Operation<I, S, R>) => (_: Iterable<I>) => R} */
-const apply = ({ merge, init, result }) => pipe(reduce(merge)(init))(result)
+const sum = applyReduce(seq.sum)
 
-const sum = apply(seq.sum)
+const size = applyReduce(seq.size)
 
-const size = apply(seq.size)
-
-const join = pipe(seq.join)(apply)
+const join = pipe(seq.join)(applyReduce)
 
 /** @type {<T, R>(f: (value: T) => R) => (c: Iterable<T>) => Iterable<R>} */
 const map = f => c => ({
@@ -85,8 +91,7 @@ const find = f => c => {
 
 module.exports = {
     /** @readonly */
-    apply,
-
+    applyReduce,
     /** @readonly */
     reduce,
 
