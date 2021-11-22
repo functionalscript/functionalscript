@@ -14,10 +14,10 @@ const seq = require('..')
 
 /**
  * @template T
- * @typedef {Iterable<T> | AsyncIterable<T>} AnyIterable
+ * @typedef {Iterable<T> | AsyncIterable<T>} AsyncOrSyncIterable
  */
 
-/** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
+/** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
 const map = f => c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -26,7 +26,7 @@ const map = f => c => ({
     }
 })
 
-/** @type {<T>(c: AnyIterable<AnyIterable<T>>) => AsyncIterable<T>} */
+/** @type {<T>(c: AsyncOrSyncIterable<AsyncOrSyncIterable<T>>) => AsyncIterable<T>} */
 const flatten = c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -35,7 +35,7 @@ const flatten = c => ({
     }
 })
 
-/** @type {<T>(f: (value: T) => Promise<boolean>) => (c: AnyIterable<T>) => AnyIterable<T>} */
+/** @type {<T>(f: (value: T) => Promise<boolean>) => (c: AsyncOrSyncIterable<T>) => AsyncOrSyncIterable<T>} */
 const filter = f => c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -46,25 +46,10 @@ const filter = f => c => ({
     }
 })
 
-/** @type {<T, R>(f: (value: T) => AnyIterable<R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
+/** @type {<T, R>(f: (value: T) => AsyncOrSyncIterable<R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
 const flatMap = f => pipe(map(f))(flatten)
 
-/** 
- * @template A
- * @template T
- * @typedef {(accumulator: A) => (value: T) => PromiseOrValue<A>} Merge
- */
-
-/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => Promise<A>} */
-const reduce = merge => init => async c => {
-    let result = init
-    for await (const i of c) {
-        result = await merge(result)(i)
-    }
-    return result
-}
-
-/** @type {<T>(a: AnyIterable<T>) => (b: AnyIterable<T>) => AsyncIterable<T>} */
+/** @type {<T>(a: AsyncOrSyncIterable<T>) => (b: AsyncOrSyncIterable<T>) => AsyncIterable<T>} */
 const concat = a => b => ({
     async *[Symbol.asyncIterator]() {
         yield* a
@@ -72,50 +57,37 @@ const concat = a => b => ({
     }
 })
 
-/** @type {<A, T>(merg: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => AsyncIterable<A>} */
-const exclusiveScan = merge => init => c => ({
+/** @type {<T, R>(s: seq.Scan<T, R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
+const scan = s => c => ({
     async *[Symbol.asyncIterator]() {
-        let result = init
+        let next = s
         for await (const i of c) {
-            result = await merge(result)(i)
-            yield result
-        }
-    }
-})
-
-/** @type {<T, R>(es: seq.Scan<T, R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
-const applyScan = es => c => ({
-    async *[Symbol.asyncIterator]() {
-        let ies = es
-        for await (const i of c) {
-            const result = ies(i)
-            ies = result[1]
+            const result = next(i)
+            next = result[1]
             yield result[0]
         }
     }
 })
 
-/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => AsyncIterable<A>} */
-const inclusiveScan = merge => init => c => concat([init])(exclusiveScan(merge)(init)(c))
+/** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
+const inclusiveScan = s => c => concat([s.first])(scan(s.scan)(c))
 
-/** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: AnyIterable<T>) => Promise<R>} */
-const applyReduce = is => async c => {
-    let result = is.first
-    for await (const i of applyScan(is.scan)(c)) {
-        result = i
+/** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => Promise<R>} */
+const reduce = is => async c => {
+    let next = is.first
+    for await (const i of scan(is.scan)(c)) {
+        next = i
     }
-    return result
+    return next
 }
 
-const sum = applyReduce(seq.sum)
+const sum = reduce(seq.sum)
 
-const join = pipe(seq.join)(applyReduce)
+const join = pipe(seq.join)(reduce)
 
-const size = applyReduce(seq.size)
+const size = reduce(seq.size)
 
 module.exports = {
-    /** @readonly */
-    applyReduce,
     /** @readonly */
     concat,
     /** @readonly */
@@ -133,7 +105,7 @@ module.exports = {
     /** @readonly */
     join,
     /** @readonly */
-    exclusiveScan,
+    scan,
     /** @readonly */
     inclusiveScan,
 }

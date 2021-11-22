@@ -40,7 +40,7 @@ const seq = require('../sequence')
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
 /** @type {seq.InclusiveScan<string, undefined|Path>} */
-const pathNormReduce = seq.operatorInclusiveScan
+const pathNormReduce = seq.inclusiveScan
     (path => item =>
         path === undefined ?
             undefined :
@@ -54,7 +54,7 @@ const pathNormReduce = seq.operatorInclusiveScan
 /** @type {(_: Array<string>) => boolean} */
 const isRelative = localId => ['.', '..'].includes(localId[0])
 
-const pathNorm = iter.applyReduce(pathNormReduce)
+const pathNorm = iter.reduce(pathNormReduce)
 
 /** @type {(_: Package) => (_: Path) => Module|undefined} */
 const internal = pack => {

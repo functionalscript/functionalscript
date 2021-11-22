@@ -28,7 +28,7 @@ const op = require('../function/operator')
  */
 
 /** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (prior: R) => Scan<T, R>} */
-const operatorScan = operator => {
+const scan = operator => {
     /** @typedef {typeof operator extends op.BinaryOperator<infer R, infer T> ? [R, T] : never} RT */
     /** @typedef {RT[0]} R */
     /** @typedef {RT[1]} T */
@@ -41,8 +41,8 @@ const operatorScan = operator => {
 } 
 
 /** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
-const operatorInclusiveScan = operator => first => ({
-    scan: operatorScan(operator)(first),
+const inclusiveScan = operator => first => ({
+    scan: scan(operator)(first),
     first,
 })
 
@@ -58,17 +58,19 @@ const entries = createEntries(0)
 
 /** @type {(separator: string) => InclusiveScan<string, string>} */
 const join = separator => ({
-    scan: value => [value, operatorScan(op.join(separator))(value)],
+    scan: value => [value, scan(op.join(separator))(value)],
     first: ''
 })
 
-const sum = operatorInclusiveScan(op.addition)(0)
+const sum = inclusiveScan(op.addition)(0)
 
-const size = operatorInclusiveScan(a => () => a + 1)(0)
+const size = inclusiveScan(a => () => a + 1)(0)
 
 module.exports = {
     /** @readonly */
-    operatorInclusiveScan,
+    inclusiveScan,
+    /** @readonly */
+    scan,
     /** @readonly */
     join,
     /** @readonly */
