@@ -1,5 +1,5 @@
-const { pipe } = require('../../func')
-const mr = require('../../map-reduce')
+const { pipe } = require('../../function')
+const seq = require('../../sequence')
 
 /** 
  * @template T
@@ -14,10 +14,10 @@ const mr = require('../../map-reduce')
 
 /**
  * @template T
- * @typedef {Iterable<T> | AsyncIterable<T>} AnyIterator
+ * @typedef {Iterable<T> | AsyncIterable<T>} AnyIterable
  */
 
-/** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AnyIterator<T>) => AsyncIterable<R>} */
+/** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
 const map = f => c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -26,7 +26,7 @@ const map = f => c => ({
     }
 })
 
-/** @type {<T>(c: AnyIterator<AnyIterator<T>>) => AsyncIterable<T>} */
+/** @type {<T>(c: AnyIterable<AnyIterable<T>>) => AsyncIterable<T>} */
 const flatten = c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -35,7 +35,7 @@ const flatten = c => ({
     }
 })
 
-/** @type {<T>(f: (value: T) => Promise<boolean>) => (c: AnyIterator<T>) => AnyIterator<T>} */
+/** @type {<T>(f: (value: T) => Promise<boolean>) => (c: AnyIterable<T>) => AnyIterable<T>} */
 const filter = f => c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
@@ -46,7 +46,7 @@ const filter = f => c => ({
     }
 })
 
-/** @type {<T, R>(f: (value: T) => AnyIterator<R>) => (c: AnyIterator<T>) => AsyncIterable<R>} */
+/** @type {<T, R>(f: (value: T) => AnyIterable<R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
 const flatMap = f => pipe(map(f))(flatten)
 
 /** 
@@ -55,7 +55,7 @@ const flatMap = f => pipe(map(f))(flatten)
  * @typedef {(accumulator: A) => (value: T) => PromiseOrValue<A>} Merge
  */
 
-/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterator<T>) => Promise<A>} */
+/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => Promise<A>} */
 const reduce = merge => init => async c => {
     let result = init
     for await (const i of c) {
@@ -64,7 +64,7 @@ const reduce = merge => init => async c => {
     return result
 }
 
-/** @type {<T>(a: AnyIterator<T>) => (b: AnyIterator<T>) => AsyncIterable<T>} */
+/** @type {<T>(a: AnyIterable<T>) => (b: AnyIterable<T>) => AsyncIterable<T>} */
 const concat = a => b => ({
     async *[Symbol.asyncIterator]() {
         yield* a
@@ -72,7 +72,7 @@ const concat = a => b => ({
     }
 })
 
-/** @type {<A, T>(merg: Merge<A, T>) => (init: A) => (c: AnyIterator<T>) => AsyncIterable<A>} */
+/** @type {<A, T>(merg: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => AsyncIterable<A>} */
 const exclusiveScan = merge => init => c => ({
     async *[Symbol.asyncIterator]() {
         let result = init
@@ -83,17 +83,29 @@ const exclusiveScan = merge => init => c => ({
     }
 })
 
-/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterator<T>) => AsyncIterable<A>} */
+/** @type {<T, R>(es: seq.ExlusiveScan<T, R>) => (c: AnyIterable<T>) => AsyncIterable<R>} */
+const applyExclusiveScan = es => c => ({
+    async *[Symbol.asyncIterator]() {
+        let ies = es
+        for await (const i of c) {
+            const result = ies(i)
+            ies = result[1]
+            yield result[0]
+        }
+    }
+})
+
+/** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: AnyIterable<T>) => AsyncIterable<A>} */
 const inclusiveScan = merge => init => c => concat([init])(exclusiveScan(merge)(init)(c))
 
-/** @type {<I, S, R>(op: mr.Operation<I, S, R>) => (_: AnyIterator<I>) => Promise<R>} */
+/** @type {<I, S, R>(op: seq.Operation<I, S, R>) => (_: AnyIterable<I>) => Promise<R>} */
 const apply = ({ merge, init, result }) => async c => result(await reduce(merge)(init)(c))
 
-const sum = apply(mr.sum)
+const sum = apply(seq.sum)
 
-const join = pipe(mr.join)(apply)
+const join = pipe(seq.join)(apply)
 
-const size = apply(mr.size)
+const size = apply(seq.size)
 
 module.exports = {
     /** @readonly */

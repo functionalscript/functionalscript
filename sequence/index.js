@@ -1,4 +1,4 @@
-const { pipe, id } = require('../func')
+const { pipe, id } = require('../function')
 
 /**
  * @template S
@@ -55,6 +55,16 @@ const size = {
  * @template T
  * @template R
  * @typedef {(value: T) => readonly [R, ExlusiveScan<T, R>]} ExlusiveScan
+ */
+
+/**
+ * @template T
+ * @template R
+ * @template I
+ * @typedef {{
+ *  readonly exlusive: ExlusiveScan<T, R>
+ *  readonly default: I
+ * }} InclusiveScan
  */
 
 /** 

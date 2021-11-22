@@ -1,5 +1,5 @@
 const array = require('../array')
-const { pipe } = require('../func')
+const { pipe } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../iterable')
@@ -38,7 +38,7 @@ const iter = require('../iterable')
 
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
-/** @type {import('../map-reduce').Operation<string, undefined|Path, undefined|Path>} */
+/** @type {import('../sequence').Operation<string, undefined|Path, undefined|Path>} */
 const pathNormReduce = {
     merge: path => item =>
         path === undefined ?

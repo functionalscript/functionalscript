@@ -1,5 +1,5 @@
-const { pipe } = require('../func')
-const mr = require('../map-reduce')
+const { pipe } = require('../function')
+const seq = require('../sequence')
 
 /**
  * @template S
@@ -38,7 +38,7 @@ const exclusiveScan = merge => init => c => ({
 /** @type {<A, T>(merge: Merge<A, T>) => (init: A) => (c: Iterable<T>) => Iterable<A>} */
 const inclusiveScan = merge => init => c => concat([init])(exclusiveScan(merge)(init)(c))
 
-/** @type {<T, R>(es: mr.ExlusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
+/** @type {<T, R>(es: seq.ExlusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
 const applyExclusiveScan = es => c => ({
     *[Symbol.iterator]() {
         let ies = es
@@ -50,16 +50,16 @@ const applyExclusiveScan = es => c => ({
     }
 })
 
-const entries = applyExclusiveScan(mr.entries)
+const entries = applyExclusiveScan(seq.entries)
 
-/** @type {<I, S, R>(op: mr.Operation<I, S, R>) => (_: Iterable<I>) => R} */
+/** @type {<I, S, R>(op: seq.Operation<I, S, R>) => (_: Iterable<I>) => R} */
 const apply = ({ merge, init, result }) => pipe(reduce(merge)(init))(result)
 
-const sum = apply(mr.sum)
+const sum = apply(seq.sum)
 
-const size = apply(mr.size)
+const size = apply(seq.size)
 
-const join = pipe(mr.join)(apply)
+const join = pipe(seq.join)(apply)
 
 /** @type {<T, R>(f: (value: T) => R) => (c: Iterable<T>) => Iterable<R>} */
 const map = f => c => ({

@@ -1,5 +1,5 @@
 const i = require('.')
-const { pipe } = require('../func')
+const { pipe } = require('../function')
 
 {
     const r = i.sum([120, 300, 42])
