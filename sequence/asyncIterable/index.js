@@ -56,12 +56,12 @@ const scan = s => c => ({
 })
 
 /** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
-const inclusiveScan = s => c => concat([s.first])(scan(s.scan)(c))
+const inclusiveScan = ([first, s]) => c => concat([first])(scan(s)(c))
 
 /** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => Promise<R>} */
-const reduce = is => async c => {
-    let next = is.first
-    for await (const i of scan(is.scan)(c)) {
+const reduce = ([first, s]) => async c => {
+    let next = first
+    for await (const i of scan(s)(c)) {
         next = i
     }
     return next
@@ -71,7 +71,7 @@ const sum = reduce(seq.sum)
 
 const join = pipe(seq.join)(reduce)
 
-const size = reduce(seq.size)
+const length = reduce(seq.length)
 
 /** @type {<T>(f: (value: T) => boolean) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<T>} */
 const takeWhile = f => c => ({
@@ -99,7 +99,7 @@ module.exports = {
     /** @readonly */
     sum,
     /** @readonly */
-    size,
+    length,
     /** @readonly */
     join,
     /** @readonly */

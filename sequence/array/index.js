@@ -85,8 +85,8 @@ const splitLast = a => {
     return option.map(split)(last(a))
 }
 
-/** @type {<T>(a: Array<T>) => (index: number) => readonly[T]|undefined} */
-const at = a => index => index < a.length ? [a[index]] : undefined
+/** @type {(index: number) => <T>(a: Array<T>) => readonly[T]|undefined} */
+const at = index => a => index < a.length ? [a[index]] : undefined
 
 module.exports = {
     /** @readonly */

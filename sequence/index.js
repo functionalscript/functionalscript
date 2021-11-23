@@ -22,10 +22,7 @@ const { id } = require('../function')
 /**
  * @template T
  * @template R
- * @typedef {{
- *  readonly scan: Scan<T, R>
- *  readonly first: R
- * }} InclusiveScan
+ * @typedef {Tuple2<R, Scan<T, R>>} InclusiveScan
  */
 
 /** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (prior: R) => Scan<T, R>} */
@@ -42,10 +39,7 @@ const scan = operator => {
 } 
 
 /** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
-const inclusiveScan = operator => first => ({
-    scan: scan(operator)(first),
-    first,
-})
+const inclusiveScan = operator => first => [first, scan(operator)(first)]
 
 /** 
  * @template T
@@ -58,14 +52,11 @@ const createEntries = index => value => [[index, value], createEntries(index + 1
 const entries = createEntries(0)
 
 /** @type {(separator: string) => InclusiveScan<string, string>} */
-const join = separator => ({
-    scan: value => [value, scan(op.join(separator))(value)],
-    first: ''
-})
+const join = separator => ['', value => [value, scan(op.join(separator))(value)]]
 
 const sum = inclusiveScan(op.addition)(0)
 
-const size = inclusiveScan(a => () => a + 1)(0)
+const length = inclusiveScan(a => () => a + 1)(0)
 
 /**
  * @template T
@@ -89,7 +80,7 @@ module.exports = {
     /** @readonly */
     sum,
     /** @readonly */
-    size,
+    length,
     /** @readonly */
     entries,
     /** @readonly */

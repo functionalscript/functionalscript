@@ -23,7 +23,8 @@ const test = () => {
         /** @type {import('../sequence/list').Result<string>} */
         let result = valuesList(node)()
         while (result !== undefined) {
-            console.log(result[0])
+            const t = result[0]
+            console.log(t)
             result = result[1]()
         }
     }

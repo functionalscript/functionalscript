@@ -336,7 +336,7 @@ const values = node => ({
 const flatArray = (...array) => list.flat(list.fromArray(array))
 
 /** @type {<T>(node: Node<T>) => list.List<T>} */
-const valuesList = node => {
+const valuesList = node => () => {
     const f = () => {
         switch (node.length) {
             case 1: case 2: { return list.fromArray(node) }
@@ -358,7 +358,7 @@ const valuesList = node => {
             }
         }
     }
-    return f()
+    return f()()
 }
 
 module.exports = {

@@ -22,12 +22,12 @@ const scan = s => c => ({
 })
 
 /** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
-const inclusiveScan = s => c => concat([s.first])(scan(s.scan)(c))
+const inclusiveScan = ([first, s]) => c => concat([first])(scan(s)(c))
 
 /** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => R} */
-const reduce = s => c => {
-    let next = s.first
-    for (const i of scan(s.scan)(c)) {
+const reduce = ([first, s]) => c => {
+    let next = first
+    for (const i of scan(s)(c)) {
         next = i
     }
     return next
@@ -37,7 +37,7 @@ const entries = scan(seq.entries)
 
 const sum = reduce(seq.sum)
 
-const size = reduce(seq.size)
+const length = reduce(seq.length)
 
 const join = pipe(seq.join)(reduce)
 
@@ -87,7 +87,7 @@ module.exports = {
     /** @readonly */
     sum,
     /** @readonly */
-    size,
+    length,
     /** @readonly */
     entries,
     /** @readonly */
