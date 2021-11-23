@@ -18,10 +18,19 @@ const print = a => {
     const list3 = list.inclusiveScan(sum)(list0)
     const r = list.find(x => x === 42)(big)
     {
-        let x = list.concat(list.empty)(big)
+        let x = big
         for (let i = 0; i < 10000; ++i) {
             x = list.concat(list.empty)(x)
         }
         const r = x()
+        print(x)
     } 
+    {
+        let x = big
+        for (let i = 0; i < 10000; ++i) {
+            x = list.concat(x)(list.empty)
+        }
+        const r = x()
+        print(x)
+    }
 }

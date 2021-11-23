@@ -45,12 +45,26 @@ const fromArray = a => {
     return at(0)
 }
 
-/** @type {<T>(list0: List<T>) => ListMap<T, T>} */
-const concat = a => b => () => {
-    /** @typedef {typeof a extends List<infer T> ? T : never} T */
-    /** @type {(firstAntTail: FirstAndTail<T>) => Result<T>} */
-    const defined = ([first, tail]) => [first, concat(tail)(b)]
-    return option.match(defined)(b)(a())
+/**
+ * Note: the function is not completly lazy.
+ *       it calls `a()` as soon as `a` and `b` are provided.
+ *       Othrewise we may have a stack overflow if a list 
+ *       contains a lot of concateneted empty lists.
+ *       And we can't relay on ES6 TCO (Tail Call Optimization) 
+ *       because it's not supported by Chrome and Firefox.
+ * @type {<T>(list0: List<T>) => ListMap<T, T>} 
+ */
+const concat = a => b => {
+    const result = a()
+    if (result !== undefined) {
+        const [first, tail] = result
+        return () => [first, concat(tail)(b)]
+    }
+    return b
+    // /** @typedef {typeof a extends List<infer T> ? T : never} T */
+    // /** @type {(firstAntTail: FirstAndTail<T>) => Result<T>} */
+    // const defined = ([first, tail]) => [first, concat(tail)(b)]
+    // return option.match(defined)(b)(a())
 }
 
 /** @type {<T, R>(f: (value: T) => List<R>) => ListMap<T, R>} */
