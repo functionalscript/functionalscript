@@ -37,6 +37,9 @@ const { todo } = require('../../dev')
 
 const empty = () => undefined
 
+/** @type {<F, T>(a: readonly[F, List<T>]) => (b: List<T>) => readonly[F, List<T>]} */
+const norm = ([a0, a1]) => b => [a0, [a1, b]]
+
 /** @type {<T>(list: List<T>) => Result<T>} */
 const get = list => {
     let i = list
@@ -46,11 +49,11 @@ const get = list => {
         if (typeof a === 'function') { 
             const result = a()
             if (result !== undefined) { 
-                return [result[0], [result[1], b]]
+                return norm(result)(b)
             }
             i = b
         } else {
-            i = [a[0], [a[1], b]]
+            i = norm(a)(b)
         }
     }
 }
