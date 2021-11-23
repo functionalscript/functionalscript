@@ -10,6 +10,9 @@ Try FunctionalScript [here](https://functionalscript.com/).
 
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 
+One of the main challenges is how to make a pure functional language when ES6 TCO is not supported by Chrome and Firefox.
+A workaround for this problem is to use `let` for renaming objects.
+
 ## JSON
 
 ```js

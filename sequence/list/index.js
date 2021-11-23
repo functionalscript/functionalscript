@@ -10,17 +10,19 @@ const { todo } = require('../../dev')
  */
 
 /**
- * We need this workaround because modern JavaScript implementations
- * don't support ES6 TCO (Tail Call Optimization)
- * 
- * Without this wotkaround we may have a stack overflow if a list
- * contains a lot of concateneted lists.
- * 
  * @template T
  * @typedef {readonly [List<T>, List<T>]} Concat
  */
 
 /**
+ * Please note that the list also contains `Concat<T>. We need this as 
+ * a workaround because modern JavaScript implementations don't support 
+ * ES6 TCO (Tail Call Optimization).
+ *
+ * Without this wotkaround we may have a stack overflow if a list
+ * contains a lot of concateneted lists. Use `next` function to extract 
+ * a list. 
+ *
  * @template T
  * @typedef { ListFunc<T> | Concat<T>} List
  */
@@ -41,7 +43,7 @@ const empty = () => undefined
 const norm = ([a0, a1]) => b => [a0, [a1, b]]
 
 /** @type {<T>(list: List<T>) => Result<T>} */
-const get = list => {
+const next = list => {
     let i = list
     while (true) {
         if (typeof i === 'function') { return i() }
@@ -86,10 +88,10 @@ const concat = a => b => [a, b]
 const flatMap = f => input => () => {
     let i = input
     while (true) { 
-        const result = get(i)
+        const result = next(i)
         if (result === undefined) { return undefined }
         const [first, tail] = result
-        const firstResult = get(f(first)) 
+        const firstResult = next(f(first)) 
         if (firstResult !== undefined) {
             const [firstFirst, firstTail] = firstResult
             return [firstFirst, concat(firstTail)(flatMap(f)(tail))]
@@ -109,15 +111,13 @@ const filter = f => flatMap(i => f(i) ? one(i) : empty)
 
 /** @type {<T, R>(s: base.Scan<T, R>) => ListMap<T, R>} */
 const scan = s => input => () => {
-    /** @typedef {typeof s extends base.Scan<infer T, infer R> ? [T, R] : never} TR */
-    /** @typedef {TR[0]} T */
-    /** @typedef {TR[1]} R */
-    /** @type {(firstAndTail: FirstAndTail<T>) => Result<R>} */
-    const defined = ([first, tail]) => {
-        const [newFirst, newS] = s(first)
-        return [newFirst, scan(newS)(tail)]
+    const result = next(input)
+    if (result === undefined) {
+        return result
     }
-    return option.map(defined)(get(input))
+    const [first, tail] = result
+    const [newFirst, newS] = s(first)
+    return [newFirst, scan(newS)(tail)]
 }
 
 /** @type {<T, R>(s: base.InclusiveScan<T, R>) => ListMap<T, R>} */
@@ -128,7 +128,7 @@ const last = def => input => {
     let r = def
     let i = input    
     while (true) {
-        const result = get(i)
+        const result = next(i)
         if (result === undefined) {
             return r
         }
@@ -151,17 +151,16 @@ const join = pipe(base.join)(reduce)
 
 /** @type {<T>(f: (value: T) => boolean) => ListMap<T, T>} */
 const takeWhile = f => input => () => {
-    const result = get(input)
+    const result = next(input)
     if (result === undefined || !f(result[0])) { return undefined }
     return result
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => T|undefined} */
 const find = f => input => {
-    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
-    /** @type {(result: FirstAndTail<T>) => T} */
-    const defined = ([first]) => first
-    return option.map(defined)(get(filter(f)(input)))
+    const result = next(filter(f)(input))
+    if (result === undefined) { return undefined }
+    return result[0]
 }
 
 /**
@@ -172,7 +171,7 @@ const iterable = list => ({
     *[Symbol.iterator]() {
         let i = list
         while (true) {
-            const result = get(i)
+            const result = next(i)
             if (result === undefined) { return }
             yield result[0]
             i = result[1]
@@ -182,7 +181,7 @@ const iterable = list => ({
 
 module.exports = {
     /** @readonly */
-    get,
+    next,
     /** @readonly */
     one,
     /** @readonly */
@@ -219,4 +218,6 @@ module.exports = {
     length,
     /** @readonly */
     find,
+    /** @readonly */
+    takeWhile,
 }

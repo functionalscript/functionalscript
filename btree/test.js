@@ -22,11 +22,11 @@ const test = () => {
     //
     {
         /** @type {import('../sequence/list').Result<string>} */
-        let result = list.get(valuesList(node))
+        let result = list.next(valuesList(node))
         while (result !== undefined) {
             const t = result[0]
             console.log(t)
-            result = list.get(result[1])
+            result = list.next(result[1])
         }
     }
 }

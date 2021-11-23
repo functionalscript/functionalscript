@@ -5,7 +5,7 @@ const { sum } = require('..')
 const print = a => {
     let i = a
     while (true) {
-        const result = list.get(i)
+        const result = list.next(i)
         if (result === undefined) { return }
         console.log(result[0])
         i = result[1]
@@ -24,7 +24,7 @@ const print = a => {
         for (let i = 0; i < 1_000_000; ++i) {
             x = list.concat(list.empty)(x)
         }
-        const r = list.get(x)
+        const r = list.next(x)
         print(x)
     } 
     {
@@ -32,7 +32,7 @@ const print = a => {
         for (let i = 0; i < 1_000_000; ++i) {
             x = list.concat(x)(list.one(i))
         }
-        const r = list.get(x)
+        const r = list.next(x)
         // print(x)
     }
 }
