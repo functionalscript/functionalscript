@@ -1,5 +1,6 @@
 const option = require("../option")
 const { getVisitor, setVisitor, values } = require("../btree")
+const { cmp } = require("../cmp")
 
 /** @typedef {import("../cmp").Sign} Sign */
 
@@ -10,7 +11,7 @@ const { getVisitor, setVisitor, values } = require("../btree")
 
 /**
  * @template T
- * @typedef {import("../btree").TNode<T>} TNode
+ * @typedef {import("../btree").Node<T>} TNode
  */
 
 /**
@@ -34,13 +35,13 @@ const { getVisitor, setVisitor, values } = require("../btree")
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
-const cmp = a => ([b]) => a < b ? -1 : a === b ? 0 : 1
+const keyCmp = a => ([b]) => cmp(a)(b)
 
 /** @type {<T>(node: TNode<Entry<T>>) => Map<T>} */
 const create = root => ({
-    get: name => option.map(([,value]) => value)(getVisitor(cmp(name))(root)),
+    get: name => option.map(([,value]) => value)(getVisitor(keyCmp(name))(root)),
     set: name => value => {
-        const result = setVisitor(cmp(name))(() => [name, value])(root)
+        const result = setVisitor(keyCmp(name))(() => [name, value])(root)
         if ('replace' in result) { return create(result.replace) }
         if ('overflow' in result) { return create(result.overflow) }
         throw ''

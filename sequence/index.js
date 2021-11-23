@@ -1,9 +1,10 @@
 const op = require('../function/operator')
+const { id } = require('../function')
 
 /**
  * @template T0
  * @template T1
- * @typedef {import('../array').Tuple2<T0, T1>} Tuple2
+ * @typedef {import('./array').Tuple2<T0, T1>} Tuple2
  */
 
 /**
@@ -66,6 +67,18 @@ const sum = inclusiveScan(op.addition)(0)
 
 const size = inclusiveScan(a => () => a + 1)(0)
 
+/**
+ * @template T
+ * @template R
+ * @typedef {(value: T) => R} Func
+ */
+
+/** @type {<T, R, X>(flatMap: (f: Func<T, readonly[R]>) => X) => (f: Func<T, R>) =>X} */
+const map = flatMap => f => flatMap(x => [f(x)])
+
+/** @type {<T, X>(flatMap: (f: Func<T, readonly[T]|[]>) => X) => (f: Func<T, boolean>) =>X} */
+const filter = flatMap => f => flatMap(x => f(x) ? [x] : [])
+
 module.exports = {
     /** @readonly */
     inclusiveScan,
@@ -79,4 +92,8 @@ module.exports = {
     size,
     /** @readonly */
     entries,
+    /** @readonly */
+    map,
+    /** @readonly */
+    filter,
 }

@@ -4,8 +4,8 @@ const seq = require('..')
 /** @type {<T>(a: Iterable<T>) => (b: Iterable<T>) => Iterable<T>} */
 const concat = a => b => ({
     *[Symbol.iterator]() {
-        yield *a
-        yield *b
+        yield* a
+        yield* b
     }
 })
 
@@ -41,11 +41,30 @@ const size = reduce(seq.size)
 
 const join = pipe(seq.join)(reduce)
 
-/** @type {<T, R>(f: (value: T) => R) => (c: Iterable<T>) => Iterable<R>} */
-const map = f => c => ({
+/** @type {<T, R>(f: (value: T) => Iterable<R>) => (c: Iterable<T>) => Iterable<R>} */
+const flatMap = f => c => ({
     *[Symbol.iterator]() {
         for (const i of c) {
-            yield f(i)
+            yield* f(i)
+        }
+    }
+})
+
+/** @type {<T, R>(f: (value: T) => R) => (c: Iterable<T>) => Iterable<R>} */
+const map = seq.map(flatMap)
+
+/** @type {<T>(f: (value: T) => boolean) => (c: Iterable<T>) => Iterable<T>} */
+const filter = seq.filter(flatMap)
+
+/** @type {<T>(c: Iterable<Iterable<T>>) => Iterable<T>} */
+const flat = flatMap(x => x)
+
+/** @type {<T>(f: (value: T) => boolean) => (c: Iterable<T>) => Iterable<T>} */
+const takeWhile = f => c => ({
+    *[Symbol.iterator]() {
+        for (const i of c) {
+            if (!f(i)) { return }
+            yield i
         }
     }
 })
@@ -72,11 +91,19 @@ module.exports = {
     /** @readonly */
     entries,
     /** @readonly */
-    map,
-    /** @readonly */
     scan,
     /** @readonly */
     inclusiveScan,
+    /** @readonly */
+    flatMap,
+    /** @readonly */
+    map,
+    /** @readonly */
+    filter,
+    /** @readonly */
+    flat,
+    /** @readonly */
+    takeWhile,
     /** @readonly */
     find,
 }

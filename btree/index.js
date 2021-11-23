@@ -1,4 +1,6 @@
 const { index3, index5 } = require('../cmp')
+const list = require('../sequence/list')
+const { pipe } = require('../function')
 
 /**
  * @template T
@@ -12,24 +14,24 @@ const { index3, index5 } = require('../cmp')
 
 /**
  * @template T
- * @typedef {import('../array').Array1<T>} Array1
+ * @typedef {import('../sequence/array').Array1<T>} Array1
  */
 
 /**
  * @template T
- * @typedef {import('../array').Array2<T>} Array2
+ * @typedef {import('../sequence/array').Array2<T>} Array2
  */
 
 /**
  * @template T
- * @typedef {import('../array').Array3<T>} Array3
+ * @typedef {import('../sequence/array').Array3<T>} Array3
  */
 
-/** @typedef {import('../array').Index2} Index2 */
+/** @typedef {import('../sequence/array').Index2} Index2 */
 
-/** @typedef {import('../array').Index3} Index3 */
+/** @typedef {import('../sequence/array').Index3} Index3 */
 
-/** @typedef {import('../array').Index5} Index5 */
+/** @typedef {import('../sequence/array').Index5} Index5 */
 
 //
 
@@ -45,17 +47,17 @@ const { index3, index5 } = require('../cmp')
 
 /**
  * @template T
- * @typedef {readonly [TNode<T>, T, TNode<T>]} Branch3
+ * @typedef {readonly [Node<T>, T, Node<T>]} Branch3
  */
 
 /**
  * @template T
- * @typedef {readonly [TNode<T>, T, TNode<T>, T, TNode<T>]} Branch5
+ * @typedef {readonly [Node<T>, T, Node<T>, T, Node<T>]} Branch5
  */
 
 /**
  * @template T
- * @typedef { Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} TNode
+ * @typedef { Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} Node
  */
 
 /** @typedef {{ readonly done: false }} NotFoundDone */
@@ -75,7 +77,7 @@ const { index3, index5 } = require('../cmp')
 
 /**
  * @template T
- * @typedef {{ readonly replace: TNode<T> }} Replace
+ * @typedef {{ readonly replace: Node<T> }} Replace
  */
 
 /**
@@ -123,7 +125,7 @@ const { index3, index5 } = require('../cmp')
 
 /**
  * @template T
- * @typedef { readonly [TNode<T>, T, TNode<T>, T, TNode<T>, T, TNode<T>] } Branch7
+ * @typedef { readonly [Node<T>, T, Node<T>, T, Node<T>, T, Node<T>] } Branch7
  */
 
 /** @type {<T>(n: Branch7<T>) => Branch3<T>} */
@@ -131,7 +133,7 @@ const split = ([n0, v1, n2, v3, n4, v5, n6]) => [[n0, v1, n2], v3, [n4, v5, n6]]
 
 /** 
  * @type {<T>(overflow: (o: Branch3<T>) => Result<T>) => 
- *  (replace: (r: TNode<T>) => TNode<T>) => 
+ *  (replace: (r: Node<T>) => Node<T>) => 
  *  (result: Result<T>) => 
  *  Result<T>} 
  */
@@ -143,7 +145,7 @@ const merge = overflow => replace => result => {
 
 /** 
  * @type {<T>(overflow: (o: Branch3<T>) => Branch5<T>) => 
- *  (replace: (r: TNode<T>) => Branch3<T>) => 
+ *  (replace: (r: Node<T>) => Branch3<T>) => 
  *  (result: Result<T>) => 
  *  Result<T>} 
  */
@@ -151,19 +153,19 @@ const merge2 = overflow => merge(o => ({ replace: overflow(o) }))
 
 /** 
  * @type {<T>(overflow: (o: Branch3<T>) => Branch7<T>) => 
- *  (replace: (r: TNode<T>) => Branch5<T>) => 
+ *  (replace: (r: Node<T>) => Branch5<T>) => 
  *  (result: Result<T>) => 
  *  Result<T>} 
  */
 const merge3 = overflow => merge(o => ({ overflow: split(overflow(o)) }))
 
-/** @type {(visitor: Visitor) => <T>(cmp: Cmp<T>) => (init: Lazy<T>) => (node: TNode<T>) => Result<T>} */
+/** @type {(visitor: Visitor) => <T>(cmp: Cmp<T>) => (init: Lazy<T>) => (node: Node<T>) => Result<T>} */
 const visit = ({ found, notFound }) => cmp => {
     const i3 = index3(cmp)
     const i5 = index5(cmp)
     return init => {
         /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T*/
-        /** @type {(node: TNode<T>) => Result<T>} */
+        /** @type {(node: Node<T>) => Result<T>} */
         const f = node => {
             switch (node.length) {
                 case 1: {
@@ -255,7 +257,7 @@ const notFoundGet = {
     leaf2_right: notFound,
 }
 
-/** @type { <T>(_: TNode<T>) => Replace<T> } */
+/** @type { <T>(_: Node<T>) => Replace<T> } */
 const replace = node => ({ replace: node })
 
 /** @type {Found} */
@@ -304,7 +306,7 @@ const replaceVisitor = {
     notFound: notFoundGet,
 }
 
-/** @type {<T>(_: TNode<T>) => Iterable<T>} */
+/** @type {<T>(_: Node<T>) => Iterable<T>} */
 const values = node => ({
     *[Symbol.iterator]() {
         switch (node.length) {
@@ -330,12 +332,43 @@ const values = node => ({
     }
 })
 
+/** @type {<T>(...array: readonly list.List<T>[]) => list.List<T>} */
+const flatArray = (...array) => list.flat(list.fromArray(array))
+
+/** @type {<T>(node: Node<T>) => list.List<T>} */
+const valuesList = node => {
+    const f = () => {
+        switch (node.length) {
+            case 1: case 2: { return list.fromArray(node) }
+            case 3: { 
+                return flatArray(
+                    valuesList(node[0]), 
+                    list.one(node[1]), 
+                    valuesList(node[2])
+                )
+            }
+            default: {
+                return flatArray(
+                    valuesList(node[0]),
+                    list.one(node[1]),
+                    valuesList(node[2]),
+                    list.one(node[3]),
+                    valuesList(node[4])
+                )
+            }
+        }
+    }
+    return f()
+}
+
 module.exports = {
+    /** @readonly */
+    valuesList,
     /** @readonly */
     values,
     /** 
      * @readonly
-     * @type { <T>(cmp: Cmp<T>) => (node: TNode<T>) => T|undefined }
+     * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
      */
     getVisitor: cmp => node => {
         const result = visit(getVisitor)(cmp)(() => { throw '' })(node)

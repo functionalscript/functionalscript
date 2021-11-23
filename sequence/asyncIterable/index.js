@@ -1,15 +1,9 @@
 const { pipe } = require('../../function')
 const seq = require('..')
 
-/** 
- * @template T
- * @typedef {Promise<T>|T} PromiseOrValue
- */
-
-/** 
- * @template T
- * @template R
- * @typedef {(f: (value: T) => PromiseOrValue<R>) => (c: AsyncIterable<T>) => AsyncIterable<R>} Map
+/**
+ * @template T 
+ * @typedef {Promise<T>|T} PromiseOrValue 
  */
 
 /**
@@ -17,37 +11,29 @@ const seq = require('..')
  * @typedef {Iterable<T> | AsyncIterable<T>} AsyncOrSyncIterable
  */
 
-/** @type {<T, R>(f: (value: T) => PromiseOrValue<R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
-const map = f => c => ({
-    async *[Symbol.asyncIterator]() {
-        for await (const i of c) {
-            yield f(i)
-        }
-    }
-})
-
 /** @type {<T>(c: AsyncOrSyncIterable<AsyncOrSyncIterable<T>>) => AsyncIterable<T>} */
-const flatten = c => ({
+const flat = c => ({
     async *[Symbol.asyncIterator]() {
         for await (const i of c) {
-            yield *i
-        }
-    }
-})
-
-/** @type {<T>(f: (value: T) => Promise<boolean>) => (c: AsyncOrSyncIterable<T>) => AsyncOrSyncIterable<T>} */
-const filter = f => c => ({
-    async *[Symbol.asyncIterator]() {
-        for await (const i of c) {
-            if (await f(i)) {
-                yield i
-            }
+            yield* i
         }
     }
 })
 
 /** @type {<T, R>(f: (value: T) => AsyncOrSyncIterable<R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
-const flatMap = f => pipe(map(f))(flatten)
+const flatMap = f => c => ({
+    async *[Symbol.asyncIterator]() {
+        for await (const i of c) {
+            yield* await f(i)
+        }
+    }
+})
+
+/** @type {<T, R>(f: (value: T) => R) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
+const map = seq.map(flatMap)
+
+/** @type {<T>(f: (value: T) => boolean) => (c: AsyncOrSyncIterable<T>) => AsyncOrSyncIterable<T>} */
+const filter = seq.filter(flatMap)
 
 /** @type {<T>(a: AsyncOrSyncIterable<T>) => (b: AsyncOrSyncIterable<T>) => AsyncIterable<T>} */
 const concat = a => b => ({
@@ -87,9 +73,21 @@ const join = pipe(seq.join)(reduce)
 
 const size = reduce(seq.size)
 
+/** @type {<T>(f: (value: T) => boolean) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<T>} */
+const takeWhile = f => c => ({
+    async *[Symbol.asyncIterator]() {
+        for await (const i of c) {
+            if (!f(i)) { return }
+            yield i
+        }
+    }
+})
+
 module.exports = {
     /** @readonly */
     concat,
+    /** @readonly */
+    flat,
     /** @readonly */
     map,
     /** @readonly */
@@ -108,4 +106,6 @@ module.exports = {
     scan,
     /** @readonly */
     inclusiveScan,
+    /** @readonly */
+    takeWhile,
 }

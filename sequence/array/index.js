@@ -1,4 +1,4 @@
-const option = require('../option')
+const option = require('../../option')
 
 /**
  * @template T
@@ -44,6 +44,11 @@ const option = require('../option')
  * @typedef {readonly [T, T, T, T, T]} Array5
  */
 
+/**
+ * @template T
+ * @typedef {Array1<T>| Array2<T> | Array3<T> | Array4<T> | Array5<T>} Array1_5
+ */
+
 /** @typedef {0|1|2|3|4} Index5 */
 
 /** @type {<T>(_: Array<T>) => Array<T>} */
@@ -80,7 +85,12 @@ const splitLast = a => {
     return option.map(split)(last(a))
 }
 
+/** @type {<T>(a: Array<T>) => (index: number) => readonly[T]|undefined} */
+const at = a => index => index < a.length ? [a[index]] : undefined
+
 module.exports = {
+    /** @readonly */
+    at,
     /** @readnly */
     first,
     /** @readonly */
