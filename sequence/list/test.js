@@ -21,5 +21,5 @@ const print = a => {
     print(list3)
     */
     const r = list.find(x => x === 42)(big)
-    
+    console.log(r)
 }

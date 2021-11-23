@@ -2,6 +2,7 @@ const array = require('../array')
 const option = require('../../option')
 const base = require('..')
 const { pipe } = require('../../function')
+const { todo } = require('../../dev')
 
 /**
  * @template T
@@ -53,15 +54,19 @@ const concat = a => b => () => {
 }
 
 /** @type {<T, R>(f: (value: T) => List<R>) => ListMap<T, R>} */
-const flatMap = f => {
-    /** @typedef {typeof f extends (value: infer T) => List<infer R> ? [T, R] : never} TR */
-    /** @typedef {TR[0]} T */
-    /** @typedef {TR[1]} R */
-    /** @type {(firstAntTail: FirstAndTail<T>) => Result<R>} */
-    const defined = ([first, tail]) => concat(f(first))(listMap(tail))()
-    /** @type {(list: List<T>) => List<R>} */
-    const listMap = list => () => option.map(defined)(list())
-    return listMap
+const flatMap = f => input => () => {
+    let i = input
+    while (true) { 
+        const result = i()
+        if (result === undefined) { return undefined }
+        const [first, tail] = result
+        const firstResult = f(first)() 
+        if (firstResult !== undefined) {
+            const [firstFirst, firstTail] = firstResult
+            return [firstFirst, concat(firstTail)(flatMap(f)(tail))]
+        }
+        i = tail
+    }
 }
 
 /** @type {<T>(list: List<List<T>>) => List<T>} */
