@@ -27,20 +27,17 @@ const empty = () => undefined
  * @typedef {(list: List<T>) => List<R>} ListMap
  */
 
-/** @type {<T>(first: T) => ListMap<T, T>} */
-const list = first => tail => () => [first, tail]
-
 /** @type {<T>(first: T) => List<T>} */
-const one = first => list(first)(empty)
+const one = first => () => [first, empty]
 
 /** @type {<T>(array: array.Array<T>) => List<T>} */
 const fromArray = a => {
     /** @typedef {typeof a extends array.Array<infer T> ? T : never} T */
     /** @type {(index: number) => List<T>} */
-    const at = index => {
-        /** @type {(value: readonly [T]) => Result<T>} */
-        const result = ([value]) => list(value)(at(index + 1))()
-        return () => option.map(result)(array.at(index)(a))
+    const at = index => () => {
+        const result = array.at(index)(a)
+        if (result === undefined) { return undefined }
+        return [result[0], at(index + 1)]
     }
     return at(0)
 }
@@ -61,10 +58,6 @@ const concat = a => b => {
         return () => [first, concat(tail)(b)]
     }
     return b
-    // /** @typedef {typeof a extends List<infer T> ? T : never} T */
-    // /** @type {(firstAntTail: FirstAndTail<T>) => Result<T>} */
-    // const defined = ([first, tail]) => [first, concat(tail)(b)]
-    // return option.match(defined)(b)(a())
 }
 
 /** @type {<T, R>(f: (value: T) => List<R>) => ListMap<T, R>} */
@@ -106,7 +99,7 @@ const scan = s => input => () => {
 }
 
 /** @type {<T, R>(s: base.InclusiveScan<T, R>) => ListMap<T, R>} */
-const inclusiveScan = ([first, s]) => input => list(first)(scan(s)(input))
+const inclusiveScan = ([first, s]) => input => () => [first, scan(s)(input)]
 
 /** @type {<T>(def: T) => (input: List<T>) => T} */
 const last = def => input => {
@@ -120,7 +113,7 @@ const last = def => input => {
 }
 
 /** @type {<T, R>(s: base.InclusiveScan<T, R>) => (input: List<T>) => R} */
-const reduce = s => input => last(s[0])(inclusiveScan(s)(input))
+const reduce = ([first, s]) => input => last(first)(scan(s)(input))
 
 const entries = scan(base.entries)
 
@@ -129,6 +122,13 @@ const sum = reduce(base.sum)
 const length = reduce(base.length)
 
 const join = pipe(base.join)(reduce)
+
+/** @type {<T>(f: (value: T) => boolean) => ListMap<T, T>} */
+const takeWhile = f => input => () => {
+    const result = input()
+    if (result === undefined || !f(result[0])) { return undefined }
+    return result
+}
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => T|undefined} */
 const find = f => input => {
@@ -153,8 +153,6 @@ const iterable = list => ({
 })
 
 module.exports = {
-    /** @readonly */
-    list,
     /** @readonly */
     one,
     /** @readonly */

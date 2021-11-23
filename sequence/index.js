@@ -56,7 +56,10 @@ const join = separator => ['', value => [value, scan(op.join(separator))(value)]
 
 const sum = inclusiveScan(op.addition)(0)
 
-const length = inclusiveScan(a => () => a + 1)(0)
+/** @type {(a: number) => () => number} */
+const counter = a => () => a + 1
+
+const length = inclusiveScan(counter)(0)
 
 /**
  * @template T

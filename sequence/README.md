@@ -12,7 +12,7 @@ Sequence types:
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 
 - `length: Sequence<infer T> => number`
-- `at: number => Sequence<infer T> = T`
+- `at: number => Sequence<infer T> = T|undefined`
 - `concat: Sequence<infer T> => Sequence<T> => Sequence<T>`
 - `entries: Sequence<infer T> => Sequence<[number, T]>`
 - `every: (infer T => boolean) => Sequence<T> => boolean`
@@ -24,7 +24,6 @@ See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Obj
 - `includes: infer T => Sequence<T> => boolean`
 - `indexOf: infer T => Sequence<T> => number`
 - `join: string => Sequence<string> => string`
-- `keys: Sequence<T> => Sequence<string>`
 - `lastIndexOf: infer T => Sequence<T> => number`
 - `map: (infer T => infer R) => Sequence<T> => Sequence<R>`
 - `reduce: ...Scan<T, R> => Sequence<T> => R`
@@ -38,6 +37,7 @@ See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Obj
 
 ### Priority 3.
 
+- `keys: Sequence<T> => Sequence<string>`
 - `values: Sequence<infer T> => Sequence<T>`
 
 ## Prohibited Array Operations
