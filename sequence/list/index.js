@@ -6,7 +6,23 @@ const { todo } = require('../../dev')
 
 /**
  * @template T
- * @typedef {() => Result<T>} List
+ * @typedef {() => Result<T>} ListFunc
+ */
+
+/**
+ * We need this workaround because modern JavaScript implementations
+ * don't support ES6 TCO (Tail Call Optimization)
+ * 
+ * Without this wotkaround we may have a stack overflow if a list
+ * contains a lot of concateneted lists.
+ * 
+ * @template T
+ * @typedef {readonly [List<T>, List<T>]} Concat
+ */
+
+/**
+ * @template T
+ * @typedef { ListFunc<T> | Concat<T>} List
  */
 
 /**
@@ -20,6 +36,24 @@ const { todo } = require('../../dev')
  */
 
 const empty = () => undefined
+
+/** @type {<T>(list: List<T>) => Result<T>} */
+const get = list => {
+    let i = list
+    while (true) {
+        if (typeof i === 'function') { return i() }
+        const [a, b] = i
+        if (typeof a === 'function') { 
+            const result = a()
+            if (result !== undefined) { 
+                return [result[0], [result[1], b]]
+            }
+            i = b
+        } else {
+            i = [a[0], [a[1], b]]
+        }
+    }
+}
 
 /**
  * @template T
@@ -42,32 +76,17 @@ const fromArray = a => {
     return at(0)
 }
 
-/**
- * Note: the function is not completly lazy.
- *       it calls `a()` as soon as `a` and `b` are provided.
- *       Othrewise we may have a stack overflow if a list 
- *       contains a lot of concateneted empty lists.
- *       And we can't relay on ES6 TCO (Tail Call Optimization) 
- *       because it's not supported by Chrome and Firefox.
- * @type {<T>(list0: List<T>) => ListMap<T, T>} 
- */
-const concat = a => b => {
-    const result = a()
-    if (result !== undefined) {
-        const [first, tail] = result
-        return () => [first, concat(tail)(b)]
-    }
-    return b
-}
+/** @type {<T>(list0: List<T>) => ListMap<T, T>} */
+const concat = a => b => [a, b]
 
 /** @type {<T, R>(f: (value: T) => List<R>) => ListMap<T, R>} */
 const flatMap = f => input => () => {
     let i = input
     while (true) { 
-        const result = i()
+        const result = get(i)
         if (result === undefined) { return undefined }
         const [first, tail] = result
-        const firstResult = f(first)() 
+        const firstResult = get(f(first)) 
         if (firstResult !== undefined) {
             const [firstFirst, firstTail] = firstResult
             return [firstFirst, concat(firstTail)(flatMap(f)(tail))]
@@ -95,7 +114,7 @@ const scan = s => input => () => {
         const [newFirst, newS] = s(first)
         return [newFirst, scan(newS)(tail)]
     }
-    return option.map(defined)(input())
+    return option.map(defined)(get(input))
 }
 
 /** @type {<T, R>(s: base.InclusiveScan<T, R>) => ListMap<T, R>} */
@@ -103,11 +122,15 @@ const inclusiveScan = ([first, s]) => input => () => [first, scan(s)(input)]
 
 /** @type {<T>(def: T) => (input: List<T>) => T} */
 const last = def => input => {
-    let i = input()
     let r = def
-    while (i !== undefined) {
-        r = i[0]
-        i = i[1]()
+    let i = input    
+    while (true) {
+        const result = get(i)
+        if (result === undefined) {
+            return r
+        }
+        r = result[0]
+        i = result[1]
     }
     return r
 }
@@ -125,7 +148,7 @@ const join = pipe(base.join)(reduce)
 
 /** @type {<T>(f: (value: T) => boolean) => ListMap<T, T>} */
 const takeWhile = f => input => () => {
-    const result = input()
+    const result = get(input)
     if (result === undefined || !f(result[0])) { return undefined }
     return result
 }
@@ -135,7 +158,7 @@ const find = f => input => {
     /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
     /** @type {(result: FirstAndTail<T>) => T} */
     const defined = ([first]) => first
-    return option.map(defined)(filter(f)(input)())
+    return option.map(defined)(get(filter(f)(input)))
 }
 
 /**
@@ -144,15 +167,19 @@ const find = f => input => {
  */
 const iterable = list => ({
     *[Symbol.iterator]() {
-        let result = list()
-        while (result !== undefined) {
+        let i = list
+        while (true) {
+            const result = get(i)
+            if (result === undefined) { return }
             yield result[0]
-            result = result[1]()
+            i = result[1]
         }
     }
 })
 
 module.exports = {
+    /** @readonly */
+    get,
     /** @readonly */
     one,
     /** @readonly */

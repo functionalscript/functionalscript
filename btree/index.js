@@ -358,7 +358,7 @@ const valuesList = node => () => {
             }
         }
     }
-    return f()()
+    return list.get(f())
 }
 
 module.exports = {

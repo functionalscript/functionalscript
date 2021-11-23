@@ -3,10 +3,12 @@ const { sum } = require('..')
 
 /** @type {<T>(l: list.List<T>) => void} */
 const print = a => {
-    let i = a()
-    while (i !== undefined) {
-        console.log(i[0])
-        i = i[1]()
+    let i = a
+    while (true) {
+        const result = list.get(i)
+        if (result === undefined) { return }
+        console.log(result[0])
+        i = result[1]
     }
 }
 
@@ -17,20 +19,20 @@ const print = a => {
     const list2 = list.concat(list0)(list0)
     const list3 = list.inclusiveScan(sum)(list0)
     const r = list.find(x => x === 42)(big)
-    /*
     {
         let x = big
-        for (let i = 0; i < 1000000; ++i) {
+        for (let i = 0; i < 1_000_000; ++i) {
             x = list.concat(list.empty)(x)
         }
-        const r = x()
+        const r = list.get(x)
+        print(x)
     } 
-    */
     {
         let x = big
-        for (let i = 0; i < 100_000; ++i) {
+        for (let i = 0; i < 1_000_000; ++i) {
             x = list.concat(x)(list.one(i))
         }
-        const r = x()
+        const r = list.get(x)
+        // print(x)
     }
 }
