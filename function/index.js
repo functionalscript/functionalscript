@@ -7,17 +7,28 @@
 /** @type {<X, O>(f: Func<X, O>) => <I>(g: Func<I, X>) => Func<I, O>} */
 const combine = f => g => x => f(g(x))
 
-/** @type {<I, X>(g: Func<I, X>) => <O>(g: Func<X, O>) => Func<I, O>} */
-// const pipe = g => f => x => f(g(x))
-
 /** @type {<T>(value: T) => T} */
 const id = value => value
+
+/**
+ * @template T
+ * @typedef {{
+ *  readonly _: <R>(f: Func<T, R>) => Pipe<R>
+ *  readonly result: T
+ * }} Pipe<T>
+ */
+
+/** @type {<T>(result: T) => Pipe<T>} */
+const pipe = result => ({
+    _: f => pipe(f(result)),
+    result,
+})
 
 module.exports = {
     /** @readonly */
     id,
     /** @readonly */
-    // pipe,
+    pipe,
     /** @readonly */
     combine,
 }

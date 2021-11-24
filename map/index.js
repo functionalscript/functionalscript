@@ -67,8 +67,14 @@ const empty = {
     root: undefined
 }
 
+/** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
+const setOperator = map => ([k, v]) => map.set(k)(v)
+
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
-const fromEntries = seq.fold(map => entry => map.set(entry))(empty)
+const fromEntries = entries => {
+    /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */
+    return seq.fold(setOperator)(/** @type {Map<T>} */(empty))(entries)
+}
 
 module.exports = {
     /** @readonly */

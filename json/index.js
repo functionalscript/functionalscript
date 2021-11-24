@@ -1,6 +1,8 @@
 const seq = require('../sequence')
 const map = require('../map')
 const op = require('../sequence/operator')
+const { pipe } = require('../function')
+const option = require('../option')
 
 /** 
  * @typedef {{
@@ -25,17 +27,25 @@ const addProperty = value => {
     return path => f(seq.fromArray(path))
 }
 
-/** @type {(kv: readonly[string, seq.Sequence<string>]) => seq.Sequence<string>} */
-const property = ([k, v]) => seq.concat(seq.list(JSON.stringify(k)), seq.list(':'), v)
+/** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
+const property = ([k, v]) => seq.concat(
+    seq.list(JSON.stringify(k)), 
+    seq.list(':'), 
+    stringSequence(v))
+
+const comma = seq.list(',')
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat(seq.list(','), a), commaValue]
+const commaValue = a => [seq.concat(comma, a), commaValue]
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
 const joinScan = value => [value, commaValue]
 
 /** @type {seq.SequenceMap<seq.Sequence<string>, string>} */
-const join = input => seq.flat(seq.scan(joinScan)(input))
+const join = input => pipe(input)
+    ._(seq.scan(joinScan))
+    ._(seq.flat)
+    .result
 
 /** @type {(open: string) => (close: string) => (input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
 const list = open => close => {
@@ -49,17 +59,24 @@ const objectList = list('{')('}')
 const arrayList = list('[')(']')
 
 /** @type {(object: Object) => seq.Sequence<string>} */
-const objectStringify = object => {
-    /** @type {map.Map<seq.Sequence<string>>} */
-    const m = seq.fold(m => ([k, v]) => m.set(k)(stringSeq(v)))(map.empty)(seq.fromArray(Object.entries(object)))
-    return objectList(seq.map(property)(m.entries))
-}
+const objectStringify = object => pipe(object)
+    ._(Object.entries)
+    ._(seq.fromArray)
+    ._(map.fromEntries)
+    ._(x => x.entries)
+    ._(seq.map(property))
+    ._(objectList)
+    .result
 
 /** @type {(array: Array) => seq.Sequence<string>} */
-const arrayStringify = array => arrayList(seq.map(stringSeq)(seq.fromArray(array)))
+const arrayStringify = array => pipe(array)
+    ._(seq.fromArray)
+    ._(seq.map(stringSequence))
+    ._(arrayList)
+    .result
 
 /** @type {(value: Json) => seq.Sequence<string>} */
-const stringSeq = value => {
+const stringSequence = value => {
     const x = typeof value
     switch (typeof value) {
         case 'boolean': { return seq.list(value ? "true" : "false") }
@@ -79,7 +96,7 @@ const stringSeq = value => {
  *  
  * @type {(value: Json) => string} 
  */
-const stringify = value => seq.join('')(stringSeq(value))
+const stringify = value => seq.join('')(stringSequence(value))
 
 module.exports = {
     /** @readonly */

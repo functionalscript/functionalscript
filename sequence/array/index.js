@@ -86,10 +86,9 @@ const head = a => a.length === 0 ? undefined : uncheckHead(a)
 
 /** @type {<T>(_: Array<T>) => readonly [Array<T>, T]|undefined} */
 const splitLast = a => {
-    /** @typedef {typeof a[0]} T*/
-    /** @type {(_: T) => readonly [Array<T>, T]} */
-    const split = x => [uncheckHead(a), x]
-    return option.map(split)(last(a))
+    const lastA = last(a)
+    if (lastA === undefined) { return undefined }
+    return [uncheckHead(a), lastA]
 }
 
 /** @type {(index: number) => <T>(a: Array<T>) => readonly[T]|undefined} */
