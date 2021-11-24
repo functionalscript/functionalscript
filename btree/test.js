@@ -13,18 +13,18 @@ const set = node => value => {
 
 const test = () => {
     /** @type {btree.Node<string>} */
-    let _0 = ['a']
-    _0 = set(_0)('b')
-    _0 = set(_0)('c')
-    _0 = set(_0)('d')
-    _0 = set(_0)('e')
-    _0 = set(_0)('f')
+    let _map = ['a']
+    _map = set(_map)('b')
+    _map = set(_map)('c')
+    _map = set(_map)('d')
+    _map = set(_map)('e')
+    _map = set(_map)('f')
     //
     {
         /** @type {import('../sequence').Result<string>} */
-        let _1 = list.next(valuesList(_0))
-        while (_1 !== undefined) {
-            _1 = list.next(_1[1])
+        let _item = list.next(valuesList(_map))
+        while (_item !== undefined) {
+            _item = list.next(_item[1])
         }
     }
 }

@@ -1,4 +1,3 @@
-const array = require('./array')
 const seqOp = require('./operator')
 const { combine } = require('../function')
 const op = require('../function/operator')
@@ -33,7 +32,7 @@ const { logicalNot, strictEqual } = require('../function/operator')
 
 /**
  * @template T
- * @typedef {array.Tuple2<T, Sequence<T>>} FirstAndTail
+ * @typedef {readonly[T, Sequence<T>]} FirstAndTail
  */
 
 const empty = () => undefined
@@ -91,18 +90,6 @@ const list = (...array) => {
         const result = [array[i], tail]
         tail = () => result
     }
-}
-
-/** @type {<T>(array: array.Array<T>) => Sequence<T>} */
-const fromArray = a => {
-    /** @typedef {typeof a extends array.Array<infer T> ? T : never} T */
-    /** @type {(index: number) => Sequence<T>} */
-    const at = index => () => {
-        const result = array.at(index)(a)
-        if (result === undefined) { return undefined }
-        return [result[0], at(index + 1)]
-    }
-    return at(0)
 }
 
 /** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
@@ -265,7 +252,7 @@ const asyncIterable = list => ({
     }
 })
 
-/** @type {<A>(a: Sequence<A>) => <B>(b: Sequence<B>) => Sequence<array.Tuple2<A, B>>} */
+/** @type {<A>(a: Sequence<A>) => <B>(b: Sequence<B>) => Sequence<readonly[A, B]>} */
 const zip = a => b => () => {
     const resultA = next(a)
     if (resultA === undefined) { return undefined }
@@ -292,8 +279,6 @@ module.exports = {
     generate,
     /** @readonly */
     first,
-    /** @readonly */
-    fromArray,
     /** @readonly */
     toArray,
     /** @readonly */

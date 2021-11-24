@@ -1,4 +1,5 @@
 const option = require('../../option')
+const seq = require('..')
 
 /**
  * @template T
@@ -94,6 +95,18 @@ const splitLast = a => {
 /** @type {(index: number) => <T>(a: Array<T>) => readonly[T]|undefined} */
 const at = index => a => index < a.length ? [a[index]] : undefined
 
+/** @type {<T>(array: Array<T>) => seq.Sequence<T>} */
+const toSequence = a => {
+    /** @typedef {typeof a extends Array<infer T> ? T : never} T */
+    /** @type {(index: number) => seq.Sequence<T>} */
+    const seq = index => () => {
+        const result = at(index)(a)
+        if (result === undefined) { return undefined }
+        return [result[0], seq(index + 1)]
+    }
+    return seq(0)
+}
+
 module.exports = {
     /** @readonly */
     at,
@@ -109,4 +122,6 @@ module.exports = {
     splitFirst,
     /** @readonly */
     splitLast,
+    /** @readonly */
+    toSequence,
 }

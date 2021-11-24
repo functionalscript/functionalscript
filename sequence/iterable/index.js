@@ -1,3 +1,4 @@
+const { iterable } = require('..')
 const { combine } = require('../../function')
 const seq = require('../operator')
 

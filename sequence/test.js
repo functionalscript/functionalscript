@@ -1,6 +1,7 @@
 const seq = require('.')
 const { sum } = require('./operator')
 const op = require('./operator')
+const array = require('./array')
 
 /** @type {<T>(input: seq.Sequence<T>) => void} */
 const print = input => {
@@ -14,9 +15,9 @@ const print = input => {
 }
 
 {
-    const big = seq.fromArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 42, 60])
-    const list0 = seq.fromArray([0, 1, 2, 3])
-    const list1 = seq.flatMap(x => seq.fromArray([x, x * 2, x * 3]))(list0)
+    const big = seq.list(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 42, 60)
+    const list0 = seq.list(0, 1, 2, 3)
+    const list1 = seq.flatMap(x => seq.list(x, x * 2, x * 3))(list0)
     const list2 = seq.concat(list0, list0)
     const list3 = seq.exclusiveScan(sum)(list0)
     const r = seq.find(x => x === 42)(big)
@@ -27,7 +28,7 @@ const print = input => {
     if (seq.first(seq.drop(16)(big)) !== 42) { throw 'drop'}
     {
         const a = seq.toArray(seq.generate(1_000_000))
-        let x = seq.concat(seq.fromArray(a), big)
+        let x = seq.concat(array.toSequence(a), big)
         const r = seq.next(x)
         // print(x)
     }
@@ -57,6 +58,6 @@ const print = input => {
 }
 
 {
-    const x = seq.join(':')(seq.fromArray(["1", "2", "3", "4", "5", "6"]))
+    const x = seq.join(':')(seq.list("1", "2", "3", "4", "5", "6"))
     if (x !== "1:2:3:4:5:6") { throw x }
 }

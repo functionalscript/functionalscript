@@ -2,6 +2,7 @@ const seq = require('../sequence')
 const map = require('../map')
 const op = require('../sequence/operator')
 const option = require('../option')
+const array = require('../sequence/array')
 
 /** 
  * @typedef {{
@@ -23,7 +24,7 @@ const addProperty = value => {
         const [name, tail] = result
         return { ...srcObject, [name]: f(tail)(srcObject[name]) }
     }
-    return path => f(seq.fromArray(path))
+    return path => f(array.toSequence(path))
 }
 
 /** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
@@ -60,16 +61,16 @@ const arrayList = list('[')(']')
 /** @type {(object: Object) => seq.Sequence<string>} */
 const objectStringify = object => {
     const _0 = Object.entries(object)
-    const _1 = seq.fromArray(_0)
+    const _1 = array.toSequence(_0)
     const _2 = map.fromEntries(_1)
     const _3 = _2.entries
     const _4 = seq.map(property)(_3)
     return objectList(_4)
 }
 
-/** @type {(array: Array) => seq.Sequence<string>} */
-const arrayStringify = array => {
-    const _0 = seq.fromArray(array)
+/** @type {(input: Array) => seq.Sequence<string>} */
+const arrayStringify = input => {
+    const _0 = array.toSequence(input)
     const _1 = seq.map(stringSequence)(_0)
     return arrayList(_1)
 }
