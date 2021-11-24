@@ -21,10 +21,10 @@ const scan = s => c => ({
     }
 })
 
-/** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
-const inclusiveScan = ([first, s]) => c => concat([first])(scan(s)(c))
+/** @type {<T, R>(s: seq.ExclusiveScan<T, R>) => (c: Iterable<T>) => Iterable<R>} */
+const exclusiveScan = ([first, s]) => c => concat([first])(scan(s)(c))
 
-/** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: Iterable<T>) => R} */
+/** @type {<T, R>(s: seq.ExclusiveScan<T, R>) => (c: Iterable<T>) => R} */
 const reduce = ([first, s]) => c => {
     let next = first
     for (const i of scan(s)(c)) {
@@ -93,7 +93,7 @@ module.exports = {
     /** @readonly */
     scan,
     /** @readonly */
-    inclusiveScan,
+    exclusiveScan,
     /** @readonly */
     flatMap,
     /** @readonly */

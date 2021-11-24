@@ -143,8 +143,8 @@ const scan = s => input => () => {
     return [newFirst, scan(newS)(tail)]
 }
 
-/** @type {<T, R>(s: base.InclusiveScan<T, R>) => ListMap<T, R>} */
-const inclusiveScan = ([first, s]) => input => () => [first, scan(s)(input)]
+/** @type {<T, R>(s: base.ExclusiveScan<T, R>) => ListMap<T, R>} */
+const exclusiveScan = ([first, s]) => input => () => [first, scan(s)(input)]
 
 /** @type {<T>(def: T) => (input: List<T>) => T} */
 const last = def => input => {
@@ -160,7 +160,7 @@ const last = def => input => {
     }
 }
 
-/** @type {<T, R>(s: base.InclusiveScan<T, R>) => (input: List<T>) => R} */
+/** @type {<T, R>(s: base.ExclusiveScan<T, R>) => (input: List<T>) => R} */
 const reduce = ([first, s]) => input => last(first)(scan(s)(input))
 
 const entries = scan(base.entries)
@@ -248,7 +248,7 @@ module.exports = {
     /** @readonly */
     scan,
     /** @readonly */
-    inclusiveScan,
+    exclusiveScan,
     /** @readonly */
     last,
     /** @readonly */

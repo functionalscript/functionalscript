@@ -55,10 +55,10 @@ const scan = s => c => ({
     }
 })
 
-/** @type {<T, R>(s: seq.InclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
-const inclusiveScan = ([first, s]) => c => concat([first])(scan(s)(c))
+/** @type {<T, R>(s: seq.ExclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => AsyncIterable<R>} */
+const exclusiveScan = ([first, s]) => c => concat([first])(scan(s)(c))
 
-/** @type {<T, R>(is: seq.InclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => Promise<R>} */
+/** @type {<T, R>(is: seq.ExclusiveScan<T, R>) => (c: AsyncOrSyncIterable<T>) => Promise<R>} */
 const reduce = ([first, s]) => async c => {
     let next = first
     for await (const i of scan(s)(c)) {
@@ -105,7 +105,7 @@ module.exports = {
     /** @readonly */
     scan,
     /** @readonly */
-    inclusiveScan,
+    exclusiveScan,
     /** @readonly */
     takeWhile,
 }

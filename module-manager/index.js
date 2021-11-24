@@ -40,7 +40,7 @@ const seq = require('../sequence')
 /** @typedef {(_: string) => undefined|Package|Dependencies} Dependencies */
 
 /** @type {seq.InclusiveScan<string, undefined|Path>} */
-const pathNormReduce = seq.inclusiveScan
+const pathNormReduce = seq.exclusiveScan
     (path => item =>
         path === undefined ?
             undefined :

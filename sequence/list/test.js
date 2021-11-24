@@ -17,7 +17,7 @@ const print = a => {
     const list0 = list.fromArray([0, 1, 2, 3])
     const list1 = list.flatMap(x => list.fromArray([x, x * 2, x * 3]))(list0)
     const list2 = list.concat(list0)(list0)
-    const list3 = list.inclusiveScan(sum)(list0)
+    const list3 = list.exclusiveScan(sum)(list0)
     const r = list.find(x => x === 42)(big)
     if (list.every(x => x > 0)(big) !== true) { throw 'x'}
     if (list.every(x => x < 20)(big) !== false) { throw 'x' }

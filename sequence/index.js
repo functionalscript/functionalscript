@@ -1,5 +1,4 @@
 const op = require('../function/operator')
-const { id } = require('../function')
 
 /**
  * @template T0
@@ -22,7 +21,7 @@ const { id } = require('../function')
 /**
  * @template T
  * @template R
- * @typedef {Tuple2<R, Scan<T, R>>} InclusiveScan
+ * @typedef {Tuple2<R, Scan<T, R>>} ExclusiveScan
  */
 
 /** @type {<R, T>(operator: op.ReduceOperator<R, T>) => (prior: R) => Scan<T, R>} */
@@ -38,8 +37,8 @@ const scan = operator => {
     return f
 } 
 
-/** @type {<R, T>(operator: op.ReduceOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
-const inclusiveScan = operator => first => [first, scan(operator)(first)]
+/** @type {<R, T>(operator: op.ReduceOperator<R, T>) => (first: R) => ExclusiveScan<T, R>} */
+const exclusiveScan = operator => first => [first, scan(operator)(first)]
 
 /** 
  * @template T
@@ -51,15 +50,15 @@ const createEntries = index => value => [[index, value], createEntries(index + 1
 
 const entries = createEntries(0)
 
-/** @type {(separator: string) => InclusiveScan<string, string>} */
+/** @type {(separator: string) => ExclusiveScan<string, string>} */
 const join = separator => ['', value => [value, scan(op.join(separator))(value)]]
 
-const sum = inclusiveScan(op.addition)(0)
+const sum = exclusiveScan(op.addition)(0)
 
 /** @type {(a: number) => () => number} */
 const counter = a => () => a + 1
 
-const length = inclusiveScan(counter)(0)
+const length = exclusiveScan(counter)(0)
 
 /**
  * @template T
@@ -75,7 +74,7 @@ const filter = flatMap => f => flatMap(x => f(x) ? [x] : [])
 
 module.exports = {
     /** @readonly */
-    inclusiveScan,
+    exclusiveScan,
     /** @readonly */
     scan,
     /** @readonly */
