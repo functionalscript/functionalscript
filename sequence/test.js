@@ -1,5 +1,6 @@
 const seq = require('.')
 const { sum } = require('./operator')
+const op = require('./operator')
 
 /** @type {<T>(input: seq.Sequence<T>) => void} */
 const print = input => {
@@ -40,4 +41,9 @@ const print = input => {
         const r = seq.next(x)
         // print(x)
     }
+}
+
+{
+    const x = seq.join(':')(seq.fromArray(["1", "2", "3", "4", "5", "6"]))
+    if (x !== "1:2:3:4:5:6") { throw x }
 }

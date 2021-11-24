@@ -5,6 +5,7 @@ require('./btree/test')
 require('./sequence/iterable/test')
 require('./sequence/asyncIterable/test')
 require('./module-manager/test')
+require('./json/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

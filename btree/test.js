@@ -24,8 +24,6 @@ const test = () => {
         /** @type {import('../sequence').Result<string>} */
         let result = list.next(valuesList(node))
         while (result !== undefined) {
-            const t = result[0]
-            console.log(t)
             result = list.next(result[1])
         }
     }
