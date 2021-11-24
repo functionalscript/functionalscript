@@ -28,12 +28,12 @@ const addProperty = value => {
 /** @type {(kv: readonly[string, seq.Sequence<string>]) => seq.Sequence<string>} */
 const property = ([k, v]) => {
     let r = seq.one(JSON.stringify(k))
-    r = seq.concat(r)(seq.one(':'))
-    return seq.concat(r)(v)
+    r = seq.concat2(r)(seq.one(':'))
+    return seq.concat2(r)(v)
 }
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat(seq.one(','))(a), commaValue]
+const commaValue = a => [seq.concat2(seq.one(','))(a), commaValue]
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
 const joinScan = value => [value, commaValue]
@@ -49,15 +49,15 @@ const objectStringify = object => {
         m = m.set(k)(stringSeq(v))
     }
     const properties = join(seq.map(property)(m.entries))
-    const result = seq.concat(seq.one('{'))(seq.flat(properties))
-    return seq.concat(result)(seq.one('}'))
+    const result = seq.concat2(seq.one('{'))(seq.flat(properties))
+    return seq.concat2(result)(seq.one('}'))
 }
 
 /** @type {(array: Array) => seq.Sequence<string>} */
 const arrayStringify = array => {
     let a = seq.flat(join(seq.map(stringSeq)(seq.fromArray(array))))
-    const s = seq.concat(seq.one('['))(a)    
-    return seq.concat(s)(seq.one(']'))
+    const s = seq.concat2(seq.one('['))(a)    
+    return seq.concat2(s)(seq.one(']'))
 }
 
 /** @type {(value: Json) => seq.Sequence<string>} */

@@ -93,7 +93,7 @@ const fromArray = a => {
 }
 
 /** @type {<T>(a: Sequence<T>) => SequenceMap<T, T>} */
-const concat = a => b => [a, b]
+const concat2 = a => b => [a, b]
 
 /** @type {<T, R>(f: (value: T) => Sequence<R>) => SequenceMap<T, R>} */
 const flatMap = f => input => () => {
@@ -250,7 +250,7 @@ module.exports = {
     /** @readonly */
     at,
     /** @readonly */
-    concat,
+    concat2,
     /** @readonly */
     first,
     /** @readonly */

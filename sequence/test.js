@@ -17,7 +17,7 @@ const print = input => {
     const big = seq.fromArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 42, 60])
     const list0 = seq.fromArray([0, 1, 2, 3])
     const list1 = seq.flatMap(x => seq.fromArray([x, x * 2, x * 3]))(list0)
-    const list2 = seq.concat(list0)(list0)
+    const list2 = seq.concat2(list0)(list0)
     const list3 = seq.exclusiveScan(sum)(list0)
     const r = seq.find(x => x === 42)(big)
     if (seq.every(x => x > 0)(big) !== true) { throw 'x'}
@@ -28,7 +28,7 @@ const print = input => {
     {
         let x = big
         for (let i = 0; i < 1_000_000; ++i) {
-            x = seq.concat(seq.empty)(x)
+            x = seq.concat2(seq.empty)(x)
         }
         const r = seq.next(x)
         // print(x)
@@ -36,7 +36,7 @@ const print = input => {
     {
         let x = big
         for (let i = 0; i < 1_000_000; ++i) {
-            x = seq.concat(x)(seq.one(i))
+            x = seq.concat2(x)(seq.one(i))
         }
         const r = seq.next(x)
         // print(x)
