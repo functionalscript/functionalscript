@@ -1,4 +1,5 @@
-const { index3, index5 } = require('../cmp')
+const cmp = require('../cmp')
+const { index3, index5 } = cmp
 const seq = require('../sequence')
 
 /**
@@ -8,29 +9,29 @@ const seq = require('../sequence')
 
 /**
  * @template T
- * @typedef {import('../cmp').Cmp<T>} Cmp
+ * @typedef {cmp.Cmp<T>} Cmp
  */
 
 /**
  * @template T
- * @typedef {import('../sequence/array').Array1<T>} Array1
+ * @typedef {readonly[T]} Array1
  */
 
 /**
  * @template T
- * @typedef {import('../sequence/array').Array2<T>} Array2
+ * @typedef {readonly[T,T]} Array2
  */
 
 /**
  * @template T
- * @typedef {import('../sequence/array').Array3<T>} Array3
+ * @typedef {readonly[T,T,T]} Array3
  */
 
-/** @typedef {import('../sequence/array').Index2} Index2 */
+/** @typedef {0|1} Index2 */
 
-/** @typedef {import('../sequence/array').Index3} Index3 */
+/** @typedef {0|1|2} Index3 */
 
-/** @typedef {import('../sequence/array').Index5} Index5 */
+/** @typedef {0|1|2|3|4} Index5 */
 
 //
 
