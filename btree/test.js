@@ -1,7 +1,7 @@
 const btree = require('.')
 const { setVisitor, valuesList } = btree
 const { cmp } = require('../cmp') 
-const list = require('../sequence/list')
+const list = require('../sequence')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => {
@@ -21,7 +21,7 @@ const test = () => {
     node = set(node)('f')
     //
     {
-        /** @type {import('../sequence/list').Result<string>} */
+        /** @type {import('../sequence').Result<string>} */
         let result = list.next(valuesList(node))
         while (result !== undefined) {
             const t = result[0]

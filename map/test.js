@@ -1,5 +1,5 @@
 const { empty } = require('.')
-const list = require('../sequence/list')
+const list = require('../sequence')
 
 {
     let m = empty.set('a')(1)

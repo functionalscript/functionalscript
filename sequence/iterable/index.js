@@ -1,5 +1,5 @@
 const { pipe } = require('../../function')
-const seq = require('..')
+const seq = require('../operator')
 
 /** @type {<T>(a: Iterable<T>) => (b: Iterable<T>) => Iterable<T>} */
 const concat = a => b => ({

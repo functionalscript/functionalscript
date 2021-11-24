@@ -3,7 +3,7 @@ const { pipe } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../sequence/iterable')
-const seq = require('../sequence')
+const seq = require('../sequence/operator')
 
 /**
  * @template T

@@ -1,6 +1,6 @@
 const i = require('./')
 
-require('./sequence/list/test')
+require('./sequence/test')
 require('./btree/test')
 require('./sequence/iterable/test')
 require('./sequence/asyncIterable/test')

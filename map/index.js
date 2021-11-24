@@ -1,7 +1,7 @@
 const option = require("../option")
 const { getVisitor, setVisitor, valuesList } = require("../btree")
 const { cmp } = require("../cmp")
-const list = require("../sequence/list")
+const list = require("../sequence")
 
 /** @typedef {import("../cmp").Sign} Sign */
 
@@ -30,7 +30,7 @@ const list = require("../sequence/list")
  * @typedef {{
  *  readonly get: (name: string) => T|undefined
  *  readonly set: (name: string) => (value: T) => Map<T> 
- *  readonly entries: list.List<Entry<T>>
+ *  readonly entries: list.Sequence<Entry<T>>
  *  readonly root: undefined|TNode<Entry<T>>
  * }} Map
  */

@@ -1,6 +1,5 @@
 const { index3, index5 } = require('../cmp')
-const list = require('../sequence/list')
-const { pipe } = require('../function')
+const seq = require('../sequence')
 
 /**
  * @template T
@@ -306,66 +305,38 @@ const replaceVisitor = {
     notFound: notFoundGet,
 }
 
-/** @type {<T>(_: Node<T>) => Iterable<T>} */
-const values = node => ({
-    *[Symbol.iterator]() {
-        switch (node.length) {
-            case 1: case 2: {
-                yield* node
-                return
-            }
-            case 3: {
-                yield* values(node[0])
-                yield node[1]
-                yield* values(node[2])
-                return
-            }
-            default: {
-                yield* values(node[0])
-                yield node[1]
-                yield* values(node[2])
-                yield node[3]
-                yield* values(node[4])
-                return
-            }
-        }
-    }
-})
+/** @type {<T>(...array: readonly seq.Sequence<T>[]) => seq.Sequence<T>} */
+const flatArray = (...array) => seq.flat(seq.fromArray(array))
 
-/** @type {<T>(...array: readonly list.List<T>[]) => list.List<T>} */
-const flatArray = (...array) => list.flat(list.fromArray(array))
-
-/** @type {<T>(node: Node<T>) => list.List<T>} */
+/** @type {<T>(node: Node<T>) => seq.Sequence<T>} */
 const valuesList = node => () => {
     const f = () => {
         switch (node.length) {
-            case 1: case 2: { return list.fromArray(node) }
+            case 1: case 2: { return seq.fromArray(node) }
             case 3: { 
                 return flatArray(
                     valuesList(node[0]), 
-                    list.one(node[1]), 
+                    seq.one(node[1]), 
                     valuesList(node[2])
                 )
             }
             default: {
                 return flatArray(
                     valuesList(node[0]),
-                    list.one(node[1]),
+                    seq.one(node[1]),
                     valuesList(node[2]),
-                    list.one(node[3]),
+                    seq.one(node[3]),
                     valuesList(node[4])
                 )
             }
         }
     }
-    return list.next(f())
+    return seq.next(f())
 }
 
 module.exports = {
     /** @readonly */
     valuesList,
-    /** @readonly */
-    values,
     /** 
      * @readonly
      * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
