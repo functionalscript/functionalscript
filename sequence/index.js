@@ -25,9 +25,9 @@ const { id } = require('../function')
  * @typedef {Tuple2<R, Scan<T, R>>} InclusiveScan
  */
 
-/** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (prior: R) => Scan<T, R>} */
+/** @type {<R, T>(operator: op.ReduceOperator<R, T>) => (prior: R) => Scan<T, R>} */
 const scan = operator => {
-    /** @typedef {typeof operator extends op.BinaryOperator<infer R, infer T> ? [R, T] : never} RT */
+    /** @typedef {typeof operator extends op.ReduceOperator<infer R, infer T> ? [R, T] : never} RT */
     /** @typedef {RT[0]} R */
     /** @typedef {RT[1]} T */
     /** @type {(prior: R) => Scan<T, R>} */
@@ -38,7 +38,7 @@ const scan = operator => {
     return f
 } 
 
-/** @type {<R, T>(operator: op.BinaryOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
+/** @type {<R, T>(operator: op.ReduceOperator<R, T>) => (first: R) => InclusiveScan<T, R>} */
 const inclusiveScan = operator => first => [first, scan(operator)(first)]
 
 /** 

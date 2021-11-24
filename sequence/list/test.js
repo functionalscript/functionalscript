@@ -7,7 +7,7 @@ const print = a => {
     while (true) {
         const result = list.next(i)
         if (result === undefined) { return }
-        console.log(result[0])
+        // console.log(result[0])
         i = result[1]
     }
 }
@@ -19,13 +19,18 @@ const print = a => {
     const list2 = list.concat(list0)(list0)
     const list3 = list.inclusiveScan(sum)(list0)
     const r = list.find(x => x === 42)(big)
+    if (list.every(x => x > 0)(big) !== true) { throw 'x'}
+    if (list.every(x => x < 20)(big) !== false) { throw 'x' }
+    if (list.some(x => x > 100)(big) !== false) { throw 'x' }
+    if (list.some(x => x > 50)(big) !== true) { throw 'x' }
+    if (list.first(list.drop(16)(big)) !== 42) { throw 'drop'}
     {
         let x = big
         for (let i = 0; i < 1_000_000; ++i) {
             x = list.concat(list.empty)(x)
         }
         const r = list.next(x)
-        print(x)
+        // print(x)
     } 
     {
         let x = big

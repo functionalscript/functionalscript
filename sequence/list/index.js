@@ -1,8 +1,7 @@
 const array = require('../array')
-const option = require('../../option')
 const base = require('..')
 const { pipe } = require('../../function')
-const { todo } = require('../../dev')
+const { logicalNot, strictEqual } = require('../../function/operator')
 
 /**
  * @template T
@@ -15,13 +14,14 @@ const { todo } = require('../../dev')
  */
 
 /**
+ * Use `next` function to get `first` and `tail` of the list.
+ * 
  * Please note that the list also contains `Concat<T>. We need this as 
  * a workaround because modern JavaScript implementations don't support 
  * ES6 TCO (Tail Call Optimization).
  *
  * Without this wotkaround we may have a stack overflow if a list
- * contains a lot of concateneted lists. Use `next` function to extract 
- * a list. 
+ * contains a lot of concateneted lists. 
  *
  * @template T
  * @typedef { ListFunc<T> | Concat<T>} List
@@ -60,10 +60,23 @@ const next = list => {
     }
 }
 
+/** @type {<T>(list: List<T>) => T|undefined} */
+const first = list => {
+    const result = next(list)
+    if (result === undefined) { return undefined }
+    return result[0]
+}
+
 /**
  * @template T
  * @template R
  * @typedef {(list: List<T>) => List<R>} ListMap
+ */
+
+/**
+ * @template T
+ * @template R
+ * @typedef {(list: List<T>) => R} ListReduce
  */
 
 /** @type {<T>(first: T) => List<T>} */
@@ -109,6 +122,16 @@ const map = f => flatMap(i => one(f(i)))
 /** @type {<T>(f: (value: T) => boolean) => ListMap<T, T>} */
 const filter = f => flatMap(i => f(i) ? one(i) : empty)
 
+/** @type {<T, R>(f: (value: T) => R|undefined) => (value: T) => List<R>} */
+const filterMapFunc = f => i => {
+    const result = f(i)
+    if (result === undefined) { return empty }
+    return one(result)
+}
+
+/** @type {<T, R>(f: (value: T) => R|undefined) => ListMap<T, R>} */
+const filterMap = f => flatMap(filterMapFunc(f)) 
+
 /** @type {<T, R>(s: base.Scan<T, R>) => ListMap<T, R>} */
 const scan = s => input => () => {
     const result = next(input)
@@ -135,7 +158,6 @@ const last = def => input => {
         r = result[0]
         i = result[1]
     }
-    return r
 }
 
 /** @type {<T, R>(s: base.InclusiveScan<T, R>) => (input: List<T>) => R} */
@@ -156,17 +178,34 @@ const takeWhile = f => input => () => {
     return result
 }
 
-/** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => T|undefined} */
-const find = f => input => {
-    const result = next(filter(f)(input))
-    if (result === undefined) { return undefined }
-    return result[0]
+/** @type {(n: number) => <T>(input: List<T>) => List<T>} */
+const drop = n => input => () => {
+    let iN = n
+    let iInput = input
+    while (true) {
+        const result = next(iInput)
+        if (iN <= 0 || result === undefined) { return result }
+        iN = iN - 1
+        iInput = result[1]
+    }
 }
 
-/**
- * Note: probably, it's possible to implement using the `scan` concept.
- * @type {<T>(list: List<T>) => Iterable<T>} 
- */
+/** @type {(n: number) => <T>(input: List<T>) => T|undefined} */
+const at = n => input => first(drop(n)(input))
+
+/** @type {<T>(f: (value: T) => boolean) => ListReduce<T, T|undefined>} */
+const find = f => input => first(filter(f)(input))
+
+/** @type {<T>(f: (value: T) => boolean) => ListReduce<T, boolean>} */
+const some = f => input => find(x => x)(map(f)(input)) !== undefined
+
+/** @type {<T>(value: T) => ListReduce<T, boolean>} */
+const includes = value => some(strictEqual(value))
+
+/** @type {<T>(f: (value: T) => boolean) => ListReduce<T, boolean>} */
+const every = f => input => !some(pipe(f)(logicalNot))(input)
+
+/** @type {<T>(list: List<T>) => Iterable<T>} */
 const iterable = list => ({
     *[Symbol.iterator]() {
         let i = list
@@ -187,7 +226,11 @@ module.exports = {
     /** @readonly */
     empty,
     /** @readonly */
+    at,
+    /** @readonly */
     concat,
+    /** @readonly */
+    first,
     /** @readonly */
     fromArray,
     /** @readonly */
@@ -200,6 +243,8 @@ module.exports = {
     map,
     /** @readonly */
     filter,
+    /** @readonly */
+    filterMap,
     /** @readonly */
     scan,
     /** @readonly */
@@ -217,7 +262,15 @@ module.exports = {
     /** @readonly */
     length,
     /** @readonly */
+    drop,
+    /** @readonly */
     find,
     /** @readonly */
     takeWhile,
+    /** @readonly */
+    some,
+    /** @readonly */
+    every,
+    /** @readonly */
+    includes,
 }
