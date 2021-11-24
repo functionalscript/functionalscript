@@ -43,10 +43,11 @@ const keyCmp = a => ([b]) => cmp(a)(b)
 const create = root => ({
     get: name => option.map(([,value]) => value)(getVisitor(keyCmp(name))(root)),
     set: name => value => {
-        const _0 = setVisitor(keyCmp(name))(() => [name, value])(root)
-        if ('replace' in _0) { return create(_0.replace) }
-        if ('overflow' in _0) { return create(_0.overflow) }
-        throw ''
+        const result = setVisitor(keyCmp(name))(() => [name, value])(root)
+        switch (result[0]) {
+            case 'replace': case 'overflow': { return create(result[1]) }
+            default: { throw '' }
+        }
     },
     entries: values(root),
     root,

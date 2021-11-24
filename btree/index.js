@@ -60,14 +60,11 @@ const seq = require('../sequence')
  * @typedef { Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} Node
  */
 
-/** @typedef {{ readonly done: false }} NotFoundDone */
+/** @typedef {readonly['done']} NotFoundDone */
 
 /** 
  * @template T
- * @typedef {{ 
- *  readonly done: true 
- *  readonly value: T 
- * }} FoundDone 
+ * @typedef {readonly['done', T]} FoundDone 
  */
 
 /**
@@ -77,12 +74,12 @@ const seq = require('../sequence')
 
 /**
  * @template T
- * @typedef {{ readonly replace: Node<T> }} Replace
+ * @typedef {readonly['replace', Node<T>]} Replace
  */
 
 /**
  * @template T
- * @typedef {{ readonly overflow: Branch3<T> }} Overflow
+ * @typedef {readonly['overflow', Branch3<T>]} Overflow
  */
 
 /**
@@ -138,9 +135,11 @@ const split = ([n0, v1, n2, v3, n4, v5, n6]) => [[n0, v1, n2], v3, [n4, v5, n6]]
  *  Result<T>} 
  */
 const merge = overflow => replace => result => {
-    if ('done' in result) { return result }
-    if ('replace' in result) { return { replace: replace(result.replace) } }
-    return overflow(result.overflow)
+    switch (result[0]) {
+        case 'done': { return result }
+        case 'replace': { return ['replace', replace(result[1])] }
+        default: { return overflow(result[1]) }
+    }
 }
 
 /** 
@@ -149,7 +148,7 @@ const merge = overflow => replace => result => {
  *  (result: Result<T>) => 
  *  Result<T>} 
  */
-const merge2 = overflow => merge(o => ({ replace: overflow(o) }))
+const merge2 = overflow => merge(o => ['replace', overflow(o)])
 
 /** 
  * @type {<T>(overflow: (o: Branch3<T>) => Branch7<T>) => 
@@ -157,7 +156,7 @@ const merge2 = overflow => merge(o => ({ replace: overflow(o) }))
  *  (result: Result<T>) => 
  *  Result<T>} 
  */
-const merge3 = overflow => merge(o => ({ overflow: split(overflow(o)) }))
+const merge3 = overflow => merge(o => ['overflow', split(overflow(o))])
 
 /** @type {(visitor: Visitor) => <T>(cmp: Cmp<T>) => (init: Lazy<T>) => (node: Node<T>) => Result<T>} */
 const visit = ({ found, notFound }) => cmp => {
@@ -234,7 +233,7 @@ const visit = ({ found, notFound }) => cmp => {
 }
 
 /** @type { <T>(_: T) => Done<T> } */
-const found = value => ({ done: true, value })
+const found = value => ['done', value]
 
 /** @type {Found} */
 const foundGet = {
@@ -246,7 +245,7 @@ const foundGet = {
     branch5_right: () => ([, , , value]) => found(value),
 }
 /** @type { () => () => NotFoundDone } */
-const notFound = () => () => ({ done: false })
+const notFound = () => () => ['done']
 
 /** @type {NotFound} */
 const notFoundGet = {
@@ -258,7 +257,7 @@ const notFoundGet = {
 }
 
 /** @type { <T>(_: Node<T>) => Replace<T> } */
-const replace = node => ({ replace: node })
+const replace = node => ['replace', node]
 
 /** @type {Found} */
 const foundReplace = {
@@ -271,7 +270,7 @@ const foundReplace = {
 }
 
 /** @type {<T>(leaf3: Array3<T>) => Result<T>} */
-const overflow = ([v0, v1, v2]) => ({ overflow: [[v0], v1, [v2]] })
+const overflow = ([v0, v1, v2]) => ['overflow', [[v0], v1, [v2]]]
 
 /** @type {NotFound} */
 const notFoundInsert = {
@@ -340,8 +339,8 @@ module.exports = {
      * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
      */
     getVisitor: cmp => node => {
-        const _0 = visit(getVisitor)(cmp)(() => { throw '' })(node)
-        if ('done' in _0 && _0.done) { return _0.value }
+        const result = visit(getVisitor)(cmp)(() => { throw '' })(node)
+        if (result[0] === 'done') { return result[1] }
         return undefined
     },
     /** @readonly */

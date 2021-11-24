@@ -6,9 +6,10 @@ const list = require('../sequence')
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => {
     const result = setVisitor(cmp(value))(() => value)(node)
-    if ('replace' in result) { return result.replace }
-    if ('overflow' in result) { return result.overflow }
-    return node
+    switch (result[0]) {
+        case 'replace': case 'overflow': { return result[1] }
+        default: { return node }
+    }
 }
 
 const test = () => {
