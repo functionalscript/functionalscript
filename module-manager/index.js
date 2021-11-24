@@ -1,5 +1,5 @@
 const array = require('../sequence/array')
-const { pipe } = require('../function')
+const { combine } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../sequence/iterable')
@@ -88,9 +88,9 @@ const external = packages => {
     const defined = ([first, tail]) => externalOrInternal(packages(first))(tail)
     /** @type {(_: Path) => readonly [string, Path]|undefined} */
     const sf = splitFirst
-    return pipe
-        (sf)
+    return combine
         (option.map(defined))
+        (sf)        
 }
 
 /** @type {(_: Location) => (_: string) => Module|undefined} */

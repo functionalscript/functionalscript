@@ -1,5 +1,5 @@
 const option = require("../option")
-const { getVisitor, setVisitor, values: valuesList } = require("../btree")
+const { getVisitor, setVisitor, values } = require("../btree")
 const { cmp } = require("../cmp")
 const seq = require("../sequence")
 const op = require("../sequence/operator")
@@ -48,7 +48,7 @@ const create = root => ({
         if ('overflow' in result) { return create(result.overflow) }
         throw ''
     },
-    entries: valuesList(root),
+    entries: values(root),
     root,
 })
 

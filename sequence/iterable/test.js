@@ -1,5 +1,5 @@
 const i = require('.')
-const { pipe } = require('../../function')
+const { combine } = require('../../function')
 
 {
     const r = i.sum([120, 300, 42])
@@ -33,9 +33,9 @@ const { pipe } = require('../../function')
     /** @type {(_: string) => string|undefined} */
     const file = _ => 'x'
     /** @type {(_: string) => string|undefined} */
-    const x = p => pipe
-        (i.map(x => file(x())))
+    const x = p => combine
         (i.find(x => x !== undefined))
+        (i.map(x => file(x())))        
         ([() => p, () => `${p}.js`, () => `${p}/index.js`])
     if (x('index.js') !== 'x') { throw 'error' }
 }

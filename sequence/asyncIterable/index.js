@@ -1,4 +1,4 @@
-const { pipe } = require('../../function')
+const { combine } = require('../../function')
 const seq = require('../operator')
 
 /**
@@ -69,7 +69,7 @@ const reduce = ([first, s]) => async c => {
 
 const sum = reduce(seq.sum)
 
-const join = pipe(seq.join)(reduce)
+const join = combine(reduce)(seq.join)
 
 const length = reduce(seq.length)
 

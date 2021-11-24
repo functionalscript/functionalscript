@@ -1,6 +1,6 @@
 const array = require('./array')
 const seqOp = require('./operator')
-const { pipe } = require('../function')
+const { combine } = require('../function')
 const op = require('../function/operator')
 const { logicalNot, strictEqual } = require('../function/operator')
 
@@ -202,7 +202,8 @@ const sum = reduce(seqOp.sum)
 
 const length = reduce(seqOp.length)
 
-const join = pipe(seqOp.join)(reduce)
+/** @type {(separator: string) => SequenceReduce<string, string>} */
+const join = separator => reduce(seqOp.join(separator))
 
 /** @type {<T>(f: (value: T) => boolean) => SequenceMap<T, T>} */
 const takeWhile = f => input => () => {
@@ -236,7 +237,7 @@ const some = f => input => find(x => x)(map(f)(input)) !== undefined
 const includes = value => some(strictEqual(value))
 
 /** @type {<T>(f: (value: T) => boolean) => SequenceReduce<T, boolean>} */
-const every = f => input => !some(pipe(f)(logicalNot))(input)
+const every = f => input => !some(combine(logicalNot)(f))(input)
 
 /** @type {<T>(list: Sequence<T>) => Iterable<T>} */
 const iterable = list => ({
