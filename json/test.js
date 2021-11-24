@@ -1,5 +1,4 @@
 const json = require('.')
-const { pipe } = require('../function')
 
 if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 
@@ -14,9 +13,8 @@ if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 }
 
 {
-    const x = pipe({ a: { y: [24] }, c: [], b: 12 })
-        ._(json.addProperty("Hello")(['a', 'x']))
-        ._(json.stringify)
-        .result
-    if (x !== '{"a":{"x":"Hello","y":[24]},"b":12,"c":[]}') { throw x }
+    const _0 = { a: { y: [24] }, c: [], b: 12 }
+    const _1 = json.addProperty("Hello")(['a', 'x'])(_0)
+    const _2 = json.stringify(_1)
+    if (_2 !== '{"a":{"x":"Hello","y":[24]},"b":12,"c":[]}') { throw _2 }
 }

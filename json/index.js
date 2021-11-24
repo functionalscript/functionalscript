@@ -1,7 +1,6 @@
 const seq = require('../sequence')
 const map = require('../map')
 const op = require('../sequence/operator')
-const { pipe } = require('../function')
 const option = require('../option')
 
 /** 
@@ -42,10 +41,10 @@ const commaValue = a => [seq.concat(comma, a), commaValue]
 const joinScan = value => [value, commaValue]
 
 /** @type {seq.SequenceMap<seq.Sequence<string>, string>} */
-const join = input => pipe(input)
-    ._(seq.scan(joinScan))
-    ._(seq.flat)
-    .result
+const join = input => {
+    const _0 = seq.scan(joinScan)(input)
+    return seq.flat(_0)
+}
 
 /** @type {(open: string) => (close: string) => (input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
 const list = open => close => {
@@ -59,21 +58,21 @@ const objectList = list('{')('}')
 const arrayList = list('[')(']')
 
 /** @type {(object: Object) => seq.Sequence<string>} */
-const objectStringify = object => pipe(object)
-    ._(Object.entries)
-    ._(seq.fromArray)
-    ._(map.fromEntries)
-    ._(x => x.entries)
-    ._(seq.map(property))
-    ._(objectList)
-    .result
+const objectStringify = object => {
+    const _0 = Object.entries(object)
+    const _1 = seq.fromArray(_0)
+    const _2 = map.fromEntries(_1)
+    const _3 = _2.entries
+    const _4 = seq.map(property)(_3)
+    return objectList(_4)
+}
 
 /** @type {(array: Array) => seq.Sequence<string>} */
-const arrayStringify = array => pipe(array)
-    ._(seq.fromArray)
-    ._(seq.map(stringSequence))
-    ._(arrayList)
-    .result
+const arrayStringify = array => {
+    const _0 = seq.fromArray(array)
+    const _1 = seq.map(stringSequence)(_0)
+    return arrayList(_1)
+}
 
 /** @type {(value: Json) => seq.Sequence<string>} */
 const stringSequence = value => {
