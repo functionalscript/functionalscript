@@ -1,7 +1,6 @@
 const seq = require('../sequence')
 const map = require('../map')
 const op = require('../sequence/operator')
-const { todo } = require('../dev')
 
 /** 
  * @typedef {{
@@ -77,7 +76,11 @@ const stringSeq = value => {
     }
 }
 
-/** @type {(value: Json) => string} */
+/**
+ * A deterministic version of `JSON.stringify`
+ *  
+ * @type {(value: Json) => string} 
+ */
 const stringify = value => seq.join('')(stringSeq(value))
 
 module.exports = {
