@@ -1,5 +1,5 @@
 const btree = require('.')
-const { setVisitor, valuesList } = btree
+const { setVisitor, values: valuesList } = btree
 const { cmp } = require('../cmp') 
 const list = require('../sequence')
 

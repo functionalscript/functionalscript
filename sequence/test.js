@@ -8,7 +8,7 @@ const print = input => {
     while (true) {
         const result = seq.next(i)
         if (result === undefined) { return }
-        // console.log(result[0])
+        console.log(result[0])
         i = result[1]
     }
 }
@@ -26,10 +26,22 @@ const print = input => {
     if (seq.some(x => x > 50)(big) !== true) { throw 'x' }
     if (seq.first(seq.drop(16)(big)) !== 42) { throw 'drop'}
     {
+        const a = seq.toArray(seq.generate(1_000_000))
+        let x = seq.concat(seq.fromArray(a), big)
+        const r = seq.next(x)
+        // print(x)
+    }
+    {
+        const a = seq.map(seq.generate)(seq.generate(100_000))
+        const array = seq.toArray(a)
+        const x = seq.concat(...array)
+        const r = seq.next(x)
+        // print(x)
+    }
+    {
         let x = big
         for (let i = 0; i < 1_000_000; ++i) {
-            // concat() still causes a stack overflow
-            x = seq.concat2(seq.empty)(x)
+            x = seq.concat(seq.empty, x)
         }
         const r = seq.next(x)
         // print(x)
@@ -37,8 +49,7 @@ const print = input => {
     {
         let x = big
         for (let i = 0; i < 1_000_000; ++i) {
-            // concat() still causes a stack overflow
-            x = seq.concat2(x)(seq.one(i))
+            x = seq.concat(x, seq.list(i))
         }
         const r = seq.next(x)
         // print(x)

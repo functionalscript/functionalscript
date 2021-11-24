@@ -1,7 +1,8 @@
 const option = require("../option")
-const { getVisitor, setVisitor, valuesList } = require("../btree")
+const { getVisitor, setVisitor, values: valuesList } = require("../btree")
 const { cmp } = require("../cmp")
-const list = require("../sequence")
+const seq = require("../sequence")
+const op = require("../sequence/operator")
 
 /** @typedef {import("../cmp").Sign} Sign */
 
@@ -30,7 +31,7 @@ const list = require("../sequence")
  * @typedef {{
  *  readonly get: (name: string) => T|undefined
  *  readonly set: (name: string) => (value: T) => Map<T> 
- *  readonly entries: list.Sequence<Entry<T>>
+ *  readonly entries: seq.Sequence<Entry<T>>
  *  readonly root: undefined|TNode<Entry<T>>
  * }} Map
  */
@@ -62,11 +63,16 @@ const create = root => ({
 const empty = {
     get: () => undefined,
     set: name => value => create([[name, value]]),
-    entries: list.empty,
+    entries: seq.empty,
     root: undefined
 }
+
+/** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
+const fromEntries = seq.fold(map => entry => map.set(entry))(empty)
 
 module.exports = {
     /** @readonly */
     empty,
+    /** @readonly */
+    fromEntries,
 }

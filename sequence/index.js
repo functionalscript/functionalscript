@@ -1,6 +1,7 @@
 const array = require('./array')
 const seqOp = require('./operator')
 const { pipe } = require('../function')
+const op = require('../function/operator')
 const { logicalNot, strictEqual } = require('../function/operator')
 
 /**
@@ -77,8 +78,20 @@ const first = input => {
  * @typedef {(list: Sequence<T>) => R} SequenceReduce
  */
 
-/** @type {<T>(first: T) => Sequence<T>} */
-const one = first => () => [first, empty]
+/** @type {<T>(...array: readonly T[]) => Sequence<T>} */
+const list = (...array) => {
+    /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
+    let i = array.length
+    /** @type {Sequence<T>} */
+    let tail = empty
+    while (true) {
+        if (i === 0) { return tail }
+        i = i - 1
+        /** @type {FirstAndTail<T>} */
+        const result = [array[i], tail]
+        tail = () => result
+    }
+}
 
 /** @type {<T>(array: array.Array<T>) => Sequence<T>} */
 const fromArray = a => {
@@ -92,11 +105,28 @@ const fromArray = a => {
     return at(0)
 }
 
-/** @type {<T>(a: Sequence<T>) => SequenceMap<T, T>} */
-const concat2 = a => b => [a, b]
-
 /** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
-const concat = (...a) => flat(fromArray(a))
+const concat = (...array) => {
+    let i = array.length
+    if (i == 0) { return empty }
+    i = i - 1
+    let tail = array[i]
+    while (true) {        
+        if (i === 0) { return tail }
+        i = i - 1
+        tail = [array[i], tail]
+    }
+}
+
+/** @type {(_: number) => Sequence<number>} */
+const generate = n => {
+    /** @type {(_: number) => Sequence<number>} */
+    const f = i => () => {
+        if (n <= i) { return undefined }
+        return [i, f(i + 1)]
+    }
+    return f(0)
+}
 
 /** @type {<T, R>(f: (value: T) => Sequence<R>) => SequenceMap<T, R>} */
 const flatMap = f => input => () => {
@@ -117,16 +147,16 @@ const flatMap = f => input => () => {
 const flat = flatMap(i => i)
 
 /** @type {<T, R>(f: (value: T) => R) => SequenceMap<T, R>} */
-const map = f => flatMap(i => one(f(i)))
+const map = f => flatMap(i => list(f(i)))
 
 /** @type {<T>(f: (value: T) => boolean) => SequenceMap<T, T>} */
-const filter = f => flatMap(i => f(i) ? one(i) : empty)
+const filter = f => flatMap(i => f(i) ? list(i) : empty)
 
 /** @type {<T, R>(f: (value: T) => R|undefined) => (value: T) => Sequence<R>} */
 const filterMapFunc = f => i => {
     const result = f(i)
     if (result === undefined) { return empty }
-    return one(result)
+    return list(result)
 }
 
 /** @type {<T, R>(f: (value: T) => R|undefined) => SequenceMap<T, R>} */
@@ -162,6 +192,9 @@ const last = def => input => {
 
 /** @type {<T, R>(s: seqOp.ExclusiveScan<T, R>) => (input: Sequence<T>) => R} */
 const reduce = ([first, s]) => input => last(first)(scan(s)(input))
+
+/** @type {<T, R>(ro: op.ReduceOperator<R, T>) => (first: R) => (input: Sequence<T>) => R} */
+const fold = ro => first => reduce(seqOp.exclusiveScan(ro)(first))
 
 const entries = scan(seqOp.entries)
 
@@ -247,7 +280,7 @@ module.exports = {
     /** @readonly */
     next,
     /** @readonly */
-    one,
+    list,
     /** @readonly */
     empty,
     /** @readonly */
@@ -255,7 +288,7 @@ module.exports = {
     /** @readonly */
     concat,
     /** @readonly */
-    concat2,
+    generate,
     /** @readonly */
     first,
     /** @readonly */
@@ -282,6 +315,8 @@ module.exports = {
     exclusiveScan,
     /** @readonly */
     last,
+    /** @readonly */
+    fold,
     /** @readonly */
     reduce,
     /** @readonly */

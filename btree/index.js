@@ -305,28 +305,25 @@ const replaceVisitor = {
     notFound: notFoundGet,
 }
 
-/** @type {<T>(...array: readonly seq.Sequence<T>[]) => seq.Sequence<T>} */
-const flatArray = (...array) => seq.flat(seq.fromArray(array))
-
 /** @type {<T>(node: Node<T>) => seq.Sequence<T>} */
-const valuesList = node => () => {
+const values = node => () => {
     const f = () => {
         switch (node.length) {
-            case 1: case 2: { return seq.fromArray(node) }
+            case 1: case 2: { return seq.list(...node) }
             case 3: { 
-                return flatArray(
-                    valuesList(node[0]), 
-                    seq.one(node[1]), 
-                    valuesList(node[2])
+                return seq.concat(
+                    values(node[0]), 
+                    seq.list(node[1]), 
+                    values(node[2])
                 )
             }
             default: {
-                return flatArray(
-                    valuesList(node[0]),
-                    seq.one(node[1]),
-                    valuesList(node[2]),
-                    seq.one(node[3]),
-                    valuesList(node[4])
+                return seq.concat(
+                    values(node[0]),
+                    seq.list(node[1]),
+                    values(node[2]),
+                    seq.list(node[3]),
+                    values(node[4])
                 )
             }
         }
@@ -336,7 +333,7 @@ const valuesList = node => () => {
 
 module.exports = {
     /** @readonly */
-    valuesList,
+    values,
     /** 
      * @readonly
      * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }

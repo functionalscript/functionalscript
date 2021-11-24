@@ -26,10 +26,10 @@ const addProperty = value => {
 }
 
 /** @type {(kv: readonly[string, seq.Sequence<string>]) => seq.Sequence<string>} */
-const property = ([k, v]) => seq.concat(seq.one(JSON.stringify(k)), seq.one(':'), v)
+const property = ([k, v]) => seq.concat(seq.list(JSON.stringify(k)), seq.list(':'), v)
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat(seq.one(','), a), commaValue]
+const commaValue = a => [seq.concat(seq.list(','), a), commaValue]
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
 const joinScan = value => [value, commaValue]
@@ -39,8 +39,8 @@ const join = input => seq.flat(seq.scan(joinScan)(input))
 
 /** @type {(open: string) => (close: string) => (input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
 const list = open => close => {
-    const seqOpen = seq.one(open)
-    const seqClose = seq.one(close)
+    const seqOpen = seq.list(open)
+    const seqClose = seq.list(close)
     return input => seq.concat(seqOpen, join(input), seqClose)
 }
 
@@ -51,10 +51,7 @@ const arrayList = list('[')(']')
 /** @type {(object: Object) => seq.Sequence<string>} */
 const objectStringify = object => {
     /** @type {map.Map<seq.Sequence<string>>} */
-    let m = map.empty
-    for (const [k, v] of Object.entries(object)) {
-        m = m.set(k)(stringSeq(v))
-    }
+    const m = seq.fold(m => ([k, v]) => m.set(k)(stringSeq(v)))(map.empty)(seq.fromArray(Object.entries(object)))
     return objectList(seq.map(property)(m.entries))
 }
 
@@ -65,12 +62,12 @@ const arrayStringify = array => arrayList(seq.map(stringSeq)(seq.fromArray(array
 const stringSeq = value => {
     const x = typeof value
     switch (typeof value) {
-        case 'boolean': { return seq.one(value ? "true" : "false") }
+        case 'boolean': { return seq.list(value ? "true" : "false") }
         // Note: we shouldn't use JSON.stringify since it has non determenistic behavior.
         // In particular: property order could be different.
-        case 'number': case 'string': { return seq.one(JSON.stringify(value)) }
+        case 'number': case 'string': { return seq.list(JSON.stringify(value)) }
         default: {
-            if (value === null) { return seq.one("null") }
+            if (value === null) { return seq.list("null") }
             if (value instanceof Array) { return arrayStringify(value) }
             return objectStringify(value)
         }
