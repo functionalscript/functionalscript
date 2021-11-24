@@ -26,20 +26,27 @@ const addProperty = value => {
 }
 
 /** @type {(kv: readonly[string, seq.Sequence<string>]) => seq.Sequence<string>} */
-const property = ([k, v]) => {
-    let r = seq.one(JSON.stringify(k))
-    r = seq.concat2(r)(seq.one(':'))
-    return seq.concat2(r)(v)
-}
+const property = ([k, v]) => seq.concat(seq.one(JSON.stringify(k)), seq.one(':'), v)
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat2(seq.one(','))(a), commaValue]
+const commaValue = a => [seq.concat(seq.one(','), a), commaValue]
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
 const joinScan = value => [value, commaValue]
 
-/** @type {seq.SequenceMap<seq.Sequence<string>, seq.Sequence<string>>} */
-const join = seq.scan(joinScan)
+/** @type {seq.SequenceMap<seq.Sequence<string>, string>} */
+const join = input => seq.flat(seq.scan(joinScan)(input))
+
+/** @type {(open: string) => (close: string) => (input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
+const list = open => close => {
+    const seqOpen = seq.one(open)
+    const seqClose = seq.one(close)
+    return input => seq.concat(seqOpen, join(input), seqClose)
+}
+
+const objectList = list('{')('}')
+
+const arrayList = list('[')(']')
 
 /** @type {(object: Object) => seq.Sequence<string>} */
 const objectStringify = object => {
@@ -48,17 +55,11 @@ const objectStringify = object => {
     for (const [k, v] of Object.entries(object)) {
         m = m.set(k)(stringSeq(v))
     }
-    const properties = join(seq.map(property)(m.entries))
-    const result = seq.concat2(seq.one('{'))(seq.flat(properties))
-    return seq.concat2(result)(seq.one('}'))
+    return objectList(seq.map(property)(m.entries))
 }
 
 /** @type {(array: Array) => seq.Sequence<string>} */
-const arrayStringify = array => {
-    let a = seq.flat(join(seq.map(stringSeq)(seq.fromArray(array))))
-    const s = seq.concat2(seq.one('['))(a)    
-    return seq.concat2(s)(seq.one(']'))
-}
+const arrayStringify = array => arrayList(seq.map(stringSeq)(seq.fromArray(array)))
 
 /** @type {(value: Json) => seq.Sequence<string>} */
 const stringSeq = value => {

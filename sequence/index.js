@@ -95,6 +95,9 @@ const fromArray = a => {
 /** @type {<T>(a: Sequence<T>) => SequenceMap<T, T>} */
 const concat2 = a => b => [a, b]
 
+/** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
+const concat = (...a) => flat(fromArray(a))
+
 /** @type {<T, R>(f: (value: T) => Sequence<R>) => SequenceMap<T, R>} */
 const flatMap = f => input => () => {
     let i = input
@@ -249,6 +252,8 @@ module.exports = {
     empty,
     /** @readonly */
     at,
+    /** @readonly */
+    concat,
     /** @readonly */
     concat2,
     /** @readonly */
