@@ -1,6 +1,7 @@
 const option = require("../option")
-const { getVisitor, setVisitor, values } = require("../btree")
+const { getVisitor, setVisitor, valuesList } = require("../btree")
 const { cmp } = require("../cmp")
+const list = require("../sequence/list")
 
 /** @typedef {import("../cmp").Sign} Sign */
 
@@ -29,7 +30,7 @@ const { cmp } = require("../cmp")
  * @typedef {{
  *  readonly get: (name: string) => T|undefined
  *  readonly set: (name: string) => (value: T) => Map<T> 
- *  readonly entries: () => Iterable<Entry<T>>
+ *  readonly entries: list.List<Entry<T>>
  *  readonly root: undefined|TNode<Entry<T>>
  * }} Map
  */
@@ -46,7 +47,7 @@ const create = root => ({
         if ('overflow' in result) { return create(result.overflow) }
         throw ''
     },
-    entries: () => values(root),
+    entries: valuesList(root),
     root,
 })
 
@@ -54,14 +55,14 @@ const create = root => ({
  * @type {{
  *  readonly get: (name: string) => undefined
  *  readonly set: (name: string) => <T>(value: T) => Map<T>
- *  readonly entries: () => readonly []
+ *  readonly entries: () => undefined
  *  readonly root: undefined
  * }} 
  */
 const empty = {
     get: () => undefined,
     set: name => value => create([[name, value]]),
-    entries: () => [],
+    entries: list.empty,
     root: undefined
 }
 

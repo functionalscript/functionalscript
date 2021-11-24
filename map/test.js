@@ -1,4 +1,5 @@
 const { empty } = require('.')
+const list = require('../sequence/list')
 
 {
     let m = empty.set('a')(1)
@@ -44,7 +45,7 @@ const { empty } = require('.')
     if (m.get('x') !== 12) { throw 'error' }
     if (m.get('y') !== 44) { throw 'error' }
     if (m.get('a') !== undefined) { throw 'error' }
-    const entries = Array.from(m.entries())
+    const entries = Array.from(list.iterable(m.entries))
     if (entries.length !== 2) { throw 'error' }
 }
 

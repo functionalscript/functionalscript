@@ -18,10 +18,8 @@ const { logicalNot, strictEqual } = require('../../function/operator')
  * 
  * Please note that the list also contains `Concat<T>. We need this as 
  * a workaround because modern JavaScript implementations don't support 
- * ES6 TCO (Tail Call Optimization).
- *
- * Without this wotkaround we may have a stack overflow if a list
- * contains a lot of concateneted lists. 
+ * ES6 TCO (Tail Call Optimization). Without this wotkaround we may have 
+ * a stack overflow if a list contains a lot of concateneted lists. 
  *
  * @template T
  * @typedef { ListFunc<T> | Concat<T>} List
@@ -218,6 +216,31 @@ const iterable = list => ({
     }
 })
 
+/** @type {<T>(list: List<T>) => AsyncIterable<T>} */
+const asyncIterable = list => ({
+    async *[Symbol.asyncIterator]() {
+        let i = list
+        while (true) {
+            const result = next(i)
+            if (result === undefined) { return }
+            yield result[0]
+            i = result[1]
+        }
+    }
+})
+
+/** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<array.Tuple2<A, B>>} */
+const zip = a => b => () => {
+    const resultA = next(a)
+    if (resultA === undefined) { return undefined }
+    const resultB = next(b)
+    if (resultB === undefined) { return undefined }
+    return [[resultA[0], resultB[0]], zip(resultA[1])(resultB[1])]
+}
+
+/** @type {<T>(list: List<T>) => readonly T[]} */
+const toArray = input => Array.from(iterable(input))
+
 module.exports = {
     /** @readonly */
     next,
@@ -234,7 +257,11 @@ module.exports = {
     /** @readonly */
     fromArray,
     /** @readonly */
+    toArray,
+    /** @readonly */
     iterable,
+    /** @readonly */
+    asyncIterable,
     /** @readonly */
     flatMap,
     /** @readonly */
@@ -273,4 +300,6 @@ module.exports = {
     every,
     /** @readonly */
     includes,
+    /** @readonly */
+    zip,
 }
