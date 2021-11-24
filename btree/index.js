@@ -339,8 +339,8 @@ module.exports = {
      * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
      */
     getVisitor: cmp => node => {
-        const result = visit(getVisitor)(cmp)(() => { throw '' })(node)
-        if ('done' in result && result.done) { return result.value }
+        const _0 = visit(getVisitor)(cmp)(() => { throw '' })(node)
+        if ('done' in _0 && _0.done) { return _0.value }
         return undefined
     },
     /** @readonly */
