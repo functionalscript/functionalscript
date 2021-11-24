@@ -96,7 +96,7 @@ const splitLast = a => {
 const at = index => a => index < a.length ? [a[index]] : undefined
 
 /** @type {<T>(array: Array<T>) => seq.Sequence<T>} */
-const toSequence = a => {
+const sequence = a => {
     /** @typedef {typeof a extends Array<infer T> ? T : never} T */
     /** @type {(index: number) => seq.Sequence<T>} */
     const seq = index => () => {
@@ -123,5 +123,5 @@ module.exports = {
     /** @readonly */
     splitLast,
     /** @readonly */
-    toSequence,
+    sequence,
 }

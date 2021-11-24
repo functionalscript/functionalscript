@@ -28,7 +28,7 @@ const print = input => {
     if (seq.first(seq.drop(16)(big)) !== 42) { throw 'drop'}
     {
         const a = seq.toArray(seq.generate(1_000_000))
-        let x = seq.concat(array.toSequence(a), big)
+        let x = seq.concat(array.sequence(a), big)
         const r = seq.next(x)
         // print(x)
     }

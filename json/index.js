@@ -24,7 +24,7 @@ const addProperty = value => {
         const [name, tail] = result
         return { ...srcObject, [name]: f(tail)(srcObject[name]) }
     }
-    return path => f(array.toSequence(path))
+    return path => f(array.sequence(path))
 }
 
 /** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
@@ -61,7 +61,7 @@ const arrayList = list('[')(']')
 /** @type {(object: Object) => seq.Sequence<string>} */
 const objectStringify = object => {
     const _0 = Object.entries(object)
-    const _1 = array.toSequence(_0)
+    const _1 = array.sequence(_0)
     const _2 = map.fromEntries(_1)
     const _3 = _2.entries
     const _4 = seq.map(property)(_3)
@@ -70,7 +70,7 @@ const objectStringify = object => {
 
 /** @type {(input: Array) => seq.Sequence<string>} */
 const arrayStringify = input => {
-    const _0 = array.toSequence(input)
+    const _0 = array.sequence(input)
     const _1 = seq.map(stringSequence)(_0)
     return arrayList(_1)
 }
