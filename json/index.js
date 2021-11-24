@@ -1,7 +1,7 @@
 const seq = require('../sequence')
 const map = require('../map')
 const op = require('../sequence/operator')
-const option = require('../option')
+const object = require('../object')
 const array = require('../sequence/array')
 
 /** 
@@ -27,12 +27,28 @@ const addProperty = value => {
     return path => f(array.sequence(path))
 }
 
-/** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
-const property = ([k, v]) => seq.concat(
-    seq.list(JSON.stringify(k)), 
-    seq.list(':'), 
-    stringSequence(v))
+/** @type {(_: string) => seq.Sequence<string>} */
+const stringSerialize = input => seq.list(JSON.stringify(input))
 
+/** @type {(_: number) => seq.Sequence<string>} */
+const numberSerialize = input => seq.list(JSON.stringify(input))
+
+const nullSerialize = seq.list('null')
+
+const trueSerialize = seq.list('true')
+
+const falseSerialize = seq.list('false')
+
+/** @type {(_: boolean) => seq.Sequence<string>} */
+const boolSerialize = value => value ? trueSerialize : falseSerialize
+
+/** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
+const propertySerialize = ([k, v]) => seq.concat(
+    stringSerialize(k), 
+    colon, 
+    serialize(v))
+
+const colon = seq.list(':')
 const comma = seq.list(',')
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
@@ -59,48 +75,54 @@ const objectList = list('{')('}')
 const arrayList = list('[')(']')
 
 /** @type {(object: Object) => seq.Sequence<string>} */
-const objectStringify = object => {
-    const _0 = Object.entries(object)
-    const _1 = array.sequence(_0)
-    const _2 = map.fromEntries(_1)
-    const _3 = _2.entries
-    const _4 = seq.map(property)(_3)
-    return objectList(_4)
+const objectSerialize = input => {
+    const _0 = object.entries(input)
+    const _1 = map.fromEntries(_0).entries
+    const _2 = seq.map(propertySerialize)(_1)
+    return objectList(_2)
 }
 
 /** @type {(input: Array) => seq.Sequence<string>} */
-const arrayStringify = input => {
+const arraySerialize = input => {
     const _0 = array.sequence(input)
-    const _1 = seq.map(stringSequence)(_0)
+    const _1 = seq.map(serialize)(_0)
     return arrayList(_1)
 }
 
 /** @type {(value: Json) => seq.Sequence<string>} */
-const stringSequence = value => {
-    const x = typeof value
+const serialize = value => {
     switch (typeof value) {
-        case 'boolean': { return seq.list(value ? "true" : "false") }
-        // Note: we shouldn't use JSON.stringify since it has non determenistic behavior.
-        // In particular: property order could be different.
-        case 'number': case 'string': { return seq.list(JSON.stringify(value)) }
+        case 'boolean': { return boolSerialize(value) }
+        case 'number': { return numberSerialize(value) }
+        case 'string': { return stringSerialize(value) }
         default: {
-            if (value === null) { return seq.list("null") }
-            if (value instanceof Array) { return arrayStringify(value) }
-            return objectStringify(value)
+            if (value === null) { return nullSerialize }
+            if (value instanceof Array) { return arraySerialize(value) }
+            return objectSerialize(value)
         }
     }
 }
 
 /**
- * A deterministic version of `JSON.stringify`
+ * A version of `JSON.stringify` with an alphabeticly ordered `keys`.
+ * 
+ * The standard `JSON.stringify` rules determines by 
+ * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  *  
  * @type {(value: Json) => string} 
  */
-const stringify = value => seq.join('')(stringSequence(value))
+const stringify = value => seq.join('')(serialize(value))
+
+/** @type {(value: string) => Json} */
+const parse = value => JSON.parse(value)
 
 module.exports = {
     /** @readonly */
     addProperty,
     /** @readonly */
     stringify,
+    /** @readonly */
+    serialize,
+    /** @readonly */
+    parse,
 }

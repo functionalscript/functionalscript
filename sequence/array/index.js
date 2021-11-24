@@ -107,6 +107,9 @@ const sequence = a => {
     return seq(0)
 }
 
+/** @type {<T>(list: seq.Sequence<T>) => readonly T[]} */
+const fromSequence = input => Array.from(seq.iterable(input))
+
 module.exports = {
     /** @readonly */
     at,
@@ -124,4 +127,6 @@ module.exports = {
     splitLast,
     /** @readonly */
     sequence,
+    /** @readonly */
+    fromSequence,
 }

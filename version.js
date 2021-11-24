@@ -1,5 +1,6 @@
 const cp = require('child_process')
 const fs = require('fs')
+const json = require('./json')
 
 const b =cp.execSync('git log --oneline')
 
@@ -9,8 +10,8 @@ const v = `0.0.${r}`
 
 console.log(`version: ${v}`)
 
-const package_json = JSON.parse(fs.readFileSync('package.json').toString())
+let package_json = json.parse(fs.readFileSync('package.json').toString())
 
-package_json.version = v
+package_json = json.addProperty(v)(['version'])(package_json)
 
-fs.writeFileSync('package.json', JSON.stringify(package_json, null, 2))
+fs.writeFileSync('package.json', JSON.stringify(package_json, null, 3))

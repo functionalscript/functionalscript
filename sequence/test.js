@@ -27,15 +27,18 @@ const print = input => {
     if (seq.some(x => x > 50)(big) !== true) { throw 'x' }
     if (seq.first(seq.drop(16)(big)) !== 42) { throw 'drop'}
     {
-        const a = seq.toArray(seq.generate(1_000_000))
-        let x = seq.concat(array.sequence(a), big)
+        const a = seq.map(seq.generate)(seq.generate(100_000))
+        const ar = array.fromSequence(a)
+        // This operation use a lot of stack because `...` 
+        // puts array items on a stack.
+        // Use `array.sequence` instead
+        const x = seq.concat(...ar)
         const r = seq.next(x)
         // print(x)
     }
     {
-        const a = seq.map(seq.generate)(seq.generate(100_000))
-        const array = seq.toArray(a)
-        const x = seq.concat(...array)
+        const a = array.fromSequence(seq.generate(1_000_000))
+        let x = seq.concat(array.sequence(a), big)
         const r = seq.next(x)
         // print(x)
     }

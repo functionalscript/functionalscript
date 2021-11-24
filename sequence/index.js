@@ -77,19 +77,23 @@ const first = input => {
  * @typedef {(list: Sequence<T>) => R} SequenceReduce
  */
 
-/** @type {<T>(...array: readonly T[]) => Sequence<T>} */
+/**
+ * Note: the operation is not lazy. It traverse the given array and creates a linked list.
+ *  
+ * @type {<T>(...array: readonly T[]) => Sequence<T>} 
+ */
 const list = (...array) => {
     /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
     let i = array.length
     /** @type {Sequence<T>} */
-    let tail = empty
-    while (true) {
-        if (i === 0) { return tail }
+    let result = empty
+    while (i !== 0) {
         i = i - 1
         /** @type {FirstAndTail<T>} */
-        const result = [array[i], tail]
-        tail = () => result
+        const listResult = [array[i], result]
+        result = () => listResult
     }
+    return result
 }
 
 /** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
@@ -97,12 +101,12 @@ const concat = (...array) => {
     let i = array.length
     if (i == 0) { return empty }
     i = i - 1
-    let tail = array[i]
-    while (true) {        
-        if (i === 0) { return tail }
+    let result = array[i]
+    while (i !== 0) {
         i = i - 1
-        tail = [array[i], tail]
+        result = [array[i], result]
     }
+    return result
 }
 
 /** @type {(_: number) => Sequence<number>} */
@@ -261,9 +265,6 @@ const zip = a => b => () => {
     return [[resultA[0], resultB[0]], zip(resultA[1])(resultB[1])]
 }
 
-/** @type {<T>(list: Sequence<T>) => readonly T[]} */
-const toArray = input => Array.from(iterable(input))
-
 module.exports = {
     /** @readonly */
     next,
@@ -279,8 +280,6 @@ module.exports = {
     generate,
     /** @readonly */
     first,
-    /** @readonly */
-    toArray,
     /** @readonly */
     iterable,
     /** @readonly */
