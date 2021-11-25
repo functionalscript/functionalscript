@@ -5,28 +5,31 @@
 ```js
 /** @typedef {(packageName: string) => PackageMap|Package|undefined} PackageMap */
 
-/**
- * @typedef {{
- *  readonly id: string,
- *  readonly packages: PackageMap,
- *  readonly files: (fileName: string) => string|undefined,
- * }} Package
+/** 
+ * @typedef {readonly[
+ *  string, 
+ *  PackageMap, 
+ *  (fileName: string) => string|undefined
+ * ]} Package 
  */
 ```
 
 ## Runner IO
 
-```js
-/** 
- * @typedef {(require: Require<T>) => (info: T) => (source: string) => readonly[Result<unknown, Error>, T]} RunnerIo
- */
-```
+The main target of this design is to simplify `RunnerIo` as much as possible.
 
 ```js
 /**
+ * @template T 
+ * @typedef {readonly[Result<unknown, Error>, Require<T>]} RunnerResult
+ */
+
+/** @typedef {<T>(require: Require<T>) => (source: string) => RunnerResult<T>} RunnerIo */
+
+/**
  * @template T
- * @typedef {(info: T) => (module: string) => readonly[Result<unknown, Error>, T]} Require<T>
+ * @typedef {readonly[(path: string) => RunnerResult<T>, T]} Require<T>
  */
 ```
 
-`Require` is using a `Package` to provide sources.
+`Require` is using a `Package` and it contains also `RunnerIo` to provide sources also it contains
