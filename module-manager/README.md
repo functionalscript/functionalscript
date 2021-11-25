@@ -28,3 +28,5 @@
  * @typedef {(info: T) => (module: string) => readonly[Result<unknown, Error>, T]} Require<T>
  */
 ```
+
+`Require` is using a `Package` to provide sources.
