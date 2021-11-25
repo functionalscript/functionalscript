@@ -21,7 +21,7 @@ const entries = object => array.sequence(Object.entries(object))
 const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.value
 
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => seq.Sequence<Entry<T>>} */
-const sortEntries = entries => map.fromEntries(entries).entries
+const sort = entries => map.fromEntries(entries).entries
 
 module.exports = {
     /** @readonly */
@@ -29,5 +29,5 @@ module.exports = {
     /** @readonly */
     at,
     /** @readonly */
-    sortEntries,
+    sort,
 }
