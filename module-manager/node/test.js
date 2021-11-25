@@ -1,7 +1,7 @@
 const mm = require('..')
 const i = require('.')
 
-/** @type {{ [_ in string]: string}} */
+/** @type {{ readonly [_ in string]: string}} */
 const files = {
     'index.js': './index.js',
     'a/index.js': './a/index.js',

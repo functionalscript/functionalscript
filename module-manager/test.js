@@ -31,7 +31,7 @@ if (cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('/') !== 'b/d') { thro
     const c = { 
         dependencies: () => undefined,
         file: path => {
-            /** @type {{ [_ in string]?: string}} */
+            /** @type {{ readonly [_ in string]?: string}} */
             const f = {
                 'index.js': 'b/c ./index.js',
                 'x/index.js': 'b/c ./x/index.js',
@@ -41,11 +41,11 @@ if (cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('/') !== 'b/d') { thro
         },
         id: ['c']
     }
-    /** @type {{ [_ in string]: i.Package|i.Dependencies}} */
+    /** @type {{ readonly [_ in string]: i.Package|i.Dependencies}} */
     const packages = {
         a,
         b: s => {
-            /** @type {{ [_ in string]: i.Package|i.Dependencies}} */
+            /** @type {{ readonly [_ in string]: i.Package|i.Dependencies}} */
             const p = { c }
             return p[s]
         }
@@ -54,7 +54,7 @@ if (cast(i.pathNorm('./a/../b/c/..//d/'.split('/'))).join('/') !== 'b/d') { thro
     const pack = {
         dependencies: s => packages[s],
         file: path => {
-            /** @type {{ [_ in string]?: string}} */
+            /** @type {{ readonly [_ in string]?: string}} */
             const f = {
                 'index.js': './index.js',
                 'index/index.js': './index/index.js',
