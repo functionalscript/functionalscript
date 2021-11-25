@@ -2,7 +2,6 @@ const option = require("../option")
 const { getVisitor, setVisitor, values } = require("../btree")
 const { cmp } = require("../cmp")
 const seq = require("../sequence")
-const op = require("../sequence/operator")
 
 /** @typedef {import("../cmp").Sign} Sign */
 

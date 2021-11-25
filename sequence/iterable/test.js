@@ -1,5 +1,5 @@
 const i = require('.')
-const { compose: combine } = require('../../function')
+const { compose } = require('../../function')
 
 {
     const r = i.sum([120, 300, 42])
@@ -33,7 +33,7 @@ const { compose: combine } = require('../../function')
     /** @type {(_: string) => string|undefined} */
     const file = _ => 'x'
     /** @type {(_: string) => string|undefined} */
-    const x = p => combine
+    const x = p => compose
         (i.find(x => x !== undefined))
         (i.map(x => file(x())))        
         ([() => p, () => `${p}.js`, () => `${p}/index.js`])

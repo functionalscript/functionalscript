@@ -1,6 +1,5 @@
 const seq = require('.')
 const { sum } = require('./operator')
-const op = require('./operator')
 const array = require('./array')
 
 /** @type {<T>(input: seq.Sequence<T>) => void} */

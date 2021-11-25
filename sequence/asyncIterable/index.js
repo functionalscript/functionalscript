@@ -1,4 +1,4 @@
-const { compose: combine } = require('../../function')
+const { compose } = require('../../function')
 const seq = require('../operator')
 
 /**
@@ -69,7 +69,7 @@ const reduce = ([first, s]) => async c => {
 
 const sum = reduce(seq.sum)
 
-const join = combine(reduce)(seq.join)
+const join = compose(reduce)(seq.join)
 
 const length = reduce(seq.length)
 

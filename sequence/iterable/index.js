@@ -1,5 +1,4 @@
-const { iterable } = require('..')
-const { compose: combine } = require('../../function')
+const { compose } = require('../../function')
 const seq = require('../operator')
 
 /** @type {<T>(a: Iterable<T>) => (b: Iterable<T>) => Iterable<T>} */
@@ -40,7 +39,7 @@ const sum = reduce(seq.sum)
 
 const length = reduce(seq.length)
 
-const join = combine(reduce)(seq.join)
+const join = compose(reduce)(seq.join)
 
 /** @type {<T, R>(f: (value: T) => Iterable<R>) => (c: Iterable<T>) => Iterable<R>} */
 const flatMap = f => c => ({
