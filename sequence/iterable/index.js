@@ -1,5 +1,5 @@
 const { iterable } = require('..')
-const { combine } = require('../../function')
+const { compose: combine } = require('../../function')
 const seq = require('../operator')
 
 /** @type {<T>(a: Iterable<T>) => (b: Iterable<T>) => Iterable<T>} */

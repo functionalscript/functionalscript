@@ -1,4 +1,4 @@
-const { combine } = require('../../function')
+const { compose: combine } = require('../../function')
 const seq = require('../operator')
 
 /**

@@ -1,5 +1,5 @@
 const seqOp = require('./operator')
-const { combine } = require('../function')
+const { compose: combine } = require('../function')
 const op = require('../function/operator')
 const { logicalNot, strictEqual } = require('../function/operator')
 

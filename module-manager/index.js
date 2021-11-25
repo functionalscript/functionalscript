@@ -1,5 +1,5 @@
 const array = require('../sequence/array')
-const { combine } = require('../function')
+const { compose: combine } = require('../function')
 const option = require('../option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../sequence/iterable')

@@ -1,8 +1,8 @@
 const seq = require('../sequence')
-const map = require('../map')
 const op = require('../sequence/operator')
 const object = require('../object')
 const array = require('../sequence/array')
+const { compose: combine } = require('../function')
 
 /** 
  * @typedef {{
@@ -24,7 +24,7 @@ const addProperty = value => {
         const [name, tail] = result
         return { ...srcObject, [name]: f(tail)(object.at(name)(srcObject)) }
     }
-    return path => f(array.sequence(path))
+    return combine(f)(array.sequence)
 }
 
 /** @type {(_: string) => seq.Sequence<string>} */
