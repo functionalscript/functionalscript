@@ -3,7 +3,6 @@ const map = require('../map')
 const op = require('../sequence/operator')
 const object = require('../object')
 const array = require('../sequence/array')
-const { id } = require('../function')
 
 /** 
  * @typedef {{
@@ -84,16 +83,16 @@ const serialize = sort => {
         f(v))
     /** @type {(object: Object) => seq.Sequence<string>} */
     const objectSerialize = input => {
-        const _0 = object.entries(input)
-        const _1 = sort(_0)
-        const _2 = seq.map(propertySerialize)(_1)
-        return objectList(_2)
+        const entries = object.entries(input)
+        const sortedEntries = sort(entries)
+        const serializedEntries = seq.map(propertySerialize)(sortedEntries)
+        return objectList(serializedEntries)
     }
     /** @type {(input: Array) => seq.Sequence<string>} */
     const arraySerialize = input => {
-        const _0 = array.sequence(input)
-        const _1 = seq.map(f)(_0)
-        return arrayList(_1)
+        const sequence = array.sequence(input)
+        const serializedEntries = seq.map(f)(sequence)
+        return arrayList(serializedEntries)
     }
     /** @type {(value: Json) => seq.Sequence < string >} */
     const f = value => {
