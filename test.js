@@ -6,6 +6,7 @@ require('./sequence/iterable/test')
 require('./sequence/asyncIterable/test')
 require('./module-manager/test')
 require('./json/test')
+require('./object/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
@@ -104,6 +105,12 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
     //const c = o['isPrototypeOf']
     //const c = o['propertyIsEnumerable']
     //const c = o['toString']
-    const c = o['valueOf']
+    const c = o['valueOf']    
     console.log(c)
+}
+
+{
+    const x = { 'a': 12 }
+    const c = Object.getOwnPropertyDescriptor(x, 'constructor')
+    const a = Object.getOwnPropertyDescriptor(x, 'a')
 }

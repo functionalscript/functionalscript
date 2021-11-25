@@ -22,7 +22,7 @@ const addProperty = value => {
         if (result === undefined) { return value }
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const [name, tail] = result
-        return { ...srcObject, [name]: f(tail)(srcObject[name]) }
+        return { ...srcObject, [name]: f(tail)(object.at(name)(srcObject)) }
     }
     return path => f(array.sequence(path))
 }
