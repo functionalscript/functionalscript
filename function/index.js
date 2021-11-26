@@ -8,11 +8,11 @@
 const compose = f => g => x => f(g(x))
 
 /** @type {<T>(value: T) => T} */
-const id = value => value
+const identity = value => value
 
 module.exports = {
     /** @readonly */
-    id,
+    identity,
     /** @readonly */
     compose,
 }

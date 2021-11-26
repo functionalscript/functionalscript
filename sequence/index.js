@@ -18,7 +18,7 @@ const { logicalNot, strictEqual } = require('../function/operator')
  * 
  * Please note that the sequence also contains `Concat<T>. We need this as 
  * a workaround because modern JavaScript implementations don't support 
- * ES6 TCO (Tail Call Optimization). Without this wotkaround we may have 
+ * ES6 TCO (Tail Call Optimization). Without this workaround, we may have 
  * a stack overflow if a list contains a lot of concateneted lists. 
  *
  * @template T
@@ -36,6 +36,9 @@ const { logicalNot, strictEqual } = require('../function/operator')
  */
 
 const empty = () => undefined
+
+/** @type {<T>(first: T) => (tail: Sequence<T>) => Sequence<T>} */
+const sequence = first => tail => () => [first, tail]
 
 /** @type {<F, T>(a: readonly[F, Sequence<T>]) => (b: Sequence<T>) => readonly[F, Sequence<T>]} */
 const norm = ([a0, a1]) => b => [a0, [a1, b]]
@@ -78,7 +81,7 @@ const first = input => {
  */
 
 /**
- * Note: the operation is not lazy. It traverse the given array and creates a linked list.
+ * Note: the operation is not lazy. It traverses the given array and creates a linked list.
  *  
  * @type {<T>(...array: readonly T[]) => Sequence<T>} 
  */
@@ -86,14 +89,12 @@ const list = (...array) => {
     /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
     let i = array.length
     /** @type {Sequence<T>} */
-    let result = empty
+    let iResult = empty
     while (i !== 0) {
         i = i - 1
-        /** @type {FirstAndTail<T>} */
-        const listResult = [array[i], result]
-        result = () => listResult
+        iResult = sequence(array[i])(iResult)
     }
-    return result
+    return iResult
 }
 
 /** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
@@ -273,10 +274,9 @@ const reverse = s => {
     while (true) {
         const result = next(iSource)
         if (result === undefined) { return iResult }
-        /** @type {typeof s} */
-        const old = iResult
-        iResult = () => [result[0], old]
-        iSource = result[1]
+        const [first, tail] = result
+        iResult = sequence(first)(iResult)
+        iSource = tail
     }
 }
 
@@ -287,6 +287,8 @@ module.exports = {
     list,
     /** @readonly */
     empty,
+    /** @readonly */
+    sequence,
     /** @readonly */
     at,
     /** @readonly */

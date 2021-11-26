@@ -1,6 +1,6 @@
 const json = require('.')
 const { sort } = require('../object')
-const { id } = require('../function')
+const { identity } = require('../function')
 
 if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 
@@ -10,7 +10,7 @@ if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 }
 
 {
-    const x = json.stringify(id)(json.addProperty("Hello")(['a'])({}))
+    const x = json.stringify(identity)(json.addProperty("Hello")(['a'])({}))
     if (x !== '{"a":"Hello"}') { throw x }
 }
 
@@ -20,7 +20,7 @@ if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 }
 
 {
-    const x = json.stringify(id)(json.addProperty("Hello")(['a'])({ c: [], b: 12 }))
+    const x = json.stringify(identity)(json.addProperty("Hello")(['a'])({ c: [], b: 12 }))
     if (x !== '{"c":[],"b":12,"a":"Hello"}') { throw x }
 }
 
@@ -34,6 +34,6 @@ if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 {
     const _0 = { a: { y: [24] }, c: [], b: 12 }
     const _1 = json.addProperty("Hello")(['a', 'x'])(_0)
-    const _2 = json.stringify(id)(_1)
+    const _2 = json.stringify(identity)(_1)
     if (_2 !== '{"a":{"y":[24],"x":"Hello"},"c":[],"b":12}') { throw _2 }
 }
