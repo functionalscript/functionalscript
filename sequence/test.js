@@ -1,6 +1,8 @@
 const seq = require('.')
 const { sum } = require('./operator')
 const array = require('./array')
+const json = require('../json')
+const { id } = require('../function')
 
 /** @type {<T>(input: seq.Sequence<T>) => void} */
 const print = input => {
@@ -62,4 +64,11 @@ const print = input => {
 {
     const x = seq.join(':')(seq.list("1", "2", "3", "4", "5", "6"))
     if (x !== "1:2:3:4:5:6") { throw x }
+}
+
+{
+    const r = seq.reverse(seq.list(1, 2, 3, 4))
+    const s = array.fromSequence(r)
+    const j = json.stringify(id)(s)
+    if (j !== '[4,3,2,1]') { throw j }
 }

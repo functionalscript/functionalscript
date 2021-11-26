@@ -265,6 +265,21 @@ const zip = a => b => () => {
     return [[resultA[0], resultB[0]], zip(resultA[1])(resultB[1])]
 }
 
+/** @type {<T>(s: Sequence<T>) => Sequence<T>} */
+const reverse = s => {
+    /** @type {typeof s} */
+    let iResult = empty
+    let iSource = s
+    while (true) {
+        const result = next(iSource)
+        if (result === undefined) { return iResult }
+        /** @type {typeof s} */
+        const old = iResult
+        iResult = () => [result[0], old]
+        iSource = result[1]
+    }
+}
+
 module.exports = {
     /** @readonly */
     next,
@@ -326,4 +341,6 @@ module.exports = {
     includes,
     /** @readonly */
     zip,
+    /** @readonly */
+    reverse,
 }
