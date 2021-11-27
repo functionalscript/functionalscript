@@ -1,16 +1,16 @@
 # Operator
 
-## Sequence
-
-```ts
-type Sequence<T> = SubSequence<T, undefined>
-```
-
-## SubSequence
+# SubSequence
 
 ```ts
 type SubSequence<T, C> = () => SubSequenceResult<T, C>
 type SubSequenceResult<T, C> = [T, SubSequence<T, C>] | [C]
+```
+
+## Sequence
+
+```ts
+type Sequence<T> = SubSequence<T, undefined>
 ```
 
 ## The Main FlatScan Operator
