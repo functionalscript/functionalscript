@@ -185,8 +185,8 @@ const last = def => input => {
 /** @type {<T, R>(s: seqOp.ExclusiveScan<T, R>) => (input: Sequence<T>) => R} */
 const reduce = ([first, s]) => input => last(first)(scan(s)(input))
 
-/** @type {<T, R>(ro: op.ReduceOperator<R, T>) => (first: R) => (input: Sequence<T>) => R} */
-const fold = ro => first => reduce(seqOp.exclusiveScan(ro)(first))
+/** @type {<T, R>(operator: op.ReduceOperator<R, T>) => (first: R) => (input: Sequence<T>) => R} */
+const fold = operator => first => reduce(seqOp.exclusiveScan(operator)(first))
 
 const entries = scan(seqOp.entries)
 
