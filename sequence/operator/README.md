@@ -1,41 +1,41 @@
-# Sequence Operators
+# Operator
 
-## A `FlatMap` Operator
-
-`flatMap = combine(flat)(map)`
-
-## A `Scan` Operator
+## Sequence
 
 ```ts
-type Scan<A, T> = (accumulator: A) => (value: T) => A
-type ExclusiveScan<A, T> = [first, Scan<A, T>]
+type Sequence<T> = SubSequence<T, undefined>
 ```
 
-`scan`
-
-`reduce = last(first)(scan)`
-
-An alternative definition of a scan:
+## SubSequence
 
 ```ts
-type Scan2<A, T> = (value: T) => [A, Scan2<A, T>]
-type ExclusiveScan2<A, T> = [first, Scan2<A, T>]
+type SubSequence<T, C> = () => SubSequenceResult<T, C>
+type SubSequenceResult<T, C> = [T, SubSequence<T, C>] | [C]
 ```
 
-`takeWhile`, `find` can use `scan`. Optimization: if a `Scan2` part is `emptyScan` then we can stop searching.
-
-## A Universal Operator `FlatScan`
+## The Main FlatScan Operator
 
 ```ts
-type FlatScan<A, T> = (value: T) => FlatScanSequence<A, T>
-type FlatScanSequence<A, T> = () => FlatScanResult<A, T>
-type FlatScanResult<A, T> =
-    ['value', A, FlatScanSequence<A, T>] | 
-    ['novalue', FlatScan<A, T>]
-```
+type FlatScanOperator<T, A> = (value: T) => SubSequence<A, FlatScanOp<T, A>>
 
-Optimization: if result is `empty`, then we can stop.
+const flatScanConcat
+: SubSequence<A, FlatScanOp<T, A>> => Sequence<T> => Sequence<A>
+=> a => b => () => {
+    switch (next(a)) {
+        case [first, tail]: { return [first, flatScanConcat(tail)(b)] }
+        case [operator]: { return flatScan(operator)(b)() }
+    }
+}
 
-```ts
-const empty = ['novalue', () => empty]
+const flatScan 
+: FlatScanOperator<T, A> => Sequence<T> => Sequence<A>
+=> operator => sequence => () => {
+    // optimization for `takeWhile`, `find`
+    if (operator === flatScanEmpty) { return [undefined] }
+    //
+    switch (next(s)) {
+        case [first, tail]: { return flatScanConcat(operator(first))(tail)() }
+        case [undefined]: { return [undefined] }        
+    }
+}
 ```
