@@ -4,8 +4,12 @@
  * @typedef {(_: I) => O} Func 
  */
 
-/** @type {<X, O>(f: Func<X, O>) => <I>(g: Func<I, X>) => Func<I, O>} */
-const compose = f => g => x => f(g(x))
+/** 
+ * Postfix Compose function.
+ *
+ * @type {<I, X>(g: Func<I, X>) => <O>(f: Func<X, O>) => Func<I, O>} 
+ */
+const compose = g => f => x => f(g(x))
 
 /** @type {<T>(value: T) => T} */
 const identity = value => value

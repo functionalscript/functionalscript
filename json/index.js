@@ -23,8 +23,8 @@ const addProperty = value => {
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const [name, tail] = result
         return { ...srcObject, [name]: f(tail)(object.at(name)(srcObject)) }
-    }
-    return compose(f)(array.sequence)
+    }    
+    return src => f(array.sequence(src))
 }
 
 /** @type {(_: string) => seq.Sequence<string>} */

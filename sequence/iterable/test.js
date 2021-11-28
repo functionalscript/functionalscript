@@ -34,8 +34,8 @@ const { compose } = require('../../function')
     const file = _ => 'x'
     /** @type {(_: string) => string|undefined} */
     const x = p => compose
-        (i.find(x => x !== undefined))
-        (i.map(x => file(x())))        
+        (i.map(x => file(x())))
+        (i.find(x => x !== undefined))                
         ([() => p, () => `${p}.js`, () => `${p}/index.js`])
     if (x('index.js') !== 'x') { throw 'error' }
 }

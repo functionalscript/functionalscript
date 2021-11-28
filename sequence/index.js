@@ -229,7 +229,7 @@ const some = f => input => find(x => x)(map(f)(input)) !== undefined
 const includes = value => some(strictEqual(value))
 
 /** @type {<T>(f: (value: T) => boolean) => SequenceReduce<T, boolean>} */
-const every = f => input => !some(compose(logicalNot)(f))(input)
+const every = f => input => !some(compose(f)(logicalNot))(input)
 
 /** @type {<T>(list: Sequence<T>) => Iterable<T>} */
 const iterable = list => ({
