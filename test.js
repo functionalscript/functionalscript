@@ -7,7 +7,7 @@ require('./sequence/asyncIterable/test')
 require('./module-manager/test')
 require('./json/test')
 require('./object/test')
-require('./sequence3/test')
+require('./sequence4/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
