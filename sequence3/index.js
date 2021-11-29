@@ -1,4 +1,6 @@
+const { todo } = require("../dev")
 const { compose } = require("../function")
+const { sequence } = require("../sequence")
 
 /**
  * @template T
@@ -48,51 +50,6 @@ const fromArray = array => {
     return f(0)
 }
 
-/** 
- * @template T
- * @template A
- * @typedef {(prior: A) => (value: T) => Sequence<A>} Operator
- */
-
-/** @type {<T, A>(operator: Operator<T, A>) => (init: A) => (source: Sequence<T>) => Sequence<A>} */
-const apply = operator => {
-
-    /** @typedef {typeof operator extends Operator<infer T, infer A> ? [T, A] : never} TA */
-    /** @typedef {TA[0]} T */
-    /** @typedef {TA[1]} A */
-
-    /** @type {(sourceTail: Sequence<T>) => (sequence: Sequence<A>) => Sequence<A>} */
-    const f2 = sourceTail => {
-
-        /** @type {(first: A) => (result: Result<A>) => Sequence<A>} */
-        const g3 = first => result => {
-            if (result === undefined) { return () => apply(operator)(first)(sourceTail) }
-            const [second, resultTail] = result
-            return [first, () => g2(second)(resultTail)]
-        }
-
-        const g2 = compose(g3)(unwrap)
-
-        /** @type {(result: Result<A>) => Sequence<A>} */
-        const g1 = result => {
-            if (result === undefined) { return undefined }
-            const [first, resultTail] = result
-            return g2(first)(resultTail)
-        }
-
-        return unwrap(g1)
-    }
-
-    /** @type {(init: A) => (source: Result<T>) => Sequence<A>} */
-    const f1 = init => source => {
-        if (source === undefined) { return undefined }
-        const [first, sourceTail] = source
-        return f2(sourceTail)(operator(init)(first))
-    }
-
-    return compose(f1)(unwrap)
-}
-
 /** @type {<T>(sequence: Sequence<T>) => Iterable<T>} */
 const iterable = sequence => ({
     *[Symbol.iterator]() {
@@ -117,13 +74,33 @@ const countdown = count => {
 /** @type {<T>(...array: readonly T[]) => Sequence<T>} */
 const list = (...array) => fromArray(array)
 
+/** @type {<T>(tail: Sequence<Sequence<T>>) => (sequence: Sequence<T>) => Sequence<T>} */
+const flat2 = tail => {
+    /** @typedef {typeof tail extends Sequence<Sequence<infer T>> ? T : never} T */
+    /** @type {(result: Result<T>) => Sequence<T>} */
+    const g2 = result => {
+        if (result === undefined) { return () => flat(tail) }
+        const [first, resultTail] = result
+        return [first, () => g1(resultTail)]
+    }
+    const g1 = unwrap(g2)
+    return g1
+}
+
+/** @type {<T>(result: Result<Sequence<T>>) => Sequence<T>} */
+const flat1 = result => {
+    if (result === undefined) { return undefined }
+    const [first, tail] = result
+    return flat2(tail)(first)
+}
+
+const flat = unwrap(flat1)
+
 module.exports = {
     /** @readonly */
     empty,
     /** @readonly */
     next,
-    /** @readonly */
-    apply,
     /** @readonly */
     fromArray,
     /** @readonly */
@@ -132,4 +109,6 @@ module.exports = {
     countdown,
     /** @readonly */
     list,
+    /** @readonly */
+    flat,
 }

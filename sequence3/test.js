@@ -15,6 +15,8 @@ const assert_eq = value => expected => {
 assert_eq(_.fromArray([1, 2, 3]))('[1,2,3]')
 assert_eq(_.countdown(3))('[2,1,0]')
 
+// stress tests
+
 {
     // 200_000_000 is too much
     const n = 100_000_000
