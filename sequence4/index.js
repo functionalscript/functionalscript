@@ -1,5 +1,5 @@
 const { todo } = require("../dev")
-const { sequence } = require("../sequence")
+const { compose } = require("../function")
 
 /**
  * @template T
@@ -45,12 +45,15 @@ const fromArray = array => {
     return at(0)
 }
 
+/** @type {<T>(arrayOrResult: ArrayOrResult<T>) => Result<T>} */
+const toResult = arrayOrResult => arrayOrResult instanceof Array ? fromArray(arrayOrResult) : arrayOrResult
+
 /** @type {<T>(sequence: Sequence<T>) => Result<T>} */
 const next = sequence => {
     let i = sequence
     while (true) {
         if (typeof i !== 'function') {
-            return i instanceof Array ? fromArray(i) : i
+            return toResult(i)
         }
         i = i()
     }
@@ -83,6 +86,13 @@ const toArray = sequence => {
     return Array.from(iterable(sequence))
 }
 
+/** @type {<T>(input: Sequence<T>) => T|undefined} */
+const first = input => {
+    const result = next(input)
+    if (result === undefined) { return undefined }
+    return result.first
+}
+
 /** @type {(count: number) => Sequence<number>} */
 const countdown = count => {
     if (count <= 0) { return undefined }
@@ -90,13 +100,54 @@ const countdown = count => {
     return { first, tail: () => countdown(first) }
 }
 
+/** @type {<I, O>(f: (result: Result<I>) => Sequence<O>) => (sequence: Sequence<I>) => Sequence<O>} */
+const unwrap = f => sequence => {
+    if (typeof sequence === 'function') { 
+        return () => {
+            const s = sequence()
+            return () => unwrap(f)(s)
+        }
+    }
+    return f(toResult(sequence))
+}
+
+
+/** @type {<T>(tail2: Sequence<Sequence<T>>) => (sequence: Sequence<T>)=> Sequence<T>} */
+const flat2 = tail2 => {
+    /** @typedef {typeof tail2 extends Sequence<Sequence<infer T>> ? T : never} T */
+    /** @type {(result: Result<T>)=> Sequence<T>} */
+    const f2 = result => {    
+        if (result === undefined) { return () => flat(tail2) }
+        const { first, tail } = result
+        return { first, tail: () => f1(tail) }
+    }
+    const f1 = unwrap(f2)
+    return f1
+}
+
+/** @type {<T>(sequence: Result<Sequence<T>>) => Sequence<T>} */
+const flat1 = result => {
+    if (result === undefined) { return undefined }
+    const { first, tail } = result
+    return flat2(tail)(first)
+}
+
+const flat = unwrap(flat1)
+
+/** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
+const concat = (...array) => flat(array)
+
 module.exports = {
     /** @readonly */
     next,
     /** @readonly */
+    first,
+    /** @readonly */
     iterable,
     /** @readonly */
     toArray,
+    /** @readonly */
+    concat,
     /** @readonly */
     countdown,
 }
