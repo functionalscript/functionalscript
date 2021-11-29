@@ -98,14 +98,11 @@ const iterable = sequence => ({
     *[Symbol.iterator]() {
         let i = sequence
         while (true) {
-            if (i === undefined) { return }
-            if (typeof i === 'function') {
-                i = i()
-            } else {
-                const [first, tail] = i
-                yield first
-                i = tail
-            }
+            const result = next(i)
+            if (result === undefined) { return }
+            const [first, tail] = result
+            yield first
+            i = tail
         }
     }
 })
