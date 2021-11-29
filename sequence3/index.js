@@ -31,10 +31,21 @@ const next = sequence => {
     }
 }
 
-/** @type {<T, A>(f: (_: Result<T>) => Sequence<A>) => (x: Sequence<T>) => Sequence<A>} */
+/** @type {<T, A>(f: (value: Result<T>) => Sequence<A>) => (source: Sequence<T>) => Sequence<A>} */
 const unwrap = f => source => {
     if (typeof source === 'function') { return () => unwrap(f)(source()) }
     return f(source)
+}
+
+/** @type {<T>(array: readonly T[]) => Sequence<T>} */
+const fromArray = array => {
+    /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
+    /** @type {(index: number) => Sequence<T>} */
+    const f = index => {
+        if (array.length <= index) { return undefined }
+        return [array[index], () => f(index + 1)]
+    }
+    return f(0)
 }
 
 /** 
@@ -80,4 +91,48 @@ const apply = operator => {
     }
 
     return compose(f1)(unwrap)
+}
+
+/** @type {<T>(sequence: Sequence<T>) => Iterable<T>} */
+const iterable = sequence => ({
+    *[Symbol.iterator]() {
+        let i = sequence
+        while (true) {
+            if (i === undefined) { return }
+            if (typeof i === 'function') {
+                i = i()
+            } else {
+                const [first, tail] = i
+                yield first
+                i = tail
+            }
+        }
+    }
+})
+
+/** @type {(count: number) => Sequence<number>} */
+const countdown = count => {
+    if (count <= 0) { return empty }
+    const n = count - 1
+    return [n, () => countdown(n)]
+}
+
+/** @type {<T>(...array: readonly T[]) => Sequence<T>} */
+const list = (...array) => fromArray(array)
+
+module.exports = {
+    /** @readonly */
+    empty,
+    /** @readonly */
+    next,
+    /** @readonly */
+    apply,
+    /** @readonly */
+    fromArray,
+    /** @readonly */
+    iterable,
+    /** @readonly */
+    countdown,
+    /** @readonly */
+    list,
 }
