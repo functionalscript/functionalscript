@@ -206,7 +206,7 @@ const countdown = count => () => {
  * @typedef {readonly[A, ScanFunc<T, A>]} ScanState
  */
 
-/** @type {<T,A>(operator: ScanFunc<T, A>) => (input: Sequence<T>) => Sequence<A>} */
+/** @type {<T,A>(operator: ScanFunc<T, A>) => (input: Sequence<T>) => Thunk<A>} */
 const scan = operator => input => () => {
     const result = next(input)
     if (result === undefined) { return undefined }
@@ -251,7 +251,7 @@ const join = separator => fold(op.join(separator))('')
 /** @type {(index: number) => <T>(value: T) => ScanState<T, Entry<T>>} */
 const entryOp = index => value => [[index, value], entryOp(index + 1)]
 
-/** @type {<T>(input: Sequence<T>) => Sequence<Entry<T>>} */
+/** @type {<T>(input: Sequence<T>) => Thunk<Entry<T>>} */
 const entries = scan(entryOp(0))
 
 module.exports = {
