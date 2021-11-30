@@ -161,6 +161,9 @@ const last = def => input => {
     }
 }
 
+/** @type {<T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => T|undefined} */
+const find = f => input => first(filter(f)(input))
+
 /** @type {(count: number) => Thunk<number>} */
 const countdown = count => () => {
     if (count <= 0) { return undefined }
@@ -191,6 +194,10 @@ module.exports = {
     flatMap,
     /** @readonly */
     filter,
+    /** @readonly */
+    find,
+    /** @readonly */
+    takeWhile,
     /** @readonly */
     countdown,
 }
