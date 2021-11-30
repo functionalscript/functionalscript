@@ -100,39 +100,26 @@ const countdown = count => {
     return { first, tail: () => countdown(first) }
 }
 
-/** @type {<I, O>(f: (result: Result<I>) => Sequence<O>) => (sequence: Sequence<I>) => Sequence<O>} */
-const unwrap = f => sequence => {
-    if (typeof sequence === 'function') { 
-        return () => {
-            const s = sequence()
-            return () => unwrap(f)(s)
-        }
-    }
-    return f(toResult(sequence))
-}
-
-
 /** @type {<T>(tail2: Sequence<Sequence<T>>) => (sequence: Sequence<T>)=> Sequence<T>} */
 const flat2 = tail2 => {
     /** @typedef {typeof tail2 extends Sequence<Sequence<infer T>> ? T : never} T */
-    /** @type {(result: Result<T>)=> Sequence<T>} */
-    const f2 = result => {    
-        if (result === undefined) { return () => flat(tail2) }
+    /** @type {(sequence: Sequence<T>)=> Sequence<T>} */
+    const f2 = sequence => {
+        const result = next(sequence)
+        if (result === undefined) { return flat(tail2) }
         const { first, tail } = result
-        return { first, tail: () => f1(tail) }
+        return { first, tail: f2(tail) }
     }
-    const f1 = unwrap(f2)
-    return f1
+    return f2
 }
 
-/** @type {<T>(sequence: Result<Sequence<T>>) => Sequence<T>} */
-const flat1 = result => {
+/** @type {<T>(sequence: Sequence<Sequence<T>>) => Sequence<T>} */
+const flat = sequence => {
+    const result = next(sequence)
     if (result === undefined) { return undefined }
     const { first, tail } = result
     return flat2(tail)(first)
 }
-
-const flat = unwrap(flat1)
 
 /** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
 const concat = (...array) => flat(array)

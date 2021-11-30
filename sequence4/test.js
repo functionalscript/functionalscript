@@ -2,6 +2,7 @@ const _ = require('.')
 const json = require('../json')
 const { sort } = require('../object')
 const { compose } = require('../function')
+const { todo } = require('../dev')
 
 /** @type {(sequence: _.Sequence<json.Json>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
@@ -29,19 +30,30 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 */
 
-{
-    /** @type {_.Sequence<number>} */
-    let sequence = undefined
-    for (let i = 0; i < 1_000_000; ++i) {
-        sequence = _.concat(sequence, [i])
-    }
-    const a = _.next(sequence)
-}
+// {
+//     /** @type {_.Sequence<number>} */
+//     let sequence = undefined
+//     for (let i = 0; i < 1_000_000; ++i) {
+//         sequence = _.concat(sequence, [i])
+//     }
+//     const a = _.next(sequence)
+// }
 
 /**
- * @template I, O
- * @typedef {{
- *  data: I
- *  func: (_: I) => O
- * }}
+ * @template T
+ * @typedef {readonly[T] | (() => Continuation<T>)} Continuation
  */
+
+// g: () => Continuation<S>
+// f: S  => Continuation<T>
+
+/**
+ * @template S, O
+ * @typedef {readonly[() => S, (_: S) => O]} Chain
+ */
+
+/** @type {<S>(g: Continuation<S>) => <T>(f: (_: S) => Continuation<T>) => Continuation<T>} */
+const compose2 = g => f => { 
+    if (typeof g === 'function') { return () => compose2(g())(f) }
+    return f(g[0])
+}
