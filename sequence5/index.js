@@ -205,6 +205,12 @@ const countdown = count => () => {
  * @typedef {(prior: A) => (value: T) => A} ReduceOperator
  */
 
+/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanOperator<T, A>} */
+const scanOperator = operator => init => value => {
+    const result = operator(init)(value)
+    return [result, scanOperator(operator)(result)]
+}
+
 /** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => Sequence<A>} */
 const scan = operator => init => input => () => {
     const result = next(input)
