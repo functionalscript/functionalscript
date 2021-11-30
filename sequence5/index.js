@@ -1,3 +1,6 @@
+const { compose } = require('../function')
+const { logicalNot, strictEqual, addition } = require('../function/operator')
+
 /**
  * @template T
  * @typedef { readonly T[] | Thunk<T> } Sequence<T>
@@ -10,12 +13,12 @@
 
 /**
  * @template T
- * @typedef { readonly[Sequence<T>, Sequence<T>] } Concat<T>
+ * @typedef { Result<T> | Concat<T> } Node<T>
  */
 
 /**
  * @template T
- * @typedef { Result<T> | Concat<T> } Node<T>
+ * @typedef { readonly[Sequence<T>, Sequence<T>] } Concat<T>
  */
 
 /**
@@ -90,12 +93,8 @@ const toArray = sequence => {
 
 /** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
 const flat = sequence => () => {
-    const n = node(sequence)
+    const n = next(sequence)
     if (n === undefined) { return undefined }
-    if (n instanceof Array) { 
-        const [a, b] = n
-        return [flat(a), flat(b)]
-    }
     const { first, tail } = n
     return [first, flat(tail)]
 }
@@ -105,12 +104,8 @@ const concat = (...array) => flat(array)
 
 /** @type {<I, O>(f: (value: I) => O) => (input: Sequence<I>) => Thunk<O>} */
 const map = f => sequence => () => {
-    const n = node(sequence)
+    const n = next(sequence)
     if (n === undefined) { return undefined }
-    if (n instanceof Array) {
-        const [a, b] = n
-        return [map(f)(a), map(f)(b)]
-    }
     const { first, tail } = n
     return { first: f(first), tail: map(f)(tail) }
 }
@@ -120,15 +115,21 @@ const flatMap = f => sequence => flat(map(f)(sequence))
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
 const filter = f => sequence => () => {
-    const n = node(sequence)
+    const n = next(sequence)
     if (n === undefined) { return undefined }
-    if (n instanceof Array) {
-        const [a, b] = n
-        return [filter(f)(a), filter(f)(b)]
-    }
     const { first, tail } = n
     const fTail = filter(f)(tail)
     return f(first) ? { first, tail: fTail } : fTail()
+}
+
+/** @type {<I, O>(f: (value: I) => O|undefined) => (input: Sequence<I>) => Thunk<O>} */
+const filterMap = f => sequence => () => {
+    const n = next(sequence)
+    if (n === undefined) { return undefined }
+    const { first, tail } = n
+    const fFirst = f(first)
+    const fTail = filterMap(f)(tail)
+    return fFirst === undefined ? fTail() : { first: fFirst, tail: fTail }
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
@@ -140,15 +141,29 @@ const takeWhile = f => input => () => {
     return { first, tail: takeWhile(f)(result.tail) }
 }
 
-/** @type {<T>(input: Sequence<T>) => T|undefined} */
-const first = input => {
+/** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
+const dropWhile = f => input => () => {
+    let i = input
+    while (true) {
+        const result = next(i)
+        if (result === undefined) { return undefined }
+        const { first, tail } = result
+        if (!f(first)) return result
+        i = tail
+    }
+}
+
+/** @type {<D>(def: D) => <T>(input: Sequence<T>) => D|T} */
+const first = def => input => {
     const result = next(input)
-    if (result === undefined) { return undefined }
+    if (result === undefined) { return def }
     return result.first
 }
 
-/** @type {<T>(def: T) => (input: Sequence<T>) => T} */
+/** @type {<D>(def: D) => <T>(input: Sequence<T>) => D|T} */
 const last = def => input => {
+    /** @typedef {typeof input extends Sequence<infer T> ? T : never} T */
+    /** @type {(typeof def)|T} */
     let r = def
     let i = input
     while (true) {
@@ -161,8 +176,17 @@ const last = def => input => {
     }
 }
 
-/** @type {<T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => T|undefined} */
-const find = f => input => first(filter(f)(input))
+/** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => D|T} */
+const find = def => f => input => first(def)(filter(f)(input))
+
+/** @type {<T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => boolean} */
+const some = f => input => find(false)(x => x)(map(f)(input))
+
+/** @type {<T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => boolean} */
+const every = f => input => !some(compose(f)(logicalNot))(input)
+
+/** @type {<T>(value: T) => (sequence: Sequence<T>) => boolean} */
+const includes = value => some(strictEqual(value))
 
 /** @type {(count: number) => Thunk<number>} */
 const countdown = count => () => {
@@ -170,6 +194,30 @@ const countdown = count => () => {
     const first = count - 1
     return { first, tail: countdown(first) }
 }
+
+/**
+ * @template T,A
+ * @typedef {(value: T) => readonly[A, ScanOperator<T, A>]} ScanOperator
+ */
+
+/**
+ * @template T,A 
+ * @typedef {(prior: A) => (value: T) => A} ReduceOperator
+ */
+
+/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => Sequence<A>} */
+const scan = operator => init => input => () => {
+    const result = next(input)
+    if (result === undefined) { return undefined }
+    const { first, tail } = result
+    const newFirst = operator(init)(first)
+    return { first: newFirst, tail: scan(operator)(newFirst)(tail) }
+}
+
+/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => A} */
+const reduce = operator => init => input => last(init)(scan(operator)(init)(input))
+
+const sum = reduce(addition)(0)
 
 module.exports = {
     /** @readonly */
@@ -197,7 +245,21 @@ module.exports = {
     /** @readonly */
     find,
     /** @readonly */
+    some,
+    /** @readonly */
+    every,
+    /** @readonly */
+    includes,    
+    /** @readonly */
     takeWhile,
+    /** @readonly */
+    dropWhile,
+    /** @readonly */
+    scan,
+    /** @readonly */
+    reduce,
+    /** @readonly */
+    sum,
     /** @readonly */
     countdown,
 }

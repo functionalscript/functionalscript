@@ -1,6 +1,7 @@
 const _ = require('.')
 const json = require('../json')
 const { sort } = require('../object')
+const { addition } = require('../function/operator')
 
 /** @type {(sequence: _.Sequence<json.Json>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
@@ -35,6 +36,26 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== '[1,2,3,4,5]') { throw result }
 }
 
+{
+    const result = _.find(undefined)(x => x % 2 === 0)([1, 2, 3, 4])
+    if (result !== 2) { throw result }
+}
+
+{
+    const result = stringify(_.takeWhile(x => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[1,2,3,4,5]') { throw result }
+}
+
+{
+    const result = stringify(_.dropWhile(x => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[10,11]') { throw result }
+}
+
+{
+    const result = stringify(_.scan(addition)(0)([2, 3, 4, 5]))
+    if (result !== '[2,5,9,14]') { throw result }
+}
+
 // stress tests
 
 const stress = () => {
@@ -43,7 +64,7 @@ const stress = () => {
         const n = 100_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
-        const first = _.first(result)
+        const first = _.first(undefined)(result)
         if (first !== n - 1) { throw first }
     }
 
