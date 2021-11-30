@@ -25,7 +25,7 @@ const test = () => {
         /** @type {import('../sequence').Result<string>} */
         let _item = list.next(values(_map))
         while (_item !== undefined) {
-            _item = list.next(_item[1])
+            _item = list.next(_item.tail)
         }
     }
 }

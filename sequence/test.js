@@ -1,75 +1,142 @@
-const seq = require('.')
-const { empty, next, list, flatMap, concat, exclusiveScan, find, every, some, first, drop, map, generate } = require('.')
-const { sum } = require('./operator')
-const array = require('./array')
+const _ = require('.')
 const json = require('../json')
-const { identity } = require('../function')
+const { sort } = require('../object')
+const { addition } = require('../function/operator')
 
-/** @type {<T>(input: seq.Sequence<T>) => void} */
-const print = input => {
-    let i = input
-    while (true) {
-        const result = next(i)
-        if (result === undefined) { return }
-        console.log(result[0])
-        i = result[1]
-    }
+/** @type {(sequence: _.Sequence<json.Json>) => string} */
+const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
+
+{
+    const s = stringify([1, 2, 3])
+    if (s !== '[1,2,3]') { throw s }
 }
 
 {
-    const big = list(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 42, 60)
-    const list0 = list(0, 1, 2, 3)
-    const list1 = flatMap(x => list(x, x * 2, x * 3))(list0)
-    const list2 = concat(list0, list0)
-    const list3 = exclusiveScan(sum)(list0)
-    const r = find(x => x === 42)(big)
-    if (every(x => x > 0)(big) !== true) { throw 'x' }
-    if (every(x => x < 20)(big) !== false) { throw 'x' }
-    if (some(x => x > 100)(big) !== false) { throw 'x' }
-    if (some(x => x > 50)(big) !== true) { throw 'x' }
-    if (first(drop(16)(big)) !== 42) { throw 'drop' }
+    const result = stringify(_.countdown(10))
+    if (result !== '[9,8,7,6,5,4,3,2,1,0]') { throw result }
+}
+
+{
+    const result = stringify(_.concat([1, 2, 3], [4, 5], [6], [], [7, 8, 9]))
+    if (result !== '[1,2,3,4,5,6,7,8,9]') { throw result }
+}
+
+{
+    const result = _.concat([1], [2])
+    const x = _.next(result)
+}
+
+{
+    const result = stringify(_.flatMap(x => [x, x * 2, x * 3])([0, 1, 2, 3]))
+    if (result !== '[0,0,0,1,2,3,2,4,6,3,6,9]') { throw result }
+}
+
+{
+    const result = stringify(_.takeWhile(x => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+    if (result !== '[1,2,3,4,5]') { throw result }
+}
+
+{
+    const result = _.find(undefined)(x => x % 2 === 0)([1, 2, 3, 4])
+    if (result !== 2) { throw result }
+}
+
+{
+    const result = stringify(_.takeWhile(x => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[1,2,3,4,5]') { throw result }
+}
+
+{
+    const result = stringify(_.dropWhile(x => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[10,11]') { throw result }
+}
+
+{
+    const op = _.scanState(addition)
+    const result = stringify(_.scan(op)([2, 3, 4, 5]))
+    if (result !== '[2,5,9,14]') { throw result }
+}
+
+{
+    const result = _.sum([2, 3, 4, 5])
+    if (result !== 14) { throw result }
+}
+
+{
+    const result = _.fold(addition)(undefined)([2, 3, 4, 5])
+    if (result !== 14) { throw result }
+}
+
+{
+    const result = _.fold(addition)(undefined)([])
+    if (result !== undefined) { throw result }
+}
+
+{
+    const result = _.join('/')([])
+    if (result !== '') { throw result }
+}
+
+{
+    const result = _.join('/')([''])
+    if (result !== '') { throw result }
+}
+
+{
+    const result = stringify(_.entries([]))
+    if (result !== '[]') { throw result }
+}
+
+{
+    const result = stringify(_.entries(['hello', 'world']))
+    if (result !== '[[0,"hello"],[1,"world"]]') { throw result }
+}
+
+// stress tests
+
+const stress = () => {
     {
-        const a = map(generate)(generate(100_000))
-        const ar = array.fromSequence(a)
-        // This operation uses a lot of stack because `...` 
-        // puts array items on a stack.
-        // Use `array.sequence` instead
-        const x = concat(...ar)
-        const r = next(x)
-        // print(x)
+        // 200_000_000 is too much
+        const n = 100_000_000
+        const result = _.toArray(_.countdown(n))
+        if (result.length !== n) { throw result.length }
+        const first = _.first(undefined)(result)
+        if (first !== n - 1) { throw first }
     }
+
     {
-        const a = array.fromSequence(generate(1_000_000))
-        let x = concat(array.sequence(a), big)
-        const r = next(x)
-        // print(x)
-    }
-    {
-        let x = big
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 2_000_000 is too much
         for (let i = 0; i < 1_000_000; ++i) {
-            x = concat(empty, x)
+            sequence = _.concat(sequence, [i])
         }
-        const r = next(x)
-        // print(x)
+        const r = _.toArray(sequence)
     }
+
     {
-        let x = big
-        for (let i = 0; i < 1_000_000; ++i) {
-            x = concat(x, list(i))
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 5_000_000 is too much
+        for (let i = 0; i < 2_000_000; ++i) {
+            sequence = _.concat(sequence, [i])
         }
-        const r = next(x)
-        // print(x)
+        const a = _.next(sequence)
+    }
+
+    {
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 10_000_000 is too much
+        for (let i = 0; i < 5_000_000; ++i) {
+            sequence = _.concat([i], sequence)
+        }
+        const a = _.next(sequence)
     }
 }
 
-{
-    const x = seq.join(':')(seq.list("1", "2", "3", "4", "5", "6"))
-    if (x !== "1:2:3:4:5:6") { throw x }
-}
+//stress()
 
-{
-    const r = seq.reverse(seq.list(1, 2, 3, 4))
-    const s = array.fromSequence(r)
-    const j = json.stringify(identity)(s)
-    if (j !== '[4,3,2,1]') { throw j }
+module.exports = {
+
 }

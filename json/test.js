@@ -5,7 +5,8 @@ const { identity } = require('../function')
 if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 
 {
-    const x = json.stringify(sort)(json.addProperty("Hello")(['a'])({}))
+    const r = json.addProperty("Hello")(['a'])({})
+    const x = json.stringify(sort)(r)
     if (x !== '{"a":"Hello"}') { throw x }
 }
 

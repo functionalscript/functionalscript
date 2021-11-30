@@ -35,7 +35,7 @@ const scan = operator => {
         return [result, f(result)]
     }
     return f
-} 
+}
 
 /** @type {<R, T>(operator: op.ReduceOperator<R, T>) => (first: R) => ExclusiveScan<T, R>} */
 const exclusiveScan = operator => first => [first, scan(operator)(first)]

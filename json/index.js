@@ -14,53 +14,50 @@ const { compose } = require('../function')
 
 /** @typedef {Object|boolean|string|number|null|Array} Json */
 
-/** @type {(value: Json) => (path: readonly string[]) => (src: Json|undefined) => Json} */
+/** @type {(value: Json) => (path: seq.Sequence<string>) => (src: Json|undefined) => Json} */
 const addProperty = value => {
     /** @type {(path: seq.Sequence<string>) => (src: Json|undefined) => Json} */
     const f = path => src => {
         const result = seq.next(path)
         if (result === undefined) { return value }
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
-        const [name, tail] = result
-        return { ...srcObject, [name]: f(tail)(object.at(name)(srcObject)) }
-    }
-    return compose(f)(array.sequence)
+        const { first, tail } = result
+        return { ...srcObject, [first]: f(tail)(object.at(first)(srcObject)) }
+    }    
+    return f
 }
 
 /** @type {(_: string) => seq.Sequence<string>} */
-const stringSerialize = input => seq.list(JSON.stringify(input))
+const stringSerialize = input => [JSON.stringify(input)]
 
 /** @type {(_: number) => seq.Sequence<string>} */
-const numberSerialize = input => seq.list(JSON.stringify(input))
+const numberSerialize = input => [JSON.stringify(input)]
 
-const nullSerialize = seq.list('null')
+const nullSerialize = ['null']
 
-const trueSerialize = seq.list('true')
+const trueSerialize = ['true']
 
-const falseSerialize = seq.list('false')
+const falseSerialize = ['false']
 
 /** @type {(_: boolean) => seq.Sequence<string>} */
 const boolSerialize = value => value ? trueSerialize : falseSerialize
 
-const colon = seq.list(':')
-const comma = seq.list(',')
+const colon = [':']
+const comma = [',']
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
 const commaValue = a => [seq.concat(comma, a), commaValue]
 
-/** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const joinScan = value => [value, commaValue]
+/** @type {seq.FoldOperator<seq.Sequence<string>>} */
+const joinOp = a => b => seq.concat(a, comma, b)
 
-/** @type {seq.SequenceMap<seq.Sequence<string>, string>} */
-const join = input => {
-    const _0 = seq.scan(joinScan)(input)
-    return seq.flat(_0)
-}
+/** @type {(input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
+const join = seq.fold(joinOp)([])
 
 /** @type {(open: string) => (close: string) => (input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
 const list = open => close => {
-    const seqOpen = seq.list(open)
-    const seqClose = seq.list(close)
+    const seqOpen = [open]
+    const seqClose = [close]
     return input => seq.concat(seqOpen, join(input), seqClose)
 }
 
@@ -83,15 +80,15 @@ const serialize = sort => {
         f(v))
     /** @type {(object: Object) => seq.Sequence<string>} */
     const objectSerialize = input => {
-        const entries = object.entries(input)
+        const entries = Object.entries(input)
         const sortedEntries = sort(entries)
+        const _ = seq.toArray(sortedEntries)
         const serializedEntries = seq.map(propertySerialize)(sortedEntries)
         return objectList(serializedEntries)
     }
     /** @type {(input: Array) => seq.Sequence<string>} */
     const arraySerialize = input => {
-        const sequence = array.sequence(input)
-        const serializedEntries = seq.map(f)(sequence)
+        const serializedEntries = seq.map(f)(input)
         return arrayList(serializedEntries)
     }
     /** @type {(value: Json) => seq.Sequence < string >} */
@@ -118,7 +115,10 @@ const serialize = sort => {
  *  
  * @type {(mapEntries: MapEntries) => (value: Json) => string}
  */
-const stringify = sort => value => seq.join('')(serialize(sort)(value))
+const stringify = sort => value => {
+    const _s = serialize(sort)(value)
+    return seq.join('')(_s)
+}
 
 /** @type {(value: string) => Json} */
 const parse = value => JSON.parse(value)

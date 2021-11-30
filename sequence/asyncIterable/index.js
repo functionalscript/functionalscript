@@ -69,7 +69,7 @@ const reduce = ([first, s]) => async c => {
 
 const sum = reduce(seq.sum)
 
-const join = compose(reduce)(seq.join)
+const join = compose(seq.join)(reduce)
 
 const length = reduce(seq.length)
 

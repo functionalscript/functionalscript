@@ -82,15 +82,11 @@ const internal = pack => {
 const externalOrInternal = p => 
     p === undefined ? () => undefined : (typeof p === 'function' ? external(p) : internal(p))
 
-/** @type {(_: Dependencies) => (_: Path) => Module|undefined} */
+/** @type {(_: Dependencies) => (path: Path) => Module|undefined} */
 const external = packages => { 
     /** @type {(_: readonly [string, Path]) => Module|undefined} */
     const defined = ([first, tail]) => externalOrInternal(packages(first))(tail)
-    /** @type {(_: Path) => readonly [string, Path]|undefined} */
-    const sf = splitFirst
-    return compose
-        (option.map(defined))
-        (sf)        
+    return path => option.map(defined)(splitFirst(path))
 }
 
 /** @type {(_: Location) => (_: string) => Module|undefined} */

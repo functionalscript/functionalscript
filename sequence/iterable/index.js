@@ -39,7 +39,7 @@ const sum = reduce(seq.sum)
 
 const length = reduce(seq.length)
 
-const join = compose(reduce)(seq.join)
+const join = compose(seq.join)(reduce)
 
 /** @type {<T, R>(f: (value: T) => Iterable<R>) => (c: Iterable<T>) => Iterable<R>} */
 const flatMap = f => c => ({

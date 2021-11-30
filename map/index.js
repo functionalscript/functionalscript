@@ -56,14 +56,14 @@ const create = root => ({
  * @type {{
  *  readonly get: (name: string) => undefined
  *  readonly set: (name: string) => <T>(value: T) => Map<T>
- *  readonly entries: () => undefined
+ *  readonly entries: []
  *  readonly root: undefined
  * }} 
  */
 const empty = {
     get: () => undefined,
     set: name => value => create([[name, value]]),
-    entries: seq.empty,
+    entries: [],
     root: undefined
 }
 
@@ -73,7 +73,9 @@ const setOperator = map => ([k, v]) => map.set(k)(v)
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
 const fromEntries = entries => {
     /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */
-    return seq.fold(setOperator)(/** @type {Map<T>} */(empty))(entries)
+    /** @type {Map<T>} */
+    const init = empty
+    return seq.reduce(setOperator)(init)(entries)
 }
 
 module.exports = {
