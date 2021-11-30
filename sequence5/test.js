@@ -25,47 +25,55 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     const x = _.next(result)
 }
 
+{
+    const result = stringify(_.flatMap(x => [x, x * 2, x * 3])([0, 1, 2, 3]))
+    if (result !== '[0,0,0,1,2,3,2,4,6,3,6,9]') { throw result }
+}
+
 // stress tests
 
-{
-    // 200_000_000 is too much
-    const n = 100_000_000
-    const result = _.toArray(_.countdown(n))
-    if (result.length !== n) { throw result.length }
-    const first = _.first(result)
-    if (first !== n - 1) { throw first }
+const stress = () => {
+    {
+        // 200_000_000 is too much
+        const n = 100_000_000
+        const result = _.toArray(_.countdown(n))
+        if (result.length !== n) { throw result.length }
+        const first = _.first(result)
+        if (first !== n - 1) { throw first }
+    }
+
+    {
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 2_000_000 is too much
+        for (let i = 0; i < 1_000_000; ++i) {
+            sequence = _.concat(sequence, [i])
+        }
+        const r = _.toArray(sequence)
+    }
+
+    {
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 5_000_000 is too much
+        for (let i = 0; i < 2_000_000; ++i) {
+            sequence = _.concat(sequence, [i])
+        }
+        const a = _.next(sequence)
+    }
+
+    {
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 10_000_000 is too much
+        for (let i = 0; i < 5_000_000; ++i) {
+            sequence = _.concat([i], sequence)
+        }
+        const a = _.next(sequence)
+    }
 }
 
-{
-    /** @type {_.Sequence<number>} */
-    let sequence = []
-    // 2_000_000 is too much
-    for (let i = 0; i < 1_000_000; ++i) {
-        sequence = _.concat(sequence, [i])
-    }
-    const r = _.toArray(sequence)
-    console.log(r.length)
-}
-
-{
-    /** @type {_.Sequence<number>} */
-    let sequence = []
-    // 5_000_000 is too much
-    for (let i = 0; i < 2_000_000; ++i) {
-        sequence = _.concat(sequence, [i])
-    }
-    const a = _.next(sequence)
-}
-
-{
-    /** @type {_.Sequence<number>} */
-    let sequence = []
-    // 10_000_000 is too much
-    for (let i = 0; i < 5_000_000; ++i) {
-        sequence = _.concat([i], sequence)
-    }
-    const a = _.next(sequence)
-}
+stress()
 
 module.exports = {
 

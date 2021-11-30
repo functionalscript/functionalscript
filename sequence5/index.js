@@ -23,6 +23,8 @@
  * @typedef { undefined | { readonly first: T, readonly tail: Sequence<T> } } Result
  */
 
+const empty = () => undefined
+
 /** @type {<T>(array: readonly T[]) => Result<T>} */
 const fromArray = array => {
     /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
@@ -86,20 +88,57 @@ const toArray = sequence => {
     return Array.from(iterable(sequence))
 }
 
-/** @type {<T>(sequence: Sequence<Sequence<T>>) => Sequence<T>} */
-const flat = sequence => {
+/** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
+const flat = sequence => () => {
     const n = node(sequence)
-    if (n === undefined) { return [] }
+    if (n === undefined) { return undefined }
     if (n instanceof Array) { 
         const [a, b] = n
-        return () => [flat(a), flat(b)]
+        return [flat(a), flat(b)]
     }
     const { first, tail } = n
-    return () => [first, flat(tail)]
+    return [first, flat(tail)]
 }
 
-/** @type {<T>(...array: readonly Sequence<T>[]) => Sequence<T>} */
+/** @type {<T>(...array: readonly Sequence<T>[]) => Thunk<T>} */
 const concat = (...array) => flat(array)
+
+/** @type {<I, O>(f: (value: I) => O) => (input: Sequence<I>) => Thunk<O>} */
+const map = f => sequence => () => {
+    const n = node(sequence)
+    if (n === undefined) { return undefined }
+    if (n instanceof Array) {
+        const [a, b] = n
+        return [map(f)(a), map(f)(b)]
+    }
+    const { first, tail } = n
+    return { first: f(first), tail: map(f)(tail) }
+}
+
+/** @type {<I, O>(f: (value: I) => Sequence<O>) => (input: Sequence<I>) => Thunk<O>} */
+const flatMap = f => sequence => flat(map(f)(sequence))
+
+/** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
+const filter = f => sequence => () => {
+    const n = node(sequence)
+    if (n === undefined) { return undefined }
+    if (n instanceof Array) {
+        const [a, b] = n
+        return [filter(f)(a), filter(f)(b)]
+    }
+    const { first, tail } = n
+    const fTail = filter(f)(tail)
+    return f(first) ? { first, tail: fTail } : fTail()
+}
+
+/** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
+const takeWhile = f => input => () => {
+    const result = next(input)
+    if (result === undefined) { return undefined }
+    const { first, tail } = result
+    if (!f(first)) { return undefined }
+    return { first, tail: takeWhile(f)(result.tail) }
+}
 
 /** @type {<T>(input: Sequence<T>) => T|undefined} */
 const first = input => {
@@ -108,14 +147,30 @@ const first = input => {
     return result.first
 }
 
-/** @type {(count: number) => Sequence<number>} */
-const countdown = count => {
-    if (count <= 0) { return [] }
+/** @type {<T>(def: T) => (input: Sequence<T>) => T} */
+const last = def => input => {
+    let r = def
+    let i = input
+    while (true) {
+        const result = next(i)
+        if (result === undefined) {
+            return r
+        }
+        r = result.first
+        i = result.tail
+    }
+}
+
+/** @type {(count: number) => Thunk<number>} */
+const countdown = count => () => {
+    if (count <= 0) { return undefined }
     const first = count - 1
-    return () => ({ first, tail: countdown(first) })
+    return { first, tail: countdown(first) }
 }
 
 module.exports = {
+    /** @readonly */
+    empty,
     /** @readonly */
     iterable,
     /** @readonly */
@@ -125,9 +180,17 @@ module.exports = {
     /** @readonly */
     flat,
     /** @readonly */
+    last,
+    /** @readonly */
     concat,
     /** @readonly */
     first,
+    /** @readonly */
+    map,
+    /** @readonly */
+    flatMap,
+    /** @readonly */
+    filter,
     /** @readonly */
     countdown,
 }
