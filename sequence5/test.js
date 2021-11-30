@@ -52,8 +52,44 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const result = stringify(_.scan(addition)(0)([2, 3, 4, 5]))
+    const op = _.scanState(addition)
+    const result = stringify(_.scan(op)([2, 3, 4, 5]))
     if (result !== '[2,5,9,14]') { throw result }
+}
+
+{
+    const result = _.sum([2, 3, 4, 5])
+    if (result !== 14) { throw result }
+}
+
+{
+    const result = _.fold(addition)(undefined)([2, 3, 4, 5])
+    if (result !== 14) { throw result }
+}
+
+{
+    const result = _.fold(addition)(undefined)([])
+    if (result !== undefined) { throw result }
+}
+
+{
+    const result = _.join('/')([])
+    if (result !== '') { throw result }
+}
+
+{
+    const result = _.join('/')([''])
+    if (result !== '') { throw result }
+}
+
+{
+    const result = stringify(_.entries([]))
+    if (result !== '[]') { throw result }
+}
+
+{
+    const result = stringify(_.entries(['hello', 'world']))
+    if (result !== '[[0,"hello"],[1,"world"]]') { throw result }
 }
 
 // stress tests
@@ -99,7 +135,7 @@ const stress = () => {
     }
 }
 
-// stress()
+//stress()
 
 module.exports = {
 

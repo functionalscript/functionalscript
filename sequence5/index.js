@@ -1,5 +1,6 @@
 const { compose } = require('../function')
 const { logicalNot, strictEqual, addition } = require('../function/operator')
+const op = require('../function/operator')
 
 /**
  * @template T
@@ -197,33 +198,61 @@ const countdown = count => () => {
 
 /**
  * @template T,A
- * @typedef {(value: T) => readonly[A, ScanOperator<T, A>]} ScanOperator
+ * @typedef {(value: T) => ScanState<T, A>} ScanFunc
  */
+
+/**
+ * @template T,A
+ * @typedef {readonly[A, ScanFunc<T, A>]} ScanState
+ */
+
+/** @type {<T,A>(operator: ScanFunc<T, A>) => (input: Sequence<T>) => Sequence<A>} */
+const scan = operator => input => () => {
+    const result = next(input)
+    if (result === undefined) { return undefined }
+    const { first, tail } = result
+    const r = operator(first)
+    return { first: r[0], tail: scan(r[1])(tail) }
+}
+
+/** @type {<T,A>(operator: ScanFunc<T, A>) => <D>(def: D)=> (input: Sequence<T>) => D|A} */
+const scanReduce = operator => def => input => last(def)(scan(operator)(input))
 
 /**
  * @template T,A 
  * @typedef {(prior: A) => (value: T) => A} ReduceOperator
  */
 
-/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanOperator<T, A>} */
-const scanOperator = operator => init => value => {
-    const result = operator(init)(value)
-    return [result, scanOperator(operator)(result)]
-}
+/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanState<T, A>} */
+const scanState = operator => init => [init, scanFunc(operator)(init)]
 
-/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => Sequence<A>} */
-const scan = operator => init => input => () => {
-    const result = next(input)
-    if (result === undefined) { return undefined }
-    const { first, tail } = result
-    const newFirst = operator(init)(first)
-    return { first: newFirst, tail: scan(operator)(newFirst)(tail) }
+/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanFunc<T, A>} */
+const scanFunc = operator => init => value => {
+    const result = operator(init)(value)
+    return scanState(operator)(result)
 }
 
 /** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => A} */
-const reduce = operator => init => input => last(init)(scan(operator)(init)(input))
+const reduce = operator => init => scanReduce(scanFunc(operator)(init))(init)
 
-const sum = reduce(addition)(0)
+/** @type {<T>(operator: ReduceOperator<T, T>) => <D>(def: D) => (input: Sequence<T>) => D|T} */
+const fold = operator => def => scanReduce(scanState(operator))(def)
+
+const sum = fold(addition)(0)
+
+/** @type {(separator: string) => (input: Sequence<string>) => string} */
+const join = separator => fold(op.join(separator))('')
+
+/**
+ * @template T
+ * @typedef {readonly[number, T]} Entry
+ */
+
+/** @type {(index: number) => <T>(value: T) => ScanState<T, Entry<T>>} */
+const entryOp = index => value => [[index, value], entryOp(index + 1)]
+
+/** @type {<T>(input: Sequence<T>) => Sequence<Entry<T>>} */
+const entries = scan(entryOp(0))
 
 module.exports = {
     /** @readonly */
@@ -261,11 +290,21 @@ module.exports = {
     /** @readonly */
     dropWhile,
     /** @readonly */
+    scanFunc,
+    /** @readonly */
+    scanState,
+    /** @readonly */
     scan,
     /** @readonly */
     reduce,
     /** @readonly */
+    fold,
+    /** @readonly */
     sum,
+    /** @readonly */
+    join,
+    /** @readonly */
+    entries,
     /** @readonly */
     countdown,
 }
