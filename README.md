@@ -16,7 +16,7 @@ A workaround for this problem is to use `let` for renaming objects.
 ## Install FunctionalScript As A Library
 
 ```
-npm install -S github:functionalscript/functionscript
+npm install -S github:functionalscript/functionalscript
 ```
 
 ## JSON
