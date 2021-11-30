@@ -7,7 +7,6 @@ require('./sequence/asyncIterable/test')
 require('./module-manager/test')
 require('./json/test')
 require('./object/test')
-require('./sequence5/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
@@ -83,14 +82,14 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
         constructor: undefined
     }
     const c = o['constructor']
-    console.log(c)
+    //console.log(c)
 }
 
 {
     /** @type {any} */
     const b = '42'
     const r = Number(b)
-    console.log(r)
+    //console.log(r)
 }
 
 {
@@ -107,7 +106,7 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
     //const c = o['propertyIsEnumerable']
     //const c = o['toString']
     const c = o['valueOf']    
-    console.log(c)
+    //console.log(c)
 }
 
 {

@@ -14,9 +14,6 @@ const map = require('../map')
  * @typedef {readonly[string, T]} Entry
  */
 
-/** @type {<T>(object: Map<T>) => seq.Sequence<Entry<T>>} */
-const entries = object => array.sequence(Object.entries(object))
-
 /** @type {(name: string) => <T>(object: Map<T>) => T|undefined} */
 const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.value
 
@@ -24,8 +21,6 @@ const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.valu
 const sort = entries => map.fromEntries(entries).entries
 
 module.exports = {
-    /** @readonly */
-    entries,
     /** @readonly */
     at,
     /** @readonly */

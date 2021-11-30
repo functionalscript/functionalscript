@@ -309,20 +309,20 @@ const replaceVisitor = {
 const values = node => () => {
     const f = () => {
         switch (node.length) {
-            case 1: case 2: { return seq.list(...node) }
+            case 1: case 2: { return node }
             case 3: { 
                 return seq.concat(
                     values(node[0]), 
-                    seq.list(node[1]), 
+                    [node[1]], 
                     values(node[2])
                 )
             }
             default: {
                 return seq.concat(
                     values(node[0]),
-                    seq.list(node[1]),
+                    [node[1]],
                     values(node[2]),
-                    seq.list(node[3]),
+                    [node[3]],
                     values(node[4])
                 )
             }
