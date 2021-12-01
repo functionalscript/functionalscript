@@ -156,6 +156,17 @@ const stress = () => {
         const len = _.length(_.filterMap(() => undefined)(result))
         if (len !== 0) { throw len }
     }
+
+    console.log('dropWhile')
+
+    {
+        // 50_000_000 is too much
+        const n = 20_000_000
+        const result = _.toArray(_.countdown(n))
+        if (result.length !== n) { throw result.length }
+        const len = _.length(_.dropWhile(() => true)(result))
+        if (len !== 0) { throw len }
+    }
 }
 
 // stress()
