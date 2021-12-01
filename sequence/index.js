@@ -24,7 +24,12 @@ const op = require('../function/operator')
 
 /**
  * @template T
- * @typedef { undefined | { readonly first: T, readonly tail: Sequence<T> } } Result
+ * @typedef { undefined | ResultOne<T> } Result
+ */
+
+/**
+ * @template T
+ * @typedef {{ readonly first: T, readonly tail: Sequence<T> }} ResultOne
  */
 
 const empty = () => undefined
@@ -73,15 +78,11 @@ const iterable = sequence => ({
         let i = sequence
         while (true) {
             if (i instanceof Array) { return yield *i }
-            const n = node(i)
+            const n = next(i)
             if (n === undefined) { return }
-            if (n instanceof Array) {
-                i = concatNext(n)
-            } else {
-                const { first, tail } = n
-                yield first
-                i = tail
-            }
+            const { first, tail } = n
+            yield first
+            i = tail
         }
     }
 })
@@ -92,46 +93,49 @@ const toArray = sequence => {
     return Array.from(iterable(sequence))
 }
 
-/** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
-const flat = sequence => () => {
-    const n = next(sequence)
+/** @type {<I, O>(f: (result: ResultOne<I>) => Node<O>) => (input: Sequence<I>) => Thunk<O>} */
+const nextMap = f => input => () => {
+    const n = next(input)
     if (n === undefined) { return undefined }
-    const { first, tail } = n
-    return [first, flat(tail)]
+    return f(n)
 }
+
+/** @type {<T>(result: ResultOne<Sequence<T>>) => Node<T>} */
+const flatFn = ({first, tail}) => [first, flat(tail)]
+
+/** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
+const flat = nextMap(flatFn)
 
 /** @type {<T>(...array: readonly Sequence<T>[]) => Thunk<T>} */
 const concat = (...array) => flat(array)
 
+/** @type {<I, O>(f: (value: I) => O) => (result: ResultOne<I>) => Node<O>} */
+const mapFn = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
+
 /** @type {<I, O>(f: (value: I) => O) => (input: Sequence<I>) => Thunk<O>} */
-const map = f => sequence => () => {
-    const n = next(sequence)
-    if (n === undefined) { return undefined }
-    const { first, tail } = n
-    return { first: f(first), tail: map(f)(tail) }
-}
+const map = f => nextMap(mapFn(f))
 
 /** @type {<I, O>(f: (value: I) => Sequence<O>) => (input: Sequence<I>) => Thunk<O>} */
-const flatMap = f => sequence => flat(map(f)(sequence))
+const flatMap = f => compose(map(f))(flat)
 
-/** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
-const filter = f => sequence => () => {
-    const n = next(sequence)
-    if (n === undefined) { return undefined }
-    const { first, tail } = n
+/** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
+const filterFn = f => ({ first, tail }) => {
     const fTail = filter(f)(tail)
     return f(first) ? { first, tail: fTail } : fTail()
 }
 
-/** @type {<I, O>(f: (value: I) => O|undefined) => (input: Sequence<I>) => Thunk<O>} */
-const filterMap = f => sequence => () => {
-    const n = next(sequence)
-    if (n === undefined) { return undefined }
-    const { first, tail } = n
+/** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
+const filter = f => nextMap(filterFn(f))
+
+/** @type {<I, O>(f: (value: I) => O|undefined) => (result: ResultOne<I>) => Node<O>} */
+const filterMapFn = f => ({first, tail}) => {
     const fFirst = f(first)
     const fTail = filterMap(f)(tail)
     return fFirst === undefined ? fTail() : { first: fFirst, tail: fTail }
 }
+
+/** @type {<I, O>(f: (value: I) => O|undefined) => (input: Sequence<I>) => Thunk<O>} */
+const filterMap = f => nextMap(filterMapFn(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
 const takeWhile = f => input => () => {
@@ -248,6 +252,12 @@ const sum = fold(addition)(0)
 /** @type {(separator: string) => (input: Sequence<string>) => string} */
 const join = separator => fold(op.join(separator))('')
 
+/** @type {(a: number) => () => number} */
+const counter = a => () => a + 1
+
+/** @type {<T>(input: Sequence<T>) => number} */
+const length = reduce(counter)(0)
+
 /**
  * @template T
  * @typedef {readonly[number, T]} Entry
@@ -310,6 +320,8 @@ module.exports = {
     join,
     /** @readonly */
     entries,
+    /** @readonly */
+    length,
     /** @readonly */
     countdown,
 }
