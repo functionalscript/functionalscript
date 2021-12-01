@@ -92,6 +92,16 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== '[[0,"hello"],[1,"world"]]') { throw result }
 }
 
+{
+    const result = stringify(_.reverse([]))
+    if (result !== '[]') { throw result }
+}
+
+{
+    const result = stringify(_.reverse([1,2,3,4,5]))
+    if (result !== '[5,4,3,2,1]') { throw result }
+}
+
 // stress tests
 
 const stress = () => {
@@ -154,6 +164,17 @@ const stress = () => {
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
         const len = _.length(_.filterMap(() => undefined)(result))
+        if (len !== 0) { throw len }
+    }
+
+    console.log('dropWhile')
+
+    {
+        // 50_000_000 is too much
+        const n = 20_000_000
+        const result = _.toArray(_.countdown(n))
+        if (result.length !== n) { throw result.length }
+        const len = _.length(_.dropWhile(() => true)(result))
         if (len !== 0) { throw len }
     }
 }
