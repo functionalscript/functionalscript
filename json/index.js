@@ -46,10 +46,10 @@ const colon = [':']
 const comma = [',']
 
 /** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat(comma, a), commaValue]
+const commaValue = a => [seq.concat(comma)(a), commaValue]
 
 /** @type {seq.FoldOperator<seq.Sequence<string>>} */
-const joinOp = a => b => seq.concat(a, comma, b)
+const joinOp = a => b => seq.flat([a, comma, b])
 
 /** @type {(input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
 const join = seq.fold(joinOp)([])
@@ -58,7 +58,7 @@ const join = seq.fold(joinOp)([])
 const list = open => close => {
     const seqOpen = [open]
     const seqClose = [close]
-    return input => seq.concat(seqOpen, join(input), seqClose)
+    return input => seq.flat([seqOpen, join(input), seqClose])
 }
 
 const objectList = list('{')('}')
@@ -74,10 +74,11 @@ const arrayList = list('[')(']')
 /** @type {(mapEntries: MapEntries) => (value: Json) => seq.Sequence<string>} */
 const serialize = sort => {
     /** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
-    const propertySerialize = ([k, v]) => seq.concat(
+    const propertySerialize = ([k, v]) => seq.flat([
         stringSerialize(k),
         colon,
-        f(v))
+        f(v)
+    ])
     /** @type {(object: Object) => seq.Sequence<string>} */
     const objectSerialize = input => {
         const entries = Object.entries(input)

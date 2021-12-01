@@ -311,20 +311,20 @@ const values = node => () => {
         switch (node.length) {
             case 1: case 2: { return node }
             case 3: { 
-                return seq.concat(
+                return seq.flat([
                     values(node[0]), 
                     [node[1]], 
                     values(node[2])
-                )
+                ])
             }
             default: {
-                return seq.concat(
+                return seq.flat([
                     values(node[0]),
                     [node[1]],
                     values(node[2]),
                     [node[3]],
                     values(node[4])
-                )
+                ])
             }
         }
     }

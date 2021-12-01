@@ -17,13 +17,15 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const result = stringify(_.concat([1, 2, 3], [4, 5], [6], [], [7, 8, 9]))
+    const result = stringify(_.flat([[1, 2, 3], [4, 5], [6], [], [7, 8, 9]]))
     if (result !== '[1,2,3,4,5,6,7,8,9]') { throw result }
 }
 
 {
-    const result = _.concat([1], [2])
+    const result = _.concat([1])([2])
     const x = _.next(result)
+    if (x === undefined) { throw x }
+    if (x.first !== 1) { throw x }
 }
 
 {
@@ -129,9 +131,19 @@ const stress = () => {
     {
         /** @type {_.Sequence<number>} */
         let sequence = []
-        // 2_000_000 is too much
-        for (let i = 0; i < 1_000_000; ++i) {
-            sequence = _.concat(sequence, [i])
+        // 10_000_000 is too much
+        for (let i = 0; i < 5_000_000; ++i) {
+            sequence = _.concat(sequence)([i])
+        }
+        const r = _.toArray(sequence)
+    }
+
+    {
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 4_000_000 is too much
+        for (let i = 0; i < 2_000_000; ++i) {
+            sequence = _.flat([sequence, [i]])
         }
         const r = _.toArray(sequence)
     }
@@ -141,7 +153,17 @@ const stress = () => {
         let sequence = []
         // 5_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
-            sequence = _.concat(sequence, [i])
+            sequence = _.flat([sequence, [i]])
+        }
+        const a = _.next(sequence)
+    }
+
+    {
+        /** @type {_.Sequence<number>} */
+        let sequence = []
+        // 20_000_000 is too much
+        for (let i = 0; i < 10_000_000; ++i) {
+            sequence = _.concat([i])(sequence)
         }
         const a = _.next(sequence)
     }
@@ -151,7 +173,7 @@ const stress = () => {
         let sequence = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {
-            sequence = _.concat([i], sequence)
+            sequence = _.flat([[i], sequence])
         }
         const a = _.next(sequence)
     }
@@ -179,7 +201,7 @@ const stress = () => {
     }
 }
 
-// stress()
+stress()
 
 module.exports = {
 

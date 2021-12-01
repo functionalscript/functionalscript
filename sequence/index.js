@@ -54,6 +54,9 @@ const fromArray = array => {
 /** @type {<T>(sequence: Sequence<T>) => Node<T>} */
 const node = sequence => sequence instanceof Array ? fromArray(sequence) : sequence()
 
+/** @type {<T>(a: Sequence<T>) => (b: Sequence<T>) => Thunk<T>} */
+const concat = a => b => () => [a, b]
+
 /** @type {<T>(sequence: Sequence<T>) => Result<T>} */
 const next = sequence => {
     let i = sequence
@@ -66,10 +69,10 @@ const next = sequence => {
             i = b
         } else if (aNode instanceof Array) {
             const [aa, ab] = aNode
-            i = () => [aa, () => [ab, b]]
+            i = concat(aa)(concat(ab)(b))
         } else {
             const { first, tail } = aNode
-            return { first, tail: () => [tail, b] }
+            return { first, tail: concat(tail)(b) }
         }
     }
 }
@@ -107,9 +110,6 @@ const flatFn = ({first, tail}) => [first, flat(tail)]
 
 /** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
 const flat = nextMap(flatFn)
-
-/** @type {<T>(...array: readonly Sequence<T>[]) => Thunk<T>} */
-const concat = (...array) => flat(array)
 
 /** @type {<I, O>(f: (value: I) => O) => (result: ResultOne<I>) => Node<O>} */
 const mapFn = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
