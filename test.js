@@ -116,6 +116,7 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
 }
 
 {
+    // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
     console.log('::error file=test.js,line=118,endLine=118,title=ET::Fake error')
     process.exit(1)  
 }
