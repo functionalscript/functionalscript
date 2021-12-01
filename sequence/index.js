@@ -147,14 +147,11 @@ const takeWhile = f => input => () => {
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
 const dropWhile = f => input => () => {
-    let i = input
-    while (true) {
-        const result = next(i)
-        if (result === undefined) { return undefined }
-        const { first, tail } = result
-        if (!f(first)) return result
-        i = tail
-    }
+    const result = next(input)
+    if (result === undefined) { return undefined }
+    const { first, tail } = result
+    if (f(first)) { return nodeOne(dropWhile(f)(tail)) }
+    return result
 }
 
 /** @type {<D>(def: D) => <T>(input: Sequence<T>) => D|T} */
