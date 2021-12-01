@@ -61,14 +61,14 @@ const next = sequence => {
         const n = node(i)
         if (!(n instanceof Array)) { return n }
         const [a, b] = n
-        const result = node(a)
-        if (result === undefined) {
+        const aNode = node(a)
+        if (aNode === undefined) {
             i = b
-        } else if (result instanceof Array) {
-            const [aa, ab] = result
+        } else if (aNode instanceof Array) {
+            const [aa, ab] = aNode
             i = () => [aa, () => [ab, b]]
         } else {
-            const { first, tail } = result
+            const { first, tail } = aNode
             return { first, tail: () => [tail, b] }
         }
     }
@@ -198,24 +198,24 @@ const countdown = count => () => {
 
 /**
  * @template T,A
- * @typedef {(value: T) => ScanState<T, A>} ScanFunc
+ * @typedef {(value: T) => ScanState<T, A>} ScanOperator
  */
 
 /**
  * @template T,A
- * @typedef {readonly[A, ScanFunc<T, A>]} ScanState
+ * @typedef {readonly[A, ScanOperator<T, A>]} ScanState
  */
 
-/** @type {<T,A>(operator: ScanFunc<T, A>) => (result: ResultOne<T>) => Node<A>} */
+/** @type {<T,A>(operator: ScanOperator<T, A>) => (result: ResultOne<T>) => Node<A>} */
 const scanFn = operator => ({first, tail}) => {
     const [value, nextOperator] = operator(first)
     return { first: value, tail: scan(nextOperator)(tail) }
 }
 
-/** @type {<T,A>(operator: ScanFunc<T, A>) => (input: Sequence<T>) => Thunk<A>} */
+/** @type {<T,A>(operator: ScanOperator<T, A>) => (input: Sequence<T>) => Thunk<A>} */
 const scan = operator => nextMap(scanFn(operator))
 
-/** @type {<T,A>(operator: ScanFunc<T, A>) => <D>(def: D)=> (input: Sequence<T>) => D|A} */
+/** @type {<T,A>(operator: ScanOperator<T, A>) => <D>(def: D)=> (input: Sequence<T>) => D|A} */
 const scanReduce = operator => def => input => last(def)(scan(operator)(input))
 
 /**
@@ -224,16 +224,16 @@ const scanReduce = operator => def => input => last(def)(scan(operator)(input))
  */
 
 /** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanState<T, A>} */
-const scanState = operator => init => [init, scanFunc(operator)(init)]
+const scanState = operator => init => [init, scanOperator(operator)(init)]
 
-/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanFunc<T, A>} */
-const scanFunc = operator => init => value => {
+/** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanOperator<T, A>} */
+const scanOperator = operator => init => value => {
     const result = operator(init)(value)
     return scanState(operator)(result)
 }
 
 /** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => A} */
-const reduce = operator => init => scanReduce(scanFunc(operator)(init))(init)
+const reduce = operator => init => scanReduce(scanOperator(operator)(init))(init)
 
 /** 
  * @template T
@@ -311,7 +311,7 @@ module.exports = {
     /** @readonly */
     dropWhile,
     /** @readonly */
-    scanFunc,
+    scanFunc: scanOperator,
     /** @readonly */
     scanState,
     /** @readonly */
