@@ -114,3 +114,8 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
     const c = Object.getOwnPropertyDescriptor(x, 'constructor')
     const a = Object.getOwnPropertyDescriptor(x, 'a')
 }
+
+{
+    console.error('test.js:118:1 - error: Fake error')
+    process.exit(-1)  
+}
