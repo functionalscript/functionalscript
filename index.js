@@ -1,4 +1,4 @@
-dsfa/** @type {<F>(c: string, found: (before: string, after: string) => F, notFound: (c: string, source: string) => F) => (source: string) => F} */
+/** @type {<F>(c: string, found: (before: string, after: string) => F, notFound: (c: string, source: string) => F) => (source: string) => F} */
 const splitOne = (c, found, notFound) => source => {
     const i = source.indexOf(c)
     return i !== -1 ? found(source.substring(0, i), source.substring(i + 1)) : notFound(c, source)
