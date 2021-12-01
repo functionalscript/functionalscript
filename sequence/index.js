@@ -35,7 +35,7 @@ const op = require('../function/operator')
 const empty = () => undefined
 
 /** @type {<T>(first: T) => (tail: Sequence<T>) => Sequence<T>} */
-const create = first => tail => () => ({ first, tail })
+const sequence = first => tail => () => ({ first, tail })
 
 /** @type {<T>(sequence: Sequence<T>) => Node<T>} */
 const nodeOne = sequence => [empty, sequence]
@@ -266,7 +266,7 @@ const entryOp = index => value => [[index, value], entryOp(index + 1)]
 const entries = scan(entryOp(0))
 
 /** @type {<T>(prior: Sequence<T>) => (value: T) => Sequence<T>} */
-const reverseOp = prior => value => create(value)(prior)
+const reverseOp = prior => value => sequence(value)(prior)
 
 /** @type {<T>(input: Sequence<T>) => Sequence<T>} */
 const reverse = reduce(reverseOp)(empty)
@@ -274,6 +274,8 @@ const reverse = reduce(reverseOp)(empty)
 module.exports = {
     /** @readonly */
     empty,
+    /** @readonly */
+    sequence,
     /** @readonly */
     iterable,
     /** @readonly */
