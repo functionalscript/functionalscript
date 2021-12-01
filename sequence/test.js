@@ -92,6 +92,16 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== '[[0,"hello"],[1,"world"]]') { throw result }
 }
 
+{
+    const result = stringify(_.reverse([]))
+    if (result !== '[]') { throw result }
+}
+
+{
+    const result = stringify(_.reverse([1,2,3,4,5]))
+    if (result !== '[5,4,3,2,1]') { throw result }
+}
+
 // stress tests
 
 const stress = () => {

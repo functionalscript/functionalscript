@@ -34,6 +34,9 @@ const op = require('../function/operator')
 
 const empty = () => undefined
 
+/** @type {<T>(first: T) => (tail: Sequence<T>) => Sequence<T>} */
+const create = first => tail => () => ({ first, tail })
+
 /** @type {<T>(sequence: Sequence<T>) => Node<T>} */
 const nodeOne = sequence => [empty, sequence]
 
@@ -136,23 +139,20 @@ const filterMapFn = f => ({first, tail}) => {
 /** @type {<I, O>(f: (value: I) => O|undefined) => (input: Sequence<I>) => Thunk<O>} */
 const filterMap = f => nextMap(filterMapFn(f))
 
+/** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
+const takeWhileFn = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } :undefined
+
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
-const takeWhile = f => input => () => {
-    const result = next(input)
-    if (result === undefined) { return undefined }
+const takeWhile = f => nextMap(takeWhileFn(f))
+
+/** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
+const dropWhileFn = f => result => {
     const { first, tail } = result
-    if (!f(first)) { return undefined }
-    return { first, tail: takeWhile(f)(result.tail) }
+    return f(first) ? nodeOne(dropWhile(f)(tail)) : result
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
-const dropWhile = f => input => () => {
-    const result = next(input)
-    if (result === undefined) { return undefined }
-    const { first, tail } = result
-    if (f(first)) { return nodeOne(dropWhile(f)(tail)) }
-    return result
-}
+const dropWhile = f => nextMap(dropWhileFn(f))
 
 /** @type {<D>(def: D) => <T>(input: Sequence<T>) => D|T} */
 const first = def => input => {
@@ -206,14 +206,14 @@ const countdown = count => () => {
  * @typedef {readonly[A, ScanFunc<T, A>]} ScanState
  */
 
-/** @type {<T,A>(operator: ScanFunc<T, A>) => (input: Sequence<T>) => Thunk<A>} */
-const scan = operator => input => () => {
-    const result = next(input)
-    if (result === undefined) { return undefined }
-    const { first, tail } = result
-    const r = operator(first)
-    return { first: r[0], tail: scan(r[1])(tail) }
+/** @type {<T,A>(operator: ScanFunc<T, A>) => (result: ResultOne<T>) => Node<A>} */
+const scanFn = operator => ({first, tail}) => {
+    const [value, nextOperator] = operator(first)
+    return { first: value, tail: scan(nextOperator)(tail) }
 }
+
+/** @type {<T,A>(operator: ScanFunc<T, A>) => (input: Sequence<T>) => Thunk<A>} */
+const scan = operator => nextMap(scanFn(operator))
 
 /** @type {<T,A>(operator: ScanFunc<T, A>) => <D>(def: D)=> (input: Sequence<T>) => D|A} */
 const scanReduce = operator => def => input => last(def)(scan(operator)(input))
@@ -264,6 +264,12 @@ const entryOp = index => value => [[index, value], entryOp(index + 1)]
 
 /** @type {<T>(input: Sequence<T>) => Thunk<Entry<T>>} */
 const entries = scan(entryOp(0))
+
+/** @type {<T>(prior: Sequence<T>) => (value: T) => Sequence<T>} */
+const reverseOp = prior => value => create(value)(prior)
+
+/** @type {<T>(input: Sequence<T>) => Sequence<T>} */
+const reverse = reduce(reverseOp)(empty)
 
 module.exports = {
     /** @readonly */
@@ -320,6 +326,8 @@ module.exports = {
     entries,
     /** @readonly */
     length,
+    /** @readonly */
+    reverse,
     /** @readonly */
     countdown,
 }
