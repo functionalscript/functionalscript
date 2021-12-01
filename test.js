@@ -116,6 +116,6 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
 }
 
 {
-    console.error('test.js(118,1): error: Fake error')
+    console.log('::error file=test.js,line=118,endLine=118,title=ET::Fake error')
     process.exit(1)  
 }
