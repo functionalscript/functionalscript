@@ -19,7 +19,7 @@ const op = require('../function/operator')
 
 /**
  * @template T
- * @typedef { readonly[Sequence<T>, Sequence<T>] } Concat<T>
+ * @typedef { readonly[Sequence<T>, Sequence<T>]} Concat<T>
  */
 
 /**
@@ -33,6 +33,9 @@ const op = require('../function/operator')
  */
 
 const empty = () => undefined
+
+/** @type {<T>(sequence: Sequence<T>) => Node<T>} */
+const nodeOne = sequence => [empty, sequence]
 
 /** @type {<T>(array: readonly T[]) => Result<T>} */
 const fromArray = array => {
@@ -48,27 +51,23 @@ const fromArray = array => {
 /** @type {<T>(sequence: Sequence<T>) => Node<T>} */
 const node = sequence => sequence instanceof Array ? fromArray(sequence) : sequence()
 
-/** @type {<T>(concat: Concat<T>) => Sequence<T>} */
-const concatNext = ([a, b]) => {
-    const result = node(a)
-    if (result === undefined) {
-        return b
-    } else if (result instanceof Array) {
-        const [aa, ab] = result
-        return () => [aa, () => [ab, b]]
-    } else {
-        const { first, tail } = result
-        return () => ({ first, tail: () => [tail, b] })
-    }
-}
-
 /** @type {<T>(sequence: Sequence<T>) => Result<T>} */
 const next = sequence => {
     let i = sequence
     while (true) {
         const n = node(i)
         if (!(n instanceof Array)) { return n }
-        i = concatNext(n)
+        const [a, b] = n
+        const result = node(a)
+        if (result === undefined) {
+            i = b
+        } else if (result instanceof Array) {
+            const [aa, ab] = result
+            i = () => [aa, () => [ab, b]]
+        } else {
+            const { first, tail } = result
+            return { first, tail: () => [tail, b] }
+        }
     }
 }
 
@@ -121,7 +120,7 @@ const flatMap = f => compose(map(f))(flat)
 /** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
 const filterFn = f => ({ first, tail }) => {
     const fTail = filter(f)(tail)
-    return f(first) ? { first, tail: fTail } : fTail()
+    return f(first) ? { first, tail: fTail } : nodeOne(fTail)
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
@@ -131,7 +130,7 @@ const filter = f => nextMap(filterFn(f))
 const filterMapFn = f => ({first, tail}) => {
     const fFirst = f(first)
     const fTail = filterMap(f)(tail)
-    return fFirst === undefined ? fTail() : { first: fFirst, tail: fTail }
+    return fFirst === undefined ? nodeOne(fTail) : { first: fFirst, tail: fTail }
 }
 
 /** @type {<I, O>(f: (value: I) => O|undefined) => (input: Sequence<I>) => Thunk<O>} */
@@ -292,6 +291,8 @@ module.exports = {
     flatMap,
     /** @readonly */
     filter,
+    /** @readonly */
+    filterMap,
     /** @readonly */
     find,
     /** @readonly */

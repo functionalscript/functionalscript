@@ -95,6 +95,16 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 // stress tests
 
 const stress = () => {
+
+    {
+        // 100_000_000 is too much
+        const n = 50_000_000
+        const result = _.toArray(_.countdown(n))
+        if (result.length !== n) { throw result.length }
+        const len = _.length(_.filter(x => x > n)(result))
+        if (len !== 0) { throw len }
+    }
+
     {
         // 200_000_000 is too much
         const n = 100_000_000
@@ -132,6 +142,15 @@ const stress = () => {
             sequence = _.concat([i], sequence)
         }
         const a = _.next(sequence)
+    }
+
+    {
+        // 200_000_000 is too much
+        const n = 100_000_000
+        const result = _.toArray(_.countdown(n))
+        if (result.length !== n) { throw result.length }
+        const len = _.length(_.filterMap(() => undefined)(result))
+        if (len !== 0) { throw len }
     }
 }
 
