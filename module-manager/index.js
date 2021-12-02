@@ -1,4 +1,4 @@
-const array = require('../types/sequence/array')
+const array = require('../types/array')
 const { compose } = require('../types/function')
 const option = require('../types/option')
 const { head, last, splitLast, splitFirst } = array

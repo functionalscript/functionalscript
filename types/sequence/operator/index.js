@@ -3,7 +3,7 @@ const op = require('../../function/operator')
 /**
  * @template T0
  * @template T1
- * @typedef {import('../array').Tuple2<T0, T1>} Tuple2
+ * @typedef {import('../../array').Tuple2<T0, T1>} Tuple2
  */
 
 /**

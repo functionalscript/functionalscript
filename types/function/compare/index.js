@@ -1,9 +1,9 @@
-/** @typedef {import('../../sequence/array').Index3} Index3 */
-/** @typedef {import('../../sequence/array').Index5} Index5 */
+/** @typedef {import('../../array').Index3} Index3 */
+/** @typedef {import('../../array').Index5} Index5 */
 
 /**
  * @template T
- * @typedef {import('../../sequence/array').Array2<T>} Array2 
+ * @typedef {import('../../array').Array2<T>} Array2 
  */
 
 /** @typedef {-1|0|1} Sign */
