@@ -41,18 +41,30 @@ const { ok, error } = require('../result')
     const d = _.compile(depSource)
     if (d[0] !== 'ok') { throw d }
 
-    const source = 'module.exports = require("m") + 42'
-    const m = _.compile(source)
-    if (m[0] !== 'ok') { throw m }
-
     /** @type {run.Require} */
     const req = path => {
         if (path !== 'm') { throw path }
         return d[1](req)
     }
-    const [result] = m[1](req)
-    if (result[0] !== 'ok') { throw result }
-    if (result[1] !== 179) { throw result }
+
+    {
+        const source = 'module.exports = require("m") + 42'
+        const m = _.compile(source)
+        if (m[0] !== 'ok') { throw m }
+
+        const [result] = m[1](req)
+        if (result[0] !== 'ok') { throw result }
+        if (result[1] !== 179) { throw result }
+    }
+
+    {
+        const source = 'module.exports = require("x") + 42'
+        const m = _.compile(source)
+        if (m[0] !== 'ok') { throw m }
+
+        const [result] = m[1](req)
+        if (result[0] !== 'error') { throw result }
+    }
 }
 
 module.exports = {}
