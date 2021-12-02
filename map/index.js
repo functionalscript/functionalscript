@@ -1,9 +1,9 @@
 const option = require("../option")
 const { getVisitor, setVisitor, values } = require("../btree")
-const { cmp } = require("../cmp")
+const { cmp } = require("../function/compare")
 const seq = require("../sequence")
 
-/** @typedef {import("../cmp").Sign} Sign */
+/** @typedef {import("../function/compare").Sign} Sign */
 
 /**
  * @template T 
@@ -17,7 +17,7 @@ const seq = require("../sequence")
 
 /**
  * @template T
- * @typedef {import("../cmp").Cmp<T>} Cmp
+ * @typedef {import("../function/compare").Compare<T>} Cmp
  */
 
 /**

@@ -1,6 +1,5 @@
 const _ = require('.')
 const run = require('../commonjs/run')
-const { ok, error } = require('../result')
 
 // ok:
 {

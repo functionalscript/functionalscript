@@ -1,4 +1,4 @@
-const cmp = require('../cmp')
+const cmp = require('../function/compare')
 const { index3, index5 } = cmp
 const seq = require('../sequence')
 
@@ -9,7 +9,7 @@ const seq = require('../sequence')
 
 /**
  * @template T
- * @typedef {cmp.Cmp<T>} Cmp
+ * @typedef {cmp.Compare<T>} Cmp
  */
 
 /**
