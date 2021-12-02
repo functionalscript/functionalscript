@@ -12,6 +12,6 @@ console.log(`version: ${v}`)
 
 let package_json = json.parse(fs.readFileSync('package.json').toString())
 
-package_json = json.addProperty(v)(['version'])(package_json)
+package_json = json.setProperty(v)(['version'])(package_json)
 
 fs.writeFileSync('package.json', JSON.stringify(package_json, null, 2))

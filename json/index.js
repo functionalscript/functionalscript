@@ -13,7 +13,7 @@ const array = require('../types/array')
 /** @typedef {Object|boolean|string|number|null|Array} Unknown */
 
 /** @type {(value: Unknown) => (path: seq.Sequence<string>) => (src: Unknown|undefined) => Unknown} */
-const addProperty = value => {
+const setProperty = value => {
     /** @type {(path: seq.Sequence<string>) => (src: Unknown|undefined) => Unknown} */
     const f = path => src => {
         const result = seq.next(path)
@@ -121,7 +121,7 @@ const parse = value => JSON.parse(value)
 
 module.exports = {
     /** @readonly */
-    addProperty,
+    setProperty,
     /** @readonly */
     stringify,
     /** @readonly */
