@@ -54,6 +54,21 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
+    const result = stringify(_.drop(3)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[4,5,10,11]') { throw result }
+}
+
+{
+    const result = stringify(_.drop(0)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[1,2,3,4,5,10,11]') { throw result }
+}
+
+{
+    const result = stringify(_.drop(10)([1, 2, 3, 4, 5, 10, 11]))
+    if (result !== '[]') { throw result }
+}
+
+{
     const op = _.scanState(addition)
     const result = stringify(_.scan(op)([2, 3, 4, 5]))
     if (result !== '[2,5,9,14]') { throw result }

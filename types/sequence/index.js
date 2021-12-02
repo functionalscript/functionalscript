@@ -1,3 +1,4 @@
+const { todo } = require('../../dev')
 const { compose } = require('../function')
 const { logicalNot, strictEqual, addition } = require('../function/operator')
 const op = require('../function/operator')
@@ -19,7 +20,7 @@ const op = require('../function/operator')
 
 /**
  * @template T
- * @typedef { readonly[Sequence<T>, Sequence<T>]} Concat<T>
+ * @typedef { readonly[Sequence<T>, Sequence<T>] } Concat<T>
  */
 
 /**
@@ -153,6 +154,12 @@ const dropWhileFn = f => result => {
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
 const dropWhile = f => nextMap(dropWhileFn(f))
+
+/** @type {(n: number) => <T>(result: ResultOne<T>) => Node<T>} */
+const dropFn = n => result => 0 < n ? nodeOne(drop(n - 1)(result.tail)) : result
+
+/** @type {(n: number) => <T>(result: Sequence<T>) => Sequence<T>} */
+const drop = n => nextMap(dropFn(n))
 
 /** @type {<D>(def: D) => <T>(input: Sequence<T>) => D|T} */
 const first = def => input => {
@@ -308,6 +315,8 @@ module.exports = {
     takeWhile,
     /** @readonly */
     dropWhile,
+    /** @readonly */
+    drop,
     /** @readonly */
     scanOperator,
     /** @readonly */
