@@ -1,6 +1,6 @@
 const json = require('.')
 const { sort } = require('../types/object')
-const { identity } = require('../function')
+const { identity } = require('../types/function')
 
 if (json.addProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 

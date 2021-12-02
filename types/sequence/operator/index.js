@@ -1,4 +1,4 @@
-const op = require('../../../function/operator')
+const op = require('../../function/operator')
 
 /**
  * @template T0

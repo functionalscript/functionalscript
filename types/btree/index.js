@@ -1,4 +1,4 @@
-const cmp = require('../../function/compare')
+const cmp = require('../function/compare')
 const { index3, index5 } = cmp
 const seq = require('../sequence')
 

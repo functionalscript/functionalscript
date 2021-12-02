@@ -1,6 +1,6 @@
 const btree = require('.')
 const { setVisitor, values } = btree
-const { cmp } = require('../../function/compare') 
+const { cmp } = require('../function/compare') 
 const list = require('../sequence')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */

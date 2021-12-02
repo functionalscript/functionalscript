@@ -1,5 +1,5 @@
 const i = require('.')
-const { compose } = require('../../../function')
+const { compose } = require('../../function')
 
 {
     const r = i.sum([120, 300, 42])

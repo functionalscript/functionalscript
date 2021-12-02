@@ -1,6 +1,6 @@
 const _ = require('.')
 const json = require('../../json')
-const { identity, compose } = require('../../function')
+const { identity, compose } = require('../../types/function')
 const seq = require('../../types/sequence')
 
 const stringify = json.stringify(identity)
