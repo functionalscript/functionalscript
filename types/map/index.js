@@ -1,7 +1,7 @@
 const option = require("../option")
 const { getVisitor, setVisitor, values } = require("../btree")
 const { cmp } = require("../../function/compare")
-const seq = require("../../sequence")
+const seq = require("../sequence")
 
 /** @typedef {import("../../function/compare").Sign} Sign */
 

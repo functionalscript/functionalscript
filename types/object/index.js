@@ -1,5 +1,5 @@
-const array = require('../../sequence/array')
-const seq = require('../../sequence')
+const array = require('../sequence/array')
+const seq = require('../sequence')
 const map = require('../map')
 
 /**

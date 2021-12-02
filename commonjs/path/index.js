@@ -1,4 +1,4 @@
-const seq = require("../../sequence")
+const seq = require("../../types/sequence")
 const option = require("../../types/option")
 const { compose } = require("../../function")
 

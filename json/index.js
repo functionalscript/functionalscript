@@ -1,7 +1,7 @@
-const seq = require('../sequence')
-const op = require('../sequence/operator')
+const seq = require('../types/sequence')
+const op = require('../types/sequence/operator')
 const object = require('../types/object')
-const array = require('../sequence/array')
+const array = require('../types/sequence/array')
 
 /** 
  * @typedef {{

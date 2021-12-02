@@ -1,7 +1,7 @@
 const btree = require('.')
 const { setVisitor, values } = btree
 const { cmp } = require('../../function/compare') 
-const list = require('../../sequence')
+const list = require('../sequence')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => {
@@ -22,7 +22,7 @@ const test = () => {
     _map = set(_map)('f')
     //
     {
-        /** @type {import('../../sequence').Result<string>} */
+        /** @type {import('../sequence').Result<string>} */
         let _item = list.next(values(_map))
         while (_item !== undefined) {
             _item = list.next(_item.tail)

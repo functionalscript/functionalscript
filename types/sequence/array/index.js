@@ -1,4 +1,4 @@
-const option = require('../../types/option')
+const option = require('../../option')
 const seq = require('..')
 
 /**

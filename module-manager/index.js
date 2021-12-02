@@ -1,9 +1,9 @@
-const array = require('../sequence/array')
+const array = require('../types/sequence/array')
 const { compose } = require('../function')
 const option = require('../types/option')
 const { head, last, splitLast, splitFirst } = array
-const iter = require('../sequence/iterable')
-const seq = require('../sequence/operator')
+const iter = require('../types/sequence/iterable')
+const seq = require('../types/sequence/operator')
 
 /**
  * @template T

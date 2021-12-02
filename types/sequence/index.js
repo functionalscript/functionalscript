@@ -1,6 +1,6 @@
-const { compose } = require('../function')
-const { logicalNot, strictEqual, addition } = require('../function/operator')
-const op = require('../function/operator')
+const { compose } = require('../../function')
+const { logicalNot, strictEqual, addition } = require('../../function/operator')
+const op = require('../../function/operator')
 
 /**
  * @template T
