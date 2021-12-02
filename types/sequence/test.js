@@ -134,6 +134,46 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== '[5,4,3,2,1]') { throw result }
 }
 
+{
+    const result = stringify(_.zip([0, 1, 2])(['a', 'b', 'c', 'd']))
+    if (result !== '[[0,"a"],[1,"b"],[2,"c"]]') { throw result }
+}
+
+{
+    const result = stringify(_.zip([0, 1, 2])(['a', 'b']))
+    if (result !== '[[0,"a"],[1,"b"]]') { throw result }
+}
+
+{
+    const result = _.some(_.map(x => x > 5)([0, 1, 7]))
+    if (!result) { throw result}
+}
+
+{
+    const result = _.some(_.map(x => x > 5)([0, 1, 4]))
+    if (result) { throw result }
+}
+
+{
+    const result = _.some(_.map(x => x > 5)([]))
+    if (result) { throw result }
+}
+
+{
+    const result = _.every(_.map(x => x > 5)([0, 1, 7]))
+    if (result) { throw result }
+}
+
+{
+    const result = _.every(_.map(x => x > 5)([6, 11, 7]))
+    if (!result) { throw result }
+}
+
+{
+    const result = _.every(_.map(x => x > 5)([]))
+    if (!result) { throw result }
+}
+
 // stress tests
 
 const stress = () => {

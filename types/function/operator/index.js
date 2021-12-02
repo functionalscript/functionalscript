@@ -26,6 +26,11 @@ const addition = a => b => a + b
 /** @type {(value: boolean) => boolean} */
 const logicalNot = v => !v
 
+/**
+ * @template T 
+ * @typedef {(a: T) => (b: T) => boolean} EqualOperator 
+ */
+
 /** @type {<T>(a: T) => (b: T) => boolean} */
 const strictEqual = a => b => a === b
 

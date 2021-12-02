@@ -1,5 +1,4 @@
-const { todo } = require('../../dev')
-const { compose } = require('../function')
+const { compose, identity } = require('../function')
 const { logicalNot, strictEqual, addition } = require('../function/operator')
 const op = require('../function/operator')
 
@@ -192,14 +191,17 @@ const last = def => input => {
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => D|T} */
 const find = def => f => input => first(def)(filter(f)(input))
 
-/** @type {<T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => boolean} */
-const some = f => input => find(false)(x => x)(map(f)(input))
+/** @type {(value: boolean) => boolean} */
+const boolIdentity = identity
 
-/** @type {<T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => boolean} */
-const every = f => input => !some(compose(f)(logicalNot))(input)
+/** @type {(sequence: Sequence<boolean>) => boolean} */
+const some = input => find(false)(boolIdentity)(input)
+
+/** @type {(sequence: Sequence<boolean>) => boolean} */
+const every = input => !some(map(logicalNot)(input))
 
 /** @type {<T>(value: T) => (sequence: Sequence<T>) => boolean} */
-const includes = value => some(strictEqual(value))
+const includes = value => input => some(map(strictEqual(value))(input))
 
 /** @type {(count: number) => Thunk<number>} */
 const countdown = count => () => {
@@ -283,6 +285,28 @@ const reverseOp = prior => value => sequence(value)(prior)
 /** @type {<T>(input: Sequence<T>) => Sequence<T>} */
 const reverse = reduce(reverseOp)(empty)
 
+/** @type {<A>(a: Sequence<A>) => <B>(b: Sequence<B>) => Thunk<readonly[A, B]>} */
+const zip = a => b => () => {
+    const aResult = next(a)
+    if (aResult === undefined) { return undefined }
+    const bResult = next(b)
+    if (bResult === undefined) { return undefined }
+    return { first: [aResult.first, bResult.first], tail: zip(aResult.tail)(bResult.tail) }
+}
+
+/** @type {<T>(e: op.EqualOperator<T>) => (a: Sequence<T>) => (b: Sequence<T>) => Thunk<boolean>} */
+const equalZip = e => a => b => () => {
+    const aResult = next(a)
+    const bResult = next(b)
+    if (aResult === undefined || bResult === undefined) {
+        return { first: aResult === bResult, tail: empty }
+    }
+    return { first: e(aResult.first)(bResult.first), tail: equalZip(e)(aResult.tail)(bResult.tail) }
+}
+
+/** @type {<T>(e: op.EqualOperator<T>) => (a: Sequence<T>) => (b: Sequence<T>) => boolean} */
+const equal = e => a => b => every(equalZip(e)(a)(b))
+
 module.exports = {
     /** @readonly */
     sequence,
@@ -345,5 +369,7 @@ module.exports = {
     /** @readonly */
     reverse,
     /** @readonly */
-    countdown,
+    zip,
+    /** @readonly */
+    countdown,    
 }
