@@ -2,7 +2,7 @@ const array = require('../types/array')
 const { compose } = require('../types/function')
 const option = require('../types/option')
 const { head, last, splitLast, splitFirst } = array
-const iter = require('../types/sequence/iterable')
+const iter = require('../types/iterable')
 const seq = require('../types/sequence/operator')
 
 /**

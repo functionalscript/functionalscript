@@ -1,5 +1,5 @@
-const { compose } = require('../../function')
-const seq = require('../operator')
+const { compose } = require('../function')
+const seq = require('../sequence/operator')
 
 /** @type {<T>(a: Iterable<T>) => (b: Iterable<T>) => Iterable<T>} */
 const concat = a => b => ({
