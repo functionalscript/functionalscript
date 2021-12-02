@@ -1,10 +1,16 @@
 const result = require('../../result')
 
-/** @typedef {(req: Require) => ModuleResult} Module*/
+/** @typedef {<T>(req: Require<T>) => (prior: T) => ModuleResult<T>} Module*/
 
-/** @typedef {readonly[result.Result<unknown, unknown>, Require]} ModuleResult */
+/**
+ * @template T 
+ * @typedef {readonly[result.Result<unknown, unknown>, T]} ModuleResult 
+ */
 
-/** @typedef {(path: string) => ModuleResult} Require */
+/**
+ * @template T 
+ * @typedef {(prior: T) => (path: string) => ModuleResult<T>} Require 
+ */
 
 /** @typedef {(source: string) => result.Result<Module, unknown>} Compile */
 
