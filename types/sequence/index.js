@@ -83,7 +83,6 @@ const iterable = sequence => ({
     *[Symbol.iterator]() {
         let i = sequence
         while (true) {
-            if (i instanceof Array) { return yield *i }
             const n = next(i)
             if (n === undefined) { return }
             const { first, tail } = n
@@ -99,67 +98,73 @@ const toArray = sequence => {
     return Array.from(iterable(sequence))
 }
 
-/** @type {<I, O>(f: (result: ResultOne<I>) => Node<O>) => (input: Sequence<I>) => Thunk<O>} */
-const nextMap = f => input => () => {
+/** @type {<I, O>(step: (result: ResultOne<I>) => Node<O>) => (input: Sequence<I>) => Thunk<O>} */
+const apply = f => input => () => {
     const n = next(input)
     if (n === undefined) { return undefined }
     return f(n)
 }
 
 /** @type {<T>(result: ResultOne<Sequence<T>>) => Node<T>} */
-const flatFn = ({first, tail}) => [first, flat(tail)]
+const flatStep = ({first, tail}) => [first, flat(tail)]
 
 /** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
-const flat = nextMap(flatFn)
+const flat = apply(flatStep)
 
 /** @type {<I, O>(f: (value: I) => O) => (result: ResultOne<I>) => Node<O>} */
-const mapFn = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
+const mapStep = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
 
 /** @type {<I, O>(f: (value: I) => O) => (input: Sequence<I>) => Thunk<O>} */
-const map = f => nextMap(mapFn(f))
+const map = f => apply(mapStep(f))
 
 /** @type {<I, O>(f: (value: I) => Sequence<O>) => (input: Sequence<I>) => Thunk<O>} */
 const flatMap = f => compose(map(f))(flat)
 
 /** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
-const filterFn = f => ({ first, tail }) => {
+const filterStep = f => ({ first, tail }) => {
     const fTail = filter(f)(tail)
     return f(first) ? { first, tail: fTail } : nodeOne(fTail)
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
-const filter = f => nextMap(filterFn(f))
+const filter = f => apply(filterStep(f))
 
 /** @type {<I, O>(f: (value: I) => O|undefined) => (result: ResultOne<I>) => Node<O>} */
-const filterMapFn = f => ({first, tail}) => {
+const filterMapStep = f => ({first, tail}) => {
     const fFirst = f(first)
     const fTail = filterMap(f)(tail)
     return fFirst === undefined ? nodeOne(fTail) : { first: fFirst, tail: fTail }
 }
 
 /** @type {<I, O>(f: (value: I) => O|undefined) => (input: Sequence<I>) => Thunk<O>} */
-const filterMap = f => nextMap(filterMapFn(f))
+const filterMap = f => apply(filterMapStep(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
-const takeWhileFn = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } :undefined
+const takeWhileStep = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } :undefined
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
-const takeWhile = f => nextMap(takeWhileFn(f))
+const takeWhile = f => apply(takeWhileStep(f))
+
+/** @type {(n: number) => <T>(result: ResultOne<T>) => Node<T>} */
+const takeStep = n => ({ first, tail }) => 0 < n ? { first, tail: take(n - 1)(tail) } : undefined
+
+/** @type {(n: number) => <T>(result: Sequence<T>) => Sequence<T>} */
+const take = n => apply(takeStep(n))
 
 /** @type {<T>(f: (value: T) => boolean) => (result: ResultOne<T>) => Node<T>} */
-const dropWhileFn = f => result => {
+const dropWhileStep = f => result => {
     const { first, tail } = result
     return f(first) ? nodeOne(dropWhile(f)(tail)) : result
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: Sequence<T>) => Thunk<T>} */
-const dropWhile = f => nextMap(dropWhileFn(f))
+const dropWhile = f => apply(dropWhileStep(f))
 
 /** @type {(n: number) => <T>(result: ResultOne<T>) => Node<T>} */
 const dropFn = n => result => 0 < n ? nodeOne(drop(n - 1)(result.tail)) : result
 
 /** @type {(n: number) => <T>(result: Sequence<T>) => Sequence<T>} */
-const drop = n => nextMap(dropFn(n))
+const drop = n => apply(dropFn(n))
 
 /** @type {<D>(def: D) => <T>(input: Sequence<T>) => D|T} */
 const first = def => input => {
@@ -220,7 +225,7 @@ const scanFn = operator => ({first, tail}) => {
 }
 
 /** @type {<T,A>(operator: ScanOperator<T, A>) => (input: Sequence<T>) => Thunk<A>} */
-const scan = operator => nextMap(scanFn(operator))
+const scan = operator => apply(scanFn(operator))
 
 /** @type {<T,A>(operator: ScanOperator<T, A>) => <D>(def: D)=> (input: Sequence<T>) => D|A} */
 const scanReduce = operator => def => input => last(def)(scan(operator)(input))
@@ -313,6 +318,8 @@ module.exports = {
     includes,    
     /** @readonly */
     takeWhile,
+    /** @readonly */
+    take,
     /** @readonly */
     dropWhile,
     /** @readonly */

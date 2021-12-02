@@ -39,6 +39,21 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
+    const result = stringify(_.take(3)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+    if (result !== '[1,2,3]') { throw result }
+}
+
+{
+    const result = stringify(_.take(20)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+    if (result !== '[1,2,3,4,5,6,7,8,9]') { throw result }
+}
+
+{
+    const result = stringify(_.take(0)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+    if (result !== '[]') { throw result }
+}
+
+{
     const result = _.find(undefined)(x => x % 2 === 0)([1, 2, 3, 4])
     if (result !== 2) { throw result }
 }
