@@ -1,5 +1,5 @@
 const option = require("../option")
-const { getVisitor, setVisitor, values } = require("../../btree")
+const { getVisitor, setVisitor, values } = require("../btree")
 const { cmp } = require("../../function/compare")
 const seq = require("../../sequence")
 
@@ -7,12 +7,12 @@ const seq = require("../../sequence")
 
 /**
  * @template T 
- * @typedef {import("../../btree").Leaf1<T>} Leaf1 
+ * @typedef {import("../btree").Leaf1<T>} Leaf1 
  */
 
 /**
  * @template T
- * @typedef {import("../../btree").Node<T>} TNode
+ * @typedef {import("../btree").Node<T>} TNode
  */
 
 /**

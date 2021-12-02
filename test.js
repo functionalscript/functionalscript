@@ -1,7 +1,7 @@
 const i = require('./')
 
 require('./sequence/test')
-require('./btree/test')
+require('./types/btree/test')
 require('./sequence/iterable/test')
 require('./sequence/asyncIterable/test')
 require('./module-manager/test')
