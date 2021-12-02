@@ -4,7 +4,7 @@ require('./types/sequence/test')
 require('./types/btree/test')
 require('./json/test')
 require('./types/object/test')
-require('./io/test')
+require('./io/commonjs/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

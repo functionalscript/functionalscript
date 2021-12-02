@@ -1,5 +1,5 @@
 const _ = require('.')
-const run = require('../commonjs/run')
+const run = require('../../commonjs/run')
 
 // ok:
 {

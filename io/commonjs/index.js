@@ -1,5 +1,5 @@
-const result = require('../types/result')
-const run = require('../commonjs/run')
+const { ok, error } = require('../../types/result')
+const run = require('../../commonjs/run')
 
 /** @type {(f: Function) => run.Module} */
 const runModule = f => req => info => {
@@ -13,18 +13,18 @@ const runModule = f => req => info => {
     const mutableModule = { exports: {} }
     try {
         f(mutableModule, mutableRequire)
-    } catch (error) {
-        return [result.error(error), info]
+    } catch (e) {
+        return [error(e), info]
     }
-    return [result.ok(mutableModule.exports), info]
+    return [ok(mutableModule.exports), info]
 }
 
 /** @type {run.Compile} */
 const compile = source => {
     try {
-        return result.ok(runModule(new Function('module', 'require', `"use strict";${source}`)))
-    } catch (error) {
-        return result.error(error)
+        return ok(runModule(Function('module', 'require', `"use strict";${source}`)))
+    } catch (e) {
+        return error(e)
     }
 }
 
