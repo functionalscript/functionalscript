@@ -14,4 +14,15 @@
  * @typedef {Ok<T>|Error<E>} Result
  */
 
-module.exports = {}
+/** @type {<T>(value: T) => Ok<T>} */
+const ok = value => ['ok', value]
+
+/** @type {<E>(e: E) => Error<E>} */
+const error = e => ['error', e]
+
+module.exports = {
+    /** @readonly */
+    ok,
+    /** @readonly */
+    error,
+}

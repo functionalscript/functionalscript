@@ -2,21 +2,20 @@ const seq = require('../sequence')
 const op = require('../sequence/operator')
 const object = require('../object')
 const array = require('../sequence/array')
-const { compose } = require('../function')
 
 /** 
  * @typedef {{
- *  readonly [k in string]: Json
+ *  readonly [k in string]: Unknown
  * }} Object 
  */
 
-/** @typedef {readonly Json[]} Array */
+/** @typedef {readonly Unknown[]} Array */
 
-/** @typedef {Object|boolean|string|number|null|Array} Json */
+/** @typedef {Object|boolean|string|number|null|Array} Unknown */
 
-/** @type {(value: Json) => (path: seq.Sequence<string>) => (src: Json|undefined) => Json} */
+/** @type {(value: Unknown) => (path: seq.Sequence<string>) => (src: Unknown|undefined) => Unknown} */
 const addProperty = value => {
-    /** @type {(path: seq.Sequence<string>) => (src: Json|undefined) => Json} */
+    /** @type {(path: seq.Sequence<string>) => (src: Unknown|undefined) => Unknown} */
     const f = path => src => {
         const result = seq.next(path)
         if (result === undefined) { return value }
@@ -65,15 +64,15 @@ const objectList = list('{')('}')
 
 const arrayList = list('[')(']')
 
-/** @typedef {object.Entry<Json>} Entry*/
+/** @typedef {object.Entry<Unknown>} Entry*/
 
 /** @typedef {(seq.Sequence<Entry>)} Entries */
 
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
-/** @type {(mapEntries: MapEntries) => (value: Json) => seq.Sequence<string>} */
+/** @type {(mapEntries: MapEntries) => (value: Unknown) => seq.Sequence<string>} */
 const serialize = sort => {
-    /** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
+    /** @type {(kv: readonly[string, Unknown]) => seq.Sequence<string>} */
     const propertySerialize = ([k, v]) => seq.flat([
         stringSerialize(k),
         colon,
@@ -92,7 +91,7 @@ const serialize = sort => {
         const serializedEntries = seq.map(f)(input)
         return arrayList(serializedEntries)
     }
-    /** @type {(value: Json) => seq.Sequence < string >} */
+    /** @type {(value: Unknown) => seq.Sequence < string >} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -114,14 +113,14 @@ const serialize = sort => {
  * The standard `JSON.stringify` rules determines by 
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  *  
- * @type {(mapEntries: MapEntries) => (value: Json) => string}
+ * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
 const stringify = sort => value => {
     const _s = serialize(sort)(value)
     return seq.join('')(_s)
 }
 
-/** @type {(value: string) => Json} */
+/** @type {(value: string) => Unknown} */
 const parse = value => JSON.parse(value)
 
 module.exports = {
