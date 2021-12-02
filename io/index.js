@@ -1,4 +1,4 @@
-const result = require('../result')
+const result = require('../types/result')
 const run = require('../commonjs/run')
 
 /** @type {(f: Function) => run.Module} */

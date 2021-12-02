@@ -1,4 +1,4 @@
-const result = require('../../result')
+const result = require('../../types/result')
 
 /** @typedef {<T>(req: Require<T>) => (prior: T) => ModuleResult<T>} Module*/
 
