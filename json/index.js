@@ -1,5 +1,4 @@
 const seq = require('../types/sequence')
-const op = require('../types/sequence/operator')
 const object = require('../types/object')
 const array = require('../types/array')
 
@@ -43,9 +42,6 @@ const boolSerialize = value => value ? trueSerialize : falseSerialize
 
 const colon = [':']
 const comma = [',']
-
-/** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat(comma)(a), commaValue]
 
 /** @type {seq.FoldOperator<seq.Sequence<string>>} */
 const joinOp = a => b => seq.flat([a, comma, b])

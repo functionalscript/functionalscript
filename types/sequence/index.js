@@ -273,8 +273,6 @@ const reverse = reduce(reverseOp)(empty)
 
 module.exports = {
     /** @readonly */
-    empty,
-    /** @readonly */
     sequence,
     /** @readonly */
     iterable,
@@ -311,7 +309,7 @@ module.exports = {
     /** @readonly */
     dropWhile,
     /** @readonly */
-    scanFunc: scanOperator,
+    scanOperator,
     /** @readonly */
     scanState,
     /** @readonly */
