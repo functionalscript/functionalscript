@@ -1,6 +1,6 @@
 const seq = require('../sequence')
 const op = require('../sequence/operator')
-const object = require('../object')
+const object = require('../types/object')
 const array = require('../sequence/array')
 
 /** 

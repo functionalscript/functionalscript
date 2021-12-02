@@ -6,7 +6,7 @@ require('./sequence/iterable/test')
 require('./sequence/asyncIterable/test')
 require('./module-manager/test')
 require('./json/test')
-require('./object/test')
+require('./types/object/test')
 require('./io/test')
 
 /** @type {() => never} */

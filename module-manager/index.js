@@ -1,6 +1,6 @@
 const array = require('../sequence/array')
 const { compose } = require('../function')
-const option = require('../option')
+const option = require('../types/option')
 const { head, last, splitLast, splitFirst } = array
 const iter = require('../sequence/iterable')
 const seq = require('../sequence/operator')

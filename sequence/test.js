@@ -1,6 +1,6 @@
 const _ = require('.')
 const json = require('../json')
-const { sort } = require('../object')
+const { sort } = require('../types/object')
 const { addition } = require('../function/operator')
 
 /** @type {(sequence: _.Sequence<json.Unknown>) => string} */

@@ -1,5 +1,5 @@
 const seq = require("../../sequence")
-const option = require("../../option")
+const option = require("../../types/option")
 const { compose } = require("../../function")
 
 /** @typedef {readonly string[]} Items */
