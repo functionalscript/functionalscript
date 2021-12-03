@@ -194,6 +194,21 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (!result) { throw result }
 }
 
+{
+    const result = _.min([])
+    if (result !== undefined) { throw result }
+}
+
+{
+    const result = _.min([1, 2, 12, -4, 8])
+    if (result !== -4) { throw result }
+}
+
+{
+    const result = _.max([1, 2, 12, -4, 8])
+    if (result !== 12) { throw result }
+}
+
 // stress tests
 
 const stress = () => {

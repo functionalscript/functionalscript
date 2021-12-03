@@ -34,6 +34,12 @@ const logicalNot = v => !v
 /** @type {<T>(a: T) => (b: T) => boolean} */
 const strictEqual = a => b => a === b
 
+/** @type {ReduceOperator<number, number>} */
+const min = a => b => a < b ? a : b
+
+/** @type {ReduceOperator<number, number>} */
+const max = a => b => a > b ? a : b
+
 module.exports = {
     /** @readonly */
     join,
@@ -43,4 +49,8 @@ module.exports = {
     strictEqual,
     /** @readonly */
     logicalNot,
+    /** @readonly */
+    min,
+    /** @readonly */
+    max,
 }

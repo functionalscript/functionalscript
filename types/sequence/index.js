@@ -241,10 +241,7 @@ const scanReduce = operator => def => input => last(def)(scan(operator)(input))
 const scanState = operator => init => [init, scanOperator(operator)(init)]
 
 /** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => ScanOperator<T, A>} */
-const scanOperator = operator => init => value => {
-    const result = operator(init)(value)
-    return scanState(operator)(result)
-}
+const scanOperator = operator => init => value => scanState(operator)(operator(init)(value))
 
 /** @type {<T,A>(operator: ReduceOperator<T, A>) => (init: A) => (input: Sequence<T>) => A} */
 const reduce = operator => init => scanReduce(scanOperator(operator)(init))(init)
@@ -258,6 +255,10 @@ const reduce = operator => init => scanReduce(scanOperator(operator)(init))(init
 const fold = operator => def => scanReduce(scanState(operator))(def)
 
 const sum = fold(addition)(0)
+
+const min = fold(op.min)(undefined)
+
+const max = fold(op.max)(undefined)
 
 /** @type {(separator: string) => (input: Sequence<string>) => string} */
 const join = separator => fold(op.join(separator))('')
@@ -360,6 +361,10 @@ module.exports = {
     fold,
     /** @readonly */
     sum,
+    /** @readonly */
+    min,
+    /** @readonly */
+    max,
     /** @readonly */
     join,
     /** @readonly */
