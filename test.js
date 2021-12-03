@@ -1,12 +1,10 @@
 const i = require('./')
 
-require('./sequence/test')
-require('./btree/test')
-require('./sequence/iterable/test')
-require('./sequence/asyncIterable/test')
-require('./module-manager/test')
+require('./types/sequence/test')
+require('./types/btree/test')
 require('./json/test')
-require('./object/test')
+require('./types/object/test')
+require('./io/commonjs/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

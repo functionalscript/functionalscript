@@ -1,22 +1,20 @@
-const seq = require('../sequence')
-const op = require('../sequence/operator')
-const object = require('../object')
-const array = require('../sequence/array')
-const { compose } = require('../function')
+const seq = require('../types/sequence')
+const object = require('../types/object')
+const array = require('../types/array')
 
 /** 
  * @typedef {{
- *  readonly [k in string]: Json
+ *  readonly [k in string]: Unknown
  * }} Object 
  */
 
-/** @typedef {readonly Json[]} Array */
+/** @typedef {readonly Unknown[]} Array */
 
-/** @typedef {Object|boolean|string|number|null|Array} Json */
+/** @typedef {Object|boolean|string|number|null|Array} Unknown */
 
-/** @type {(value: Json) => (path: seq.Sequence<string>) => (src: Json|undefined) => Json} */
-const addProperty = value => {
-    /** @type {(path: seq.Sequence<string>) => (src: Json|undefined) => Json} */
+/** @type {(value: Unknown) => (path: seq.Sequence<string>) => (src: Unknown|undefined) => Unknown} */
+const setProperty = value => {
+    /** @type {(path: seq.Sequence<string>) => (src: Unknown|undefined) => Unknown} */
     const f = path => src => {
         const result = seq.next(path)
         if (result === undefined) { return value }
@@ -45,11 +43,8 @@ const boolSerialize = value => value ? trueSerialize : falseSerialize
 const colon = [':']
 const comma = [',']
 
-/** @type {op.Scan<seq.Sequence<string>, seq.Sequence<string>>} */
-const commaValue = a => [seq.concat(comma, a), commaValue]
-
 /** @type {seq.FoldOperator<seq.Sequence<string>>} */
-const joinOp = a => b => seq.concat(a, comma, b)
+const joinOp = a => b => seq.flat([a, comma, b])
 
 /** @type {(input: seq.Sequence<seq.Sequence<string>>) => seq.Sequence<string>} */
 const join = seq.fold(joinOp)([])
@@ -58,26 +53,27 @@ const join = seq.fold(joinOp)([])
 const list = open => close => {
     const seqOpen = [open]
     const seqClose = [close]
-    return input => seq.concat(seqOpen, join(input), seqClose)
+    return input => seq.flat([seqOpen, join(input), seqClose])
 }
 
 const objectList = list('{')('}')
 
 const arrayList = list('[')(']')
 
-/** @typedef {object.Entry<Json>} Entry*/
+/** @typedef {object.Entry<Unknown>} Entry*/
 
 /** @typedef {(seq.Sequence<Entry>)} Entries */
 
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
-/** @type {(mapEntries: MapEntries) => (value: Json) => seq.Sequence<string>} */
+/** @type {(mapEntries: MapEntries) => (value: Unknown) => seq.Sequence<string>} */
 const serialize = sort => {
-    /** @type {(kv: readonly[string, Json]) => seq.Sequence<string>} */
-    const propertySerialize = ([k, v]) => seq.concat(
+    /** @type {(kv: readonly[string, Unknown]) => seq.Sequence<string>} */
+    const propertySerialize = ([k, v]) => seq.flat([
         stringSerialize(k),
         colon,
-        f(v))
+        f(v)
+    ])
     /** @type {(object: Object) => seq.Sequence<string>} */
     const objectSerialize = input => {
         const entries = Object.entries(input)
@@ -91,7 +87,7 @@ const serialize = sort => {
         const serializedEntries = seq.map(f)(input)
         return arrayList(serializedEntries)
     }
-    /** @type {(value: Json) => seq.Sequence < string >} */
+    /** @type {(value: Unknown) => seq.Sequence < string >} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -110,22 +106,22 @@ const serialize = sort => {
 /**
  * A version of `JSON.stringify` with an alphabeticly ordered `keys`.
  * 
- * The standard `JSON.stringify` rules determines by 
+ * The standard `JSON.stringify` rules determined by 
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  *  
- * @type {(mapEntries: MapEntries) => (value: Json) => string}
+ * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
 const stringify = sort => value => {
     const _s = serialize(sort)(value)
     return seq.join('')(_s)
 }
 
-/** @type {(value: string) => Json} */
+/** @type {(value: string) => Unknown} */
 const parse = value => JSON.parse(value)
 
 module.exports = {
     /** @readonly */
-    addProperty,
+    setProperty,
     /** @readonly */
     stringify,
     /** @readonly */
