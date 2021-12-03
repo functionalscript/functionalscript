@@ -18,22 +18,43 @@ const empty = () => undefined
 
 /** @typedef {Map|string} Item */
 
-/** @type {(prior: seq.Sequence<Map>) => (item: string) => seq.Sequence<Map>} */
-const get = prior => item => {
+/** @typedef {readonly[string, Map]} Pair */
+
+/** @type {(prior: seq.Sequence<Pair>) => (dir: string) => seq.Sequence<Pair>} */
+const get = prior => dir => {
     const result = seq.next(prior)
     if (result === undefined) { throw 'panic' }
-    const { first } = result
-    const child = first.get(item)
+    const { first: [,m] } = result
+    const child = m.get(dir)
     const childMap = child === undefined || typeof child === 'string' ? map.empty : child
-    return seq.sequence(childMap)(prior)
+    /** @type {Pair} */
+    const pair = [dir, childMap]
+    return seq.sequence(pair)(prior)
 }
+
+/** @typedef {readonly[string, Item]} Result */
+
+/** @type {(a: Result) => (b: Pair) => Result} */
+const set = ([aDir, item]) => ([bDir, bMap]) => [bDir, bMap.set(aDir)(item)]
 
 /** @type {(prior: Map) => (entry: json.Entry) => Map} */
 const addDirectory = prior => ([directory, id]) => {
     if (typeof id !== 'string') { return prior }
     const path = split(directory)
-    const maps = seq.drop(1)(seq.reduce(get)([prior])(path))
-    return prior
+    const rev = seq.reduce(get)([['', prior]])(path)
+    const result = seq.next(rev)
+    if (result === undefined) { throw 'panic' }
+    const { first: [dir], tail } = result
+    const [, m] = seq.reduce(set)([dir, id])(tail)
+    if (typeof m === 'string') { return prior }
+    return m
+}
+
+/** @type {(m: Map) => Directory} */
+const func = m => dir => {
+    const r = m.get(dir)
+    if (typeof r !== 'object') { return r }
+    return func(r)
 }
 
 /** @type {(packageJson: json.Unknown) => Directory} */
@@ -41,8 +62,8 @@ const dependencies = packageJson => {
     if (!isObject(packageJson)) { return empty }
     const dependencies = packageJson['dependencies']
     if (dependencies === undefined || !isObject(dependencies)) { return empty }
-    const result = seq.reduce(addDirectory)(map.empty)
-    return todo()
+    const result = seq.reduce(addDirectory)(map.empty)(Object.entries(dependencies))
+    return func(result)
 }
 
 module.exports = {
