@@ -1,6 +1,7 @@
 const seq = require('../types/sequence')
 const object = require('../types/object')
 const array = require('../types/array')
+const { todo } = require('../dev')
 
 /** 
  * @typedef {{
@@ -104,8 +105,6 @@ const serialize = sort => {
 }
 
 /**
- * A version of `JSON.stringify` with an alphabeticly ordered `keys`.
- * 
  * The standard `JSON.stringify` rules determined by 
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  *  
@@ -119,6 +118,9 @@ const stringify = sort => value => {
 /** @type {(value: string) => Unknown} */
 const parse = value => JSON.parse(value)
 
+/** @type {(value: Unknown) => value is Object} */
+const isObject = value => value === null || typeof value !== 'object' || value instanceof Array
+
 module.exports = {
     /** @readonly */
     setProperty,
@@ -128,4 +130,6 @@ module.exports = {
     serialize,
     /** @readonly */
     parse,
+    /** @readonly */
+    isObject,
 }

@@ -12,7 +12,7 @@ const { compose } = require("../../types/function")
  * }} Path 
  */
 
-/** @type {(path: string) => seq.Sequence<string>} */
+/** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
 /** @type {(s: undefined|seq.Sequence<string>) => (items: string) => undefined|seq.Sequence<string>} */
@@ -59,6 +59,8 @@ const parse = local => {
 }
 
 module.exports = {
+    /** @readonly */
+    split,
     /** @readonly */
     parse,
 }
