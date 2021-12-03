@@ -1,7 +1,7 @@
 const _ = require('.')
 const json = require('../../json')
 const { sort } = require('../object')
-const { addition } = require('../function/operator')
+const { addition, strictEqual } = require('../function/operator')
 
 /** @type {(sequence: _.Sequence<json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
@@ -171,6 +171,26 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 {
     const result = _.every(_.map(x => x > 5)([]))
+    if (!result) { throw result }
+}
+
+{
+    const result = _.equal(strictEqual)([1])([2, 3])
+    if (result) { throw result}
+}
+
+{
+    const result = _.equal(strictEqual)([1, 3])([1])
+    if (result) { throw result }
+}
+
+{
+    const result = _.equal(strictEqual)([15, 78])([15, 78])
+    if (!result) { throw result }
+}
+
+{
+    const result = _.equal(strictEqual)([])([])
     if (!result) { throw result }
 }
 

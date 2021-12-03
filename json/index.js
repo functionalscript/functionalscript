@@ -106,7 +106,7 @@ const serialize = sort => {
 /**
  * A version of `JSON.stringify` with an alphabeticly ordered `keys`.
  * 
- * The standard `JSON.stringify` rules determines by 
+ * The standard `JSON.stringify` rules determined by 
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  *  
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}

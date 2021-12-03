@@ -1,4 +1,3 @@
-const array = require('../array')
 const seq = require('../sequence')
 const map = require('../map')
 

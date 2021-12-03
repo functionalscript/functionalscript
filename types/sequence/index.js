@@ -371,5 +371,7 @@ module.exports = {
     /** @readonly */
     zip,
     /** @readonly */
+    equal,
+    /** @readonly */
     countdown,    
 }
