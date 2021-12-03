@@ -119,7 +119,7 @@ const stringify = sort => value => {
 const parse = value => JSON.parse(value)
 
 /** @type {(value: Unknown) => value is Object} */
-const isObject = value => value === null || typeof value !== 'object' || value instanceof Array
+const isObject = value => typeof value === 'object' && value !== null && !(value instanceof Array)
 
 module.exports = {
     /** @readonly */
