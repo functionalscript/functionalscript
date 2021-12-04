@@ -1,27 +1,27 @@
 const _ = require('.')
+const pack = require('..')
 
 {
-    const packageJson = { dependencies: {} }
-    const dir = _.getDirectory(packageJson)
+    /** @type {pack.Dependencies} */
+    const dependencies = {}
+    const dir = _.getDirectory(dependencies)
     const r = dir('x')
     if (r !== undefined) { throw r }
 }
 
 {
-    const packageJson = { dependencies: { 'x': 'e' } }
-    const dir = _.getDirectory(packageJson)
+    const dependencies = { 'x': 'e' }
+    const dir = _.getDirectory(dependencies)
     const r = dir('x')
     if (r !== 'e') { throw r }
 }
 
 {
-    const packageJson = { 
-        dependencies: { 
-            'x/a': 'xa',
-            'x/b': 'xb'
-        } 
-    }
-    const dir = _.getDirectory(packageJson)
+    const dependencies = { 
+        'x/a': 'xa',
+        'x/b': 'xb'
+    } 
+    const dir = _.getDirectory(dependencies)
     const x = dir('x')
     if (typeof x !== 'function') { throw x }
     const xa = x('a')

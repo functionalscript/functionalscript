@@ -16,6 +16,8 @@ const isPackage = j => {
     return true
 }
 
+/** @typedef {readonly[string, string]} Dependency */
+
 /**
  * @typedef {{
  *  readonly [k in string]: string

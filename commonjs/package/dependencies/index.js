@@ -3,6 +3,7 @@ const { isObject } = json
 const seq = require('../../../types/sequence')
 const { split } = require('../../path')
 const map = require('../../../types/map')
+const pack = require('..')
 
 /** @typedef {(directoryName: string) => undefined|string|Directory} Directory */
 
@@ -36,7 +37,7 @@ const get = prior => dir => {
 /** @type {(a: Result) => (b: Pair) => Result} */
 const set = ([aDir, item]) => ([bDir, bMap]) => [bDir, bMap.set(aDir)(item)]
 
-/** @type {(prior: Map) => (entry: json.Entry) => Map} */
+/** @type {(prior: Map) => (entry: pack.Dependency) => Map} */
 const addDirectory = prior => ([directory, id]) => {
     if (typeof id !== 'string') { return prior }
     const path = split(directory)
@@ -56,12 +57,10 @@ const func = m => dir => {
     return func(r)
 }
 
-/** @type {(packageJson: json.Unknown) => Directory} */
-const getDirectory = packageJson => {
-    if (!isObject(packageJson)) { return empty }
-    const dep = packageJson['dependencies']
-    if (dep === undefined || !isObject(dep)) { return empty }
-    const result = seq.reduce(addDirectory)(map.empty)(Object.entries(dep))
+/** @type {(dependencies: pack.Dependencies | undefined) => Directory} */
+const getDirectory = dependencies => {
+    if (dependencies === undefined) { return empty }
+    const result = seq.reduce(addDirectory)(map.empty)(Object.entries(dependencies))
     return func(result)
 }
 
