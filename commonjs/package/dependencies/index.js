@@ -2,25 +2,25 @@ const json = require('../../../json')
 const { isObject } = json
 const seq = require('../../../types/sequence')
 
-/** @typedef {readonly[string, string]} Dependency */
+/** @typedef {readonly[string, string]} DependencyJson */
 
 /**
  * @typedef {{
  *  readonly [k in string]: string
- * } | undefined} Dependencies
+ * } | undefined} DependenciesJson
  */
 
 /** @type {(entry: json.Entry) => boolean} */
-const isDependency = ([, v]) => typeof v === 'string'
+const isDependencyJson = ([, v]) => typeof v === 'string'
 
-/** @type {(j: json.Unknown|undefined) => j is Dependencies} */
-const isDependencies = j => {
+/** @type {(j: json.Unknown|undefined) => j is DependenciesJson} */
+const isDependenciesJson = j => {
     if (j === undefined) { return true }
     if (!json.isObject(j)) { return false }
-    return seq.every(seq.map(isDependency)(Object.entries(j)))
+    return seq.every(seq.map(isDependencyJson)(Object.entries(j)))
 }
 
 module.exports = {
     /** @readonly */
-    isDependencies,
+    isDependenciesJson: isDependenciesJson,
 }

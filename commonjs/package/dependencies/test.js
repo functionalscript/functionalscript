@@ -1,6 +1,9 @@
 const _ = require('.')
 
 {
-    if (!_.isDependencies(undefined)) { throw 'error' }
-    if (_.isDependencies(null)) { throw 'error' }
+    if (!_.isDependenciesJson(undefined)) { throw 'error' }
+    if (_.isDependenciesJson(null)) { throw 'error' }
+    if (!_.isDependenciesJson({})) { throw 'error' }
+    if (!_.isDependenciesJson({'a':'b'})) { throw 'error' }
+    if (_.isDependenciesJson({ 'a': 12 })) { throw 'error' }
 }
