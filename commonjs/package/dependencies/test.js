@@ -1,33 +1,37 @@
 const _ = require('.')
+const json = require('../../../json')
+const { sort } = require('../../../types/object')
+const seq = require('../../../types/sequence')
 
 {
-    const packageJson = { dependencies: {} }
-    const dir = _.getDirectory(packageJson)
-    const r = dir('x')
-    if (r !== undefined) { throw r }
+    if (!_.isDependenciesJson(undefined)) { throw 'error' }
+    if (_.isDependenciesJson(null)) { throw 'error' }
+    if (!_.isDependenciesJson({})) { throw 'error' }
+    if (!_.isDependenciesJson({'a':'b'})) { throw 'error' }
+    if (_.isDependenciesJson({ 'a': 12 })) { throw 'error' }
+}
+
+/** @type {(g: _.GlobalPath|undefined) => string} */
+const stringify = g => {
+    if (g === undefined) { throw g }
+    return json.stringify(sort)(g)
 }
 
 {
-    const packageJson = { dependencies: { 'x': 'e' } }
-    const dir = _.getDirectory(packageJson)
-    const r = dir('x')
-    if (r !== 'e') { throw r }
-}
-
-{
-    const packageJson = { 
-        dependencies: { 
-            'x/a': 'xa',
-            'x/b': 'xb'
-        } 
+    if (_.idPath(undefined)(['a', 'b']) !== undefined) { throw 'error' }
+    if (_.idPath({})(['b']) !== undefined) { throw 'error' }
+    if (_.idPath({b:'x'})(['d']) !== undefined) { throw 'error'}
+    {
+        const result = stringify(_.idPath({ b: 'x' })(['b']))
+        if (result !== '["x",""]') { throw result }
     }
-    const dir = _.getDirectory(packageJson)
-    const x = dir('x')
-    if (typeof x !== 'function') { throw x }
-    const xa = x('a')
-    if (xa !== 'xa') { throw xa }
-    const xb = x('b')
-    if (xb !== 'xb') { throw xb }
-    const xc = x('c')
-    if (xc !== undefined) { throw xc }
+    if (_.idPath({ 'b/r': 'x' })(['b']) !== undefined) { throw 'error'}
+    {
+        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r']))
+        if (result !== '["x",""]') { throw result }
+    }
+    {
+        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r', 'd', 't']))
+        if (result !== '["x","d/t"]') { throw result }
+    }
 }

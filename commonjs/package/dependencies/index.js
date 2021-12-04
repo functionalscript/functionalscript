@@ -1,71 +1,61 @@
+const { todo } = require('../../../dev')
 const json = require('../../../json')
 const { isObject } = json
 const seq = require('../../../types/sequence')
-const { split } = require('../../path')
-const map = require('../../../types/map')
+const path = require('../../path')
+const { at } = require('../../../types/object')
 
-/** @typedef {(directoryName: string) => undefined|string|Directory} Directory */
+/** @typedef {readonly[string, string]} DependencyJson */
 
-const empty = () => undefined
+/** @typedef {{readonly[k in string]: string}} DependencyMapJson */
 
-/** 
- * @typedef {{
- *  readonly get: (dir: string) => Item|undefined
- *  readonly set: (dir: string) => (item: Item) => Map
- * }} Map
- */
+/** @typedef {DependencyMapJson|undefined} DependenciesJson */
 
-/** @typedef {Map|string} Item */
+/** @type {(entry: json.Entry) => boolean} */
+const isDependencyJson = ([, v]) => typeof v === 'string'
 
-/** @typedef {readonly[string, Map]} Pair */
-
-/** @type {(prior: seq.Sequence<Pair>) => (dir: string) => seq.Sequence<Pair>} */
-const get = prior => dir => {
-    const result = seq.next(prior)
-    if (result === undefined) { throw 'panic' }
-    const { first: [,m] } = result
-    const child = m.get(dir)
-    const childMap = child === undefined || typeof child === 'string' ? map.empty : child
-    /** @type {Pair} */
-    const pair = [dir, childMap]
-    return seq.sequence(pair)(prior)
+/** @type {(j: json.Unknown|undefined) => j is DependenciesJson} */
+const isDependenciesJson = j => {
+    if (j === undefined) { return true }
+    if (!json.isObject(j)) { return false }
+    return seq.every(seq.map(isDependencyJson)(Object.entries(j)))
 }
 
-/** @typedef {readonly[string, Item]} Result */
+/** @typedef {readonly[string, seq.Sequence<string>]} IdPath */
 
-/** @type {(a: Result) => (b: Pair) => Result} */
-const set = ([aDir, item]) => ([bDir, bMap]) => [bDir, bMap.set(aDir)(item)]
-
-/** @type {(prior: Map) => (entry: json.Entry) => Map} */
-const addDirectory = prior => ([directory, id]) => {
-    if (typeof id !== 'string') { return prior }
-    const path = split(directory)
-    const rev = seq.reduce(get)([['', prior]])(path)
-    const result = seq.next(rev)
-    if (result === undefined) { throw 'panic' }
-    const { first: [dir], tail } = result
-    const [, m] = seq.reduce(set)([dir, id])(tail)
-    if (typeof m === 'string') { return prior }
-    return m
+/** @type {(prior: readonly[string|undefined, seq.Sequence<string>]) => seq.Thunk<IdPath>} */
+const variants = prior => () => {
+    const [a, b] = prior
+    const r = seq.next(b)
+    if (r === undefined) { return undefined }
+    const { first, tail } = r
+    /** @type {IdPath} */
+    const n = [a === undefined ? first : `${a}/${first}`, tail]
+    return { first: n, tail: variants(n) }
 }
 
-/** @type {(m: Map) => Directory} */
-const func = m => dir => {
-    const r = m.get(dir)
-    if (typeof r !== 'object') { return r }
-    return func(r)
+/** @type {(d: DependencyMapJson) => (p: IdPath) => IdPath|undefined} */
+const mapDependency = d => ([external, internal]) => {
+    const id = at(external)(d)
+    if (id === undefined) { return undefined }
+    return [id, internal]
 }
 
-/** @type {(packageJson: json.Unknown) => Directory} */
-const getDirectory = packageJson => {
-    if (!isObject(packageJson)) { return empty }
-    const dep = packageJson['dependencies']
-    if (dep === undefined || !isObject(dep)) { return empty }
-    const result = seq.reduce(addDirectory)(map.empty)(Object.entries(dep))
-    return func(result)
+/** @typedef {readonly[string, string]} GlobalPath */
+
+/** @type {(d: DependenciesJson) => (p: path.Items) => GlobalPath|undefined} */
+const idPath = d => p => {
+    if (d === undefined) { return undefined }
+    const v = variants([undefined, p])
+    const valid = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
+    if (valid === undefined) { return undefined }
+    const [packId, localId] = valid
+    return [packId, seq.join('/')(localId)]
 }
 
 module.exports = {
     /** @readonly */
-    getDirectory,
+    isDependenciesJson,
+    /** @readonly */
+    idPath,
 }
