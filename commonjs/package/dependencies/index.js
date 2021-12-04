@@ -1,70 +1,26 @@
 const json = require('../../../json')
 const { isObject } = json
 const seq = require('../../../types/sequence')
-const { split } = require('../../path')
-const map = require('../../../types/map')
-const pack = require('..')
 
-/** @typedef {(directoryName: string) => undefined|string|Directory} Directory */
+/** @typedef {readonly[string, string]} Dependency */
 
-const empty = () => undefined
-
-/** 
+/**
  * @typedef {{
- *  readonly get: (dir: string) => Item|undefined
- *  readonly set: (dir: string) => (item: Item) => Map
- * }} Map
+ *  readonly [k in string]: string
+ * } | undefined} Dependencies
  */
 
-/** @typedef {Map|string} Item */
+/** @type {(entry: json.Entry) => boolean} */
+const isDependency = ([, v]) => typeof v === 'string'
 
-/** @typedef {readonly[string, Map]} Pair */
-
-/** @type {(prior: seq.Sequence<Pair>) => (dir: string) => seq.Sequence<Pair>} */
-const get = prior => dir => {
-    const result = seq.next(prior)
-    if (result === undefined) { throw 'panic' }
-    const { first: [,m] } = result
-    const child = m.get(dir)
-    const childMap = child === undefined || typeof child === 'string' ? map.empty : child
-    /** @type {Pair} */
-    const pair = [dir, childMap]
-    return seq.sequence(pair)(prior)
-}
-
-/** @typedef {readonly[string, Item]} Result */
-
-/** @type {(a: Result) => (b: Pair) => Result} */
-const set = ([aDir, item]) => ([bDir, bMap]) => [bDir, bMap.set(aDir)(item)]
-
-/** @type {(prior: Map) => (entry: pack.Dependency) => Map} */
-const addDirectory = prior => ([directory, id]) => {
-    if (typeof id !== 'string') { return prior }
-    const path = split(directory)
-    const rev = seq.reduce(get)([['', prior]])(path)
-    const result = seq.next(rev)
-    if (result === undefined) { throw 'panic' }
-    const { first: [dir], tail } = result
-    const [, m] = seq.reduce(set)([dir, id])(tail)
-    if (typeof m === 'string') { return prior }
-    return m
-}
-
-/** @type {(m: Map) => Directory} */
-const func = m => dir => {
-    const r = m.get(dir)
-    if (typeof r !== 'object') { return r }
-    return func(r)
-}
-
-/** @type {(dependencies: pack.Dependencies | undefined) => Directory} */
-const getDirectory = dependencies => {
-    if (dependencies === undefined) { return empty }
-    const result = seq.reduce(addDirectory)(map.empty)(Object.entries(dependencies))
-    return func(result)
+/** @type {(j: json.Unknown|undefined) => j is Dependencies} */
+const isDependencies = j => {
+    if (j === undefined) { return true }
+    if (!json.isObject(j)) { return false }
+    return seq.every(seq.map(isDependency)(Object.entries(j)))
 }
 
 module.exports = {
     /** @readonly */
-    getDirectory,
+    isDependencies,
 }

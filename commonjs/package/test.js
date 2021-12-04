@@ -1,5 +1,7 @@
 const _ = require('.')
 
+require('./dependencies/test')
+
 {
     if (_.isPackage(null)) { throw 'error' }
     if (_.isPackage({})) { throw 'error' }
