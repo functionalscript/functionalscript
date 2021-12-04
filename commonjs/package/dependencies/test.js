@@ -25,4 +25,13 @@ const stringify = g => {
         const result = stringify(_.idPath({ b: 'x' })(['b']))
         if (result !== '["x",""]') { throw result }
     }
+    if (_.idPath({ 'b/r': 'x' })(['b']) !== undefined) { throw 'error'}
+    {
+        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r']))
+        if (result !== '["x",""]') { throw result }
+    }
+    {
+        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r', 'd', 't']))
+        if (result !== '["x","d/t"]') { throw result }
+    }
 }
