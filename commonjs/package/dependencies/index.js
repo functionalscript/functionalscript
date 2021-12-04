@@ -41,15 +41,21 @@ const mapDependency = d => ([external, internal]) => {
     return [id, internal]
 }
 
-/** @type {(d: DependenciesJson) => (p: path.Items) => IdPath|undefined} */
-const getId = d => p => {
+/** @typedef {readonly[string, string]} GlobalPath */
+
+/** @type {(d: DependenciesJson) => (p: path.Items) => GlobalPath|undefined} */
+const idPath = d => p => {
     if (d === undefined) { return undefined }
     const v = variants([undefined, p])
-    const x = seq.filterMap(mapDependency(d))(v)
-    return seq.first(undefined)(x)
+    const valid = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
+    if (valid === undefined) { return undefined }
+    const [packId, localId] = valid
+    return [packId, seq.join('/')(localId)]
 }
 
 module.exports = {
     /** @readonly */
-    isDependenciesJson: isDependenciesJson,
+    isDependenciesJson,
+    /** @readonly */
+    idPath,
 }
