@@ -1,7 +1,7 @@
 const cp = require('child_process')
 const fs = require('fs')
-const json = require('./json')
-const { isPackage } = require('./commonjs/package')
+const json = require('../../../json')
+const { isPackage } = require('../../../commonjs/package')
 
 const b =cp.execSync('git log --oneline')
 
