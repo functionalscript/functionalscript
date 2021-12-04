@@ -16,6 +16,12 @@ const isPackageJson = j => {
     return true
 }
 
+/**
+ * @typedef {{
+ *  readonly dependencies: dep.DependenciesJson
+ * }} Package
+ */
+
 module.exports = {
     /** @readonly */
     isPackageJson,
