@@ -3,6 +3,7 @@ const option = require("../../types/option")
 const { compose } = require("../../types/function")
 const dep = require("../package/dependencies")
 const { at } = require("../../types/object")
+const pack = require("../package")
 
 /** @typedef {readonly string[]} Items */
 
@@ -37,7 +38,7 @@ const normItemsOp = prior => item => {
 const normItems = compose(seq.reduce(normItemsOp)([]))(option.map(seq.reverse))
 
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
-const parse = local => {
+const parseLocal = local => {
     /** @type {(path: string) => readonly[boolean, seq.Sequence<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
@@ -79,21 +80,37 @@ const mapDependency = d => ([external, internal]) => {
     return id === undefined ? undefined : [id, internal]
 }
 
-/** @typedef {readonly[string, string]} Path */
+/**
+ * @typedef {{
+ *  readonly name: string,
+ *  readonly items: Items,
+ *  readonly dir: boolean,
+ * }} Path
+ */
 
-/** @type {(d: dep.DependenciesJson) => (p: Items) => Path|undefined} */
-const path = d => p => {
+/** @type {(d: dep.DependenciesJson) => (dir: boolean) => (items: seq.Sequence<string>) => Path|undefined} */
+const parseGlobal = d => dir => items => {
     if (d === undefined) { return undefined }
-    const v = variants([undefined, p])
-    const valid = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
-    if (valid === undefined) { return undefined }
-    const [packId, localId] = valid
-    return [packId, seq.join('/')(localId)]
+    const v = variants([undefined, items])
+    const r = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
+    if (r === undefined) { return undefined }
+    return { name: r[0], items: seq.toArray(r[1]), dir }
+}
+
+/** @type {(name: string) => (dependencies: dep.DependenciesJson) =>(local: string) => (path: string) => Path|undefined } */
+const parse = name => dependencies => local => path => {
+    const parsed = parseLocal(local)(path)
+    if (parsed === undefined) { return undefined }
+    const {external, dir, items} = parsed
+    if (!external) { return { name, items, dir } }
+    return parseGlobal(dependencies)(dir)(items)
 }
 
 module.exports = {
     /** @readonly */
-    parse,
+    parseLocal,
     /** @readonly */
-    path,
+    parseGlobal,
+    /** @readonly */
+    parse,
 }

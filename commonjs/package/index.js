@@ -1,5 +1,7 @@
 const json = require('../../json')
 const dep = require('./dependencies')
+const object = require('../../types/object')
+const run = require('../run')
 
 /** 
  * @typedef {{
@@ -18,11 +20,9 @@ const isPackageJson = j => {
     return true
 }
 
-/**
- * @typedef {{
- *  readonly dependencies: dep.DependenciesJson
- * }} Package
- */
+/** @typedef {object.Map<string>} Files */
+
+/** @typedef {object.Map<dep.DependencyJson>} PackageMap */
 
 module.exports = {
     /** @readonly */

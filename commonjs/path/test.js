@@ -9,55 +9,56 @@ const stringify = g => {
 }
 
 {
-    const result = _.parse('')('./a')
+    const p = { name: '', version: '' }
+    const result = _.parseLocal('')('./a')
     if (stringify(result) !== '{"external":false,"dir":false,"items":["a"]}') { throw result }
 }
 
 {
-    const result = _.parse('')('./a/')
+    const result = _.parseLocal('')('./a/')
     if (stringify(result) !== '{"external":false,"dir":true,"items":["a"]}') { throw result }
 }
 
 {
-    const result = _.parse('')('..')
+    const result = _.parseLocal('')('..')
     if (result !== undefined) { throw result }
 }
 
 {
-    const result = _.parse('a')('')
+    const result = _.parseLocal('a')('')
     if (stringify(result) !== '{"external":true,"dir":false,"items":[]}') { throw result }
 }
 
 {
-    const result = _.parse('')('./a/b/.././c')
+    const result = _.parseLocal('')('./a/b/.././c')
     if (stringify(result) !== '{"external":false,"dir":false,"items":["a","c"]}') { throw result }
 }
 
 {
-    const result = _.parse('x/r')('./a/b/.././c')
+    const result = _.parseLocal('x/r')('./a/b/.././c')
     if (stringify(result) !== '{"external":false,"dir":false,"items":["x","r","a","c"]}') { throw result }
 }
 
 {
-    const result = _.parse('a')('a/b/.././c')
+    const result = _.parseLocal('a')('a/b/.././c')
     if (stringify(result) !== '{"external":true,"dir":false,"items":["a","c"]}') { throw result }
 }
 
 {
-    if (_.path(undefined)(['a', 'b']) !== undefined) { throw 'error' }
-    if (_.path({})(['b']) !== undefined) { throw 'error' }
-    if (_.path({ b: 'x' })(['d']) !== undefined) { throw 'error' }
+    if (_.parseGlobal(undefined)(false)(['a', 'b']) !== undefined) { throw 'error' }
+    if (_.parseGlobal({})(false)(['b']) !== undefined) { throw 'error' }
+    if (_.parseGlobal({ b: 'x' })(false)(['d']) !== undefined) { throw 'error' }
     {
-        const result = stringify(_.path({ b: 'x' })(['b']))
+        const result = stringify(_.parseGlobal({ b: 'x' })(false)(['b']))
         if (result !== '["x",""]') { throw result }
     }
-    if (_.path({ 'b/r': 'x' })(['b']) !== undefined) { throw 'error' }
+    if (_.parseGlobal({ 'b/r': 'x' })(false)(['b']) !== undefined) { throw 'error' }
     {
-        const result = stringify(_.path({ 'b/r': 'x' })(['b', 'r']))
+        const result = stringify(_.parseGlobal({ 'b/r': 'x' })(false)(['b', 'r']))
         if (result !== '["x",""]') { throw result }
     }
     {
-        const result = stringify(_.path({ 'b/r': 'x' })(['b', 'r', 'd', 't']))
+        const result = stringify(_.parseGlobal({ 'b/r': 'x' })(false)(['b', 'r', 'd', 't']))
         if (result !== '["x","d/t"]') { throw result }
     }
 }
