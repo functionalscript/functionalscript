@@ -11,7 +11,7 @@ const { at } = require("../../types/object")
  *  readonly external: boolean
  *  readonly dir: boolean
  *  readonly items: Items
- * }} Path 
+ * }} LocalPath 
  */
 
 /** @type {(path: string) => readonly string[]} */
@@ -36,7 +36,7 @@ const normItemsOp = prior => item => {
 /** @type {(items: seq.Sequence<string>) => seq.Sequence<string>|undefined} */
 const normItems = compose(seq.reduce(normItemsOp)([]))(option.map(seq.reverse))
 
-/** @type {(local: string) => (path: string) => Path|undefined} */
+/** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parse = local => {
     /** @type {(path: string) => readonly[boolean, seq.Sequence<string>]} */
     const fSeq = path => {
@@ -46,7 +46,7 @@ const parse = local => {
             default: { return [true, pathSeq] }
         }
     }
-    /** @type {(path: string) => Path|undefined} */
+    /** @type {(path: string) => LocalPath|undefined} */
     const f = path => {
         const [external, items] = fSeq(path)
         const n = normItems(items)
@@ -79,10 +79,10 @@ const mapDependency = d => ([external, internal]) => {
     return id === undefined ? undefined : [id, internal]
 }
 
-/** @typedef {readonly[string, string]} GlobalPath */
+/** @typedef {readonly[string, string]} Path */
 
-/** @type {(d: dep.DependenciesJson) => (p: Items) => GlobalPath|undefined} */
-const idPath = d => p => {
+/** @type {(d: dep.DependenciesJson) => (p: Items) => Path|undefined} */
+const path = d => p => {
     if (d === undefined) { return undefined }
     const v = variants([undefined, p])
     const valid = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
@@ -93,9 +93,7 @@ const idPath = d => p => {
 
 module.exports = {
     /** @readonly */
-    // split,
-    /** @readonly */
     parse,
     /** @readonly */
-    idPath,
+    path,
 }

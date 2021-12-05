@@ -1,7 +1,6 @@
 const _ = require('.')
 const json = require('../../json')
-const { identity, compose } = require('../../types/function')
-const seq = require('../../types/sequence')
+const { identity } = require('../../types/function')
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {
@@ -45,20 +44,20 @@ const stringify = g => {
 }
 
 {
-    if (_.idPath(undefined)(['a', 'b']) !== undefined) { throw 'error' }
-    if (_.idPath({})(['b']) !== undefined) { throw 'error' }
-    if (_.idPath({ b: 'x' })(['d']) !== undefined) { throw 'error' }
+    if (_.path(undefined)(['a', 'b']) !== undefined) { throw 'error' }
+    if (_.path({})(['b']) !== undefined) { throw 'error' }
+    if (_.path({ b: 'x' })(['d']) !== undefined) { throw 'error' }
     {
-        const result = stringify(_.idPath({ b: 'x' })(['b']))
+        const result = stringify(_.path({ b: 'x' })(['b']))
         if (result !== '["x",""]') { throw result }
     }
-    if (_.idPath({ 'b/r': 'x' })(['b']) !== undefined) { throw 'error' }
+    if (_.path({ 'b/r': 'x' })(['b']) !== undefined) { throw 'error' }
     {
-        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r']))
+        const result = stringify(_.path({ 'b/r': 'x' })(['b', 'r']))
         if (result !== '["x",""]') { throw result }
     }
     {
-        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r', 'd', 't']))
+        const result = stringify(_.path({ 'b/r': 'x' })(['b', 'r', 'd', 't']))
         if (result !== '["x","d/t"]') { throw result }
     }
 }
