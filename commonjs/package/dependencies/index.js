@@ -37,8 +37,7 @@ const variants = prior => () => {
 /** @type {(d: DependencyMapJson) => (p: IdPath) => IdPath|undefined} */
 const mapDependency = d => ([external, internal]) => {
     const id = at(external)(d)
-    if (id === undefined) { return undefined }
-    return [id, internal]
+    return id === undefined ? undefined : [id, internal]
 }
 
 /** @typedef {readonly[string, string]} GlobalPath */
