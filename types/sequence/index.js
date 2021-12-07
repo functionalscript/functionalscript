@@ -104,7 +104,7 @@ const apply = f => input => () => {
     return f(n)
 }
 
-/** @type {<T>(result: ResultOne<Sequence<T>>) => Node<T>} */
+/** @type {<T>(result: ResultOne<Sequence<T>>) => Concat<T>} */
 const flatStep = ({first, tail}) => [first, flat(tail)]
 
 /** @type {<T>(sequence: Sequence<Sequence<T>>) => Thunk<T>} */
