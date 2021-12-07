@@ -3,11 +3,11 @@ const { unwrap } = require('../../types/result')
 const run = require('../../commonjs/run')
 
 /** @type {(f: Function) => run.Module} */
-const createModule = f => req => mutableInfo => {
+const build = f => immutableRequire => mutableData => {
     /** @type {(path: string) => unknown} */
     const mutableRequire = path => {
-        const [result, info] = req(mutableInfo)(path)
-        mutableInfo = info
+        const [result, data] = immutableRequire(mutableData)(path)
+        mutableData = data
         return unwrap(result)
     }
     const result = tryCatch(() => {
@@ -15,12 +15,12 @@ const createModule = f => req => mutableInfo => {
         f(mutableModule, mutableRequire)
         return mutableModule.exports
     })
-    return [result, mutableInfo]
+    return [result, mutableData]
 }
 
 /** @type {run.Compile} */
 const compile = source => 
-    tryCatch(() => createModule(Function('module', 'require', `"use strict";${source}`)))
+    tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
 
 module.exports = {
     /** @readonly */

@@ -10,28 +10,3 @@ const seq = require('../../../types/sequence')
     if (!_.isDependenciesJson({'a':'b'})) { throw 'error' }
     if (_.isDependenciesJson({ 'a': 12 })) { throw 'error' }
 }
-
-/** @type {(g: _.GlobalPath|undefined) => string} */
-const stringify = g => {
-    if (g === undefined) { throw g }
-    return json.stringify(sort)(g)
-}
-
-{
-    if (_.idPath(undefined)(['a', 'b']) !== undefined) { throw 'error' }
-    if (_.idPath({})(['b']) !== undefined) { throw 'error' }
-    if (_.idPath({b:'x'})(['d']) !== undefined) { throw 'error'}
-    {
-        const result = stringify(_.idPath({ b: 'x' })(['b']))
-        if (result !== '["x",""]') { throw result }
-    }
-    if (_.idPath({ 'b/r': 'x' })(['b']) !== undefined) { throw 'error'}
-    {
-        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r']))
-        if (result !== '["x",""]') { throw result }
-    }
-    {
-        const result = stringify(_.idPath({ 'b/r': 'x' })(['b', 'r', 'd', 't']))
-        if (result !== '["x","d/t"]') { throw result }
-    }
-}
