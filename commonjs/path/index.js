@@ -97,7 +97,7 @@ const parseGlobal = d => dir => items => {
     return { name: r[0], items: seq.toArray(r[1]), dir }
 }
 
-/** @type {(name: string) => (dependencies: dep.DependenciesJson) =>(local: string) => (path: string) => Path|undefined } */
+/** @type {(name: string) => (dependencies: dep.DependenciesJson) => (local: string) => (path: string) => Path|undefined } */
 const parse = name => dependencies => local => path => {
     const parsed = parseLocal(local)(path)
     if (parsed === undefined) { return undefined }
