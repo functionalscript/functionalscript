@@ -4,8 +4,8 @@ const { concat } = require('./concat3')
 const test1 = () => {
     /** @type {_.Sequence<number>} */
     let m = undefined
-    for (let i = 0; i < 1_000_000; ++i) {
-        m = concat(m)([1, undefined])
+    for (let i = 0; i < 5; ++i) {
+        m = concat(m)([i, undefined])
     }
     return m
 }

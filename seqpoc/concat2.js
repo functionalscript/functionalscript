@@ -1,7 +1,7 @@
 const _ = require('.')
 
 /**
- * Infinite loop
+ * Time complexity
  * 
  * @type {<T>(a: _.Sequence<T>) => (b: _.Sequence<T>) => _.Thunk<T>} 
  */
