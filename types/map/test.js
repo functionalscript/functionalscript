@@ -50,7 +50,7 @@ const list = require('../sequence')
 }
 
 {
-    /** @type {import('.').Map<number>} */
+    /** @type {import('.').MapI<number>} */
     let m = empty
     for (let i = 0; i < 100_000; ++i) {
         m = m.set((i*i).toString())(i)
