@@ -11,7 +11,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/seqpoc/index.js"
+            "program": "${workspaceFolder}/seqpoc/test.js"
         },
         {
             "type": "pwa-node",
@@ -20,7 +20,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/seqpoc/test.js"
+            "program": "${workspaceFolder}/test.js"
         }
     ]
 }

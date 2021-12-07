@@ -1,5 +1,3 @@
-const { todo } = require('../dev')
-
 /**
  * @template T
  * @typedef {Result<T> | Thunk<T> } Sequence
@@ -42,31 +40,9 @@ const sum = a => {
     }
 }
 
-/** @type {<T>(a: Sequence<T>) => (b: Sequence<T>) => Thunk<T>} */
-const concat = a => b => () => {
-    if (typeof a === 'function') { return concat(a())(b) }
-    if (a === undefined) { return b }
-    const [first, tail] = a
-    return [first, concat(tail)(b)] 
+module.exports = {
+    /** @readonly */
+    next,
+    /** @readonly */
+    sum,
 }
-
-const test1 = () => {
-    /** @type {Sequence<number>} */
-    let m = undefined
-    for (let i = 0; i < 1_000_000; ++i) {
-        m = concat(m)([1, undefined])
-    }
-    return sum(m)
-}
-
-const test2 = () => {
-    /** @type {Sequence<number>} */
-    let m = undefined
-    for (let i = 0; i < 1_000_000; ++i) {
-        m = concat([1, undefined])(m)
-    }
-    return sum(m)
-}
-
-console.log(test1())
-// console.log(test2())
