@@ -3,7 +3,11 @@ const _ = require('.')
 let i = 0
 
 /**
- * Time complexity: O(N^2)
+ * https://en.wikipedia.org/wiki/Tetrahedral_number
+ * 
+ * 1,4,10,20, 35,56,84,120
+ * 
+ * Time complexity: O(N^3)
  *  
  * @type {<T>(b: _.Sequence<T>) => (a: _.Sequence<T>) => _.Sequence<T>} 
  */
@@ -12,12 +16,11 @@ const rconcat = b => {
     /** @type {(x: _.Sequence<T>) => _.Sequence<T>} */
     const m = a => {
         i = i + 1
-        console.log(i)
+        if (i % 1_000_000 === 0) { console.log(i) }
         if (typeof a === 'function') { return () => m(a()) }
         if (a === undefined) { return b }
         const [first, tail] = a
-        // m(tail) is not lazy!
-        return [first, m(tail)]
+        return [first, () => m(tail)]
     }
     return m
 }
