@@ -41,7 +41,7 @@ const run = require('../../commonjs/run')
     if (d[0] !== 'ok') { throw d }
 
     /** @type {run.Require<number>} */
-    const req = prior => path => {
+    const req = path => prior => {
         if (path !== 'm') { throw path }
         return d[1](req)(prior + 1)
     }
