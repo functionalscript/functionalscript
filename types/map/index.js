@@ -29,14 +29,35 @@ const seq = require("../sequence")
 
 /** 
  * @template T
- * @typedef {undefined|TNode<Entry<T>>} MapD
+ * @typedef {undefined|TNode<Entry<T>>} Map
  */
 
-/** @type {<T>(map: MapD<T>) => (name: string) => T|undefined} */
-const get = map => name => {
+/** @type {<T>(map: Map<T>) => (name: string) => T|undefined} */
+const at = map => name => {
     if (map === undefined) { return undefined }
     const result = getVisitor(keyCmp(name))(map)
     return result === undefined ? undefined : result[1]
+}
+
+/** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
+const insert = map => ([name, value]) => {
+    /** @type {Entry<typeof value>} */
+    const entry = [name, value]
+    if (map === undefined) { return [entry] }
+    const result = setVisitor(keyCmp(name))(() => entry)(map)
+    switch (result[0]) {
+        case 'replace': case 'overflow': { return result[1] }
+        default: { throw 'invalid BTree operation' }
+    }
+}
+
+/** @type {<T>(map: Map<T>) => seq.Sequence<Entry<T>>} */
+const entries = map => map === undefined ? [] : values(map)
+
+/** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
+const fromEntries = entries => {
+    /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */    
+    return seq.reduce(insert)(/** @type {Map<T>} */(undefined))(entries)
 }
 
 /**
@@ -82,19 +103,27 @@ const empty = {
 }
 
 /** @type {<T>(map: MapI<T>) => (entry: Entry<T>) => MapI<T>} */
-const setOperator = map => ([k, v]) => map.set(k)(v)
+const setOperatorI = map => ([k, v]) => map.set(k)(v)
 
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => MapI<T>} */
-const fromEntries = entries => {
+const fromEntriesI = entries => {
     /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */
     /** @type {MapI<T>} */
     const init = empty
-    return seq.reduce(setOperator)(init)(entries)
+    return seq.reduce(setOperatorI)(init)(entries)
 }
 
 module.exports = {
     /** @readonly */
     empty,
+    /** @readonly */
+    fromEntriesI,
+    /** @readonly */
+    at,
+    /** @readonly */
+    insert,
+    /** @readonlg */
+    entries,
     /** @readonly */
     fromEntries,
 }

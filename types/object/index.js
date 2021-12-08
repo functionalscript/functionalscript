@@ -17,7 +17,7 @@ const map = require('../map')
 const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.value
 
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => seq.Sequence<Entry<T>>} */
-const sort = entries => map.fromEntries(entries).entries
+const sort = entries => map.fromEntriesI(entries).entries
 
 module.exports = {
     /** @readonly */
