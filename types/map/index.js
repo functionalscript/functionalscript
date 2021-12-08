@@ -35,15 +35,15 @@ const seq = require("../sequence")
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
 const keyCmp = a => ([b]) => cmp(a)(b)
 
-/** @type {<T>(map: Map<T>) => (name: string) => T|undefined} */
-const at = map => name => {
+/** @type {(name: string) => <T>(map: Map<T>) => T|undefined} */
+const at = name => map => {
     if (map === undefined) { return undefined }
     const result = getVisitor(keyCmp(name))(map)
     return result === undefined ? undefined : result[1]
 }
 
-/** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
-const insert = map => ([name, value]) => {
+/** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
+const insert = name => value => map =>  {
     /** @type {Entry<typeof value>} */
     const entry = [name, value]
     if (map === undefined) { return [entry] }
@@ -57,10 +57,13 @@ const insert = map => ([name, value]) => {
 /** @type {<T>(map: Map<T>) => seq.Sequence<Entry<T>>} */
 const entries = map => map === undefined ? [] : values(map)
 
+/** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
+const insertOp = map => ([name, value]) => insert(name)(value)(map)
+
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
 const fromEntries = entries => {
     /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */    
-    return seq.reduce(insert)(/** @type {Map<T>} */(undefined))(entries)
+    return seq.reduce(insertOp)(/** @type {Map<T>} */(undefined))(entries)
 }
 
 module.exports = {
