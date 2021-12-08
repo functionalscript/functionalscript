@@ -1,59 +1,60 @@
-const { empty } = require('.')
+const { at, insert, empty, entries } = require('.')
 const list = require('../sequence')
 
 {
-    let m = empty.set('a')(1)
+    let m = insert('a')(1)(undefined)
 
-    if (m.get('a') !== 1) { throw 'error' }
-    if (m.get('b') !== undefined) { throw 'error' }
+    if (at('a')(m) !== 1) { throw 'error' }
+    if (at('b')(m) !== undefined) { throw 'error' }
 
-    m = m.set('b')(2)
+    m = insert('b')(2)(m)
 
-    if (m.get('a') !== 1) { throw 'error' }
-    if (m.get('b') !== 2) { throw 'error' }
-    if (m.get('c') !== undefined) { throw 'error' }
+    if (at('a')(m) !== 1) { throw 'error' }
+    if (at('b')(m) !== 2) { throw 'error' }
+    if (at('c')(m) !== undefined) { throw 'error' }
 
-    m = m.set('z')(3)
+    m = insert('z')(3)(m)
 
-    if (m.get('a') !== 1) { throw 'error' }
-    if (m.get('b') !== 2) { throw 'error' }
-    if (m.get('z') !== 3) { throw 'error' }
-    if (m.get('') !== undefined) { throw 'error' }
+    if (at('a')(m) !== 1) { throw 'error' }
+    if (at('b')(m) !== 2) { throw 'error' }
+    if (at('z')(m) !== 3) { throw 'error' }
+    if (at('')(m) !== undefined) { throw 'error' }
 
-    m = m.set('')(4)
+    m = insert('')(4)(m)
 
-    if (m.get('a') !== 1) { throw 'error' }
-    if (m.get('b') !== 2) { throw 'error' }
-    if (m.get('z') !== 3) { throw 'error' }
-    if (m.get('') !== 4) { throw 'error' }
-    if (m.get('Hello world!') !== undefined) { throw 'error' }
+    if (at('a')(m) !== 1) { throw 'error' }
+    if (at('b')(m) !== 2) { throw 'error' }
+    if (at('z')(m) !== 3) { throw 'error' }
+    if (at('')(m) !== 4) { throw 'error' }
+    if (at('Hello world!')(m) !== undefined) { throw 'error' }
 
-    m = m.set('Hello world!')(42)
+    m = insert('Hello world!')(42)(m)
 
-    if (m.get('a') !== 1) { throw 'error' }
-    if (m.get('b') !== 2) { throw 'error' }
-    if (m.get('z') !== 3) { throw 'error' }
-    if (m.get('') !== 4) { throw 'error' }
-    if (m.get('Hello world!') !== 42) { throw 'error' }
-    if (m.get('x') !== undefined) { throw 'error' }
+    if (at('a')(m) !== 1) { throw 'error' }
+    if (at('b')(m) !== 2) { throw 'error' }
+    if (at('z')(m) !== 3) { throw 'error' }
+    if (at('')(m) !== 4) { throw 'error' }
+    if (at('Hello world!')(m) !== 42) { throw 'error' }
+    if (at('x')(m) !== undefined) { throw 'error' }
 
     // console.log(Array.from(m.entries()))
 }
 
 {
-    const m = empty.set('x')(12).set('y')(44)
-    if (m.get('x') !== 12) { throw 'error' }
-    if (m.get('y') !== 44) { throw 'error' }
-    if (m.get('a') !== undefined) { throw 'error' }
-    const entries = Array.from(list.iterable(m.entries))
-    if (entries.length !== 2) { throw 'error' }
+    let m = insert('x')(12)(undefined)
+    m = insert('y')(44)(m)
+    if (at('x')(m) !== 12) { throw 'error' }
+    if (at('y')(m) !== 44) { throw 'error' }
+    if (at('a')(m) !== undefined) { throw 'error' }
+    const e = list.toArray(entries(m))
+    if (e.length !== 2) { throw 'error' }
 }
 
 {
     /** @type {import('.').Map<number>} */
     let m = empty
     for (let i = 0; i < 100_000; ++i) {
-        m = m.set((i*i).toString())(i)
+        m = insert((i * i).toString())(i)(m)
         /*
         console.log()
         console.log(`# ${i}`)
