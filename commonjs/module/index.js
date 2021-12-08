@@ -12,7 +12,7 @@ const seq = require('../../types/sequence')
 
 /** 
  * @typedef {{
- *  readonly map: map.MapI<Module>
+ *  readonly map: map.Map<Module>
  *  readonly order: seq.Sequence<string>
  * }} Cache 
  */
