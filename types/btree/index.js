@@ -142,28 +142,26 @@ const merge = overflow => replace => result => {
     }
 }
 
-/** 
- * @type {<T>(overflow: (o: Branch3<T>) => Branch5<T>) => 
- *  (replace: (r: Node<T>) => Branch3<T>) => 
- *  (result: Result<T>) => 
- *  Result<T>} 
- */
-const merge2 = overflow => merge(o => ['replace', overflow(o)])
-
-/** 
- * @type {<T>(overflow: (o: Branch3<T>) => Branch7<T>) => 
- *  (replace: (r: Node<T>) => Branch5<T>) => 
- *  (result: Result<T>) => 
- *  Result<T>} 
- */
-const merge3 = overflow => merge(o => ['overflow', split(overflow(o))])
-
 /** @type {(visitor: Visitor) => <T>(cmp: Cmp<T>) => (init: Lazy<T>) => (node: Node<T>) => Result<T>} */
 const visit = ({ found, notFound }) => cmp => {
     const i3 = index3(cmp)
     const i5 = index5(cmp)
+    /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T */
+    /** 
+     * @type {(overflow: (o: Branch3<T>) => Branch5<T>) => 
+     *  (replace: (r: Node<T>) => Branch3<T>) => 
+     *  (result: Result<T>) => 
+     *  Result<T>} 
+     */
+    const merge2 = overflow => merge(o => ['replace', overflow(o)])
+    /** 
+     * @type {(overflow: (o: Branch3<T>) => Branch7<T>) => 
+     *  (replace: (r: Node<T>) => Branch5<T>) => 
+     *  (result: Result<T>) => 
+     *  Result<T>} 
+     */
+    const merge3 = overflow => merge(o => ['overflow', split(overflow(o))])
     return init => {
-        /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T*/
         /** @type {(node: Node<T>) => Result<T>} */
         const f = node => {
             switch (node.length) {
