@@ -129,16 +129,16 @@ const seq = require('../sequence')
 const split = ([n0, v1, n2, v3, n4, v5, n6]) => [[n0, v1, n2], v3, [n4, v5, n6]]
 
 /** 
- * @type {<T>(overflow: (o: Branch3<T>) => Result<T>) => 
+ * @type {<T>(extend: (o: Branch3<T>) => Result<T>) => 
  *  (replace: (r: Node<T>) => Node<T>) => 
  *  (result: Result<T>) => 
  *  Result<T>} 
  */
-const merge = overflow => replace => result => {
+const merge = extend => replace => result => {
     switch (result[0]) {
         case 'done': { return result }
         case 'replace': { return ['replace', replace(result[1])] }
-        default: { return overflow(result[1]) }
+        default: { return extend(result[1]) }
     }
 }
 
@@ -148,19 +148,19 @@ const visit = ({ found, notFound }) => cmp => {
     const i5 = index5(cmp)
     /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T */
     /** 
-     * @type {(overflow: (o: Branch3<T>) => Branch5<T>) => 
+     * @type {(extend: (o: Branch3<T>) => Branch5<T>) => 
      *  (replace: (r: Node<T>) => Branch3<T>) => 
      *  (result: Result<T>) => 
      *  Result<T>} 
      */
-    const merge2 = overflow => merge(o => ['replace', overflow(o)])
+    const merge2 = extend => merge(o => ['replace', extend(o)])
     /** 
-     * @type {(overflow: (o: Branch3<T>) => Branch7<T>) => 
+     * @type {(extend: (o: Branch3<T>) => Branch7<T>) => 
      *  (replace: (r: Node<T>) => Branch5<T>) => 
      *  (result: Result<T>) => 
-     *  Result<T>} 
+     *  Result<T>}
      */
-    const merge3 = overflow => merge(o => ['overflow', split(overflow(o))])
+    const merge3 = extend => merge(o => ['overflow', split(extend(o))])
     return init => {
         /** @type {(node: Node<T>) => Result<T>} */
         const f = node => {
@@ -186,14 +186,14 @@ const visit = ({ found, notFound }) => cmp => {
                     switch (i3(v1)) {
                         case 0: {
                             return merge2
-                                (o => [...o, v1, n2])
+                                (e => [...e, v1, n2])
                                 (r => [r, v1, n2])
                                 (f(n0))
                         }
                         case 1: { return found.branch3(init)(node) }
                         default: {
                             return merge2
-                                (o => [n0, v1, ...o])
+                                (e => [n0, v1, ...e])
                                 (r => [n0, v1, r])
                                 (f(n2))
                         }
@@ -337,7 +337,7 @@ module.exports = {
      * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
      */
     getVisitor: cmp => node => {
-        const result = visit(getVisitor)(cmp)(() => { throw '' })(node)
+        const result = visit(getVisitor)(cmp)(() => { throw 'getVisitor' })(node)
         if (result[0] === 'done') { return result[1] }
         return undefined
     },

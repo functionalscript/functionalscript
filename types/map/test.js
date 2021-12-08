@@ -1,4 +1,4 @@
-const { at, insert, empty, entries } = require('.')
+const { at, set: insert, empty, entries } = require('.')
 const list = require('../sequence')
 
 {
