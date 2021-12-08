@@ -1,5 +1,5 @@
 const { at, set, empty, entries } = require('.')
-const list = require('../sequence')
+const seq = require('../sequence')
 
 {
     let m = set('a')(1)(undefined)
@@ -46,7 +46,7 @@ const list = require('../sequence')
     if (at('x')(m) !== 12) { throw 'error' }
     if (at('y')(m) !== 44) { throw 'error' }
     if (at('a')(m) !== undefined) { throw 'error' }
-    const e = list.toArray(entries(m))
+    const e = seq.toArray(entries(m))
     if (e.length !== 2) { throw 'error' }
 }
 
