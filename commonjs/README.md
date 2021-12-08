@@ -14,13 +14,13 @@ type Package = {
 // module/index.js
 
 type ModuleMapInterface<M> = {
-    readonly at: (moduleId: string) => (moduleMap: M) => Module | undefined
-    readonly insert: (moduleId: string) => (module: Module) => (moduleMap: M) => M
+    readonly at: (moduleId: string) => (moduleMap: M) => ModuleState | undefined
+    readonly insert: (moduleId: string) => (moduleState: ModuleState) => (moduleMap: M) => M
 }
 
-type Module = readonly['ok', ModuleOk] | readonly['error', ModuleError] | readonly['building']
+type ModuleState = readonly['ok', Module] | readonly['error', ModuleError] | readonly['building']
 
-type ModuleOk = {
+type Module = {
     readonly exports: unknown
     readonly requireMap: object.Map<string>
 }
@@ -51,5 +51,5 @@ type BuildState<M> = {
     readonly ModuleRequireMap: map.Map<string> // mutable
 }
 
-const getOrBuild: <M>(buildConfig: BuildConfig<M>) => readonly[Module, M];
+const getOrBuild: <M>(buildConfig: BuildConfig<M>) => readonly[ModuleState, M];
 ```
