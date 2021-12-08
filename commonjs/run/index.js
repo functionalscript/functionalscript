@@ -9,7 +9,7 @@ const result = require('../../types/result')
 
 /**
  * @template T 
- * @typedef {(prior: T) => (path: string) => ModuleResult<T>} Require 
+ * @typedef {(path: string) => (prior: T) => ModuleResult<T>} Require
  */
 
 /** @typedef {(source: string) => result.Result<Module, unknown>} Compile */

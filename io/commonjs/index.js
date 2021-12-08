@@ -6,7 +6,7 @@ const run = require('../../commonjs/run')
 const build = f => immutableRequire => mutableData => {
     /** @type {(path: string) => unknown} */
     const mutableRequire = path => {
-        const [result, data] = immutableRequire(mutableData)(path)
+        const [result, data] = immutableRequire(path)(mutableData)
         mutableData = data
         return unwrap(result)
     }
