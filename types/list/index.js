@@ -68,8 +68,7 @@ const next = list => {
         }
 
         if (a !== undefined) {
-            const { first, tail } = a
-            return { first, tail: concat(tail)(b) }
+            return nonEmpty(a.first)(concat(a.tail)(b))
         }
 
         if (b === undefined) { return undefined }
