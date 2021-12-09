@@ -3,7 +3,7 @@ const btree = require('../btree')
 const { getVisitor, setVisitor, values } = require("../btree")
 const compare = require("../function/compare")
 const { cmp } = require("../function/compare")
-const seq = require("../sequence")
+const seq = require("../list")
 
 /** @typedef {compare.Sign} Sign */
 
@@ -54,15 +54,15 @@ const set = name => value => map =>  {
     }
 }
 
-/** @type {<T>(map: Map<T>) => seq.Sequence<Entry<T>>} */
+/** @type {<T>(map: Map<T>) => seq.List<Entry<T>>} */
 const entries = map => map === undefined ? [] : values(map)
 
 /** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
 const setOp = map => ([name, value]) => set(name)(value)(map)
 
-/** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
+/** @type {<T>(entries: seq.List<Entry<T>>) => Map<T>} */
 const fromEntries = entries => {
-    /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */    
+    /** @typedef {typeof entries extends seq.List<Entry<infer T>> ? T : never} T */    
     return seq.reduce(setOp)(/** @type {Map<T>} */(undefined))(entries)
 }
 

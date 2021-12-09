@@ -1,7 +1,4 @@
 const _ = require('.')
-const json = require('../../../json')
-const { sort } = require('../../../types/object')
-const seq = require('../../../types/sequence')
 
 {
     if (!_.isDependenciesJson(undefined)) { throw 'error' }
