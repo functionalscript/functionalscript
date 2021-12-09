@@ -47,13 +47,11 @@ const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = r
 /** @type {<T>(first: T) => (tail: List<T>) => NonEmpty<T>} */
 const nonEmpty = first => tail => ({ first, tail })
 
+/** @type {(i: number) => <T>(array: readonly T[]) => Result<T>} */
+const fromArrayAt = i => array => i < array.length ? nonEmpty(array[i])(() => fromArrayAt(i + 1)(array)) : undefined
+
 /** @type {<T>(array: readonly T[]) => Result<T>} */
-const fromArray = array => {
-    /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
-    /** @type {(i: number) => Result<T>} */
-    const at = i => i < array.length ? nonEmpty(array[i])(() => at(i + 1)) : undefined
-    return at(0)
-}
+const fromArray = fromArrayAt(0)
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
 const concat = a => b => a === undefined ? b : b === undefined ? a : { isConcat: true, a, b }
