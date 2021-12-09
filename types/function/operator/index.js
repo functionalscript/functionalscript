@@ -2,43 +2,75 @@
  * @template A
  * @template B
  * @template R
- * @typedef {(a: A) => (b: B) => R} BinaryOperator
+ * @typedef {(a: A) => (b: B) => R} Binary
  */
 
 /**
- * @template R
- * @template T
- * @typedef {BinaryOperator<R, T, R>} ReduceOperator
+ * @template I,O
+ * @typedef {Binary<O, I, O>} Reduce
  */
 
-/** @type {(separator: string) => ReduceOperator<string, string>} */
+/** @type {(separator: string) => Fold<string>} */
 const join = separator => prior => value => `${prior}${separator}${value}`
 
-/** @type {(sum: number) => (value: number) => number} */
+/** @type {Fold<number>} */
 const addition = a => b => a + b
 
 /**
  * @template T
  * @template R
- * @typedef {(value: T) => R} UnaryOperator
+ * @typedef {(value: T) => R} Unary
  */
 
-/** @type {(value: boolean) => boolean} */
+/** @type {Unary<boolean, boolean>} */
 const logicalNot = v => !v
 
 /**
  * @template T 
- * @typedef {(a: T) => (b: T) => boolean} EqualOperator 
+ * @typedef {Binary<T, T, boolean>} Equal 
  */
 
 /** @type {<T>(a: T) => (b: T) => boolean} */
 const strictEqual = a => b => a === b
 
-/** @type {ReduceOperator<number, number>} */
+/** @type {Fold<number>} */
 const min = a => b => a < b ? a : b
 
-/** @type {ReduceOperator<number, number>} */
+/** @type {Fold<number>} */
 const max = a => b => a > b ? a : b
+
+/**
+ * @template I,O
+ * @typedef {(input: I) => readonly[O, Scan<I,O>]} Scan
+ */
+
+/**
+ * @template I,S,O
+ * @typedef {(prior: S) => (input: I) => readonly[O, S]} StateScan
+ */
+
+/** @type {<I, S, O>(op: StateScan<I, S, O>) => (prior: S) => Scan<I, O>} */
+const stateScanToScan = op => prior => i => {
+    const [o, s] = op(prior)(i)
+    return [o, stateScanToScan(op)(s)]
+}
+
+/** @type {<I, O>(reduce: Reduce<I, O>) => (prior: O) => Scan<I, O>} */
+const reduceToScan = reduce => prior => i => {
+    const result = reduce(prior)(i)
+    return [result, reduceToScan(reduce)(result)]
+}
+
+/**
+ * @template T
+ * @typedef {Reduce<T, T>} Fold
+ */
+
+/** @type {<T>(fold: Fold<T>) => Scan<T, T>} */
+const foldToScan = op => init => [init, reduceToScan(op)(init)]
+
+/** @type {(a: number) => () => number} */
+const counter = a => () => a + 1
 
 module.exports = {
     /** @readonly */
@@ -53,4 +85,12 @@ module.exports = {
     min,
     /** @readonly */
     max,
+    /** @readonly */
+    stateScanToScan,
+    /** @readonly */
+    reduceToScan,
+    /** @readonly */
+    foldToScan,
+    /** @readonly */
+    counter,
 }

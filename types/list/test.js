@@ -1,10 +1,15 @@
 const _ = require('.')
 const json = require('../../json')
 const { sort } = require('../object')
-const { addition, strictEqual } = require('../function/operator')
+const { addition, strictEqual, foldToScan } = require('../function/operator')
 
-/** @type {(sequence: _.Sequence<json.Unknown>) => string} */
+/** @type {(sequence: _.List<json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
+
+{
+    const x = stringify(_.toArray(_.take(10)(_.cycle([1, 2, 3]))))
+    if (x !== '[1,2,3,1,2,3,1,2,3,1]') { throw x }
+}
 
 {
     const s = stringify([1, 2, 3])
@@ -84,7 +89,7 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const op = _.scanState(addition)
+    const op = foldToScan(addition)
     const result = stringify(_.scan(op)([2, 3, 4, 5]))
     if (result !== '[2,5,9,14]') { throw result }
 }
@@ -130,7 +135,7 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const result = stringify(_.reverse([1,2,3,4,5]))
+    const result = stringify(_.reverse([1, 2, 3, 4, 5]))
     if (result !== '[5,4,3,2,1]') { throw result }
 }
 
@@ -146,7 +151,7 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 {
     const result = _.some(_.map(x => x > 5)([0, 1, 7]))
-    if (!result) { throw result}
+    if (!result) { throw result }
 }
 
 {
@@ -176,7 +181,7 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 {
     const result = _.equal(strictEqual)([1])([2, 3])
-    if (result) { throw result}
+    if (result) { throw result }
 }
 
 {
@@ -214,8 +219,8 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 const stress = () => {
 
     {
-        // 100_000_000 is too much
-        const n = 50_000_000
+        // 200_000_000 is too much
+        const n = 100_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
         const len = _.length(_.filter(x => x > n)(result))
@@ -225,26 +230,30 @@ const stress = () => {
     console.log('first')
 
     {
-        // 200_000_000 is too much
-        const n = 100_000_000
+        // 100_000_000 is too much
+        const n = 50_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
         const first = _.first(undefined)(result)
         if (first !== n - 1) { throw first }
     }
 
+    console.log('concat back')
+
     {
-        /** @type {_.Sequence<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
-        // 10_000_000 is too much
-        for (let i = 0; i < 5_000_000; ++i) {
+        // 20_000_000 is too much
+        for (let i = 0; i < 10_000_000; ++i) {
             sequence = _.concat(sequence)([i])
         }
         const r = _.toArray(sequence)
     }
 
+    console.log('flat to Array')
+
     {
-        /** @type {_.Sequence<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
@@ -253,18 +262,22 @@ const stress = () => {
         const r = _.toArray(sequence)
     }
 
+    console.log('flat next')
+
     {
-        /** @type {_.Sequence<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 5_000_000 is too much
-        for (let i = 0; i < 2_000_000; ++i) {
+        for (let i = 0; i < 4_000_000; ++i) {
             sequence = _.flat([sequence, [i]])
         }
         const a = _.next(sequence)
     }
 
+    console.log('concat front')
+
     {
-        /** @type {_.Sequence<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
@@ -274,7 +287,7 @@ const stress = () => {
     }
 
     {
-        /** @type {_.Sequence<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {
@@ -306,7 +319,7 @@ const stress = () => {
     }
 }
 
-// stress()
+stress()
 
 module.exports = {
 

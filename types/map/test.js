@@ -1,5 +1,5 @@
 const { at, set, empty, entries } = require('.')
-const seq = require('../sequence')
+const seq = require('../list')
 
 {
     let m = set('a')(1)(undefined)

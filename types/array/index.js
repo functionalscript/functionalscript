@@ -1,5 +1,5 @@
 const option = require('../option')
-const seq = require('../sequence')
+const seq = require('../list')
 
 /**
  * @template T

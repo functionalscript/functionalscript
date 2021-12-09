@@ -1,9 +1,9 @@
-const seq = require("../../types/sequence")
+const seq = require("../../types/list")
 const option = require("../../types/option")
 const { compose } = require("../../types/function")
 const dep = require("../package/dependencies")
 const { at } = require("../../types/object")
-const pack = require("../package")
+// const pack = require("../package")
 
 /** @typedef {readonly string[]} Items */
 
@@ -18,7 +18,7 @@ const pack = require("../package")
 /** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
-/** @type {(s: undefined|seq.Sequence<string>) => (items: string) => undefined|seq.Sequence<string>} */
+/** @type {(s: undefined|seq.List<string>) => (items: string) => undefined|seq.List<string>} */
 const normItemsOp = prior => item => {
     if (prior === undefined) { return undefined }
     switch (item) {
@@ -29,17 +29,17 @@ const normItemsOp = prior => item => {
             return result.tail
         }
         default: {
-            return seq.sequence(item)(prior)
+            return seq.nonEmpty(item)(prior)
         }
     }
 }
 
-/** @type {(items: seq.Sequence<string>) => seq.Sequence<string>|undefined} */
+/** @type {(items: seq.List<string>) => seq.List<string>|undefined} */
 const normItems = compose(seq.reduce(normItemsOp)([]))(option.map(seq.reverse))
 
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parseLocal = local => {
-    /** @type {(path: string) => readonly[boolean, seq.Sequence<string>]} */
+    /** @type {(path: string) => readonly[boolean, seq.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
         switch (seq.first(undefined)(pathSeq)) {
@@ -61,9 +61,9 @@ const parseLocal = local => {
     return f
 }
 
-/** @typedef {readonly[string, seq.Sequence<string>]} IdPath */
+/** @typedef {readonly[string, seq.List<string>]} IdPath */
 
-/** @type {(prior: readonly[string|undefined, seq.Sequence<string>]) => seq.Thunk<IdPath>} */
+/** @type {(prior: readonly[string|undefined, seq.List<string>]) => seq.Thunk<IdPath>} */
 const variants = prior => () => {
     const [a, b] = prior
     const r = seq.next(b)
@@ -88,7 +88,7 @@ const mapDependency = d => ([external, internal]) => {
  * }} Path
  */
 
-/** @type {(d: dep.DependenciesJson) => (dir: boolean) => (items: seq.Sequence<string>) => Path|undefined} */
+/** @type {(d: dep.DependenciesJson) => (dir: boolean) => (items: seq.List<string>) => Path|undefined} */
 const parseGlobal = d => dir => items => {
     if (d === undefined) { return undefined }
     const v = variants([undefined, items])

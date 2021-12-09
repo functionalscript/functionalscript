@@ -1,5 +1,5 @@
 const json = require('../../../json')
-const seq = require('../../../types/sequence')
+const seq = require('../../../types/list')
 
 /** @typedef {readonly[string, string]} DependencyJson */
 

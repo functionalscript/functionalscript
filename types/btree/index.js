@@ -1,6 +1,6 @@
 const cmp = require('../function/compare')
 const { index3, index5 } = cmp
-const seq = require('../sequence')
+const seq = require('../list')
 
 /**
  * @template T
@@ -303,7 +303,7 @@ const replaceVisitor = {
     notFound: notFoundGet,
 }
 
-/** @type {<T>(node: Node<T>) => seq.Sequence<T>} */
+/** @type {<T>(node: Node<T>) => seq.List<T>} */
 const values = node => () => {
     const f = () => {
         switch (node.length) {

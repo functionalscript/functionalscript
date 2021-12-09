@@ -1,6 +1,6 @@
 const i = require('./')
 
-require('./types/sequence/test')
+require('./types/list/test')
 require('./types/btree/test')
 require('./json/test')
 require('./types/object/test')
