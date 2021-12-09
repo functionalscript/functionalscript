@@ -10,7 +10,7 @@
 
 /**
  * @template T
- * @typedef {Empty | NonEmpty<T>} Result
+ * @typedef {undefined | NonEmpty<T>} Result
  */
 
 /**
@@ -18,12 +18,10 @@
  * @typedef {() => List<T>} Thunk
  */
 
-/** @typedef {{ readonly type: 0 }} Empty */
-
 /**
  * @template T
  * @typedef {{
- *  readonly type: 1
+ *  readonly concat?: undefined
  *  readonly first: T
  *  readonly tail: List<T>
  * }} NonEmpty
@@ -32,26 +30,23 @@
 /**
  * @template T
  * @typedef {{
- *  readonly type: 2
+ *  readonly concat: true
  *  readonly a: List<T>
  *  readonly b: List<T>
  * }} Concat
  */
 
-/** @type {Empty} */
-const empty = { type: 0 }
-
 /** @type {<T>(first: T) => (tail: List<T>) => NonEmpty<T>} */
-const nonEmpty = first => tail => ({ type: 1, first, tail })
+const nonEmpty = first => tail => ({ first, tail })
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => Concat<T>} */
-const concat = a => b => ({ type: 2, a, b })
+const concat = a => b => ({ concat: true, a, b })
 
 /** @type {<T>(array: readonly T[]) => Result<T>} */
 const fromArray = array => {
     /** @typedef {typeof array extends readonly(infer T)[] ? T : never} T */
     /** @type {(i: number) => Result<T>} */
-    const at = i => i < array.length ? nonEmpty(array[i])(() => at(i + 1)) : empty
+    const at = i => i < array.length ? nonEmpty(array[i])(() => at(i + 1)) : undefined
     return at(0)
 }
 
@@ -66,28 +61,45 @@ const trampoline = list => {
 const next = list => {
     let i = list
     while (true) {
-        const ui = trampoline(i)
-        if (ui.type !== 2) { return ui }
-        const { a, b } = ui
+        const u = trampoline(i)
+        if (u?.concat === undefined) { return u }
+        let { a, b } = u
         const ua = trampoline(a)
-        if (ua.type === 1) {
-            return nonEmpty(ua.first)(concat(ua.tail)(b)) 
+        if (ua === undefined) {
+            i = b
+        } else if (ua.concat) {
+            i = concat(ua.a)(concat(ua.b)(b))
+        } else {
+            return nonEmpty(ua.first)(concat(ua.tail)(b))
         }
-        i = ua.type === 0 ? b : concat(ua.a)(concat(ua.b)(b))
     }
 }
 
 /** @type {<T>(list: List<List<T>>) => List<T>} */
 const flat = list => () => {
     const result = next(list)
-    if (result.type === 0) { return empty }
+    if (result === undefined) { return undefined }
     const { first, tail } = result
     return concat(first)(flat(tail))
 }
 
+/** @type {<T>(list: List<T>) => Iterable<T>} */
+const iterable = list => ({
+    *[Symbol.iterator]() {
+        let i = list
+        while(true) {
+            const r = next(i)
+            if (r === undefined) { return }
+            yield r.first
+            i = r.tail
+        }
+    }
+})
+
+/** @type {<T>(list: List<T>) => readonly T[]} */
+const toArray = list => Array.from(iterable(list))
+
 module.exports = {
-    /** @readonly */
-    empty,
     /** @readonly */
     nonEmpty,
     /** @readonly */
@@ -96,4 +108,8 @@ module.exports = {
     next,
     /** @readonly */
     flat,
+    /** @readonly */
+    iterable,
+    /** @readonly */
+    toArray,
 }
