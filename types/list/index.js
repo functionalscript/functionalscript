@@ -4,12 +4,7 @@ const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = r
 
 /**
  * @template T
- * @typedef {|
- *  Result<T> |
- *  Concat<T> |
- *  readonly T[] |
- *  Thunk<T>
- * } List
+ * @typedef {NotLazy<T> | Thunk<T>} List
  */
 
 /**
@@ -367,6 +362,16 @@ module.exports = {
     reduce,
     /** @readonly */
     fold,
+    /** @readonly */
+    sum,
+    /** @readonly */
+    min,
+    /** @readonly */
+    max,
+    /** @readonly */
+    join,
+    /** @readonly */
+    length,
     /** @readonly */
     entries,
     /** @readonly */
