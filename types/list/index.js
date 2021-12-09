@@ -2,9 +2,9 @@
  * @template T
  * @typedef {|
  *  Result<T> |
+ *  Concat<T> |
  *  readonly T[] |
- *  Thunk<T> |
- *  Concat<T>
+ *  Thunk<T>
  * } List
  */
 
@@ -77,7 +77,23 @@ const next = list => {
     }
 }
 
+/** @type {<T>(list: List<List<T>>) => List<T>} */
+const flat = list => () => {
+    const result = next(list)
+    if (result.type === 0) { return empty }
+    const { first, tail } = result
+    return concat(first)(flat(tail))
+}
+
 module.exports = {
     /** @readonly */
+    empty,
+    /** @readonly */
+    nonEmpty,
+    /** @readonly */
+    concat,
+    /** @readonly */
     next,
+    /** @readonly */
+    flat,
 }
