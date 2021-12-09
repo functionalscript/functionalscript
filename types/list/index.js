@@ -14,6 +14,15 @@ const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = r
 
 /**
  * @template T
+ * @typedef {|
+ *  Result<T> |
+ *  Concat<T> |
+ *  readonly T[]
+ * } NotLazy
+ */
+
+/**
+ * @template T
  * @typedef {undefined | NonEmpty<T>} Result
  */
 
@@ -54,15 +63,19 @@ const fromArray = array => {
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
 const concat = a => b => a === undefined ? b : b === undefined ? a : { isConcat: true, a, b }
 
+/** @type {<T>(list: List<T>) => NotLazy<T> } */
+const trampoline = list => {
+    let i = list
+    while (typeof i === 'function') { i = i() }
+    return i
+}
+
 /** @type {<T>(list: List<T>) => Result<T>} */
 const next = list => {
     /** @type {readonly[typeof list, typeof list]} */
     let [a, b] = [list, undefined]
     while (true) {
-        if (typeof a === 'function') {
-            a = a()
-            continue
-        }
+        a = trampoline(a)
 
         if (a instanceof Array) {
             a = fromArray(a)
@@ -95,7 +108,10 @@ const iterable = list => ({
 })
 
 /** @type {<T>(list: List<T>) => readonly T[]} */
-const toArray = list => Array.from(iterable(list))
+const toArray = list => {
+    const u = trampoline(list)
+    return u instanceof Array ? u : Array.from(iterable(u))
+}
 
 /** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => List<O>} */
 const apply = f => input => {
@@ -273,15 +289,18 @@ const reverse = reduce(reverseOperator)(undefined)
 const tuple2 = a => b => [a, b]
 
 /** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<readonly[A, B]>} */
-const zip = a => b => () => {
-    const aResult = next(a)
-    if (aResult === undefined) { return undefined }
-    const bResult = next(b)
-    if (bResult === undefined) { return undefined }
-    return nonEmpty(tuple2(aResult.first)(bResult.first))(zip(aResult.tail)(bResult.tail))
+const zip = a => b => {
+    if (a === undefined || b === undefined) { return undefined }
+    return () => {
+        const aResult = next(a)
+        if (aResult === undefined) { return undefined }
+        const bResult = next(b)
+        if (bResult === undefined) { return undefined }
+        return nonEmpty(tuple2(aResult.first)(bResult.first))(zip(aResult.tail)(bResult.tail))
+    }
 }
 
-/** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => Thunk<boolean>} */
+/** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => List<boolean>} */
 const equalZip = e => a => b => () => {
     const aResult = next(a)
     const bResult = next(b)
@@ -354,4 +373,6 @@ module.exports = {
     reverse,
     /** @readonly */
     zip,
+    /** @readonly */
+    equal,
 }
