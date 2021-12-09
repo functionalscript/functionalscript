@@ -56,7 +56,7 @@ const fromArray = array => {
 }
 
 /** @type {<T>(list: List<T>) => Result<T> | Concat<T> } */
-const unwrap = list => {
+const trampoline = list => {
     let i = list
     while (typeof i === 'function') { i = i() }
     return i instanceof Array ? fromArray(i) : i
@@ -66,10 +66,10 @@ const unwrap = list => {
 const next = list => {
     let i = list
     while (true) {
-        const ui = unwrap(i)
+        const ui = trampoline(i)
         if (ui.type !== 2) { return ui }
         const { a, b } = ui
-        const ua = unwrap(a)
+        const ua = trampoline(a)
         if (ua.type === 1) {
             return nonEmpty(ua.first)(concat(ua.tail)(b)) 
         }
