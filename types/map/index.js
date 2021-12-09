@@ -73,7 +73,7 @@ module.exports = {
     at,
     /** @readonly */
     set,
-    /** @readonlg */
+    /** @readonly */
     entries,
     /** @readonly */
     fromEntries,
