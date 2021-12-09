@@ -230,8 +230,8 @@ const stress = () => {
     console.log('first')
 
     {
-        // 200_000_000 is too much
-        const n = 100_000_000
+        // 100_000_000 is too much
+        const n = 50_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
         const first = _.first(undefined)(result)
