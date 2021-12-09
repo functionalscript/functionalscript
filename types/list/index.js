@@ -54,7 +54,7 @@ const fromArrayAt = i => array => i < array.length ? nonEmpty(array[i])(() => fr
 const fromArray = fromArrayAt(0)
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
-const concat = a => b => a === undefined ? b : b === undefined ? a : { isConcat: true, a, b }
+const concat = a => b => b === undefined ? a : ({ isConcat: true, a, b })
 
 /** @type {<T>(list: List<T>) => NotLazy<T> } */
 const trampoline = list => {
@@ -107,13 +107,10 @@ const toArray = list => {
 }
 
 /** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => List<O>} */
-const apply = f => input => {
-    if (input === undefined) { return undefined }
-    return () => {
-        const n = next(input)
-        if (n === undefined) { return undefined }
-        return f(n)
-    }
+const apply = f => input => () => {
+    const n = next(input)
+    if (n === undefined) { return undefined }
+    return f(n)
 }
 
 /** @type {<T>(n: NonEmpty<List<T>>) => List<T>} */
@@ -185,7 +182,7 @@ const last = def => input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
     let i = nonEmpty(/** @type {(typeof def)|T} */(def))(input)
     while (true) {
-        const result = next(i)
+        const result = next(i.tail)
         if (result === undefined) {
             return i.first
         }
@@ -216,13 +213,9 @@ const countdown = count => () => {
 }
 
 /** @type {<T>(list: List<T>) => List<T>} */
-const cycle = list => {
-    if (list === undefined) { return undefined }
-    return () => {
-        const i = next(list)
-        if (i === undefined) { return undefined }
-        return nonEmpty(i.first)(concat(i.tail)(cycle(list)))
-    }
+const cycle = list => () => {
+    const i = next(list)
+    return i === undefined ? undefined : nonEmpty(i.first)(concat(i.tail)(cycle(list)))
 }
 
 /** @type {<I, O>(op: operator.Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
@@ -267,7 +260,7 @@ const length = reduce(operator.counter)(0)
 const entryOperator = index => value => [[index, value], index + 1]
 
 /** @type {<T>(input: List<T>) => List<Entry<T>>} */
-const entries = input => {
+const entries = (input) => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
     return stateScan(/** @type {operator.StateScan<T, Number, Entry<T>>} */(entryOperator))(0)(input)
 }
@@ -282,21 +275,17 @@ const reverse = reduce(reverseOperator)(undefined)
 const tuple2 = a => b => [a, b]
 
 /** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<readonly[A, B]>} */
-const zip = a => b => {
-    if (a === undefined || b === undefined) { return undefined }
-    return () => {
-        const aResult = next(a)
-        if (aResult === undefined) { return undefined }
-        const bResult = next(b)
-        if (bResult === undefined) { return undefined }
-        return nonEmpty(tuple2(aResult.first)(bResult.first))(zip(aResult.tail)(bResult.tail))
-    }
+const zip = a => b => () => {
+    const aResult = next(a)
+    if (aResult === undefined) { return undefined }
+    const bResult = next(b)
+    if (bResult === undefined) { return undefined }
+    return nonEmpty(tuple2(aResult.first)(bResult.first))(zip(aResult.tail)(bResult.tail))
 }
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => List<boolean>} */
 const equalZip = e => a => b => () => {
-    const aResult = next(a)
-    const bResult = next(b)
+    const [aResult, bResult] = [next(a), next(b)]
     return aResult === undefined || bResult === undefined
         ? nonEmpty(aResult === bResult)(undefined)
         : nonEmpty(e(aResult.first)(bResult.first))(equalZip(e)(aResult.tail)(bResult.tail))
@@ -306,6 +295,8 @@ const equalZip = e => a => b => () => {
 const equal = e => a => b => every(equalZip(e)(a)(b))
 
 module.exports = {
+    /** @readonly */
+    empty: undefined,
     /** @readonly */
     nonEmpty,
     /** @readonly */
