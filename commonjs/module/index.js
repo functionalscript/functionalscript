@@ -1,22 +1,35 @@
-const map = require('../../types/map')
 const object = require('../../types/object')
-const run = require('../run')
-const seq = require('../../types/sequence')
+
+/**
+ * @template M
+ * @typedef {{
+ *  readonly at: (moduleId: string) => (moduleMap: M) => ModuleState | undefined
+ *  readonly insert: (moduleId: string) => (moduleState: ModuleState) => (moduleMap: M) => M
+ * }} ModuleMapInterface
+ */
+
+/** 
+ * @typedef {|
+ *  readonly['ok', Module] | 
+ *  readonly['error', ModuleError] | 
+ *  readonly['building']
+ * } ModuleState 
+ */
 
 /**
  * @typedef {{
- *  readonly map: object.Map<string>
- *  readonly run: run.Module
+ *  readonly exports: unknown
+ *  readonly requireMap: object.Map<string>
  * }} Module
  */
 
 /** 
- * @typedef {{
- *  readonly map: map.Map<Module>
- *  readonly order: seq.Sequence<string>
- * }} Cache 
+ * @typedef {|
+ *  'file not found' | 
+ *  'compile error' | 
+ *  'runtime error' | 
+ *  'circular reference'
+ * } ModuleError
  */
-
-/** @typedef {(path: string) => string|undefined} ReadFile */
 
 module.exports = {}

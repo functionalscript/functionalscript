@@ -20,9 +20,14 @@ const isPackageJson = j => {
     return true
 }
 
-/** @typedef {object.Map<string>} Files */
+/**
+ * @typedef {{
+ *  readonly dependency: (localPackageId: string) => string | undefined
+ *  readonly file: (localFileId: string) => string | undefined
+ * }} Package
+ */
 
-/** @typedef {object.Map<dep.DependencyJson>} PackageMap */
+/** @typedef {(packageId: string) => Package | undefined} PackageGet */
 
 module.exports = {
     /** @readonly */

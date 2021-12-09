@@ -43,7 +43,7 @@ const at = name => map => {
 }
 
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
-const insert = name => value => map =>  {
+const set = name => value => map =>  {
     /** @type {Entry<typeof value>} */
     const entry = [name, value]
     if (map === undefined) { return [entry] }
@@ -58,12 +58,12 @@ const insert = name => value => map =>  {
 const entries = map => map === undefined ? [] : values(map)
 
 /** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
-const insertOp = map => ([name, value]) => insert(name)(value)(map)
+const setOp = map => ([name, value]) => set(name)(value)(map)
 
 /** @type {<T>(entries: seq.Sequence<Entry<T>>) => Map<T>} */
 const fromEntries = entries => {
     /** @typedef {typeof entries extends seq.Sequence<Entry<infer T>> ? T : never} T */    
-    return seq.reduce(insertOp)(/** @type {Map<T>} */(undefined))(entries)
+    return seq.reduce(setOp)(/** @type {Map<T>} */(undefined))(entries)
 }
 
 module.exports = {
@@ -72,8 +72,8 @@ module.exports = {
     /** @readonly */
     at,
     /** @readonly */
-    insert,
-    /** @readonlg */
+    set,
+    /** @readonly */
     entries,
     /** @readonly */
     fromEntries,
