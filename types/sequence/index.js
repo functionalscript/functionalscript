@@ -191,11 +191,12 @@ const last = def => input => {
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (sequence: Sequence<T>) => D|T} */
 const find = def => f => input => first(def)(filter(f)(input))
 
-/** @type {(value: boolean) => boolean} */
-const boolIdentity = identity
 
 /** @type {(sequence: Sequence<boolean>) => boolean} */
-const some = input => find(false)(boolIdentity)(input)
+const some = input => find
+    (false)
+    (/** @type {(_: boolean) => boolean} */(identity))
+    (input)
 
 /** @type {(sequence: Sequence<boolean>) => boolean} */
 const every = input => !some(map(logicalNot)(input))
@@ -295,7 +296,7 @@ const zip = a => b => () => {
     return { first: [aResult.first, bResult.first], tail: zip(aResult.tail)(bResult.tail) }
 }
 
-/** @type {<T>(e: op.EqualOperator<T>) => (a: Sequence<T>) => (b: Sequence<T>) => Thunk<boolean>} */
+/** @type {<T>(e: op.Equal<T>) => (a: Sequence<T>) => (b: Sequence<T>) => Thunk<boolean>} */
 const equalZip = e => a => b => () => {
     const aResult = next(a)
     const bResult = next(b)
@@ -305,7 +306,7 @@ const equalZip = e => a => b => () => {
     return { first: e(aResult.first)(bResult.first), tail: equalZip(e)(aResult.tail)(bResult.tail) }
 }
 
-/** @type {<T>(e: op.EqualOperator<T>) => (a: Sequence<T>) => (b: Sequence<T>) => boolean} */
+/** @type {<T>(e: op.Equal<T>) => (a: Sequence<T>) => (b: Sequence<T>) => boolean} */
 const equal = e => a => b => every(equalZip(e)(a)(b))
 
 module.exports = {
