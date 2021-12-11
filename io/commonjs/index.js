@@ -1,8 +1,8 @@
 const { tryCatch } = require('../result')
 const { unwrap } = require('../../types/result')
-const run = require('../../commonjs/run')
+const moduleFunction = require('../../commonjs/module/function')
 
-/** @type {(f: Function) => run.Module} */
+/** @type {(f: Function) => moduleFunction.Function} */
 const build = f => immutableRequire => mutableData => {
     /** @type {(path: string) => unknown} */
     const mutableRequire = path => {
@@ -18,7 +18,7 @@ const build = f => immutableRequire => mutableData => {
     return [result, mutableData]
 }
 
-/** @type {run.Compile} */
+/** @type {moduleFunction.Compile} */
 const compile = source => 
     tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
 

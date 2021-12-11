@@ -1,13 +1,11 @@
 const json = require('../../json')
-const dep = require('./dependencies')
-const object = require('../../types/object')
-const run = require('../run')
+const dependencies = require('./dependencies')
 
 /** 
  * @typedef {{
  *  readonly name: string
  *  readonly version: string
- *  readonly dependencies?: dep.DependenciesJson
+ *  readonly dependencies?: dependencies.DependenciesJson
  * }} PackageJson 
  */
 
@@ -16,7 +14,7 @@ const isPackageJson = j => {
     if (!json.isObject(j)) { return false }
     if (typeof j.name !== 'string') { return false }
     if (typeof j.version !== 'string') { return false }
-    if (!dep.isDependenciesJson(j.dependencies)) { return false }
+    if (!dependencies.isDependenciesJson(j.dependencies)) { return false }
     return true
 }
 
@@ -27,7 +25,7 @@ const isPackageJson = j => {
  * }} Package
  */
 
-/** @typedef {(packageId: string) => Package | undefined} PackageGet */
+/** @typedef {(packageId: string) => Package | undefined} Get */
 
 module.exports = {
     /** @readonly */
