@@ -19,7 +19,9 @@
     "functional-programming",
     "closure",
     "pure-functional",
-    "typescript"
+    "typescript",
+    "programming-language",
+    "lazy-evaluation"
   ],
   "bugs": {
     "url": "https://github.com/functionalscript/functionalscript/issues"
