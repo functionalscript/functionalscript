@@ -39,4 +39,10 @@ const object = require('../../types/object')
  * }} Id
  */
 
-module.exports = {}
+/** @type {(id: Id) => string} */
+const idToString = ({ packageId, path }) => `${packageId}/${path.join('/')}`
+
+module.exports = {
+    /** @readonly */
+    idToString,
+}

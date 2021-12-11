@@ -1,3 +1,7 @@
+/**
+ * An IO interface for creating and running module functions.
+ */
+
 const result = require('../../../types/result')
 
 /** @typedef {<M>(require: Require<M>) => (prior: M) => Result<M>} Function */

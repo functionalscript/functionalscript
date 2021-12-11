@@ -27,7 +27,23 @@ const { todo } = require('../../dev')
  *  Result<M>
  * } 
  */
-const getOrBuild = packageGet => modueMapInterface => compile => moduleId => moduleMap => todo()
+const getOrBuild = packageGet => moduleMapInterface => compile => moduleId => moduleMap => {
+    /** @type {() => Result<typeof moduleMap>} */
+    const notFound = () => {
+        /** @type {module_.State} */
+        const state = ['error', ['file not found']]
+        moduleMapInterface.insert(moduleIdStr)(state)
+        return [state, moduleMap]
+    }
+    const moduleIdStr = module_.idToString(moduleId)
+    const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
+    if (m !== undefined) { return [m, moduleMap] }
+    const p = packageGet(moduleId.packageId)
+    if (p === undefined) { return notFound() }
+    const source = p.file(moduleId.path.join('/'))
+    if (source === undefined) { return notFound() }
+    return todo()
+}
 
 module.exports = {
     /** @readonly */
