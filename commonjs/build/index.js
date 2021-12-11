@@ -1,5 +1,6 @@
 const package_ = require('../package')
 const module_ = require('../module')
+const function_ = require('../module/function')
 const { todo } = require('../../dev')
 
 /**
@@ -20,12 +21,13 @@ const { todo } = require('../../dev')
 /** 
  * @type {(packageGet: package_.Get) =>
  *  <M>(moduleMapInterface: module_.MapInterface<M>) =>
+ *  (compile: function_.Compile) =>
  *  (moduleId: module_.Id) =>
  *  (moduleMap: M) =>
  *  Result<M>
  * } 
  */
-const getOrBuild = packageGet => modueMapInterface => moduleId => moduleMap => todo()
+const getOrBuild = packageGet => modueMapInterface => compile => moduleId => moduleMap => todo()
 
 module.exports = {
     /** @readonly */
