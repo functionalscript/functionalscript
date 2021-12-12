@@ -19,7 +19,7 @@ A workaround for this problem is to use `let` for renaming objects.
 npm install -S github:functionalscript/functionalscript
 ```
 
-## JSON
+##  JSON
 
 ```js
 jsonFile = expression
