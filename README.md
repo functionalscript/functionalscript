@@ -1,6 +1,7 @@
 # FunctionalScript
 
-FunctionalScript is a pure functional programming language and a strict subset of [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by 
+FunctionalScript is a pure functional programming language and a strict subset of 
+[ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by 
 
 - [JSON](https://en.wikipedia.org/wiki/JSON), as a subset of JavaScript; FunctionalScript is a superset of JSON.
 - [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript;
