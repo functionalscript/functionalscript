@@ -26,7 +26,7 @@ const object = require('../../types/object')
 /** 
  * @typedef {|
  *  ['file not found'] | 
- *  ['compile error'] | 
+ *  ['compilation error', unknown] | 
  *  ['runtime error'] | 
  *  ['circular reference']
  * } Error
