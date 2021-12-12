@@ -3,158 +3,27 @@
 FunctionalScript is a pure functional programming language and a strict subset of 
 [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by 
 
-- [JSON](https://en.wikipedia.org/wiki/JSON), as a subset of JavaScript; FunctionalScript is a superset of JSON.
-- [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript;
+- [JSON](https://en.wikipedia.org/wiki/JSON), as a subset of JavaScript. JSON is also a subset of FunctionalScript.
+- [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
 Try FunctionalScript [here](https://functionalscript.com/).
 
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 
-One of the main challenges is how to make a pure functional language when ES6 TCO is not supported by Chrome and Firefox.
-A workaround for this problem is to use `let` for renaming objects.
-
-
-## Install FunctionalScript As A Library
+To install this repository as a library use:
 
 ```
 npm install -S github:functionalscript/functionalscript
 ```
 
-##  JSON
+## Principles
 
-```js
-jsonFile = expression
-expression = primitive | array | objects
-primitive = 'true' | 'false' | 'null' | number | string
-array = '[' (() | items) ']'
-items = expression (() | ',' items)
-object = '{' (() | properties) '}'
-properties = propertyId ':' expression (() | ',' properties)
-propertyId = string
-```
+- Any FunctionalScript module is a valid JavaScript module
+- A FunctionalScript modules can't depend on non FunctionalScript module. 
+- A FunctionalScript can contain only pure functional statements. No exceptions, such `unsafe` code in Rust or C#.
+- A FunctionalScript has no standard library. Only a safe subset of standard JavaScript API is allowed.
 
-## Stage 0
+## Outlines
 
-This stage can be used as an intermediate-code for VMs.
 
-```js
-fjsFile = expression
-expression = primitive | array | object | func | id | propertyAccessor
-func = ('()' | id) '=>' body
-body = '{' statements 'return' expression ';' '}'
-statements = () | (statement statements)
-statement = decl | ifStatement
-decl = `const` id `=` expression `;`
-ifStatement = `if` `(` expression `)` body
-propertyAccessor = expression `[` expression `]`
-call = expression `(` ( expression | ()) `)`
-```
-
-### Stage 0.1. Node.js
-
-```js
-nodeFile = statements 'module.exports' '=' expression ';'
-```
-
-### Stage 0.2. 
-
-#### Operators
-
-```js
-expression = ... | 'undefined' | groupingOperator | binaryOperatorExpression | unaryOperator | conditionalOperator
-groupingOperator = '(' expression ')'
-binaryOperatorExpression = expression binaryOperator expression
-binaryOperator = comparisonOperator | arithmeticOperator | bitwiseOperator | logicalOperators | '??'
-comparisonBinaryOperator = '===' | '!==' | '>' | '<' | '>=' | '<='
-arithmeticBinaryOperator = '+' | '-' | '*' | '/' | '%' | '**'
-bitwiseBinaryOperator = '&' | '|' | '^' | '<<' | '>>' | '>>>'
-logicalBinaryOperator = '&&' | '||'
-unaryOperator = '-' | '~' | '!'
-```
-
-Note: the syntax should be fixed to reflect operator precedents.
-
-No `==`, `!=`, `=...` operators.
-
-#### Function Expression
-
-```js
-func = ('()' | id) '=>' (('{' statements 'return' expression ';' '}') | expression)
-```
-
-#### PropertyAccessor
-
-```js
-propertyAccessor = expression (('[' expression ']') | ('.' id))
-```
-
-```js
-propertyId = string | id
-```
-
-#### BigInt
-
-For example `42n`.
-
-#### Additional Operators
-
-```js
-typeOfOperator = 'typeof' expression
-inOperator = expression 'in' expression
-```
-
-### Stage 0.3. Syntax sugar
-
-Hex, binary and octal literals
-Functions with multiple parameters.
-Spread syntax. For example `...object`.
-Destructing assignments. For example `const {a,b} = exp;`, `const [a, b] = exp`.
-Property Id expression `{ [exp]: exp }`.
-Allow no semicolons.
-Optional comma in arrays and objects.
-Template literals ``const r= `onst r = ${exp}`;``.
-An `if` statement `if (exp) { ... return exp }`
-Multiline strings 
-```js
-'sss\
-   wwww'
-```
-Regular expressions.
-
-## Stage 1
-
-Typing using [JSDoc](https://jsdoc.app/) and TypeScript types.
-
-## Stage 2
-
-Mutable types with exclusive ownership (similar to Rust mutability).
-
-- `let`, `for`, `while` etc.
-  Note: `let` can work as an object name reuse. 
-  In this case, `let` objects can't be used in nested functions. It means we can't reference `let` object.
-  ```js
-  let x = 5 // ok
-  f(x)
-  x = 'hello!' // ok
-  f(x)
-  const r = () => {
-     return x // compilation error
-  }
-  ```
-  Translated into
-  ```js
-  const x0 = 5
-  f(x0)
-  const x1 = 'hello!'  
-  f(x1)
-  ```
-- Generators `function*(){  ... yield ... }`.
-- Async `async () => f(await exp())`.
-- hopefully, we will have [ES pipe operator](https://tc39.es/proposal-pipeline-operator/) at this time.
-- [pattern matching](https://github.com/tc39/proposal-pattern-matching)
-
-Controversial ideas: 
-
-- Import and export `import x from "..."`, `export const x = ...`, `export default = ` e.t.c. This may break `new Function` runners. 
-- Functional-TypeScript as a subset of TypeScript. Note: FunctionalScript doesn't require an additional build step in contrast to TypeScript.
