@@ -34,7 +34,7 @@ propertyId = string
 
 ## Stage 0
 
-This stage can be used as an intermediate-code for VMs.
+ This stage can be used as an intermediate-code for VMs.
 
 ```js
 fjsFile = expression
