@@ -128,3 +128,17 @@ module.exports = {
 ```
 
 ## 3. Expressions
+
+Expression could be 
+
+- a literal:
+  - a number literal, e.g. `0`, `23.45`, `4e8`
+  - a boolean literal: `true` or `false`
+  - a `null` literal
+  - an `undefined` literal
+  - a string literal, e.g. `"Hello world!"`
+- a complex structure
+  - an array, e.g. `[2, 5]`
+  - an object, e.g. `{ a: "Hello", b: "world!" }`
+  - a function, e.g. `x => x * 2`
+- an operator
