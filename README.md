@@ -114,6 +114,8 @@ const nestedStructure = {
 }
 ```
 
+See [3. Expressions](#3-Expressions).
+
 ### 2.6. Exports
 
 The format of exports is `module.exports = { A_LIST_OF_EXPORTED_DEFINITIONS }`. There should be only one `module.exports` at
@@ -129,16 +131,16 @@ module.exports = {
 
 ## 3. Expressions
 
-Expression could be 
+Expressions could fall under 
 
-- a literal:
-  - a number literal, e.g. `0`, `23.45`, `4e8`
-  - a boolean literal: `true` or `false`
-  - a `null` literal
-  - an `undefined` literal
-  - a string literal, e.g. `"Hello world!"`
-- a complex structure
-  - an array, e.g. `[2, 5]`
-  - an object, e.g. `{ a: "Hello", b: "world!" }`
-  - a function, e.g. `x => x * 2`
-- an operator
+- Literals:
+  - Number Literals, e.g. `0`, `3.14`, `4e8`
+  - Boolean Literals: `true` or `false`
+  - A `null` Literal
+  - An `undefined` Literal
+  - String Literals, e.g. `"Hello world!"`
+- Complex Structures
+  - Arrays, e.g. `[2, 5]`
+  - Objects, e.g. `{ a: "Hello", b: "world!" }`
+  - Functions, e.g. `x => x * 2`
+- Operators
