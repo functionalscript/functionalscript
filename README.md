@@ -39,11 +39,11 @@ The prefered way to refence dependencies is to use a GitHub URL. These dependenc
 
 ```json
 {
-   ...
+   // ...
    "dependencies": {
       "third-party-package": "github:exampleorg/thirdpartypackage"
    }
-   ...
+   // ...
 }
 ```
 
