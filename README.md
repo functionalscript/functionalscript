@@ -64,6 +64,7 @@ const math = require('math')
 
 // 2. definitions
 const myConst = 42
+// addition(a)(b) = a + b
 const addition = a => b => a + b
 const add42 = addition(42)
 const _10digitsOfPi = math.calculatePi(10)
@@ -131,7 +132,7 @@ module.exports = {
 
 ## 3. Expressions
 
-Expressions could fall under 
+Expressions could fall under these categories:
 
 - Literals:
   - Number Literals, e.g. `0`, `3.14`, `4e8`
@@ -142,5 +143,39 @@ Expressions could fall under
 - Complex Structures
   - Arrays, e.g. `[2, 5]`
   - Objects, e.g. `{ a: "Hello", b: "world!" }`
-  - Functions, e.g. `x => x * 2`
+  - Arrow functions, e.g. `x => x * 2`
 - Operators
+  - Comparison Operators: `===`, `!==`, `>`, `>=`, `<`, `<=`
+  - Arithmetic Operators: `+`, `-`, `*`, `/`, `%`, `**`
+  - Bitwise Operators: `&`, `|`, `^`, `~`, `<<`, `>>`, `>>>`
+  - Logical Operators: `&&`, `||`, `!`, `??`
+  - Conditional Operator, e.g. `condition ? val1 : val2`
+  - Template Literals, e.g. `string ${expression}` 
+  - `typeof`
+  - Relations Operators: `in`, `instanceof`.
+  - Member Operators: `.`, `[]`. 
+    
+Note: the `.` member operator has prohibitted property names, such as `constructor` and `push`. To access such properties, it's recommeded to use the `Object.getPropertyDescriptor` function.
+
+## 4. Arrow Functions
+
+An arrow function is also known as [a lambda function](https://en.wikipedia.org/wiki/Anonymous_function).
+The format of an arrow function is `ARGUMENT_NAME => FUNCTION_BODY`. An arrow function must have either a single argument or no arguments at all. For example
+
+```js
+x => x * 2
+a => a + 4
+s => `template literal ${s}`
+() => 'hello' // an arrow function with no arguments
+```
+
+A function body is either an expression or a block statement. A block statement format is `{ A_LIST_OF_STATEMENTS }`. For example
+
+```js
+// a function with one argument and a block statement
+const f = x => {
+   const a = 2 + x
+   const r = a + 4
+   return r
+}
+```
