@@ -3,7 +3,7 @@
 FunctionalScript is a pure functional programming language and a strict subset of 
 [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by 
 
-- [JSON](https://en.wikipedia.org/wiki/JSON), as a subset of JavaScript. JSON is also a subset of FunctionalScript.
+- [JSON](https://en.wikipedia.org/wiki/JSON) as a subset of JavaScript. JSON is also a subset of FunctionalScript.
 - [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
@@ -11,7 +11,7 @@ Try FunctionalScript [here](https://functionalscript.com/).
 
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 
-To install this repository as a library use:
+To install this repository as a library, use
 
 ```
 npm install -S github:functionalscript/functionalscript
@@ -21,10 +21,10 @@ npm install -S github:functionalscript/functionalscript
 
 In FunctionalScript:
 
-- Any module is a valid JavaScript module
+- Any module is a valid JavaScript module.
 - A module can't depend on non FunctionalScript module. 
-- A module can contain only pure functional statements. There are no exceptions to this rule, such as `unsafe` code in Rust or C#.
-- It also has no standard library, only a safe subset of standard JavaScript API is allowed.
+- A module can contain only pure functional statements. There are no exceptions to this rule, such as `unsafe` code which can be found in Rust or C#.
+- It also has no standard library, only a safe subset of standard JavaScript API can be used without referencing other modules.
 
 ## 2. Outlines
 
@@ -41,7 +41,7 @@ const result = thirdPartyModule.someFunction('hello')
 ### 2.2. Packages
 
 FunctionalScript uses a `package.json` file to define a package. This file is compatible with Node.js `package.json`. 
-The prefered way to refence dependencies is to use a GitHub URL. An example of dependencies in a `package.json` file:
+The prefered way to refence dependencies is to use a GitHub URL. These dependencies in a `package.json` file could look like this,
 
 ```json
 {
@@ -86,7 +86,7 @@ const _42plus7 = first.add42(7)
 
 ### 2.3. References To Other Modules
 
-The format of references is `const ANYNAME = require('PATH_TO_A_MODULE')`. For example
+The format of references is `const ANYNAME = require('PATH_TO_A_MODULE')`. For example,
 
 ```js
 const math = require('math')
@@ -117,7 +117,7 @@ const nestedStructure = {
 ### 2.5. Exports
 
 The format of exports is `module.exports = { A_LIST_OF_EXPORTED_DEFINITIONS }`. There should be only one `module.exports` at
-the end of a FunctionalScript file. For example
+the end of a FunctionalScript file. For example,
 
 ```js
 module.exports = {
