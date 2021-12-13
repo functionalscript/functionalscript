@@ -3,17 +3,17 @@ const object = require('../../types/object')
 /**
  * @template M
  * @typedef {{
- *  readonly at: (moduleId: string) => (moduleMap: M) => ModuleState | undefined
- *  readonly insert: (moduleId: string) => (moduleState: ModuleState) => (moduleMap: M) => M
- * }} ModuleMapInterface
+ *  readonly at: (moduleId: string) => (moduleMap: M) => State | undefined
+ *  readonly insert: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
+ * }} MapInterface
  */
 
 /** 
  * @typedef {|
  *  readonly['ok', Module] | 
- *  readonly['error', ModuleError] | 
+ *  readonly['error', Error] | 
  *  readonly['building']
- * } ModuleState 
+ * } State 
  */
 
 /**
@@ -25,11 +25,24 @@ const object = require('../../types/object')
 
 /** 
  * @typedef {|
- *  'file not found' | 
- *  'compile error' | 
- *  'runtime error' | 
- *  'circular reference'
- * } ModuleError
+ *  ['file not found'] | 
+ *  ['compilation error', unknown] | 
+ *  ['runtime error'] | 
+ *  ['circular reference']
+ * } Error
  */
 
-module.exports = {}
+/**
+ * @typedef {{
+ *  readonly packageId: string
+ *  readonly path: readonly string[]
+ * }} Id
+ */
+
+/** @type {(id: Id) => string} */
+const idToString = ({ packageId, path }) => `${packageId}/${path.join('/')}`
+
+module.exports = {
+    /** @readonly */
+    idToString,
+}

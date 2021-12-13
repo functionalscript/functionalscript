@@ -1,12 +1,14 @@
 const { tryCatch } = require('../result')
 const { unwrap } = require('../../types/result')
-const run = require('../../commonjs/run')
+const moduleFunction = require('../../commonjs/module/function')
 
-/** @type {(f: Function) => run.Module} */
+/** @type {(f: Function) => moduleFunction.Function} */
 const build = f => immutableRequire => mutableData => {
     /** @type {(path: string) => unknown} */
     const mutableRequire = path => {
         const [result, data] = immutableRequire(path)(mutableData)
+        // Side effect: setting a variable from a nested function (closure) 
+        // is not allowed in FunctionalScript.
         mutableData = data
         return unwrap(result)
     }
@@ -18,8 +20,9 @@ const build = f => immutableRequire => mutableData => {
     return [result, mutableData]
 }
 
-/** @type {run.Compile} */
+/** @type {moduleFunction.Compile} */
 const compile = source => 
+    // Side effect: a `Function` constructor is not allowed in FunctionalScript.
     tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
 
 module.exports = {
