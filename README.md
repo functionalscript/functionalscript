@@ -7,30 +7,24 @@ FunctionalScript is a pure functional programming language and a strict subset o
 - [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-Try FunctionalScript [here](https://functionalscript.com/).
-
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 
-To install this repository as a library, use
-
-```
-npm install -S github:functionalscript/functionalscript
-```
+Try FunctionalScript [here](https://functionalscript.com/).
 
 ## 1. Design Principles
 
 In FunctionalScript:
 
-- Any module is a valid JavaScript module.
+- Any module is a valid JavaScript module
+- Code should not have [side-effects](https://en.wikipedia.org/wiki/Side_effect_(computer_science)). Any JavaScript statement, expression, or function which has a side effect is not allowed in FunctionalScript. There are no exceptions to this rule, such as `unsafe` code which can be found in Rust, C#, and other languages.
 - A module can't depend on non FunctionalScript module. 
-- A module can contain only pure functional statements. There are no exceptions to this rule, such as `unsafe` code which can be found in Rust or C#.
 - It also has no standard library, only a safe subset of standard JavaScript API can be used without referencing other modules.
 
 ## 2. Outlines
 
 ### 2.1. Module Ecosystem
 
-FunctionalScript uses Common.JS conventions as a module ecosystem. For example,
+FunctionalScript uses [CommonJS](https://en.wikipedia.org/wiki/CommonJS) conventions as a module ecosystem. For example,
 
 ```js
 const thirdPartyModule = require('third-party-package/module')
@@ -40,7 +34,7 @@ const result = thirdPartyModule.someFunction('hello')
 
 ### 2.2. Packages
 
-FunctionalScript uses a `package.json` file to define a package. This file is compatible with Node.js `package.json`. 
+FunctionalScript uses a `package.json` file to define a package. This file is compatible with [Node.js `package.json`](https://nodejs.org/en/knowledge/getting-started/npm/what-is-the-file-package-json/). 
 The prefered way to refence dependencies is to use a GitHub URL. These dependencies in a `package.json` file could look like this,
 
 ```json
@@ -53,7 +47,13 @@ The prefered way to refence dependencies is to use a GitHub URL. These dependenc
 }
 ```
 
-### 2.2. Module Structure
+**Note:** this repository is also a FunctionalScript package, and it can be used as a library. To install this package, use
+
+```
+npm install -S github:functionalscript/functionalscript
+```
+
+### 2.3. Module Structure
 
 A module is a file with the `.js` extention. It contains three parts: references to other modules, definitions, and exports. For example
 
@@ -84,7 +84,7 @@ const first = require('./first.js')
 const _42plus7 = first.add42(7)
 ```
 
-### 2.3. References To Other Modules
+### 2.4. References To Other Modules
 
 The format of references is `const ANYNAME = require('PATH_TO_A_MODULE')`. For example,
 
@@ -94,7 +94,7 @@ const algebra = require('math/algebra')
 const localFile = require('../some-directory/some-file.js')
 ```
 
-### 2.4. Definitions
+### 2.5. Definitions
 
 The format of defintions is `const NAME = EXPRESSION`, where the `EXPRESSION` is a subset of [JavaScript expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Expressions_and_Operators).
 
@@ -114,7 +114,7 @@ const nestedStructure = {
 }
 ```
 
-### 2.5. Exports
+### 2.6. Exports
 
 The format of exports is `module.exports = { A_LIST_OF_EXPORTED_DEFINITIONS }`. There should be only one `module.exports` at
 the end of a FunctionalScript file. For example,
@@ -126,3 +126,5 @@ module.exports = {
    structure,
 }
 ```
+
+## 3. Expressions
