@@ -17,13 +17,102 @@ To install this repository as a library use:
 npm install -S github:functionalscript/functionalscript
 ```
 
-## Principles
+## 1. Design Principles
 
-- Any FunctionalScript module is a valid JavaScript module
-- A FunctionalScript modules can't depend on non FunctionalScript module. 
-- A FunctionalScript can contain only pure functional statements. No exceptions, such `unsafe` code in Rust or C#.
-- A FunctionalScript has no standard library. Only a safe subset of standard JavaScript API is allowed.
+In FunctionalScript:
 
-## Outlines
+- Any module is a valid JavaScript module
+- A module can't depend on non FunctionalScript module. 
+- A module can contain only pure functional statements. There are no exceptions to this rule, such as `unsafe` code in Rust or C#.
+- It also has no standard library, only a safe subset of standard JavaScript API is allowed.
 
+## 2. Outlines
+
+### 2.1. Module Ecosystem
+
+FunctionalScript uses Common.JS conventions as a module ecosystem. For example,
+
+```js
+const thirdPartyModule = require('third-party-package/module')
+
+const result = thirdPartyModule.someFunction('hello')
+```
+
+### 2.2. Packages
+
+FunctionalScript uses a `package.json` file to define a package. This file is compatible with Node.js `package.json`. 
+The prefered way to refence dependencies is to use a GitHub URL. An example of dependencies in a `package.json` file:
+
+```json
+{
+   ...
+   "dependencies": {
+      "third-party-package": "github:exampleorg/thirdpartypackage"
+   }
+   ...
+}
+```
+
+### 2.2. Module Structure
+
+A module is a file with the `.js` extention. It contains three parts: references to other modules, definitions, and exports. For example
+
+`./first.js`
+```js
+// 1. references
+const math = require('math')
+
+// 2. definitions
+const myConst = 42
+const addition = a => b => a + b
+const add42 = addition(42)
+const _10digitsOfPi = math.calculatePi(10)
+
+// 3. exports
+module.exports = {
+   addition,
+   add42,
+   _10digitsOfPi,
+}
+```
+
+`./second.js`
+```js
+// 1. references
+const first = require('./first.js')
+
+const _42plus7 = first.add42(7)
+```
+
+### 2.3. References To Other Modules
+
+The format of references is `const ANYNAME = require('PATH_TO_A_MODULE')`. For example
+
+```js
+const math = require('math')
+const algebra = require('math/algebra')
+const localFile = require('../some-directory/some-file.js')
+```
+
+### 2.4. Definitions
+
+The format of defintions is `const NAME = EXPRESSION`, where the `EXPRESSION` is a subset of [JavaScript expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Expressions_and_Operators).
+
+```js
+const myConst = 42
+const functionDouble = a => a * 2
+const structure = { name: "John", surname: "Smith" }
+const array = [1, 2, 3]
+const nestedStructure = { 
+   address: undefined, 
+   serialNumber: "123-45-78", 
+   sum: 14 + myConst + functionDouble(4),
+   moreInfo: { 
+      name: "Ivan",
+      surname: "Terrible",
+   } 
+}
+```
+
+### 2.5. Exports
 
