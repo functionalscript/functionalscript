@@ -116,3 +116,13 @@ const nestedStructure = {
 
 ### 2.5. Exports
 
+The format of exports is `module.exports = { A_LIST_OF_EXPORTED_DEFINITIONS }`. There should be only one `module.exports` at
+the end of a FunctionalScript file. For example
+
+```js
+module.exports = {
+   nestedStructure,
+   array,
+   structure,
+}
+```
