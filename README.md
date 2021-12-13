@@ -82,7 +82,13 @@ module.exports = {
 // 1. references
 const first = require('./first.js')
 
+// 2. definitions
 const _42plus7 = first.add42(7)
+
+// 3. exports
+module.exports = {
+   _42plus7,
+}
 ```
 
 ### 2.4. References To Other Modules
