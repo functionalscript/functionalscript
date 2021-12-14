@@ -172,6 +172,7 @@ The format of an arrow function is `ARGUMENT_NAME => FUNCTION_BODY`. An arrow fu
 x => x * 2
 a => a + 4
 s => `template literal ${s}`
+a => b => a + b // an arrow functions that returns another arrow functions.
 () => 'hello' // an arrow function with no arguments
 ```
 
