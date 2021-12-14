@@ -8,12 +8,12 @@ const object = require('../../types/object')
  * }} MapInterface
  */
 
-/** 
+/**
  * @typedef {|
- *  readonly['ok', Module] | 
- *  readonly['error', Error] | 
+ *  readonly['ok', Module] |
+ *  readonly['error', Error] |
  *  readonly['building']
- * } State 
+ * } State
  */
 
 /**
@@ -23,11 +23,11 @@ const object = require('../../types/object')
  * }} Module
  */
 
-/** 
+/**
  * @typedef {|
- *  ['file not found'] | 
- *  ['compilation error', unknown] | 
- *  ['runtime error'] | 
+ *  ['file not found'] |
+ *  ['compilation error', unknown] |
+ *  ['runtime error', unknown] |
  *  ['circular reference']
  * } Error
  */

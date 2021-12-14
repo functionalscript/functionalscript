@@ -4,11 +4,11 @@
 
 const result = require('../../../types/result')
 
-/** @typedef {<M>(require: Require<M>) => (prior: M) => Result<M>} Function */
+/** @typedef {<M>(require: Require<M>) => (prior: M) => Result<M>} Function_ */
 
 /**
  * @template M
- * @typedef {readonly[result.Result<unknown, unknown>, M]} Result 
+ * @typedef {readonly[result.Result<unknown, unknown>, M]} Result
  */
 
 /**
@@ -16,6 +16,6 @@ const result = require('../../../types/result')
  * @typedef {(path: string) => (prior: M) => Result<M>} Require
  */
 
-/** @typedef {(source: string) => result.Result<Function, unknown>} Compile */
+/** @typedef {(source: string) => result.Result<Function_, unknown>} Compile */
 
 module.exports = {}
