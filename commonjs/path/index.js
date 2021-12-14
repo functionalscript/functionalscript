@@ -7,12 +7,12 @@ const { at } = require("../../types/object")
 
 /** @typedef {readonly string[]} Items */
 
-/** 
+/**
  * @typedef {{
  *  readonly external: boolean
  *  readonly dir: boolean
  *  readonly items: Items
- * }} LocalPath 
+ * }} LocalPath
  */
 
 /** @type {(path: string) => readonly string[]} */
@@ -74,9 +74,9 @@ const variants = prior => () => {
     return { first: n, tail: variants(n) }
 }
 
-/** @type {(d: dep.DependencyMapJson) => (p: IdPath) => IdPath|undefined} */
+/** @type {(d: (local: string) => string|undefined) => (p: IdPath) => IdPath|undefined} */
 const mapDependency = d => ([external, internal]) => {
-    const id = at(external)(d)
+    const id = d(external)
     return id === undefined ? undefined : [id, internal]
 }
 
@@ -88,16 +88,21 @@ const mapDependency = d => ([external, internal]) => {
  * }} Path
  */
 
-/** @type {(d: dep.DependenciesJson) => (dir: boolean) => (items: seq.List<string>) => Path|undefined} */
+/** @type {(d: (local: string) => string|undefined) => (dir: boolean) => (items: seq.List<string>) => Path|undefined} */
 const parseGlobal = d => dir => items => {
-    if (d === undefined) { return undefined }
     const v = variants([undefined, items])
     const r = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
     if (r === undefined) { return undefined }
     return { name: r[0], items: seq.toArray(r[1]), dir }
 }
 
-/** @type {(name: string) => (dependencies: dep.DependenciesJson) => (local: string) => (path: string) => Path|undefined } */
+/**
+ * @type {(name: string) =>
+ *  (dependencies: (local: string) => string|undefined) =>
+ *  (local: string) =>
+ *  (path: string) =>
+ *  Path|undefined }
+ */
 const parse = name => dependencies => local => path => {
     const parsed = parseLocal(local)(path)
     if (parsed === undefined) { return undefined }

@@ -1,4 +1,4 @@
-const seq = require('../list')
+const list = require('../list')
 const map = require('../map')
 
 /**
@@ -16,12 +16,17 @@ const map = require('../map')
 /** @type {(name: string) => <T>(object: Map<T>) => T|undefined} */
 const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.value
 
-/** @type {<T>(entries: seq.List<Entry<T>>) => seq.List<Entry<T>>} */
+/** @type {<T>(entries: list.List<Entry<T>>) => list.List<Entry<T>>} */
 const sort = entries => map.entries(map.fromEntries(entries))
+
+/** @type {<T>(m: map.Map<T>) => Map<T>} */
+const fromMap = m => Object.fromEntries(list.iterable(map.entries(m)))
 
 module.exports = {
     /** @readonly */
     at,
     /** @readonly */
     sort,
+    /** @readonly */
+    fromMap,
 }

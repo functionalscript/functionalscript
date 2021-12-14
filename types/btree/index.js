@@ -36,8 +36,8 @@ const seq = require('../list')
 //
 
 /**
- * @template T 
- * @typedef {Array1<T>} Leaf1 
+ * @template T
+ * @typedef {Array1<T>} Leaf1
  */
 
 /**
@@ -62,9 +62,9 @@ const seq = require('../list')
 
 /** @typedef {readonly['done']} NotFoundDone */
 
-/** 
+/**
  * @template T
- * @typedef {readonly['done', T]} FoundDone 
+ * @typedef {readonly['done', T]} FoundDone
  */
 
 /**
@@ -92,7 +92,7 @@ const seq = require('../list')
 /** @typedef {<T>(_: Lazy<T>) => (_: Branch3<T>) => Result<T>} InBranch3 */
 /** @typedef {<T>(_: Lazy<T>) => (_: Branch5<T>) => Result<T>} InBranch5 */
 
-/** 
+/**
  * @typedef {{
  *  readonly leaf1: InLeaf1
  *  readonly leaf2_left: InLeaf2
@@ -113,7 +113,7 @@ const seq = require('../list')
  * }} NotFound
  */
 
-/** 
+/**
  * @typedef {{
  *  readonly found: Found
  *  readonly notFound: NotFound
@@ -128,11 +128,11 @@ const seq = require('../list')
 /** @type {<T>(n: Branch7<T>) => Branch3<T>} */
 const split = ([n0, v1, n2, v3, n4, v5, n6]) => [[n0, v1, n2], v3, [n4, v5, n6]]
 
-/** 
- * @type {<T>(extend: (o: Branch3<T>) => Result<T>) => 
- *  (replace: (r: Node<T>) => Node<T>) => 
- *  (result: Result<T>) => 
- *  Result<T>} 
+/**
+ * @type {<T>(extend: (o: Branch3<T>) => Result<T>) =>
+ *  (replace: (r: Node<T>) => Node<T>) =>
+ *  (result: Result<T>) =>
+ *  Result<T>}
  */
 const merge = extend => replace => result => {
     switch (result[0]) {
@@ -147,17 +147,17 @@ const visit = ({ found, notFound }) => cmp => {
     const i3 = index3(cmp)
     const i5 = index5(cmp)
     /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T */
-    /** 
-     * @type {(extend: (o: Branch3<T>) => Branch5<T>) => 
-     *  (replace: (r: Node<T>) => Branch3<T>) => 
-     *  (result: Result<T>) => 
-     *  Result<T>} 
+    /**
+     * @type {(extend: (o: Branch3<T>) => Branch5<T>) =>
+     *  (replace: (r: Node<T>) => Branch3<T>) =>
+     *  (result: Result<T>) =>
+     *  Result<T>}
      */
     const merge2 = extend => merge(o => ['replace', extend(o)])
-    /** 
-     * @type {(extend: (o: Branch3<T>) => Branch7<T>) => 
-     *  (replace: (r: Node<T>) => Branch5<T>) => 
-     *  (result: Result<T>) => 
+    /**
+     * @type {(extend: (o: Branch3<T>) => Branch7<T>) =>
+     *  (replace: (r: Node<T>) => Branch5<T>) =>
+     *  (result: Result<T>) =>
      *  Result<T>}
      */
     const merge3 = extend => merge(o => ['overflow', split(extend(o))])
@@ -305,34 +305,31 @@ const replaceVisitor = {
 
 /** @type {<T>(node: Node<T>) => seq.List<T>} */
 const values = node => () => {
-    const f = () => {
-        switch (node.length) {
-            case 1: case 2: { return node }
-            case 3: { 
-                return seq.flat([
-                    values(node[0]), 
-                    [node[1]], 
-                    values(node[2])
-                ])
-            }
-            default: {
-                return seq.flat([
-                    values(node[0]),
-                    [node[1]],
-                    values(node[2]),
-                    [node[3]],
-                    values(node[4])
-                ])
-            }
+    switch (node.length) {
+        case 1: case 2: { return node }
+        case 3: {
+            return seq.flat([
+                values(node[0]),
+                [node[1]],
+                values(node[2])
+            ])
+        }
+        default: {
+            return seq.flat([
+                values(node[0]),
+                [node[1]],
+                values(node[2]),
+                [node[3]],
+                values(node[4])
+            ])
         }
     }
-    return seq.next(f())
 }
 
 module.exports = {
     /** @readonly */
     values,
-    /** 
+    /**
      * @readonly
      * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
      */

@@ -1,6 +1,7 @@
 const _ = require('.')
 const json = require('../../json')
 const { identity } = require('../../types/function')
+const { at } = require('../../types/object')
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {
@@ -45,20 +46,20 @@ const stringify = g => {
 }
 
 {
-    if (_.parseGlobal(undefined)(false)(['a', 'b']) !== undefined) { throw 'error' }
-    if (_.parseGlobal({})(false)(['b']) !== undefined) { throw 'error' }
-    if (_.parseGlobal({ b: 'x' })(false)(['d']) !== undefined) { throw 'error' }
+    if (_.parseGlobal(() => undefined)(false)(['a', 'b']) !== undefined) { throw 'error' }
+    if (_.parseGlobal(() => undefined)(false)(['b']) !== undefined) { throw 'error' }
+    if (_.parseGlobal(d => at(d)({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' }
     {
-        const result = stringify(_.parseGlobal({ b: 'x' })(false)(['b']))
+        const result = stringify(_.parseGlobal(d => at(d)({ b: 'x' }))(false)(['b']))
         if (result !== '["x",""]') { throw result }
     }
-    if (_.parseGlobal({ 'b/r': 'x' })(false)(['b']) !== undefined) { throw 'error' }
+    if (_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' }
     {
-        const result = stringify(_.parseGlobal({ 'b/r': 'x' })(false)(['b', 'r']))
+        const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b', 'r']))
         if (result !== '["x",""]') { throw result }
     }
     {
-        const result = stringify(_.parseGlobal({ 'b/r': 'x' })(false)(['b', 'r', 'd', 't']))
+        const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b', 'r', 'd', 't']))
         if (result !== '["x","d/t"]') { throw result }
     }
 }

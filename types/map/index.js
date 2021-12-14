@@ -3,13 +3,13 @@ const btree = require('../btree')
 const { getVisitor, setVisitor, values } = require("../btree")
 const compare = require("../function/compare")
 const { cmp } = require("../function/compare")
-const seq = require("../list")
+const list = require("../list")
 
 /** @typedef {compare.Sign} Sign */
 
 /**
- * @template T 
- * @typedef {btree.Leaf1<T>} Leaf1 
+ * @template T
+ * @typedef {btree.Leaf1<T>} Leaf1
  */
 
 /**
@@ -27,7 +27,7 @@ const seq = require("../list")
  * @typedef {readonly[string, T]} Entry
  */
 
-/** 
+/**
  * @template T
  * @typedef {undefined|TNode<Entry<T>>} Map
  */
@@ -54,16 +54,16 @@ const set = name => value => map =>  {
     }
 }
 
-/** @type {<T>(map: Map<T>) => seq.List<Entry<T>>} */
-const entries = map => map === undefined ? [] : values(map)
+/** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
+const entries = map => map === undefined ? undefined : values(map)
 
 /** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
 const setOp = map => ([name, value]) => set(name)(value)(map)
 
-/** @type {<T>(entries: seq.List<Entry<T>>) => Map<T>} */
+/** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
 const fromEntries = entries => {
-    /** @typedef {typeof entries extends seq.List<Entry<infer T>> ? T : never} T */    
-    return seq.reduce(setOp)(/** @type {Map<T>} */(undefined))(entries)
+    /** @typedef {typeof entries extends list.List<Entry<infer T>> ? T : never} T */
+    return list.reduce(setOp)(/** @type {Map<T>} */(undefined))(entries)
 }
 
 module.exports = {
