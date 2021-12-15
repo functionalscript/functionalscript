@@ -1,9 +1,9 @@
-const seq = require("../../types/list")
+const list = require("../../types/list")
 const option = require("../../types/option")
 const { compose } = require("../../types/function")
-const dep = require("../package/dependencies")
-const { at } = require("../../types/object")
-// const pack = require("../package")
+const { todo } = require("../../dev")
+const package_ = require("../package")
+const module_ = require("../module")
 
 /** @typedef {readonly string[]} Items */
 
@@ -18,32 +18,32 @@ const { at } = require("../../types/object")
 /** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
-/** @type {(s: undefined|seq.List<string>) => (items: string) => undefined|seq.List<string>} */
+/** @type {(s: undefined|list.List<string>) => (items: string) => undefined|list.List<string>} */
 const normItemsOp = prior => item => {
     if (prior === undefined) { return undefined }
     switch (item) {
         case '': case '.': { return prior }
         case '..': {
-            const result = seq.next(prior)
+            const result = list.next(prior)
             if (result === undefined) { return undefined }
             return result.tail
         }
         default: {
-            return seq.nonEmpty(item)(prior)
+            return list.nonEmpty(item)(prior)
         }
     }
 }
 
-/** @type {(items: seq.List<string>) => seq.List<string>|undefined} */
-const normItems = compose(seq.reduce(normItemsOp)([]))(option.map(seq.reverse))
+/** @type {(items: list.List<string>) => list.List<string>|undefined} */
+const normItems = compose(list.reduce(normItemsOp)([]))(option.map(list.reverse))
 
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parseLocal = local => {
-    /** @type {(path: string) => readonly[boolean, seq.List<string>]} */
+    /** @type {(path: string) => readonly[boolean, list.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
-        switch (seq.first(undefined)(pathSeq)) {
-            case '.': case '..': { return [false, seq.flat([split(local), pathSeq])] }
+        switch (list.first(undefined)(pathSeq)) {
+            case '.': case '..': { return [false, list.flat([split(local), pathSeq])] }
             default: { return [true, pathSeq] }
         }
     }
@@ -55,18 +55,18 @@ const parseLocal = local => {
         return {
             external,
             dir: path[path.length - 1] === '/',
-            items: seq.toArray(n)
+            items: list.toArray(n)
         }
     }
     return f
 }
 
-/** @typedef {readonly[string, seq.List<string>]} IdPath */
+/** @typedef {readonly[string, list.List<string>]} IdPath */
 
-/** @type {(prior: readonly[string|undefined, seq.List<string>]) => seq.Thunk<IdPath>} */
+/** @type {(prior: readonly[string|undefined, list.List<string>]) => list.Thunk<IdPath>} */
 const variants = prior => () => {
     const [a, b] = prior
-    const r = seq.next(b)
+    const r = list.next(b)
     if (r === undefined) { return undefined }
     const { first, tail } = r
     /** @type {IdPath} */
@@ -82,33 +82,66 @@ const mapDependency = d => ([external, internal]) => {
 
 /**
  * @typedef {{
- *  readonly name: string,
+ *  readonly packageId: string,
  *  readonly items: Items,
  *  readonly dir: boolean,
  * }} Path
  */
 
-/** @type {(d: (local: string) => string|undefined) => (dir: boolean) => (items: seq.List<string>) => Path|undefined} */
+/**
+ * @type {(d: (local: string) => string|undefined) =>
+ *  (dir: boolean) =>
+ *  (items: list.List<string>) =>
+ *  Path|undefined}
+ */
 const parseGlobal = d => dir => items => {
     const v = variants([undefined, items])
-    const r = seq.first(undefined)(seq.filterMap(mapDependency(d))(v))
+    const r = list.first(undefined)(list.filterMap(mapDependency(d))(v))
     if (r === undefined) { return undefined }
-    return { name: r[0], items: seq.toArray(r[1]), dir }
+    return { packageId: r[0], items: list.toArray(r[1]), dir }
 }
 
 /**
- * @type {(name: string) =>
+ * @type {(packageId: string) =>
  *  (dependencies: (local: string) => string|undefined) =>
  *  (local: string) =>
  *  (path: string) =>
  *  Path|undefined }
  */
-const parse = name => dependencies => local => path => {
+const parse = packageId => dependencies => local => path => {
     const parsed = parseLocal(local)(path)
     if (parsed === undefined) { return undefined }
-    const {external, dir, items} = parsed
-    if (!external) { return { name, items, dir } }
+    const {external, dir, items } = parsed
+    if (!external) { return { packageId, items, dir } }
     return parseGlobal(dependencies)(dir)(items)
+}
+
+/** @typedef {readonly[string, string] | undefined} Result */
+
+/**
+ * @type {(packageGet: package_.Get) =>
+ *  (packageId: string) =>
+ *  (local: string) =>
+ *  (path: string) =>
+ *  Result
+ * }
+ */
+const parseAndFind = packageGet => packageId => local => path => {
+    const currentPack = packageGet(packageId)
+    if (currentPack === undefined) { return undefined }
+    const p = parse(packageId)(currentPack.dependency)(local)(path)
+    if (p === undefined) { return undefined }
+    const pack = packageGet(p.packageId)
+    if (pack === undefined) { return undefined }
+    /** @type {(fileId: string) => Result } */
+    const tryFile = fileId => {
+        const source = pack.file(fileId)
+        return source === undefined ? undefined : [fileId, source]
+    }
+    const file = p.items.join('/')
+    const indexJs = list.join('/')(list.concat(p.items)(['index.js']))
+    const fileList = p.dir || list.isEmpty(p.items) ? [indexJs] : [file, `${file}.js`, indexJs]
+    return list.first(undefined)(list.filterMap(tryFile)(fileList))
 }
 
 module.exports = {
@@ -118,4 +151,6 @@ module.exports = {
     parseGlobal,
     /** @readonly */
     parse,
+    /** @readonly */
+    parseAndFind,
 }
