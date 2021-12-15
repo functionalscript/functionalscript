@@ -214,6 +214,16 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== 12) { throw result }
 }
 
+{
+    const result = _.isEmpty(() => [])
+    if (result !== true) { throw result }
+}
+
+{
+    const result = _.isEmpty(() => [2])
+    if (result !== false) { throw result }
+}
+
 // stress tests
 
 const stress = () => {

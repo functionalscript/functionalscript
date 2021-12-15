@@ -199,6 +199,9 @@ const some = input => find
     (/** @type {(_: boolean) => boolean} */(identity))
     (input)
 
+/** @type {<T>(input: List<T>) => boolean} */
+const isEmpty = input => !some(map(() => true)(input))
+
 /** @type {(input: List<boolean>) => boolean} */
 const every = input => !some(map(logicalNot)(input))
 
@@ -335,6 +338,8 @@ module.exports = {
     some,
     /** @readonly */
     every,
+    /** @readonly */
+    isEmpty,
     /** @readonly */
     includes,
     /** @readonly */
