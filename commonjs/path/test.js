@@ -114,11 +114,20 @@ const stringify = g => {
         },
         'node_modules/z/a': {
             dependency: () => todo(),
-            file: path => at(path)({ 'c/index.js': 'return "a/c"' }),
+            file: path => at(path)({
+                'c/index.js': 'return "c/index.js"',
+                'c.js': 'return "c.js"'
+            }),
         }
     }
-    const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
-    if (result !== '{"package":"node_modules/z/a","file":"c/index.js","source":"return \\"a/c\\""}') { throw result }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
+        if (result !== '{"package":"node_modules/z/a","file":"c.js","source":"return \\"c.js\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c/'))
+        if (result !== '{"package":"node_modules/z/a","file":"c/index.js","source":"return \\"c/index.js\\""}') { throw result }
+    }
 }
 
 {
