@@ -1,12 +1,12 @@
 const json = require('../../json')
 const dependencies = require('./dependencies')
 
-/** 
+/**
  * @typedef {{
  *  readonly name: string
  *  readonly version: string
  *  readonly dependencies?: dependencies.DependenciesJson
- * }} PackageJson 
+ * }} PackageJson
  */
 
 /** @type {(j: json.Unknown) => j is PackageJson} */

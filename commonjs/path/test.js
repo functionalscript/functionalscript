@@ -30,7 +30,7 @@ const stringify = g => {
 
 {
     const result = _.parseLocal('a')('')
-    if (stringify(result) !== '{"external":true,"dir":false,"items":[]}') { throw result }
+    if (stringify(result) !== '{"external":true,"dir":true,"items":[]}') { throw result }
 }
 
 {
@@ -46,6 +46,11 @@ const stringify = g => {
 {
     const result = _.parseLocal('a')('a/b/.././c')
     if (stringify(result) !== '{"external":true,"dir":false,"items":["a","c"]}') { throw result }
+}
+
+{
+    const result = _.parseLocal('')('./x/..')
+    if (stringify(result) !== '{"external":false,"dir":true,"items":[]}') { throw result }
 }
 
 {
@@ -91,15 +96,45 @@ const stringify = g => {
                 const path = `node_modules/${x}`
                 return at(path)(packages) !== undefined ? path : undefined
             },
-            file: todo
+            file: path => at(path)({
+                'index.js': 'return "index.js"',
+                'x/index.js': 'return "x/index.js"',
+                'x.js': 'return "x.js"',
+            })
         },
         'node_modules/z': {
             dependency: () => todo(),
             file: path => at(path)({ 'a/c/index.js': 'return "a/c"' }),
         }
     }
-    const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
-    if (result !== '{"package":"node_modules/z","file":"a/c/index.js","source":"return \\"a/c\\""}') { throw result }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
+        if (result !== '{"package":"node_modules/z","file":"a/c/index.js","source":"return \\"a/c\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('../..'))
+        if (result !== '{"package":"","file":"index.js","source":"return \\"index.js\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x'))
+        if (result !== '{"package":"","file":"x.js","source":"return \\"x.js\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x.js'))
+        if (result !== '{"package":"","file":"x.js","source":"return \\"x.js\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x/'))
+        if (result !== '{"package":"","file":"x/index.js","source":"return \\"x/index.js\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('x/a')('../'))
+        if (result !== '{"package":"","file":"x/index.js","source":"return \\"x/index.js\\""}') { throw result }
+    }
+    {
+        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('x/a')('..'))
+        if (result !== '{"package":"","file":"x/index.js","source":"return \\"x/index.js\\""}') { throw result }
+    }
 }
 
 {

@@ -46,22 +46,22 @@ const normItems = items => {
 
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parseLocal = local => {
-    /** @type {(path: string) => readonly[boolean, list.List<string>]} */
+    /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
-        switch (list.first(undefined)(pathSeq)) {
-            case '.': case '..': { return [false, list.flat([split(local), pathSeq])] }
-            default: { return [true, pathSeq] }
-        }
+        const dir = [undefined, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
+        return /** @type {readonly (string|undefined)[]} */(['.', '..']).includes(list.first(undefined)(pathSeq)) ?
+            [false, dir, list.flat([split(local), pathSeq])] :
+            [true, dir, pathSeq]
     }
     /** @type {(path: string) => LocalPath|undefined} */
     const f = path => {
-        const [external, items] = fSeq(path)
+        const [external, dir, items] = fSeq(path)
         const n = normItems(items)
         if (n === undefined) { return undefined }
         return {
             external,
-            dir: path[path.length - 1] === '/',
+            dir,
             items: list.toArray(n[0])
         }
     }
