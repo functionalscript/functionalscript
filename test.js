@@ -7,6 +7,7 @@ require('./types/object/test')
 require('./io/commonjs/test')
 require('./commonjs/package/dependencies/test')
 require('./commonjs/package/test')
+require('./commonjs/path/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
@@ -100,12 +101,12 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
     //const c = o['__defineGetter__']
     //const c = o['__defineSetter__']
     //const c = o['__lookupGetter__']
-    //const c = o['__lookupSetter__'] 
-    //const c = o['hasOwnProperty']   
+    //const c = o['__lookupSetter__']
+    //const c = o['hasOwnProperty']
     //const c = o['isPrototypeOf']
     //const c = o['propertyIsEnumerable']
     //const c = o['toString']
-    const c = o['valueOf']    
+    const c = o['valueOf']
     //console.log(c)
 }
 

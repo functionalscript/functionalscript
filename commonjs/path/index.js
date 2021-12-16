@@ -18,24 +18,31 @@ const module_ = require("../module")
 /** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
-/** @type {(s: undefined|list.List<string>) => (items: string) => undefined|list.List<string>} */
+/** @typedef {readonly[list.List<string>] | undefined} OptionList */
+
+/** @type {(s: OptionList) => (items: string) => OptionList} */
 const normItemsOp = prior => item => {
     if (prior === undefined) { return undefined }
+    const priorList = prior[0]
     switch (item) {
         case '': case '.': { return prior }
         case '..': {
-            const result = list.next(prior)
+            const result = list.next(priorList)
             if (result === undefined) { return undefined }
-            return result.tail
+            return [result.tail]
         }
         default: {
-            return list.nonEmpty(item)(prior)
+            return [list.nonEmpty(item)(priorList)]
         }
     }
 }
 
-/** @type {(items: list.List<string>) => list.List<string>|undefined} */
-const normItems = compose(list.reduce(normItemsOp)([]))(option.map(list.reverse))
+/** @type {(items: list.List<string>) => OptionList} */
+const normItems = items => {
+    const result = list.reduce(normItemsOp)([undefined])(items)
+    if (result === undefined) { return result }
+    return [list.reverse(result[0])]
+}
 
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parseLocal = local => {
@@ -55,7 +62,7 @@ const parseLocal = local => {
         return {
             external,
             dir: path[path.length - 1] === '/',
-            items: list.toArray(n)
+            items: list.toArray(n[0])
         }
     }
     return f
@@ -116,7 +123,13 @@ const parse = packageId => dependencies => local => path => {
     return parseGlobal(dependencies)(dir)(items)
 }
 
-/** @typedef {readonly[string, string] | undefined} Result */
+/**
+ * @typedef {{
+ *  readonly package: string
+ *  readonly file: string
+ *  readonly source: string
+ * }| undefined} Result
+ */
 
 /**
  * @type {(packageGet: package_.Get) =>
@@ -133,10 +146,10 @@ const parseAndFind = packageGet => packageId => local => path => {
     if (p === undefined) { return undefined }
     const pack = packageGet(p.packageId)
     if (pack === undefined) { return undefined }
-    /** @type {(fileId: string) => Result } */
-    const tryFile = fileId => {
-        const source = pack.file(fileId)
-        return source === undefined ? undefined : [fileId, source]
+    /** @type {(file: string) => Result } */
+    const tryFile = file => {
+        const source = pack.file(file)
+        return source === undefined ? undefined : { package: p.packageId, file, source }
     }
     const file = p.items.join('/')
     const indexJs = list.join('/')(list.concat(p.items)(['index.js']))
