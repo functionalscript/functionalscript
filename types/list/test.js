@@ -59,6 +59,11 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
+    const result = _.find(undefined)(x => x % 2 === 0)([1, 3, 5, 7])
+    if (result !== undefined) { throw result }
+}
+
+{
     const result = _.find(undefined)(x => x % 2 === 0)([1, 2, 3, 4])
     if (result !== 2) { throw result }
 }
@@ -117,6 +122,11 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 {
     const result = _.join('/')([''])
     if (result !== '') { throw result }
+}
+
+{
+    const result = _.join(' ')(['hello', 'world', '!'])
+    if (result !== 'hello world !') { throw result }
 }
 
 {
