@@ -161,7 +161,7 @@ Expressions could fall under these categories:
   - Relations Operators: `in`, `instanceof`.
   - Member Operators: `.`, `[]`. 
     
-Note: the `.` member operator has prohibitted property names, such as `constructor` and `push`. To access such properties, it's recommeded to use the `Object.getPropertyDescriptor` function.
+Note: the `.` member operator has prohibitted property names, such as `constructor` and `push`. To access such properties, it's recommeded to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
 
 ## 4. Arrow Functions
 
