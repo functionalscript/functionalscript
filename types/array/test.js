@@ -2,7 +2,7 @@ const _ = require('.')
 const json = require('../../json')
 const { sort } = require('../object')
 
-/** @type {(a: _.Array<json.Unknown>) => string} */
+/** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 {
