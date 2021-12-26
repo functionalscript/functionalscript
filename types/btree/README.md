@@ -2,7 +2,7 @@
 
 https://en.wikipedia.org/wiki/B-tree
 
-## BTree 2-3 nodes 
+## BTree 2-3 nodes
 
 `Node<T>`:
 
@@ -66,7 +66,7 @@ Posible actions:
 |left  |    0|`[(L VM R) v1 n2]`  |
 |right |    2|`[n0 v1 (L VM R)]`  |
 
-## Branch5 Overflow 
+## Branch5 Overflow
 
 - current `[n0, v1, n2, v3, n4]`
 - overflow `[L, VM, R]`
@@ -76,3 +76,19 @@ Posible actions:
 |left  |    0|`[...o v1 n2 v3 n4]`|`[(L VM R) v1 n2 v3 n4]`|`[[ L VM R ] v1 [n2 v3 n4]]`|
 |middle|    2|`[n0 v1 ...o v3 n4]`|`[n0 v1 (L VM R) v3 n4]`|`[[n0 v1 L ] VM [ R v3 n4]]`|
 |right |    4|`[n0 v1 n2 v3 ...o]`|`[n0 v1 n2 v3 (L VM R)]`|`[[n0 v1 n2] v3 [ L VM R ]]`|
+
+## Deleting a Node
+
+- leaf1: `['underflow', undefined]`
+- leaf2: `['replace', leaf1]`
+- branch3: `[n00,v1,n2]`:
+  - `[,v1,[v20]]`: underflow `[v1,v20]`
+  - `[,v1,[v20,v21]]`: replace `[[v1],v20,[v21]]`
+  - `[n00,v1,[n20,v21,n22]]`: underflow `[n00,v1,n20,v21,n22]`
+  - `[n00,v1,[n20,v21,n22,v23,n24]]`: replace `[[n00,v1,n20],v21,[n22,v23,n24]]`
+- branch5: `[n00,v1,n2,v3,n4]`:
+  - `[,v1,[v20],v3,n4]`: replace `[[v1,v20],v3,n4]`
+  - `[,v1,[v20,v21],v3,n4]`: replace `[[v1],v20,[v21],v3,n4]`
+  - `[n00,v1,[n20,v21,n22],v3,n4]`: replace `[[n00,v1,n20,v21,n22],v3,n4]`
+  - `[n00,v1,[n20,v21,n22,v23,n23],v3,n4]`: replace `[[n00,v1,n20],v21,[n22,v23,n24],v3,n4]`
+  
