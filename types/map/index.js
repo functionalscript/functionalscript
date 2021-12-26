@@ -47,7 +47,7 @@ const set = name => value => map =>  {
     /** @type {Entry<typeof value>} */
     const entry = [name, value]
     if (map === undefined) { return [entry] }
-    const result = setVisitor(keyCmp(name))(() => entry)(map)
+    const result = setVisitor(keyCmp(name))(map)(() => entry)
     switch (result[0]) {
         case 'replace': case 'overflow': { return result[1] }
         default: { throw 'invalid BTree operation' }
