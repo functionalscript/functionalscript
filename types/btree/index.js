@@ -115,6 +115,21 @@ const seq = require('../list')
  */
 
 /**
+ * @template T
+ * @typedef {(f: (_: Node<T>) => LazyResult<T>) => LazyResult<T>} FResult<T>
+ */
+
+/**
+ * @typedef {{
+ *  readonly branch3_left: <T>(branch3: Branch3<T>) => FResult<T>
+ *  readonly branch3_right: <T>(branch3: Branch3<T>) => FResult<T>
+ *  readonly branch5_left: <T>(branch5: Branch5<T>) => FResult<T>
+ *  readonly branch5_middle: <T>(branch5: Branch5<T>) => FResult<T>
+ *  readonly branch5_right: <T>(branch5: Branch5<T>) => FResult<T>
+ * }} Continue
+ */
+
+/**
  * @typedef {{
  *  readonly found: Found
  *  readonly notFound: NotFound
