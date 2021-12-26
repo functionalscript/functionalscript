@@ -1,3 +1,4 @@
+const { todo } = require('../../dev')
 const cmp = require('../function/compare')
 const { index3, index5 } = cmp
 const seq = require('../list')
@@ -87,10 +88,10 @@ const seq = require('../list')
  * @typedef { Done<T> | Replace<T> | Overflow<T> } Result
  */
 
-/** @typedef {<T>(_: Lazy<T>) => (_: Leaf1<T>) => Result<T>} InLeaf1 */
-/** @typedef {<T>(_: Lazy<T>) => (_: Leaf2<T>) => Result<T>} InLeaf2 */
-/** @typedef {<T>(_: Lazy<T>) => (_: Branch3<T>) => Result<T>} InBranch3 */
-/** @typedef {<T>(_: Lazy<T>) => (_: Branch5<T>) => Result<T>} InBranch5 */
+/** @typedef {<T>(_: Leaf1<T>) => (_: Lazy<T>) => Result<T>} InLeaf1 */
+/** @typedef {<T>(_: Leaf2<T>) => (_: Lazy<T>) => Result<T>} InLeaf2 */
+/** @typedef {<T>(_: Branch3<T>) => (_: Lazy<T>) => Result<T>} InBranch3 */
+/** @typedef {<T>(_: Branch5<T>) => (_: Lazy<T>) => Result<T>} InBranch5 */
 
 /**
  * @typedef {{
@@ -167,18 +168,18 @@ const visit = ({ found, notFound }) => cmp => {
             switch (node.length) {
                 case 1: {
                     switch (i3(node[0])) {
-                        case 0: { return notFound.leaf1_left(init)(node) }
-                        case 1: { return found.leaf1(init)(node) }
-                        default: { return notFound.leaf1_right(init)(node) }
+                        case 0: { return notFound.leaf1_left(node)(init) }
+                        case 1: { return found.leaf1(node)(init) }
+                        default: { return notFound.leaf1_right(node)(init) }
                     }
                 }
                 case 2: {
                     switch (i5(node)) {
-                        case 0: { return notFound.leaf2_left(init)(node) }
-                        case 1: { return found.leaf2_left(init)(node) }
-                        case 2: { return notFound.leaf2_middle(init)(node) }
-                        case 3: { return found.leaf2_right(init)(node) }
-                        default: { return notFound.leaf2_right(init)(node) }
+                        case 0: { return notFound.leaf2_left(node)(init) }
+                        case 1: { return found.leaf2_left(node)(init) }
+                        case 2: { return notFound.leaf2_middle(node)(init) }
+                        case 3: { return found.leaf2_right(node)(init) }
+                        default: { return notFound.leaf2_right(node)(init) }
                     }
                 }
                 case 3: {
@@ -190,7 +191,7 @@ const visit = ({ found, notFound }) => cmp => {
                                 (r => [r, v1, n2])
                                 (f(n0))
                         }
-                        case 1: { return found.branch3(init)(node) }
+                        case 1: { return found.branch3(node)(init) }
                         default: {
                             return merge2
                                 (e => [n0, v1, ...e])
@@ -208,14 +209,14 @@ const visit = ({ found, notFound }) => cmp => {
                                 (r => [r, v1, n2, v3, n4])
                                 (f(n0))
                         }
-                        case 1: { return found.branch5_left(init)(node) }
+                        case 1: { return found.branch5_left(node)(init) }
                         case 2: {
                             return merge3
                                 (o => [n0, v1, ...o, v3, n4])
                                 (r => [n0, v1, r, v3, n4])
                                 (f(n2))
                         }
-                        case 3: { return found.branch5_right(init)(node) }
+                        case 3: { return found.branch5_right(node)(init) }
                         default: {
                             return merge3
                                 (o => [n0, v1, n2, v3, ...o])
@@ -235,12 +236,12 @@ const found = value => ['done', value]
 
 /** @type {Found} */
 const foundGet = {
-    leaf1: () => ([value]) => found(value),
-    leaf2_left: () => ([value]) => found(value),
-    leaf2_right: () => ([, value]) => found(value),
-    branch3: () => ([, value]) => found(value),
-    branch5_left: () => ([, value]) => found(value),
-    branch5_right: () => ([, , , value]) => found(value),
+    leaf1: ([value]) => () => found(value),
+    leaf2_left: ([value]) => () => found(value),
+    leaf2_right: ([, value]) => () => found(value),
+    branch3: ([, value]) => () => found(value),
+    branch5_left: ([, value]) => () => found(value),
+    branch5_right: ([, , , value]) => () => found(value),
 }
 /** @type { () => () => NotFoundDone } */
 const notFound = () => () => ['done']
@@ -259,12 +260,12 @@ const replace = node => ['replace', node]
 
 /** @type {Found} */
 const foundReplace = {
-    leaf1: f => () => replace([f()]),
-    leaf2_left: f => ([, v1]) => replace([f(), v1]),
-    leaf2_right: f => ([v0,]) => replace([v0, f()]),
-    branch3: f => ([n0, , n2]) => replace([n0, f(), n2]),
-    branch5_left: f => ([n0, , n2, v3, n4]) => replace([n0, f(), n2, v3, n4]),
-    branch5_right: f => ([n0, v1, n2, , n4]) => replace([n0, v1, n2, f(), n4])
+    leaf1: () => f => replace([f()]),
+    leaf2_left: ([, v1]) => f => replace([f(), v1]),
+    leaf2_right: ([v0,]) => f => replace([v0, f()]),
+    branch3: ([n0, , n2]) => f => replace([n0, f(), n2]),
+    branch5_left: ([n0, , n2, v3, n4]) => f => replace([n0, f(), n2, v3, n4]),
+    branch5_right: ([n0, v1, n2, , n4]) => f => replace([n0, v1, n2, f(), n4])
 }
 
 /** @type {<T>(leaf3: Array3<T>) => Result<T>} */
@@ -272,11 +273,11 @@ const overflow = ([v0, v1, v2]) => ['overflow', [[v0], v1, [v2]]]
 
 /** @type {NotFound} */
 const notFoundInsert = {
-    leaf1_left: f => ([v]) => replace([f(), v]),
-    leaf1_right: f => ([v]) => replace([v, f()]),
-    leaf2_left: f => ([v0, v1]) => overflow([f(), v0, v1]),
-    leaf2_middle: f => ([v0, v1]) => overflow([v0, f(), v1]),
-    leaf2_right: f => ([v0, v1]) => overflow([v0, v1, f()]),
+    leaf1_left: ([v]) => f => replace([f(), v]),
+    leaf1_right: ([v]) => f => replace([v, f()]),
+    leaf2_left: ([v0, v1]) => f => overflow([f(), v0, v1]),
+    leaf2_middle: ([v0, v1]) => f => overflow([v0, f(), v1]),
+    leaf2_right: ([v0, v1]) => f => overflow([v0, v1, f()]),
 }
 
 /** @type {Visitor} */
