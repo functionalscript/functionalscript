@@ -340,8 +340,8 @@ module.exports = {
      */
     getVisitor: cmp => node => {
         const result = visit(getVisitor)(cmp)(node)(() => { throw 'getVisitor' })
-        if (result[0] === 'done') { return result[1] }
-        return undefined
+        if (result[0] !== 'done') { throw 'getVisitor result' }
+        return result[1]
     },
     /** @readonly */
     setVisitor: visit(setVisitor),
