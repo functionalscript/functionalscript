@@ -308,7 +308,7 @@ const replaceVisitor = {
     notFound: notFoundGet,
 }
 
-/** @type {<T>(node: Node<T>) => seq.List<T>} */
+/** @type {<T>(node: Node<T>) => seq.Thunk<T>} */
 const values = node => () => {
     switch (node.length) {
         case 1: case 2: { return node }
