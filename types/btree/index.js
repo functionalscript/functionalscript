@@ -88,10 +88,10 @@ const seq = require('../list')
  * @typedef { Done<T> | Replace<T> | Overflow<T> } Result
  */
 
-/** @typedef {<T>(_: Leaf1<T>) => (_: Lazy<T>) => Result<T>} InLeaf1 */
-/** @typedef {<T>(_: Leaf2<T>) => (_: Lazy<T>) => Result<T>} InLeaf2 */
-/** @typedef {<T>(_: Branch3<T>) => (_: Lazy<T>) => Result<T>} InBranch3 */
-/** @typedef {<T>(_: Branch5<T>) => (_: Lazy<T>) => Result<T>} InBranch5 */
+/** @typedef {<T>(_: Leaf1<T>) => LazyResult<T>} InLeaf1 */
+/** @typedef {<T>(_: Leaf2<T>) => LazyResult<T>} InLeaf2 */
+/** @typedef {<T>(_: Branch3<T>) => LazyResult<T>} InBranch3 */
+/** @typedef {<T>(_: Branch5<T>) => LazyResult<T>} InBranch5 */
 
 /**
  * @typedef {{
