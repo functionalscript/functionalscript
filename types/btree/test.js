@@ -1,11 +1,11 @@
 const btree = require('.')
 const { setVisitor, values } = btree
-const { cmp } = require('../function/compare') 
+const { cmp } = require('../function/compare')
 const list = require('../list')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => {
-    const result = setVisitor(cmp(value))(() => value)(node)
+    const result = setVisitor(cmp(value))(node)(() => value)
     switch (result[0]) {
         case 'replace': case 'overflow': { return result[1] }
         default: { return node }
