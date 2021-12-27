@@ -79,16 +79,60 @@ Posible actions:
 
 ## Deleting a Node
 
-- leaf1: `['underflow', undefined]`
-- leaf2: `['replace', leaf1]`
-- branch3: `[n00,v1,n2]`:
-  - `[,v1,[v20]]`: underflow `[v1,v20]`
-  - `[,v1,[v20,v21]]`: replace `[[v1],v20,[v21]]`
-  - `[n00,v1,[n20,v21,n22]]`: underflow `[n00,v1,n20,v21,n22]`
-  - `[n00,v1,[n20,v21,n22,v23,n24]]`: replace `[[n00,v1,n20],v21,[n22,v23,n24]]`
-- branch5: `[n00,v1,n2,v3,n4]`:
-  - `[,v1,[v20],v3,n4]`: replace `[[v1,v20],v3,n4]`
-  - `[,v1,[v20,v21],v3,n4]`: replace `[[v1],v20,[v21],v3,n4]`
-  - `[n00,v1,[n20,v21,n22],v3,n4]`: replace `[[n00,v1,n20,v21,n22],v3,n4]`
-  - `[n00,v1,[n20,v21,n22,v23,n23],v3,n4]`: replace `[[n00,v1,n20],v21,[n22,v23,n24],v3,n4]`
-  
+|type              |index|                    |        |                             |
+|------------------|-----|--------------------|--------|-----------------------------|
+|`[v]`             |    0|                    |        |underflow `undefined`        |
+|`[v0,v1]`         |    0|                    |        |replace `[v1]`               |
+|                  |    1|                    |        |replace `[v0]`               |
+|`[n0,v1,n2]`      |    1|`merge(n0,n2)`      |overflow|replace `[n0_,v1_,n1_]`      |
+|                  |     |                    |replace |underflow `n_`               |
+|`[n0,v1,n2,v3,n4]`|    1|`merge(n0,n2),v3,n4`|overflow|replace `[n0_,v1_,n1_,v3,n4]`|
+|                  |     |                    |replace |replace `[n_,v3,n4]`         |
+|                  |    3|`n0,v1,merge(n2,n4)`|overflow|replace `[n0,v1,n0_,v1_,n1_]`|
+|                  |     |                    |replace |replace `[n0,v1,n_]`         |
+
+### Underflow
+
+|type              |index|                                       |                                               |
+|------------------|-----|---------------------------------------|-----------------------------------------------|
+|`[n0,v1,n2]`      |    0|`[[],v1,[v20]]`                        |underflow `[v1,v20]`                           |
+|                  |     |`[[],v1,[v20,v21]]`                    |replace `[[v1],v20,[v21]]`                     |
+|                  |     |`[[n_],v1,[n20,v21,n22]]`              |underflow `[n_,v1,n20,v21,n22]`                |
+|                  |     |`[[n_],v1,[n20,v21,n22,v23,n24]]`      |replace `[[n_,v1,n20],v21,[n22,v23,n24]]`      |
+|                  |    2|                                       |                                               |
+|`[n0,v1,n2,v3,n4]`|    0|`[[],v1,[v20],v3,n4]`                  |replace `[[v1,v20],v3,n4]`                     |
+|                  |     |`[[],v1,[v20,v21],v3,n4]`              |replace `[[v1],v20,[v21],v3,n4]`               |
+|                  |     |`[[n_],v1,[n20,v21,n22],v3,n4]`        |replace `[[n_,v1,n20,v21,n22],v3,n4]`          |
+|                  |     |`[[n_],v1,[n20,v21,n22,v23,n24],v3,n4]`|replace `[[n_,v1,n20],v21,[n22,v23,n24],v3,n4]`|
+|                  |    2|                                       |                                               |
+|                  |    4|                                       |                                               |
+
+## Merge (n0,n1)
+
+`merge` returns either `overflow 3` or `replace`:
+- `overflow 3`: `[n0,v1,n2]`
+- `replace`: `n`
+
+|`n0`                   |`n1`                   |                                                |
+|-----------------------|-----------------------|------------------------------------------------|
+|`[v00]`                |`[v10]`                |replace  `[v00,v10]`                            |
+|                       |`[v10,v11]`            |overflow `[[v00],v10,[v11]]`                    |
+|`[v00,v01]`            |`n1`                   |overflow `[[v00],v01,n1]`                       |
+|`[n00,v01,n02]`        |`[n10,v11,n12]`        |`n00,v01,merge(n02,n10),v11,n12`                |
+|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,merge(n02,n10),v11,n12,v13,n14`        |
+|`[n00,v01,n02,v03,n04]`|`[n10,v11,n12]`        |`n00,v01,n02,v03,merge(n04,n10),v11,n12`        |
+|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,n02,v03,merge(n04,n10),v11,n12,v13,n14`|
+
+### Replace
+
+- `n0,v1,merge(n2,n3),v4,n5`: replace `[n0,v1,n,v2,n3]`
+- `n0,v1,merge(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,n],v4,[n5,v6,n7]]`
+- `n0,v1,n2,v3,merge(n4,n5),v6,n7`: overflow `[[n0,v1,n2],v3,[n,v6,n7]]`
+- `n0,v1,n2,v3,merge(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2],v3,[n,v6,n7,v8,n9]]`
+
+### Overflow 3
+
+- `n0,v1,merge(n2,n3),v4,n5`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5]]`
+- `n0,v1,merge(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5,v6,n7]]`
+- `n0,v1,n2,v3,merge(n4,n5),v6,n7`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7]]`
+- `n0,v1,n2,v3,merge(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7,v8,n9]]`
