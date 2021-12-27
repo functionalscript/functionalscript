@@ -113,26 +113,19 @@ Posible actions:
 - `overflow 3`: `[n0,v1,n2]`
 - `replace`: `n`
 
-|`n0`                   |`n1`                   |                                                |
-|-----------------------|-----------------------|------------------------------------------------|
-|`[v00]`                |`[v10]`                |replace  `[v00,v10]`                            |
-|                       |`[v10,v11]`            |overflow `[[v00],v10,[v11]]`                    |
-|`[v00,v01]`            |`n1`                   |overflow `[[v00],v01,n1]`                       |
+|`n0`                   |`n1`                   |                                                 |
+|-----------------------|-----------------------|-------------------------------------------------|
+|`[v00]`                |`[v10]`                |R `[v00,v10]`                                    |
+|                       |`[v10,v11]`            |O `[[v00],v10,[v11]]`                            |
+|`[v00,v01]`            |`n1`                   |O `[[v00],v01,n1]`                               |
 |`[n00,v01,n02]`        |`[n10,v11,n12]`        |`n00,v01,concat(n02,n10),v11,n12`                |
 |                       |`[n10,v11,n12,v13,n14]`|`n00,v01,concat(n02,n10),v11,n12,v13,n14`        |
 |`[n00,v01,n02,v03,n04]`|`[n10,v11,n12]`        |`n00,v01,n02,v03,concat(n04,n10),v11,n12`        |
 |                       |`[n10,v11,n12,v13,n14]`|`n00,v01,n02,v03,concat(n04,n10),v11,n12,v13,n14`|
 
-### Replace
-
-- `n0,v1,concat(n2,n3),v4,n5`: replace `[n0,v1,n,v2,n3]`
-- `n0,v1,concat(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,n],v4,[n5,v6,n7]]`
-- `n0,v1,n2,v3,concat(n4,n5),v6,n7`: overflow `[[n0,v1,n2],v3,[n,v6,n7]]`
-- `n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2],v3,[n,v6,n7,v8,n9]]`
-
-### Overflow 3
-
-- `n0,v1,concat(n2,n3),v4,n5`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5]]`
-- `n0,v1,concat(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5,v6,n7]]`
-- `n0,v1,n2,v3,concat(n4,n5),v6,n7`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7]]`
-- `n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7,v8,n9]]`
+|source                                 |replace `mn`                        |overflow `[mn0,mv1,mn2]`                     |
+|---------------------------------------|------------------------------------|---------------------------------------------|
+|`n0,v1,concat(n2,n3),v4,n5`            |R `[n0,v1,mn,v2,n3]`                |O `[[n0,v1,mn0],mv1,[mn2,v4,n5]]`            |
+|`n0,v1,concat(n2,n3),v4,n5,v6,n7`      |O `[[n0,v1,mn],v4,[n5,v6,n7]]`      |O `[[n0,v1,mn0],mv1,[mn2,v4,n5,v6,n7]]`      |
+|`n0,v1,n2,v3,concat(n4,n5),v6,n7`      |O `[[n0,v1,n2],v3,[mn,v6,n7]]`      |O `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7]]`      |
+|`n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`|O `[[n0,v1,n2],v3,[mn,v6,n7,v8,n9]]`|O `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7,v8,n9]]`|

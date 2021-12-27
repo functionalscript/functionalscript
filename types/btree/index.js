@@ -346,6 +346,14 @@ const values = node => () => {
     }
 }
 
+/**
+ * @template T
+ * @typedef { Replace<T> | Overflow<T> } ConcatResult
+ */
+
+/** @type {<T>(a: Node<T>) => (b: Node<T>) => ConcatResult<T>} */
+const concat = a => b => todo()
+
 module.exports = {
     /** @readonly */
     values,
