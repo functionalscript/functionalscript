@@ -123,9 +123,9 @@ Posible actions:
 |`[n00,v01,n02,v03,n04]`|`[n10,v11,n12]`        |`n00,v01,n02,v03,concat(n04,n10),v11,n12`        |
 |                       |`[n10,v11,n12,v13,n14]`|`n00,v01,n02,v03,concat(n04,n10),v11,n12,v13,n14`|
 
-|source                                 |replace `mn`                        |overflow `[mn0,mv1,mn2]`                     |
+|source                                 |replace `cn`                        |overflow `[cn0,cv1,cn2]`                     |
 |---------------------------------------|------------------------------------|---------------------------------------------|
-|`n0,v1,concat(n2,n3),v4,n5`            |R `[n0,v1,mn,v2,n3]`                |O `[[n0,v1,mn0],mv1,[mn2,v4,n5]]`            |
-|`n0,v1,concat(n2,n3),v4,n5,v6,n7`      |O `[[n0,v1,mn],v4,[n5,v6,n7]]`      |O `[[n0,v1,mn0],mv1,[mn2,v4,n5,v6,n7]]`      |
-|`n0,v1,n2,v3,concat(n4,n5),v6,n7`      |O `[[n0,v1,n2],v3,[mn,v6,n7]]`      |O `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7]]`      |
-|`n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`|O `[[n0,v1,n2],v3,[mn,v6,n7,v8,n9]]`|O `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7,v8,n9]]`|
+|`n0,v1,concat(n2,n3),v4,n5`            |R `[n0,v1,cn,v2,n3]`                |O `[[n0,v1,cn0],cv1,[cn2,v4,n5]]`            |
+|`n0,v1,concat(n2,n3),v4,n5,v6,n7`      |O `[[n0,v1,cn],v4,[n5,v6,n7]]`      |O `[[n0,v1,cn0],cv1,[cn2,v4,n5,v6,n7]]`      |
+|`n0,v1,n2,v3,concat(n4,n5),v6,n7`      |O `[[n0,v1,n2],v3,[cn,v6,n7]]`      |O `[[n0,v1,n2,v3,cn0],cv1,[cn2,v6,n7]]`      |
+|`n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`|O `[[n0,v1,n2],v3,[cn,v6,n7,v8,n9]]`|O `[[n0,v1,n2,v3,cn0],cv1,[cn2,v6,n7,v8,n9]]`|
