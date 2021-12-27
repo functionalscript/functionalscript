@@ -79,17 +79,17 @@ Posible actions:
 
 ## Deleting a Node
 
-|type              |index|                    |        |                             |
-|------------------|-----|--------------------|--------|-----------------------------|
-|`[v]`             |    0|                    |        |underflow `undefined`        |
-|`[v0,v1]`         |    0|                    |        |replace `[v1]`               |
-|                  |    1|                    |        |replace `[v0]`               |
-|`[n0,v1,n2]`      |    1|`merge(n0,n2)`      |overflow|replace `[n0_,v1_,n1_]`      |
-|                  |     |                    |replace |underflow `n_`               |
-|`[n0,v1,n2,v3,n4]`|    1|`merge(n0,n2),v3,n4`|overflow|replace `[n0_,v1_,n1_,v3,n4]`|
-|                  |     |                    |replace |replace `[n_,v3,n4]`         |
-|                  |    3|`n0,v1,merge(n2,n4)`|overflow|replace `[n0,v1,n0_,v1_,n1_]`|
-|                  |     |                    |replace |replace `[n0,v1,n_]`         |
+|type              |index|                     |        |                             |
+|------------------|-----|---------------------|--------|-----------------------------|
+|`[v]`             |    0|                     |        |underflow `undefined`        |
+|`[v0,v1]`         |    0|                     |        |replace `[v1]`               |
+|                  |    1|                     |        |replace `[v0]`               |
+|`[n0,v1,n2]`      |    1|`concat(n0,n2)`      |overflow|replace `[n0_,v1_,n1_]`      |
+|                  |     |                     |replace |underflow `n_`               |
+|`[n0,v1,n2,v3,n4]`|    1|`concat(n0,n2),v3,n4`|overflow|replace `[n0_,v1_,n1_,v3,n4]`|
+|                  |     |                     |replace |replace `[n_,v3,n4]`         |
+|                  |    3|`n0,v1,concat(n2,n4)`|overflow|replace `[n0,v1,n0_,v1_,n1_]`|
+|                  |     |                     |replace |replace `[n0,v1,n_]`         |
 
 ### Underflow
 
@@ -107,9 +107,9 @@ Posible actions:
 |                  |    2|                                       |                                               |
 |                  |    4|                                       |                                               |
 
-## Merge (n0,n1)
+## Concat (n0,n1)
 
-`merge` returns either `overflow 3` or `replace`:
+`concat` returns either `overflow 3` or `replace`:
 - `overflow 3`: `[n0,v1,n2]`
 - `replace`: `n`
 
@@ -118,21 +118,21 @@ Posible actions:
 |`[v00]`                |`[v10]`                |replace  `[v00,v10]`                            |
 |                       |`[v10,v11]`            |overflow `[[v00],v10,[v11]]`                    |
 |`[v00,v01]`            |`n1`                   |overflow `[[v00],v01,n1]`                       |
-|`[n00,v01,n02]`        |`[n10,v11,n12]`        |`n00,v01,merge(n02,n10),v11,n12`                |
-|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,merge(n02,n10),v11,n12,v13,n14`        |
-|`[n00,v01,n02,v03,n04]`|`[n10,v11,n12]`        |`n00,v01,n02,v03,merge(n04,n10),v11,n12`        |
-|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,n02,v03,merge(n04,n10),v11,n12,v13,n14`|
+|`[n00,v01,n02]`        |`[n10,v11,n12]`        |`n00,v01,concat(n02,n10),v11,n12`                |
+|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,concat(n02,n10),v11,n12,v13,n14`        |
+|`[n00,v01,n02,v03,n04]`|`[n10,v11,n12]`        |`n00,v01,n02,v03,concat(n04,n10),v11,n12`        |
+|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,n02,v03,concat(n04,n10),v11,n12,v13,n14`|
 
 ### Replace
 
-- `n0,v1,merge(n2,n3),v4,n5`: replace `[n0,v1,n,v2,n3]`
-- `n0,v1,merge(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,n],v4,[n5,v6,n7]]`
-- `n0,v1,n2,v3,merge(n4,n5),v6,n7`: overflow `[[n0,v1,n2],v3,[n,v6,n7]]`
-- `n0,v1,n2,v3,merge(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2],v3,[n,v6,n7,v8,n9]]`
+- `n0,v1,concat(n2,n3),v4,n5`: replace `[n0,v1,n,v2,n3]`
+- `n0,v1,concat(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,n],v4,[n5,v6,n7]]`
+- `n0,v1,n2,v3,concat(n4,n5),v6,n7`: overflow `[[n0,v1,n2],v3,[n,v6,n7]]`
+- `n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2],v3,[n,v6,n7,v8,n9]]`
 
 ### Overflow 3
 
-- `n0,v1,merge(n2,n3),v4,n5`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5]]`
-- `n0,v1,merge(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5,v6,n7]]`
-- `n0,v1,n2,v3,merge(n4,n5),v6,n7`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7]]`
-- `n0,v1,n2,v3,merge(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7,v8,n9]]`
+- `n0,v1,concat(n2,n3),v4,n5`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5]]`
+- `n0,v1,concat(n2,n3),v4,n5,v6,n7`: overflow `[[n0,v1,mn0],mv1,[mn2,v4,n5,v6,n7]]`
+- `n0,v1,n2,v3,concat(n4,n5),v6,n7`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7]]`
+- `n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`: overflow `[[n0,v1,n2,v3,mn0],mv1,[mn2,v6,n7,v8,n9]]`
