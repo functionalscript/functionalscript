@@ -2,7 +2,7 @@ const option = require("../option")
 const btree = require('../btree')
 const { getVisitor, setVisitor, values } = require("../btree")
 const compare = require("../function/compare")
-const { cmp } = require("../function/compare")
+const { stringCmp } = require("../function/compare")
 const list = require("../list")
 
 /** @typedef {compare.Sign} Sign */
@@ -33,7 +33,7 @@ const list = require("../list")
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
-const keyCmp = a => ([b]) => cmp(a)(b)
+const keyCmp = a => ([b]) => stringCmp(a)(b)
 
 /** @type {(name: string) => <T>(map: Map<T>) => T|undefined} */
 const at = name => map => {

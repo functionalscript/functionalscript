@@ -7,7 +7,7 @@ const _ = require('.')
 
 {
     const result = _.stringCmp('3')('4')
-    if (result !== 0) { throw result }
+    if (result !== -1) { throw result }
 }
 
 module.exports = {}
