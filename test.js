@@ -9,6 +9,7 @@ require('./io/commonjs/test')
 require('./commonjs/package/dependencies/test')
 require('./commonjs/package/test')
 require('./commonjs/path/test')
+require('./types/function/compare/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
