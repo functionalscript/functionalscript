@@ -4,7 +4,7 @@ const function_ = require('../module/function')
 const { todo } = require('../../dev')
 const map = require('../../types/map')
 const object = require('../../types/object')
-const list = require('../../types/list')
+const path = require('../path')
 
 /**
  * @template M
@@ -47,8 +47,32 @@ const getOrBuild = packageGet => moduleMapInterface => compile => moduleId => {
     }
 
     /** @type {function_.Require<readonly[M, map.Map<string>]>} */
-    const require_ = path => ([moduleMap, requireMap]) => {
-        return todo()
+    const require_ = pathStr => prior => {
+        const pathResult = path.parseAndFind(packageGet)(moduleId.packageId)(moduleIdStr)(pathStr)
+        if (pathResult === undefined) { return [['error', `file not found: '${pathStr}'`], prior] }
+        const mId = { packageId: pathResult.package, path: pathResult.file.split('/') }
+        const [state, newMap] = getOrBuild
+            (packageGet)
+            (moduleMapInterface)
+            (compile)
+            (mId)
+            (prior[0])
+        switch (state[0]) {
+            case 'ok': {
+                const newRequireMap = map.set(pathStr)(module_.idToString(mId))(prior[1])
+                return [
+                    ['ok', state[1].exports],
+                    [newMap, newRequireMap]
+                ]
+            }
+            case 'building': {
+                return todo()
+            }
+            // 'ok'
+            default: {
+                return todo()
+            }
+        }
     }
 
     return moduleMapFirst => {
