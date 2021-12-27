@@ -23,13 +23,13 @@ const index5 = cmp => ([v0, v1]) => {
 }
 
 /** @type {<T>(a: T) => (b: T) => Sign} */
-const cmp = a => b => a < b ? -1 : a === b ? 0 : 1
+const unsafeCmp = a => b => a < b ? -1 : a === b ? 0 : 1
 
 /** @type {(a: string) => (b: string) => Sign} */
-const stringCmp = cmp
+const stringCmp = unsafeCmp
 
 /** @type {(a: number) => (b: number) => Sign} */
-const numberCmp = cmp
+const numberCmp = unsafeCmp
 
 module.exports = {
     /** @readonly */
