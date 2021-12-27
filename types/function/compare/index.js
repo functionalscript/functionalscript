@@ -3,7 +3,7 @@
 
 /**
  * @template T
- * @typedef {import('../../array').Array2<T>} Array2 
+ * @typedef {import('../../array').Array2<T>} Array2
  */
 
 /** @typedef {-1|0|1} Sign */
@@ -22,7 +22,9 @@ const index5 = cmp => ([v0, v1]) => {
     return /** @type {Index5} */ (_0 <= 0 ? _0 + 1 : cmp(v1) + 3)
 }
 
-/** @type {(a: string) => (b: string) => Sign} */
+/** @typedef {string|number} Comparable */
+
+/** @type {<T extends Comparable>(a: T) => (b: T) => Sign} */
 const cmp = a => b => a < b ? -1 : a === b ? 0 : 1
 
 module.exports = {
