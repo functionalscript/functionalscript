@@ -5,8 +5,10 @@ const { sort } = require('../object')
 const { stringCmp } = require('../function/compare')
 const list = require('../list')
 
+const jsonStr = json.stringify(sort)
+
 /** @type {(sequence: list.List<json.Unknown>) => string} */
-const stringify = sequence => json.stringify(sort)(list.toArray(sequence))
+const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => {
@@ -62,29 +64,40 @@ const set = node => value => {
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())
     if (_map.length !== 3) { throw _map }
-    // console.log(_map)
+    let _s = jsonStr(_map)
+    if (_s !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw _s }
+
     let [a,,b] = _map
     let _c = concat(a)(b)
-    // console.log(_c)
     if (_c.length !== 3) { throw _c }
+    _s =jsonStr(_c);
+    if (_s !== '[[["1","100"],"16",["25"]],"36",[["49"],"64",["81","9"]]]') { throw _s }
+
     [a,,b] = _c
     _c = concat(a)(b)
-    // console.log(_c)
     if (_c.length !== 1) { throw _c }
+    _s = jsonStr(_c);
+    if (_s !== '[[["1","100"],"16",["25","49"],"64",["81","9"]]]') { throw _s }
+
     let [_r] = _c
     if (_r.length !== 5) { throw _r }
     [a,,b] = _r
     _c = concat(a)(b)
-    // console.log(_c)
     if (_c.length !== 3) { throw _c }
+    _s = jsonStr(_c);
+    if (_s !== '[["1"],"100",["25","49"]]') { throw _s }
+
     [a,,b] = _c
     _c = concat(a)(b)
-    // console.log(_c)
     if (_c.length !== 3) { throw _c }
+    _s = jsonStr(_c);
+    if (_s !== '[["1"],"25",["49"]]') { throw _s }
+
     [a,,b] = _c
     _c = concat(a)(b)
-    // console.log(_c)
     if (_c.length !== 1) { throw _c }
+    _s = jsonStr(_c);
+    if (_s !== '[["1","49"]]') { throw _s }
 }
 
 const test = () => {
