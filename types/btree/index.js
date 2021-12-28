@@ -363,10 +363,10 @@ const values = node => () => {
 
 /**
  * @template T
- * @typedef {readonly[...Branch9<T>,T,Node<T>]} Branch11
+ * @typedef {readonly[...Branch9<T>,T,Node<T>]} BranchA
  */
 
-/** @type {<T>(n: Branch5<T> | Branch7<T> | Branch9<T> | Branch11<T>) => Branch1<T> | Branch3<T>} */
+/** @type {<T>(n: Branch5<T> | Branch7<T> | Branch9<T> | BranchA<T>) => Branch1<T> | Branch3<T>} */
 const up = n => {
     switch (n.length) {
         case 5: { return [n] }
@@ -379,8 +379,8 @@ const up = n => {
             return [[n0, v1, n2], v3, [n4, v5, n6, v7, n8]]
         }
         case 11: {
-            const [n0, v1, n2, v3, n4, v5, n6, v7, n8, v9, n10] = n
-            return [[n0, v1, n2, v3, n4], v5, [n6, v7, n8, v9, n10]]
+            const [n0, v1, n2, v3, n4, v5, n6, v7, n8, v9, nA] = n
+            return [[n0, v1, n2, v3, n4], v5, [n6, v7, n8, v9, nA]]
         }
     }
 }
@@ -395,8 +395,13 @@ const up = n => {
  * @typedef {readonly[...Head2<T>, ...Head2<T>]} Head4
  */
 
-/** @type {<T>(n: Branch3<T> | Branch5<T>) => readonly[Head2<T>|Head4<T>, Node<T>]} */
-const bracnhSplit = n => {
+/**
+ * @template T
+ * @typedef {Head2<T>|Head4<T>} Head
+ */
+
+/** @type {<T>(n: Branch3<T> | Branch5<T>) => readonly[Head<T>, Node<T>]} */
+const headLast = n => {
     if (n.length === 3) {
         const [n0, v1, n2] = n
         return [[n0, v1], n2]
@@ -421,9 +426,9 @@ const concat = a => b => {
         default: {
             switch (b.length) {
                 case 3: case 5: {
-                    const [aHead, aLast] = bracnhSplit(a)
-                    const [bn0, ...b1] = b
-                    return up([...aHead, ...concat(aLast)(bn0), ...b1])
+                    const [aHead, aLast] = headLast(a)
+                    const [bFirst, ...bTail] = b
+                    return up([...aHead, ...concat(aLast)(bFirst), ...bTail])
                 }
                 default: { throw 'invalid b node' }
             }
