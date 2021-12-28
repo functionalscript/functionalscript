@@ -2,7 +2,7 @@
 
 https://en.wikipedia.org/wiki/B-tree
 
-## BTree 2-3 nodes 
+## BTree 2-3 nodes
 
 `Node<T>`:
 
@@ -66,7 +66,7 @@ Posible actions:
 |left  |    0|`[(L VM R) v1 n2]`  |
 |right |    2|`[n0 v1 (L VM R)]`  |
 
-## Branch5 Overflow 
+## Branch5 Overflow
 
 - current `[n0, v1, n2, v3, n4]`
 - overflow `[L, VM, R]`
@@ -76,3 +76,56 @@ Posible actions:
 |left  |    0|`[...o v1 n2 v3 n4]`|`[(L VM R) v1 n2 v3 n4]`|`[[ L VM R ] v1 [n2 v3 n4]]`|
 |middle|    2|`[n0 v1 ...o v3 n4]`|`[n0 v1 (L VM R) v3 n4]`|`[[n0 v1 L ] VM [ R v3 n4]]`|
 |right |    4|`[n0 v1 n2 v3 ...o]`|`[n0 v1 n2 v3 (L VM R)]`|`[[n0 v1 n2] v3 [ L VM R ]]`|
+
+## Deleting a Node
+
+|type              |index|                     |        |                             |
+|------------------|-----|---------------------|--------|-----------------------------|
+|`[v]`             |    0|                     |        |underflow `undefined`        |
+|`[v0,v1]`         |    0|                     |        |replace `[v1]`               |
+|                  |    1|                     |        |replace `[v0]`               |
+|`[n0,v1,n2]`      |    1|`concat(n0,n2)`      |overflow|replace `[n0_,v1_,n1_]`      |
+|                  |     |                     |replace |underflow `n_`               |
+|`[n0,v1,n2,v3,n4]`|    1|`concat(n0,n2),v3,n4`|overflow|replace `[n0_,v1_,n1_,v3,n4]`|
+|                  |     |                     |replace |replace `[n_,v3,n4]`         |
+|                  |    3|`n0,v1,concat(n2,n4)`|overflow|replace `[n0,v1,n0_,v1_,n1_]`|
+|                  |     |                     |replace |replace `[n0,v1,n_]`         |
+
+### Underflow
+
+|type              |index|                                       |                                               |
+|------------------|-----|---------------------------------------|-----------------------------------------------|
+|`[n0,v1,n2]`      |    0|`[[],v1,[v20]]`                        |underflow `[v1,v20]`                           |
+|                  |     |`[[],v1,[v20,v21]]`                    |replace `[[v1],v20,[v21]]`                     |
+|                  |     |`[[n_],v1,[n20,v21,n22]]`              |underflow `[n_,v1,n20,v21,n22]`                |
+|                  |     |`[[n_],v1,[n20,v21,n22,v23,n24]]`      |replace `[[n_,v1,n20],v21,[n22,v23,n24]]`      |
+|                  |    2|                                       |                                               |
+|`[n0,v1,n2,v3,n4]`|    0|`[[],v1,[v20],v3,n4]`                  |replace `[[v1,v20],v3,n4]`                     |
+|                  |     |`[[],v1,[v20,v21],v3,n4]`              |replace `[[v1],v20,[v21],v3,n4]`               |
+|                  |     |`[[n_],v1,[n20,v21,n22],v3,n4]`        |replace `[[n_,v1,n20,v21,n22],v3,n4]`          |
+|                  |     |`[[n_],v1,[n20,v21,n22,v23,n24],v3,n4]`|replace `[[n_,v1,n20],v21,[n22,v23,n24],v3,n4]`|
+|                  |    2|                                       |                                               |
+|                  |    4|                                       |                                               |
+
+## Concat (n0,n1)
+
+`concat` returns either `overflow 3` or `replace`:
+- `overflow 3`: `[n0,v1,n2]`
+- `replace`: `n`
+
+|`n0`                   |`n1`                   |                                                 |
+|-----------------------|-----------------------|-------------------------------------------------|
+|`[v00]`                |`[v10]`                |R `[v00,v10]`                                    |
+|                       |`[v10,v11]`            |O `[[v00],v10,[v11]]`                            |
+|`[v00,v01]`            |`n1`                   |O `[[v00],v01,n1]`                               |
+|`[n00,v01,n02]`        |`[n10,v11,n12]`        |`n00,v01,concat(n02,n10),v11,n12`                |
+|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,concat(n02,n10),v11,n12,v13,n14`        |
+|`[n00,v01,n02,v03,n04]`|`[n10,v11,n12]`        |`n00,v01,n02,v03,concat(n04,n10),v11,n12`        |
+|                       |`[n10,v11,n12,v13,n14]`|`n00,v01,n02,v03,concat(n04,n10),v11,n12,v13,n14`|
+
+|source                                 |replace `cn`                        |overflow `[cn0,cv1,cn2]`                     |
+|---------------------------------------|------------------------------------|---------------------------------------------|
+|`n0,v1,concat(n2,n3),v4,n5`            |R `[n0,v1,cn,v2,n3]`                |O `[[n0,v1,cn0],cv1,[cn2,v4,n5]]`            |
+|`n0,v1,concat(n2,n3),v4,n5,v6,n7`      |O `[[n0,v1,cn],v4,[n5,v6,n7]]`      |O `[[n0,v1,cn0],cv1,[cn2,v4,n5,v6,n7]]`      |
+|`n0,v1,n2,v3,concat(n4,n5),v6,n7`      |O `[[n0,v1,n2],v3,[cn,v6,n7]]`      |O `[[n0,v1,n2,v3,cn0],cv1,[cn2,v6,n7]]`      |
+|`n0,v1,n2,v3,concat(n4,n5),v6,n7,v8,n9`|O `[[n0,v1,n2],v3,[cn,v6,n7,v8,n9]]`|O `[[n0,v1,n2,v3,cn0],cv1,[cn2,v6,n7,v8,n9]]`|
