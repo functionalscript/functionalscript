@@ -77,36 +77,6 @@ Posible actions:
 |middle|    2|`[n0 v1 ...o v3 n4]`|`[n0 v1 (L VM R) v3 n4]`|`[[n0 v1 L ] VM [ R v3 n4]]`|
 |right |    4|`[n0 v1 n2 v3 ...o]`|`[n0 v1 n2 v3 (L VM R)]`|`[[n0 v1 n2] v3 [ L VM R ]]`|
 
-## Deleting a Node
-
-|type              |index|                     |        |                             |
-|------------------|-----|---------------------|--------|-----------------------------|
-|`[v]`             |    0|                     |        |underflow `undefined`        |
-|`[v0,v1]`         |    0|                     |        |replace `[v1]`               |
-|                  |    1|                     |        |replace `[v0]`               |
-|`[n0,v1,n2]`      |    1|`concat(n0,n2)`      |overflow|replace `[n0_,v1_,n1_]`      |
-|                  |     |                     |replace |underflow `n_`               |
-|`[n0,v1,n2,v3,n4]`|    1|`concat(n0,n2),v3,n4`|overflow|replace `[n0_,v1_,n1_,v3,n4]`|
-|                  |     |                     |replace |replace `[n_,v3,n4]`         |
-|                  |    3|`n0,v1,concat(n2,n4)`|overflow|replace `[n0,v1,n0_,v1_,n1_]`|
-|                  |     |                     |replace |replace `[n0,v1,n_]`         |
-
-### Underflow
-
-|type              |index|                                       |                                               |
-|------------------|-----|---------------------------------------|-----------------------------------------------|
-|`[n0,v1,n2]`      |    0|`[[],v1,[v20]]`                        |underflow `[v1,v20]`                           |
-|                  |     |`[[],v1,[v20,v21]]`                    |replace `[[v1],v20,[v21]]`                     |
-|                  |     |`[[n_],v1,[n20,v21,n22]]`              |underflow `[n_,v1,n20,v21,n22]`                |
-|                  |     |`[[n_],v1,[n20,v21,n22,v23,n24]]`      |replace `[[n_,v1,n20],v21,[n22,v23,n24]]`      |
-|                  |    2|                                       |                                               |
-|`[n0,v1,n2,v3,n4]`|    0|`[[],v1,[v20],v3,n4]`                  |replace `[[v1,v20],v3,n4]`                     |
-|                  |     |`[[],v1,[v20,v21],v3,n4]`              |replace `[[v1],v20,[v21],v3,n4]`               |
-|                  |     |`[[n_],v1,[n20,v21,n22],v3,n4]`        |replace `[[n_,v1,n20,v21,n22],v3,n4]`          |
-|                  |     |`[[n_],v1,[n20,v21,n22,v23,n24],v3,n4]`|replace `[[n_,v1,n20],v21,[n22,v23,n24],v3,n4]`|
-|                  |    2|                                       |                                               |
-|                  |    4|                                       |                                               |
-
 ## Concat
 
 `concat` returns either `Branch1` or `Branch3`
@@ -128,3 +98,46 @@ Posible actions:
 |7         |`[n[0...2],n[3],n[4...6]]`|
 |9         |`[n[0...2],n[3],n[4...8]]`|
 |A         |`[n[0...4],n[5],n[6...A]]`|
+
+## Delete
+
+`delete` returns `['leaf', [] | Leaf1]` | `['branch', Branch1 | Branch3 | Branch5]`
+
+|type              |index|r                                |
+|------------------|-----|---------------------------------|
+|`[v]`             |    0|leaf `[]`                        |
+|`[v0,v1]`         |    0|leaf `[v1]`                      |
+|                  |    1|leaf `[v2]`                      |
+|`[n0,v1,n2]`      |    1|branch `concat(n0,n2)`           |
+|`[n0,v1,n2,v3,n4]`|    1|branch `[...concat(n0,n2),v3,n4]`|
+|                  |    3|branch `[n0,v1,...concat(n2,n4)]`|
+
+|type              |index|nR    |                                    |size                 |      |
+|------------------|-----|------|------------------------------------|---------------------|------|
+|`[n0,v1,n2]`      |    0|leaf  |`vUp([...vR, v1, ...n2])`           |0+1+1...2+1+2        |2...5 |
+|                  |     |branch|`nUp([...nR, v1, ...n2])`           |1+1+3...5+1+5        |5...11|
+|                  |    2|leaf  |`vUp([...n0, v1, ...vR])`           |                     |2...5 |
+|                  |     |branch|`nUp([...n0, v1, ...nR])`           |                     |5...11|
+|`[n0,v1,n2,v3,n4]`|    0|leaf  |`vUp([...vR, v1, ...n2, v3, ...n4])`|0+1+1+1+1...2+1+2+1+2|4...8 |
+|                  |     |branch|`nUp([...nR, v1, ...n2, v3, ...n4])`|1+1+3+1+3...5+1+5+1+5|9...17|
+|                  |    2|leaf  |`vUp([...n0, v1, ...nR, v3, ...n4])`|                     |      |
+|                  |     |branch|`nUp([...n0, v1, ...nR, v3, ...n4])`|                     |      |
+|                  |    4|leaf  |`vUp([...n0, v1, ...n2, v3, ...nR])`|                     |      |
+|                  |     |branch|`nUp([...n0, v1, ...n2, v3, ...nR])`|                     |      |
+
+## Insert
+
+`insert` returns `Branch1` or `Branch3`
+
+|type              |                                 |
+|------------------|---------------------------------|
+|`[v]`             |`[[vI,v]]`                       |
+|                  |`[[v,vI]]`                       |
+|`[v0,v1]`         |`[[vI],v0,[v1]]`                 |
+|                  |`[[v0],vI,[v1]]`                 |
+|                  |`[[v0],v1,[vI]]`                 |
+|`[n0,v1,n2]`      |`up([...insert(n0),v1,n2])`      |
+|                  |`up([n0,v1,...insert(n2)])`      |
+|`[n0,v1,n2,v3,n4]`|`up([...insert(n0),v1,n2,v3,n4])`|
+|                  |`up([n0,v1,...insert(n2),v3,n4])`|
+|                  |`up([n0,v1,n2,v3,...insert(n4)])`|
