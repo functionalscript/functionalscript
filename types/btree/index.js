@@ -363,10 +363,10 @@ const values = node => () => {
 
 /**
  * @template T
- * @typedef {readonly[...Branch9<T>,T,Node<T>]} BranchA
+ * @typedef {readonly[...Branch9<T>,T,Node<T>]} Branch11
  */
 
-/** @type {<T>(n: Branch5<T> | Branch7<T> | Branch9<T> | BranchA<T>) => Branch1<T> | Branch3<T>} */
+/** @type {<T>(n: Branch5<T> | Branch7<T> | Branch9<T> | Branch11<T>) => Branch1<T> | Branch3<T>} */
 const up = n => {
     switch (n.length) {
         case 5: { return [n] }
@@ -379,8 +379,8 @@ const up = n => {
             return [[n0, v1, n2], v3, [n4, v5, n6, v7, n8]]
         }
         case 11: {
-            const [n0, v1, n2, v3, n4, v5, n6, v7, n8, v9, nA] = n
-            return [[n0, v1, n2, v3, n4], v5, [n6, v7, n8, v9, nA]]
+            const [n0, v1, n2, v3, n4, v5, n6, v7, n8, v9, n10] = n
+            return [[n0, v1, n2, v3, n4], v5, [n6, v7, n8, v9, n10]]
         }
     }
 }
