@@ -44,9 +44,59 @@ const padding = input => length =>
     return o;
 }
 
+/** @type {(x: number) => (y: number) => (z: number) => number} */
+const ch = x => y => z => 
+{
+    return x & y ^ ~x & z
+}
+
+/** @type {(x: number) => (y: number) => (z: number) => number} */
+const maj = x => y => z => 
+{
+    return x & y ^ x & z ^ y & z
+}
+
+/** @type {(n: number) => (d: number) => number} */
+const rotr = n => d =>
+{
+    return todo()
+}
+
+/** @type {(n: number) => (d: number) => number} */
+const shr = n => d =>
+{
+    return todo()
+}
+
+/** @type {(x: number) => number} */
+const bsig0 = x =>  
+{
+    return rotr(x)(2) ^ rotr(x)(13) ^ rotr(x)(22)
+}
+
+/** @type {(x: number) => number} */
+const bsig1 = x =>  
+{
+    return rotr(x)(6) ^ rotr(x)(11) ^ rotr(x)(25)
+}
+
+/** @type {(x: number) => number} */
+const ssig0 = x =>  
+{
+    return rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
+}
+
+/** @type {(x: number) => number} */
+const ssig1 = x =>  
+{
+    return rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
+}
+
 /** @type {(input: number[]) => (length: number) => HashOutput8} */
 const computeSha256 = input => length =>
 {
+    const padded = padding(input)(length)
+    
     const h0 = 0x6a09e667;
     const h1 = 0xbb67ae85;
     const h2 = 0x3c6ef372;
