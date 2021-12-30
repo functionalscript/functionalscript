@@ -21,6 +21,11 @@ const toHexString = x =>
     console.log(result.map(toHexString))
 }
 
+{
+    const result = _.padding([0x11111110])(32)
+    console.log(result.map(toHexString))
+}
+
 module.exports = {
 
 }
