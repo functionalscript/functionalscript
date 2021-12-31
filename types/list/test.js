@@ -337,6 +337,15 @@ const stress = () => {
         const len = _.length(_.dropWhile(() => true)(result))
         if (len !== 0) { throw len }
     }
+
+    console.log('reverse')
+
+    {
+        // 10_000_000 is too much
+        const n = 5_000_000
+        const result = _.toArray(_.reverse(_.countdown(n)))
+        if (result.length !== n) { throw result.length }
+    }
 }
 
 // stress()
