@@ -1,5 +1,3 @@
-const { todo } = require("../../dev")
-
 /**
  * @typedef {{
  *  readonly input: number[]
