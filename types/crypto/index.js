@@ -59,13 +59,13 @@ const maj = x => y => z =>
 /** @type {(n: number) => (d: number) => number} */
 const rotr = n => d =>
 {
-    return todo()
+    return n >>> d | n << (32-d)
 }
 
 /** @type {(n: number) => (d: number) => number} */
 const shr = n => d =>
 {
-    return todo()
+    return n >>> d
 }
 
 /** @type {(x: number) => number} */
@@ -92,19 +92,25 @@ const ssig1 = x =>
     return rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 }
 
+/** @type {(x: number) => number} */
+const mod2pow32 = x =>
+{
+    return x % 4294967296
+}
+
 /** @type {(input: number[]) => (length: number) => HashOutput8} */
 const computeSha256 = input => length =>
 {
     const padded = padding(input)(length)
-    
-    const h0 = 0x6a09e667;
-    const h1 = 0xbb67ae85;
-    const h2 = 0x3c6ef372;
-    const h3 = 0xa54ff53a;
-    const h4 = 0x510e527f;
-    const h5 = 0x9b05688c;
-    const h6 = 0x1f83d9ab;
-    const h7 = 0x5be0cd19;
+
+    let h0 = 0x6a09e667
+    let h1 = 0xbb67ae85
+    let h2 = 0x3c6ef372
+    let h3 = 0xa54ff53a
+    let h4 = 0x510e527f
+    let h5 = 0x9b05688c
+    let h6 = 0x1f83d9ab
+    let h7 = 0x5be0cd19
 
     const k = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -117,7 +123,61 @@ const computeSha256 = input => length =>
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     ];
 
-    return todo()
+    //add loop
+
+    // /** @type {(a: number) => string} */
+    // const toHexString = x =>
+    // {
+    //     return x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
+    // }
+
+    let w = new Array(64)
+
+    for(let t = 0; t < 16; t++)
+    {
+        w[t] = padded[t]
+    }
+
+    for(let t = 16; t < 64; t++)
+    {
+        w[t] = mod2pow32(ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16])
+    }
+
+    //console.log(w.map(toHexString))
+
+    let a = h0
+    let b = h1
+    let c = h2
+    let d = h3
+    let e = h4
+    let f = h5
+    let g = h6
+    let h = h7
+
+    for(let t = 0; t < 64; t++)
+    {
+        let t1 = mod2pow32(h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t])
+        let t2 = mod2pow32(bsig0(a) + maj(a)(b)(c))
+        h = g
+        g = f
+        f = e
+        e = mod2pow32(d + t1)
+        d = c
+        c = b
+        b = a
+        a = mod2pow32(t1 + t2)
+    }
+
+    h0 = mod2pow32(h0 + a)
+    h1 = mod2pow32(h1 + b)
+    h2 = mod2pow32(h2+ c)
+    h3 = mod2pow32(h3 + d)
+    h4 = mod2pow32(h4 + e)
+    h5 = mod2pow32(h5 + f)
+    h6 = mod2pow32(h6 + g)
+    h7 = mod2pow32(h7 + h)
+
+    return [h0, h1, h2, h3, h4, h5, h6, h7]
 }
 
 module.exports = {
