@@ -43,6 +43,12 @@ const cmp = require('../../function/compare')
  * @typedef {PathItem3<T> | PathItem5<T>} PathItem
  */
 
+/** @type {<T>(item: PathItem<T>) => _.Node<T>} */
+const child = item => {
+    /** @typedef {typeof item extends PathItem<infer T> ? T : never} T */
+    return /** @type {_.Node<T>} */(item[1][item[0]])
+}
+
 /**
  * @template T
  * @typedef {list.List<PathItem<T>>} Path
@@ -58,6 +64,11 @@ const find = c => {
     const i3 = cmp.index3(c)
     const i5 = cmp.index5(c)
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
+    /** @type {(item: PathItem<T>) => Result<T>} */
+    const append = first => {
+        const [x, tail] = f(child(first))
+        return [x, { first, tail }]
+    }
     /** @type {(node: _.Node<T>) => Result<T>} */
     const f = node => {
         switch (node.length) {
@@ -66,26 +77,23 @@ const find = c => {
             case 3: {
                 const i = i3(node[1])
                 switch (i) {
-                    case 0: case 2: {
-                        const [first, tail] = f(node[i])
-                        return [first, { first: [i, node], tail}]
-                    }
+                    case 0: case 2: { return append([i, node]) }
                     case 1: { return [[i, node], undefined] }
                 }
-                return todo()
             }
             case 5: {
                 const i = i5([node[1], node[3]])
                 switch (i) {
-                    case 0: case 2: case 4: {
-                        const [first, tail] = f(node[i])
-                        return [first, { first: [i, node], tail }]
-                    }
+                    case 0: case 2: case 4: { return append([i, node]) }
                     case 1: case 3: { return [[i, node], undefined]}
                 }
             }
         }
-        return todo()
     }
     return f
+}
+
+module.exports = {
+    /** @readonly */
+    find,
 }
