@@ -44,6 +44,19 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '["b94d27b9","934d3e08","a52e52d7","da7dabfa","c484efe3","7a5380ee","9088f7ac","e2efcde9"]') { throw result }
 }
 
+{
+    const input = Array(8).fill(0x31313131)
+    const result = _.computeSha256(input)(256)
+    if (result[0] !== 0x8a83665f) { throw result[0] }
+}
+
+{
+    const input = Array(16).fill(0x31313131)
+    const hash = _.computeSha256(input)(512)
+    const result = stringify(hash.map(toHexString))
+    if (result !== '["3138bb9b","c78df27c","473ecfd1","410f7bd4","5ebac1f5","9cf3ff9c","fe4db77a","ab7aedd3"]') { throw result }
+}
+
 module.exports = {
 
 }

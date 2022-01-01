@@ -17,12 +17,18 @@ const appendOne = input => pos =>
     return input | (1 << 31 - pos)
 }
 
+/** @type  {(input: number) => (pos: number) => number} */
+const unsignedMod = a => b =>
+{
+    return (a % b + b) % b
+}
+
 /** @type  {(input: number[]) => (length: number) => readonly number[]} */
 const padding = input => length =>
 {
     const appendBlockIndex = Math.floor(length / 32)
     //console.log(appendBlockIndex)
-    const k = (447 - length) % 512
+    const k = unsignedMod(447 - length)(512)
     //console.log(k)
     const outputLength = length + k + 65
     //console.log(outputLength)
@@ -123,8 +129,6 @@ const computeSha256 = input => length =>
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     ];
 
-    //add loop
-
     // /** @type {(a: number) => string} */
     // const toHexString = x =>
     // {
@@ -132,50 +136,53 @@ const computeSha256 = input => length =>
     // }
 
     let w = new Array(64)
-
-    for(let t = 0; t < 16; t++)
+    const chunkCount = padded.length / 16
+    for(let i = 0; i < chunkCount; i++)
     {
-        w[t] = padded[t]
+        for(let t = 0; t < 16; t++)
+        {
+            w[t] = padded[t + i * 16]
+        }
+    
+        for(let t = 16; t < 64; t++)
+        {
+            w[t] = mod2pow32(ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16])
+        }
+    
+        //console.log(w.map(toHexString))
+    
+        let a = h0
+        let b = h1
+        let c = h2
+        let d = h3
+        let e = h4
+        let f = h5
+        let g = h6
+        let h = h7
+    
+        for(let t = 0; t < 64; t++)
+        {
+            let t1 = mod2pow32(h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t])
+            let t2 = mod2pow32(bsig0(a) + maj(a)(b)(c))
+            h = g
+            g = f
+            f = e
+            e = mod2pow32(d + t1)
+            d = c
+            c = b
+            b = a
+            a = mod2pow32(t1 + t2)
+        }
+    
+        h0 = mod2pow32(h0 + a)
+        h1 = mod2pow32(h1 + b)
+        h2 = mod2pow32(h2+ c)
+        h3 = mod2pow32(h3 + d)
+        h4 = mod2pow32(h4 + e)
+        h5 = mod2pow32(h5 + f)
+        h6 = mod2pow32(h6 + g)
+        h7 = mod2pow32(h7 + h)
     }
-
-    for(let t = 16; t < 64; t++)
-    {
-        w[t] = mod2pow32(ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16])
-    }
-
-    //console.log(w.map(toHexString))
-
-    let a = h0
-    let b = h1
-    let c = h2
-    let d = h3
-    let e = h4
-    let f = h5
-    let g = h6
-    let h = h7
-
-    for(let t = 0; t < 64; t++)
-    {
-        let t1 = mod2pow32(h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t])
-        let t2 = mod2pow32(bsig0(a) + maj(a)(b)(c))
-        h = g
-        g = f
-        f = e
-        e = mod2pow32(d + t1)
-        d = c
-        c = b
-        b = a
-        a = mod2pow32(t1 + t2)
-    }
-
-    h0 = mod2pow32(h0 + a)
-    h1 = mod2pow32(h1 + b)
-    h2 = mod2pow32(h2+ c)
-    h3 = mod2pow32(h3 + d)
-    h4 = mod2pow32(h4 + e)
-    h5 = mod2pow32(h5 + f)
-    h6 = mod2pow32(h6 + g)
-    h7 = mod2pow32(h7 + h)
 
     return [h0, h1, h2, h3, h4, h5, h6, h7]
 }
