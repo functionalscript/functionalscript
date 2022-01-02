@@ -61,22 +61,62 @@ const find = i => m => str(_.find(stringCmp(i))(m))
     }
     {
         const r = find("17")(_map)
-        if (r !== '[0,[0,2]]') { throw r }
+        if (r !== '[0,[2,0]]') { throw r }
     }
     {
         const r = find("25")(_map)
-        if (r !== '[1,[0,2]]') { throw r }
+        if (r !== '[1,[2,0]]') { throw r }
     }
     {
         const r = find("26")(_map)
-        if (r !== '[2,[0,2]]') { throw r }
+        if (r !== '[2,[2,0]]') { throw r }
     }
     {
         const r = find("36")(_map)
-        if (r !== '[3,[0,2]]') { throw r }
+        if (r !== '[3,[2,0]]') { throw r }
     }
     {
         const r = find("37")(_map)
-        if (r !== '[4,[0,2]]') { throw r }
+        if (r !== '[4,[2,0]]') { throw r }
+    }
+    {
+        const r = find("4")(_map)
+        if (r !== '[1,[]]') { throw r }
+    }
+    {
+        const r = find("41")(_map)
+        if (r !== '[0,[0,2]]') { throw r }
+    }
+    {
+        const r = find("49")(_map)
+        if (r !== '[1,[0,2]]') { throw r }
+    }
+    {
+        const r = find("5")(_map)
+        if (r !== '[2,[0,2]]') { throw r }
+    }
+    {
+        const r = find("64")(_map)
+        if (r !== '[1,[2]]') { throw r }
+    }
+    {
+        const r = find("65")(_map)
+        if (r !== '[0,[2,2]]') { throw r }
+    }
+    {
+        const r = find("81")(_map)
+        if (r !== '[1,[2,2]]') { throw r }
+    }
+    {
+        const r = find("85")(_map)
+        if (r !== '[2,[2,2]]') { throw r }
+    }
+    {
+        const r = find("9")(_map)
+        if (r !== '[3,[2,2]]') { throw r }
+    }
+    {
+        const r = find("91")(_map)
+        if (r !== '[4,[2,2]]') { throw r }
     }
 }

@@ -64,33 +64,30 @@ const find = c => {
     const i3 = cmp.index3(c)
     const i5 = cmp.index5(c)
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
-    /** @type {(item: PathItem<T>) => Result<T>} */
-    const append = first => {
-        const [x, tail] = f(child(first))
-        return [x, { first, tail }]
-    }
-    /** @type {(node: _.Node<T>) => Result<T>} */
-    const f = node => {
+    /** @type {(prior: Path<T>) => (node: _.Node<T>) => Result<T>} */
+    const f = tail => node => {
+        /** @type {(first: PathItem<T>) => Result<T>} */
+        const append = first => f({ first, tail })(child(first))
         switch (node.length) {
-            case 1: { return [[i3(node[0]), node], undefined] }
-            case 2: { return [[i5(node), node], undefined] }
+            case 1: { return [[i3(node[0]), node], tail] }
+            case 2: { return [[i5(node), node], tail] }
             case 3: {
                 const i = i3(node[1])
                 switch (i) {
                     case 0: case 2: { return append([i, node]) }
-                    case 1: { return [[i, node], undefined] }
+                    case 1: { return [[i, node], tail] }
                 }
             }
             case 5: {
                 const i = i5([node[1], node[3]])
                 switch (i) {
                     case 0: case 2: case 4: { return append([i, node]) }
-                    case 1: case 3: { return [[i, node], undefined]}
+                    case 1: case 3: { return [[i, node], tail]}
                 }
             }
         }
     }
-    return f
+    return f(undefined)
 }
 
 module.exports = {
