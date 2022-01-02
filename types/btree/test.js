@@ -5,6 +5,8 @@ const { sort } = require('../object')
 const { stringCmp } = require('../function/compare')
 const list = require('../list')
 
+require('./find/test')
+
 const jsonStr = json.stringify(sort)
 
 /** @type {(sequence: list.List<json.Unknown>) => string} */
