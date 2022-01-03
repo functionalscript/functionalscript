@@ -7,9 +7,6 @@ const { stringCmp } = require('../../function/compare')
 
 const jsonStr = json.stringify(sort)
 
-// /** @type {(sequence: list.List<json.Unknown>) => string} */
-// const arrayStr = sequence => jsonStr(list.toArray(sequence))
-
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => {
     const result = btree.setVisitor(stringCmp(value))(node)(() => value)

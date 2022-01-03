@@ -1,7 +1,7 @@
 const _ = require('..')
-const { todo } = require('../../../dev')
 const list = require('../../list')
 const cmp = require('../../function/compare')
+const array = require('../../array')
 
 /**
  * @template T
@@ -69,23 +69,28 @@ const find = c => {
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     /** @type {(prior: Path<T>) => (node: _.Node<T>) => Result<T>} */
     const f = tail => node => {
-        /** @type {(first: PathItem<T>) => Result<T>} */
-        const append = first => f({ first, tail })(child(first))
+        /** @type {(index: array.KeyOf<typeof node>) => Result<T>} */
+        const append = index => {
+            const first = /** @type {PathItem<T>} */([index, node])
+            return f({ first, tail })(child(first))
+        }
+        /** @type {(index: array.KeyOf<typeof node>) => Result<T>} */
+        const done = index => ({ first: /** @type {First<T>} */([index, node]), tail })
         switch (node.length) {
-            case 1: { return { first: [i3(node[0]), node], tail } }
-            case 2: { return { first: [i5(node), node], tail } }
+            case 1: { return done(i3(node[0])) }
+            case 2: { return done(i5(node)) }
             case 3: {
                 const i = i3(node[1])
                 switch (i) {
-                    case 0: case 2: { return append([i, node]) }
-                    case 1: { return { first: [i, node], tail } }
+                    case 0: case 2: { return append(i) }
+                    case 1: { return done(i) }
                 }
             }
             case 5: {
                 const i = i5([node[1], node[3]])
                 switch (i) {
-                    case 0: case 2: case 4: { return append([i, node]) }
-                    case 1: case 3: { return { first: [i, node], tail } }
+                    case 0: case 2: case 4: { return append(i) }
+                    case 1: case 3: { return done(i) }
                 }
             }
         }

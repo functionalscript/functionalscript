@@ -54,6 +54,18 @@ const seq = require('../list')
 
 /** @typedef {0|1|2|3|4} Index5 */
 
+/**
+ * @template T
+ * @typedef {T extends Array1<infer _> ? Index1 :
+ *  T extends Array2<infer _> ? Index2 :
+ *  T extends Array3<infer _> ? Index3 :
+ *  T extends Array4<infer _> ? Index4 :
+ *  T extends Array5<infer _> ? Index5 :
+ *  T extends readonly (infer _)[] ? number :
+ *  never
+ * } KeyOf
+ */
+
 /** @type {<T>(_: readonly T[]) => readonly T[]} */
 const uncheckTail = a => a.slice(1)
 
