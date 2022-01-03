@@ -6,6 +6,7 @@ const { stringCmp } = require('../function/compare')
 const list = require('../list')
 
 require('./find/test')
+require('./set/test')
 
 const jsonStr = json.stringify(sort)
 
