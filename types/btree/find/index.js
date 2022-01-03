@@ -5,7 +5,7 @@ const array = require('../../array')
 
 /**
  * @template T
- * @typedef {readonly[cmp.Index3, _.Leaf1<T>|_.Branch3<T>]} FirstLeaf1
+ * @typedef {readonly[cmp.Index3, _.Leaf1<T>]} FirstLeaf1
  */
 
 /**
