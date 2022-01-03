@@ -56,7 +56,10 @@ const child = item => {
 
 /**
  * @template T
- * @typedef {readonly[First<T>, Path<T>]} Result<T>
+ * @typedef {{
+ *  readonly first: First<T>,
+ *  readonly tail: Path<T>
+ * }} Result<T>
  */
 
 /** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => Result<T>} */
@@ -69,20 +72,20 @@ const find = c => {
         /** @type {(first: PathItem<T>) => Result<T>} */
         const append = first => f({ first, tail })(child(first))
         switch (node.length) {
-            case 1: { return [[i3(node[0]), node], tail] }
-            case 2: { return [[i5(node), node], tail] }
+            case 1: { return { first: [i3(node[0]), node], tail } }
+            case 2: { return { first: [i5(node), node], tail } }
             case 3: {
                 const i = i3(node[1])
                 switch (i) {
                     case 0: case 2: { return append([i, node]) }
-                    case 1: { return [[i, node], tail] }
+                    case 1: { return { first: [i, node], tail } }
                 }
             }
             case 5: {
                 const i = i5([node[1], node[3]])
                 switch (i) {
                     case 0: case 2: case 4: { return append([i, node]) }
-                    case 1: case 3: { return [[i, node], tail]}
+                    case 1: case 3: { return { first: [i, node], tail } }
                 }
             }
         }
