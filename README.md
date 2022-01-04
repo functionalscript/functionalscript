@@ -9,8 +9,6 @@ FunctionalScript is a pure functional programming language and a strict subset o
 
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 
-Try FunctionalScript [here](https://functionalscript.com/).
-
 ## 1. Design Principles
 
 In FunctionalScript:
