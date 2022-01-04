@@ -175,7 +175,7 @@ const remove = c => node => {
                     if (first === undefined) {
                         switch (n0.length) {
                             case 1: { return [[n0[0], v1]] }
-                            case 2: { return [[n0[0]], v1, [n0[1]]] }
+                            case 2: { return [[n0[0]], n0[1], [v1]] }
                             default: { throw 'invalid node' }
                         }
                     } else {
