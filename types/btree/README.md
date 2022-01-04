@@ -83,10 +83,12 @@ Posible actions:
 
 |`a`               |`b`                |                                                 |size |
 |------------------|-------------------|-------------------------------------------------|-----|
-|`[av]`            |`[bv]`             |`[[av,bv]]`                                      |     |
-|                  |`[bv0,bv1]`        |`[a,bv0,[bv1]]`                                  |     |
-|`[av0,av1]`       |                   |`[[av0],av1,b]`                                  |     |
+|`[av]`            |`[bv]`             |both `[[av,bv]]`                                 |     |
+|                  |`[bv0,bv1]`        |right `[a,bv0,[bv1]]`                            |     |
+|`[av0,av1]`       |                   |left `[[av0],av1,b]`                             |     |
 |`[...aHead,aLast]`|`[bFirst,...bLast]`|`up([...aHead,...concat(aLast,bFirst),...bTail])`|5..11|
+
+`concat` returns either `both`, `left` or `right` change.
 
 ## Up
 
