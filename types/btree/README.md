@@ -79,16 +79,16 @@ Posible actions:
 
 ## Concat
 
-`concat` returns either `Branch1` or `Branch3`
+`concat` accepts `left` and `right` branches of the same level.
 
-|`a`               |`b`                |                                                 |size |
-|------------------|-------------------|-------------------------------------------------|-----|
-|`[av]`            |`[bv]`             |both `[[av,bv]]`                                 |     |
-|                  |`[bv0,bv1]`        |right `[a,bv0,[bv1]]`                            |     |
-|`[av0,av1]`       |                   |left `[[av0],av1,b]`                             |     |
-|`[...aHead,aLast]`|`[bFirst,...bLast]`|`up([...aHead,...concat(aLast,bFirst),...bTail])`|5..11|
+|left         |right        |result                    |
+|-------------|-------------|--------------------------|
+|[an0]        |[bn0]        |[an0, value, r?]          |
+|[an0]        |[bn0,bv1,bn2]|[an0, value, r?, bv1, bn2]|
+|[an0,av1,an2]|[bn0]        |[an0, av1, an2, value, r?]|
 
-`concat` returns either `both`, `left` or `right` change.
+`popLeft` accepts `node` and returns
+`value` and `['leaf', [] | Leaf1]` | `['branch', Branch1 | Branch3 | Branch5]`
 
 ## Up
 
