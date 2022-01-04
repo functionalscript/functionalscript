@@ -25,43 +25,32 @@ const path = tail => n => {
         case 3: { return path({ first: [0, n], tail })(n[0]) }
         case 5: { return path({ first: [0, n], tail })(n[0]) }
     }
-    return todo()
 }
 
 /** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => undefined | RemovePath<T>} */
 const remove = c => node => {
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     const { first, tail } = find.find(c)(node)
+    /** @type {(n: _.Node<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>} */
+    const branch = n => f => {
+        const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n)
+        return { first: p.first, tail: list.concat(p.tail)({ first: f(v), tail }) }
+    }
     switch (first[0]) {
         case 1: {
             const n = first[1]
             switch (n.length) {
                 case 1: { return { first: undefined, tail } }
                 case 2: { return { first: [n[1]], tail } }
-                case 3: {
-                    const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n[2])
-                    /** @type {find.PathItem<T>} */
-                    const y = [2, [n[0], v, n[2]]]
-                    return { first: p.first, tail: list.concat(p.tail)({ first: y, tail }) }
-                }
-                case 5: {
-                    const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n[2])
-                    /** @type {find.PathItem<T>} */
-                    const y = [2, [n[0], v, n[2], n[3], n[4]]]
-                    return { first: p.first, tail: list.concat(p.tail)({ first: y, tail }) }
-                }
+                case 3: { return branch(n[2])(v => [2, [n[0], v, n[2]]]) }
+                case 5: { return branch(n[2])(v => [2, [n[0], v, n[2], n[3], n[4]]]) }
             }
         }
         case 3: {
             const n = first[1]
             switch (n.length) {
                 case 2: { return { first: [n[0]], tail } }
-                case 5: {
-                    const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n[4])
-                    /** @type {find.PathItem<T>} */
-                    const y = [4, [n[0], n[1], n[2], v, n[4]]]
-                    return { first: p.first, tail: list.concat(p.tail)({ first: y, tail }) }
-                }
+                case 5: { return branch(n[4])(v => [2, [n[0], n[1], n[2], v, n[4]]]) }
             }
         }
         default: { return undefined }
