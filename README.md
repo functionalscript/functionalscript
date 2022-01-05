@@ -191,11 +191,25 @@ const f = x => {
 
 FunctionalScript includes these types of statements:
 - [definition](#25-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement.
-- [let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let), let declares a local mutable object. This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
+- [let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let)
 - [return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
 - [if...else](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/if...else)
 - [switch](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch)
 - [throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw)
 - [while](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/while)
 
-**Note:** FunctionalScript allows to throw exceptions but it doesn't catch them. You should only be using Statement throw in non-recoverable situations. It could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
+### 5.1 Let 
+
+Let declares a local mutable object. This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
+
+### 5.2 Return 
+
+### 5.3 If...Else
+
+### 5.4 Switch
+
+### 5.5 Throw
+
+FunctionalScript allows to throw exceptions but it doesn't catch them. You should only be using Statement throw in non-recoverable situations. It could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
+
+### 5.6 While
