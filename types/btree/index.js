@@ -1,11 +1,4 @@
-const { todo } = require('../../dev')
-const cmp = require('../function/compare')
 const seq = require('../list')
-
-/**
- * @template T
- * @typedef {cmp.Compare<T>} Cmp
- */
 
 /**
  * @template T
