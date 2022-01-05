@@ -194,7 +194,7 @@ FunctionalScript includes these types of statements:
 - [return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
 - [if...else](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/if...else)
 - [switch](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch)
-- [throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw) **Note:** FunctionalScript allows to throw exceptions but it doesn't to catch them.
+- [throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw), FunctionalScript allows to throw exceptions but it doesn't to catch them.
 - [while](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/while)
 
 
