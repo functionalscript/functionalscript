@@ -191,7 +191,7 @@ const f = x => {
 
 FunctionalScript includes these types of statements:
 - [definition](#25-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement.
-- [let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let)
+- [let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let), let declares a local mutable object. This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
 - [return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
 - [if...else](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/if...else)
 - [switch](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch)
