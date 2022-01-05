@@ -4,17 +4,12 @@ const json = require('../../../json')
 const { sort } = require('../../object')
 const btree = require('..')
 const { stringCmp } = require('../../function/compare')
+const s = require('../set')
 
 const jsonStr = json.stringify(sort)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => {
-    const result = btree.setVisitor(stringCmp(value))(node)(() => value)
-    switch (result[0]) {
-        case 'replace': case 'overflow': { return result[1] }
-        default: { return node }
-    }
-}
+const set = node => value => s.set(stringCmp(value))(value)(node)
 
 /** @type {(r: _.Result<json.Unknown>) => string} */
 const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))

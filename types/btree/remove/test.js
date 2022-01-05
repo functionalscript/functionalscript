@@ -407,3 +407,81 @@ const jsonStr = json.stringify(sort)
         if (_map !== undefined) { throw _map }
     }
 }
+
+{
+    /** @type {btree.Node<string>|undefined} */
+    let _map = ['1']
+    for (let i = 2; i <= 10; i++)
+        _map = set(_map)((i * i).toString())
+    if (_map.length !== 3) { throw _map }
+    let _s = jsonStr(_map)
+    if (_s !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw _s }
+
+    {
+        _map = remove(_map)("4")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[[["1","100"],"16",["25","36"]],"49",[["64"],"81",["9"]]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("49")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[["1","100"],"16",["25","36"],"64",["81","9"]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("64")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[["1","100"],"16",["25","36"],"81",["9"]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("81")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[["1","100"],"16",["25"],"36",["9"]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("36")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[["1","100"],"16",["25","9"]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("16")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[["1","100"],"25",["9"]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("25")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '[["1"],"100",["9"]]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("100")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '["1","9"]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("9")
+        if (_map === undefined) { throw _map }
+        _s = jsonStr(_map);
+        if (_s !== '["1"]') { throw _s }
+    }
+
+    {
+        _map = remove(_map)("1")
+        if (_map !== undefined) { throw _map }
+    }
+}

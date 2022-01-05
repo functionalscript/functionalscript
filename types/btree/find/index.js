@@ -98,7 +98,29 @@ const find = c => {
     return f(undefined)
 }
 
+/** @type {<T>(first: First<T>) => T | undefined} */
+const value = first => {
+    switch (first[0]) {
+        case 1: {
+            const x = first[1]
+            switch (x.length) {
+                case 1: case 2: { return x[0] }
+                default: { return x[1] }
+            }
+        }
+        case 3: {
+            const x = first[1]
+            return x.length === 2 ? x[1] : x[3]
+        }
+        default: {
+            return undefined
+        }
+    }
+}
+
 module.exports = {
     /** @readonly */
     find,
+    /** @readonly */
+    value,
 }

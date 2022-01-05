@@ -1,9 +1,11 @@
 const btree = require('.')
-const { getVisitor, setVisitor, values, concat } = btree
+const { values } = btree
 const json = require('../../json')
 const { sort } = require('../object')
 const { stringCmp } = require('../function/compare')
 const list = require('../list')
+const s = require('./set')
+const f = require('./find')
 
 require('./find/test')
 require('./set/test')
@@ -15,13 +17,7 @@ const jsonStr = json.stringify(sort)
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => {
-    const result = setVisitor(stringCmp(value))(node)(() => value)
-    switch (result[0]) {
-        case 'replace': case 'overflow': { return result[1] }
-        default: { return node }
-    }
-}
+const set = node => value => s.set(stringCmp(value))(value)(node)
 
 {
     /** @type {btree.Node<string>} */
@@ -49,8 +45,8 @@ const set = node => value => {
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = getVisitor(stringCmp('b'))(_map)
-    if (result === undefined) { throw result }
+    const result = f.value(f.find(stringCmp('b'))(_map).first)
+    if (result !== 'b') { throw result }
 }
 
 {
@@ -58,50 +54,8 @@ const set = node => value => {
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = getVisitor(stringCmp('e'))(_map)
+    const result = f.value(f.find(stringCmp('e'))(_map).first)
     if (result !== undefined) { throw result }
-}
-
-{
-    /** @type {btree.Node<string>} */
-    let _map = ['1']
-    for (let i = 2; i <= 10; i++)
-        _map = set(_map)((i * i).toString())
-    if (_map.length !== 3) { throw _map }
-    let _s = jsonStr(_map)
-    if (_s !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw _s }
-
-    let [a,,b] = _map
-    let _c = concat(a)(b)
-    if (_c.length !== 3) { throw _c }
-    _s =jsonStr(_c);
-    if (_s !== '[[["1","100"],"16",["25"]],"36",[["49"],"64",["81","9"]]]') { throw _s }
-
-    [a,,b] = _c
-    _c = concat(a)(b)
-    if (_c.length !== 1) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[[["1","100"],"16",["25","49"],"64",["81","9"]]]') { throw _s }
-
-    let [_r] = _c
-    if (_r.length !== 5) { throw _r }
-    [a,,b] = _r
-    _c = concat(a)(b)
-    if (_c.length !== 3) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[["1"],"100",["25","49"]]') { throw _s }
-
-    [a,,b] = _c
-    _c = concat(a)(b)
-    if (_c.length !== 3) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[["1"],"25",["49"]]') { throw _s }
-
-    [a,,b] = _c
-    _c = concat(a)(b)
-    if (_c.length !== 1) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[["1","49"]]') { throw _s }
 }
 
 const test = () => {
