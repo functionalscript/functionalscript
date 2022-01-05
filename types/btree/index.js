@@ -369,19 +369,4 @@ const values = node => () => {
 module.exports = {
     /** @readonly */
     values,
-    /**
-     * @readonly
-     * @type { <T>(cmp: Cmp<T>) => (node: Node<T>) => T|undefined }
-     */
-    getVisitor: cmp => node => {
-        const result = visit(getVisitor)(cmp)(node)(() => { throw 'getVisitor' })
-        if (result[0] !== 'done') { throw 'getVisitor result' }
-        return result[1]
-    },
-    /** @readonly */
-    setVisitor: visit(setVisitor),
-    /** @readonly */
-    getOrInsertVisitor: visit(getOrInsertVisitor),
-    /** @readonly */
-    replaceVisitor: visit(replaceVisitor),
 }

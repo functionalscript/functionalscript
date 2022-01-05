@@ -1,6 +1,8 @@
 const option = require("../option")
 const btree = require('../btree')
-const { getVisitor, setVisitor, values } = require("../btree")
+const { values } = require("../btree")
+const find = require('../btree/find')
+const s = require('../btree/set')
 const compare = require("../function/compare")
 const { stringCmp } = require("../function/compare")
 const list = require("../list")
@@ -38,7 +40,7 @@ const keyCmp = a => ([b]) => stringCmp(a)(b)
 /** @type {(name: string) => <T>(map: Map<T>) => T|undefined} */
 const at = name => map => {
     if (map === undefined) { return undefined }
-    const result = getVisitor(keyCmp(name))(map)
+    const result = find.value(find.find(keyCmp(name))(map).first)
     return result === undefined ? undefined : result[1]
 }
 
@@ -47,11 +49,7 @@ const set = name => value => map =>  {
     /** @type {Entry<typeof value>} */
     const entry = [name, value]
     if (map === undefined) { return [entry] }
-    const result = setVisitor(keyCmp(name))(map)(() => entry)
-    switch (result[0]) {
-        case 'replace': case 'overflow': { return result[1] }
-        default: { throw 'invalid BTree operation' }
-    }
+    return s.set(keyCmp(name))(entry)(map)
 }
 
 /** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */

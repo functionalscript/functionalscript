@@ -1,9 +1,11 @@
 const btree = require('.')
-const { getVisitor, setVisitor, values } = btree
+const { values } = btree
 const json = require('../../json')
 const { sort } = require('../object')
 const { stringCmp } = require('../function/compare')
 const list = require('../list')
+const s = require('./set')
+const f = require('./find')
 
 require('./find/test')
 require('./set/test')
@@ -15,13 +17,7 @@ const jsonStr = json.stringify(sort)
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => {
-    const result = setVisitor(stringCmp(value))(node)(() => value)
-    switch (result[0]) {
-        case 'replace': case 'overflow': { return result[1] }
-        default: { return node }
-    }
-}
+const set = node => value => s.set(stringCmp(value))(value)(node)
 
 {
     /** @type {btree.Node<string>} */
@@ -49,8 +45,8 @@ const set = node => value => {
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = getVisitor(stringCmp('b'))(_map)
-    if (result === undefined) { throw result }
+    const result = f.value(f.find(stringCmp('b'))(_map).first)
+    if (result !== 'b') { throw result }
 }
 
 {
@@ -58,7 +54,7 @@ const set = node => value => {
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = getVisitor(stringCmp('e'))(_map)
+    const result = f.value(f.find(stringCmp('e'))(_map).first)
     if (result !== undefined) { throw result }
 }
 
