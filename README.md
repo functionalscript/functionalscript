@@ -184,3 +184,15 @@ const f = x => {
    return r
 }
 ```
+
+## 5. Statements
+
+`{ A_LIST_OF_STATEMENTS }` is one or many statements seperated by the newline control character. 
+
+FunctionalScript includes these types of statements:
+- definition
+- [return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
+- if
+- switch
+- throw
+- while
