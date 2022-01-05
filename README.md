@@ -190,7 +190,8 @@ const f = x => {
 `{ A_LIST_OF_STATEMENTS }` is one or many statements seperated by the newline control character. 
 
 FunctionalScript includes these types of statements:
-- [definition](#25-Definitions)
+- [definition](#25-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement.
+- [let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let)
 - [return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
 - [if...else](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/if...else)
 - [switch](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch)
