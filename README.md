@@ -184,3 +184,56 @@ const f = x => {
    return r
 }
 ```
+
+## 5. Statements
+
+`{ A_LIST_OF_STATEMENTS }` is one or many statements seperated by the newline control character. One of these statements mentioned earlier was [definition](#25-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement. The other statements are described below.
+
+### 5.1 Let 
+
+[Let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let) declares a local mutable alias for immutable objects. For example
+
+```js
+let x = [5]
+// you can assign another immutable object to the alias at any time.
+x = [3, 4]
+//but you can't change the properties of the immutable object.
+x[0] = 3 // < invalid
+//let aliases can not be referenced from another arrow function.
+const f = () => x // < invalid
+```
+
+
+
+This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
+
+An example of incorrect code would look like this:
+
+```js
+let x = 5
+const f = () => x
+```
+
+### 5.2 Return 
+
+[Return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
+
+### 5.3 If...Else
+
+[If...Else](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/if...else)
+
+### 5.4 Switch
+
+[Switch](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch)
+
+### 5.5 Throw
+
+[Throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw). FunctionalScript allows to throw exceptions but it doesn't catch them. You should only be using Statement throw in non-recoverable situations. It could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
+
+### 5.6 While
+
+[While](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/while)
+
+### 5.7 Block
+
+[Block](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/block)
