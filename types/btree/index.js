@@ -366,76 +366,6 @@ const values = node => () => {
  * @typedef {readonly[...Branch9<T>,T,Node<T>]} Branch11
  */
 
-/** @type {<T>(n: Branch5<T> | Branch7<T> | Branch9<T> | Branch11<T>) => Branch1<T> | Branch3<T>} */
-const up = n => {
-    switch (n.length) {
-        case 5: { return [n] }
-        case 7: {
-            const [n0, v1, n2, v3, n4, v5, n6] = n
-            return [[n0, v1, n2], v3, [n4, v5, n6]]
-        }
-        case 9: {
-            const [n0, v1, n2, v3, n4, v5, n6, v7, n8] = n
-            return [[n0, v1, n2], v3, [n4, v5, n6, v7, n8]]
-        }
-        case 11: {
-            const [n0, v1, n2, v3, n4, v5, n6, v7, n8, v9, n10] = n
-            return [[n0, v1, n2, v3, n4], v5, [n6, v7, n8, v9, n10]]
-        }
-    }
-}
-
-/**
- * @template T
- * @typedef {readonly[Node<T>,T]} Head2
- */
-
-/**
- * @template T
- * @typedef {readonly[...Head2<T>, ...Head2<T>]} Head4
- */
-
-/**
- * @template T
- * @typedef {Head2<T>|Head4<T>} Head
- */
-
-/** @type {<T>(n: Branch3<T> | Branch5<T>) => readonly[Head<T>, Node<T>]} */
-const headLast = n => {
-    if (n.length === 3) {
-        const [n0, v1, n2] = n
-        return [[n0, v1], n2]
-    } else {
-        const [n0, v1, n2, v3, n4] = n
-        return [[n0, v1, n2, v3], n4]
-    }
-}
-
-/** @type {<T>(a: Node<T>) => (b: Node<T>) => ConcatResult<T>} */
-const concat = a => b => {
-    /** @typedef {typeof a extends Node<infer T> ? T : never} T */
-    switch (a.length) {
-        case 1: {
-            switch (b.length) {
-                case 1: { return [[a[0], b[0]]] }
-                case 2: { return [a, b[0], [b[1]]] }
-                default: { throw 'invalid b node' }
-            }
-        }
-        case 2: { return [[a[0]], a[1], b] }
-        default: {
-            switch (b.length) {
-                case 3: case 5: {
-                    const [aHead, aLast] = headLast(a)
-                    const [bFirst, ...bTail] = b
-                    return up([...aHead, ...concat(aLast)(bFirst), ...bTail])
-                }
-                default: { throw 'invalid b node' }
-            }
-        }
-    }
-}
-
 module.exports = {
     /** @readonly */
     values,
@@ -454,6 +384,4 @@ module.exports = {
     getOrInsertVisitor: visit(getOrInsertVisitor),
     /** @readonly */
     replaceVisitor: visit(replaceVisitor),
-    /** @readonly */
-    concat,
 }

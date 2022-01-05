@@ -1,5 +1,5 @@
 const btree = require('.')
-const { getVisitor, setVisitor, values, concat } = btree
+const { getVisitor, setVisitor, values } = btree
 const json = require('../../json')
 const { sort } = require('../object')
 const { stringCmp } = require('../function/compare')
@@ -60,48 +60,6 @@ const set = node => value => {
     _map = set(_map)('c')
     const result = getVisitor(stringCmp('e'))(_map)
     if (result !== undefined) { throw result }
-}
-
-{
-    /** @type {btree.Node<string>} */
-    let _map = ['1']
-    for (let i = 2; i <= 10; i++)
-        _map = set(_map)((i * i).toString())
-    if (_map.length !== 3) { throw _map }
-    let _s = jsonStr(_map)
-    if (_s !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw _s }
-
-    let [a,,b] = _map
-    let _c = concat(a)(b)
-    if (_c.length !== 3) { throw _c }
-    _s =jsonStr(_c);
-    if (_s !== '[[["1","100"],"16",["25"]],"36",[["49"],"64",["81","9"]]]') { throw _s }
-
-    [a,,b] = _c
-    _c = concat(a)(b)
-    if (_c.length !== 1) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[[["1","100"],"16",["25","49"],"64",["81","9"]]]') { throw _s }
-
-    let [_r] = _c
-    if (_r.length !== 5) { throw _r }
-    [a,,b] = _r
-    _c = concat(a)(b)
-    if (_c.length !== 3) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[["1"],"100",["25","49"]]') { throw _s }
-
-    [a,,b] = _c
-    _c = concat(a)(b)
-    if (_c.length !== 3) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[["1"],"25",["49"]]') { throw _s }
-
-    [a,,b] = _c
-    _c = concat(a)(b)
-    if (_c.length !== 1) { throw _c }
-    _s = jsonStr(_c);
-    if (_s !== '[["1","49"]]') { throw _s }
 }
 
 const test = () => {

@@ -5,13 +5,13 @@ const list = require('../../list')
 
 /**
  * @template T
- * @typedef {_.Branch1<T> | _.Branch3<T>} Result
+ * @typedef {_.Branch1<T> | _.Branch3<T>} Bracnh1To3
  */
 
-/** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Result<T>} */
+/** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Bracnh1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(a: Result<T>) => (i: find.PathItem<T>) => Result<T>} */
+/** @type {<T>(a: Bracnh1To3<T>) => (i: find.PathItem<T>) => Bracnh1To3<T>} */
 const reduce = a => i => {
     switch (i[0]) {
         case 0: {
@@ -39,7 +39,7 @@ const reduce = a => i => {
 const set = c => value => node => {
     const { first, tail } = find.find(c)(node)
     /** @typedef {typeof value} T */
-    /** @type {() => Result<T>} */
+    /** @type {() => Bracnh1To3<T>} */
     const f = () => {
         switch (first[0]) {
             case 0: {
