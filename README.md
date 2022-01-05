@@ -191,7 +191,28 @@ const f = x => {
 
 ### 5.1 Let 
 
-[Let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let) declares a local mutable object. This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
+[Let](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let) declares a local mutable alias for immutable objects. For example
+
+```js
+let x = [5]
+// you can assign another immutable object to the alias at any time.
+x = [3, 4]
+//but you can't change the properties of the immutable object.
+x[0] = 3 // < invalid
+//let aliases can not be referenced from another arrow function.
+const f = () => x // < invalid
+```
+
+
+
+This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
+
+An example of incorrect code would look like this:
+
+```js
+let x = 5
+const f = () => x
+```
 
 ### 5.2 Return 
 
