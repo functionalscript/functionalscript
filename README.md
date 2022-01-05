@@ -197,4 +197,4 @@ FunctionalScript includes these types of statements:
 - [throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw)
 - [while](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/while)
 
-**Note:** FunctionalScript allows to throw exceptions but it doesn't to catch them.
+**Note:** FunctionalScript allows to throw exceptions but it doesn't catch them. You should only be using Statement throw in non-recoverable situations. It could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
