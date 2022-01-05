@@ -203,17 +203,6 @@ x[0] = 3 // < invalid
 const f = () => x // < invalid
 ```
 
-
-
-This mutable object cannot be used in [closures](https://en.wikipedia.org/wiki/Closure_(computer_programming)) or nested functions.
-
-An example of incorrect code would look like this:
-
-```js
-let x = 5
-const f = () => x
-```
-
 ### 5.2 Return 
 
 [Return](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return)
