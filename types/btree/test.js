@@ -7,6 +7,7 @@ const list = require('../list')
 
 require('./find/test')
 require('./set/test')
+require('./remove/test')
 
 const jsonStr = json.stringify(sort)
 
