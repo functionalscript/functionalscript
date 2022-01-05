@@ -3,6 +3,7 @@ const { todo } = require('../../../dev')
 const cmp = require('../../function/compare')
 const find = require('../find')
 const list = require('../../list')
+const array = require('../../array')
 
 /**
  * @template T
@@ -60,24 +61,62 @@ const reduceValue2 = a => n => {
     }
 }
 
-/** @type {<T>(a: Branch<T>) => (i: find.PathItem<T>) => Branch<T>} */
-const reduce = a => i => {
-    /** @typedef {typeof a extends Branch<infer T> ? T : never} T */
-    /** @type {(r: (a: Branch<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>) => Branch<T>} */
-    const f = r => {
+/** @type {<T>(a: Leaf01<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} */
+const initValue0 = a => n => {
+    const [, v1, n2] = n
+    if (a === undefined) {
+        switch (n2.length) {
+            case 1: { return [[v1, ...n2]] }
+            case 2: { return [[v1], n2[0], [n2[1]]] }
+            default: { throw 'invalid node' }
+        }
+    } else {
+        return [a, v1, n2]
+    }
+}
+
+/** @type {<T>(a: Leaf01<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} */
+const initValue1 = a => n => {
+    const [n0, v1] = n
+    if (a === undefined) {
+        switch (n0.length) {
+            case 1: { return [[...n0, v1]] }
+            case 2: { return [[n0[0]], n0[1], [v1]] }
+            default: { throw 'invalid node' }
+        }
+    } else { return [n0, v1, a] }
+}
+
+/**
+ * @template A,T
+ * @typedef {(a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} Merge
+ */
+
+/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (a: A) => (i: find.PathItem<T>) => Branch<T>} */
+const reduceX = ms => a => i => {
+    const [m0, m2] = ms
+    /** @typedef {typeof ms extends array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
+    /** @typedef {AT[0]} A */
+    /** @typedef {AT[1]} T */
+    /** @type {(m: Merge<A, T>) => Branch<T>} */
+    const f = m => {
         const n = i[1]
-        const ra = r(a)
+        const ra = m(a)
         return n.length === 3 ? ra(n) : [...ra([n[0], n[1], n[2]]), n[3], n[4]]
     }
     switch (i[0]) {
-        case 0: { return f(reduceValue0) }
-        case 2: { return f(reduceValue2) }
+        case 0: { return f(m0) }
+        case 2: { return f(m2) }
         case 4: {
             const n = i[1]
-            return [n[0], n[1], ...reduceValue2(a)([n[2], n[3], n[4]])]
+            return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])]
         }
     }
 }
+
+const reduce = list.reduce(reduceX([reduceValue0, reduceValue2]))
+
+const initReduce = reduceX([initValue0, initValue1])
 
 /** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => undefined | _.Node<T>} */
 const remove = c => node => {
@@ -116,77 +155,8 @@ const remove = c => node => {
     const tailR = list.next(tail)
     if (tailR === undefined) { return first }
     const { first: tf, tail: tt } = tailR
-    /** @type {() => Branch<T>} */
-    const init = () => {
-        switch (tf[0]) {
-            case 0: {
-                const n = tf[1]
-                if (n.length === 3) {
-                    const [,v1,n2] = n
-                    if (first === undefined) {
-                        switch (n2.length) {
-                            case 1: { return [[v1, n2[0]]] }
-                            case 2: { return [[v1], n2[0], [n2[1]]] }
-                            default: { throw 'invalid node' }
-                        }
-                    } else {
-                        return [first, v1, n2]
-                    }
-                } else {
-                    const [,v1,n2,v3,n4] = n
-                    if (first === undefined) {
-                        switch (n2.length) {
-                            case 1: { return [[v1, n2[0]], v3, n4] }
-                            case 2: { return [[v1], n2[0], [n2[1]], v3, n4] }
-                            default: { throw 'invalid node' }
-                        }
-                    } else {
-                        return [first, v1, n2, v3, n4]
-                    }
-                }
-            }
-            case 2: {
-                const n = tf[1]
-                if (n.length === 3) {
-                    const [n0, v1,] = n
-                    if (first === undefined) {
-                        switch (n0.length) {
-                            case 1: { return [[n0[0], v1]] }
-                            case 2: { return [[n0[0]], n0[1], [v1]] }
-                            default: { throw 'invalid node' }
-                        }
-                    } else {
-                        return [n0, v1, first]
-                    }
-                } else {
-                    const [n0, v1, , v3, n4] = n
-                    if (first === undefined) {
-                        switch (n0.length) {
-                            case 1: { return [[n0[0], v1], v3, n4] }
-                            case 2: { return [[n0[0]], n0[1], [v1], v3, n4] }
-                            default: { throw 'invalid node' }
-                        }
-                    } else {
-                        return [n0, v1, first, v3, n4]
-                    }
-                }
-            }
-            case 4: {
-                const [n0, v1, n2, v3, ] = tf[1]
-                if (first === undefined) {
-                    switch (n2.length) {
-                        case 1: { return [n0, v1, [n2[0], v3]] }
-                        case 2: { return [n0, v1, [n2[0]], n2[1], [v3]] }
-                        default: { throw 'invalid node' }
-                    }
-                } else {
-                    return [n0, v1, n2, v3, first]
-                }
-            }
-        }
-    }
-    const b = init()
-    return todo()
+    const result = reduce(initReduce(first)(tf))(tt)
+    return result.length === 1 ? result[0] : result
 }
 
 module.exports = {
