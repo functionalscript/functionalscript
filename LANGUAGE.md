@@ -167,7 +167,7 @@ const f = x => {
 
 ## 9. Statements
 
-`{ A_LIST_OF_STATEMENTS }` is one or many statements seperated by the newline control character. One of these statements mentioned earlier was [definition](#25-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement. The other statements are described below.
+`{ A_LIST_OF_STATEMENTS }` is one or many statements seperated by the newline control character. One of these statements mentioned earlier was [definition](#5-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement. The other statements are described below.
 
 ### 9.1. Let
 
