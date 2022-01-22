@@ -32,30 +32,34 @@ const padding = input => length =>
     //console.log(outputLength)
     let o = new Array(outputLength / 32)
     //console.log(o.length)
+    /** @type {(i: number) => number} */
+    const f = i => {
+        if (i < appendBlockIndex)
+            return input[i];
+        else if (i === appendBlockIndex)
+            return appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32);
+        else if (i === o.length - 2)
+            return Math.floor(length / 4294967296)
+        else if (i === o.length - 1)
+            return length % 4294967296
+        else
+            return 0
+    }
     for(let i = 0; i < o.length; i++)
     {
-        if (i < appendBlockIndex)
-            o[i] = input[i];
-        else if (i == appendBlockIndex)
-            o[i] = appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32);
-        else if (i == o.length - 2)
-            o[i] = Math.floor(length / 4294967296)
-        else if (i == o.length - 1)
-            o[i] = length % 4294967296
-        else
-            o[i] = 0
+        o[i] = f(i)
     }
     return o;
 }
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
-const ch = x => y => z => 
+const ch = x => y => z =>
 {
     return x & y ^ ~x & z
 }
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
-const maj = x => y => z => 
+const maj = x => y => z =>
 {
     return x & y ^ x & z ^ y & z
 }
@@ -73,25 +77,25 @@ const shr = n => d =>
 }
 
 /** @type {(x: number) => number} */
-const bsig0 = x =>  
+const bsig0 = x =>
 {
     return rotr(x)(2) ^ rotr(x)(13) ^ rotr(x)(22)
 }
 
 /** @type {(x: number) => number} */
-const bsig1 = x =>  
+const bsig1 = x =>
 {
     return rotr(x)(6) ^ rotr(x)(11) ^ rotr(x)(25)
 }
 
 /** @type {(x: number) => number} */
-const ssig0 = x =>  
+const ssig0 = x =>
 {
     return rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
 }
 
 /** @type {(x: number) => number} */
-const ssig1 = x =>  
+const ssig1 = x =>
 {
     return rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 }
@@ -141,14 +145,14 @@ const computeSha256 = input => length =>
         {
             w[t] = padded[t + i * 16]
         }
-    
+
         for(let t = 16; t < 64; t++)
         {
             w[t] = mod2pow32(ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16])
         }
-    
+
         //console.log(w.map(toHexString))
-    
+
         let a = h0
         let b = h1
         let c = h2
@@ -157,7 +161,7 @@ const computeSha256 = input => length =>
         let f = h5
         let g = h6
         let h = h7
-    
+
         for(let t = 0; t < 64; t++)
         {
             let t1 = mod2pow32(h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t])
@@ -171,7 +175,7 @@ const computeSha256 = input => length =>
             b = a
             a = mod2pow32(t1 + t2)
         }
-    
+
         h0 = mod2pow32(h0 + a)
         h1 = mod2pow32(h1 + b)
         h2 = mod2pow32(h2+ c)
