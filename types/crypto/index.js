@@ -32,7 +32,7 @@ const padding = input => length =>
     //console.log(outputLength)
     let o = new Array(outputLength / 32)
     //console.log(o.length)
-    for(var i = 0; i < o.length; i++)
+    for(let i = 0; i < o.length; i++)
     {
         if (i < appendBlockIndex)
             o[i] = input[i];
