@@ -33,18 +33,13 @@ const padding = input => length =>
     let o = new Array(outputLength / 32)
     //console.log(o.length)
     /** @type {(i: number) => number} */
-    const f = i => {
-        if (i < appendBlockIndex)
-            return input[i];
-        else if (i === appendBlockIndex)
-            return appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32);
-        else if (i === o.length - 2)
-            return Math.floor(length / 4294967296)
-        else if (i === o.length - 1)
-            return length % 4294967296
-        else
-            return 0
-    }
+    const f = i =>
+        i < appendBlockIndex ?
+            input[i] :
+        i === appendBlockIndex ?
+            (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32)) :
+        i === o.length - 2 ? (length / 4294967296) | 0 :
+        i === o.length - 1 ? length % 4294967296 : 0
     for(let i = 0; i < o.length; i++)
     {
         o[i] = f(i)
