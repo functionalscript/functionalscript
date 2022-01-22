@@ -48,11 +48,6 @@ const seq = require('../list')
  * @typedef { Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} Node
  */
 
-/**
- * @template T
- * @typedef { readonly[...Branch5<T>, T, Node<T>] } Branch7
- */
-
 /** @type {<T>(node: Node<T>) => seq.Thunk<T>} */
 const values = node => () => {
     switch (node.length) {
@@ -79,6 +74,11 @@ const values = node => () => {
 /**
  * @template T
  * @typedef {readonly[Node<T>]} Branch1
+ */
+
+/**
+ * @template T
+ * @typedef { readonly[...Branch5<T>, T, Node<T>] } Branch7
  */
 
 module.exports = {
