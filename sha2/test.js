@@ -3,10 +3,7 @@ const json = require('../json')
 const { sort } = require('../types/object')
 
 /** @type {(a: number) => string} */
-const toHexString = x =>
-{
-    return x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
-}
+const toHexString = x => x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
