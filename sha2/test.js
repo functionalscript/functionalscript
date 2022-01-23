@@ -1,6 +1,6 @@
 const _ = require('.')
-const json = require('../../json')
-const { sort } = require('../object')
+const json = require('../json')
+const { sort } = require('../types/object')
 
 /** @type {(a: number) => string} */
 const toHexString = x =>
