@@ -1,6 +1,6 @@
 /**
  * @typedef {{
- *  readonly input: number[]
+ *  readonly f: (i: number) => number
  *  readonly length: number
  * }} HashInput
  */
@@ -15,26 +15,20 @@ const appendOne = input => pos => input | (1 << 31 - pos)
 /** @type  {(input: number) => (pos: number) => number} */
 const unsignedMod = a => b => (a % b + b) % b
 
-/** @type  {(input: number[]) => (length: number) => readonly number[]} */
-const padding = input => length =>
+/** @type  {(input: number[]) => (bits: number) => HashInput} */
+const padding = input => bitsCount =>
 {
-    const appendBlockIndex = Math.floor(length / 32)
-    const k = unsignedMod(447 - length)(512)
-    const outputLength = length + k + 65
-    let o = new Array(outputLength / 32)
+    const appendBlockIndex = (bitsCount / 32) | 0
+    const length = (bitsCount + unsignedMod(447 - bitsCount)(512) + 65) / 32
     /** @type {(i: number) => number} */
     const f = i =>
         i < appendBlockIndex ?
             input[i] :
         i === appendBlockIndex ?
-            (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32)) :
-        i === o.length - 2 ? (length / 0x100000000) | 0 :
-        i === o.length - 1 ? length % 0x100000000 : 0
-    for(let i = 0; i < o.length; i++)
-    {
-        o[i] = f(i)
-    }
-    return o;
+            (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
+        i === length - 2 ? (bitsCount / 0x100000000) | 0 :
+        i === length - 1 ? bitsCount % 0x100000000 : 0
+    return ({f, length})
 }
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
@@ -64,10 +58,10 @@ const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 /** @type {(x: number) => number} */
 const mod2pow32 = x => x % 0x100000000
 
-/** @type {(input: number[]) => (length: number) => HashOutput8} */
-const computeSha256 = input => length =>
+/** @type {(input: number[]) => (bitsCount: number) => HashOutput8} */
+const computeSha256 = input => bitsCount =>
 {
-    const padded = padding(input)(length)
+    const padded = padding(input)(bitsCount)
 
     let h0 = 0x6a09e667
     let h1 = 0xbb67ae85
@@ -95,7 +89,7 @@ const computeSha256 = input => length =>
     {
         for(let t = 0; t < 16; t++)
         {
-            w[t] = padded[t + i * 16]
+            w[t] = padded.f(t + i * 16)
         }
 
         for(let t = 16; t < 64; t++)
