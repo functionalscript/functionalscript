@@ -28,8 +28,8 @@ const padding = input => length =>
             input[i] :
         i === appendBlockIndex ?
             (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32)) :
-        i === o.length - 2 ? (length / 4294967296) | 0 :
-        i === o.length - 1 ? length % 4294967296 : 0
+        i === o.length - 2 ? (length / 0x100000000) | 0 :
+        i === o.length - 1 ? length % 0x100000000 : 0
     for(let i = 0; i < o.length; i++)
     {
         o[i] = f(i)
@@ -62,7 +62,7 @@ const ssig0 = x => rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
 const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 
 /** @type {(x: number) => number} */
-const mod2pow32 = x => x % 4294967296
+const mod2pow32 = x => x % 0x100000000
 
 /** @type {(input: number[]) => (length: number) => HashOutput8} */
 const computeSha256 = input => length =>
