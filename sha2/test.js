@@ -1,12 +1,9 @@
 const _ = require('.')
-const json = require('../../json')
-const { sort } = require('../object')
+const json = require('../json')
+const { sort } = require('../types/object')
 
 /** @type {(a: number) => string} */
-const toHexString = x =>
-{
-    return x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
-}
+const toHexString = x => x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
@@ -35,6 +32,12 @@ const stringify = a => json.stringify(sort)(a)
     const hash = _.computeSha256([])(0)
     const result = stringify(hash.map(toHexString))
     if (result !== '["e3b0c442","98fc1c14","9afbf4c8","996fb924","27ae41e4","649b934c","a495991b","7852b855"]') { throw result }
+}
+
+{
+    const hash = _.computeSha224([])(0)
+    const result = stringify(hash.map(toHexString))
+    if (result !== '["d14a028c","2a3a2bc9","476102bb","288234c4","15a2b01f","828ea62a","c5b3e42f","bdd387cb"]') { throw result }
 }
 
 {

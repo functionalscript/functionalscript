@@ -1,119 +1,88 @@
 /**
  * @typedef {{
- *  readonly input: number[]
+ *  readonly f: (i: number) => number
  *  readonly length: number
  * }} HashInput
  */
 
 /**
- * @typedef {readonly[number, number, number, number, number, number, number, number]} HashOutput8
+ * @typedef {readonly[number, number, number, number, number, number, number, number]} Hash8
  */
 
 /** @type  {(input: number) => (pos: number) => number} */
-const appendOne = input => pos =>
-{
-    return input | (1 << 31 - pos)
-}
+const appendOne = input => pos => input | (1 << 31 - pos)
 
 /** @type  {(input: number) => (pos: number) => number} */
-const unsignedMod = a => b =>
-{
-    return (a % b + b) % b
-}
+const unsignedMod = a => b => (a % b + b) % b
 
-/** @type  {(input: number[]) => (length: number) => readonly number[]} */
-const padding = input => length =>
+/** @type  {(input: readonly number[]) => (bits: number) => HashInput} */
+const padding = input => bitsCount =>
 {
-    const appendBlockIndex = Math.floor(length / 32)
-    //console.log(appendBlockIndex)
-    const k = unsignedMod(447 - length)(512)
-    //console.log(k)
-    const outputLength = length + k + 65
-    //console.log(outputLength)
-    let o = new Array(outputLength / 32)
-    //console.log(o.length)
+    const appendBlockIndex = (bitsCount / 32) | 0
+    const length = (bitsCount + unsignedMod(447 - bitsCount)(512) + 65) / 32
     /** @type {(i: number) => number} */
     const f = i =>
         i < appendBlockIndex ?
             input[i] :
         i === appendBlockIndex ?
-            (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(length % 32)) :
-        i === o.length - 2 ? (length / 4294967296) | 0 :
-        i === o.length - 1 ? length % 4294967296 : 0
-    for(let i = 0; i < o.length; i++)
-    {
-        o[i] = f(i)
-    }
-    return o;
+            (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
+        i === length - 2 ? (bitsCount / 0x100000000) | 0 :
+        i === length - 1 ? bitsCount % 0x100000000 : 0
+    return ({f, length})
 }
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
-const ch = x => y => z =>
-{
-    return x & y ^ ~x & z
-}
+const ch = x => y => z => x & y ^ ~x & z
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
-const maj = x => y => z =>
-{
-    return x & y ^ x & z ^ y & z
-}
+const maj = x => y => z => x & y ^ x & z ^ y & z
 
 /** @type {(n: number) => (d: number) => number} */
-const rotr = n => d =>
-{
-    return n >>> d | n << (32-d)
-}
+const rotr = n => d => n >>> d | n << (32-d)
 
 /** @type {(n: number) => (d: number) => number} */
-const shr = n => d =>
-{
-    return n >>> d
-}
+const shr = n => d => n >>> d
 
 /** @type {(x: number) => number} */
-const bsig0 = x =>
-{
-    return rotr(x)(2) ^ rotr(x)(13) ^ rotr(x)(22)
-}
+const bsig0 = x => rotr(x)(2) ^ rotr(x)(13) ^ rotr(x)(22)
 
 /** @type {(x: number) => number} */
-const bsig1 = x =>
-{
-    return rotr(x)(6) ^ rotr(x)(11) ^ rotr(x)(25)
-}
+const bsig1 = x => rotr(x)(6) ^ rotr(x)(11) ^ rotr(x)(25)
 
 /** @type {(x: number) => number} */
-const ssig0 = x =>
-{
-    return rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
-}
+const ssig0 = x => rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
 
 /** @type {(x: number) => number} */
-const ssig1 = x =>
-{
-    return rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
-}
+const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 
 /** @type {(x: number) => number} */
-const mod2pow32 = x =>
-{
-    return x % 4294967296
-}
+const mod2pow32 = x => x % 0x100000000
 
-/** @type {(input: number[]) => (length: number) => HashOutput8} */
-const computeSha256 = input => length =>
-{
-    const padded = padding(input)(length)
+/** @type {Hash8} */
+const init256 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
 
-    let h0 = 0x6a09e667
-    let h1 = 0xbb67ae85
-    let h2 = 0x3c6ef372
-    let h3 = 0xa54ff53a
-    let h4 = 0x510e527f
-    let h5 = 0x9b05688c
-    let h6 = 0x1f83d9ab
-    let h7 = 0x5be0cd19
+/** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
+const computeSha256 = input => bitsCount => compute(input)(bitsCount)(init256)
+
+/** @type {Hash8} */
+const init224 = [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4]
+
+/** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
+const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
+
+/** @type {(input: readonly number[]) => (bitsCount: number) => (init: Hash8) => Hash8} */
+const compute = input => bitsCount => init =>
+{
+    const padded = padding(input)(bitsCount)
+
+    let h0 = init[0]
+    let h1 = init[1]
+    let h2 = init[2]
+    let h3 = init[3]
+    let h4 = init[4]
+    let h5 = init[5]
+    let h6 = init[6]
+    let h7 = init[7]
 
     const k = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -126,27 +95,19 @@ const computeSha256 = input => length =>
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     ];
 
-    // /** @type {(a: number) => string} */
-    // const toHexString = x =>
-    // {
-    //     return x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
-    // }
-
     let w = new Array(64)
     const chunkCount = padded.length / 16
     for(let i = 0; i < chunkCount; i++)
     {
         for(let t = 0; t < 16; t++)
         {
-            w[t] = padded[t + i * 16]
+            w[t] = padded.f(t + i * 16)
         }
 
         for(let t = 16; t < 64; t++)
         {
             w[t] = mod2pow32(ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16])
         }
-
-        //console.log(w.map(toHexString))
 
         let a = h0
         let b = h1
@@ -189,4 +150,6 @@ module.exports = {
     padding,
     /** @readonly */
     computeSha256,
+    /** @readonly */
+    computeSha224
 }
