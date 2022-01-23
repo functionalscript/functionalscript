@@ -6,7 +6,7 @@
  */
 
 /**
- * @typedef {readonly[number, number, number, number, number, number, number, number]} HashOutput8
+ * @typedef {readonly[number, number, number, number, number, number, number, number]} Hash8
  */
 
 /** @type  {(input: number) => (pos: number) => number} */
@@ -58,19 +58,31 @@ const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 /** @type {(x: number) => number} */
 const mod2pow32 = x => x % 0x100000000
 
-/** @type {(input: number[]) => (bitsCount: number) => HashOutput8} */
-const computeSha256 = input => bitsCount =>
+/** @type {Hash8} */
+const init256 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
+
+/** @type {(input: number[]) => (bitsCount: number) => Hash8} */
+const computeSha256 = input => bitsCount => compute(input)(bitsCount)(init256)
+
+/** @type {Hash8} */
+const init224 = [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4]
+
+/** @type {(input: number[]) => (bitsCount: number) => Hash8} */
+const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
+
+/** @type {(input: number[]) => (bitsCount: number) => (init: Hash8) => Hash8} */
+const compute = input => bitsCount => init =>
 {
     const padded = padding(input)(bitsCount)
 
-    let h0 = 0x6a09e667
-    let h1 = 0xbb67ae85
-    let h2 = 0x3c6ef372
-    let h3 = 0xa54ff53a
-    let h4 = 0x510e527f
-    let h5 = 0x9b05688c
-    let h6 = 0x1f83d9ab
-    let h7 = 0x5be0cd19
+    let h0 = init[0]
+    let h1 = init[1]
+    let h2 = init[2]
+    let h3 = init[3]
+    let h4 = init[4]
+    let h5 = init[5]
+    let h6 = init[6]
+    let h7 = init[7]
 
     const k = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -138,4 +150,6 @@ module.exports = {
     padding,
     /** @readonly */
     computeSha256,
+    /** @readonly */
+    computeSha224
 }
