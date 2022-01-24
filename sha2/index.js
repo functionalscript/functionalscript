@@ -6,7 +6,7 @@
  */
 
 /**
- * @typedef {readonly[number, number, number, number, number, number, number, number]} Hash8
+ * @typedef {Int32Array} Hash8
  */
 
 /** @type {(input: number) => (pos: number) => number} */
@@ -56,13 +56,13 @@ const ssig0 = x => rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
 const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
 
 /** @type {Hash8} */
-const init256 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
+const init256 = new Int32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19])
 
 /** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
 const computeSha256 = input => bitsCount => compute(input)(bitsCount)(init256)
 
 /** @type {Hash8} */
-const init224 = [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4]
+const init224 = new Int32Array([0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4])
 
 /** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
 const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
@@ -92,7 +92,7 @@ const compute = input => bitsCount => init =>
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     ];
 
-    let w = new Array(64)
+    let w = new Int32Array(64)
     const chunkCount = padded.length / 16
     for(let i = 0; i < chunkCount; i++)
     {
@@ -139,7 +139,7 @@ const compute = input => bitsCount => init =>
         h7 = (h7 + h) | 0
     }
 
-    return [h0, h1, h2, h3, h4, h5, h6, h7]
+    return new Int32Array([h0, h1, h2, h3, h4, h5, h6, h7])
 }
 
 module.exports = {
