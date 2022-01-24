@@ -2,8 +2,11 @@ const _ = require('.')
 const json = require('../json')
 const { sort } = require('../types/object')
 
+/** @type {(a: number) => number} */
+const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000
+
 /** @type {(a: number) => string} */
-const toHexString = x => x >= 0 ? x.toString(16).padStart(8, '0') : (x + 0x100000000).toString(16).padStart(8, '0')
+const toHexString = x => toU32(x).toString(16).padStart(8, '0')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
@@ -50,7 +53,7 @@ const stringify = a => json.stringify(sort)(a)
 {
     const input = Array(8).fill(0x31313131)
     const result = _.computeSha256(input)(256)
-    if (result[0] !== 0x8a83665f) { throw result[0] }
+    if (toU32(result[0]) !== 0x8a83665f) { throw result[0] }
 }
 
 {

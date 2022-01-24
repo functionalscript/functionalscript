@@ -9,36 +9,36 @@
  * @typedef {readonly[number, number, number, number, number, number, number, number]} Hash8
  */
 
-/** @type  {(input: number) => (pos: number) => number} */
+/** @type {(input: number) => (pos: number) => number} */
 const appendOne = input => pos => input | (1 << 31 - pos)
 
-/** @type  {(input: number) => (pos: number) => number} */
-const unsignedMod = a => b => (a % b + b) % b
+/** @type {(input: number) => (pos: number) => number} */
+const mod = a => b => (a % b + b) % b
 
 /** @type  {(input: readonly number[]) => (bits: number) => HashInput} */
 const padding = input => bitsCount =>
 {
     const appendBlockIndex = (bitsCount / 32) | 0
-    const length = (bitsCount + unsignedMod(447 - bitsCount)(512) + 65) / 32
+    const length = (bitsCount + mod(447 - bitsCount)(512) + 65) / 32
     /** @type {(i: number) => number} */
     const f = i =>
         i < appendBlockIndex ?
             input[i] :
         i === appendBlockIndex ?
-            (appendBlockIndex >= input.length ? 0x80000000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
-        i === length - 2 ? (bitsCount / 0x100000000) | 0 :
-        i === length - 1 ? bitsCount % 0x100000000 : 0
+            (appendBlockIndex >= input.length ? 0x8000_0000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
+        i === length - 2 ? (bitsCount / 0x1_0000_0000) | 0 :
+        i === length - 1 ? bitsCount % 0x1_0000_0000 : 0
     return ({f, length})
 }
+
+/** @type {(n: number) => (d: number) => number} */
+const rotr = n => d => n >>> d | n << (32 - d)
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
 const ch = x => y => z => x & y ^ ~x & z
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
 const maj = x => y => z => x & y ^ x & z ^ y & z
-
-/** @type {(n: number) => (d: number) => number} */
-const rotr = n => d => n >>> d | n << (32-d)
 
 /** @type {(n: number) => (d: number) => number} */
 const shr = n => d => n >>> d
@@ -54,9 +54,6 @@ const ssig0 = x => rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
 
 /** @type {(x: number) => number} */
 const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
-
-/** @type {(x: number) => number} */
-const mod2pow32 = x => x % 0x100000000
 
 /** @type {Hash8} */
 const init256 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
@@ -106,7 +103,7 @@ const compute = input => bitsCount => init =>
 
         for(let t = 16; t < 64; t++)
         {
-            w[t] = mod2pow32(ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16])
+            w[t] = (ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16]) | 0
         }
 
         let a = h0
@@ -120,26 +117,26 @@ const compute = input => bitsCount => init =>
 
         for(let t = 0; t < 64; t++)
         {
-            let t1 = mod2pow32(h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t])
-            let t2 = mod2pow32(bsig0(a) + maj(a)(b)(c))
+            let t1 = (h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t]) | 0
+            let t2 = (bsig0(a) + maj(a)(b)(c)) | 0
             h = g
             g = f
             f = e
-            e = mod2pow32(d + t1)
+            e = (d + t1) | 0
             d = c
             c = b
             b = a
-            a = mod2pow32(t1 + t2)
+            a = (t1 + t2) | 0
         }
 
-        h0 = mod2pow32(h0 + a)
-        h1 = mod2pow32(h1 + b)
-        h2 = mod2pow32(h2+ c)
-        h3 = mod2pow32(h3 + d)
-        h4 = mod2pow32(h4 + e)
-        h5 = mod2pow32(h5 + f)
-        h6 = mod2pow32(h6 + g)
-        h7 = mod2pow32(h7 + h)
+        h0 = (h0 + a) | 0
+        h1 = (h1 + b) | 0
+        h2 = (h2 + c) | 0
+        h3 = (h3 + d) | 0
+        h4 = (h4 + e) | 0
+        h5 = (h5 + f) | 0
+        h6 = (h6 + g) | 0
+        h7 = (h7 + h) | 0
     }
 
     return [h0, h1, h2, h3, h4, h5, h6, h7]
