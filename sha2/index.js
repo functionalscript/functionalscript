@@ -92,10 +92,10 @@ const compute = input => bitsCount => init =>
     let h6 = init[6]
     let h7 = init[7]
 
-    let w = new Int32Array(64)
     const chunkCount = padded.length / 16
     for(let i = 0; i < chunkCount; i++)
     {
+        const w = new Int32Array(64)
         for(let t = 0; t < 16; t++)
         {
             w[t] = padded.f(t + i * 16)
