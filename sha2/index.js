@@ -78,68 +78,71 @@ const k = new Int32Array([
 /** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
 const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
 
+/** @type {(init: Hash8) => (hash0: Hash8) => (hash1: Hash8) => Hash8} */
+const compress = init => hash0 => hash1 => {
+    const w = new Int32Array(64)
+    for (let t = 0; t < 8; t++) {
+        w[t] = hash0[t]
+    }
+    for (let t = 8; t < 16; t++) {
+        w[t] = hash1[t - 8]
+    }
+
+    for (let t = 16; t < 64; t++) {
+        w[t] = ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t - 15]) + w[t - 16]
+    }
+
+    let a = init[0]
+    let b = init[1]
+    let c = init[2]
+    let d = init[3]
+    let e = init[4]
+    let f = init[5]
+    let g = init[6]
+    let h = init[7]
+
+    for (let t = 0; t < 64; t++) {
+        const t1 = (h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t]) | 0
+        const t2 = (bsig0(a) + maj(a)(b)(c)) | 0
+        h = g
+        g = f
+        f = e
+        e = (d + t1) | 0
+        d = c
+        c = b
+        b = a
+        a = (t1 + t2) | 0
+    }
+
+    return new Int32Array([
+        init[0] + a,
+        init[1] + b,
+        init[2] + c,
+        init[3] + d,
+        init[4] + e,
+        init[5] + f,
+        init[6] + g,
+        init[7] + h,
+    ])
+}
+
 /** @type {(input: readonly number[]) => (bitsCount: number) => (init: Hash8) => Hash8} */
 const compute = input => bitsCount => init =>
 {
-    const padded = padding(input)(bitsCount)
+    const { f, length } = padding(input)(bitsCount)
 
-    let h0 = init[0]
-    let h1 = init[1]
-    let h2 = init[2]
-    let h3 = init[3]
-    let h4 = init[4]
-    let h5 = init[5]
-    let h6 = init[6]
-    let h7 = init[7]
+    let result = init
 
-    const chunkCount = padded.length / 16
+    const chunkCount = length / 16
     for(let i = 0; i < chunkCount; i++)
     {
-        const w = new Int32Array(64)
-        for(let t = 0; t < 16; t++)
-        {
-            w[t] = padded.f(t + i * 16)
-        }
-
-        for(let t = 16; t < 64; t++)
-        {
-            w[t] = (ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t-15]) + w[t - 16]) | 0
-        }
-
-        let a = h0
-        let b = h1
-        let c = h2
-        let d = h3
-        let e = h4
-        let f = h5
-        let g = h6
-        let h = h7
-
-        for(let t = 0; t < 64; t++)
-        {
-            let t1 = (h + bsig1(e) + ch(e)(f)(g) + k[t] + w[t]) | 0
-            let t2 = (bsig0(a) + maj(a)(b)(c)) | 0
-            h = g
-            g = f
-            f = e
-            e = (d + t1) | 0
-            d = c
-            c = b
-            b = a
-            a = (t1 + t2) | 0
-        }
-
-        h0 = (h0 + a) | 0
-        h1 = (h1 + b) | 0
-        h2 = (h2 + c) | 0
-        h3 = (h3 + d) | 0
-        h4 = (h4 + e) | 0
-        h5 = (h5 + f) | 0
-        h6 = (h6 + g) | 0
-        h7 = (h7 + h) | 0
+        const s = i * 16
+        result = compress(result)
+            (new Int32Array([f(s + 0), f(s + 1), f(s +  2), f(s +  3), f(s +  4), f(s +  5), f(s +  6), f(s +  7)]))
+            (new Int32Array([f(s + 8), f(s + 9), f(s + 10), f(s + 11), f(s + 12), f(s + 13), f(s + 14), f(s + 15)]))
     }
 
-    return new Int32Array([h0, h1, h2, h3, h4, h5, h6, h7])
+    return result
 }
 
 module.exports = {
