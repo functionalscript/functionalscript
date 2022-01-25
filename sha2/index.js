@@ -81,15 +81,19 @@ const k = [
 /** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
 const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
 
+/** @type {(input: Array16) => Array16} */
+const nextW = w => {
+    for (let t = 0; t < 16; t++) {
+        w[t] = ssig1(w[(t + 14) & 0xF]) + w[(t + 9) & 0xF] + ssig0(w[(t + 1) & 0xF]) + w[t]
+    }
+    return w
+}
+
 /** @type {(init: Hash8) => (data: Array16) => Hash8} */
 const compress = init => data => {
-    const w = new Int32Array(64)
+    let w = new Int32Array(16)
     for (let t = 0; t < 16; t++) {
         w[t] = data[t]
-    }
-
-    for (let t = 16; t < 64; t++) {
-        w[t] = ssig1(w[t - 2]) + w[t - 7] + ssig0(w[t - 15]) + w[t - 16]
     }
 
     let a = init[0]
@@ -104,7 +108,7 @@ const compress = init => data => {
     for (let i = 0; i < 4; ++i) {
         for (let j = 0; j < 16; ++j) {
             const t = i * 16 + j
-            const t1 = (h + bsig1(e) + ch(e)(f)(g) + k[i][j] + w[t]) | 0
+            const t1 = (h + bsig1(e) + ch(e)(f)(g) + k[i][j] + w[j]) | 0
             const t2 = (bsig0(a) + maj(a)(b)(c)) | 0
             h = g
             g = f
@@ -115,6 +119,7 @@ const compress = init => data => {
             b = a
             a = (t1 + t2) | 0
         }
+        w = nextW(w)
     }
 
     return new Int32Array([
