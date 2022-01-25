@@ -30,8 +30,11 @@ const padding = input => bitsCount => {
     return ({ f, length })
 }
 
-/** @type {(n: number) => (d: number) => number} */
-const rotr = n => d => n >>> d | n << (32 - d)
+/** @type {(d: number) => (n: number) => number} */
+const rotr = d => {
+    const r = 32 - d
+    return n => n >>> d | n << r
+}
 
 /** @type {(x: number) => (y: number) => (z: number) => number} */
 const ch = x => y => z => x & y ^ ~x & z
@@ -39,20 +42,32 @@ const ch = x => y => z => x & y ^ ~x & z
 /** @type {(x: number) => (y: number) => (z: number) => number} */
 const maj = x => y => z => x & y ^ x & z ^ y & z
 
-/** @type {(n: number) => (d: number) => number} */
-const shr = n => d => n >>> d
+/** @type {(d: number) => (n: number) => number} */
+const shr = d => n => n >>> d
 
-/** @type {(x: number) => number} */
-const bsig0 = x => rotr(x)(2) ^ rotr(x)(13) ^ rotr(x)(22)
+/** @type {(a: number) => (b: number) => (c: number) => (x: number) => number} */
+const bigSigma = a => b => c => {
+    const ra = rotr(a)
+    const rb = rotr(b)
+    const rc = rotr(c)
+    return x => ra(x) ^ rb(x) ^ rc(x)
+}
 
-/** @type {(x: number) => number} */
-const bsig1 = x => rotr(x)(6) ^ rotr(x)(11) ^ rotr(x)(25)
+const bigSigma0 = bigSigma(2)(13)(22)
 
-/** @type {(x: number) => number} */
-const ssig0 = x => rotr(x)(7) ^ rotr(x)(18) ^ shr(x)(3)
+const bigSigma1 = bigSigma(6)(11)(25)
 
-/** @type {(x: number) => number} */
-const ssig1 = x => rotr(x)(17) ^ rotr(x)(19) ^ shr(x)(10)
+/** @type {(a: number) => (b: number) => (c: number) => (x: number) => number} */
+const smallSigma = a => b => c => {
+    const ra = rotr(a)
+    const rb = rotr(b)
+    const sc = shr(c)
+    return x => ra(x) ^ rb(x) ^ sc(x)
+}
+
+const smallSigma0 = smallSigma(7)(18)(3)
+
+const smallSigma1 = smallSigma(17)(19)(10)
 
 /** @type {Hash8} */
 const init256 = new Int32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19])
@@ -84,7 +99,7 @@ const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
 /** @type {(input: Array16) => Array16} */
 const nextW = w => {
     for (let t = 0; t < 16; t++) {
-        w[t] = ssig1(w[(t + 14) & 0xF]) + w[(t + 9) & 0xF] + ssig0(w[(t + 1) & 0xF]) + w[t]
+        w[t] = smallSigma1(w[(t + 14) & 0xF]) + w[(t + 9) & 0xF] + smallSigma0(w[(t + 1) & 0xF]) + w[t]
     }
     return w
 }
@@ -106,17 +121,18 @@ const compress = init => data => {
     let h = init[7]
 
     for (let i = 0; i < 4; ++i) {
+        const ki = k[i]
         for (let j = 0; j < 16; ++j) {
-            const t1 = h + bsig1(e) + ch(e)(f)(g) + k[i][j] + w[j]
-            const t2 = bsig0(a) + maj(a)(b)(c)
+            const t1 = h + bigSigma1(e) + ch(e)(f)(g) + ki[j] + w[j]
+            const t2 = bigSigma0(a) + maj(a)(b)(c)
             h = g
             g = f
             f = e
-            e = d + t1
+            e = (d + t1) | 0
             d = c
             c = b
             b = a
-            a = t1 + t2
+            a = (t1 + t2) | 0
         }
         w = nextW(w)
     }
