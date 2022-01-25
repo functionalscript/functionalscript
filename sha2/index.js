@@ -107,17 +107,16 @@ const compress = init => data => {
 
     for (let i = 0; i < 4; ++i) {
         for (let j = 0; j < 16; ++j) {
-            const t = i * 16 + j
-            const t1 = (h + bsig1(e) + ch(e)(f)(g) + k[i][j] + w[j]) | 0
-            const t2 = (bsig0(a) + maj(a)(b)(c)) | 0
+            const t1 = h + bsig1(e) + ch(e)(f)(g) + k[i][j] + w[j]
+            const t2 = bsig0(a) + maj(a)(b)(c)
             h = g
             g = f
             f = e
-            e = (d + t1) | 0
+            e = d + t1
             d = c
             c = b
             b = a
-            a = (t1 + t2) | 0
+            a = t1 + t2
         }
         w = nextW(w)
     }
