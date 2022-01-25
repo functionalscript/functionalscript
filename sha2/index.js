@@ -23,10 +23,12 @@ const padding = input => bitsCount => {
     const f = i =>
         i < appendBlockIndex ?
             input[i] :
-            i === appendBlockIndex ?
-                (appendBlockIndex >= input.length ? 0x8000_0000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
-                i === length - 2 ? (bitsCount / 0x1_0000_0000) | 0 :
-                    i === length - 1 ? bitsCount % 0x1_0000_0000 : 0
+        i === appendBlockIndex ?
+            (appendBlockIndex >= input.length ? 0x8000_0000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
+        i === length - 2 ?
+            (bitsCount / 0x1_0000_0000) | 0 :
+        i === length - 1 ?
+            bitsCount % 0x1_0000_0000 : 0
     return ({ f, length })
 }
 
