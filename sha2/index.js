@@ -100,7 +100,7 @@ const k = [
 /** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
 const computeSha224 = input => bitsCount => compute(input)(bitsCount)(init224)
 
-/** @type {(a: readonly[number, number, number, number]) => number} */
+/** @type {(a: array.Array4<number>) => number} */
 const wi = a => (smallSigma1(a[0]) + a[1] + smallSigma0(a[2]) + a[3]) | 0
 
 /** @type {(input: Array16) => Array16} */
