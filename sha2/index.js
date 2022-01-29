@@ -1,3 +1,5 @@
+const array = require('../types/array')
+
 /**
  * @typedef {{
  *  readonly f: (i: number) => number
@@ -5,9 +7,9 @@
  * }} HashInput
  */
 
-/** @typedef {Int32Array} Hash8 */
+/** @typedef {array.Array8<number>} Hash8 */
 
-/** @typedef {Int32Array} Array16 */
+/** @typedef {array.Array16<number>} Array16 */
 
 /** @type {(input: number) => (pos: number) => number} */
 const appendOne = input => pos => input | (1 << 31 - pos)
