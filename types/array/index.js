@@ -57,6 +57,8 @@ const seq = require('../list')
  * @typedef {readonly[T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T]} Array16
  */
 
+/** @typedef {0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15} Index16 */
+
 /**
  * @template T
  * @typedef {Array1<T>| Array2<T> | Array3<T> | Array4<T> | Array5<T>} Array1_5
