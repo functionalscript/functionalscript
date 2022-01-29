@@ -126,7 +126,6 @@ const nextW = w => {
 
 /** @type {(init: Hash8) => (data: Array16) => Hash8} */
 const compress = init => data => {
-    /** @type {Array16} */
     let w = data
 
     let a = init[0]
