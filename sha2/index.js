@@ -12,7 +12,7 @@ const array = require('../types/array')
 /** @typedef {array.Array16<number>} Array16 */
 
 /** @type {(input: number) => (pos: number) => number} */
-const appendOne = input => pos => input | (1 << 31 - pos)
+const appendOneWithZeros = input => pos => (input >> pos << pos) | (1 << pos)
 
 /** @type {(input: number) => (pos: number) => number} */
 const mod = a => b => (a % b + b) % b
@@ -26,7 +26,7 @@ const padding = input => bitsCount => {
         i < appendBlockIndex ?
             input[i] :
         i === appendBlockIndex ?
-            (appendBlockIndex >= input.length ? 0x8000_0000 : appendOne(input[appendBlockIndex])(bitsCount % 32)) :
+            (appendBlockIndex >= input.length ? 0x8000_0000 : appendOneWithZeros(input[appendBlockIndex])(31 - bitsCount % 32)) :
         i === length - 2 ?
             (bitsCount / 0x1_0000_0000) | 0 :
         i === length - 1 ?

@@ -52,6 +52,13 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {
+    //[0x68656C6C, 0x6F20776F, 0x726C6488] represents phrase 'hello world' with 1's at the end
+    const hash = _.computeSha256([0x68656C6C, 0x6F20776F, 0x726C64FF])(88)
+    const result = stringify(hash.map(toHexString))
+    if (result !== '["b94d27b9","934d3e08","a52e52d7","da7dabfa","c484efe3","7a5380ee","9088f7ac","e2efcde9"]') { throw result }
+}
+
+{
     const input = Array(8).fill(0x31313131)
     const result = _.computeSha256(input)(256)
     if (toU32(result[0]) !== 0x8a83665f) { throw result[0] }
