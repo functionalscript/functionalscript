@@ -81,3 +81,35 @@ const tokenizeString = s =>
     if (result[1]?.kind !== 'error') { throw result }
     if (result[2]?.kind !== '}') { throw result }
 }
+
+{
+    const result = tokenizeString('true')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'true') { throw result }
+}
+
+{
+    const result = tokenizeString('tru1')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
+}
+
+{
+    const result = tokenizeString('false')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'false') { throw result }
+}
+
+{
+    const result = tokenizeString('null')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'null') { throw result }
+}
+
+{
+    const result = tokenizeString('[null]')
+    if (result.length !== 3){ throw result }
+    if (result[0]?.kind !== '[') { throw result }
+    if (result[1]?.kind !== 'null') { throw result }
+    if (result[2]?.kind !== ']') { throw result }
+}

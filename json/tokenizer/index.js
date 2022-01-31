@@ -75,9 +75,15 @@ const digit9 = 0x39;
 const signPlus = 0x2b;
 const signMinus = 0x2d;
 
+const letterA = 0x61;
+const letterE = 0x65;
 const letterF = 0x66;
+const letterL = 0x6c;
 const letterN = 0x6e;
+const letterR = 0x72;
+const letterS = 0x73;
 const letterT = 0x74;
+const letterU = 0x75;
 
 /** @type {LeftBraceToken} */
 const leftBraceToken = {kind: '{'}
@@ -101,6 +107,13 @@ const rightBracketToken = {kind: ']'}
 
 /** @typedef {number|undefined} JsonCharacter */
 
+/**
+ *  @typedef {{
+ * readonly pattern: number[]
+ * readonly success: JsonToken
+ * }} ParseWordContext
+ *   */
+
 /** @type {TokenizerState} */
 const initialState = input => 
 {
@@ -112,9 +125,9 @@ const initialState = input =>
         case comma: return [commaToken, initialState]
         case leftBracket: return [leftBracketToken, initialState]
         case rightBracket: return [rightBracketToken, initialState]
-        case letterT: return todo()
-        case letterF: return todo()
-        case letterN: return todo()
+        case letterT: return [undefined, parseTrueState]
+        case letterF: return [undefined, parseFalseState]
+        case letterN: return [undefined, parseNullState]
         case quotationMark: return todo()
         case digit0: return todo()
         case digit1: 
@@ -132,6 +145,35 @@ const initialState = input =>
         default: return [{kind: 'error'}, initialState]
     }
 }
+
+/** @type {(context: ParseWordContext) => (index: number) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseWordState = context => index => input => 
+{
+    switch(input)
+    {
+        case context.pattern[index]: return index == context.pattern.length - 1 ? [context.success, initialState] : [undefined, parseWordState(context)(index + 1)]
+        case undefined: return [{kind: 'error'}, eofState]
+        default: return [{kind: 'error'}, initialState]
+    }
+}
+
+/** @type {ParseWordContext} */
+const parseTrueContext = { pattern: [ letterR, letterU, letterE], success: {kind: 'true'}}
+
+/** @type {TokenizerState} */
+const parseTrueState = parseWordState(parseTrueContext)(0)
+
+/** @type {ParseWordContext} */
+const parseFalseContext = { pattern: [ letterA, letterL, letterS, letterE], success: {kind: 'false'}}
+
+/** @type {TokenizerState} */
+const parseFalseState = parseWordState(parseFalseContext)(0)
+
+/** @type {ParseWordContext} */
+const parseNullContext = { pattern: [ letterU, letterL, letterL], success: {kind: 'null'}}
+
+/** @type {TokenizerState} */
+const parseNullState = parseWordState(parseNullContext)(0)
 
 /** @type {TokenizerState} */
 const eofState = input => [{kind: 'error'}, eofState]
