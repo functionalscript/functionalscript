@@ -17,7 +17,7 @@ const list = require('../../types/list')
 /** 
  * @typedef {{
  * readonly kind: 'string'
- * readonly value: string
+ * readonly chars: list.List<number>
  * }} StringToken 
  * */
 
@@ -80,6 +80,8 @@ const newLine = 0x0a;
 const carriageReturn = 0x0d;
 const space = 0x20;
 
+const backslach = 0x5c;
+
 const letterA = 0x61;
 const letterE = 0x65;
 const letterF = 0x66;
@@ -117,7 +119,13 @@ const rightBracketToken = {kind: ']'}
  * readonly pattern: number[]
  * readonly success: JsonToken
  * }} ParseWordContext
- *   */
+ */
+
+/**
+ *  @typedef {{
+ * readonly chars: list.List<number>
+ * }} ParseStringContext
+ */
 
 /** @type {TokenizerState} */
 const initialState = input => 
@@ -133,7 +141,7 @@ const initialState = input =>
         case letterT: return [undefined, parseTrueState]
         case letterF: return [undefined, parseFalseState]
         case letterN: return [undefined, parseNullState]
-        case quotationMark: return todo()
+        case quotationMark: return[undefined, parseStringState({chars:[]})]
         case digit0: return todo()
         case digit1: 
         case digit2:
@@ -152,6 +160,18 @@ const initialState = input =>
         case space: return[undefined, initialState]
         case undefined: return[undefined, eofState]
         default: return [{kind: 'error'}, initialState]
+    }
+}
+
+/** @type {(context: ParseStringContext) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseStringState = context => input =>
+{
+    switch(input)
+    {
+        case quotationMark: return[{kind: 'string', chars: context.chars}, initialState]
+        case backslach: return todo()
+        case undefined: return [{kind: 'error'}, eofState]
+        default: return [undefined, parseStringState({chars: list.concat(context.chars)([input])})]
     }
 }
 

@@ -120,3 +120,30 @@ const tokenizeString = s =>
     if (result[1]?.kind !== 'null') { throw result }
     if (result[2]?.kind !== ']') { throw result }
 }
+
+{
+    const result = tokenizeString('""')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+    if (list.length(result[0].chars) !== 0) { throw result }
+}
+
+{
+    const result = tokenizeString('"value"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+    if (list.length(result[0].chars) !== 5) { throw result }
+}
+
+{
+    const result = tokenizeString('"value1" "value2"')
+    if (result.length !== 2){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+    if (result[1]?.kind !== 'string') { throw result }
+}
+
+{
+    const result = tokenizeString('"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
+}
