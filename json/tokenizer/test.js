@@ -83,6 +83,13 @@ const tokenizeString = s =>
 }
 
 {
+    const result = tokenizeString('{ \t\n\r}')
+    if (result.length !== 2){ throw result }
+    if (result[0]?.kind !== '{') { throw result }
+    if (result[1]?.kind !== '}') { throw result }
+}
+
+{
     const result = tokenizeString('true')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'true') { throw result }

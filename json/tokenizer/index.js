@@ -75,6 +75,11 @@ const digit9 = 0x39;
 const signPlus = 0x2b;
 const signMinus = 0x2d;
 
+const horizontalTab = 0x09;
+const newLine = 0x0a;
+const carriageReturn = 0x0d;
+const space = 0x20;
+
 const letterA = 0x61;
 const letterE = 0x65;
 const letterF = 0x66;
@@ -141,6 +146,10 @@ const initialState = input =>
         case digit9: return todo()
         case signPlus:
         case signMinus: return todo()
+        case horizontalTab:
+        case newLine:
+        case carriageReturn:
+        case space: return[undefined, initialState]
         case undefined: return[undefined, eofState]
         default: return [{kind: 'error'}, initialState]
     }
