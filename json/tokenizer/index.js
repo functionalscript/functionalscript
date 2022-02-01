@@ -81,8 +81,12 @@ const carriageReturn = 0x0d;
 const space = 0x20;
 
 const backslach = 0x5c;
+const slash = 0x2f;
+const backspace = 0x08;
+const formfeed = 0x0c;
 
 const letterA = 0x61;
+const letterB = 0x62;
 const letterE = 0x65;
 const letterF = 0x66;
 const letterL = 0x6c;
@@ -169,9 +173,28 @@ const parseStringState = context => input =>
     switch(input)
     {
         case quotationMark: return[{kind: 'string', chars: context.chars}, initialState]
-        case backslach: return todo()
+        case backslach: return [undefined, parseEscapeCharState(context)]
         case undefined: return [{kind: 'error'}, eofState]
         default: return [undefined, parseStringState({chars: list.concat(context.chars)([input])})]
+    }
+}
+
+/** @type {(context: ParseStringContext) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseEscapeCharState = context => input =>
+{
+    switch(input)
+    {
+        case quotationMark:
+        case backslach:
+        case slash: return [undefined, parseStringState({chars: list.concat(context.chars)([input])})]
+        case letterB: return [undefined, parseStringState({chars: list.concat(context.chars)([backspace])})]
+        case letterF: return [undefined, parseStringState({chars: list.concat(context.chars)([formfeed])})]
+        case letterN: return [undefined, parseStringState({chars: list.concat(context.chars)([newLine])})]
+        case letterR: return [undefined, parseStringState({chars: list.concat(context.chars)([carriageReturn])})]
+        case letterT: return [undefined, parseStringState({chars: list.concat(context.chars)([horizontalTab])})]
+        case letterU: return todo()
+        case undefined: return [{kind: 'error'}, eofState]
+        default: return [{kind: 'error'}, initialState]
     }
 }
 

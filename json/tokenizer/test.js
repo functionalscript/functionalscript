@@ -147,3 +147,27 @@ const tokenizeString = s =>
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
 }
+
+{
+    const result = tokenizeString('"\\\\"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+}
+
+{
+    const result = tokenizeString('"\\""')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+}
+
+{
+    const result = tokenizeString('"\\/"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+}
+
+{
+    const result = tokenizeString('"\\b\\f\\n\\r\\t"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+}
