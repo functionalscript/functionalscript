@@ -85,6 +85,9 @@ const slash = 0x2f;
 const backspace = 0x08;
 const formfeed = 0x0c;
 
+const capitalLetterA = 0x41;
+const capitalLetterF = 0x46;
+
 const letterA = 0x61;
 const letterB = 0x62;
 const letterE = 0x65;
@@ -192,9 +195,41 @@ const parseEscapeCharState = context => input =>
         case letterN: return [undefined, parseStringState({chars: list.concat(context.chars)([newLine])})]
         case letterR: return [undefined, parseStringState({chars: list.concat(context.chars)([carriageReturn])})]
         case letterT: return [undefined, parseStringState({chars: list.concat(context.chars)([horizontalTab])})]
-        case letterU: return todo()
+        case letterU: return [undefined, parseUnicodeCharState(context)(0)(0)]
         case undefined: return [{kind: 'error'}, eofState]
         default: return [{kind: 'error'}, initialState]
+    }
+}
+
+/** @type {(hex: number) => number|undefined} */
+const hexDigitToNumber = hex =>
+{
+    if (hex >= digit0 && hex <= digit9) return hex - digit0;
+    else if (hex >= capitalLetterA && hex <= capitalLetterF) return hex - capitalLetterA + 10;
+    else if (hex >= letterA && hex <= letterF) return hex - letterA + 10;
+}
+
+/** @type {(context: ParseStringContext) => (unicode: number) => (hexIndex: number) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseUnicodeCharState = context => unicode => hexIndex => input =>
+{
+    if (input === undefined)
+    {
+        return [{kind: 'error'}, eofState]
+    } 
+    else
+    {
+        const hexValue = hexDigitToNumber(input)
+        if (hexValue === undefined)
+        {
+            return [{kind: 'error'}, initialState]
+        } 
+        else
+        {
+            const newUnicode = unicode | (hexValue << (3 - hexIndex) * 4)
+            return [undefined, hexIndex == 3 ? 
+                parseStringState({chars: list.concat(context.chars)([newUnicode])}) :
+                parseUnicodeCharState(context)(newUnicode)(hexIndex + 1)]
+        }
     }
 }
 
