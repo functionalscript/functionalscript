@@ -74,6 +74,7 @@ const digit8 = 0x38;
 const digit9 = 0x39;
 const signPlus = 0x2b;
 const signMinus = 0x2d;
+const decimalPoint = 0x2e;
 
 const horizontalTab = 0x09;
 const newLine = 0x0a;
@@ -134,6 +135,12 @@ const rightBracketToken = {kind: ']'}
  * }} ParseStringContext
  */
 
+/**
+ *  @typedef {{
+ * readonly chars: list.List<number>
+ * }} ParseNumberContext
+ */
+
 /** @type {TokenizerState} */
 const initialState = input => 
 {
@@ -149,7 +156,7 @@ const initialState = input =>
         case letterF: return [undefined, parseFalseState]
         case letterN: return [undefined, parseNullState]
         case quotationMark: return[undefined, parseStringState({chars:[]})]
-        case digit0: return todo()
+        case digit0: return [undefined, parseNumberStateWithLeadingZero({chars:[input]})]
         case digit1: 
         case digit2:
         case digit3:
@@ -158,9 +165,8 @@ const initialState = input =>
         case digit6:
         case digit7:
         case digit8:
-        case digit9: return todo()
-        case signPlus:
-        case signMinus: return todo()
+        case digit9: return [undefined, parseIntegerNumberState({chars:[input]})]
+        case signMinus: return [undefined, parseNumberStateWithLeadingZero({chars:[input]})]
         case horizontalTab:
         case newLine:
         case carriageReturn:
@@ -168,6 +174,24 @@ const initialState = input =>
         case undefined: return[undefined, eofState]
         default: return [{kind: 'error'}, initialState]
     }
+}
+
+/** @type {(context: ParseNumberContext) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseNumberStateWithMinus = context => input =>
+{
+     return todo()
+}
+
+/** @type {(context: ParseNumberContext) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseNumberStateWithLeadingZero = context => input =>
+{
+    return todo()
+}
+
+/** @type {(context: ParseNumberContext) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
+const parseIntegerNumberState = context => input =>
+{
+    return todo()    
 }
 
 /** @type {(context: ParseStringContext) => (input: JsonCharacter) => readonly[JsonToken, TokenizerState]} */
