@@ -234,6 +234,12 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== false) { throw result }
 }
 
+{
+    const r = _.toCharCodes("Hello world!")
+    const x = _.fromCharCodes(r)
+    if (x !== "Hello world!") { throw x }
+}
+
 // stress tests
 
 const stress = () => {
