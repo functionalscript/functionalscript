@@ -297,6 +297,17 @@ const equalZip = e => a => b => () => {
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
 const equal = e => a => b => every(equalZip(e)(a)(b))
 
+/** @type {(s: string) => List<number>} */
+const toCharCodes = s => {
+    /** @type {(i: number) => List<number>} */
+    const at = i => () => {
+        const r = s.charCodeAt(i)
+        if (isNaN(r)) { return undefined }
+        return { first: r, tail: at(i + 1) }
+    }
+    return at(0)
+}
+
 module.exports = {
     /** @readonly */
     empty: undefined,
@@ -374,4 +385,6 @@ module.exports = {
     zip,
     /** @readonly */
     equal,
+    /** @readonly */
+    toCharCodes,
 }
