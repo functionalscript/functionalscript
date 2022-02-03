@@ -308,6 +308,9 @@ const toCharCodes = s => {
     return at(0)
 }
 
+/** @type {(x: List<number>) => string} */
+const fromCharCodes = x => fold(operator.concat)('')(map(String.fromCharCode)(x))
+
 module.exports = {
     /** @readonly */
     empty: undefined,
@@ -387,4 +390,6 @@ module.exports = {
     equal,
     /** @readonly */
     toCharCodes,
+    /** @readonly */
+    fromCharCodes,
 }

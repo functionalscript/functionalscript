@@ -236,7 +236,7 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 {
     const r = _.toCharCodes("Hello world!")
-    const x = String.fromCharCode(..._.toArray(r))
+    const x = _.fromCharCodes(r)
     if (x !== "Hello world!") { throw x }
 }
 
