@@ -13,6 +13,9 @@
 /** @type {(separator: string) => Fold<string>} */
 const join = separator => prior => value => `${prior}${separator}${value}`
 
+/** @type {Fold<string>} */
+const concat = a => b => `${a}${b}`
+
 /** @type {Fold<number>} */
 const addition = a => b => a + b
 
@@ -26,8 +29,8 @@ const addition = a => b => a + b
 const logicalNot = v => !v
 
 /**
- * @template T 
- * @typedef {Binary<T, T, boolean>} Equal 
+ * @template T
+ * @typedef {Binary<T, T, boolean>} Equal
  */
 
 /** @type {<T>(a: T) => (b: T) => boolean} */
@@ -93,4 +96,6 @@ module.exports = {
     foldToScan,
     /** @readonly */
     counter,
+    /** @readonly */
+    concat,
 }
