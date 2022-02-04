@@ -47,11 +47,13 @@ const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = r
 /** @type {<T>(first: T) => (tail: List<T>) => NonEmpty<T>} */
 const nonEmpty = first => tail => ({ first, tail })
 
-/** @type {(i: number) => <T>(array: readonly T[]) => Result<T>} */
-const fromArrayAt = i => array => i < array.length ? nonEmpty(array[i])(() => fromArrayAt(i + 1)(array)) : undefined
-
 /** @type {<T>(array: readonly T[]) => Result<T>} */
-const fromArray = fromArrayAt(0)
+const fromArray = array => {
+    /** @typedef {typeof array extends readonly (infer T)[] ? T : never} T */
+    /** @type {(i: number) => () => Result<T>} */
+    const at = i => () => i < array.length ? nonEmpty(array[i])(at(i + 1)) : undefined
+    return at(0)()
+}
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
 const concat = a => b => b === undefined ? a : ({ isConcat: true, a, b })
@@ -263,7 +265,7 @@ const length = reduce(operator.counter)(0)
 const entryOperator = index => value => [[index, value], index + 1]
 
 /** @type {<T>(input: List<T>) => List<Entry<T>>} */
-const entries = (input) => {
+const entries = input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
     return stateScan(/** @type {operator.StateScan<T, Number, Entry<T>>} */(entryOperator))(0)(input)
 }
@@ -302,14 +304,12 @@ const toCharCodes = s => {
     /** @type {(i: number) => List<number>} */
     const at = i => () => {
         const r = s.charCodeAt(i)
-        if (isNaN(r)) { return undefined }
-        return { first: r, tail: at(i + 1) }
+        return isNaN(r) ? undefined : { first: r, tail: at(i + 1) }
     }
     return at(0)
 }
 
-/** @type {(x: List<number>) => string} */
-const fromCharCodes = x => fold(operator.concat)('')(map(String.fromCharCode)(x))
+const fromCharCodes = compose(map(String.fromCharCode))(fold(operator.concat)(''))
 
 module.exports = {
     /** @readonly */
