@@ -11,15 +11,10 @@ const stringify = a => json.stringify(sort)(a)
 
 /** @type {(s: string) => list.List<tokenizer.JsonCharacter>} */
 const toCharacters = s =>
-{   
-    let characters = [];
-    for(var i = 0; i < s.length; i++) {
-        var char = s.charCodeAt(i);
-        characters.push(s.charCodeAt(i))
-    }
-    /** @type {list.List<tokenizer.JsonCharacter>} */
-    const jsonCharacters = characters
-    return list.concat(jsonCharacters)([undefined])
+{
+    /** @type {list.List<tokenizer.JsonCharacter>} */   
+    const charCodes = list.toCharCodes(s)
+    return list.concat(charCodes)([undefined])
 }
 
 /** @type {(value: tokenizer.JsonToken) => boolean} */
@@ -133,14 +128,14 @@ const tokenizeString = s =>
     const result = tokenizeString('""')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'string') { throw result }
-    if (list.length(result[0].chars) !== 0) { throw result }
+    if (result[0].value !== '') { throw result }
 }
 
 {
     const result = tokenizeString('"value"')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'string') { throw result }
-    if (list.length(result[0].chars) !== 5) { throw result }
+    if (result[0].value !== 'value') { throw result }
 }
 
 {
@@ -181,31 +176,21 @@ const tokenizeString = s =>
 }
 
 {
-    const tokens = tokenizeString('"\\u1234"')
-    if (tokens.length !== 1){ throw tokens }
-    if (tokens[0]?.kind !== 'string') { throw tokens }
-    const result = stringify(list.toArray(tokens[0].chars).map(toHexString))
-    if (result !== '["1234"]') { throw result }
+    const result = tokenizeString('"\\u1234"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+    if (result[0].value !== 'ሴ') { throw result }
 }
 
 {
-    const tokens = tokenizeString('"\\uaBcD"')
-    if (tokens.length !== 1){ throw tokens }
-    if (tokens[0]?.kind !== 'string') { throw tokens }
-    const result = stringify(list.toArray(tokens[0].chars).map(toHexString))
-    if (result !== '["abcd"]') { throw result }
+    const result = tokenizeString('"\\uaBcDEeFf"')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'string') { throw result }
+    if (result[0].value !== 'ꯍEeFf') { throw result }
 }
 
 {
-    const tokens = tokenizeString('"\\uEeFfAaBb"')
-    if (tokens.length !== 1){ throw tokens }
-    if (tokens[0]?.kind !== 'string') { throw tokens }
-    const result = stringify(list.toArray(tokens[0].chars).map(toHexString))
-    if (result !== '["eeff","41","61","42","62"]') { throw result }
-}
-
-{
-    const tokens = tokenizeString('"\\uEeFg"')
-    if (tokens.length === 0){ throw tokens }
-    if (tokens[0]?.kind !== 'error') { throw tokens }
+    const result = tokenizeString('"\\uEeFg"')
+    if (result.length === 0){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
 }

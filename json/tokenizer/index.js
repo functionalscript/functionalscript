@@ -17,7 +17,7 @@ const list = require('../../types/list')
 /** 
  * @typedef {{
  * readonly kind: 'string'
- * readonly chars: list.List<number>
+ * readonly value: string
  * }} StringToken 
  * */
 
@@ -131,15 +131,21 @@ const rightBracketToken = {kind: ']'}
 
 /**
  *  @typedef {{
- * readonly chars: list.List<number>
+ * readonly value: string
  * }} ParseStringContext
  */
 
 /**
  *  @typedef {{
- * readonly chars: list.List<number>
+ * readonly value: string
  * }} ParseNumberContext
  */
+
+/** @type {(old: string) => (input: JsonCharacter) => string} */
+const appendChar = old => input => input === undefined ? old : operator.concat(old)(charToString(input))
+
+/** @type {(input: JsonCharacter) => string} */
+const charToString = input => input === undefined ? '' : list.fromCharCodes([input])
 
 /** @type {TokenizerState} */
 const initialState = input => 
@@ -155,8 +161,8 @@ const initialState = input =>
         case letterT: return [undefined, parseTrueState]
         case letterF: return [undefined, parseFalseState]
         case letterN: return [undefined, parseNullState]
-        case quotationMark: return[undefined, parseStringState({chars:[]})]
-        case digit0: return [undefined, parseNumberStateWithLeadingZero({chars:[input]})]
+        case quotationMark: return[undefined, parseStringState({value: ''})]
+        case digit0: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
         case digit1: 
         case digit2:
         case digit3:
@@ -165,8 +171,8 @@ const initialState = input =>
         case digit6:
         case digit7:
         case digit8:
-        case digit9: return [undefined, parseIntegerNumberState({chars:[input]})]
-        case signMinus: return [undefined, parseNumberStateWithLeadingZero({chars:[input]})]
+        case digit9: return [undefined, parseIntegerNumberState({value: charToString(input)})]
+        case signMinus: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
         case horizontalTab:
         case newLine:
         case carriageReturn:
@@ -199,10 +205,10 @@ const parseStringState = context => input =>
 {
     switch(input)
     {
-        case quotationMark: return[{kind: 'string', chars: context.chars}, initialState]
+        case quotationMark: return[{kind: 'string', value: context.value}, initialState]
         case backslach: return [undefined, parseEscapeCharState(context)]
         case undefined: return [{kind: 'error'}, eofState]
-        default: return [undefined, parseStringState({chars: list.concat(context.chars)([input])})]
+        default: return [undefined, parseStringState({value: appendChar(context.value)(input)})]
     }
 }
 
@@ -213,12 +219,12 @@ const parseEscapeCharState = context => input =>
     {
         case quotationMark:
         case backslach:
-        case slash: return [undefined, parseStringState({chars: list.concat(context.chars)([input])})]
-        case letterB: return [undefined, parseStringState({chars: list.concat(context.chars)([backspace])})]
-        case letterF: return [undefined, parseStringState({chars: list.concat(context.chars)([formfeed])})]
-        case letterN: return [undefined, parseStringState({chars: list.concat(context.chars)([newLine])})]
-        case letterR: return [undefined, parseStringState({chars: list.concat(context.chars)([carriageReturn])})]
-        case letterT: return [undefined, parseStringState({chars: list.concat(context.chars)([horizontalTab])})]
+        case slash: return [undefined, parseStringState({value: appendChar(context.value)(input)})]
+        case letterB: return [undefined, parseStringState({value: appendChar(context.value)(backspace)})]
+        case letterF: return [undefined, parseStringState({value: appendChar(context.value)(formfeed)})]
+        case letterN: return [undefined, parseStringState({value: appendChar(context.value)(newLine)})]
+        case letterR: return [undefined, parseStringState({value: appendChar(context.value)(carriageReturn)})]
+        case letterT: return [undefined, parseStringState({value: appendChar(context.value)(horizontalTab)})]
         case letterU: return [undefined, parseUnicodeCharState(context)(0)(0)]
         case undefined: return [{kind: 'error'}, eofState]
         default: return [{kind: 'error'}, initialState]
@@ -251,7 +257,7 @@ const parseUnicodeCharState = context => unicode => hexIndex => input =>
         {
             const newUnicode = unicode | (hexValue << (3 - hexIndex) * 4)
             return [undefined, hexIndex == 3 ? 
-                parseStringState({chars: list.concat(context.chars)([newUnicode])}) :
+                parseStringState({value: appendChar(context.value)(newUnicode)}) :
                 parseUnicodeCharState(context)(newUnicode)(hexIndex + 1)]
         }
     }
