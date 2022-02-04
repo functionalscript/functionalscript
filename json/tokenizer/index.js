@@ -150,35 +150,36 @@ const charToString = input => input === undefined ? '' : list.fromCharCodes([inp
 /** @type {TokenizerState} */
 const initialState = input => 
 {
-    switch(input)
+    if (input === undefined)
     {
-        case leftBrace: return [[leftBraceToken], initialState]
-        case rightBrace: return [[rightBraceToken], initialState]
-        case colon: return [[colonToken], initialState]
-        case comma: return [[commaToken], initialState]
-        case leftBracket: return [[leftBracketToken], initialState]
-        case rightBracket: return [[rightBracketToken], initialState]
-        case letterT: return [undefined, parseTrueState]
-        case letterF: return [undefined, parseFalseState]
-        case letterN: return [undefined, parseNullState]
-        case quotationMark: return[undefined, parseStringState({value: ''})]
-        case digit0: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
-        case digit1: 
-        case digit2:
-        case digit3:
-        case digit4:
-        case digit5:
-        case digit6:
-        case digit7:
-        case digit8:
-        case digit9: return [undefined, parseIntegerNumberState({value: charToString(input)})]
-        case signMinus: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
-        case horizontalTab:
-        case newLine:
-        case carriageReturn:
-        case space: return[undefined, initialState]
-        case undefined: return[undefined, eofState]
-        default: return [[{kind: 'error'}], initialState]
+        return[undefined, eofState]
+    }
+    else if (input >= digit1 && input <= digit9)
+    {
+        return [undefined, parseIntegerNumberState({value: charToString(input)})]
+    }
+    else
+    {
+        switch(input)
+        {
+            case leftBrace: return [[leftBraceToken], initialState]
+            case rightBrace: return [[rightBraceToken], initialState]
+            case colon: return [[colonToken], initialState]
+            case comma: return [[commaToken], initialState]
+            case leftBracket: return [[leftBracketToken], initialState]
+            case rightBracket: return [[rightBracketToken], initialState]
+            case letterT: return [undefined, parseTrueState]
+            case letterF: return [undefined, parseFalseState]
+            case letterN: return [undefined, parseNullState]
+            case quotationMark: return[undefined, parseStringState({value: ''})]
+            case digit0: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
+            case signMinus: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
+            case horizontalTab:
+            case newLine:
+            case carriageReturn:
+            case space: return[undefined, initialState]
+            default: return [[{kind: 'error'}], initialState]
+        }
     }
 }
 
