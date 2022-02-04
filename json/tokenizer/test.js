@@ -25,7 +25,7 @@ const tokenizeString = s =>
 {   
     const characters = toCharacters(s)
     const tokens = tokenizer.tokenize(characters)
-    return list.toArray(list.filter(definedTokenPredicate)(tokenizer.tokenize(characters)))
+    return list.toArray(tokenizer.tokenize(characters))
 }
 
 {
