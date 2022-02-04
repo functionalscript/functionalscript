@@ -44,9 +44,6 @@ const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = r
  * }} Concat
  */
 
-// /** @type {<T>(first: T) => (tail: List<T>) => NonEmpty<T>} */
-// const nonEmpty = first => tail => ({ first, tail })
-
 /** @type {<T>(array: readonly T[]) => Result<T>} */
 const fromArray = array => {
     /** @typedef {typeof array extends readonly (infer T)[] ? T : never} T */
