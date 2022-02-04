@@ -44,15 +44,15 @@ const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = r
  * }} Concat
  */
 
-/** @type {<T>(first: T) => (tail: List<T>) => NonEmpty<T>} */
-const nonEmpty = first => tail => ({ first, tail })
+// /** @type {<T>(first: T) => (tail: List<T>) => NonEmpty<T>} */
+// const nonEmpty = first => tail => ({ first, tail })
 
 /** @type {<T>(array: readonly T[]) => Result<T>} */
 const fromArray = array => {
     /** @typedef {typeof array extends readonly (infer T)[] ? T : never} T */
-    /** @type {(i: number) => () => Result<T>} */
-    const at = i => () => i < array.length ? nonEmpty(array[i])(at(i + 1)) : undefined
-    return at(0)()
+    /** @type {(i: number) => Result<T>} */
+    const at = i => i < array.length ? { first: array[i], tail: () => at(i + 1) } : undefined
+    return at(0)
 }
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
@@ -80,7 +80,7 @@ const next = list => {
         }
 
         if (a !== undefined) {
-            return nonEmpty(a.first)(concat(a.tail)(b))
+            return { first: a.first, tail: concat(a.tail)(b) }
         }
 
         if (b === undefined) { return undefined }
@@ -122,7 +122,7 @@ const flatStep = n => concat(n.first)(flat(n.tail))
 const flat = apply(flatStep)
 
 /** @type {<I, O>(f: (value: I) => O) => (n: NonEmpty<I>) => List<O>} */
-const mapStep = f => n => nonEmpty(f(n.first))(map(f)(n.tail))
+const mapStep = f => n => ({ first: f(n.first), tail: map(f)(n.tail) })
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => List<O>} */
 const map = f => apply(mapStep(f))
@@ -133,7 +133,7 @@ const flatMap = f => compose(map(f))(flat)
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
 const filterStep = f => n => {
     const tail = filter(f)(n.tail)
-    return f(n.first) ? nonEmpty(n.first)(tail) : tail
+    return f(n.first) ? { first: n.first, tail } : tail
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => List<T>} */
@@ -142,20 +142,20 @@ const filter = f => apply(filterStep(f))
 /** @type {<I, O>(f: (value: I) => O|undefined) => (n: NonEmpty<I>) => List<O>} */
 const filterMapStep = f => n => {
     const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
-    return first === undefined ? tail : nonEmpty(first)(tail)
+    return first === undefined ? tail : { first, tail }
 }
 
 /** @type {<I, O>(f: (value: I) => O|undefined) => (input: List<I>) => List<O>} */
 const filterMap = f => apply(filterMapStep(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const takeWhileStep = f => n => f(n.first) ? nonEmpty(n.first)(takeWhile(f)(n.tail)) : undefined
+const takeWhileStep = f => n => f(n.first) ? { first: n.first, tail: takeWhile(f)(n.tail) } : undefined
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => List<T>} */
 const takeWhile = f => apply(takeWhileStep(f))
 
 /** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
-const takeStep = n => ne => 0 < n ? nonEmpty(ne.first)(take(n - 1)(ne.tail)) : undefined
+const takeStep = n => ne => 0 < n ? { first: ne.first, tail: take(n - 1)(ne.tail) } : undefined
 
 /** @type {(n: number) => <T>(input: List<T>) => List<T>} */
 const take = n => apply(takeStep(n))
@@ -179,10 +179,11 @@ const first = def => input => {
     return result.first
 }
 
-/** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
-const last = def => input => {
-    /** @typedef {typeof input extends List<infer T> ? T : never} T */
-    let i = nonEmpty(/** @type {(typeof def)|T} */(def))(input)
+/** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */
+const last = first => tail => {
+    /** @typedef {typeof tail extends List<infer T> ? T : never} T */
+    /** @type {NonEmpty<typeof first|T>} */
+    let i = { first, tail }
     while (true) {
         const result = next(i.tail)
         if (result === undefined) {
@@ -214,19 +215,19 @@ const includes = value => input => some(map(strictEqual(value))(input))
 const countdown = count => () => {
     if (count <= 0) { return undefined }
     const first = count - 1
-    return nonEmpty(first)(countdown(first))
+    return { first, tail: countdown(first) }
 }
 
 /** @type {<T>(list: List<T>) => List<T>} */
 const cycle = list => () => {
     const i = next(list)
-    return i === undefined ? undefined : nonEmpty(i.first)(concat(i.tail)(cycle(list)))
+    return i === undefined ? undefined : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
 
 /** @type {<I, O>(op: operator.Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
 const scanStep = op => ne => {
-    const [o, newOp] = op(ne.first)
-    return nonEmpty(o)(scan(newOp)(ne.tail))
+    const [first, newOp] = op(ne.first)
+    return { first, tail: scan(newOp)(ne.tail) }
 }
 
 /** @type {<I, O>(op: operator.Scan<I, O>) => (input: List<I>) => List<O>} */
@@ -271,7 +272,7 @@ const entries = input => {
 }
 
 /** @type {<T>(prior: List<T>) => (value: T) => List<T>} */
-const reverseOperator = prior => value => nonEmpty(value)(prior)
+const reverseOperator = tail => first => ({ first, tail })
 
 /** @type {<T>(input: List<T>) => List<T>} */
 const reverse = reduce(reverseOperator)(undefined)
@@ -285,15 +286,15 @@ const zip = a => b => () => {
     if (aResult === undefined) { return undefined }
     const bResult = next(b)
     if (bResult === undefined) { return undefined }
-    return nonEmpty(tuple2(aResult.first)(bResult.first))(zip(aResult.tail)(bResult.tail))
+    return { first: tuple2(aResult.first)(bResult.first), tail: zip(aResult.tail)(bResult.tail) }
 }
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => List<boolean>} */
 const equalZip = e => a => b => () => {
     const [aResult, bResult] = [next(a), next(b)]
     return aResult === undefined || bResult === undefined
-        ? nonEmpty(aResult === bResult)(undefined)
-        : nonEmpty(e(aResult.first)(bResult.first))(equalZip(e)(aResult.tail)(bResult.tail))
+        ? { first: aResult === bResult, tail: undefined }
+        : { first: e(aResult.first)(bResult.first), tail: equalZip(e)(aResult.tail)(bResult.tail) }
 }
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
@@ -301,10 +302,10 @@ const equal = e => a => b => every(equalZip(e)(a)(b))
 
 /** @type {(s: string) => List<number>} */
 const toCharCodes = s => {
-    /** @type {(i: number) => List<number>} */
-    const at = i => () => {
-        const r = s.charCodeAt(i)
-        return isNaN(r) ? undefined : { first: r, tail: at(i + 1) }
+    /** @type {(i: number) => Result<number>} */
+    const at = i => {
+        const first = s.charCodeAt(i)
+        return isNaN(first) ? undefined : { first, tail: () => at(i + 1) }
     }
     return at(0)
 }
@@ -314,8 +315,6 @@ const fromCharCodes = compose(map(String.fromCharCode))(fold(operator.concat)(''
 module.exports = {
     /** @readonly */
     empty: undefined,
-    /** @readonly */
-    nonEmpty,
     /** @readonly */
     concat,
     /** @readonly */

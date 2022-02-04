@@ -21,18 +21,18 @@ const split = path => path.split('/')
 /** @typedef {readonly[list.List<string>] | undefined} OptionList */
 
 /** @type {(s: OptionList) => (items: string) => OptionList} */
-const normItemsOp = prior => item => {
+const normItemsOp = prior => first => {
     if (prior === undefined) { return undefined }
-    const priorList = prior[0]
-    switch (item) {
+    const tail = prior[0]
+    switch (first) {
         case '': case '.': { return prior }
         case '..': {
-            const result = list.next(priorList)
+            const result = list.next(tail)
             if (result === undefined) { return undefined }
             return [result.tail]
         }
         default: {
-            return [list.nonEmpty(item)(priorList)]
+            return [{ first, tail }]
         }
     }
 }
