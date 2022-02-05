@@ -3,12 +3,6 @@ const list = require('../../types/list')
 const json = require('..')
 const { sort } = require('../../types/object')
 
-/** @type {(a: number) => string} */
-const toHexString = x => x.toString(16)
-
-/** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
-
 /** @type {(s: string) => list.List<tokenizer.JsonCharacter>} */
 const toCharacters = s =>
 {
@@ -71,10 +65,8 @@ const tokenizeString = s =>
 
 {
     const result = tokenizeString('err')
-    if (result.length !== 3){ throw result }
+    if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
-    if (result[1]?.kind !== 'error') { throw result }
-    if (result[2]?.kind !== 'error') { throw result }
 }
 
 {
@@ -99,7 +91,7 @@ const tokenizeString = s =>
 }
 
 {
-    const result = tokenizeString('tru1')
+    const result = tokenizeString('tru')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
 }

@@ -91,14 +91,12 @@ const capitalLetterF = 0x46;
 
 const letterA = 0x61;
 const letterB = 0x62;
-const letterE = 0x65;
 const letterF = 0x66;
-const letterL = 0x6c;
 const letterN = 0x6e;
 const letterR = 0x72;
-const letterS = 0x73;
 const letterT = 0x74;
 const letterU = 0x75;
+const letterZ = 0x7a;
 
 /** @type {LeftBraceToken} */
 const leftBraceToken = {kind: '{'}
@@ -118,28 +116,39 @@ const leftBracketToken = {kind: '['}
 /** @type {RightBracketToken} */
 const rightBracketToken = {kind: ']'}
 
-/** @typedef {(input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} TokenizerState */
+/** 
+ * @typedef {|
+ * InitialState |
+ * ParseKeyWordState |
+ * ParseStringState |
+ * ParseEscapeCharState |
+ * ParseUnicodeCharState |
+ * ParseNegativeNumberState |
+ * ParseIntegerState |
+ * ParseZeroState |
+ * EofState
+ * } TokenizerState 
+ */
+
+/** @typedef {{ readonly kind: 'initial'}} InitialState */
+
+/** @typedef {{ readonly kind: 'keyWord', readonly value: string}} ParseKeyWordState */
+
+/** @typedef {{ readonly kind: 'string', readonly value: string}} ParseStringState */
+
+/** @typedef {{ readonly kind: 'escapeChar', readonly value: string}} ParseEscapeCharState */
+
+/** @typedef {{ readonly kind: 'unicodeChar', readonly value: string, readonly unicode: number, readonly hexIndex: number}} ParseUnicodeCharState */
+
+/** @typedef {{ readonly kind: 'negative', readonly value: string}} ParseNegativeNumberState */
+
+/** @typedef {{ readonly kind: 'integer', readonly value: string}} ParseIntegerState */
+
+/** @typedef {{ readonly kind: 'zero', readonly value: string}} ParseZeroState */
+
+/** @typedef {{ readonly kind: 'eof'}} EofState */
 
 /** @typedef {number|undefined} JsonCharacter */
-
-/**
- *  @typedef {{
- * readonly pattern: number[]
- * readonly success: JsonToken
- * }} ParseWordContext
- */
-
-/**
- *  @typedef {{
- * readonly value: string
- * }} ParseStringContext
- */
-
-/**
- *  @typedef {{
- * readonly value: string
- * }} ParseNumberContext
- */
 
 /** @type {(old: string) => (input: JsonCharacter) => string} */
 const appendChar = old => input => input === undefined ? old : operator.concat(old)(charToString(input))
@@ -147,16 +156,20 @@ const appendChar = old => input => input === undefined ? old : operator.concat(o
 /** @type {(input: JsonCharacter) => string} */
 const charToString = input => input === undefined ? '' : list.fromCharCodes([input])
 
-/** @type {TokenizerState} */
-const initialState = input => 
+/** @type {(state: InitialState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const initialStateOp = initialState => input => 
 {
     if (input === undefined)
     {
-        return[undefined, eofState]
+        return[undefined, {kind: 'eof'}]
     }
     else if (input >= digit1 && input <= digit9)
     {
-        return [undefined, parseIntegerNumberState({value: charToString(input)})]
+        return [undefined, { kind: 'integer', value: charToString(input)}]
+    }
+    else if (input >= letterA && input <= letterZ)
+    {
+        return [undefined, { kind: 'keyWord', value: charToString(input)}]
     }
     else
     {
@@ -168,12 +181,9 @@ const initialState = input =>
             case comma: return [[commaToken], initialState]
             case leftBracket: return [[leftBracketToken], initialState]
             case rightBracket: return [[rightBracketToken], initialState]
-            case letterT: return [undefined, parseTrueState]
-            case letterF: return [undefined, parseFalseState]
-            case letterN: return [undefined, parseNullState]
-            case quotationMark: return[undefined, parseStringState({value: ''})]
-            case digit0: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
-            case signMinus: return [undefined, parseNumberStateWithLeadingZero({value: charToString(input)})]
+            case quotationMark: return[undefined, {kind: 'string', value: ''}]
+            case digit0: return [undefined, { kind: 'zero', value: charToString(input)}]
+            case signMinus: return [undefined, { kind: 'negative', value: charToString(input)}]
             case horizontalTab:
             case newLine:
             case carriageReturn:
@@ -183,52 +193,52 @@ const initialState = input =>
     }
 }
 
-/** @type {(context: ParseNumberContext) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseNumberStateWithMinus = context => input =>
+/** @type {(state: ParseNegativeNumberState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseNegativeNumberStateOp = state => input =>
 {
      return todo()
 }
 
-/** @type {(context: ParseNumberContext) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseNumberStateWithLeadingZero = context => input =>
+/** @type {(state: ParseZeroState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseZeroStateOp = state => input =>
 {
     return todo()
 }
 
-/** @type {(context: ParseNumberContext) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseIntegerNumberState = context => input =>
+/** @type {(state: ParseIntegerState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseIntegerStateOp = state => input =>
 {
     return todo()    
 }
 
-/** @type {(context: ParseStringContext) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseStringState = context => input =>
+/** @type {(state: ParseStringState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseStringStateOp = state => input =>
 {
     switch(input)
     {
-        case quotationMark: return[[{kind: 'string', value: context.value}], initialState]
-        case backslach: return [undefined, parseEscapeCharState(context)]
-        case undefined: return [[{kind: 'error'}], eofState]
-        default: return [undefined, parseStringState({value: appendChar(context.value)(input)})]
+        case quotationMark: return[[{kind: 'string', value: state.value}], {kind: 'initial'}]
+        case backslach: return [undefined, {kind:'escapeChar', value: state.value}]
+        case undefined: return [[{kind: 'error'}], {kind: 'eof'}]
+        default: return [undefined, {kind:'string', value: appendChar(state.value)(input)}]
     }
 }
 
-/** @type {(context: ParseStringContext) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseEscapeCharState = context => input =>
+/** @type {(state: ParseEscapeCharState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseEscapeCharStateOp = state => input =>
 {
     switch(input)
     {
         case quotationMark:
         case backslach:
-        case slash: return [undefined, parseStringState({value: appendChar(context.value)(input)})]
-        case letterB: return [undefined, parseStringState({value: appendChar(context.value)(backspace)})]
-        case letterF: return [undefined, parseStringState({value: appendChar(context.value)(formfeed)})]
-        case letterN: return [undefined, parseStringState({value: appendChar(context.value)(newLine)})]
-        case letterR: return [undefined, parseStringState({value: appendChar(context.value)(carriageReturn)})]
-        case letterT: return [undefined, parseStringState({value: appendChar(context.value)(horizontalTab)})]
-        case letterU: return [undefined, parseUnicodeCharState(context)(0)(0)]
-        case undefined: return [[{kind: 'error'}], eofState]
-        default: return [[{kind: 'error'}], initialState]
+        case slash: return [undefined, {kind: 'string', value: appendChar(state.value)(input)}]
+        case letterB: return [undefined, {kind: 'string', value: appendChar(state.value)(backspace)}]
+        case letterF: return [undefined, {kind: 'string', value: appendChar(state.value)(formfeed)}]
+        case letterN: return [undefined, {kind: 'string', value: appendChar(state.value)(newLine)}]
+        case letterR: return [undefined, {kind: 'string', value: appendChar(state.value)(carriageReturn)}]
+        case letterT: return [undefined, {kind: 'string', value: appendChar(state.value)(horizontalTab)}]
+        case letterU: return [undefined, {kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0}]
+        case undefined: return [[{kind: 'error'}], {kind: 'eof'}]
+        default: return [[{kind: 'error'}], {kind: 'initial'}]
     }
 }
 
@@ -240,67 +250,84 @@ const hexDigitToNumber = hex =>
     else if (hex >= letterA && hex <= letterF) return hex - letterA + 10;
 }
 
-/** @type {(context: ParseStringContext) => (unicode: number) => (hexIndex: number) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseUnicodeCharState = context => unicode => hexIndex => input =>
+/** @type {(state: ParseUnicodeCharState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseUnicodeCharStateOp = state => input =>
 {
     if (input === undefined)
     {
-        return [[{kind: 'error'}], eofState]
+        return [[{kind: 'error'}], {kind: 'eof'}]
     } 
     else
     {
         const hexValue = hexDigitToNumber(input)
         if (hexValue === undefined)
         {
-            return [[{kind: 'error'}], initialState]
+            return [[{kind: 'error'}], {kind: 'initial'}]
         } 
         else
         {
-            const newUnicode = unicode | (hexValue << (3 - hexIndex) * 4)
-            return [undefined, hexIndex == 3 ? 
-                parseStringState({value: appendChar(context.value)(newUnicode)}) :
-                parseUnicodeCharState(context)(newUnicode)(hexIndex + 1)]
+            const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
+            return [undefined, state.hexIndex == 3 ?
+                {kind: 'string', value: appendChar(state.value)(newUnicode)} :
+                {kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1}]
         }
     }
 }
 
-/** @type {(context: ParseWordContext) => (index: number) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseWordState = context => index => input => 
+/** @type {(s: string) => JsonToken} */
+const stringToKeyWordToken = s =>
 {
-    switch(input)
+    switch(s)
     {
-        case context.pattern[index]: return index == context.pattern.length - 1 ? [[context.success], initialState] : [undefined, parseWordState(context)(index + 1)]
-        case undefined: return [[{kind: 'error'}], eofState]
-        default: return [[{kind: 'error'}], initialState]
+        case 'true': return {kind: 'true'}
+        case 'false': return {kind: 'false'}
+        case 'null': return {kind: 'null'}
+        default: return {kind: 'error'}
     }
 }
 
-/** @type {ParseWordContext} */
-const parseTrueContext = { pattern: [ letterR, letterU, letterE], success: {kind: 'true'}}
+/** @type {(state: ParseKeyWordState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseKeyWordStateOp = state => input => 
+{
+    if (input === undefined)
+    {
+        const keyWordToken = stringToKeyWordToken(state.value)
+        return [[keyWordToken], {kind: 'eof'}]
+    }
+    else if (input >= letterA && input <= letterZ)
+    {
+        return [undefined, {kind: 'keyWord', value: appendChar(state.value)(input)}]
+    }
+    else 
+    {
+        const keyWordToken = stringToKeyWordToken(state.value)
+        const next = tokenizeOp({kind: 'initial'})(input)
+        return [{first: keyWordToken, tail: next[0]}, next[1]]
+    }
+}
 
-/** @type {TokenizerState} */
-const parseTrueState = parseWordState(parseTrueContext)(0)
-
-/** @type {ParseWordContext} */
-const parseFalseContext = { pattern: [ letterA, letterL, letterS, letterE], success: {kind: 'false'}}
-
-/** @type {TokenizerState} */
-const parseFalseState = parseWordState(parseFalseContext)(0)
-
-/** @type {ParseWordContext} */
-const parseNullContext = { pattern: [ letterU, letterL, letterL], success: {kind: 'null'}}
-
-/** @type {TokenizerState} */
-const parseNullState = parseWordState(parseNullContext)(0)
-
-/** @type {TokenizerState} */
-const eofState = input => [[{kind: 'error'}], eofState]
+/** @type {(state: EofState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const eofStateOp = state => input => [[{kind: 'error'}], state]
 
 /** @type {operator.StateScan<JsonCharacter, TokenizerState, list.List<JsonToken>>} */
-const tokenizeOp = state => input => state(input)
+const tokenizeOp = state => input =>
+{
+    switch(state.kind)
+    {
+        case 'initial': return initialStateOp(state)(input)
+        case 'keyWord': return parseKeyWordStateOp(state)(input)
+        case 'string': return parseStringStateOp(state)(input)
+        case 'escapeChar': return parseEscapeCharStateOp(state)(input)
+        case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
+        case 'negative': return parseNegativeNumberStateOp(state)(input)
+        case 'integer': return parseIntegerStateOp(state)(input)
+        case 'zero': return parseZeroStateOp(state)(input)
+        case 'eof': return eofStateOp(state)(input)
+    }
+}
 
 /** @type {(input: list.List<JsonCharacter>) => list.List<JsonToken>} */
-const tokenize = input => list.flat(list.stateScan(tokenizeOp)(initialState)(input))
+const tokenize = input => list.flat(list.stateScan(tokenizeOp)({kind: 'initial'})(input))
 
 module.exports = {
     /** @readonly */
