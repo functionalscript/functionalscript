@@ -61,6 +61,13 @@ const tokenizeString = s =>
 }
 
 {
+    const result = tokenizeString('ᄑ')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
+    if (result[0].message !== 'unexpected character') { throw result }
+}
+
+{
     const result = tokenizeString('err')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
@@ -72,6 +79,7 @@ const tokenizeString = s =>
     if (result.length !== 3){ throw result }
     if (result[0]?.kind !== '{') { throw result }
     if (result[1]?.kind !== 'error') { throw result }
+    if (result[1].message !== 'invalid keyword') { throw result }
     if (result[2]?.kind !== '}') { throw result }
 }
 
@@ -92,6 +100,7 @@ const tokenizeString = s =>
     const result = tokenizeString('tru')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid keyword') { throw result }
 }
 
 {
@@ -132,6 +141,7 @@ const tokenizeString = s =>
     const result = tokenizeString('"value')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
+    if (result[0]?.message !== '" are missing') { throw result }
 }
 
 {
@@ -145,6 +155,7 @@ const tokenizeString = s =>
     const result = tokenizeString('"')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
+    if (result[0]?.message !== '" are missing') { throw result }
 }
 
 {
@@ -163,6 +174,22 @@ const tokenizeString = s =>
     const result = tokenizeString('"\\/"')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'string') { throw result }
+}
+
+{
+    const result = tokenizeString('"\\x"')
+    if (result.length !== 2){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
+    if (result[0]?.message !== 'unescaped character') { throw result }
+    if (result[1]?.kind !== 'string') { throw result }
+    if (result[1]?.value !== 'x') { throw result }
+}
+
+{
+    const result = tokenizeString('"\\')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
+    if (result[0]?.message !== '" are missing') { throw result }
 }
 
 {
@@ -187,6 +214,9 @@ const tokenizeString = s =>
 
 {
     const result = tokenizeString('"\\uEeFg"')
-    if (result.length === 0){ throw result }
+    if (result.length !== 2){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
+    if (result[0]?.message !== 'invalid hex value') { throw result }
+    if (result[1]?.kind !== 'string') { throw result }
+    if (result[1]?.value !== 'g') { throw result }
 }

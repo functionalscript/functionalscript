@@ -35,7 +35,7 @@ const list = require('../../types/list')
 
 /** @typedef {{readonly kind: 'null'}} NullToken */
 
-/** @typedef {{readonly kind: 'error', message: string|undefined}} ErrorToken */
+/** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
 
 /** 
  * @typedef {|
@@ -131,6 +131,17 @@ const rightBracketToken = {kind: ']'}
  * } TokenizerState 
  */
 
+/** 
+ * @typedef {|
+ * 'invalid keyword' |
+ * '" are missing' |
+ * 'unescaped character' |
+ * 'invalid hex value' |
+ * 'unexpected character' |
+ * 'eof'
+ * } ErrorMessage 
+ */
+
 /** @typedef {{ readonly kind: 'initial'}} InitialState */
 
 /** @typedef {{ readonly kind: 'keyword', readonly value: string}} ParseKeywordState */
@@ -189,7 +200,7 @@ const initialStateOp = initialState => input =>
             case newLine:
             case carriageReturn:
             case space: return[undefined, initialState]
-            default: return [[{kind: 'error', message: undefined}], initialState]
+            default: return [[{kind: 'error', message: 'unexpected character'}], initialState]
         }
     }
 }
@@ -219,7 +230,7 @@ const parseStringStateOp = state => input =>
     {
         case quotationMark: return[[{kind: 'string', value: state.value}], {kind: 'initial'}]
         case backslach: return [undefined, {kind:'escapeChar', value: state.value}]
-        case undefined: return [[{kind: 'error', message: undefined}], {kind: 'eof'}]
+        case undefined: return [[{kind: 'error', message: '" are missing'}], {kind: 'eof'}]
         default: return [undefined, {kind:'string', value: appendChar(state.value)(input)}]
     }
 }
@@ -238,8 +249,11 @@ const parseEscapeCharStateOp = state => input =>
         case letterR: return [undefined, {kind: 'string', value: appendChar(state.value)(carriageReturn)}]
         case letterT: return [undefined, {kind: 'string', value: appendChar(state.value)(horizontalTab)}]
         case letterU: return [undefined, {kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0}]
-        case undefined: return [[{kind: 'error', message: undefined}], {kind: 'eof'}]
-        default: return [[{kind: 'error', message: undefined}], {kind: 'initial'}]
+        case undefined: return [[{kind: 'error', message: '" are missing'}], {kind: 'eof'}]
+        default: {
+            const next = tokenizeOp({kind: 'string', value: state.value})(input)
+            return [{first: {kind: 'error', message: 'unescaped character'}, tail: next[0]}, next[1]]
+        }
     }
 }
 
@@ -256,14 +270,15 @@ const parseUnicodeCharStateOp = state => input =>
 {
     if (input === undefined)
     {
-        return [[{kind: 'error', message: undefined}], {kind: 'eof'}]
+        return [[{kind: 'error', message: '" are missing'}], {kind: 'eof'}]
     } 
     else
     {
         const hexValue = hexDigitToNumber(input)
         if (hexValue === undefined)
         {
-            return [[{kind: 'error', message: undefined}], {kind: 'initial'}]
+            const next = tokenizeOp({kind: 'string', value: state.value})(input)
+            return [{first: {kind: 'error', message: 'invalid hex value'}, tail: next[0]}, next[1]]
         } 
         else
         {
@@ -308,7 +323,7 @@ const parseKeyWordStateOp = state => input =>
 }
 
 /** @type {(state: EofState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const eofStateOp = state => input => [[{kind: 'error', message: undefined}], state]
+const eofStateOp = state => input => [[{kind: 'error', message: 'eof'}], state]
 
 /** @type {operator.StateScan<JsonCharacter, TokenizerState, list.List<JsonToken>>} */
 const tokenizeOp = state => input =>
