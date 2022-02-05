@@ -25,7 +25,7 @@ const list = require('../../types/list')
 /** 
  * @typedef {{
  * readonly kind: 'number'
- * readonly value: number
+ * readonly value: string
  * }} NumberToken 
  * */
 
@@ -127,6 +127,8 @@ const rightBracketToken = {kind: ']'}
  * ParseNegativeNumberState |
  * ParseIntegerState |
  * ParseZeroState |
+ * ParseFloatState |
+ * InvalidNumberState |
  * EofState
  * } TokenizerState 
  */
@@ -138,6 +140,7 @@ const rightBracketToken = {kind: ']'}
  * 'unescaped character' |
  * 'invalid hex value' |
  * 'unexpected character' |
+ * 'invalid number' |
  * 'eof'
  * } ErrorMessage 
  */
@@ -157,6 +160,10 @@ const rightBracketToken = {kind: ']'}
 /** @typedef {{ readonly kind: 'integer', readonly value: string}} ParseIntegerState */
 
 /** @typedef {{ readonly kind: 'zero', readonly value: string}} ParseZeroState */
+
+/** @typedef {{ readonly kind: 'float', readonly value: string}} ParseFloatState */
+
+/** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
 
 /** @typedef {{ readonly kind: 'eof'}} EofState */
 
@@ -214,13 +221,69 @@ const parseNegativeNumberStateOp = state => input =>
 /** @type {(state: ParseZeroState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseZeroStateOp = state => input =>
 {
-    return todo()
+    if (input === undefined)
+    {
+        return [[{kind: 'number', value: state.value}], {kind: 'eof'}]
+    }
+    else if (input === decimalPoint)
+    {
+        return [undefined, {kind: 'float', value: state.value}]
+    }
+    else if (isTerminalForNumber(input))
+    {
+        const next = tokenizeOp({kind: 'initial'})(input)
+        return [{first: {kind: 'number', value: state.value}, tail: next[0]}, next[1]]
+    }
+    else
+    {
+        return tokenizeOp({kind: 'invalidNumber'})(input)
+    }
 }
 
 /** @type {(state: ParseIntegerState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseIntegerStateOp = state => input =>
 {
     return todo()    
+}
+
+/** @type {(state: ParseFloatState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseFloatStateOp = state => input =>
+{
+    return todo()
+}
+
+/** @type {(char: number) => boolean} */
+const isTerminalForNumber = char =>
+{
+    switch (char)
+    {
+        case quotationMark:
+        case comma:
+        case leftBrace:
+        case rightBrace:
+        case leftBracket:
+        case rightBracket:
+        case colon: return true
+        default: return false
+    }
+}
+
+/** @type {(state: InvalidNumberState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const invalidNumberStateOp = state => input =>
+{
+    if (input === undefined)
+    {
+        return [[{kind: 'error', message: 'invalid number'}], {kind: 'eof'}]
+    }
+    else if (isTerminalForNumber(input)) 
+    {
+        const next = tokenizeOp({kind: 'initial'})(input)
+        return [{first: {kind: 'error', message: 'invalid number'}, tail: next[0]}, next[1]]
+    }
+    else
+    {
+        return [undefined, {kind: 'invalidNumber'}]
+    }
 }
 
 /** @type {(state: ParseStringState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
@@ -338,6 +401,8 @@ const tokenizeOp = state => input =>
         case 'negative': return parseNegativeNumberStateOp(state)(input)
         case 'integer': return parseIntegerStateOp(state)(input)
         case 'zero': return parseZeroStateOp(state)(input)
+        case 'float': return parseFloatStateOp(state)(input)
+        case 'invalidNumber': return invalidNumberStateOp(state)(input)
         case 'eof': return eofStateOp(state)(input)
     }
 }
