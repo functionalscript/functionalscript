@@ -9,10 +9,7 @@ const toCharacters = s =>
     /** @type {list.List<tokenizer.JsonCharacter>} */   
     const charCodes = list.toCharCodes(s)
     return list.concat(charCodes)([undefined])
-}
-
-/** @type {(value: tokenizer.JsonToken) => boolean} */
-const definedTokenPredicate = token =>token !== undefined 
+} 
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s =>
@@ -67,6 +64,7 @@ const tokenizeString = s =>
     const result = tokenizeString('err')
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid keyword') { throw result }
 }
 
 {
@@ -128,6 +126,12 @@ const tokenizeString = s =>
     if (result.length !== 1){ throw result }
     if (result[0]?.kind !== 'string') { throw result }
     if (result[0].value !== 'value') { throw result }
+}
+
+{
+    const result = tokenizeString('"value')
+    if (result.length !== 1){ throw result }
+    if (result[0]?.kind !== 'error') { throw result }
 }
 
 {

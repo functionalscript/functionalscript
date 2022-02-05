@@ -1,5 +1,6 @@
 const { todo } = require('../../dev')
-const operator = require('../../types/function/operator')
+const operator = require('../../types/function/operator');
+const { concat } = require('../../types/list');
 const list = require('../../types/list')
 
 /** @typedef {{readonly kind: '{'}} LeftBraceToken */
@@ -34,7 +35,7 @@ const list = require('../../types/list')
 
 /** @typedef {{readonly kind: 'null'}} NullToken */
 
-/** @typedef {{readonly kind: 'error'}} ErrorToken */
+/** @typedef {{readonly kind: 'error', message: string|undefined}} ErrorToken */
 
 /** 
  * @typedef {|
@@ -119,7 +120,7 @@ const rightBracketToken = {kind: ']'}
 /** 
  * @typedef {|
  * InitialState |
- * ParseKeyWordState |
+ * ParseKeywordState |
  * ParseStringState |
  * ParseEscapeCharState |
  * ParseUnicodeCharState |
@@ -132,7 +133,7 @@ const rightBracketToken = {kind: ']'}
 
 /** @typedef {{ readonly kind: 'initial'}} InitialState */
 
-/** @typedef {{ readonly kind: 'keyWord', readonly value: string}} ParseKeyWordState */
+/** @typedef {{ readonly kind: 'keyword', readonly value: string}} ParseKeywordState */
 
 /** @typedef {{ readonly kind: 'string', readonly value: string}} ParseStringState */
 
@@ -169,7 +170,7 @@ const initialStateOp = initialState => input =>
     }
     else if (input >= letterA && input <= letterZ)
     {
-        return [undefined, { kind: 'keyWord', value: charToString(input)}]
+        return [undefined, { kind: 'keyword', value: charToString(input)}]
     }
     else
     {
@@ -188,7 +189,7 @@ const initialStateOp = initialState => input =>
             case newLine:
             case carriageReturn:
             case space: return[undefined, initialState]
-            default: return [[{kind: 'error'}], initialState]
+            default: return [[{kind: 'error', message: undefined}], initialState]
         }
     }
 }
@@ -218,7 +219,7 @@ const parseStringStateOp = state => input =>
     {
         case quotationMark: return[[{kind: 'string', value: state.value}], {kind: 'initial'}]
         case backslach: return [undefined, {kind:'escapeChar', value: state.value}]
-        case undefined: return [[{kind: 'error'}], {kind: 'eof'}]
+        case undefined: return [[{kind: 'error', message: undefined}], {kind: 'eof'}]
         default: return [undefined, {kind:'string', value: appendChar(state.value)(input)}]
     }
 }
@@ -237,8 +238,8 @@ const parseEscapeCharStateOp = state => input =>
         case letterR: return [undefined, {kind: 'string', value: appendChar(state.value)(carriageReturn)}]
         case letterT: return [undefined, {kind: 'string', value: appendChar(state.value)(horizontalTab)}]
         case letterU: return [undefined, {kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0}]
-        case undefined: return [[{kind: 'error'}], {kind: 'eof'}]
-        default: return [[{kind: 'error'}], {kind: 'initial'}]
+        case undefined: return [[{kind: 'error', message: undefined}], {kind: 'eof'}]
+        default: return [[{kind: 'error', message: undefined}], {kind: 'initial'}]
     }
 }
 
@@ -255,14 +256,14 @@ const parseUnicodeCharStateOp = state => input =>
 {
     if (input === undefined)
     {
-        return [[{kind: 'error'}], {kind: 'eof'}]
+        return [[{kind: 'error', message: undefined}], {kind: 'eof'}]
     } 
     else
     {
         const hexValue = hexDigitToNumber(input)
         if (hexValue === undefined)
         {
-            return [[{kind: 'error'}], {kind: 'initial'}]
+            return [[{kind: 'error', message: undefined}], {kind: 'initial'}]
         } 
         else
         {
@@ -275,39 +276,39 @@ const parseUnicodeCharStateOp = state => input =>
 }
 
 /** @type {(s: string) => JsonToken} */
-const stringToKeyWordToken = s =>
+const stringToKeywordToken = s =>
 {
     switch(s)
     {
         case 'true': return {kind: 'true'}
         case 'false': return {kind: 'false'}
         case 'null': return {kind: 'null'}
-        default: return {kind: 'error'}
+        default: return {kind: 'error', message: 'invalid keyword'}
     }
 }
 
-/** @type {(state: ParseKeyWordState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseKeywordState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseKeyWordStateOp = state => input => 
 {
     if (input === undefined)
     {
-        const keyWordToken = stringToKeyWordToken(state.value)
+        const keyWordToken = stringToKeywordToken(state.value)
         return [[keyWordToken], {kind: 'eof'}]
     }
     else if (input >= letterA && input <= letterZ)
     {
-        return [undefined, {kind: 'keyWord', value: appendChar(state.value)(input)}]
+        return [undefined, {kind: 'keyword', value: appendChar(state.value)(input)}]
     }
     else 
     {
-        const keyWordToken = stringToKeyWordToken(state.value)
+        const keyWordToken = stringToKeywordToken(state.value)
         const next = tokenizeOp({kind: 'initial'})(input)
         return [{first: keyWordToken, tail: next[0]}, next[1]]
     }
 }
 
 /** @type {(state: EofState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const eofStateOp = state => input => [[{kind: 'error'}], state]
+const eofStateOp = state => input => [[{kind: 'error', message: undefined}], state]
 
 /** @type {operator.StateScan<JsonCharacter, TokenizerState, list.List<JsonToken>>} */
 const tokenizeOp = state => input =>
@@ -315,7 +316,7 @@ const tokenizeOp = state => input =>
     switch(state.kind)
     {
         case 'initial': return initialStateOp(state)(input)
-        case 'keyWord': return parseKeyWordStateOp(state)(input)
+        case 'keyword': return parseKeyWordStateOp(state)(input)
         case 'string': return parseStringStateOp(state)(input)
         case 'escapeChar': return parseEscapeCharStateOp(state)(input)
         case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
