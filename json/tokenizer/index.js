@@ -50,8 +50,7 @@ const list = require('../../types/list')
  * TrueToken |
  * FalseToken |
  * NullToken |
- * ErrorToken |
- * undefined
+ * ErrorToken
  * } JsonToken
  */
 
