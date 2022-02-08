@@ -98,6 +98,14 @@ const find = c => {
     return f(undefined)
 }
 
+/** @type {<T>(first: First<T>) => boolean} */
+const isFound = first => {
+    switch (first[0]) {
+        case 1: case 3: { return true }
+        default: { return false }
+    }
+}
+
 /** @type {<T>(first: First<T>) => T | undefined} */
 const value = first => {
     switch (first[0]) {
@@ -123,4 +131,6 @@ module.exports = {
     find,
     /** @readonly */
     value,
+    /** @readonly */
+    isFound,
 }

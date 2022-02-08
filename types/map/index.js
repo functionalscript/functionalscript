@@ -1,4 +1,3 @@
-const option = require("../option")
 const btree = require('../btree')
 const { values } = require("../btree")
 const find = require('../btree/find')
