@@ -8,16 +8,10 @@ const { flip } = require('../function')
 /** @typedef {undefined | btree.Node<string>} StringSet */
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
-const contains = value => s => {
-    if (s === undefined) { return false }
-    return find.isFound(find.find(stringCmp(value))(s).first)
-}
+const contains = value => s => s !== undefined && find.isFound(find.find(stringCmp(value))(s).first)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const set = value => s => {
-    if (s === undefined) { return [value] }
-    return btSet.set(stringCmp(value))(value)(s)
-}
+const set = value => s => s === undefined ? [value] : btSet.set(stringCmp(value))(value)(s)
 
 /** @type {(s: StringSet) => list.List<string>} */
 const values = s => s === undefined ? undefined : btree.values(s)
