@@ -6,7 +6,7 @@ const json = require('../../../json')
 const { sort } = require('../../object')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(stringCmp(value))(value)(node)
+const set = node => value => s.nodeSet(stringCmp(value))(value)(node)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string> | undefined} */
 const remove = node => value => _.remove(stringCmp(value))(node)

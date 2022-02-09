@@ -45,12 +45,7 @@ const at = name => map => {
 }
 
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
-const set = name => value => map =>  {
-    /** @type {Entry<typeof value>} */
-    const entry = [name, value]
-    if (map === undefined) { return [entry] }
-    return s.set(keyCmp(name))(entry)(map)
-}
+const set = name => value => s.set(keyCmp(name))([name, value])
 
 /** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
 const entries = values

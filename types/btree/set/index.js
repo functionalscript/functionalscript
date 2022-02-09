@@ -36,7 +36,7 @@ const reduce = a => i => {
 }
 
 /** @type {<T>(c: cmp.Compare<T>) => (value: T) => (node: _.Node<T>) => _.Node<T>} */
-const set = c => value => node => {
+const nodeSet = c => value => node => {
     const { first, tail } = find.find(c)(node)
     /** @typedef {typeof value} T */
     /** @type {() => Bracnh1To3<T>} */
@@ -87,7 +87,12 @@ const set = c => value => node => {
     return r.length === 1 ? r[0] : r
 }
 
+/** @type {<T>(c: cmp.Compare<T>) => (value: T) => (tree: _.Tree<T>) => _.Tree<T>} */
+const set = c => value => tree => tree === undefined ? [value] : nodeSet(c)(value)(tree)
+
 module.exports = {
+    /** @readonly */
+    nodeSet,
     /** @readonly */
     set,
 }

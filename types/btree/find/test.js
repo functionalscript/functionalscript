@@ -9,7 +9,7 @@ const s = require('../set')
 const jsonStr = json.stringify(sort)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(stringCmp(value))(value)(node)
+const set = node => value => s.nodeSet(stringCmp(value))(value)(node)
 
 /** @type {(r: _.Result<json.Unknown>) => string} */
 const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
