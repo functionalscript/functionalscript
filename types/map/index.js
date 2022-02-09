@@ -12,16 +12,6 @@ const { flip } = require('../function')
 
 /**
  * @template T
- * @typedef {btree.Leaf1<T>} Leaf1
- */
-
-/**
- * @template T
- * @typedef {btree.Node<T>} TNode
- */
-
-/**
- * @template T
  * @typedef {compare.Compare<T>} Cmp
  */
 
@@ -32,7 +22,7 @@ const { flip } = require('../function')
 
 /**
  * @template T
- * @typedef {undefined|TNode<Entry<T>>} Map
+ * @typedef {btree.Tree<Entry<T>>} Map
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
