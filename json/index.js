@@ -3,10 +3,10 @@ const object = require('../types/object')
 const array = require('../types/array')
 const op = require('../types/function/operator')
 
-/** 
+/**
  * @typedef {{
  *  readonly [k in string]: Unknown
- * }} Object 
+ * }} Object
  */
 
 /** @typedef {readonly Unknown[]} Array */
@@ -22,7 +22,7 @@ const setProperty = value => {
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
         return { ...srcObject, [first]: f(tail)(object.at(first)(srcObject)) }
-    }    
+    }
     return f
 }
 
@@ -45,7 +45,7 @@ const colon = [':']
 const comma = [',']
 
 /** @type {op.Fold<seq.List<string>>} */
-const joinOp = a => b => seq.flat([a, comma, b])
+const joinOp = b => prior => seq.flat([prior, comma, b])
 
 /** @type {(input: seq.List<seq.List<string>>) => seq.List<string>} */
 const join = seq.fold(joinOp)([])
@@ -105,9 +105,9 @@ const serialize = sort => {
 }
 
 /**
- * The standard `JSON.stringify` rules determined by 
+ * The standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
- *  
+ *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
 const stringify = sort => value => {

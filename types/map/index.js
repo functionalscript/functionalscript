@@ -6,7 +6,6 @@ const compare = require('../function/compare')
 const { stringCmp } = require('../function/compare')
 const list = require('../list')
 const btRemove = require('../btree/remove')
-const { flip } = require('../function')
 
 /** @typedef {compare.Sign} Sign */
 
@@ -45,7 +44,7 @@ const set = name => value => setEntry([name, value])
 const entries = values
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = list.reduce(flip(setEntry))(undefined)
+const fromEntries = list.reduce(setEntry)(undefined)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
 const remove = name => btRemove.remove(keyCmp(name))

@@ -268,8 +268,8 @@ const entries = input => {
     return stateScan(/** @type {operator.StateScan<T, Number, Entry<T>>} */(entryOperator))(0)(input)
 }
 
-/** @type {<T>(prior: List<T>) => (value: T) => List<T>} */
-const reverseOperator = tail => first => ({ first, tail })
+/** @type {<T>(value: T) => (prior: List<T>) => List<T>} */
+const reverseOperator = first => tail => ({ first, tail })
 
 /** @type {<T>(input: List<T>) => List<T>} */
 const reverse = reduce(reverseOperator)(undefined)
