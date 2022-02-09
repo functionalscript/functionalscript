@@ -1,4 +1,5 @@
 const seq = require('../list')
+const option = require('../option')
 
 /**
  * @template T
@@ -48,24 +49,29 @@ const seq = require('../list')
  * @typedef { Leaf1<T> | Leaf2<T> | Branch3<T> | Branch5<T>} Node
  */
 
+/**
+ * @template T
+ * @typedef {Node<T> | undefined} Tree
+ */
+
 /** @type {<T>(node: Node<T>) => seq.Thunk<T>} */
-const values = node => () => {
+const nodeValues = node => () => {
     switch (node.length) {
         case 1: case 2: { return node }
         case 3: {
             return seq.flat([
-                values(node[0]),
+                nodeValues(node[0]),
                 [node[1]],
-                values(node[2])
+                nodeValues(node[2])
             ])
         }
         default: {
             return seq.flat([
-                values(node[0]),
+                nodeValues(node[0]),
                 [node[1]],
-                values(node[2]),
+                nodeValues(node[2]),
                 [node[3]],
-                values(node[4])
+                nodeValues(node[4])
             ])
         }
     }
@@ -80,6 +86,9 @@ const values = node => () => {
  * @template T
  * @typedef { readonly[...Branch5<T>, T, Node<T>] } Branch7
  */
+
+/** @type {<T>(tree: Tree<T>) => seq.List<T>} */
+const values = option.map(nodeValues)
 
 module.exports = {
     /** @readonly */

@@ -15,7 +15,7 @@ const contains = value => s => s !== undefined && find.isFound(find.find(stringC
 const set = value => s => s === undefined ? [value] : btSet.set(stringCmp(value))(value)(s)
 
 /** @type {(s: StringSet) => list.List<string>} */
-const values = s => s === undefined ? undefined : btree.values(s)
+const values = btree.values
 
 const fromValues = list.reduce(flip(set))(undefined)
 

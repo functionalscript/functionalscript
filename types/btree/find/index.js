@@ -44,10 +44,8 @@ const array = require('../../array')
  */
 
 /** @type {<T>(item: PathItem<T>) => _.Node<T>} */
-const child = item => {
-    /** @typedef {typeof item extends PathItem<infer T> ? T : never} T */
-    return /** @type {_.Node<T>} */(item[1][item[0]])
-}
+const child = item =>
+    /** @type {typeof item extends PathItem<infer T> ? _.Node<T> : never} */(item[1][item[0]])
 
 /**
  * @template T

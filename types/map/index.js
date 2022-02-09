@@ -53,7 +53,7 @@ const set = name => value => map =>  {
 }
 
 /** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
-const entries = map => map === undefined ? undefined : values(map)
+const entries = values
 
 /** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
 const setOp = map => ([name, value]) => set(name)(value)(map)
