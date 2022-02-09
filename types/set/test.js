@@ -1,5 +1,0 @@
-const _ = require('.')
-
-{
-
-}
