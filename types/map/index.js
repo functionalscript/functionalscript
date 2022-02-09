@@ -5,6 +5,7 @@ const s = require('../btree/set')
 const compare = require("../function/compare")
 const { stringCmp } = require("../function/compare")
 const list = require("../list")
+const btRemove = require("../btree/remove")
 
 /** @typedef {compare.Sign} Sign */
 
@@ -58,10 +59,13 @@ const entries = map => map === undefined ? undefined : values(map)
 const setOp = map => ([name, value]) => set(name)(value)(map)
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = entries => {
-    /** @typedef {typeof entries extends list.List<Entry<infer T>> ? T : never} T */
-    return list.reduce(setOp)(/** @type {Map<T>} */(undefined))(entries)
-}
+const fromEntries = entries => list.reduce
+    (setOp)
+    (/** @type {typeof entries extends list.List<Entry<infer T>> ? Map<T> : never} */(undefined))
+    (entries)
+
+/** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
+const remove = name => map => map === undefined ? undefined : btRemove.remove(keyCmp(name))(map)
 
 module.exports = {
     /** @readonly */
@@ -74,4 +78,6 @@ module.exports = {
     entries,
     /** @readonly */
     fromEntries,
+    /** @readonly */
+    remove,
 }

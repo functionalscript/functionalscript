@@ -1,4 +1,4 @@
-const { at, set, empty, entries } = require('.')
+const { at, set, empty, entries, remove } = require('.')
 const seq = require('../list')
 
 {
@@ -38,6 +38,8 @@ const seq = require('../list')
     if (at('x')(m) !== undefined) { throw 'error' }
 
     // console.log(Array.from(m.entries()))
+    m = remove('Hello world!')(m)
+    if (at('Hello world!')(m) !== undefined) { throw m }
 }
 
 {

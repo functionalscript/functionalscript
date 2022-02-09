@@ -1,6 +1,7 @@
 const btree = require('../btree')
 const find = require('../btree/find')
 const btSet = require('../btree/set')
+const btRemove = require('../btree/remove')
 const { stringCmp } = require("../function/compare")
 const list = require('../list')
 const { flip } = require('../function')
@@ -18,6 +19,9 @@ const values = s => s === undefined ? undefined : btree.values(s)
 
 const fromValues = list.reduce(flip(set))(undefined)
 
+/** @type {(value: string) => (s: StringSet) => StringSet} */
+const remove = value => s => s === undefined ? undefined : btRemove.remove(stringCmp(value))(s)
+
 module.exports = {
     /** @readonly */
     contains,
@@ -27,4 +31,6 @@ module.exports = {
     values,
     /** @readonly */
     fromValues,
+    /** @readonly */
+    remove,
 }
