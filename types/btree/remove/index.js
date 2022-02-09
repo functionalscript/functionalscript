@@ -1,9 +1,9 @@
 const _ = require('..')
-const { todo } = require('../../../dev')
 const cmp = require('../../function/compare')
 const find = require('../find')
 const list = require('../../list')
 const array = require('../../array')
+const option = require('../../option')
 
 /**
  * @template T
@@ -118,8 +118,8 @@ const reduce = list.reduce(reduceX([reduceValue0, reduceValue2]))
 
 const initReduce = reduceX([initValue0, initValue1])
 
-/** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => undefined | _.Node<T>} */
-const remove = c => node => {
+/** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
+const nodeRemove = c => node => {
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     /** @type  {() => undefined | RemovePath<T>} */
     const f = () => {
@@ -159,7 +159,12 @@ const remove = c => node => {
     return result.length === 1 ? result[0] : result
 }
 
+/** @type {<T>(c: cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
+const remove = c => option.map(nodeRemove(c))
+
 module.exports = {
+    /** @readonly */
+    nodeRemove,
     /** @readonly */
     remove,
 }
