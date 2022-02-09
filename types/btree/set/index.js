@@ -87,12 +87,10 @@ const nodeSet = c => value => node => {
     return r.length === 1 ? r[0] : r
 }
 
-/** @type {<T>(c: cmp.Compare<T>) => (value: T) => (tree: _.Tree<T>) => _.Tree<T>} */
+/** @type {<T>(c: cmp.Compare<T>) => (value: T) => (tree: _.Tree<T>) => _.Node<T>} */
 const set = c => value => tree => tree === undefined ? [value] : nodeSet(c)(value)(tree)
 
 module.exports = {
-    /** @readonly */
-    nodeSet,
     /** @readonly */
     set,
 }

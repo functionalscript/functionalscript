@@ -4,7 +4,7 @@ const btSet = require('../btree/set')
 const btRemove = require('../btree/remove')
 const { stringCmp } = require("../function/compare")
 const list = require('../list')
-const { flip } = require('../function')
+const { flip, compose } = require('../function')
 
 /** @typedef {undefined | btree.Node<string>} StringSet */
 
@@ -20,7 +20,7 @@ const values = btree.values
 const fromValues = list.reduce(flip(set))(undefined)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const remove = value => btRemove.remove(stringCmp(value))
+const remove = compose(stringCmp)(btRemove.remove)
 
 module.exports = {
     /** @readonly */
