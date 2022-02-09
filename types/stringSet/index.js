@@ -12,7 +12,7 @@ const { flip } = require('../function')
 const contains = value => s => s !== undefined && find.isFound(find.find(stringCmp(value))(s).first)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const set = value => s => s === undefined ? [value] : btSet.set(stringCmp(value))(value)(s)
+const set = value => btSet.set(stringCmp(value))(value)
 
 /** @type {(s: StringSet) => list.List<string>} */
 const values = btree.values
@@ -20,7 +20,7 @@ const values = btree.values
 const fromValues = list.reduce(flip(set))(undefined)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const remove = value => s => s === undefined ? undefined : btRemove.remove(stringCmp(value))(s)
+const remove = value => btRemove.remove(stringCmp(value))
 
 module.exports = {
     /** @readonly */

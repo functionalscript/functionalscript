@@ -9,7 +9,7 @@ const { sort } = require('../../object')
 const set = node => value => s.nodeSet(stringCmp(value))(value)(node)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string> | undefined} */
-const remove = node => value => _.remove(stringCmp(value))(node)
+const remove = node => value => _.nodeRemove(stringCmp(value))(node)
 
 const jsonStr = json.stringify(sort)
 

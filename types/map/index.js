@@ -2,10 +2,11 @@ const btree = require('../btree')
 const { values } = require("../btree")
 const find = require('../btree/find')
 const s = require('../btree/set')
-const compare = require("../function/compare")
-const { stringCmp } = require("../function/compare")
-const list = require("../list")
-const btRemove = require("../btree/remove")
+const compare = require('../function/compare')
+const { stringCmp } = require('../function/compare')
+const list = require('../list')
+const btRemove = require('../btree/remove')
+const { flip } = require('../function')
 
 /** @typedef {compare.Sign} Sign */
 
@@ -44,23 +45,23 @@ const at = name => map => {
     return result === undefined ? undefined : result[1]
 }
 
+/** @type {<T>(entry: Entry<T>) => (map: Map<T>) => Map<T>} */
+const setEntry = entry => s.set(keyCmp(entry[0]))(entry)
+
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
-const set = name => value => s.set(keyCmp(name))([name, value])
+const set = name => value => setEntry([name, value])
 
 /** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
 const entries = values
 
-/** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
-const setOp = map => ([name, value]) => set(name)(value)(map)
-
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
 const fromEntries = entries => list.reduce
-    (setOp)
+    (flip(setEntry))
     (/** @type {typeof entries extends list.List<Entry<infer T>> ? Map<T> : never} */(undefined))
     (entries)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
-const remove = name => map => map === undefined ? undefined : btRemove.remove(keyCmp(name))(map)
+const remove = name => btRemove.remove(keyCmp(name))
 
 module.exports = {
     /** @readonly */
