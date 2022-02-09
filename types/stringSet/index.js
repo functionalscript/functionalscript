@@ -6,7 +6,7 @@ const { stringCmp } = require("../function/compare")
 const list = require('../list')
 const { flip, compose } = require('../function')
 
-/** @typedef {undefined | btree.Node<string>} StringSet */
+/** @typedef {btree.Tree<string>} StringSet */
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
 const contains = value => s => s !== undefined && find.isFound(find.find(stringCmp(value))(s).first)

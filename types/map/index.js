@@ -55,10 +55,7 @@ const set = name => value => setEntry([name, value])
 const entries = values
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = entries => list.reduce
-    (flip(setEntry))
-    (/** @type {typeof entries extends list.List<Entry<infer T>> ? Map<T> : never} */(undefined))
-    (entries)
+const fromEntries = list.reduce(flip(setEntry))(undefined)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
 const remove = name => btRemove.remove(keyCmp(name))
