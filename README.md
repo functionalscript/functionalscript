@@ -19,3 +19,11 @@ In FunctionalScript:
 - Code should not have [side-effects](https://en.wikipedia.org/wiki/Side_effect_(computer_science)). Any JavaScript statement, expression, or function which has a side effect is not allowed in FunctionalScript. There are no exceptions to this rule, such as `unsafe` code which can be found in Rust, C#, and other languages.
 - A module can't depend on non FunctionalScript module.
 - It also has no standard library, only a safe subset of standard JavaScript API can be used without referencing other modules.
+
+## Applications
+
+FunctionalScript code can be used 
+
+- in any JavaScript/TypeScript application,
+- as a JSON with expressions,
+- as a query language. 
