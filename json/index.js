@@ -76,19 +76,8 @@ const serialize = sort => {
         f(v)
     ])
     /** @type {(object: Object) => seq.List<string>} */
-    const objectSerialize = input => {
-        const entries = Object.entries(input)
-        const sortedEntries = sort(entries)
-        const _ = seq.toArray(sortedEntries)
-        const serializedEntries = seq.map(propertySerialize)(sortedEntries)
-        return objectList(serializedEntries)
-    }
-    /** @type {(input: Array) => seq.List<string>} */
-    const arraySerialize = input => {
-        const serializedEntries = seq.map(f)(input)
-        return arrayList(serializedEntries)
-    }
-    /** @type {(value: Unknown) => seq.List < string >} */
+    const objectSerialize = input => objectList(seq.map(propertySerialize)(sort(Object.entries(input))))
+    /** @type {(value: Unknown) => seq.List<string>} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -101,6 +90,8 @@ const serialize = sort => {
             }
         }
     }
+    /** @type {(input: Array) => seq.List<string>} */
+    const arraySerialize = compose(seq.map(f))(arrayList)
     return f
 }
 
