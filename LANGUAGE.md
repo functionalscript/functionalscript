@@ -139,7 +139,7 @@ Expressions could fall under these categories:
   - Relations Operators: `in`, `instanceof`.
   - Member Operators: `.`, `[]`.
 
-Note: the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
+**Note:** the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
 
 ## 8. Arrow Functions
 
@@ -197,7 +197,7 @@ const f = () => x // < invalid
 
 ### 9.5. Throw
 
-[Throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw). FunctionalScript allows to throw exceptions, but the language has no ability to catch them. You should only be using Statement throw in non-recoverable situations. Throwing an exception could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
+[Throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw). FunctionalScript allows to throw exceptions, but the language has no syntax to catch them. Developers should only use the 'throw' statement in non-recoverable situations. Throwing an exception could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
 
 ### 9.6. While
 
