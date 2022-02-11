@@ -1,7 +1,7 @@
 const seq = require('../types/list')
 const object = require('../types/object')
-const array = require('../types/array')
 const op = require('../types/function/operator')
+const { compose } = require('../types/function')
 
 /**
  * @typedef {{
@@ -110,10 +110,7 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => value => {
-    const _s = serialize(sort)(value)
-    return seq.join('')(_s)
-}
+const stringify = sort => compose(serialize(sort))(seq.join(''))
 
 /** @type {(value: string) => Unknown} */
 const parse = JSON.parse
