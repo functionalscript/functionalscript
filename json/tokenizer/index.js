@@ -176,37 +176,34 @@ const charToString = input => input === undefined ? '' : list.fromCharCodes([inp
 /** @type {(state: InitialState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const initialStateOp = initialState => input => 
 {
-    if (input === undefined)
+    if (input === undefined) 
     {
-        return[undefined, {kind: 'eof'}]
+         return[undefined, {kind: 'eof'}] 
     }
-    else if (input >= digit1 && input <= digit9)
+    if (input >= digit1 && input <= digit9)
     {
         return [undefined, { kind: 'number', value: charToString(input), numberKind: 'int'}]
     }
-    else if (input >= letterA && input <= letterZ)
+    if (input >= letterA && input <= letterZ)
     {
         return [undefined, { kind: 'keyword', value: charToString(input)}]
     }
-    else
+    switch(input)
     {
-        switch(input)
-        {
-            case leftBrace: return [[leftBraceToken], initialState]
-            case rightBrace: return [[rightBraceToken], initialState]
-            case colon: return [[colonToken], initialState]
-            case comma: return [[commaToken], initialState]
-            case leftBracket: return [[leftBracketToken], initialState]
-            case rightBracket: return [[rightBracketToken], initialState]
-            case quotationMark: return[undefined, {kind: 'string', value: ''}]
-            case digit0: return [undefined, { kind: 'number', value: charToString(input), numberKind: '0'}]
-            case signMinus: return [undefined, { kind: 'number', value: charToString(input), numberKind: '-'}]
-            case horizontalTab:
-            case newLine:
-            case carriageReturn:
-            case space: return[undefined, initialState]
-            default: return [[{kind: 'error', message: 'unexpected character'}], initialState]
-        }
+        case leftBrace: return [[leftBraceToken], initialState]
+        case rightBrace: return [[rightBraceToken], initialState]
+        case colon: return [[colonToken], initialState]
+        case comma: return [[commaToken], initialState]
+        case leftBracket: return [[leftBracketToken], initialState]
+        case rightBracket: return [[rightBracketToken], initialState]
+        case quotationMark: return[undefined, {kind: 'string', value: ''}]
+        case digit0: return [undefined, { kind: 'number', value: charToString(input), numberKind: '0'}]
+        case signMinus: return [undefined, { kind: 'number', value: charToString(input), numberKind: '-'}]
+        case horizontalTab:
+        case newLine:
+        case carriageReturn:
+        case space: return[undefined, initialState]
+        default: return [[{kind: 'error', message: 'unexpected character'}], initialState]
     }
 }
 
@@ -332,15 +329,12 @@ const invalidNumberKindOp = state => input =>
     {
         return [[{kind: 'error', message: 'invalid number'}], {kind: 'eof'}]
     }
-    else if (isTerminalForNumber(input)) 
+    if (isTerminalForNumber(input)) 
     {
         const next = tokenizeOp({kind: 'initial'})(input)
         return [{first: {kind: 'error', message: 'invalid number'}, tail: next[0]}, next[1]]
     }
-    else
-    {
-        return [undefined, {kind: 'invalidNumber'}]
-    }
+    return [undefined, {kind: 'invalidNumber'}]
 }
 
 /** @type {(state: ParseStringState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
@@ -380,9 +374,9 @@ const parseEscapeCharStateOp = state => input =>
 /** @type {(hex: number) => number|undefined} */
 const hexDigitToNumber = hex =>
 {
-    if (hex >= digit0 && hex <= digit9) return hex - digit0;
-    else if (hex >= capitalLetterA && hex <= capitalLetterF) return hex - capitalLetterA + 10;
-    else if (hex >= letterA && hex <= letterF) return hex - letterA + 10;
+    if (hex >= digit0 && hex <= digit9) { return hex - digit0 }
+    if (hex >= capitalLetterA && hex <= capitalLetterF) { return hex - capitalLetterA + 10 }
+    if (hex >= letterA && hex <= letterF) { return hex - letterA + 10 }
 }
 
 /** @type {(state: ParseUnicodeCharState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
@@ -391,23 +385,17 @@ const parseUnicodeCharStateOp = state => input =>
     if (input === undefined)
     {
         return [[{kind: 'error', message: '" are missing'}], {kind: 'eof'}]
-    } 
-    else
-    {
-        const hexValue = hexDigitToNumber(input)
-        if (hexValue === undefined)
-        {
-            const next = tokenizeOp({kind: 'string', value: state.value})(input)
-            return [{first: {kind: 'error', message: 'invalid hex value'}, tail: next[0]}, next[1]]
-        } 
-        else
-        {
-            const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
-            return [undefined, state.hexIndex === 3 ?
-                {kind: 'string', value: appendChar(state.value)(newUnicode)} :
-                {kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1}]
-        }
     }
+    const hexValue = hexDigitToNumber(input)
+    if (hexValue === undefined)
+    {
+        const next = tokenizeOp({kind: 'string', value: state.value})(input)
+        return [{first: {kind: 'error', message: 'invalid hex value'}, tail: next[0]}, next[1]]
+    }
+    const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
+        return [undefined, state.hexIndex === 3 ?
+            {kind: 'string', value: appendChar(state.value)(newUnicode)} :
+            {kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1}]
 }
 
 /** @type {(s: string) => JsonToken} */
@@ -430,16 +418,13 @@ const parseKeyWordStateOp = state => input =>
         const keyWordToken = stringToKeywordToken(state.value)
         return [[keyWordToken], {kind: 'eof'}]
     }
-    else if (input >= letterA && input <= letterZ)
+    if (input >= letterA && input <= letterZ)
     {
         return [undefined, {kind: 'keyword', value: appendChar(state.value)(input)}]
     }
-    else 
-    {
-        const keyWordToken = stringToKeywordToken(state.value)
-        const next = tokenizeOp({kind: 'initial'})(input)
-        return [{first: keyWordToken, tail: next[0]}, next[1]]
-    }
+    const keyWordToken = stringToKeywordToken(state.value)
+    const next = tokenizeOp({kind: 'initial'})(input)
+    return [{first: keyWordToken, tail: next[0]}, next[1]]
 }
 
 /** @type {(state: EofState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
