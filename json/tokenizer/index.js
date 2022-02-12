@@ -87,10 +87,12 @@ const backspace = 0x08;
 const formfeed = 0x0c;
 
 const capitalLetterA = 0x41;
+const capitalLetterE = 0x45;
 const capitalLetterF = 0x46;
 
 const letterA = 0x61;
 const letterB = 0x62;
+const letterE = 0x65;
 const letterF = 0x66;
 const letterN = 0x6e;
 const letterR = 0x72;
@@ -126,6 +128,7 @@ const rightBracketToken = {kind: ']'}
  * ParseIntegerState |
  * ParseZeroState |
  * ParseFloatState |
+ * ParseENotationState |
  * InvalidNumberState |
  * EofState
  * } TokenizerState 
@@ -158,6 +161,8 @@ const rightBracketToken = {kind: ']'}
 /** @typedef {{ readonly kind: 'zero', readonly value: string}} ParseZeroState */
 
 /** @typedef {{ readonly kind: 'float', readonly value: string}} ParseFloatState */
+
+/** @typedef {{ readonly kind: 'eNotation', readonly value: string}} ParseENotationState */
 
 /** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
 
@@ -219,6 +224,10 @@ const parseZeroStateOp = state => input =>
     {
         return [undefined, {kind: 'float', value: state.value}]
     }
+    else if (input === letterE || input === capitalLetterE)
+    {
+        return [undefined, {kind:'eNotation', value: appendChar(state.value)(input)}]
+    }
     else if (isTerminalForNumber(input))
     {
         const next = tokenizeOp({kind: 'initial'})(input)
@@ -249,6 +258,10 @@ const parseIntegerStateOp = state => input =>
     {
         return [undefined, {kind:'integer', value: appendChar(state.value)(input)}]
     }
+    else if (input === letterE || input === capitalLetterE)
+    {
+        return [undefined, {kind:'eNotation', value: appendChar(state.value)(input)}]
+    }
     else if (isTerminalForNumber(input))
     {
         const next = tokenizeOp({kind: 'initial'})(input)
@@ -262,6 +275,12 @@ const parseIntegerStateOp = state => input =>
 
 /** @type {(state: ParseFloatState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseFloatStateOp = state => input =>
+{
+    return todo()
+}
+
+/** @type {(state: ParseENotationState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseENotationStateOp = state => input =>
 {
     return todo()
 }
@@ -416,6 +435,7 @@ const tokenizeOp = state => input =>
         case 'zero': return parseZeroStateOp(state)(input)
         case 'float': return parseFloatStateOp(state)(input)
         case 'invalidNumber': return invalidNumberStateOp(state)(input)
+        case 'eNotation': return parseENotationStateOp(state)(input)
         case 'eof': return eofStateOp(state)(input)
     }
 }

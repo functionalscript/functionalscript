@@ -275,7 +275,7 @@ const tokenizeString = s =>
 }
 
 {
-    const result = tokenizeString('9e:')
+    const result = tokenizeString('9a:')
     if (result.length !== 2){ throw result }
     if (result[0].kind !== 'error') { throw result }
     if (result[0].message !== 'invalid number') { throw result }
