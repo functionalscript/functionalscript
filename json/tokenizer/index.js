@@ -123,7 +123,6 @@ const rightBracketToken = {kind: ']'}
  * ParseStringState |
  * ParseEscapeCharState |
  * ParseUnicodeCharState |
- * ParseNegativeNumberState |
  * ParseIntegerState |
  * ParseZeroState |
  * ParseFloatState |
@@ -153,8 +152,6 @@ const rightBracketToken = {kind: ']'}
 /** @typedef {{ readonly kind: 'escapeChar', readonly value: string}} ParseEscapeCharState */
 
 /** @typedef {{ readonly kind: 'unicodeChar', readonly value: string, readonly unicode: number, readonly hexIndex: number}} ParseUnicodeCharState */
-
-/** @typedef {{ readonly kind: 'negative', readonly value: string}} ParseNegativeNumberState */
 
 /** @typedef {{ readonly kind: 'integer', readonly value: string}} ParseIntegerState */
 
@@ -201,7 +198,7 @@ const initialStateOp = initialState => input =>
             case rightBracket: return [[rightBracketToken], initialState]
             case quotationMark: return[undefined, {kind: 'string', value: ''}]
             case digit0: return [undefined, { kind: 'zero', value: charToString(input)}]
-            case signMinus: return [undefined, { kind: 'negative', value: charToString(input)}]
+            case signMinus: return [undefined, { kind: 'integer', value: charToString(input)}]
             case horizontalTab:
             case newLine:
             case carriageReturn:
@@ -209,12 +206,6 @@ const initialStateOp = initialState => input =>
             default: return [[{kind: 'error', message: 'unexpected character'}], initialState]
         }
     }
-}
-
-/** @type {(state: ParseNegativeNumberState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseNegativeNumberStateOp = state => input =>
-{
-     return todo()
 }
 
 /** @type {(state: ParseZeroState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
@@ -249,6 +240,10 @@ const parseIntegerStateOp = state => input =>
     else if (input === decimalPoint)
     {
         return [undefined, {kind: 'float', value: state.value}]
+    }
+    else if (input == digit0 && state.value === '-')
+    {
+        return [undefined, {kind:'zero', value: appendChar(state.value)(input)}]
     }
     else if (input >= digit0 && input <= digit9)
     {
@@ -417,7 +412,6 @@ const tokenizeOp = state => input =>
         case 'string': return parseStringStateOp(state)(input)
         case 'escapeChar': return parseEscapeCharStateOp(state)(input)
         case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
-        case 'negative': return parseNegativeNumberStateOp(state)(input)
         case 'integer': return parseIntegerStateOp(state)(input)
         case 'zero': return parseZeroStateOp(state)(input)
         case 'float': return parseFloatStateOp(state)(input)

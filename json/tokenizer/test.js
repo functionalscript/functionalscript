@@ -281,3 +281,24 @@ const tokenizeString = s =>
     if (result[0].message !== 'invalid number') { throw result }
     if (result[1].kind !== ':') { throw result }
 }
+
+{
+    const result = tokenizeString('-10')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '-10') { throw result }
+}
+
+{
+    const result = tokenizeString('-0')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '-0') { throw result }
+}
+
+{
+    const result = tokenizeString('-00')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}
