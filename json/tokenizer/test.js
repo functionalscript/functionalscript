@@ -1,7 +1,6 @@
 const tokenizer = require('.')
 const list = require('../../types/list')
 const json = require('..')
-const { sort } = require('../../types/object')
 
 /** @type {(s: string) => list.List<tokenizer.JsonCharacter>} */
 const toCharacters = s =>
@@ -250,4 +249,35 @@ const tokenizeString = s =>
     if (result[0].kind !== 'error') { throw result }
     if (result[0].message !== 'invalid number') { throw result }
     if (result[1].kind !== ',') { throw result }
+}
+
+{
+    const result = tokenizeString('1234567890')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '1234567890') { throw result }
+}
+
+{
+    const result = tokenizeString('{90}')
+    if (result.length !== 3){ throw result }
+    if (result[0].kind !== '{') { throw result }
+    if (result[1].kind !== 'number') { throw result }
+    if (result[1].value !== '90') { throw result }
+    if (result[2].kind !== '}') { throw result }
+}
+
+{
+    const result = tokenizeString('10-0')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}
+
+{
+    const result = tokenizeString('9e:')
+    if (result.length !== 2){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+    if (result[1].kind !== ':') { throw result }
 }

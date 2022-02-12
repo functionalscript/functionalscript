@@ -242,7 +242,27 @@ const parseZeroStateOp = state => input =>
 /** @type {(state: ParseIntegerState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseIntegerStateOp = state => input =>
 {
-    return todo()    
+    if (input === undefined)
+    {
+        return [[{kind: 'number', value: state.value}], {kind: 'eof'}]
+    }
+    else if (input === decimalPoint)
+    {
+        return [undefined, {kind: 'float', value: state.value}]
+    }
+    else if (input >= digit0 && input <= digit9)
+    {
+        return [undefined, {kind:'integer', value: appendChar(state.value)(input)}]
+    }
+    else if (isTerminalForNumber(input))
+    {
+        const next = tokenizeOp({kind: 'initial'})(input)
+        return [{first: {kind: 'number', value: state.value}, tail: next[0]}, next[1]]
+    }
+    else 
+    {
+        return tokenizeOp({kind: 'invalidNumber'})(input)
+    } 
 }
 
 /** @type {(state: ParseFloatState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
