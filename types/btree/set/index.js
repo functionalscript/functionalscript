@@ -11,8 +11,8 @@ const list = require('../../list')
 /** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Bracnh1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(a: Bracnh1To3<T>) => (i: find.PathItem<T>) => Bracnh1To3<T>} */
-const reduce = a => i => {
+/** @type {<T>(i: find.PathItem<T>) => (a: Bracnh1To3<T>) => Bracnh1To3<T>} */
+const reduce = i => a => {
     switch (i[0]) {
         case 0: {
             const x = i[1]

@@ -13,7 +13,7 @@ const result = thirdPartyModule.someFunction('hello')
 ## 2. Packages
 
 FunctionalScript uses a `package.json` file to define a package. This file is compatible with [Node.js `package.json`](https://nodejs.org/en/knowledge/getting-started/npm/what-is-the-file-package-json/).
-The prefered way to refence dependencies is to use a GitHub URL. These dependencies in a `package.json` file could look like this,
+The preferred way to reference dependencies is to use a GitHub URL. These dependencies in a `package.json` file could look like this,
 
 ```json
 {
@@ -33,7 +33,7 @@ npm install -S github:functionalscript/functionalscript
 
 ## 3. Module Structure
 
-A module is a file with the `.js` extention. It contains three parts: references to other modules, definitions, and exports. For example
+A module is a file with the `.js` extension. It contains three parts: references to other modules, definitions, and exports. For example
 
 `./first.js`
 ```js
@@ -81,7 +81,7 @@ const localFile = require('../some-directory/some-file.js')
 
 ## 5. Definitions
 
-The format of defintions is `const NAME = EXPRESSION`, where the `EXPRESSION` is a subset of [JavaScript expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Expressions_and_Operators).
+The format of definitions is `const NAME = EXPRESSION`, where the `EXPRESSION` is a subset of [JavaScript expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Expressions_and_Operators).
 
 ```js
 const myConst = 42
@@ -139,7 +139,7 @@ Expressions could fall under these categories:
   - Relations Operators: `in`, `instanceof`.
   - Member Operators: `.`, `[]`.
 
-Note: the `.` member operator has prohibitted property names, such as `constructor` and `push`. To access such properties, it's recommeded to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
+**Note:** the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
 
 ## 8. Arrow Functions
 
@@ -167,7 +167,7 @@ const f = x => {
 
 ## 9. Statements
 
-`{ A_LIST_OF_STATEMENTS }` is one or many statements seperated by the newline control character. One of these statements mentioned earlier was [definition](#5-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement. The other statements are described below.
+`{ A_LIST_OF_STATEMENTS }` is one or many statements separated by the newline control character. One of these statements mentioned earlier was [definition](#5-Definitions), also known as a [const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const) statement. The other statements are described below.
 
 ### 9.1. Let
 
@@ -197,7 +197,7 @@ const f = () => x // < invalid
 
 ### 9.5. Throw
 
-[Throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw). FunctionalScript allows to throw exceptions but it doesn't catch them. You should only be using Statement throw in non-recoverable situations. It could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
+[Throw](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw). FunctionalScript allows to throw exceptions, but the language has no syntax to catch them. Developers should only use the 'throw' statement in non-recoverable situations. Throwing an exception could be compared to [panic in Rust](https://doc.rust-lang.org/std/macro.panic.html).
 
 ### 9.6. While
 

@@ -4,7 +4,7 @@ const btSet = require('../btree/set')
 const btRemove = require('../btree/remove')
 const { stringCmp } = require("../function/compare")
 const list = require('../list')
-const { flip, compose } = require('../function')
+const { compose } = require('../function')
 
 /** @typedef {btree.Tree<string>} StringSet */
 
@@ -17,7 +17,7 @@ const set = value => btSet.set(stringCmp(value))(value)
 /** @type {(s: StringSet) => list.List<string>} */
 const values = btree.values
 
-const fromValues = list.reduce(flip(set))(undefined)
+const fromValues = list.reduce(set)(undefined)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
 const remove = compose(stringCmp)(btRemove.remove)
