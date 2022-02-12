@@ -125,11 +125,8 @@ const rightBracketToken = {kind: ']'}
  * ParseStringState |
  * ParseEscapeCharState |
  * ParseUnicodeCharState |
- * ParseIntegerState |
- * ParseZeroState |
- * ParseFloatState |
- * ParseENotationState |
- * InvalidNumberState |
+ * ParseNumberKind |
+ * InvalidNumberKind |
  * EofState
  * } TokenizerState 
  */
@@ -156,15 +153,15 @@ const rightBracketToken = {kind: ']'}
 
 /** @typedef {{ readonly kind: 'unicodeChar', readonly value: string, readonly unicode: number, readonly hexIndex: number}} ParseUnicodeCharState */
 
-/** @typedef {{ readonly kind: 'integer', readonly value: string}} ParseIntegerState */
+/**
+ *  @typedef {{ 
+ * readonly kind: 'number',
+ * readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
+ * readonly value: string
+ * }} ParseNumberKind
+ *  */
 
-/** @typedef {{ readonly kind: 'zero', readonly value: string}} ParseZeroState */
-
-/** @typedef {{ readonly kind: 'float', readonly value: string}} ParseFloatState */
-
-/** @typedef {{ readonly kind: 'eNotation', readonly value: string}} ParseENotationState */
-
-/** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
+/** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberKind */
 
 /** @typedef {{ readonly kind: 'eof'}} EofState */
 
@@ -185,7 +182,7 @@ const initialStateOp = initialState => input =>
     }
     else if (input >= digit1 && input <= digit9)
     {
-        return [undefined, { kind: 'integer', value: charToString(input)}]
+        return [undefined, { kind: 'number', value: charToString(input), numberKind: 'int'}]
     }
     else if (input >= letterA && input <= letterZ)
     {
@@ -202,8 +199,8 @@ const initialStateOp = initialState => input =>
             case leftBracket: return [[leftBracketToken], initialState]
             case rightBracket: return [[rightBracketToken], initialState]
             case quotationMark: return[undefined, {kind: 'string', value: ''}]
-            case digit0: return [undefined, { kind: 'zero', value: charToString(input)}]
-            case signMinus: return [undefined, { kind: 'integer', value: charToString(input)}]
+            case digit0: return [undefined, { kind: 'number', value: charToString(input), numberKind: '0'}]
+            case signMinus: return [undefined, { kind: 'number', value: charToString(input), numberKind: '-'}]
             case horizontalTab:
             case newLine:
             case carriageReturn:
@@ -213,76 +210,103 @@ const initialStateOp = initialState => input =>
     }
 }
 
-/** @type {(state: ParseZeroState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseZeroStateOp = state => input =>
+/** @type {(state: ParseNumberKind) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseNumberKindOp = state => input =>
 {
     if (input === undefined)
     {
-        return [[{kind: 'number', value: state.value}], {kind: 'eof'}]
+        switch (state.numberKind)
+        {
+            case '-':
+            case '.':
+            case 'e':
+            case 'e+':
+            case 'e-': return [[{kind: 'error', message: 'invalid number'}], {kind: 'invalidNumber', }] 
+            default: return [[{kind: 'number', value: state.value}], {kind: 'eof'}]
+        }
     }
-    else if (input === decimalPoint)
+    if (input === decimalPoint)
     {
-        return [undefined, {kind: 'float', value: state.value}]
+        switch (state.numberKind)
+        {
+            case '0':
+            case 'int': return [undefined, {kind: 'number', value: appendChar(state.value)(input), numberKind: '.'}]
+            default: return tokenizeOp({kind: 'invalidNumber'})(input)
+        }
     }
-    else if (input === letterE || input === capitalLetterE)
+    if (input === digit0)
     {
-        return [undefined, {kind:'eNotation', value: appendChar(state.value)(input)}]
+        switch (state.numberKind)
+        {
+            case '0': return tokenizeOp({kind: 'invalidNumber'})(input)
+            case '-': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: '0'}]
+            case '.': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'fractional'}]
+            case 'e':
+            case 'e+':
+            case 'e-': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'expDigits'}]
+            default: return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: state.numberKind}]
+        }
     }
-    else if (isTerminalForNumber(input))
+    if (input >= digit1 && input <= digit9)
     {
-        const next = tokenizeOp({kind: 'initial'})(input)
-        return [{first: {kind: 'number', value: state.value}, tail: next[0]}, next[1]]
+        switch (state.numberKind)
+        {
+            case '0': return tokenizeOp({kind: 'invalidNumber'})(input)
+            case '-': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'int'}]
+            case '.': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'fractional'}]
+            case 'e':
+            case 'e+':
+            case 'e-': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'expDigits'}]
+            default: return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: state.numberKind}]
+        }
     }
-    else
+    if (input === letterE || input === capitalLetterE)
     {
-        return tokenizeOp({kind: 'invalidNumber'})(input)
+        switch (state.numberKind)
+        {
+            case '0':
+            case 'int':
+            case 'fractional': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'e'}]
+            default: return tokenizeOp({kind: 'invalidNumber'})(input)
+        }
     }
-}
-
-/** @type {(state: ParseIntegerState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseIntegerStateOp = state => input =>
-{
-    if (input === undefined)
+    if (input === signMinus)
     {
-        return [[{kind: 'number', value: state.value}], {kind: 'eof'}]
+        switch (state.numberKind)
+        {
+            case 'e': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'e-'}]
+            default: return tokenizeOp({kind: 'invalidNumber'})(input)
+        }
     }
-    else if (input === decimalPoint)
+    if (input === signPlus)
     {
-        return state.value === '-' ? tokenizeOp({kind: 'invalidNumber'})(input) : [undefined, {kind: 'float', value: state.value}]
+        switch (state.numberKind)
+        {
+            case 'e': return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: 'e+'}]
+            default: return tokenizeOp({kind: 'invalidNumber'})(input)
+        }
     }
-    else if (input == digit0)
+    if (isTerminalForNumber(input))
     {
-        return state.value === '-' ? [undefined, {kind:'zero', value: appendChar(state.value)(input)}] : [undefined, {kind:'integer', value: appendChar(state.value)(input)}]
+        switch (state.numberKind)
+        {
+            case '-':
+            case '.':
+            case 'e':
+            case 'e+':
+            case 'e-': 
+            {
+                const next = tokenizeOp({kind: 'initial'})(input)
+                return [{first: {kind: 'error', message: 'invalid number'}, tail: next[0]}, next[1]]
+            }
+            default: 
+            {
+                const next = tokenizeOp({kind: 'initial'})(input)
+                return [{first: {kind: 'number', value: state.value}, tail: next[0]}, next[1]]
+            }
+        }
     }
-    else if (input >= digit1 && input <= digit9)
-    {
-        return [undefined, {kind:'integer', value: appendChar(state.value)(input)}]
-    }
-    else if (input === letterE || input === capitalLetterE)
-    {
-        return [undefined, {kind:'eNotation', value: appendChar(state.value)(input)}]
-    }
-    else if (isTerminalForNumber(input))
-    {
-        const next = tokenizeOp({kind: 'initial'})(input)
-        return [{first: {kind: 'number', value: state.value}, tail: next[0]}, next[1]]
-    }
-    else 
-    {
-        return tokenizeOp({kind: 'invalidNumber'})(input)
-    } 
-}
-
-/** @type {(state: ParseFloatState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseFloatStateOp = state => input =>
-{
-    return todo()
-}
-
-/** @type {(state: ParseENotationState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseENotationStateOp = state => input =>
-{
-    return todo()
+    return tokenizeOp({kind: 'invalidNumber'})(input)
 }
 
 /** @type {(char: number) => boolean} */
@@ -301,8 +325,8 @@ const isTerminalForNumber = char =>
     }
 }
 
-/** @type {(state: InvalidNumberState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const invalidNumberStateOp = state => input =>
+/** @type {(state: InvalidNumberKind) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const invalidNumberKindOp = state => input =>
 {
     if (input === undefined)
     {
@@ -379,7 +403,7 @@ const parseUnicodeCharStateOp = state => input =>
         else
         {
             const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
-            return [undefined, state.hexIndex == 3 ?
+            return [undefined, state.hexIndex === 3 ?
                 {kind: 'string', value: appendChar(state.value)(newUnicode)} :
                 {kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1}]
         }
@@ -431,11 +455,8 @@ const tokenizeOp = state => input =>
         case 'string': return parseStringStateOp(state)(input)
         case 'escapeChar': return parseEscapeCharStateOp(state)(input)
         case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
-        case 'integer': return parseIntegerStateOp(state)(input)
-        case 'zero': return parseZeroStateOp(state)(input)
-        case 'float': return parseFloatStateOp(state)(input)
-        case 'invalidNumber': return invalidNumberStateOp(state)(input)
-        case 'eNotation': return parseENotationStateOp(state)(input)
+        case 'invalidNumber': return invalidNumberKindOp(state)(input)
+        case 'number' : return parseNumberKindOp(state)(input)
         case 'eof': return eofStateOp(state)(input)
     }
 }

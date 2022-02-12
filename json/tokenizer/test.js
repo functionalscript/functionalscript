@@ -309,3 +309,96 @@ const tokenizeString = s =>
     if (result[0].kind !== 'error') { throw result }
     if (result[0].message !== 'invalid number') { throw result }
 }
+
+{
+    const result = tokenizeString('0.01')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '0.01') { throw result }
+}
+
+{
+    const result = tokenizeString('-0.9')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '-0.9') { throw result }
+}
+
+{
+    const result = tokenizeString('-0.')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}
+
+{
+    const result = tokenizeString('-0.]')
+    if (result.length !== 2){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+    if (result[1].kind !== ']') { throw result }
+}
+
+{
+    const result = tokenizeString('12.34')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '12.34') { throw result }
+}
+
+{
+    const result = tokenizeString('-12.00')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '-12.00') { throw result }
+}
+
+{
+    const result = tokenizeString('12.')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}
+
+{
+    const result = tokenizeString('12.]')
+    if (result.length !== 2){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+    if (result[1].kind !== ']') { throw result }
+}
+
+{
+    const result = tokenizeString('0e1')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '0e1') { throw result }
+}
+
+{
+    const result = tokenizeString('0e+2')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '0e+2') { throw result }
+}
+
+{
+    const result = tokenizeString('0e-0')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'number') { throw result }
+    if (result[0].value !== '0e-0') { throw result }
+}
+
+{
+    const result = tokenizeString('0e')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}
+
+{
+    const result = tokenizeString('0e-')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}
