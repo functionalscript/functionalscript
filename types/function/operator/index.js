@@ -19,6 +19,8 @@ const concat = i => acc => `${acc}${i}`
 /** @type {Fold<number>} */
 const addition = a => b => a + b
 
+const increment = addition(1)
+
 /**
  * @template T
  * @template R
@@ -72,14 +74,15 @@ const reduceToScan = reduce => prior => i => {
 /** @type {<T>(fold: Fold<T>) => Scan<T, T>} */
 const foldToScan = op => init => [init, reduceToScan(op)(init)]
 
-/** @type {() => (a: number) => number} */
-const counter = () => a => a + 1
+const counter = () => increment
 
 module.exports = {
     /** @readonly */
     join,
     /** @readonly */
     addition,
+    /** @readonly */
+    increment,
     /** @readonly */
     strictEqual,
     /** @readonly */
