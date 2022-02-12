@@ -168,7 +168,7 @@ const rightBracketToken = {kind: ']'}
 /** @typedef {number|undefined} JsonCharacter */
 
 /** @type {(old: string) => (input: JsonCharacter) => string} */
-const appendChar = old => input => input === undefined ? old : operator.concat(old)(charToString(input))
+const appendChar = old => input => input === undefined ? old : operator.concat(charToString(input))(old)
 
 /** @type {(input: JsonCharacter) => string} */
 const charToString = input => input === undefined ? '' : list.fromCharCodes([input])
