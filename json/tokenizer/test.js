@@ -302,3 +302,10 @@ const tokenizeString = s =>
     if (result[0].kind !== 'error') { throw result }
     if (result[0].message !== 'invalid number') { throw result }
 }
+
+{
+    const result = tokenizeString('-.123')
+    if (result.length !== 1){ throw result }
+    if (result[0].kind !== 'error') { throw result }
+    if (result[0].message !== 'invalid number') { throw result }
+}

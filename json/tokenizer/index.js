@@ -248,13 +248,13 @@ const parseIntegerStateOp = state => input =>
     }
     else if (input === decimalPoint)
     {
-        return [undefined, {kind: 'float', value: state.value}]
+        return state.value === '-' ? tokenizeOp({kind: 'invalidNumber'})(input) : [undefined, {kind: 'float', value: state.value}]
     }
-    else if (input == digit0 && state.value === '-')
+    else if (input == digit0)
     {
-        return [undefined, {kind:'zero', value: appendChar(state.value)(input)}]
+        return state.value === '-' ? [undefined, {kind:'zero', value: appendChar(state.value)(input)}] : [undefined, {kind:'integer', value: appendChar(state.value)(input)}]
     }
-    else if (input >= digit0 && input <= digit9)
+    else if (input >= digit1 && input <= digit9)
     {
         return [undefined, {kind:'integer', value: appendChar(state.value)(input)}]
     }
