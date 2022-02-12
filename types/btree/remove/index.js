@@ -92,8 +92,8 @@ const initValue1 = a => n => {
  * @typedef {(a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} Merge
  */
 
-/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (a: A) => (i: find.PathItem<T>) => Branch<T>} */
-const reduceX = ms => a => i => {
+/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (i: find.PathItem<T>) => (a: A) => Branch<T>} */
+const reduceX = ms => i => a => {
     const [m0, m2] = ms
     /** @typedef {typeof ms extends array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
     /** @typedef {AT[0]} A */
@@ -155,7 +155,7 @@ const nodeRemove = c => node => {
     const tailR = list.next(tail)
     if (tailR === undefined) { return first }
     const { first: tf, tail: tt } = tailR
-    const result = reduce(initReduce(first)(tf))(tt)
+    const result = reduce(initReduce(tf)(first))(tt)
     return result.length === 1 ? result[0] : result
 }
 

@@ -20,8 +20,8 @@ const split = path => path.split('/')
 
 /** @typedef {readonly[list.List<string>] | undefined} OptionList */
 
-/** @type {(s: OptionList) => (items: string) => OptionList} */
-const normItemsOp = prior => first => {
+/** @type {(items: string) => (prior: OptionList) => OptionList} */
+const normItemsOp = first => prior => {
     if (prior === undefined) { return undefined }
     const tail = prior[0]
     switch (first) {

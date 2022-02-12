@@ -19,14 +19,19 @@ const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.valu
 /** @type {<T>(entries: list.List<Entry<T>>) => list.List<Entry<T>>} */
 const sort = entries => map.entries(map.fromEntries(entries))
 
+/** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
+const fromEntries = entries => Object.fromEntries(list.iterable(entries))
+
 /** @type {<T>(m: map.Map<T>) => Map<T>} */
-const fromMap = m => Object.fromEntries(list.iterable(map.entries(m)))
+const fromMap = m => fromEntries(map.entries(m))
 
 module.exports = {
     /** @readonly */
     at,
     /** @readonly */
     sort,
+    /** @readonly */
+    fromEntries,
     /** @readonly */
     fromMap,
 }

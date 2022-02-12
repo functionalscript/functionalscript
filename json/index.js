@@ -1,12 +1,12 @@
 const seq = require('../types/list')
 const object = require('../types/object')
-const array = require('../types/array')
 const op = require('../types/function/operator')
+const { compose } = require('../types/function')
 
-/** 
+/**
  * @typedef {{
  *  readonly [k in string]: Unknown
- * }} Object 
+ * }} Object
  */
 
 /** @typedef {readonly Unknown[]} Array */
@@ -22,7 +22,7 @@ const setProperty = value => {
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
         return { ...srcObject, [first]: f(tail)(object.at(first)(srcObject)) }
-    }    
+    }
     return f
 }
 
@@ -45,7 +45,7 @@ const colon = [':']
 const comma = [',']
 
 /** @type {op.Fold<seq.List<string>>} */
-const joinOp = a => b => seq.flat([a, comma, b])
+const joinOp = b => prior => seq.flat([prior, comma, b])
 
 /** @type {(input: seq.List<seq.List<string>>) => seq.List<string>} */
 const join = seq.fold(joinOp)([])
@@ -76,19 +76,8 @@ const serialize = sort => {
         f(v)
     ])
     /** @type {(object: Object) => seq.List<string>} */
-    const objectSerialize = input => {
-        const entries = Object.entries(input)
-        const sortedEntries = sort(entries)
-        const _ = seq.toArray(sortedEntries)
-        const serializedEntries = seq.map(propertySerialize)(sortedEntries)
-        return objectList(serializedEntries)
-    }
-    /** @type {(input: Array) => seq.List<string>} */
-    const arraySerialize = input => {
-        const serializedEntries = seq.map(f)(input)
-        return arrayList(serializedEntries)
-    }
-    /** @type {(value: Unknown) => seq.List < string >} */
+    const objectSerialize = input => objectList(seq.map(propertySerialize)(sort(Object.entries(input))))
+    /** @type {(value: Unknown) => seq.List<string>} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -101,22 +90,21 @@ const serialize = sort => {
             }
         }
     }
+    /** @type {(input: Array) => seq.List<string>} */
+    const arraySerialize = compose(seq.map(f))(arrayList)
     return f
 }
 
 /**
- * The standard `JSON.stringify` rules determined by 
+ * The standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
- *  
+ *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => value => {
-    const _s = serialize(sort)(value)
-    return seq.join('')(_s)
-}
+const stringify = sort => compose(serialize(sort))(seq.join(''))
 
 /** @type {(value: string) => Unknown} */
-const parse = value => JSON.parse(value)
+const parse = JSON.parse
 
 /** @type {(value: Unknown) => value is Object} */
 const isObject = value => typeof value === 'object' && value !== null && !(value instanceof Array)
