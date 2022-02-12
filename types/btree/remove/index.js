@@ -1,9 +1,9 @@
 const _ = require('..')
-const { todo } = require('../../../dev')
 const cmp = require('../../function/compare')
 const find = require('../find')
 const list = require('../../list')
 const array = require('../../array')
+const option = require('../../option')
 
 /**
  * @template T
@@ -92,8 +92,8 @@ const initValue1 = a => n => {
  * @typedef {(a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} Merge
  */
 
-/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (a: A) => (i: find.PathItem<T>) => Branch<T>} */
-const reduceX = ms => a => i => {
+/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (i: find.PathItem<T>) => (a: A) => Branch<T>} */
+const reduceX = ms => i => a => {
     const [m0, m2] = ms
     /** @typedef {typeof ms extends array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
     /** @typedef {AT[0]} A */
@@ -118,8 +118,8 @@ const reduce = list.reduce(reduceX([reduceValue0, reduceValue2]))
 
 const initReduce = reduceX([initValue0, initValue1])
 
-/** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => undefined | _.Node<T>} */
-const remove = c => node => {
+/** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
+const nodeRemove = c => node => {
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     /** @type  {() => undefined | RemovePath<T>} */
     const f = () => {
@@ -155,11 +155,16 @@ const remove = c => node => {
     const tailR = list.next(tail)
     if (tailR === undefined) { return first }
     const { first: tf, tail: tt } = tailR
-    const result = reduce(initReduce(first)(tf))(tt)
+    const result = reduce(initReduce(tf)(first))(tt)
     return result.length === 1 ? result[0] : result
 }
 
+/** @type {<T>(c: cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
+const remove = c => option.map(nodeRemove(c))
+
 module.exports = {
+    /** @readonly */
+    nodeRemove,
     /** @readonly */
     remove,
 }

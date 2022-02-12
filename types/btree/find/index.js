@@ -44,10 +44,8 @@ const array = require('../../array')
  */
 
 /** @type {<T>(item: PathItem<T>) => _.Node<T>} */
-const child = item => {
-    /** @typedef {typeof item extends PathItem<infer T> ? T : never} T */
-    return /** @type {_.Node<T>} */(item[1][item[0]])
-}
+const child = item =>
+    /** @type {typeof item extends PathItem<infer T> ? _.Node<T> : never} */(item[1][item[0]])
 
 /**
  * @template T
@@ -98,6 +96,14 @@ const find = c => {
     return f(undefined)
 }
 
+/** @type {<T>(first: First<T>) => boolean} */
+const isFound = first => {
+    switch (first[0]) {
+        case 1: case 3: { return true }
+        default: { return false }
+    }
+}
+
 /** @type {<T>(first: First<T>) => T | undefined} */
 const value = first => {
     switch (first[0]) {
@@ -123,4 +129,6 @@ module.exports = {
     find,
     /** @readonly */
     value,
+    /** @readonly */
+    isFound,
 }

@@ -11,8 +11,8 @@ const list = require('../../list')
 /** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Bracnh1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(a: Bracnh1To3<T>) => (i: find.PathItem<T>) => Bracnh1To3<T>} */
-const reduce = a => i => {
+/** @type {<T>(i: find.PathItem<T>) => (a: Bracnh1To3<T>) => Bracnh1To3<T>} */
+const reduce = i => a => {
     switch (i[0]) {
         case 0: {
             const x = i[1]
@@ -36,7 +36,7 @@ const reduce = a => i => {
 }
 
 /** @type {<T>(c: cmp.Compare<T>) => (value: T) => (node: _.Node<T>) => _.Node<T>} */
-const set = c => value => node => {
+const nodeSet = c => value => node => {
     const { first, tail } = find.find(c)(node)
     /** @typedef {typeof value} T */
     /** @type {() => Bracnh1To3<T>} */
@@ -86,6 +86,9 @@ const set = c => value => node => {
     const r = list.reduce(reduce)(f())(tail)
     return r.length === 1 ? r[0] : r
 }
+
+/** @type {<T>(c: cmp.Compare<T>) => (value: T) => (tree: _.Tree<T>) => _.Node<T>} */
+const set = c => value => tree => tree === undefined ? [value] : nodeSet(c)(value)(tree)
 
 module.exports = {
     /** @readonly */

@@ -7,17 +7,19 @@
 
 /**
  * @template I,O
- * @typedef {Binary<O, I, O>} Reduce
+ * @typedef {Binary<I, O, O>} Reduce
  */
 
 /** @type {(separator: string) => Fold<string>} */
-const join = separator => prior => value => `${prior}${separator}${value}`
+const join = separator => value => prior => `${prior}${separator}${value}`
 
 /** @type {Fold<string>} */
-const concat = a => b => `${a}${b}`
+const concat = i => acc => `${acc}${i}`
 
 /** @type {Fold<number>} */
 const addition = a => b => a + b
+
+const increment = addition(1)
 
 /**
  * @template T
@@ -60,7 +62,7 @@ const stateScanToScan = op => prior => i => {
 
 /** @type {<I, O>(reduce: Reduce<I, O>) => (prior: O) => Scan<I, O>} */
 const reduceToScan = reduce => prior => i => {
-    const result = reduce(prior)(i)
+    const result = reduce(i)(prior)
     return [result, reduceToScan(reduce)(result)]
 }
 
@@ -72,14 +74,15 @@ const reduceToScan = reduce => prior => i => {
 /** @type {<T>(fold: Fold<T>) => Scan<T, T>} */
 const foldToScan = op => init => [init, reduceToScan(op)(init)]
 
-/** @type {(a: number) => () => number} */
-const counter = a => () => a + 1
+const counter = () => increment
 
 module.exports = {
     /** @readonly */
     join,
     /** @readonly */
     addition,
+    /** @readonly */
+    increment,
     /** @readonly */
     strictEqual,
     /** @readonly */

@@ -1,23 +1,13 @@
-const option = require("../option")
 const btree = require('../btree')
 const { values } = require("../btree")
 const find = require('../btree/find')
 const s = require('../btree/set')
-const compare = require("../function/compare")
-const { stringCmp } = require("../function/compare")
-const list = require("../list")
+const compare = require('../function/compare')
+const { stringCmp } = require('../function/compare')
+const list = require('../list')
+const btRemove = require('../btree/remove')
 
 /** @typedef {compare.Sign} Sign */
-
-/**
- * @template T
- * @typedef {btree.Leaf1<T>} Leaf1
- */
-
-/**
- * @template T
- * @typedef {btree.Node<T>} TNode
- */
 
 /**
  * @template T
@@ -31,7 +21,7 @@ const list = require("../list")
 
 /**
  * @template T
- * @typedef {undefined|TNode<Entry<T>>} Map
+ * @typedef {btree.Tree<Entry<T>>} Map
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
@@ -44,25 +34,20 @@ const at = name => map => {
     return result === undefined ? undefined : result[1]
 }
 
+/** @type {<T>(entry: Entry<T>) => (map: Map<T>) => Map<T>} */
+const setEntry = entry => s.set(keyCmp(entry[0]))(entry)
+
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
-const set = name => value => map =>  {
-    /** @type {Entry<typeof value>} */
-    const entry = [name, value]
-    if (map === undefined) { return [entry] }
-    return s.set(keyCmp(name))(entry)(map)
-}
+const set = name => value => setEntry([name, value])
 
 /** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
-const entries = map => map === undefined ? undefined : values(map)
-
-/** @type {<T>(map: Map<T>) => (entry: Entry<T>) => Map<T>} */
-const setOp = map => ([name, value]) => set(name)(value)(map)
+const entries = values
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = entries => {
-    /** @typedef {typeof entries extends list.List<Entry<infer T>> ? T : never} T */
-    return list.reduce(setOp)(/** @type {Map<T>} */(undefined))(entries)
-}
+const fromEntries = list.reduce(setEntry)(undefined)
+
+/** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
+const remove = name => btRemove.remove(keyCmp(name))
 
 module.exports = {
     /** @readonly */
@@ -75,4 +60,6 @@ module.exports = {
     entries,
     /** @readonly */
     fromEntries,
+    /** @readonly */
+    remove,
 }
