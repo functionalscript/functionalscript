@@ -171,7 +171,7 @@ const rightBracketToken = {kind: ']'}
 const appendChar = old => input => input === undefined ? old : operator.concat(charToString(input))(old)
 
 /** @type {(input: JsonCharacter) => string} */
-const charToString = input => input === undefined ? '' : list.fromCharCodes([input])
+const charToString = input => input === undefined ? '' : String.fromCharCode(input)
 
 /** @type {(state: InitialState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
 const initialStateOp = initialState => input => 
