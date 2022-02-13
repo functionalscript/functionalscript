@@ -1,6 +1,6 @@
 const { todo } = require('../../dev')
-const operator = require('../../types/function/operator');
-const { concat } = require('../../types/list');
+const operator = require('../../types/function/operator')
+const { concat } = require('../../types/list')
 const list = require('../../types/list')
 
 /** @typedef {{readonly kind: '{'}} LeftBraceToken */
@@ -54,69 +54,44 @@ const list = require('../../types/list')
  * } JsonToken
  */
 
-const leftBrace = 0x7b;
-const rightBrace = 0x7d;
-const colon = 0x3a;
-const comma = 0x2c;
-const leftBracket = 0x5b;
-const rightBracket = 0x5d;
+const leftBrace = 0x7b
+const rightBrace = 0x7d
+const colon = 0x3a
+const comma = 0x2c
+const leftBracket = 0x5b
+const rightBracket = 0x5d
 
-const quotationMark = 0x22;
-const digit0 = 0x30;
-const digit1 = 0x31;
-const digit2 = 0x32;
-const digit3 = 0x33;
-const digit4 = 0x34;
-const digit5 = 0x35;
-const digit6 = 0x36;
-const digit7 = 0x37;
-const digit8 = 0x38;
-const digit9 = 0x39;
-const signPlus = 0x2b;
-const signMinus = 0x2d;
-const decimalPoint = 0x2e;
+const quotationMark = 0x22
+const digit0 = 0x30
+const digit1 = 0x31
+const digit9 = 0x39
+const signPlus = 0x2b
+const signMinus = 0x2d
+const decimalPoint = 0x2e
 
-const horizontalTab = 0x09;
-const newLine = 0x0a;
-const carriageReturn = 0x0d;
-const space = 0x20;
+const horizontalTab = 0x09
+const newLine = 0x0a
+const carriageReturn = 0x0d
+const space = 0x20
 
-const backslach = 0x5c;
-const slash = 0x2f;
-const backspace = 0x08;
-const formfeed = 0x0c;
+const backslach = 0x5c
+const slash = 0x2f
+const backspace = 0x08
+const formfeed = 0x0c
 
-const capitalLetterA = 0x41;
-const capitalLetterE = 0x45;
-const capitalLetterF = 0x46;
+const capitalLetterA = 0x41
+const capitalLetterE = 0x45
+const capitalLetterF = 0x46
 
-const letterA = 0x61;
-const letterB = 0x62;
-const letterE = 0x65;
-const letterF = 0x66;
-const letterN = 0x6e;
-const letterR = 0x72;
-const letterT = 0x74;
-const letterU = 0x75;
-const letterZ = 0x7a;
-
-/** @type {LeftBraceToken} */
-const leftBraceToken = {kind: '{'}
-
-/** @type {RightBraceToken} */
-const rightBraceToken = {kind: '}'}
-
-/** @type {ColonToken} */
-const colonToken = {kind: ':'}
-
-/** @type {CommaToken} */
-const commaToken = {kind: ','}
-
-/** @type {LeftBracketToken} */
-const leftBracketToken = {kind: '['}
-
-/** @type {RightBracketToken} */
-const rightBracketToken = {kind: ']'}
+const letterA = 0x61
+const letterB = 0x62
+const letterE = 0x65
+const letterF = 0x66
+const letterN = 0x6e
+const letterR = 0x72
+const letterT = 0x74
+const letterU = 0x75
+const letterZ = 0x7a
 
 /** 
  * @typedef {|
@@ -190,12 +165,12 @@ const initialStateOp = initialState => input =>
     }
     switch(input)
     {
-        case leftBrace: return [[leftBraceToken], initialState]
-        case rightBrace: return [[rightBraceToken], initialState]
-        case colon: return [[colonToken], initialState]
-        case comma: return [[commaToken], initialState]
-        case leftBracket: return [[leftBracketToken], initialState]
-        case rightBracket: return [[rightBracketToken], initialState]
+        case leftBrace: return [[{kind: '{'}], initialState]
+        case rightBrace: return [[{kind: '}'}], initialState]
+        case colon: return [[{kind: ':'}], initialState]
+        case comma: return [[{kind: ','}], initialState]
+        case leftBracket: return [[{kind: '['}], initialState]
+        case rightBracket: return [[{kind: ']'}], initialState]
         case quotationMark: return[undefined, {kind: 'string', value: ''}]
         case digit0: return [undefined, { kind: 'number', value: charToString(input), numberKind: '0'}]
         case signMinus: return [undefined, { kind: 'number', value: charToString(input), numberKind: '-'}]
