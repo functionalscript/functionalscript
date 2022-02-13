@@ -100,8 +100,8 @@ const letterZ = 0x7a
  * ParseStringState |
  * ParseEscapeCharState |
  * ParseUnicodeCharState |
- * ParseNumberKind |
- * InvalidNumberKind |
+ * ParseNumberState |
+ * InvalidNumberState |
  * EofState
  * } TokenizerState 
  */
@@ -133,10 +133,10 @@ const letterZ = 0x7a
  * readonly kind: 'number',
  * readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
  * readonly value: string
- * }} ParseNumberKind
+ * }} ParseNumberState
  *  */
 
-/** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberKind */
+/** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
 
 /** @typedef {{ readonly kind: 'eof'}} EofState */
 
@@ -182,8 +182,8 @@ const initialStateOp = initialState => input =>
     }
 }
 
-/** @type {(state: ParseNumberKind) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseNumberKindOp = state => input =>
+/** @type {(state: ParseNumberState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const parseNumberStateOp = state => input =>
 {
     if (input === undefined)
     {
@@ -297,8 +297,8 @@ const isTerminalForNumber = char =>
     }
 }
 
-/** @type {(state: InvalidNumberKind) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
-const invalidNumberKindOp = state => input =>
+/** @type {(state: InvalidNumberState) => (input: JsonCharacter) => readonly[list.List<JsonToken>, TokenizerState]} */
+const invalidNumberStateOp = state => input =>
 {
     if (input === undefined)
     {
@@ -415,8 +415,8 @@ const tokenizeOp = state => input =>
         case 'string': return parseStringStateOp(state)(input)
         case 'escapeChar': return parseEscapeCharStateOp(state)(input)
         case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
-        case 'invalidNumber': return invalidNumberKindOp(state)(input)
-        case 'number' : return parseNumberKindOp(state)(input)
+        case 'invalidNumber': return invalidNumberStateOp(state)(input)
+        case 'number' : return parseNumberStateOp(state)(input)
         case 'eof': return eofStateOp(state)(input)
     }
 }
