@@ -1,6 +1,7 @@
 const tokenizer = require('.')
 const list = require('../../types/list')
 const json = require('..')
+const { sort } = require('../../types/object')
 
 /** @type {(s: string) => list.List<tokenizer.JsonCharacter>} */
 const toCharacters = s =>
@@ -14,210 +15,160 @@ const toCharacters = s =>
 const tokenizeString = s =>
 {   
     const characters = toCharacters(s)
-    const tokens = tokenizer.tokenize(characters)
     return list.toArray(tokenizer.tokenize(characters))
 }
 
+/** @type {(a: readonly tokenizer.JsonToken[]) => string} */
+const stringify = a => json.stringify(sort)(a)
+
 {
     const result = tokenizeString('')
-    if (result.length !== 0){ throw result }
+    if (result.length !== 0) { throw result }
 }
 
 {
-    const result = tokenizeString('{')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== '{') { throw result }
+    const result = stringify(tokenizeString('{'))
+    if (result !== '[{"kind":"{"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('}')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== '}') { throw result }
+    const result = stringify(tokenizeString('}'))
+    if (result !== '[{"kind":"}"}]') { throw result }
 }
 
 {
-    const result = tokenizeString(':')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== ':') { throw result }
+    const result = stringify(tokenizeString(':'))
+    if (result !== '[{"kind":":"}]') { throw result }
 }
 
 {
-    const result = tokenizeString(',')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== ',') { throw result }
+    const result = stringify(tokenizeString(','))
+    if (result !== '[{"kind":","}]') { throw result }
 }
 
 {
-    const result = tokenizeString('[')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== '[') { throw result }
+    const result = stringify(tokenizeString('['))
+    if (result !== '[{"kind":"["}]') { throw result }
 }
 
 {
-    const result = tokenizeString(']')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== ']') { throw result }
+    const result = stringify(tokenizeString(']'))
+    if (result !== '[{"kind":"]"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('ᄑ')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'unexpected character') { throw result }
+    const result = stringify(tokenizeString('ᄑ'))
+    if (result !== '[{"kind":"error","message":"unexpected character"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('err')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid keyword') { throw result }
+    const result = stringify(tokenizeString('err'))
+    if (result !== '[{"kind":"error","message":"invalid keyword"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('{e}')
-    if (result.length !== 3){ throw result }
-    if (result[0].kind !== '{') { throw result }
-    if (result[1].kind !== 'error') { throw result }
-    if (result[1].message !== 'invalid keyword') { throw result }
-    if (result[2].kind !== '}') { throw result }
+    const result = stringify(tokenizeString('{e}'))
+    if (result !== '[{"kind":"{"},{"kind":"error","message":"invalid keyword"},{"kind":"}"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('{ \t\n\r}')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== '{') { throw result }
-    if (result[1].kind !== '}') { throw result }
+    const result = stringify(tokenizeString('{ \t\n\r}'))
+    if (result !== '[{"kind":"{"},{"kind":"}"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('true')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'true') { throw result }
+    const result = stringify(tokenizeString('true'))
+    if (result !== '[{"kind":"true"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('tru')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid keyword') { throw result }
+    const result = stringify(tokenizeString('tru'))
+    if (result !== '[{"kind":"error","message":"invalid keyword"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('false')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'false') { throw result }
+    const result = stringify(tokenizeString('false'))
+    if (result !== '[{"kind":"false"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('null')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'null') { throw result }
+    const result = stringify(tokenizeString('null'))
+    if (result !== '[{"kind":"null"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('[null]')
-    if (result.length !== 3){ throw result }
-    if (result[0].kind !== '[') { throw result }
-    if (result[1].kind !== 'null') { throw result }
-    if (result[2].kind !== ']') { throw result }
+    const result = stringify(tokenizeString('[null]'))
+    if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('""')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
-    if (result[0].value !== '') { throw result }
+    const result = stringify(tokenizeString('""'))
+    if (result !== '[{"kind":"string","value":""}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"value"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
-    if (result[0].value !== 'value') { throw result }
+    const result = stringify(tokenizeString('"value"'))
+    if (result !== '[{"kind":"string","value":"value"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"value')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== '" are missing') { throw result }
+    const result = stringify(tokenizeString('"value'))
+    if (result !== '[{"kind":"error","message":"\\" are missing"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"value1" "value2"')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'string') { throw result }
-    if (result[1].kind !== 'string') { throw result }
+    const result = stringify(tokenizeString('"value1" "value2"'))
+    if (result !== '[{"kind":"string","value":"value1"},{"kind":"string","value":"value2"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== '" are missing') { throw result }
+    const result = stringify(tokenizeString('"'))
+    if (result !== '[{"kind":"error","message":"\\" are missing"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\\\"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
+    const result = stringify(tokenizeString('"\\\\"'))
+    if (result !== '[{"kind":"string","value":"\\\\"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\""')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
+    const result = stringify(tokenizeString('"\\""'))
+    if (result !== '[{"kind":"string","value":"\\""}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\/"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
+    const result = stringify(tokenizeString('"\\/"'))
+    if (result !== '[{"kind":"string","value":"/"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\x"')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'unescaped character') { throw result }
-    if (result[1].kind !== 'string') { throw result }
-    if (result[1].value !== 'x') { throw result }
+    const result = stringify(tokenizeString('"\\x"'))
+    if (result !== '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"x"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== '" are missing') { throw result }
+    const result = stringify(tokenizeString('"\\'))
+    if (result !== '[{"kind":"error","message":"\\" are missing"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\b\\f\\n\\r\\t"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
+    const result = stringify(tokenizeString('"\\b\\f\\n\\r\\t"'))
+    if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\u1234"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
-    if (result[0].value !== 'ሴ') { throw result }
+    const result = stringify(tokenizeString('"\\u1234"'))
+    if (result !== '[{"kind":"string","value":"ሴ"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\uaBcDEeFf"')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'string') { throw result }
-    if (result[0].value !== 'ꯍEeFf') { throw result }
+    const result = stringify(tokenizeString('"\\uaBcDEeFf"'))
+    if (result !== '[{"kind":"string","value":"ꯍEeFf"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('"\\uEeFg"')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid hex value') { throw result }
-    if (result[1].kind !== 'string') { throw result }
-    if (result[1].value !== 'g') { throw result }
+    const result = stringify(tokenizeString('"\\uEeFg"'))
+    if (result !== '[{"kind":"error","message":"invalid hex value"},{"kind":"string","value":"g"}]') { throw result }
 }
 
 {
