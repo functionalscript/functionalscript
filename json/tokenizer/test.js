@@ -172,184 +172,136 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {
-    const result = tokenizeString('0')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '0') { throw result }
+    const result = stringify(tokenizeString('0'))
+    if (result !== '[{"kind":"number","value":"0"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('[0]')
-    if (result.length !== 3){ throw result }
-    if (result[0].kind !== '[') { throw result }
-    if (result[1].kind !== 'number') { throw result }
-    if (result[1].value !== '0') { throw result }
-    if (result[2].kind !== ']') { throw result }
+    const result = stringify(tokenizeString('[0]'))
+    if (result !== '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('00')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('00'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0abc,')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
-    if (result[1].kind !== ',') { throw result }
+    const result = stringify(tokenizeString('0abc,'))
+    if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","}]') { throw result }
 }
 
 {
-    const result = tokenizeString('1234567890')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '1234567890') { throw result }
+    const result = stringify(tokenizeString('1234567890'))
+    if (result !== '[{"kind":"number","value":"1234567890"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('{90}')
-    if (result.length !== 3){ throw result }
-    if (result[0].kind !== '{') { throw result }
-    if (result[1].kind !== 'number') { throw result }
-    if (result[1].value !== '90') { throw result }
-    if (result[2].kind !== '}') { throw result }
+    const result = stringify(tokenizeString('{90}'))
+    if (result !== '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('10-0')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('10-0'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('9a:')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
-    if (result[1].kind !== ':') { throw result }
+    const result = stringify(tokenizeString('9a:'))
+    if (result !== '[{"kind":"error","message":"invalid number"},{"kind":":"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-10')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '-10') { throw result }
+    const result = stringify(tokenizeString('-10'))
+    if (result !== '[{"kind":"number","value":"-10"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-0')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '-0') { throw result }
+    const result = stringify(tokenizeString('-0'))
+    if (result !== '[{"kind":"number","value":"-0"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-00')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('-00'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-.123')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('-.123'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0.01')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '0.01') { throw result }
+    const result = stringify(tokenizeString('0.01'))
+    if (result !== '[{"kind":"number","value":"0.01"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-0.9')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '-0.9') { throw result }
+    const result = stringify(tokenizeString('-0.9'))
+    if (result !== '[{"kind":"number","value":"-0.9"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-0.')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('-0.'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-0.]')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
-    if (result[1].kind !== ']') { throw result }
+    const result = stringify(tokenizeString('-0.]'))
+    if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"]"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('12.34')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '12.34') { throw result }
+    const result = stringify(tokenizeString('12.34'))
+    if (result !== '[{"kind":"number","value":"12.34"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('-12.00')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '-12.00') { throw result }
+    const result = stringify(tokenizeString('-12.00'))
+    if (result !== '[{"kind":"number","value":"-12.00"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('12.')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('-12.'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('12.]')
-    if (result.length !== 2){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
-    if (result[1].kind !== ']') { throw result }
+    const result = stringify(tokenizeString('12.]'))
+    if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"]"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0e1')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '0e1') { throw result }
+    const result = stringify(tokenizeString('0e1'))
+    if (result !== '[{"kind":"number","value":"0e1"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0e+2')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '0e+2') { throw result }
+    const result = stringify(tokenizeString('0e+2'))
+    if (result !== '[{"kind":"number","value":"0e+2"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0e-0')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'number') { throw result }
-    if (result[0].value !== '0e-0') { throw result }
+    const result = stringify(tokenizeString('0e-0'))
+    if (result !== '[{"kind":"number","value":"0e-0"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0e')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('12e0000'))
+    if (result !== '[{"kind":"number","value":"12e0000"}]') { throw result }
 }
 
 {
-    const result = tokenizeString('0e-')
-    if (result.length !== 1){ throw result }
-    if (result[0].kind !== 'error') { throw result }
-    if (result[0].message !== 'invalid number') { throw result }
+    const result = stringify(tokenizeString('-12e-0001'))
+    if (result !== '[{"kind":"number","value":"-12e-0001"}]') { throw result }
+}
+
+{
+    const result = stringify(tokenizeString('0e'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+}
+
+{
+    const result = stringify(tokenizeString('0e-'))
+    if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
