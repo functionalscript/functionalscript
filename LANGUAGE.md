@@ -1,4 +1,4 @@
-# FunctionaScript Programming Language
+# FunctionalScript Programming Language
 
 ## 1. Module Ecosystem
 
