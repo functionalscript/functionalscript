@@ -89,7 +89,7 @@ const mapDependency = d => ([external, internal]) => {
 
 /**
  * @typedef {{
- *  readonly packageId: string,
+ *  readonly package: string,
  *  readonly items: Items,
  *  readonly dir: boolean,
  * }} Path
@@ -105,7 +105,7 @@ const parseGlobal = d => dir => items => {
     const v = variants([undefined, items])
     const r = list.first(undefined)(list.filterMap(mapDependency(d))(v))
     if (r === undefined) { return undefined }
-    return { packageId: r[0], items: list.toArray(r[1]), dir }
+    return { package: r[0], items: list.toArray(r[1]), dir }
 }
 
 /**
@@ -119,7 +119,7 @@ const parse = packageId => dependencies => local => path => {
     const parsed = parseLocal(local)(path)
     if (parsed === undefined) { return undefined }
     const {external, dir, items } = parsed
-    if (!external) { return { packageId, items, dir } }
+    if (!external) { return { package: packageId, items, dir } }
     return parseGlobal(dependencies)(dir)(items)
 }
 
@@ -143,12 +143,12 @@ const parseAndFind = packageGet => packageId => local => path => {
     if (currentPack === undefined) { return undefined }
     const p = parse(packageId)(currentPack.dependency)(local)(path)
     if (p === undefined) { return undefined }
-    const pack = packageGet(p.packageId)
+    const pack = packageGet(p.package)
     if (pack === undefined) { return undefined }
     /** @type {(file: string) => Result } */
     const tryFile = file => {
         const source = pack.file(file)
-        return source === undefined ? undefined : { id: { package: p.packageId, path: file.split('/') }, source }
+        return source === undefined ? undefined : { id: { package: p.package, path: file.split('/') }, source }
     }
     const file = p.items.join('/')
     const indexJs = list.join('/')(list.concat(p.items)(['index.js']))

@@ -59,20 +59,20 @@ const stringify = g => {
     if (_.parseGlobal(d => at(d)({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ b: 'x' }))(false)(['b']))
-        if (result !== '{"packageId":"x","items":[],"dir":false}') { throw result }
+        if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
     }
     if (_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b', 'r']))
-        if (result !== '{"packageId":"x","items":[],"dir":false}') { throw result }
+        if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
     }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b', 'r', 'd', 't']))
-        if (result !== '{"packageId":"x","items":["d","t"],"dir":false}') { throw result }
+        if (result !== '{"package":"x","items":["d","t"],"dir":false}') { throw result }
     }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(true)(['b', 'r', 'd', 't']))
-        if (result !== '{"packageId":"x","items":["d","t"],"dir":true}') { throw result }
+        if (result !== '{"package":"x","items":["d","t"],"dir":true}') { throw result }
     }
 }
 
