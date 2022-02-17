@@ -148,7 +148,7 @@ const parseAndFind = packageGet => packageId => local => path => {
     /** @type {(file: string) => Result } */
     const tryFile = file => {
         const source = pack.file(file)
-        return source === undefined ? undefined : { id: { packageId: p.packageId, path: file.split('/') }, source }
+        return source === undefined ? undefined : { id: { package: p.packageId, path: file.split('/') }, source }
     }
     const file = p.items.join('/')
     const indexJs = list.join('/')(list.concat(p.items)(['index.js']))

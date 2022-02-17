@@ -37,7 +37,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
     /** @type {(moduleId: module_.Id) => function_.Require<[map.Map<string>, M]>} */
     const req = moduleId => p => prior => {
-        const r = path.parseAndFind(packageGet)(moduleId.packageId)(moduleId.path.join('/'))(p)
+        const r = path.parseAndFind(packageGet)(moduleId.package)(moduleId.path.join('/'))(p)
         if (r === undefined) { return [['error', 'file not found'], prior] }
         const requireMap = map.set(p)(module_.idToString(moduleId))(prior[0])
         r
@@ -61,7 +61,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             if (m !== undefined) { return [m, moduleMap] }
         }
         // check package
-        const p = packageGet(moduleId.packageId)
+        const p = packageGet(moduleId.package)
         if (p === undefined) { return notFound(moduleMap) }
         // check file
         const f = p.file(moduleId.path.join('/'))
