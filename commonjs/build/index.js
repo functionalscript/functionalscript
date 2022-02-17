@@ -43,18 +43,25 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         r
         return todo()
     }
-    /**
-     * @type {(moduleId: module_.Id) =>
-     *  (moduleMapFirst: M) =>
-     *  Result<M>
-     * }
-     */
-    const f = moduleId => moduleMap => {
-        const moduleIdStr = module_.idToString(moduleId)
+    /** @type {(moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
+    const build = moduleId => source => moduleMap => {
         /** @type {(s: module_.State) => (m: M) => Result<M>} */
-        const set = s => m => [s, moduleMapInterface.insert(moduleIdStr)(s)(m)]
+        const set = s => m => [s, moduleMapInterface.insert(module_.idToString(moduleId))(s)(m)]
         /** @type {(e: module_.Error) => (m: M) => Result<M>} */
         const error = e => set(['error', e])
+        // check compilation
+        const j = compile(source)
+        if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
+        // build
+        const [r, [requireMap, moduleMap2]] = j[1](req(moduleId))([undefined, moduleMap])
+        const x = r[0] === 'error' ?
+            error(['runtime error', r[1]]) :
+            set(['ok', { exports: r[1], requireMap: object.fromMap(requireMap) }])
+        return x(moduleMap2)
+    }
+    /** @type {(moduleId: module_.Id) => (moduleMap: M) => Result<M>} */
+    const f = moduleId => moduleMap => {
+        const moduleIdStr = module_.idToString(moduleId)
         // check moduleMap
         {
             const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
@@ -64,17 +71,8 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         const p = packageGet(moduleId.package)
         if (p === undefined) { return notFound(moduleMap) }
         // check file
-        const f = p.file(moduleId.path.join('/'))
-        if (f === undefined) { return notFound(moduleMap) }
-        // check compilation
-        const j = compile(f)
-        if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
-        // build
-        const [r, [requireMap, moduleMap2]] = j[1](req(moduleId))([undefined, moduleMap])
-        const x = r[0] === 'error' ?
-            error(['runtime error', r[1]]) :
-            set(['ok', { exports: r[1], requireMap: object.fromEntries(map.entries(requireMap)) }])
-        return x(moduleMap2)
+        const source = p.file(moduleId.path.join('/'))
+        return (source === undefined ? notFound : build(moduleId)(source))(moduleMap)
     }
     return f
 }
