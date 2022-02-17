@@ -36,34 +36,37 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
  */
 const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
-    /** @type {(buildSet: stringSet.StringSet) => (moduleId: module_.Id) => function_.Require<readonly[map.Map<string>, M]>} */
-    const req = buildSet => moduleId => {
+
+    /** @type {(buildSet: stringSet.StringSet) => (moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
+    const build = buildSet => moduleId => {
         const moduleIdStr = module_.idToString(moduleId)
         const buildSet1 = stringSet.set(moduleIdStr)(buildSet)
-        return p => ([requireMap, m]) => {
+        /** @type {function_.Require<readonly[map.Map<string>, M]>} */
+        const require_ = p => ([requireMap, m]) => {
             const r = path.parseAndFind(packageGet)(moduleId)(p)
             const requireMap1 = map.set(p)(moduleIdStr)(requireMap)
-            if (r === undefined) { return [['error', 'file not found'], [requireMap1, m]] }
-            if (stringSet.contains(module_.idToString(r.id))(buildSet1)) { return [['error', 'circular reference'], [requireMap1, m]] }
+            /** @type {(e: unknown) => function_.Result<readonly[map.Map<string>, M]>} */
+            const error = e => [['error', 'file not found'], [requireMap1, m]]
+            if (r === undefined) { return error('file not found') }
+            if (stringSet.contains(module_.idToString(r.id))(buildSet1)) { return error('circular reference') }
             const [state, m1] = build(buildSet1)(r.id)(r.source)(m)
             return [state[0] === 'error' ? state : ['ok', state[1].exports], [requireMap1, m1]]
         }
-    }
-    /** @type {(buildSet: stringSet.StringSet) => (moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
-    const build = buildSet => moduleId => source => moduleMap => {
-        /** @type {(s: module_.State) => (m: M) => Result<M>} */
-        const set = s => m => [s, moduleMapInterface.insert(module_.idToString(moduleId))(s)(m)]
-        /** @type {(e: module_.Error) => (m: M) => Result<M>} */
-        const error = e => set(['error', e])
-        // check compilation
-        const j = compile(source)
-        if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
-        // build
-        const [r, [requireMap, moduleMap2]] = j[1](req(buildSet)(moduleId))([undefined, moduleMap])
-        const x = r[0] === 'error' ?
-            error(['runtime error', r[1]]) :
-            set(['ok', { exports: r[1], requireMap: object.fromMap(requireMap) }])
-        return x(moduleMap2)
+        return source => moduleMap => {
+            /** @type {(s: module_.State) => (m: M) => Result<M>} */
+            const set = s => m => [s, moduleMapInterface.insert(moduleIdStr)(s)(m)]
+            /** @type {(e: module_.Error) => (m: M) => Result<M>} */
+            const error = e => set(['error', e])
+            // check compilation
+            const j = compile(source)
+            if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
+            // build
+            const [r, [requireMap, moduleMap2]] = j[1](require_)([undefined, moduleMap])
+            const x = r[0] === 'error' ?
+                error(['runtime error', r[1]]) :
+                set(['ok', { exports: r[1], requireMap: object.fromMap(requireMap) }])
+            return x(moduleMap2)
+        }
     }
     /** @type {(moduleId: module_.Id) => (moduleMap: M) => Result<M>} */
     const f = moduleId => moduleMap => {
