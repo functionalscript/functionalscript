@@ -35,6 +35,14 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
  */
 const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
+    /** @type {(moduleId: module_.Id) => function_.Require<[map.Map<string>, M]>} */
+    const req = moduleId => p => prior => {
+        const r = path.parseAndFind(packageGet)(moduleId.packageId)(moduleId.path.join('/'))(p)
+        if (r === undefined) { return [['error', 'file not found'], prior] }
+        const requireMap = map.set(p)(module_.idToString(moduleId))(prior[0])
+        r
+        return todo()
+    }
     /**
      * @type {(moduleId: module_.Id) =>
      *  (moduleMapFirst: M) =>
@@ -43,12 +51,10 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
      */
     const f = moduleId => moduleMap => {
         const moduleIdStr = module_.idToString(moduleId)
-        /** @type {(e: module_.Error) => Result<M>} */
-        const error = e => {
-            /** @type {module_.State} */
-            const s = ['error', e]
-            return [s, moduleMapInterface.insert(moduleIdStr)(s)(moduleMap)]
-        }
+        /** @type {(s: module_.State) => (m: M) => Result<M>} */
+        const set = s => m => [s, moduleMapInterface.insert(moduleIdStr)(s)(m)]
+        /** @type {(e: module_.Error) => (m: M) => Result<M>} */
+        const error = e => set(['error', e])
         // check moduleMap
         {
             const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
@@ -62,10 +68,13 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         if (f === undefined) { return notFound(moduleMap) }
         // check compilation
         const j = compile(f)
-        if (j[0] === 'error') { return error(['compilation error', j[1]]) }
+        if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
         // build
-
-        return todo()
+        const [r, [requireMap, moduleMap2]] = j[1](req(moduleId))([undefined, moduleMap])
+        const x = r[0] === 'error' ?
+            error(['runtime error', r[1]]) :
+            set(['ok', { exports: r[1], requireMap: object.fromEntries(map.entries(requireMap)) }])
+        return x(moduleMap2)
     }
     return f
 }
