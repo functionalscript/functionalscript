@@ -5,7 +5,7 @@
  */
 
 /**
- * Postfix Compose function.
+ * A postfix compose function.
  *
  * @type {<I, X>(g: Func<I, X>) => <O>(f: Func<X, O>) => Func<I, O>}
  */
@@ -22,6 +22,6 @@ module.exports = {
     identity,
     /** @readonly */
     compose,
-    /** @reeadonly */
+    /** @readonly */
     flip,
 }
