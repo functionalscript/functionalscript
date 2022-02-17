@@ -57,5 +57,9 @@ const getOrBuild = _.getOrBuild
 
 {
     const [r] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
-    if (JSON.stringify(r) !== '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js"}}]') { throw r }
+    if (JSON.stringify(r) !==
+        '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js"}}]'
+    ) {
+        throw r
+    }
 }
