@@ -54,7 +54,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         }
         return source => moduleMap => {
             /** @type {(s: module_.State) => (m: M) => Result<M>} */
-            const set = s => m => [s, moduleMapInterface.insert(moduleIdStr)(s)(m)]
+            const set = s => m => [s, moduleMapInterface.set(moduleIdStr)(s)(m)]
             /** @type {(e: module_.Error) => (m: M) => Result<M>} */
             const error = e => set(['error', e])
             // check compilation

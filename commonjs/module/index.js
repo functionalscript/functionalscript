@@ -4,7 +4,7 @@ const object = require('../../types/object')
  * @template M
  * @typedef {{
  *  readonly at: (moduleId: string) => (moduleMap: M) => State | undefined
- *  readonly insert: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
+ *  readonly set: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
  * }} MapInterface
  */
 
