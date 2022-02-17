@@ -22,6 +22,6 @@ module.exports = {
     identity,
     /** @readonly */
     compose,
-    /** @reeadonly */
+    /** @readonly */
     flip,
 }
