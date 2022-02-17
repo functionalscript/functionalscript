@@ -132,16 +132,15 @@ const parse = packageId => dependencies => local => path => {
 
 /**
  * @type {(packageGet: package_.Get) =>
- *  (packageId: string) =>
- *  (local: string) =>
+ *  (moduleId: module_.Id) =>
  *  (path: string) =>
  *  Result
  * }
  */
-const parseAndFind = packageGet => packageId => local => path => {
-    const currentPack = packageGet(packageId)
+const parseAndFind = packageGet => moduleId => path => {
+    const currentPack = packageGet(moduleId.package)
     if (currentPack === undefined) { return undefined }
-    const p = parse(packageId)(currentPack.dependency)(local)(path)
+    const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
     if (p === undefined) { return undefined }
     const pack = packageGet(p.package)
     if (pack === undefined) { return undefined }

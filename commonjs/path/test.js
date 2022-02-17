@@ -84,7 +84,7 @@ const stringify = g => {
             file: path => at(path)({ 'a/c': 'return "a/c"' }),
         }
     }
-    const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('../c'))
+    const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['a', 'b']})('../c'))
     if (result !== '{"id":{"package":"","path":["a","c"]},"source":"return \\"a/c\\""}') { throw result }
 }
 
@@ -108,33 +108,33 @@ const stringify = g => {
         }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['a', 'b']})('z/a/c'))
         if (result !== '{"id":{"package":"node_modules/z","path":["a","c","index.js"]},"source":"return \\"a/c\\""}') {
             throw result
         }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('../..'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['a', 'b']})('../..'))
         if (result !== '{"id":{"package":"","path":["index.js"]},"source":"return \\"index.js\\""}') { throw result }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: []})('./x'))
         if (result !== '{"id":{"package":"","path":["x.js"]},"source":"return \\"x.js\\""}') { throw result }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x.js'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: []})('./x.js'))
         if (result !== '{"id":{"package":"","path":["x.js"]},"source":"return \\"x.js\\""}') { throw result }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x/'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: []})('./x/'))
         if (result !== '{"id":{"package":"","path":["x","index.js"]},"source":"return \\"x/index.js\\""}') { throw result }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('x/a')('../'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['x', 'a']})('../'))
         if (result !== '{"id":{"package":"","path":["x","index.js"]},"source":"return \\"x/index.js\\""}') { throw result }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('x/a')('..'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['x', 'a']})('..'))
         if (result !== '{"id":{"package":"","path":["x","index.js"]},"source":"return \\"x/index.js\\""}') { throw result }
     }
 }
@@ -158,11 +158,11 @@ const stringify = g => {
         }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['a', 'b']})('z/a/c'))
         if (result !== '{"id":{"package":"node_modules/z/a","path":["c.js"]},"source":"return \\"c.js\\""}') { throw result }
     }
     {
-        const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c/'))
+        const result = stringify(_.parseAndFind(p => at(p)(packages))({ package: '', path: ['a', 'b']})('z/a/c/'))
         if (result !== '{"id":{"package":"node_modules/z/a","path":["c","index.js"]},"source":"return \\"c/index.js\\""}') { throw result }
     }
 }
@@ -186,6 +186,6 @@ const stringify = g => {
             }),
         }
     }
-    const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
+    const result = stringify(_.parseAndFind(p => at(p)(packages))({package: '', path: ['a', 'b']})('z/a/c'))
     if (result !== '{"id":{"package":"node_modules/z/a/c","path":["index.js"]},"source":"return \\"a/c\\""}') { throw result }
 }
