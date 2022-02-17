@@ -1,5 +1,4 @@
 const _ = require('.')
-const { todo } = require('../../dev')
 const map = require('../../types/map')
 const module_ = require('../module')
 const function_ = require('../module/function')
@@ -11,14 +10,21 @@ const compileMap = {
     ':index.js': [
         'ok',
         require_ => m0 => {
-            const [r, m] = require_('./b')(m0);
-            if (r[0] === 'error') { throw r }
-            return [['ok', ':index.js'], m]
+            const [r1, m1] = require_('./b')(m0);
+            if (r1[0] === 'error') { throw r1 }
+            const [r2, m2] = require_('./a/')(m1);
+            if (r2[0] === 'error') { throw r2 }
+            return [['ok', ':index.js'], m2]
         }],
     ':b.js': [
         'ok',
-        require_ => m0 => {
+        () => m0 => {
             return [['ok', ':b.js'], m0]
+        }],
+    ':a/index.js': [
+        'ok',
+        () => m0 => {
+            return [['ok', ':a/index.js'], m0]
         }]
 }
 
@@ -30,6 +36,7 @@ const packageMap = {
     '': {
         'index.js': ':index.js',
         'b.js': ':b.js',
+        'a/index.js': ':a/index.js',
     }
 }
 
@@ -50,5 +57,5 @@ const getOrBuild = _.getOrBuild
 
 {
     const [r] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
-    if (JSON.stringify(r) !== '["ok",{"exports":":index.js","requireMap":{"./b":"/b.js"}}]') { throw r }
+    if (JSON.stringify(r) !== '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js"}}]') { throw r }
 }
