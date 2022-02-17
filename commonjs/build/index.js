@@ -29,7 +29,7 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
  *  (packageGet: package_.Get) =>
  *  <M>(moduleMapInterface: module_.MapInterface<M>) =>
  *  (moduleId: module_.Id) =>
- *  (moduleMapFirst: M) =>
+ *  (moduleMap: M) =>
  *  Result<M>
  * }
  */
@@ -41,7 +41,30 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
      *  Result<M>
      * }
      */
-    const f = moduleId => moduleMapFirst => {
+    const f = moduleId => moduleMap => {
+        const moduleIdStr = module_.idToString(moduleId)
+        /** @type {(e: module_.Error) => Result<M>} */
+        const error = e => {
+            /** @type {module_.State} */
+            const s = ['error', e]
+            return [s, moduleMapInterface.insert(moduleIdStr)(s)(moduleMap)]
+        }
+        // check moduleMap
+        {
+            const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
+            if (m !== undefined) { return [m, moduleMap] }
+        }
+        // check package
+        const p = packageGet(moduleId.packageId)
+        if (p === undefined) { return notFound(moduleMap) }
+        // check file
+        const f = p.file(moduleId.path.join('/'))
+        if (f === undefined) { return notFound(moduleMap) }
+        // check compilation
+        const j = compile(f)
+        if (j[0] === 'error') { return error(['compilation error', j[1]]) }
+        // build
+
         return todo()
     }
     return f

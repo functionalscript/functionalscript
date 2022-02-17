@@ -11,8 +11,7 @@ const object = require('../../types/object')
 /**
  * @typedef {|
  *  readonly['ok', Module] |
- *  readonly['error', Error] |
- *  readonly['building']
+ *  readonly['error', Error]
  * } State
  */
 
