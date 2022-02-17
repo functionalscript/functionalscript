@@ -10,7 +10,7 @@ const stringSet = require('../../types/stringSet')
 /**
  * @template M
  * @typedef {{
- *  readonly pagkageGet: package_.Get
+ *  readonly packageGet: package_.Get
  *  readonly moduleMapInterface: module_.MapInterface<M>
  *  readonly moduleId: module_.Id
  *  readonly moduleMap: M
