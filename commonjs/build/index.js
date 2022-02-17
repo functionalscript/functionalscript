@@ -40,10 +40,10 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     const req = moduleId => p => prior => {
         const r = path.parseAndFind(packageGet)(moduleId)(p)
         if (r === undefined) { return [['error', 'file not found'], prior] }
-        const [r0, r1] = build(r.id)(r.source)(prior[1])
+        const [state, m] = build(r.id)(r.source)(prior[1])
         return [
-            r0[0] === 'error' ? r0 : ['ok', r0[1].exports],
-            [map.set(p)(module_.idToString(moduleId))(prior[0]), r1]
+            state[0] === 'error' ? state : ['ok', state[1].exports],
+            [map.set(p)(module_.idToString(moduleId))(prior[0]), m]
         ]
     }
     /** @type {(moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
