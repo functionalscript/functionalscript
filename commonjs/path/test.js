@@ -59,20 +59,20 @@ const stringify = g => {
     if (_.parseGlobal(d => at(d)({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ b: 'x' }))(false)(['b']))
-        if (result !== '{"packageId":"x","items":[],"dir":false}') { throw result }
+        if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
     }
     if (_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b', 'r']))
-        if (result !== '{"packageId":"x","items":[],"dir":false}') { throw result }
+        if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
     }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(false)(['b', 'r', 'd', 't']))
-        if (result !== '{"packageId":"x","items":["d","t"],"dir":false}') { throw result }
+        if (result !== '{"package":"x","items":["d","t"],"dir":false}') { throw result }
     }
     {
         const result = stringify(_.parseGlobal(d => at(d)({ 'b/r': 'x' }))(true)(['b', 'r', 'd', 't']))
-        if (result !== '{"packageId":"x","items":["d","t"],"dir":true}') { throw result }
+        if (result !== '{"package":"x","items":["d","t"],"dir":true}') { throw result }
     }
 }
 
@@ -85,7 +85,7 @@ const stringify = g => {
         }
     }
     const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('../c'))
-    if (result !== '{"package":"","file":"a/c","source":"return \\"a/c\\""}') { throw result }
+    if (result !== '{"id":{"package":"","path":["a","c"]},"source":"return \\"a/c\\""}') { throw result }
 }
 
 {
@@ -109,31 +109,33 @@ const stringify = g => {
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
-        if (result !== '{"package":"node_modules/z","file":"a/c/index.js","source":"return \\"a/c\\""}') { throw result }
+        if (result !== '{"id":{"package":"node_modules/z","path":["a","c","index.js"]},"source":"return \\"a/c\\""}') {
+            throw result
+        }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('../..'))
-        if (result !== '{"package":"","file":"index.js","source":"return \\"index.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"","path":["index.js"]},"source":"return \\"index.js\\""}') { throw result }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x'))
-        if (result !== '{"package":"","file":"x.js","source":"return \\"x.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"","path":["x.js"]},"source":"return \\"x.js\\""}') { throw result }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x.js'))
-        if (result !== '{"package":"","file":"x.js","source":"return \\"x.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"","path":["x.js"]},"source":"return \\"x.js\\""}') { throw result }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('')('./x/'))
-        if (result !== '{"package":"","file":"x/index.js","source":"return \\"x/index.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"","path":["x","index.js"]},"source":"return \\"x/index.js\\""}') { throw result }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('x/a')('../'))
-        if (result !== '{"package":"","file":"x/index.js","source":"return \\"x/index.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"","path":["x","index.js"]},"source":"return \\"x/index.js\\""}') { throw result }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('x/a')('..'))
-        if (result !== '{"package":"","file":"x/index.js","source":"return \\"x/index.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"","path":["x","index.js"]},"source":"return \\"x/index.js\\""}') { throw result }
     }
 }
 
@@ -157,11 +159,11 @@ const stringify = g => {
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
-        if (result !== '{"package":"node_modules/z/a","file":"c.js","source":"return \\"c.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"node_modules/z/a","path":["c.js"]},"source":"return \\"c.js\\""}') { throw result }
     }
     {
         const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c/'))
-        if (result !== '{"package":"node_modules/z/a","file":"c/index.js","source":"return \\"c/index.js\\""}') { throw result }
+        if (result !== '{"id":{"package":"node_modules/z/a","path":["c","index.js"]},"source":"return \\"c/index.js\\""}') { throw result }
     }
 }
 
@@ -185,5 +187,5 @@ const stringify = g => {
         }
     }
     const result = stringify(_.parseAndFind(p => at(p)(packages))('')('a/b')('z/a/c'))
-    if (result !== '{"package":"node_modules/z/a/c","file":"index.js","source":"return \\"a/c\\""}') { throw result }
+    if (result !== '{"id":{"package":"node_modules/z/a/c","path":["index.js"]},"source":"return \\"a/c\\""}') { throw result }
 }

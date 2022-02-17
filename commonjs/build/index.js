@@ -25,97 +25,152 @@ const path = require('../path')
 const notFound = moduleMap => [['error', ['file not found']], moduleMap]
 
 /**
- * @type {(packageGet: package_.Get) =>
+ * @type {(compile: function_.Compile) =>
+ *  (packageGet: package_.Get) =>
  *  <M>(moduleMapInterface: module_.MapInterface<M>) =>
- *  (compile: function_.Compile) =>
  *  (moduleId: module_.Id) =>
- *  (moduleMapFirst: M) =>
+ *  (moduleMap: M) =>
  *  Result<M>
  * }
  */
-const getOrBuild = packageGet => moduleMapInterface => compile => moduleId => {
-
+const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
-
-    const moduleIdStr = module_.idToString(moduleId)
-
-    /** @type {(e: module_.Error) => (moduleMap: M) => Result<M>} */
-    const error = e => moduleMap => {
-        /** @type {module_.State} */
-        const state = ['error', e]
-        return [state, moduleMapInterface.insert(moduleIdStr)(state)(moduleMap)]
+    /** @type {(moduleId: module_.Id) => function_.Require<[map.Map<string>, M]>} */
+    const req = moduleId => p => prior => {
+        const r = path.parseAndFind(packageGet)(moduleId.package)(moduleId.path.join('/'))(p)
+        if (r === undefined) { return [['error', 'file not found'], prior] }
+        const requireMap = map.set(p)(module_.idToString(moduleId))(prior[0])
+        r
+        return todo()
     }
-
-    /** @type {function_.Require<readonly[M, map.Map<string>]>} */
-    const require_ = pathStr => prior => {
-        const pathResult = path.parseAndFind(packageGet)(moduleId.packageId)(moduleIdStr)(pathStr)
-        if (pathResult === undefined) { return [['error', `file not found: '${pathStr}'`], prior] }
-        const mId = { packageId: pathResult.package, path: pathResult.file.split('/') }
-        const [state, newMap] = getOrBuild
-            (packageGet)
-            (moduleMapInterface)
-            (compile)
-            (mId)
-            (prior[0])
-        switch (state[0]) {
-            case 'ok': {
-                const newRequireMap = map.set(pathStr)(module_.idToString(mId))(prior[1])
-                return [
-                    ['ok', state[1].exports],
-                    [newMap, newRequireMap]
-                ]
-            }
-            case 'building': {
-                return todo()
-            }
-            // 'ok'
-            default: {
-                return todo()
-            }
-        }
-    }
-
-    return moduleMapFirst => {
-        let moduleMap = moduleMapFirst
-
+    /**
+     * @type {(moduleId: module_.Id) =>
+     *  (moduleMapFirst: M) =>
+     *  Result<M>
+     * }
+     */
+    const f = moduleId => moduleMap => {
+        const moduleIdStr = module_.idToString(moduleId)
+        /** @type {(s: module_.State) => (m: M) => Result<M>} */
+        const set = s => m => [s, moduleMapInterface.insert(moduleIdStr)(s)(m)]
+        /** @type {(e: module_.Error) => (m: M) => Result<M>} */
+        const error = e => set(['error', e])
+        // check moduleMap
         {
             const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
             if (m !== undefined) { return [m, moduleMap] }
         }
-
-        const p = packageGet(moduleId.packageId)
+        // check package
+        const p = packageGet(moduleId.package)
         if (p === undefined) { return notFound(moduleMap) }
-
-        const source = p.file(moduleId.path.join('/'))
-        if (source === undefined) { return notFound(moduleMap) }
-
-        const compileResult = compile(source)
-        if (compileResult[0] === 'error') { return error(['compilation error', compileResult[1]])(moduleMap) }
-
-        const moduleFunction = compileResult[1]
-
-        moduleMap = moduleMapInterface.insert(moduleIdStr)(['building'])(moduleMap)
-
-        const [[type, exportsOrError], [newModuleMap, requireMap]] = moduleFunction(require_)([moduleMap, map.empty])
-        moduleMap = newModuleMap
-
-        {
-            const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
-            if (m === undefined ) { throw 'm === undefined' }
-            if (m[0] !== 'building') { return [m, moduleMap] }
-        }
-
-        /** @type {module_.State} */
-        const result = type === 'error' ?
-            ['error', ['runtime error', exportsOrError]] :
-            ['ok', {
-                exports: exportsOrError,
-                requireMap: object.fromMap(requireMap)
-            }]
-
-        return [result, moduleMapInterface.insert(moduleIdStr)(result)(moduleMap)]
+        // check file
+        const f = p.file(moduleId.path.join('/'))
+        if (f === undefined) { return notFound(moduleMap) }
+        // check compilation
+        const j = compile(f)
+        if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
+        // build
+        const [r, [requireMap, moduleMap2]] = j[1](req(moduleId))([undefined, moduleMap])
+        const x = r[0] === 'error' ?
+            error(['runtime error', r[1]]) :
+            set(['ok', { exports: r[1], requireMap: object.fromEntries(map.entries(requireMap)) }])
+        return x(moduleMap2)
     }
+    return f
 }
+
+// /**
+//  * @type {(packageGet: package_.Get) =>
+//  *  <M>(moduleMapInterface: module_.MapInterface<M>) =>
+//  *  (compile: function_.Compile) =>
+//  *  (moduleId: module_.Id) =>
+//  *  (moduleMapFirst: M) =>
+//  *  Result<M>
+//  * }
+//  */
+// const getOrBuild = packageGet => moduleMapInterface => compile => moduleId => {
+
+//     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
+
+//     const moduleIdStr = module_.idToString(moduleId)
+
+//     /** @type {(e: module_.Error) => (moduleMap: M) => Result<M>} */
+//     const error = e => moduleMap => {
+//         /** @type {module_.State} */
+//         const state = ['error', e]
+//         return [state, moduleMapInterface.insert(moduleIdStr)(state)(moduleMap)]
+//     }
+
+//     /** @type {function_.Require<readonly[M, map.Map<string>]>} */
+//     const require_ = pathStr => prior => {
+//         const pathResult = path.parseAndFind(packageGet)(moduleId.packageId)(moduleIdStr)(pathStr)
+//         if (pathResult === undefined) { return [['error', `file not found: '${pathStr}'`], prior] }
+//         const mId = { packageId: pathResult.package, path: pathResult.file.split('/') }
+//         const [state, newMap] = getOrBuild
+//             (packageGet)
+//             (moduleMapInterface)
+//             (compile)
+//             (mId)
+//             (prior[0])
+//         switch (state[0]) {
+//             case 'ok': {
+//                 const newRequireMap = map.set(pathStr)(module_.idToString(mId))(prior[1])
+//                 return [
+//                     ['ok', state[1].exports],
+//                     [newMap, newRequireMap]
+//                 ]
+//             }
+//             case 'building': {
+//                 return todo()
+//             }
+//             // 'ok'
+//             default: {
+//                 return todo()
+//             }
+//         }
+//     }
+
+//     return moduleMapFirst => {
+//         let moduleMap = moduleMapFirst
+
+//         {
+//             const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
+//             if (m !== undefined) { return [m, moduleMap] }
+//         }
+
+//         const p = packageGet(moduleId.packageId)
+//         if (p === undefined) { return notFound(moduleMap) }
+
+//         const source = p.file(moduleId.path.join('/'))
+//         if (source === undefined) { return notFound(moduleMap) }
+
+//         const compileResult = compile(source)
+//         if (compileResult[0] === 'error') { return error(['compilation error', compileResult[1]])(moduleMap) }
+
+//         const moduleFunction = compileResult[1]
+
+//         moduleMap = moduleMapInterface.insert(moduleIdStr)(['building'])(moduleMap)
+
+//         const [[type, exportsOrError], [newModuleMap, requireMap]] = moduleFunction(require_)([moduleMap, map.empty])
+//         moduleMap = newModuleMap
+
+//         {
+//             const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
+//             if (m === undefined ) { throw 'm === undefined' }
+//             if (m[0] !== 'building') { return [m, moduleMap] }
+//         }
+
+//         /** @type {module_.State} */
+//         const result = type === 'error' ?
+//             ['error', ['runtime error', exportsOrError]] :
+//             ['ok', {
+//                 exports: exportsOrError,
+//                 requireMap: object.fromMap(requireMap)
+//             }]
+
+//         return [result, moduleMapInterface.insert(moduleIdStr)(result)(moduleMap)]
+//     }
+// }
 
 module.exports = {
     /** @readonly */

@@ -11,8 +11,7 @@ const object = require('../../types/object')
 /**
  * @typedef {|
  *  readonly['ok', Module] |
- *  readonly['error', Error] |
- *  readonly['building']
+ *  readonly['error', Error]
  * } State
  */
 
@@ -34,13 +33,13 @@ const object = require('../../types/object')
 
 /**
  * @typedef {{
- *  readonly packageId: string
+ *  readonly package: string
  *  readonly path: readonly string[]
  * }} Id
  */
 
 /** @type {(id: Id) => string} */
-const idToString = ({ packageId, path }) => `${packageId}/${path.join('/')}`
+const idToString = id => `${id.package}/${id.path.join('/')}`
 
 module.exports = {
     /** @readonly */
