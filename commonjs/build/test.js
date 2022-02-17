@@ -8,12 +8,17 @@ const package_ = require('../package')
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {
-    ':a': [
+    ':index.js': [
         'ok',
         require_ => m0 => {
-            let m = m0
-            m = require_('./b')(m0)[1];
-            return [['ok', ':a'], m]
+            const [r, m] = require_('./b')(m0);
+            if (r[0] === 'error') { throw r }
+            return [['ok', ':index.js'], m]
+        }],
+    ':b.js': [
+        'ok',
+        require_ => m0 => {
+            return [['ok', ':b.js'], m0]
         }]
 }
 
@@ -23,7 +28,8 @@ const compile = source => compileMap[source] ?? ['error', 'invalid source']
 /** @type {{ readonly [k in string]?: { readonly [k in string]?: string } }} */
 const packageMap = {
     '': {
-        'index.js': ':a'
+        'index.js': ':index.js',
+        'b.js': ':b.js',
     }
 }
 
@@ -44,5 +50,5 @@ const getOrBuild = _.getOrBuild
 
 {
     const [r] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
-    console.log(JSON.stringify(r))
+    if (JSON.stringify(r) !== '["ok",{"exports":":index.js","requireMap":{"./b":"/b.js"}}]') { throw r }
 }

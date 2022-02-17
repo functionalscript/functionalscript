@@ -41,16 +41,18 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     const build = buildSet => moduleId => {
         const moduleIdStr = module_.idToString(moduleId)
         const buildSet1 = stringSet.set(moduleIdStr)(buildSet)
+        const dir = module_.dir(moduleId)
         /** @type {function_.Require<readonly[map.Map<string>, M]>} */
         const require_ = p => ([requireMap, m]) => {
-            const r = path.parseAndFind(packageGet)(moduleId)(p)
-            const requireMap1 = map.set(p)(moduleIdStr)(requireMap)
             /** @type {(e: unknown) => function_.Result<readonly[map.Map<string>, M]>} */
-            const error = e => [['error', 'file not found'], [requireMap1, m]]
+            const error = e => [['error', 'file not found'], [requireMap, m]]
+            if (dir === undefined) { return error('file not found') }
+            const r = path.parseAndFind(packageGet)(dir)(p)
             if (r === undefined) { return error('file not found') }
-            if (stringSet.contains(module_.idToString(r.id))(buildSet1)) { return error('circular reference') }
+            const rIdStr = module_.idToString(r.id)
+            if (stringSet.contains(rIdStr)(buildSet1)) { return error('circular reference') }
             const [state, m1] = build(buildSet1)(r.id)(r.source)(m)
-            return [state[0] === 'error' ? state : ['ok', state[1].exports], [requireMap1, m1]]
+            return [state[0] === 'error' ? state : ['ok', state[1].exports], [map.set(p)(rIdStr)(requireMap), m1]]
         }
         return source => moduleMap => {
             /** @type {(s: module_.State) => (m: M) => Result<M>} */
