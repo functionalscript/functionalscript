@@ -13,7 +13,7 @@ const compileMap = {
         require_ => m0 => {
             let m = m0
             m = require_('./b')(m0)[1];
-            return [['ok', {}], m]
+            return [['ok', ':a'], m]
         }]
 }
 
@@ -23,7 +23,7 @@ const compile = source => compileMap[source] ?? ['error', 'invalid source']
 /** @type {{ readonly [k in string]?: { readonly [k in string]?: string } }} */
 const packageMap = {
     '': {
-        'a': ':a'
+        'index.js': ':a'
     }
 }
 
@@ -42,6 +42,7 @@ const packageGet = packageId => {
         (compile)
         (packageGet)
         (/** @type {module_.MapInterface<map.Map<module_.State>>} */(map))
-        ({ package: '', path: [] })
+        ({ package: '', path: ['index.js'] })
         (undefined)
+    console.log(JSON.stringify(x))
 }
