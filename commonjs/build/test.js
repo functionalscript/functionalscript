@@ -36,7 +36,7 @@ const compile = source => compileMap[source] ?? ['error', 'invalid source']
 const packageMap = {
     '': {
         dependencies: {
-            'x': 'x'
+            'x': '/node_modules/x'
         },
         files: {
             'index.js': ':index.js',
@@ -44,7 +44,7 @@ const packageMap = {
             'a/index.js': ':a/index.js',
         }
     },
-    'x': {
+    '/node_modules/x': {
         dependencies: {},
         files: {
             'r.js': 'x:r.js'
@@ -70,7 +70,7 @@ const getOrBuild = _.getOrBuild
 {
     const [r] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
     if (JSON.stringify(r) !==
-        '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js","x/r":"x/r.js"}}]'
+        '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js","x/r":"/node_modules/x/r.js"}}]'
     ) {
         throw r
     }
