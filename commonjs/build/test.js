@@ -37,12 +37,12 @@ const packageGet = packageId => {
     }
 }
 
+const getOrBuild = _.getOrBuild
+    (compile)
+    (packageGet)
+    (/** @type {module_.MapInterface<map.Map<module_.State>>} */(map))
+
 {
-    const x = _.getOrBuild
-        (compile)
-        (packageGet)
-        (/** @type {module_.MapInterface<map.Map<module_.State>>} */(map))
-        ({ package: '', path: ['index.js'] })
-        (undefined)
-    console.log(JSON.stringify(x))
+    const [r] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
+    console.log(JSON.stringify(r))
 }
