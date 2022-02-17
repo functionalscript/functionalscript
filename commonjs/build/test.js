@@ -55,11 +55,11 @@ const packageMap = {
 /** @type {package_.Get} */
 const packageGet = packageId => {
     const p = packageMap[packageId]
-    if (p === undefined) { return undefined }
-    return {
-        dependency: dependency => p.dependencies[dependency],
-        file: file => p.files[file]
-    }
+    return p === undefined ? undefined :
+        {
+            dependency: dependency => p.dependencies[dependency],
+            file: file => p.files[file]
+        }
 }
 
 const getOrBuild = _.getOrBuild
