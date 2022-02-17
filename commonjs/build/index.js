@@ -5,6 +5,7 @@ const { todo } = require('../../dev')
 const map = require('../../types/map')
 const object = require('../../types/object')
 const path = require('../path')
+const stringSet = require('../../types/stringSet')
 
 /**
  * @template M
@@ -35,13 +36,15 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
  */
 const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
-    /** @type {(moduleId: module_.Id) => function_.Require<[map.Map<string>, M]>} */
+    /** @type {(moduleId: module_.Id) => function_.Require<readonly[map.Map<string>, M]>} */
     const req = moduleId => p => prior => {
         const r = path.parseAndFind(packageGet)(moduleId)(p)
         if (r === undefined) { return [['error', 'file not found'], prior] }
-        const requireMap = map.set(p)(module_.idToString(moduleId))(prior[0])
-        r
-        return todo()
+        const [r0, r1] = build(r.id)(r.source)(prior[1])
+        return [
+            r0[0] === 'error' ? r0 : ['ok', r0[1].exports],
+            [map.set(p)(module_.idToString(moduleId))(prior[0]), r1]
+        ]
     }
     /** @type {(moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
     const build = moduleId => source => moduleMap => {
