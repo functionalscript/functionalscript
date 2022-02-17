@@ -4,7 +4,7 @@ const object = require('../../types/object')
  * @template M
  * @typedef {{
  *  readonly at: (moduleId: string) => (moduleMap: M) => State | undefined
- *  readonly insert: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
+ *  readonly set: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
  * }} MapInterface
  */
 
@@ -38,10 +38,22 @@ const object = require('../../types/object')
  * }} Id
  */
 
+/** @type {(id: Id) => Id | undefined} */
+const dir = id => {
+    const len = id.path.length
+    if (len < 1) { return undefined }
+    return {
+        package: id.package,
+        path: id.path.slice(0, len - 1)
+    }
+}
+
 /** @type {(id: Id) => string} */
 const idToString = id => `${id.package}/${id.path.join('/')}`
 
 module.exports = {
+    /** @readonly */
+    dir,
     /** @readonly */
     idToString,
 }

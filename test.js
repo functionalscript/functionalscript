@@ -12,6 +12,7 @@ require('./commonjs/package/test')
 require('./commonjs/path/test')
 require('./types/function/compare/test')
 require('./types/stringSet/test')
+require('./commonjs/build/test')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
