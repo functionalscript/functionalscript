@@ -36,18 +36,21 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
  */
 const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
-    /** @type {(moduleId: module_.Id) => function_.Require<readonly[map.Map<string>, M]>} */
-    const req = moduleId => p => prior => {
-        const r = path.parseAndFind(packageGet)(moduleId)(p)
-        if (r === undefined) { return [['error', 'file not found'], prior] }
-        const [state, m] = build(r.id)(r.source)(prior[1])
-        return [
-            state[0] === 'error' ? state : ['ok', state[1].exports],
-            [map.set(p)(module_.idToString(moduleId))(prior[0]), m]
-        ]
+    /** @type {(buildSet: stringSet.StringSet) => (moduleId: module_.Id) => function_.Require<readonly[map.Map<string>, M]>} */
+    const req = buildSet => moduleId => {
+        const moduleIdStr = module_.idToString(moduleId)
+        const buildSet1 = stringSet.set(moduleIdStr)(buildSet)
+        return p => ([requireMap, m]) => {
+            const r = path.parseAndFind(packageGet)(moduleId)(p)
+            const requireMap1 = map.set(p)(moduleIdStr)(requireMap)
+            if (r === undefined) { return [['error', 'file not found'], [requireMap1, m]] }
+            if (stringSet.contains(module_.idToString(r.id))(buildSet1)) { return [['error', 'circular reference'], [requireMap1, m]] }
+            const [state, m1] = build(buildSet1)(r.id)(r.source)(m)
+            return [state[0] === 'error' ? state : ['ok', state[1].exports], [requireMap1, m1]]
+        }
     }
-    /** @type {(moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
-    const build = moduleId => source => moduleMap => {
+    /** @type {(buildSet: stringSet.StringSet) => (moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
+    const build = buildSet => moduleId => source => moduleMap => {
         /** @type {(s: module_.State) => (m: M) => Result<M>} */
         const set = s => m => [s, moduleMapInterface.insert(module_.idToString(moduleId))(s)(m)]
         /** @type {(e: module_.Error) => (m: M) => Result<M>} */
@@ -56,7 +59,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         const j = compile(source)
         if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
         // build
-        const [r, [requireMap, moduleMap2]] = j[1](req(moduleId))([undefined, moduleMap])
+        const [r, [requireMap, moduleMap2]] = j[1](req(buildSet)(moduleId))([undefined, moduleMap])
         const x = r[0] === 'error' ?
             error(['runtime error', r[1]]) :
             set(['ok', { exports: r[1], requireMap: object.fromMap(requireMap) }])
@@ -75,7 +78,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         if (p === undefined) { return notFound(moduleMap) }
         // check file
         const source = p.file(moduleId.path.join('/'))
-        return (source === undefined ? notFound : build(moduleId)(source))(moduleMap)
+        return (source === undefined ? notFound : build(undefined)(moduleId)(source))(moduleMap)
     }
     return f
 }
