@@ -32,7 +32,9 @@ const compileMap = {
 /** @type {function_.Compile} */
 const compile = source => compileMap[source] ?? ['error', 'invalid source']
 
-/** @type {{ readonly [k in string]?: { readonly dependencies: { readonly [k in string]?: string }, files:{ readonly [k in string]?: string } }}} */
+/** @typedef {{ readonly [k in string]?: string }} StringMap */
+
+/** @type {{ readonly [k in string]?: { readonly dependencies: StringMap, files: StringMap }}} */
 const packageMap = {
     '': {
         dependencies: {
