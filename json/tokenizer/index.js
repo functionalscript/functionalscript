@@ -406,22 +406,18 @@ const parseKeyWordStateOp = state => input =>
 const eofStateOp = state => input => [[{kind: 'error', message: 'eof'}], state]
 
 /** @type {operator.StateScan<JsonCharacter, TokenizerState, list.List<JsonToken>>} */
-const tokenizeOp = state => input =>
-{
-    const f = () => {
-        switch(state.kind)
-        {
-            case 'initial': return initialStateOp(state)
-            case 'keyword': return parseKeyWordStateOp(state)
-            case 'string': return parseStringStateOp(state)
-            case 'escapeChar': return parseEscapeCharStateOp(state)
-            case 'unicodeChar': return parseUnicodeCharStateOp(state)
-            case 'invalidNumber': return invalidNumberStateOp(state)
-            case 'number': return parseNumberStateOp(state)
-            case 'eof': return eofStateOp(state)
-        }
+const tokenizeOp = state => {
+    switch(state.kind)
+    {
+        case 'initial': return initialStateOp(state)
+        case 'keyword': return parseKeyWordStateOp(state)
+        case 'string': return parseStringStateOp(state)
+        case 'escapeChar': return parseEscapeCharStateOp(state)
+        case 'unicodeChar': return parseUnicodeCharStateOp(state)
+        case 'invalidNumber': return invalidNumberStateOp(state)
+        case 'number': return parseNumberStateOp(state)
+        case 'eof': return eofStateOp(state)
     }
-    return f()(input)
 }
 
 /** @type {(input: list.List<JsonCharacter>) => list.List<JsonToken>} */
