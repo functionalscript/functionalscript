@@ -50,7 +50,7 @@ const newLine = 0x0a
 const carriageReturn = 0x0d
 const space = 0x20
 
-const backslach = 0x5c
+const backslash = 0x5c
 const slash = 0x2f
 const backspace = 0x08
 const formfeed = 0x0c
@@ -274,7 +274,7 @@ const parseStringStateOp = state => input =>
     switch(input)
     {
         case quotationMark: return[[{kind: 'string', value: state.value}], {kind: 'initial'}]
-        case backslach: return [undefined, {kind:'escapeChar', value: state.value}]
+        case backslash: return [undefined, {kind:'escapeChar', value: state.value}]
         default: return [undefined, {kind:'string', value: appendChar(state.value)(input)}]
     }
 }
@@ -285,7 +285,7 @@ const parseEscapeCharStateOp = state => input =>
     switch(input)
     {
         case quotationMark:
-        case backslach:
+        case backslash:
         case slash: return [undefined, {kind: 'string', value: appendChar(state.value)(input)}]
         case letterB: return [undefined, {kind: 'string', value: appendChar(state.value)(backspace)}]
         case letterF: return [undefined, {kind: 'string', value: appendChar(state.value)(formfeed)}]
