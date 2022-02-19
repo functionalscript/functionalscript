@@ -3,17 +3,17 @@ const list = require('../../types/list')
 const json = require('..')
 const { sort } = require('../../types/object')
 
-/** @type {(s: string) => list.List<tokenizer.JsonCharacter>} */
+/** @type {(s: string) => list.List<tokenizer.CharCodeOrEof>} */
 const toCharacters = s =>
 {
-    /** @type {list.List<tokenizer.JsonCharacter>} */   
+    /** @type {list.List<tokenizer.CharCodeOrEof>} */
     const charCodes = list.toCharCodes(s)
     return list.concat(charCodes)([undefined])
-} 
+}
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s =>
-{   
+{
     const characters = toCharacters(s)
     return list.toArray(tokenizer.tokenize(characters))
 }
