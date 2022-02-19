@@ -3,18 +3,6 @@ const operator = require('../../types/function/operator')
 const { concat } = require('../../types/list')
 const list = require('../../types/list')
 
-/** @typedef {{readonly kind: '{'}} LeftBraceToken */
-
-/** @typedef {{readonly kind: '}'}} RightBraceToken */
-
-/** @typedef {{readonly kind: ':'}} ColonToken */
-
-/** @typedef {{readonly kind: ','}} CommaToken */
-
-/** @typedef {{readonly kind: '['}} LeftBracketToken */
-
-/** @typedef {{readonly kind: ']'}} RightBracketToken */
-
 /**
  * @typedef {{
  * readonly kind: 'string'
@@ -29,27 +17,15 @@ const list = require('../../types/list')
  * }} NumberToken
  * */
 
-/** @typedef {{readonly kind: 'true'}} TrueToken */
-
-/** @typedef {{readonly kind: 'false'}} FalseToken */
-
-/** @typedef {{readonly kind: 'null'}} NullToken */
-
 /** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
+
+/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null'}} SimpleToken */
 
 /**
  * @typedef {|
- * LeftBraceToken |
- * RightBraceToken |
- * ColonToken |
- * CommaToken |
- * LeftBracketToken |
- * RightBracketToken |
+ * SimpleToken |
  * StringToken |
  * NumberToken |
- * TrueToken |
- * FalseToken |
- * NullToken |
  * ErrorToken
  * } JsonToken
  */
