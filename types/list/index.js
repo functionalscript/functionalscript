@@ -1,6 +1,6 @@
-const { compose, identity } = require('../function')
-const operator = require('../function/operator')
-const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = require('../function/operator')
+const { compose, identity } = require('../function/index.js')
+const operator = require('../function/operator/index.js')
+const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = require('../function/operator/index.js')
 
 /**
  * @template T

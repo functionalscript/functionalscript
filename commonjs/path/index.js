@@ -1,9 +1,6 @@
-const list = require("../../types/list")
-const option = require("../../types/option")
-const { compose } = require("../../types/function")
-const { todo } = require("../../dev")
-const package_ = require("../package")
-const module_ = require("../module")
+const list = require("../../types/list/index.js")
+const package_ = require("../package/index.js")
+const module_ = require("../module/index.js")
 
 /** @typedef {readonly string[]} Items */
 

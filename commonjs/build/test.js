@@ -1,9 +1,9 @@
-const _ = require('.')
-const map = require('../../types/map')
-const module_ = require('../module')
-const function_ = require('../module/function')
-const result = require('../../types/result')
-const package_ = require('../package')
+const _ = require('./index.js')
+const map = require('../../types/map/index.js')
+const module_ = require('../module/index.js')
+const function_ = require('../module/function/index.js')
+const result = require('../../types/result/index.js')
+const package_ = require('../package/index.js')
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {

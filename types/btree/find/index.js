@@ -1,7 +1,7 @@
-const _ = require('..')
-const list = require('../../list')
-const cmp = require('../../function/compare')
-const array = require('../../array')
+const _ = require('../index.js')
+const list = require('../../list/index.js')
+const cmp = require('../../function/compare/index.js')
+const array = require('../../array/index.js')
 
 /**
  * @template T

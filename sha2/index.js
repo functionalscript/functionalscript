@@ -1,4 +1,4 @@
-const array = require('../types/array')
+const array = require('../types/array/index.js')
 
 /**
  * @typedef {{

@@ -1,7 +1,7 @@
-const tokenizer = require('.')
-const list = require('../../types/list')
-const json = require('..')
-const { sort } = require('../../types/object')
+const tokenizer = require('./index.js')
+const list = require('../../types/list/index.js')
+const json = require('../index.js')
+const { sort } = require('../../types/object/index.js')
 
 /** @type {(s: string) => list.List<tokenizer.CharCodeOrEof>} */
 const toCharacters = s =>

@@ -1,5 +1,5 @@
-const json = require('../../json')
-const dependencies = require('./dependencies')
+const json = require('../../json/index.js')
+const dependencies = require('./dependencies/index.js')
 
 /**
  * @typedef {{

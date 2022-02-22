@@ -1,4 +1,4 @@
-const _ = require('.')
+const _ = require('./index.js')
 
 {
     const result = _.numberCmp(4)(5)

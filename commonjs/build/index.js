@@ -1,11 +1,11 @@
-const package_ = require('../package')
-const module_ = require('../module')
-const function_ = require('../module/function')
-const { todo } = require('../../dev')
-const map = require('../../types/map')
-const object = require('../../types/object')
-const path = require('../path')
-const stringSet = require('../../types/stringSet')
+const package_ = require('../package/index.js')
+const module_ = require('../module/index.js')
+const function_ = require('../module/function/index.js')
+const { todo } = require('../../dev/index.js')
+const map = require('../../types/map/index.js')
+const object = require('../../types/object/index.js')
+const path = require('../path/index.js')
+const stringSet = require('../../types/stringSet/index.js')
 
 /**
  * @template M

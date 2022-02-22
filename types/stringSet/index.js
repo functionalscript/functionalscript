@@ -1,10 +1,10 @@
-const btree = require('../btree')
-const find = require('../btree/find')
-const btSet = require('../btree/set')
-const btRemove = require('../btree/remove')
-const { stringCmp } = require("../function/compare")
-const list = require('../list')
-const { compose } = require('../function')
+const btree = require('../btree/index.js')
+const find = require('../btree/find/index.js')
+const btSet = require('../btree/set/index.js')
+const btRemove = require('../btree/remove/index.js')
+const { stringCmp } = require("../function/compare/index.js")
+const list = require('../list/index.js')
+const { compose } = require('../function/index.js')
 
 /** @typedef {btree.Tree<string>} StringSet */
 

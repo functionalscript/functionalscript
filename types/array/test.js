@@ -1,6 +1,6 @@
-const _ = require('.')
-const json = require('../../json')
-const { sort } = require('../object')
+const _ = require('./index.js')
+const json = require('../../json/index.js')
+const { sort } = require('../object/index.js')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)

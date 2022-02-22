@@ -1,9 +1,11 @@
-/** @typedef {import('../../array').Index3} Index3 */
-/** @typedef {import('../../array').Index5} Index5 */
+const array = require('../../array/index.js')
+
+/** @typedef {array.Index3} Index3 */
+/** @typedef {array.Index5} Index5 */
 
 /**
  * @template T
- * @typedef {import('../../array').Array2<T>} Array2
+ * @typedef {array.Array2<T>} Array2
  */
 
 /** @typedef {-1|0|1} Sign */

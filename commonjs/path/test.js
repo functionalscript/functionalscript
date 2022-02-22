@@ -1,10 +1,10 @@
-const _ = require('.')
-const { todo } = require('../../dev')
-const json = require('../../json')
-const { identity } = require('../../types/function')
-const object = require('../../types/object')
-const { at } = require('../../types/object')
-const package_ = require('../package')
+const _ = require('./index.js')
+const { todo } = require('../../dev/index.js')
+const json = require('../../json/index.js')
+const { identity } = require('../../types/function/index.js')
+const object = require('../../types/object/index.js')
+const { at } = require('../../types/object/index.js')
+const package_ = require('../package/index.js')
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {
