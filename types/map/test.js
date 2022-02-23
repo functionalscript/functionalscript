@@ -1,5 +1,5 @@
-const { at, set, empty, entries, remove } = require('.')
-const seq = require('../list')
+const { at, set, empty, entries, remove } = require('./index.js')
+const seq = require('../list/index.js')
 
 {
     let m = set('a')(1)(undefined)

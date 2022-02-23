@@ -1,7 +1,7 @@
-const seq = require('../types/list')
-const object = require('../types/object')
-const op = require('../types/function/operator')
-const { compose } = require('../types/function')
+const seq = require('../types/list/index.js')
+const object = require('../types/object/index.js')
+const op = require('../types/function/operator/index.js')
+const { compose } = require('../types/function/index.js')
 
 /**
  * @typedef {{

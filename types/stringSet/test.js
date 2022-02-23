@@ -1,4 +1,4 @@
-const _ = require('.')
+const _ = require('./index.js')
 
 {
     const r = _.set('hello')(undefined)

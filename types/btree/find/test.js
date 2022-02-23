@@ -1,10 +1,10 @@
-const _ = require('.')
-const list = require('../../list')
-const json = require('../../../json')
-const { sort } = require('../../object')
-const btree = require('..')
-const { stringCmp } = require('../../function/compare')
-const s = require('../set')
+const _ = require('./index.js')
+const list = require('../../list/index.js')
+const json = require('../../../json/index.js')
+const { sort } = require('../../object/index.js')
+const btree = require('../index.js')
+const { stringCmp } = require('../../function/compare/index.js')
+const s = require('../set/index.js')
 
 const jsonStr = json.stringify(sort)
 

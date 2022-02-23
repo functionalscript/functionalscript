@@ -1,7 +1,5 @@
-const { todo } = require('../../dev')
-const operator = require('../../types/function/operator')
-const { concat } = require('../../types/list')
-const list = require('../../types/list')
+const operator = require('../../types/function/operator/index.js')
+const list = require('../../types/list/index.js')
 
 /**
  * @typedef {{

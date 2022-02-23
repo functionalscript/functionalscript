@@ -1,9 +1,9 @@
-const _ = require('..')
-const cmp = require('../../function/compare')
-const find = require('../find')
-const list = require('../../list')
-const array = require('../../array')
-const option = require('../../option')
+const _ = require('../index.js')
+const cmp = require('../../function/compare/index.js')
+const find = require('../find/index.js')
+const list = require('../../list/index.js')
+const array = require('../../array/index.js')
+const option = require('../../option/index.js')
 
 /**
  * @template T

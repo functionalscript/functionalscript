@@ -1,5 +1,5 @@
-const option = require('../option')
-const seq = require('../list')
+const option = require('../option/index.js')
+const seq = require('../list/index.js')
 
 /**
  * @template T

@@ -1,6 +1,6 @@
-const _ = require('.')
+const _ = require('./index.js')
 
-require('./dependencies/test')
+require('./dependencies/test.js')
 
 {
     if (_.isPackageJson(null)) { throw 'error' }

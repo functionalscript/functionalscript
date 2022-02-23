@@ -1,7 +1,7 @@
-const _ = require('.')
-const json = require('../json')
-const { sort } = require('../types/object')
-const list = require('../types/list')
+const _ = require('./index.js')
+const json = require('../json/index.js')
+const { sort } = require('../types/object/index.js')
+const list = require('../types/list/index.js')
 
 /** @type {(a: number) => number} */
 const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000
