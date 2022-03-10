@@ -35,13 +35,13 @@ const reduce = ([i, x]) => a => {
 /** @type {<T>(c: cmp.Compare<T>) => (value: T) => (node: _.Node<T>) => _.Node<T>} */
 const nodeSet = c => value => node => {
     const { first, tail } = find.find(c)(node)
+    const [i, x] = first;
     /** @typedef {typeof value} T */
     /** @type {() => Branch1To3<T>} */
     const f = () => {
-        switch (first[0]) {
+        switch (i) {
             case 0: {
                 // insert
-                const x = first[1]
                 switch (x.length) {
                     case 1: { return [[value, x[0]]] }
                     case 2: { return [[value], x[0], [x[1]]] }
@@ -49,7 +49,6 @@ const nodeSet = c => value => node => {
             }
             case 1: {
                 // replace
-                const x = first[1];
                 switch (x.length) {
                     case 1: { return [[value]] }
                     case 2: { return [[value, x[1]]] }
@@ -59,7 +58,6 @@ const nodeSet = c => value => node => {
             }
             case 2: {
                 // insert
-                const x = first[1];
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
@@ -67,7 +65,6 @@ const nodeSet = c => value => node => {
             }
             case 3: {
                 // replace
-                const x = first[1];
                 switch (x.length) {
                     case 2: { return [[x[0], value]] }
                     case 5: { return [[x[0], x[1], x[2], value, x[4]]]}
@@ -75,7 +72,7 @@ const nodeSet = c => value => node => {
             }
             case 4: {
                 // insert
-                const [v0, v1] = first[1];
+                const [v0, v1] = x;
                 return [[v0], v1, [value]]
             }
         }
