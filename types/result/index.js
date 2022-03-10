@@ -21,9 +21,9 @@ const ok = value => ['ok', value]
 const error = e => ['error', e]
 
 /** @type {<T, E>(r: Result<T, E>) => T} */
-const unwrap = result => {
-    if (result[0] === 'error') { throw result[1] }
-    return result[1]
+const unwrap = ([kind, v]) => {
+    if (kind === 'error') { throw v }
+    return v
 }
 
 module.exports = {
