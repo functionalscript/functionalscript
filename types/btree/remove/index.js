@@ -93,24 +93,20 @@ const initValue1 = a => n => {
  */
 
 /** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (i: find.PathItem<T>) => (a: A) => Branch<T>} */
-const reduceX = ms => i => a => {
+const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms
     /** @typedef {typeof ms extends array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
     /** @typedef {AT[0]} A */
     /** @typedef {AT[1]} T */
     /** @type {(m: Merge<A, T>) => Branch<T>} */
     const f = m => {
-        const n = i[1]
         const ra = m(a)
         return n.length === 3 ? ra(n) : [...ra([n[0], n[1], n[2]]), n[3], n[4]]
     }
-    switch (i[0]) {
+    switch (i) {
         case 0: { return f(m0) }
         case 2: { return f(m2) }
-        case 4: {
-            const n = i[1]
-            return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])]
-        }
+        case 4: { return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])] }
     }
 }
 
@@ -129,9 +125,9 @@ const nodeRemove = c => node => {
             const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n)
             return { first: p.first, tail: list.concat(p.tail)({ first: f(v), tail }) }
         }
-        switch (first[0]) {
+        const [i, n] = first
+        switch (i) {
             case 1: {
-                const n = first[1]
                 switch (n.length) {
                     case 1: { return { first: undefined, tail } }
                     case 2: { return { first: [n[1]], tail } }
@@ -140,7 +136,6 @@ const nodeRemove = c => node => {
                 }
             }
             case 3: {
-                const n = first[1]
                 switch (n.length) {
                     case 2: { return { first: [n[0]], tail } }
                     case 5: { return branch(n[4])(v => [4, [n[0], n[1], n[2], v, n[4]]]) }
