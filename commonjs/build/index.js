@@ -1,7 +1,6 @@
 const package_ = require('../package/index.js')
 const module_ = require('../module/index.js')
 const function_ = require('../module/function/index.js')
-const { todo } = require('../../dev/index.js')
 const map = require('../../types/map/index.js')
 const object = require('../../types/object/index.js')
 const path = require('../path/index.js')
@@ -60,10 +59,10 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             /** @type {(e: module_.Error) => (m: M) => Result<M>} */
             const error = e => set(['error', e])
             // check compilation
-            const j = compile(source)
-            if (j[0] === 'error') { return error(['compilation error', j[1]])(moduleMap) }
+            const [kind, result] = compile(source)
+            if (kind === 'error') { return error(['compilation error', result])(moduleMap) }
             // build
-            const [r, [requireMap, moduleMap2]] = j[1](require_)([undefined, moduleMap])
+            const [r, [requireMap, moduleMap2]] = result(require_)([undefined, moduleMap])
             const x = r[0] === 'error' ?
                 error(['runtime error', r[1]]) :
                 set(['ok', { exports: r[1], requireMap: object.fromMap(requireMap) }])
