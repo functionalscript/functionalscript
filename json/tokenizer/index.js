@@ -395,12 +395,7 @@ const tokenizeOp = state => input => input === undefined ? tokenizeEofOp(state) 
 const tokenize = input => list.flat(list.stateScan(tokenizeOp)({kind: 'initial'})(input))
 
 /** @type {(input: list.List<number>) => list.List<JsonToken>} */
-const tokenize2 = input =>
-{
-    /** @type {list.List<CharCodeOrEof>} */
-    const characters = input
-    return tokenize(list.concat(characters)([undefined]))
-}
+const tokenize2 = input => tokenize(list.concat(/** @type {list.List<CharCodeOrEof>} */(input))([undefined]))
 
 module.exports = {
     /** @readonly */
