@@ -1,3 +1,4 @@
+const { todo } = require('../../dev/index.js')
 const operator = require('../../types/function/operator/index.js')
 const list = require('../../types/list/index.js')
 
@@ -393,7 +394,12 @@ const tokenizeOp = state => input => input === undefined ? tokenizeEofOp(state) 
 /** @type {(input: list.List<CharCodeOrEof>) => list.List<JsonToken>} */
 const tokenize = input => list.flat(list.stateScan(tokenizeOp)({kind: 'initial'})(input))
 
+/** @type {(input: list.List<number>) => list.List<JsonToken>} */
+const tokenize2 = input => todo()
+
 module.exports = {
     /** @readonly */
     tokenize,
+    /** @readonly */
+    tokenize2,
 }
