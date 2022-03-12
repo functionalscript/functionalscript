@@ -1,4 +1,3 @@
-const { todo } = require('../../dev/index.js')
 const operator = require('../../types/function/operator/index.js')
 const list = require('../../types/list/index.js')
 
