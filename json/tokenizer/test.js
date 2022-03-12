@@ -3,19 +3,14 @@ const list = require('../../types/list/index.js')
 const json = require('../index.js')
 const { sort } = require('../../types/object/index.js')
 
-/** @type {(s: string) => list.List<tokenizer.CharCodeOrEof>} */
-const toCharacters = s =>
-{
-    /** @type {list.List<tokenizer.CharCodeOrEof>} */
-    const charCodes = list.toCharCodes(s)
-    return list.concat(charCodes)([undefined])
-}
+/** @type {(s: string) => list.List<number>} */
+const toCharacters = s => list.toCharCodes(s)
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s =>
 {
     const characters = toCharacters(s)
-    return list.toArray(tokenizer.tokenize(characters))
+    return list.toArray(tokenizer.tokenize2(characters))
 }
 
 /** @type {(a: readonly tokenizer.JsonToken[]) => string} */
