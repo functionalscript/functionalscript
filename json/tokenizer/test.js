@@ -6,7 +6,6 @@ const { sort } = require('../../types/object/index.js')
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s => list.toArray(tokenizer.tokenize(list.toCharCodes(s)))
 
-/** @type {(a: readonly tokenizer.JsonToken[]) => string} */
 const stringify = json.stringify(sort)
 
 {
