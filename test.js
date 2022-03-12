@@ -14,6 +14,7 @@ require('./commonjs/path/test.js')
 require('./types/function/compare/test.js')
 require('./types/stringSet/test.js')
 require('./commonjs/build/test.js')
+require('./types/range/test.js')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
