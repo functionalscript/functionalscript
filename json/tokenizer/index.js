@@ -116,22 +116,19 @@ const letterZ = 0x7a
 
 /** @typedef {number|undefined} CharCodeOrEof */
 
-/** @type {(old: string) => (input: CharCodeOrEof) => string} */
-const appendChar = old => input => input === undefined ? old : operator.concat(charToString(input))(old)
-
-/** @type {(input: CharCodeOrEof) => string} */
-const charToString = input => input === undefined ? '' : String.fromCharCode(input)
+/** @type {(old: string) => (input: number) => string} */
+const appendChar = old => input => `${old}${String.fromCharCode(input)}`
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const initialStateOp = initialState => input =>
 {
     if (input >= digit1 && input <= digit9)
     {
-        return [undefined, { kind: 'number', value: charToString(input), numberKind: 'int'}]
+        return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: 'int'}]
     }
     if (input >= letterA && input <= letterZ)
     {
-        return [undefined, { kind: 'keyword', value: charToString(input)}]
+        return [undefined, { kind: 'keyword', value: String.fromCharCode(input)}]
     }
     switch(input)
     {
@@ -142,8 +139,8 @@ const initialStateOp = initialState => input =>
         case leftBracket: return [[{kind: '['}], initialState]
         case rightBracket: return [[{kind: ']'}], initialState]
         case quotationMark: return[undefined, {kind: 'string', value: ''}]
-        case digit0: return [undefined, { kind: 'number', value: charToString(input), numberKind: '0'}]
-        case signMinus: return [undefined, { kind: 'number', value: charToString(input), numberKind: '-'}]
+        case digit0: return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: '0'}]
+        case signMinus: return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: '-'}]
         case horizontalTab:
         case newLine:
         case carriageReturn:
