@@ -10,7 +10,7 @@ const toCharacters = s => list.toCharCodes(s)
 const tokenizeString = s =>
 {
     const characters = toCharacters(s)
-    return list.toArray(tokenizer.tokenize2(characters))
+    return list.toArray(tokenizer.tokenize(characters))
 }
 
 /** @type {(a: readonly tokenizer.JsonToken[]) => string} */
