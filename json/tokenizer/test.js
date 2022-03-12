@@ -2,7 +2,6 @@ const tokenizer = require('./index.js')
 const list = require('../../types/list/index.js')
 const json = require('../index.js')
 const { sort } = require('../../types/object/index.js')
-const { compose } = require('../../types/function/index.js')
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s => list.toArray(tokenizer.tokenize(list.toCharCodes(s)))
