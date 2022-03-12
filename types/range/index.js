@@ -1,6 +1,9 @@
-/**
- * @template T
- * @typedef {readonly[T,T]} Range
- */
+/** @typedef {readonly[number,number]} Range */
 
-module.exports = {}
+/** @type {(range: Range) => (i: number) => boolean} */
+const contains = ([b, e]) => i => b <= i && i <= e
+
+module.exports = {
+    /** @readonly */
+    contains,
+}
