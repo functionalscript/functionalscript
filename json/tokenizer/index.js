@@ -137,6 +137,10 @@ const initialStateOp = initialState => input =>
     {
         return [undefined, { kind: 'keyword', value: String.fromCharCode(input)}]
     }
+    if (isWhiteSpace(input))
+    {
+        return [undefined, initialState]
+    }
     switch(input)
     {
         case leftBrace: return [[{kind: '{'}], initialState]
@@ -148,10 +152,6 @@ const initialStateOp = initialState => input =>
         case quotationMark: return[undefined, {kind: 'string', value: ''}]
         case digit0: return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: '0'}]
         case signMinus: return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: '-'}]
-        case horizontalTab:
-        case newLine:
-        case carriageReturn:
-        case space: return[undefined, initialState]
         default: return [[{kind: 'error', message: 'unexpected character'}], initialState]
     }
 }
@@ -246,6 +246,10 @@ const parseNumberStateOp = state => input =>
 /** @type {(char: number) => boolean} */
 const isTerminalForNumber = char =>
 {
+    if (isWhiteSpace(char))
+    {
+        return true;
+    }
     switch (char)
     {
         case quotationMark:
@@ -255,6 +259,19 @@ const isTerminalForNumber = char =>
         case leftBracket:
         case rightBracket:
         case colon: return true
+        default: return false
+    }
+}
+
+/** @type {(char: number) => boolean} */
+const isWhiteSpace = char =>
+{
+    switch (char)
+    {
+        case horizontalTab:
+        case newLine:
+        case carriageReturn:
+        case space: return true
         default: return false
     }
 }
