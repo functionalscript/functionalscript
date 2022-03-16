@@ -189,6 +189,16 @@ const stringify = json.stringify(sort)
 }
 
 {
+    const result = stringify(tokenizeString('1 2'))
+    if (result !== '[{"kind":"number","value":"1"},{"kind":"number","value":"2"}]') { throw result }
+}
+
+{
+    const result = stringify(tokenizeString('0. 2'))
+    if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"number","value":"2"}]') { throw result }
+}
+
+{
     const result = stringify(tokenizeString('10-0'))
     if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }

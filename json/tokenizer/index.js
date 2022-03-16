@@ -1,5 +1,6 @@
 const operator = require('../../types/function/operator/index.js')
 const list = require('../../types/list/index.js')
+const range = require('../../types/range/index.js')
 
 /**
  * @typedef {{
@@ -67,6 +68,12 @@ const letterT = 0x74
 const letterU = 0x75
 const letterZ = 0x7a
 
+const containsDigit = range.contains([digit0, digit9])
+const containsDigitOneNine = range.contains([digit1, digit9])
+const containsSmallAF = range.contains([letterA, letterF])
+const containsCapitalAF = range.contains([capitalLetterA, capitalLetterF])
+const containsSmallLetter = range.contains([letterA, letterZ])
+
 /**
  * @typedef {|
  * InitialState |
@@ -122,13 +129,17 @@ const appendChar = old => input => `${old}${String.fromCharCode(input)}`
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const initialStateOp = initialState => input =>
 {
-    if (input >= digit1 && input <= digit9)
+    if (containsDigitOneNine(input))
     {
         return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: 'int'}]
     }
-    if (input >= letterA && input <= letterZ)
+    if (containsSmallLetter(input))
     {
         return [undefined, { kind: 'keyword', value: String.fromCharCode(input)}]
+    }
+    if (isWhiteSpace(input))
+    {
+        return [undefined, initialState]
     }
     switch(input)
     {
@@ -141,10 +152,6 @@ const initialStateOp = initialState => input =>
         case quotationMark: return[undefined, {kind: 'string', value: ''}]
         case digit0: return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: '0'}]
         case signMinus: return [undefined, { kind: 'number', value: String.fromCharCode(input), numberKind: '-'}]
-        case horizontalTab:
-        case newLine:
-        case carriageReturn:
-        case space: return[undefined, initialState]
         default: return [[{kind: 'error', message: 'unexpected character'}], initialState]
     }
 }
@@ -174,7 +181,7 @@ const parseNumberStateOp = state => input =>
             default: return [undefined, {kind:'number', value: appendChar(state.value)(input), numberKind: state.numberKind}]
         }
     }
-    if (input >= digit1 && input <= digit9)
+    if (containsDigitOneNine(input))
     {
         switch (state.numberKind)
         {
@@ -239,6 +246,10 @@ const parseNumberStateOp = state => input =>
 /** @type {(char: number) => boolean} */
 const isTerminalForNumber = char =>
 {
+    if (isWhiteSpace(char))
+    {
+        return true;
+    }
     switch (char)
     {
         case quotationMark:
@@ -248,6 +259,19 @@ const isTerminalForNumber = char =>
         case leftBracket:
         case rightBracket:
         case colon: return true
+        default: return false
+    }
+}
+
+/** @type {(char: number) => boolean} */
+const isWhiteSpace = char =>
+{
+    switch (char)
+    {
+        case horizontalTab:
+        case newLine:
+        case carriageReturn:
+        case space: return true
         default: return false
     }
 }
@@ -298,9 +322,9 @@ const parseEscapeCharStateOp = state => input =>
 /** @type {(hex: number) => number|undefined} */
 const hexDigitToNumber = hex =>
 {
-    if (hex >= digit0 && hex <= digit9) { return hex - digit0 }
-    if (hex >= capitalLetterA && hex <= capitalLetterF) { return hex - capitalLetterA + 10 }
-    if (hex >= letterA && hex <= letterF) { return hex - letterA + 10 }
+    if (containsDigit(hex)) { return hex - digit0 }
+    if (containsCapitalAF(hex)) { return hex - capitalLetterA + 10 }
+    if (containsSmallAF(hex)) { return hex - letterA + 10 }
 }
 
 /** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
@@ -333,7 +357,7 @@ const stringToKeywordToken = s =>
 /** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseKeyWordStateOp = state => input =>
 {
-    if (input >= letterA && input <= letterZ)
+    if (containsSmallLetter(input))
     {
         return [undefined, {kind: 'keyword', value: appendChar(state.value)(input)}]
     }
