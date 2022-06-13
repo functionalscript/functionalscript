@@ -25,7 +25,10 @@ const isPackageJson = j => {
  * }} Package
  */
 
-/** @typedef {(packageId: string) => Package | undefined} Get */
+/**
+ * @note Current package has an empty string '' as a packageId.
+ * @typedef {(packageId: string) => Package | undefined} Get
+ */
 
 module.exports = {
     /** @readonly */
