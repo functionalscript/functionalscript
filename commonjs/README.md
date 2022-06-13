@@ -1,8 +1,10 @@
 # Common.js
 
-```ts
-// package/index.js
+## Package
 
+[package/index.js](package/index.js)
+
+```ts
 // A dictionary of packages.
 //
 // A package contains a dictionary of dependencies and a dictionary of files.
@@ -25,9 +27,13 @@ type Package = {
     // returns source of the file.
     readonly file: (localFileId: string) => string | undefined
 }
+```
 
-// module/index.js
+## Module
 
+[module/index.js](module/index.js)
+
+```ts
 // A module map is a dictionary of modules.
 //
 // A module is a compiled and initialized source file.
@@ -62,9 +68,13 @@ type ModuleId = {
 }
 
 const moduleIdToString: (moduleId: ModuleId) => string;
+```
 
-// build/index.js
+## Build
 
+[build/index.js](build/index.js)
+
+```ts
 type BuildConfig<M> = {
     readonly packageGet: PackageGet
     readonly moduleMapInterface: ModuleMapInterface<M>
@@ -81,8 +91,4 @@ type BuildState<M> = {
 }
 
 const getOrBuild: <M>(buildConfig: BuildConfig<M>) => readonly[ModuleState, M];
-
-//
-
-
 ```

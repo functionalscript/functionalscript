@@ -36,7 +36,13 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
 const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends module_.MapInterface<infer M> ? M : never} M */
 
-    /** @type {(buildSet: stringSet.StringSet) => (moduleId: module_.Id) => (source: string) => (moduleMap: M) => Result<M>} */
+    /**
+     * @type {(buildSet: stringSet.StringSet) =>
+     *  (moduleId: module_.Id) =>
+     *  (source: string) =>
+     *  (moduleMap: M) =>
+     *  Result<M>}
+     */
     const build = buildSet => moduleId => {
         const moduleIdStr = module_.idToString(moduleId)
         const buildSet1 = stringSet.set(moduleIdStr)(buildSet)
