@@ -8,7 +8,7 @@ module.exports = {
     /** @readonly */
     json: require('./json/f.js'),
     /** @readonly */
-    sha2: require('./sha2/index.f.js'),
+    sha2: require('./sha2/f.js'),
     /** @readonly */
     types: require('./types/index.f.js'),
 }

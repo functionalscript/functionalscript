@@ -1,6 +1,6 @@
 module.exports = {
     /** @readonly */
-    array: require('./array/index.f.js'),
+    array: require('./array/f.js'),
     /** @readonly */
     btree: require('./btree/index.f.js'),
     /** @readonly */

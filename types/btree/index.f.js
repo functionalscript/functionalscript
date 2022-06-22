@@ -1,6 +1,6 @@
 const list = require('../list/index.f.js')
 const option = require('../option/index.f.js')
-const _ = require('./types/index.f.js')
+const _ = require('./types/f.js')
 
 /** @type {<T>(node: _.Node<T>) => list.Thunk<T>} */
 const nodeValues = node => () => {
@@ -30,11 +30,11 @@ const values = option.map(nodeValues)
 
 module.exports = {
     /** @readonly */
-    find: require('./find/index.f.js'),
+    find: require('./find/f.js'),
     /** @readonly */
-    remove: require('./remove/index.f.js'),
+    remove: require('./remove/f.js'),
     /** @readonly */
-    set: require('./set/index.f.js'),
+    set: require('./set/f.js'),
     /** @readonly */
     values,
 }

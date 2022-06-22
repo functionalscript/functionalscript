@@ -1,4 +1,4 @@
-const _ = require('./index.f.js')
+const _ = require('./f.js')
 const json = require('../../json/f.js')
 const { sort } = require('../object/index.f.js')
 

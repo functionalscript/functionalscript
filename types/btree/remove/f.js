@@ -1,8 +1,8 @@
-const _ = require('../types/index.f.js')
+const _ = require('../types/f.js')
 const cmp = require('../../function/compare/index.f.js')
-const find = require('../find/index.f.js')
+const find = require('../find/f.js')
 const list = require('../../list/index.f.js')
-const array = require('../../array/index.f.js')
+const array = require('../../array/f.js')
 const option = require('../../option/index.f.js')
 
 /**
