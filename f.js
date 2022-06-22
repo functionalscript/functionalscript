@@ -1,12 +1,12 @@
 module.exports = {
     /** @readonly */
-    commonjs: require('./commonjs/index.f.js'),
+    commonjs: require('./commonjs/f.js'),
     /** @readonly */
-    dev: require('./dev/index.f.js'),
+    dev: require('./dev/f.js'),
     /** @readonly */
-    html: require('./html/index.f.js'),
+    html: require('./html/f.js'),
     /** @readonly */
-    json: require('./json/index.f.js'),
+    json: require('./json/f.js'),
     /** @readonly */
     sha2: require('./sha2/index.f.js'),
     /** @readonly */

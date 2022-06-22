@@ -1,6 +1,6 @@
-const tokenizer = require('./index.f.js')
+const tokenizer = require('./f.js')
 const list = require('../../types/list/index.f.js')
-const json = require('../index.f.js')
+const json = require('../f.js')
 const { sort } = require('../../types/object/index.f.js')
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */

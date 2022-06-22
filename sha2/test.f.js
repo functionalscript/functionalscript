@@ -1,5 +1,5 @@
 const _ = require('./index.f.js')
-const json = require('../json/index.f.js')
+const json = require('../json/f.js')
 const { sort } = require('../types/object/index.f.js')
 const list = require('../types/list/index.f.js')
 

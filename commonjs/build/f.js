@@ -3,7 +3,7 @@ const module_ = require('../module/f.js')
 const function_ = require('../module/function/f.js')
 const map = require('../../types/map/index.f.js')
 const object = require('../../types/object/index.f.js')
-const path = require('../path/index.f.js')
+const path = require('../path/f.js')
 const stringSet = require('../../types/string_set/index.f.js')
 
 /**

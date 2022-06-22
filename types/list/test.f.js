@@ -1,5 +1,5 @@
 const _ = require('./index.f.js')
-const json = require('../../json/index.f.js')
+const json = require('../../json/f.js')
 const { sort } = require('../object/index.f.js')
 const { addition, strictEqual, foldToScan } = require('../function/operator/index.f.js')
 

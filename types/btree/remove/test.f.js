@@ -2,7 +2,7 @@ const _ = require('./index.f.js')
 const btree = require('../types/index.f.js')
 const s = require('../set/index.f.js')
 const { stringCmp } = require('../../function/compare/index.f.js')
-const json = require('../../../json/index.f.js')
+const json = require('../../../json/f.js')
 const { sort } = require('../../object/index.f.js')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */

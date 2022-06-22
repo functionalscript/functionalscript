@@ -1,4 +1,4 @@
-const json = require('../../json/index.f.js')
+const json = require('../../json/f.js')
 const dependencies = require('./dependencies/f.js')
 
 /**
