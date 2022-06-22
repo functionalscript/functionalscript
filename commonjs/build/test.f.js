@@ -3,7 +3,7 @@ const map = require('../../types/map/index.f.js')
 const module_ = require('../module/f.js')
 const function_ = require('../module/function/f.js')
 const result = require('../../types/result/index.f.js')
-const package_ = require('../package/index.f.js')
+const package_ = require('../package/f.js')
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {

@@ -4,7 +4,7 @@ const json = require('../../json/index.f.js')
 const { identity } = require('../../types/function/index.f.js')
 const object = require('../../types/object/index.f.js')
 const { at } = require('../../types/object/index.f.js')
-const package_ = require('../package/index.f.js')
+const package_ = require('../package/f.js')
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {
