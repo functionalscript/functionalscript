@@ -1,6 +1,6 @@
-const seq = require('../types/list/index.f.js')
+const list = require('../types/list/index.f.js')
 const object = require('../types/object/index.f.js')
-const op = require('../types/function/operator/index.f.js')
+const operator = require('../types/function/operator/index.f.js')
 const { compose } = require('../types/function/index.f.js')
 
 /**
@@ -13,11 +13,11 @@ const { compose } = require('../types/function/index.f.js')
 
 /** @typedef {Object|boolean|string|number|null|Array} Unknown */
 
-/** @type {(value: Unknown) => (path: seq.List<string>) => (src: Unknown|undefined) => Unknown} */
+/** @type {(value: Unknown) => (path: list.List<string>) => (src: Unknown|undefined) => Unknown} */
 const setProperty = value => {
-    /** @type {(path: seq.List<string>) => (src: Unknown|undefined) => Unknown} */
+    /** @type {(path: list.List<string>) => (src: Unknown|undefined) => Unknown} */
     const f = path => src => {
-        const result = seq.next(path)
+        const result = list.next(path)
         if (result === undefined) { return value }
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
@@ -26,10 +26,10 @@ const setProperty = value => {
     return f
 }
 
-/** @type {(_: string) => seq.List<string>} */
+/** @type {(_: string) => list.List<string>} */
 const stringSerialize = input => [JSON.stringify(input)]
 
-/** @type {(_: number) => seq.List<string>} */
+/** @type {(_: number) => list.List<string>} */
 const numberSerialize = input => [JSON.stringify(input)]
 
 const nullSerialize = ['null']
@@ -38,46 +38,46 @@ const trueSerialize = ['true']
 
 const falseSerialize = ['false']
 
-/** @type {(_: boolean) => seq.List<string>} */
+/** @type {(_: boolean) => list.List<string>} */
 const boolSerialize = value => value ? trueSerialize : falseSerialize
 
 const colon = [':']
 const comma = [',']
 
-/** @type {op.Fold<seq.List<string>>} */
-const joinOp = b => prior => seq.flat([prior, comma, b])
+/** @type {operator.Fold<list.List<string>>} */
+const joinOp = b => prior => list.flat([prior, comma, b])
 
-/** @type {(input: seq.List<seq.List<string>>) => seq.List<string>} */
-const join = seq.fold(joinOp)([])
+/** @type {(input: list.List<list.List<string>>) => list.List<string>} */
+const join = list.fold(joinOp)([])
 
-/** @type {(open: string) => (close: string) => (input: seq.List<seq.List<string>>) => seq.List<string>} */
-const list = open => close => {
+/** @type {(open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>} */
+const wrap = open => close => {
     const seqOpen = [open]
     const seqClose = [close]
-    return input => seq.flat([seqOpen, join(input), seqClose])
+    return input => list.flat([seqOpen, join(input), seqClose])
 }
 
-const objectList = list('{')('}')
+const objectWrap = wrap('{')('}')
 
-const arrayList = list('[')(']')
+const arrayWrap = wrap('[')(']')
 
 /** @typedef {object.Entry<Unknown>} Entry*/
 
-/** @typedef {(seq.List<Entry>)} Entries */
+/** @typedef {(list.List<Entry>)} Entries */
 
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
-/** @type {(mapEntries: MapEntries) => (value: Unknown) => seq.List<string>} */
+/** @type {(mapEntries: MapEntries) => (value: Unknown) => list.List<string>} */
 const serialize = sort => {
-    /** @type {(kv: readonly[string, Unknown]) => seq.List<string>} */
-    const propertySerialize = ([k, v]) => seq.flat([
+    /** @type {(kv: readonly[string, Unknown]) => list.List<string>} */
+    const propertySerialize = ([k, v]) => list.flat([
         stringSerialize(k),
         colon,
         f(v)
     ])
-    /** @type {(object: Object) => seq.List<string>} */
-    const objectSerialize = input => objectList(seq.map(propertySerialize)(sort(Object.entries(input))))
-    /** @type {(value: Unknown) => seq.List<string>} */
+    /** @type {(object: Object) => list.List<string>} */
+    const objectSerialize = input => objectWrap(list.map(propertySerialize)(sort(Object.entries(input))))
+    /** @type {(value: Unknown) => list.List<string>} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -90,8 +90,8 @@ const serialize = sort => {
             }
         }
     }
-    /** @type {(input: Array) => seq.List<string>} */
-    const arraySerialize = compose(seq.map(f))(arrayList)
+    /** @type {(input: Array) => list.List<string>} */
+    const arraySerialize = compose(list.map(f))(arrayWrap)
     return f
 }
 
@@ -101,7 +101,7 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => compose(serialize(sort))(seq.join(''))
+const stringify = sort => compose(serialize(sort))(list.join(''))
 
 /** @type {(value: string) => Unknown} */
 const parse = JSON.parse
