@@ -6,7 +6,7 @@
   "scripts": {
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
-    "test-only": "node --trace-uncaught ./test"
+    "test-only": "node --trace-uncaught ./test.f.js"
   },
   "repository": {
     "type": "git",
