@@ -4,7 +4,7 @@ const function_ = require('../module/function/index.f.js')
 const map = require('../../types/map/index.f.js')
 const object = require('../../types/object/index.f.js')
 const path = require('../path/index.f.js')
-const stringSet = require('../../types/stringSet/index.f.js')
+const stringSet = require('../../types/stringset/index.f.js')
 
 /**
  * @template M

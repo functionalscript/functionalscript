@@ -53,6 +53,8 @@ const idToString = id => `${id.package}/${id.path.join('/')}`
 
 module.exports = {
     /** @readonly */
+    functions: require('./function/index.f.js'),
+    /** @readonly */
     dir,
     /** @readonly */
     idToString,
