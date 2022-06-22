@@ -1,4 +1,4 @@
-const object = require('../../types/object/index.f.js')
+const object = require('../../types/object/f.js')
 
 /**
  * @template M

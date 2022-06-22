@@ -1,4 +1,4 @@
-const _ = require('./index.f.js')
+const _ = require('./f.js')
 
 {
     if (!_.contains([0, 5])(1)) { throw 1 }

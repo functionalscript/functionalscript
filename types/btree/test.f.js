@@ -1,9 +1,9 @@
 const btree = require('./types/f.js')
 const { values } = require('./f.js')
 const json = require('../../json/f.js')
-const { sort } = require('../object/index.f.js')
+const { sort } = require('../object/f.js')
 const { stringCmp } = require('../function/compare/f.js')
-const list = require('../list/index.f.js')
+const list = require('../list/f.js')
 const s = require('./set/f.js')
 const f = require('./find/f.js')
 

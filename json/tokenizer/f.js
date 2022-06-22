@@ -1,6 +1,6 @@
 const operator = require('../../types/function/operator/f.js')
-const list = require('../../types/list/index.f.js')
-const range = require('../../types/range/index.f.js')
+const list = require('../../types/list/f.js')
+const range = require('../../types/range/f.js')
 
 /**
  * @typedef {{

@@ -5,7 +5,7 @@ const find = require('../btree/find/f.js')
 const s = require('../btree/set/f.js')
 const compare = require('../function/compare/f.js')
 const { stringCmp } = require('../function/compare/f.js')
-const list = require('../list/index.f.js')
+const list = require('../list/f.js')
 const btRemove = require('../btree/remove/f.js')
 
 /** @typedef {compare.Sign} Sign */

@@ -6,15 +6,15 @@ module.exports = {
     /** @readonly */
     function: require('./function/f.js'),
     /** @readonly */
-    list: require('./list/index.f.js'),
+    list: require('./list/f.js'),
     /** @readonly */
-    map: require('./map/index.f.js'),
+    map: require('./map/f.js'),
     /** @readonly */
-    object: require('./object/index.f.js'),
+    object: require('./object/f.js'),
     /** @readonly */
-    range: require('./range/index.f.js'),
+    range: require('./range/f.js'),
     /** @readonly */
-    result: require('./result/index.f.js'),
+    result: require('./result/f.js'),
     /** @readonly */
-    stringSet: require('./string_set/index.f.js'),
+    stringSet: require('./stringset/f.js'),
 }

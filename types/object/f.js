@@ -1,5 +1,5 @@
-const list = require('../list/index.f.js')
-const map = require('../map/index.f.js')
+const list = require('../list/f.js')
+const map = require('../map/f.js')
 
 /**
  * @template T

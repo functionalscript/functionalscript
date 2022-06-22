@@ -1,5 +1,5 @@
 const { tryCatch } = require('../result/index.js')
-const { unwrap } = require('../../types/result/index.f.js')
+const { unwrap } = require('../../types/result/f.js')
 const moduleFunction = require('../../commonjs/module/function/f.js')
 
 /** @type {(f: Function) => moduleFunction.Function_} */

@@ -2,8 +2,8 @@ const _ = require('./f.js')
 const { todo } = require('../../dev/f.js')
 const json = require('../../json/f.js')
 const { identity } = require('../../types/function/f.js')
-const object = require('../../types/object/index.f.js')
-const { at } = require('../../types/object/index.f.js')
+const object = require('../../types/object/f.js')
+const { at } = require('../../types/object/f.js')
 const package_ = require('../package/f.js')
 
 /** @type {(g: json.Unknown|undefined) => string} */

@@ -1,5 +1,5 @@
-const list = require('../list/index.f.js')
-const option = require('../option/index.f.js')
+const list = require('../list/f.js')
+const option = require('../option/f.js')
 const _ = require('./types/f.js')
 
 /** @type {<T>(node: _.Node<T>) => list.Thunk<T>} */

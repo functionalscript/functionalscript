@@ -1,5 +1,5 @@
-const list = require('../types/list/index.f.js')
-const object = require('../types/object/index.f.js')
+const list = require('../types/list/f.js')
+const object = require('../types/object/f.js')
 const { operator, compose } = require('../types/function/f.js')
 
 /**

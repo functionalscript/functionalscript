@@ -1,4 +1,4 @@
-const option = require('../option/index.f.js')
+const option = require('../option/f.js')
 
 /**
  * @template T

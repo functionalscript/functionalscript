@@ -1,8 +1,8 @@
 const _ = require('./f.js')
-const map = require('../../types/map/index.f.js')
+const map = require('../../types/map/f.js')
 const module_ = require('../module/f.js')
 const function_ = require('../module/function/f.js')
-const result = require('../../types/result/index.f.js')
+const result = require('../../types/result/f.js')
 const package_ = require('../package/f.js')
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
