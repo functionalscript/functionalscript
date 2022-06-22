@@ -1,4 +1,4 @@
-const btree = require('./types.f.js')
+const btree = require('./types/index.f.js')
 const { values } = require('./index.f.js')
 const json = require('../../json/index.f.js')
 const { sort } = require('../object/index.f.js')

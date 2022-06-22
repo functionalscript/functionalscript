@@ -1,4 +1,4 @@
-const btTypes = require('../btree/types.f.js')
+const btTypes = require('../btree/types/index.f.js')
 const btree = require('../btree/index.f.js')
 const { find } = btree
 const { stringCmp } = require("../function/compare/index.f.js")

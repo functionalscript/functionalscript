@@ -1,4 +1,4 @@
-const btTypes = require('../btree/types.f.js')
+const btTypes = require('../btree/types/index.f.js')
 const btree = require('../btree/index.f.js')
 const { values } = require("../btree/index.f.js")
 const find = require('../btree/find/index.f.js')
