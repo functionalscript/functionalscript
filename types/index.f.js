@@ -16,5 +16,5 @@ module.exports = {
     /** @readonly */
     result: require('./result/index.f.js'),
     /** @readonly */
-    stringSet: require('./stringset/index.f.js'),
+    stringSet: require('./string_set/index.f.js'),
 }
