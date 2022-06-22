@@ -1,4 +1,4 @@
-const _ = require('./index.f.js')
+const _ = require('./f.js')
 const map = require('../../types/map/index.f.js')
 const module_ = require('../module/index.f.js')
 const function_ = require('../module/function/index.f.js')
