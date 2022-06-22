@@ -1,4 +1,4 @@
-const seq = require('../list/index.f.js')
+const list = require('../list/index.f.js')
 const option = require('../option/index.f.js')
 
 /**
@@ -54,19 +54,19 @@ const option = require('../option/index.f.js')
  * @typedef {Node<T> | undefined} Tree
  */
 
-/** @type {<T>(node: Node<T>) => seq.Thunk<T>} */
+/** @type {<T>(node: Node<T>) => list.Thunk<T>} */
 const nodeValues = node => () => {
     switch (node.length) {
         case 1: case 2: { return node }
         case 3: {
-            return seq.flat([
+            return list.flat([
                 nodeValues(node[0]),
                 [node[1]],
                 nodeValues(node[2])
             ])
         }
         default: {
-            return seq.flat([
+            return list.flat([
                 nodeValues(node[0]),
                 [node[1]],
                 nodeValues(node[2]),
@@ -87,7 +87,7 @@ const nodeValues = node => () => {
  * @typedef { readonly[...Branch5<T>, T, Node<T>] } Branch7
  */
 
-/** @type {<T>(tree: Tree<T>) => seq.List<T>} */
+/** @type {<T>(tree: Tree<T>) => list.List<T>} */
 const values = option.map(nodeValues)
 
 module.exports = {

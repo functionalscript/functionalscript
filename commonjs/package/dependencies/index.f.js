@@ -1,5 +1,5 @@
 const json = require('../../../json/index.f.js')
-const seq = require('../../../types/list/index.f.js')
+const list = require('../../../types/list/index.f.js')
 
 /** @typedef {readonly[string, string]} DependencyJson */
 
@@ -14,7 +14,7 @@ const isDependencyJson = ([, v]) => typeof v === 'string'
 const isDependenciesJson = j => {
     if (j === undefined) { return true }
     if (!json.isObject(j)) { return false }
-    return seq.every(seq.map(isDependencyJson)(Object.entries(j)))
+    return list.every(list.map(isDependencyJson)(Object.entries(j)))
 }
 
 module.exports = {

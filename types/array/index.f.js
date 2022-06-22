@@ -1,5 +1,4 @@
 const option = require('../option/index.f.js')
-const seq = require('../list/index.f.js')
 
 /**
  * @template T
