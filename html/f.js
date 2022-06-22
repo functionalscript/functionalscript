@@ -1,6 +1,6 @@
 const list = require('../types/list/index.f.js')
 const object = require('../types/object/index.f.js')
-const { operator, compose } = require('../types/function/index.f.js')
+const { operator, compose } = require('../types/function/f.js')
 
 /**
  * @typedef {|

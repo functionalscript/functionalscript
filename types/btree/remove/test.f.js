@@ -1,7 +1,7 @@
 const _ = require('./f.js')
 const btree = require('../types/f.js')
 const s = require('../set/f.js')
-const { stringCmp } = require('../../function/compare/index.f.js')
+const { stringCmp } = require('../../function/compare/f.js')
 const json = require('../../../json/f.js')
 const { sort } = require('../../object/index.f.js')
 

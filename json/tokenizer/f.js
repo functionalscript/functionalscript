@@ -1,4 +1,4 @@
-const operator = require('../../types/function/operator/index.f.js')
+const operator = require('../../types/function/operator/f.js')
 const list = require('../../types/list/index.f.js')
 const range = require('../../types/range/index.f.js')
 

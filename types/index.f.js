@@ -2,9 +2,9 @@ module.exports = {
     /** @readonly */
     array: require('./array/f.js'),
     /** @readonly */
-    btree: require('./btree/index.f.js'),
+    btree: require('./btree/f.js'),
     /** @readonly */
-    function: require('./function/index.f.js'),
+    function: require('./function/f.js'),
     /** @readonly */
     list: require('./list/index.f.js'),
     /** @readonly */

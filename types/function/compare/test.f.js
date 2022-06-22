@@ -1,4 +1,4 @@
-const _ = require('./index.f.js')
+const _ = require('./f.js')
 
 {
     const result = _.numberCmp(4)(5)

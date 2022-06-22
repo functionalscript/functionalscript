@@ -1,6 +1,6 @@
 const _ = require('../types/f.js')
 const find = require('../find/f.js')
-const cmp = require('../../function/compare/index.f.js')
+const cmp = require('../../function/compare/f.js')
 const list = require('../../list/index.f.js')
 
 /**
