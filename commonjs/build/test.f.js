@@ -1,7 +1,7 @@
 const _ = require('./f.js')
 const map = require('../../types/map/index.f.js')
-const module_ = require('../module/index.f.js')
-const function_ = require('../module/function/index.f.js')
+const module_ = require('../module/f.js')
+const function_ = require('../module/function/f.js')
 const result = require('../../types/result/index.f.js')
 const package_ = require('../package/index.f.js')
 

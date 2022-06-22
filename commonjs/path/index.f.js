@@ -1,6 +1,6 @@
 const list = require("../../types/list/index.f.js")
 const package_ = require("../package/index.f.js")
-const module_ = require("../module/index.f.js")
+const module_ = require("../module/f.js")
 
 /** @typedef {readonly string[]} Items */
 
