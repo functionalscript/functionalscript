@@ -1,3 +1,4 @@
+const btTypes = require('../btree/types.f.js')
 const btree = require('../btree/index.f.js')
 const { values } = require("../btree/index.f.js")
 const find = require('../btree/find/index.f.js')
@@ -21,7 +22,7 @@ const btRemove = require('../btree/remove/index.f.js')
 
 /**
  * @template T
- * @typedef {btree.Tree<Entry<T>>} Map
+ * @typedef {btTypes.Tree<Entry<T>>} Map
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */

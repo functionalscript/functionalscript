@@ -1,10 +1,11 @@
+const btTypes = require('../btree/types.f.js')
 const btree = require('../btree/index.f.js')
 const { find } = btree
 const { stringCmp } = require("../function/compare/index.f.js")
 const list = require('../list/index.f.js')
 const { compose } = require('../function/index.f.js')
 
-/** @typedef {btree.Tree<string>} StringSet */
+/** @typedef {btTypes.Tree<string>} StringSet */
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
 const contains = value => s => s !== undefined && find.isFound(find.find(stringCmp(value))(s).first)
