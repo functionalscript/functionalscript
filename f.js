@@ -10,5 +10,5 @@ module.exports = {
     /** @readonly */
     sha2: require('./sha2/f.js'),
     /** @readonly */
-    types: require('./types/index.f.js'),
+    types: require('./types/f.js'),
 }
