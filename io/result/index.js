@@ -1,4 +1,4 @@
-const result = require('../../types/result/index.js')
+const result = require('../../types/result/index.f.js')
 
 /** @type {<T>(f: () => T) => result.Result<T, unknown>} */
 const tryCatch = f => {
