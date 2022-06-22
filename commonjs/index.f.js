@@ -8,4 +8,13 @@
  * ]} Package 
  */
 
-module.exports = {}
+module.exports = {
+    /** @readonly */
+    build: require('./build/index.f.js'),
+    /** @readonly */
+    module: require('./module/index.f.js'),
+    /** @readonly */
+    package: require('./package/index.f.js'),
+    /** @readonly */
+    path: require('./path/index.f.js'),
+}

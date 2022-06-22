@@ -32,5 +32,7 @@ const isPackageJson = j => {
 
 module.exports = {
     /** @readonly */
+    dependencies,
+    /** @readonly */
     isPackageJson,
 }

@@ -92,5 +92,11 @@ const values = option.map(nodeValues)
 
 module.exports = {
     /** @readonly */
+    find: require('./find/index.f.js'),
+    /** @readonly */
+    remove: require('./remove/index.f.js'),
+    /** @readonly */
+    set: require('./set/index.f.js'),
+    /** @readonly */
     values,
 }
