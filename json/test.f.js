@@ -1,6 +1,6 @@
-const json = require('./index.f.js')
-const { sort } = require('../types/object/index.f.js')
-const { identity } = require('../types/function/index.f.js')
+const json = require('./main.f.js')
+const { sort } = require('../types/object/main.f.js')
+const { identity } = require('../types/function/main.f.js')
 
 if (json.setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 

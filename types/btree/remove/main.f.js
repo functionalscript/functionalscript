@@ -1,9 +1,9 @@
-const _ = require('../types.f.js')
-const cmp = require('../../function/compare/index.f.js')
-const find = require('../find/index.f.js')
-const list = require('../../list/index.f.js')
-const array = require('../../array/index.f.js')
-const option = require('../../option/index.f.js')
+const _ = require('../types/main.f.js')
+const cmp = require('../../function/compare/main.f.js')
+const find = require('../find/main.f.js')
+const list = require('../../list/main.f.js')
+const array = require('../../array/main.f.js')
+const option = require('../../option/main.f.js')
 
 /**
  * @template T

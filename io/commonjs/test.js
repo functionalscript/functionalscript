@@ -1,5 +1,5 @@
-const _ = require('./index.js')
-const run = require('../../commonjs/module/function/index.f.js')
+const _ = require('./main.js')
+const run = require('../../commonjs/module/function/main.f.js')
 
 // ok:
 {

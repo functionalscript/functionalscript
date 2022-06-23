@@ -1,4 +1,4 @@
-const _ = require('./index.f.js')
+const _ = require('./main.f.js')
 
 require('./dependencies/test.f.js')
 
