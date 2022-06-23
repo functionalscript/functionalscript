@@ -1,4 +1,4 @@
-const object = require('../../types/object/f.js')
+const object = require('../types/object/main.f.js/index.js')
 
 /**
  * @template M
@@ -53,7 +53,7 @@ const idToString = id => `${id.package}/${id.path.join('/')}`
 
 module.exports = {
     /** @readonly */
-    function: require('./function/f.js'),
+    function: require('./module.function.f.js'),
     /** @readonly */
     dir,
     /** @readonly */

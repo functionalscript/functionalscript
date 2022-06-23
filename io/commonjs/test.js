@@ -1,4 +1,4 @@
-const _ = require('./index.js')
+const _ = require('./main.js')
 const run = require('../../commonjs/module/function/f.js')
 
 // ok:

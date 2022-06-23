@@ -1,5 +1,5 @@
-const { compose, identity } = require('../function/f.js')
-const operator = require('../function/operator/f.js')
+const { compose, identity } = require('../function/main.f.js')
+const operator = require('../function/operator/main.f.js')
 const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = operator
 
 /**

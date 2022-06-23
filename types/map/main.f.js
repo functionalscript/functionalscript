@@ -1,12 +1,12 @@
-const btTypes = require('../btree/types/f.js')
-const btree = require('../btree/f.js')
-const { values } = require("../btree/f.js")
-const find = require('../btree/find/f.js')
-const s = require('../btree/set/f.js')
-const compare = require('../function/compare/f.js')
-const { stringCmp } = require('../function/compare/f.js')
-const list = require('../list/f.js')
-const btRemove = require('../btree/remove/f.js')
+const btTypes = require('../btree/types/main.f.js')
+const btree = require('../btree/main.f.js')
+const { values } = require("../btree/main.f.js")
+const find = require('../btree/find/main.f.js')
+const s = require('../btree/set/main.f.js')
+const compare = require('../function/compare/main.f.js')
+const { stringCmp } = require('../function/compare/main.f.js')
+const list = require('../list/main.f.js')
+const btRemove = require('../btree/remove/main.f.js')
 
 /** @typedef {compare.Sign} Sign */
 

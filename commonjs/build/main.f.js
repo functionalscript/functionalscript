@@ -1,10 +1,10 @@
-const package_ = require('../package/f.js')
-const module_ = require('../module/f.js')
-const function_ = require('../module/function/f.js')
-const map = require('../../types/map/f.js')
-const object = require('../../types/object/f.js')
-const path = require('../path/f.js')
-const stringSet = require('../../types/stringset/f.js')
+const package_ = require('../package/main.f.js')
+const module_ = require('../module/main.f.js')
+const function_ = require('../module/function/main.f.js')
+const map = require('../../types/map/main.f.js')
+const object = require('../../types/object/main.f.js')
+const path = require('../path/main.f.js')
+const stringSet = require('../../types/stringset/main.f.js')
 
 /**
  * @template M

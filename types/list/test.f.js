@@ -1,7 +1,7 @@
-const _ = require('./f.js')
-const json = require('../../json/f.js')
-const { sort } = require('../object/f.js')
-const { addition, strictEqual, foldToScan } = require('../function/operator/f.js')
+const _ = require('./main.f.js')
+const json = require('../../json/main.f.js')
+const { sort } = require('../object/main.f.js')
+const { addition, strictEqual, foldToScan } = require('../function/operator/main.f.js')
 
 /** @type {(sequence: _.List<json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))

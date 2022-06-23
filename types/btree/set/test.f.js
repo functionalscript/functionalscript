@@ -1,8 +1,8 @@
-const _ = require('./f.js')
-const btree = require('../types/f.js')
-const { stringCmp } = require('../../function/compare/f.js')
-const json = require('../../../json/f.js')
-const { sort } = require('../../object/f.js')
+const _ = require('./main.f.js')
+const btree = require('../types/main.f.js')
+const { stringCmp } = require('../../function/compare/main.f.js')
+const json = require('../../../json/main.f.js')
+const { sort } = require('../../object/main.f.js')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => _.set(stringCmp(value))(value)(node)

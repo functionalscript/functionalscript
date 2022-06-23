@@ -1,4 +1,4 @@
-const _ = require('./f.js')
+const _ = require('./main.f.js')
 
 {
     const r = _.set('hello')(undefined)

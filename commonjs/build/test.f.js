@@ -1,9 +1,9 @@
-const _ = require('./f.js')
-const map = require('../../types/map/f.js')
-const module_ = require('../module/f.js')
-const function_ = require('../module/function/f.js')
-const result = require('../../types/result/f.js')
-const package_ = require('../package/f.js')
+const _ = require('./main.f.js')
+const map = require('../../types/map/main.f.js')
+const module_ = require('../module/main.f.js')
+const function_ = require('../module/function/main.f.js')
+const result = require('../../types/result/main.f.js')
+const package_ = require('../package/main.f.js')
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {

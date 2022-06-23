@@ -19,9 +19,9 @@ const flip = f => b => a => f(a)(b)
 
 module.exports = {
     /** @readonly */
-    compare: require('./compare/f.js'),
+    compare: require('./compare/main.f.js'),
     /** @readonly */
-    operator: require('./operator/f.js'),
+    operator: require('./operator/main.f.js'),
     /** @readonly */
     identity,
     /** @readonly */

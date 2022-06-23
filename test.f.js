@@ -1,4 +1,4 @@
-const i = require('./f.js')
+const i = require('./main.f.js')
 
 require('./types/list/test.f.js')
 require('./types/array/test.f.js')

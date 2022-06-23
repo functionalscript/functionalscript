@@ -1,7 +1,7 @@
-const _ = require('../types/f.js')
-const find = require('../find/f.js')
-const cmp = require('../../function/compare/f.js')
-const list = require('../../list/f.js')
+const _ = require('../types/main.f.js')
+const find = require('../find/main.f.js')
+const cmp = require('../../function/compare/main.f.js')
+const list = require('../../list/main.f.js')
 
 /**
  * @template T
