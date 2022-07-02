@@ -98,11 +98,15 @@ const mapDependency = d => ([external, internal]) => {
  *  (items: list.List<string>) =>
  *  Path|undefined}
  */
-const parseGlobal = d => dir => items => {
-    const v = variants([undefined, items])
-    const r = list.first(undefined)(list.filterMap(mapDependency(d))(v))
-    if (r === undefined) { return undefined }
-    return { package: r[0], items: list.toArray(r[1]), dir }
+const parseGlobal = dependencies => 
+{
+    const filterMap = list.filterMap(mapDependency(dependencies))
+    return dir => items => {
+        const v = variants([undefined, items])
+        const r = list.first(undefined)(filterMap(v))
+        if (r === undefined) { return undefined }
+        return { package: r[0], items: list.toArray(r[1]), dir }
+    }
 }
 
 /**
@@ -112,12 +116,15 @@ const parseGlobal = d => dir => items => {
  *  (path: string) =>
  *  Path|undefined }
  */
-const parse = packageId => dependencies => local => path => {
-    const parsed = parseLocal(local)(path)
-    if (parsed === undefined) { return undefined }
-    const {external, dir, items } = parsed
-    if (!external) { return { package: packageId, items, dir } }
-    return parseGlobal(dependencies)(dir)(items)
+const parse = packageId => dependencies => {
+    const pg = parseGlobal(dependencies)
+    return local => path => {
+        const parsed = parseLocal(local)(path)
+        if (parsed === undefined) { return undefined }
+        const {external, dir, items } = parsed
+        if (!external) { return { package: packageId, items, dir } }
+        return pg(dir)(items)
+    }
 }
 
 /**
