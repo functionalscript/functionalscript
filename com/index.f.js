@@ -19,8 +19,12 @@
 
 /** @typedef {readonly[string, FieldArray, Type]} Method */
 
-/** @typedef {null|string|Pointer} Type */
+/** @typedef {BaseType|Id|Pointer} Type */
 
-/** @typedef {readonly['*', Type]} Pointer */
+/** @typedef {readonly[string]} Id */
+
+/** @typedef {'u8'|'i8'|'u16'|'i16'|'u32'|'i32'|'u64'|'i64'|'usize'|'isize'|'bool'|''}  BaseType */
+
+/** @typedef {{readonly '*': Type}} Pointer */
 
 module.exports = {}
