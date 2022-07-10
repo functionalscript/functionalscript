@@ -8,34 +8,17 @@ const list = require('../types/list/main.f.js')
 
 /** @typedef {string|ItemArray|ItemThunk} Item */
 
-// /** @type {(indent: string) => (text: Block) => list.List<string>} */
-// const flat = indent => {
-
-//     /** @type {(n: number) => (text: Block) => list.List<string>} */
-//     const f = n => {
-//         /** @type {(item: Item) => list.List<string>} */
-//         const g = item => typeof (item) === 'string' ? list.flat(list.repeat() prefix, item, '\n'] : f(`${prefix}${indent}`)(item)
-//         return list.flatMap(g)
-//     }
-
-//     /** @type {(v: string) => string} */
-//     const indentFn = v => `${indent}${v}`
-//     const map = list.map(indentFn)
-//     /** @type {(item: Item) => list.List<string>} */
-//     const flatItem = item => typeof (item) === 'string' ? [item] : map(flatText(item))
-//     const flatText = list.flatMap(flatItem)
-//     return flatText
-// }
-
 /** @type {(indent: string) => (text: Block) => list.List<string>} */
 const flat = indent => {
-    /** @type {(v: string) => string} */
-    const indentFn = v => `${indent}${v}`
-    const map = list.map(indentFn)
-    /** @type {(item: Item) => list.List<string>} */
-    const flatItem = item => typeof(item) === 'string' ? [item] : map(flatText(item))
-    const flatText = list.flatMap(flatItem)
-    return flatText
+
+    /** @type {(n: number) => (text: Block) => list.List<string>} */
+    const f = n => {
+        /** @type {(item: Item) => list.List<string>} */
+        const g = item => typeof (item) === 'string' ? list.concat(list.repeat(indent)(n))([item, '\n']) : f(n + 1)(item)
+        return list.flatMap(g)
+    }
+
+    return f(0)
 }
 
 module.exports = {

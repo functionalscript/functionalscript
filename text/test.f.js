@@ -9,10 +9,11 @@ const list = require('../types/list/main.f.js')
         [
             'c',
             ['d'],
-        ]
+        ],
+        'e',
     ]
-    const result = list.join('\n')(_.flat('_')(text))
-    if (result !== 'a\nb\n_c\n__d') { throw result }
+    const result = list.join('')(_.flat(':')(text))
+    if (result !== 'a\nb\n:c\n::d\ne\n') { throw result }
 }
 
 module.exports = {}
