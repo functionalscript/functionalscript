@@ -2,7 +2,7 @@ const _ = require('./main.f.js')
 const list = require('../types/list/main.f.js')
 
 {
-    /** @type {_.Text} */
+    /** @type {_.Block} */
     const text = [
         'a',
         'b',

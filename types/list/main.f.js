@@ -214,6 +214,9 @@ const countdown = count => () => {
     return { first, tail: countdown(first) }
 }
 
+/** @type {<T>(v: T) => (c: number) => List<T>} */
+const repeat = v => n => map(() => v)(countdown(n))
+
 /** @type {<T>(list: List<T>) => List<T>} */
 const cycle = list => () => {
     const i = next(list)
@@ -353,6 +356,8 @@ module.exports = {
     includes,
     /** @readonly */
     countdown,
+    /** @readonly */
+    repeat,
     /** @readonly */
     cycle,
     /** @readonly */
