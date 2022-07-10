@@ -11,14 +11,14 @@ const list = require('../types/list/main.f.js')
 /** @type {(indent: string) => (text: Block) => list.List<string>} */
 const flat = indent => {
 
-    /** @type {(n: number) => (text: Block) => list.List<string>} */
-    const f = n => {
+    /** @type {(prefix: string) => (text: Block) => list.List<string>} */
+    const f = prefix => {
         /** @type {(item: Item) => list.List<string>} */
-        const g = item => typeof (item) === 'string' ? list.concat(list.repeat(indent)(n))([item, '\n']) : f(n + 1)(item)
+        const g = item => typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
         return list.flatMap(g)
     }
 
-    return f(0)
+    return f('')
 }
 
 module.exports = {

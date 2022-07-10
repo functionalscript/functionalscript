@@ -12,8 +12,8 @@ const list = require('../types/list/main.f.js')
         ],
         'e',
     ]
-    const result = list.join('')(_.flat(':')(text))
-    if (result !== 'a\nb\n:c\n::d\ne\n') { throw result }
+    const result = list.join('\n')(_.flat(':')(text))
+    if (result !== 'a\nb\n:c\n::d\ne') { throw result }
 }
 
 module.exports = {}
