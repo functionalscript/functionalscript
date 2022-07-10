@@ -172,8 +172,7 @@ const drop = n => apply(dropStep(n))
 /** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
 const first = def => input => {
     const result = next(input)
-    if (result === undefined) { return def }
-    return result.first
+    return result === undefined ? def : result.first
 }
 
 /** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */

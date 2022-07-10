@@ -1,8 +1,12 @@
 const list = require('../types/list/main.f.js')
 
-/** @typedef {readonly Item[]} Text */
+/** @typedef {list.List<Item>} Text */
 
-/** @typedef {string|Text} Item */
+/** @typedef {readonly Item[]} ItemArray */
+
+/** @typedef {() => Text} ItemThunk */
+
+/** @typedef {string|ItemArray|ItemThunk} Item */
 
 /** @type {(indent: string) => (text: Text) => list.List<string>} */
 const flat = indent => {
