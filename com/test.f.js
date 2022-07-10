@@ -12,7 +12,7 @@ const library = {
         guid: 'C66FB270-2D80-49AD-BB6E-88C1F90B805D',
         interface: [
             ['GetSlice', [], 'Slice'],
-            ['SetSlice', [['slice', 'Slice']], ''],
+            ['SetSlice', [['slice', 'Slice']], null],
         ],
     }
 }

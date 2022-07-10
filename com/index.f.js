@@ -19,7 +19,7 @@
 
 /** @typedef {readonly[string, FieldArray, Type]} Method */
 
-/** @typedef {string|Pointer} Type */
+/** @typedef {null|string|Pointer} Type */
 
 /** @typedef {readonly['*', Type]} Pointer */
 
