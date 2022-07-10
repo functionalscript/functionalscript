@@ -1,4 +1,6 @@
 const _ = require('./main.f.js')
+const list = require('../types/list/main.f.js')
+const text = require('../text/main.f.js')
 
 /** @type {_.Library} */
 const library = {
@@ -18,6 +20,18 @@ const library = {
             ],
         ],
     }
+}
+
+{
+    const cs = list.join('\n')(text.flat('    ')(_.cs('My')(library)))
+    const e =
+        'using System;\n' +
+        'using System.Runtime.InteropServices;\n' +
+        '\n' +
+        'namespace My\n' +
+        '{\n' +
+        '}'
+    if (cs !== e) { throw cs }
 }
 
 module.exports = {}

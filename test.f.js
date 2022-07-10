@@ -17,6 +17,7 @@ require('./commonjs/build/test.f.js')
 require('./types/range/test.f.js')
 require('./html/test.f.js')
 require('./text/test.f.js')
+require('./com/test.f.js')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

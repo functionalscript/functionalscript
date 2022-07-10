@@ -1,3 +1,7 @@
+const text = require('../text/main.f.js')
+// const list = require('../types/list/main.f')
+const obj = require('../types/object/main.f.js')
+
 /** @typedef {{readonly[k in string]: Definition}} Library */
 
 /** @typedef {Struct|Interface} Definition */
@@ -27,4 +31,26 @@
 
 /** @typedef {{readonly '*': Type}} Pointer */
 
-module.exports = {}
+/** @type {(name: string) => (library: Library) => text.Block} */
+const cs = name => library => {
+    /** @type {(v: string) => string} */
+    const using = v => `using ${v};`
+
+    const v = Object.entries(library)
+
+    return [
+        using('System'),
+        using('System.Runtime.InteropServices'),
+        '',
+        `namespace ${name}`,
+        `{`,
+        [
+        ],
+        `}`,
+    ]
+}
+
+module.exports = {
+    /** @readonly */
+    cs,
+}
