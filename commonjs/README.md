@@ -2,7 +2,7 @@
 
 ## Package
 
-[package/index.js](package/index.js)
+[package/main.f.js](package/main.f.js)
 
 ```ts
 // A dictionary of packages.
@@ -31,7 +31,7 @@ type Package = {
 
 ## Module
 
-[module/index.js](module/index.js)
+[module/main.f.js](module/main.f.js)
 
 ```ts
 // A module map is a dictionary of modules.
