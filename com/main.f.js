@@ -46,7 +46,13 @@ const csUsing = v => `using ${v};`
 /** @type {(type: string) => (name: string) => (body: text.Block) => text.Block} */
 const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
 
-/** @type {(attributes: list.List<string>) => (type: string) => (name: string) => (body: text.Block) => list.List<text.Item>} */
+/**
+ * @type {(attributes: list.List<string>) =>
+ *  (type: string) =>
+ *  (name: string) =>
+ *  (body: text.Block) =>
+ *  list.List<text.Item>}
+ */
 const csTypeDef = attributes => type => name => body =>
     list.flat([
         list.map(v=>`[${v}]`)(attributes),
@@ -73,25 +79,40 @@ const csBaseType = t => {
 }
 
 /** @type {(t: Type) => string} */
-const csType = t => {
-    if (typeof(t) === 'string') {
-        return csBaseType(t)
-    }
-    if (t instanceof Array) {
-        return t[0]
-    }
-    return `${csType(t['*'])}*`
-}
+const csType = t =>
+    typeof(t) === 'string' ? csBaseType(t) :
+    t instanceof Array ? t[0] :
+    `${csType(t['*'])}*`
 
 /** @type {(f: Field) => string} */
-const csField = f => `public ${csType(f[1])} ${f[0]};`
+const csParam = ([name, type]) => `${csType(type)} ${name}`
+
+/** @type {(f: Field) => string} */
+const csField = f => `public ${csParam(f)};`
+
+/** @type {(m: Method) => string} */
+const csResult = m => m.length === 2 ? 'void' : csType(m[2])
+
+/** @type {(m: Method) => readonly string[]} */
+const csMethod = m => [
+    '[PreserveSig]',
+    `${csResult(m)} ${m[0]}(${list.join(',')(list.map(csParam)(m[1]))});`
+]
 
 /** @type {(e: obj.Entry<Definition>) => list.List<text.Item>} */
 const csDef = ([n, d]) => {
     const i = d.interface
     return i === undefined ?
-        csTypeDef(['StructLayout(LayoutKind.Sequential)'])('struct')(n)(() => list.map(csField)(d.struct)) :
-        csTypeDef([`Guid("${d.guid}")`,'InterfaceType(ComInterfaceType.InterfaceIsUnknown)'])('interface')(n)([])
+        csTypeDef
+            (['StructLayout(LayoutKind.Sequential)'])
+            ('struct')
+            (n)
+            (() => list.map(csField)(d.struct)) :
+        csTypeDef
+            ([`Guid("${d.guid}")`,'InterfaceType(ComInterfaceType.InterfaceIsUnknown)'])
+            ('interface')
+            (n)
+            (() => list.flatMap(csMethod)(d.interface))
 }
 
 /** @type {(name: string) => (library: Library) => text.Block} */

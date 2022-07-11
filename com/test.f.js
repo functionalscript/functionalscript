@@ -37,6 +37,10 @@ const library = {
         '    [InterfaceType(ComInterfaceType.InterfaceIsUnknown)]\n' +
         '    public interface IMy\n' +
         '    {\n' +
+        '        [PreserveSig]\n' +
+        '        Slice GetSlice();\n' +
+        '        [PreserveSig]\n' +
+        '        void SetSlice(Slice slice);\n' +
         '    }\n' +
         '}'
     if (cs !== e) { throw [cs,e] }
