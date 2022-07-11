@@ -1,12 +1,17 @@
 const text = require('../text/main.f.js')
-// const list = require('../types/list/main.f')
+const list = require('../types/list/main.f')
 const obj = require('../types/object/main.f.js')
 
 /** @typedef {{readonly[k in string]: Definition}} Library */
 
 /** @typedef {Struct|Interface} Definition */
 
-/** @typedef {{readonly struct: FieldArray}} Struct */
+/**
+ * @typedef {{
+ *  readonly interface?: undefined
+ *  readonly struct: FieldArray
+ * }} Struct
+ */
 
 /** @typedef {readonly Field[]} FieldArray */
 
@@ -31,23 +36,31 @@ const obj = require('../types/object/main.f.js')
 
 /** @typedef {{readonly '*': Type}} Pointer */
 
+/** @type {(v: string) => string} */
+const csUsing = v => `using ${v};`
+
+/** @type {(type: string) => (name: string) => (body: text.Block) => text.Block} */
+const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
+
+/** @type {(e: obj.Entry<Definition>) => text.Block} */
+const csDef = ([n, d]) => {
+    const i = d.interface
+    return i === undefined ? csBlock('public struct')(n)([]) : csBlock('public interface')(n)([])
+}
+
 /** @type {(name: string) => (library: Library) => text.Block} */
 const cs = name => library => {
-    /** @type {(v: string) => string} */
-    const using = v => `using ${v};`
+    const v = list.flatMap(csDef)(Object.entries(library))
 
-    const v = Object.entries(library)
-
-    return [
-        using('System'),
-        using('System.Runtime.InteropServices'),
-        '',
-        `namespace ${name}`,
-        `{`,
-        [
-        ],
-        `}`,
+    /** @type {text.Block} */
+    const h = [
+        csUsing('System'),
+        csUsing('System.Runtime.InteropServices'),
+        ''
     ]
+
+    const ns = csBlock('namespace')(name)(() => v)
+    return () => list.flat([h, ns])
 }
 
 module.exports = {

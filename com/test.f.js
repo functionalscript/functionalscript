@@ -30,6 +30,12 @@ const library = {
         '\n' +
         'namespace My\n' +
         '{\n' +
+        '    public struct Slice\n' +
+        '    {\n' +
+        '    }\n' +
+        '    public interface IMy\n' +
+        '    {\n' +
+        '    }\n' +
         '}'
     if (cs !== e) { throw cs }
 }

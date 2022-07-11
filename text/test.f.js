@@ -6,9 +6,9 @@ const list = require('../types/list/main.f.js')
     const text = [
         'a',
         'b',
-        [
+        () => [
             'c',
-            ['d'],
+            () => ['d'],
         ],
         'e',
     ]

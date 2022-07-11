@@ -1,10 +1,10 @@
 const list = require('../types/list/main.f.js')
 
-/** @typedef {list.List<Item>} Block */
+/** @typedef {ItemThunk|ItemArray} Block */
 
 /** @typedef {readonly Item[]} ItemArray */
 
-/** @typedef {() => Block} ItemThunk */
+/** @typedef {() => list.List<Item>} ItemThunk */
 
 /** @typedef {string|ItemArray|ItemThunk} Item */
 
