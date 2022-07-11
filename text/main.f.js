@@ -1,18 +1,24 @@
 const list = require('../types/list/main.f.js')
 
-/** @typedef {readonly Item[]} Text */
+/** @typedef {ItemThunk|ItemArray} Block */
 
-/** @typedef {string|Text} Item */
+/** @typedef {readonly Item[]} ItemArray */
 
-/** @type {(indent: string) => (text: Text) => list.List<string>} */
+/** @typedef {() => list.List<Item>} ItemThunk */
+
+/** @typedef {string|ItemArray|ItemThunk} Item */
+
+/** @type {(indent: string) => (text: Block) => list.List<string>} */
 const flat = indent => {
-    /** @type {(v: string) => string} */
-    const indentFn = v => `${indent}${v}`
-    const map = list.map(indentFn)
-    /** @type {(item: Item) => list.List<string>} */
-    const flatItem = item => typeof(item) === 'string' ? [item] : map(flatText(item))
-    const flatText = list.flatMap(flatItem)
-    return flatText
+
+    /** @type {(prefix: string) => (text: Block) => list.List<string>} */
+    const f = prefix => {
+        /** @type {(item: Item) => list.List<string>} */
+        const g = item => typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
+        return list.flatMap(g)
+    }
+
+    return f('')
 }
 
 module.exports = {

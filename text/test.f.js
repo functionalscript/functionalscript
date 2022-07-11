@@ -2,17 +2,18 @@ const _ = require('./main.f.js')
 const list = require('../types/list/main.f.js')
 
 {
-    /** @type {_.Text} */
+    /** @type {_.Block} */
     const text = [
         'a',
         'b',
-        [
+        () => [
             'c',
-            ['d'],
-        ]
+            () => ['d'],
+        ],
+        'e',
     ]
-    const result = list.join('\n')(_.flat('_')(text))
-    if (result !== 'a\nb\n_c\n__d') { throw result }
+    const result = list.join('\n')(_.flat(':')(text))
+    if (result !== 'a\nb\n:c\n::d\ne') { throw result }
 }
 
 module.exports = {}

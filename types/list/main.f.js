@@ -172,8 +172,7 @@ const drop = n => apply(dropStep(n))
 /** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
 const first = def => input => {
     const result = next(input)
-    if (result === undefined) { return def }
-    return result.first
+    return result === undefined ? def : result.first
 }
 
 /** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */
@@ -214,6 +213,9 @@ const countdown = count => () => {
     const first = count - 1
     return { first, tail: countdown(first) }
 }
+
+/** @type {<T>(v: T) => (c: number) => List<T>} */
+const repeat = v => n => map(() => v)(countdown(n))
 
 /** @type {<T>(list: List<T>) => List<T>} */
 const cycle = list => () => {
@@ -354,6 +356,8 @@ module.exports = {
     includes,
     /** @readonly */
     countdown,
+    /** @readonly */
+    repeat,
     /** @readonly */
     cycle,
     /** @readonly */

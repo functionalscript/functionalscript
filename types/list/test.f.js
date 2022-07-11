@@ -354,6 +354,16 @@ const stress = () => {
     }
 }
 
+{
+    const s = _.join('.')(_.repeat('x')(0))
+    if (s != '') { throw s }
+}
+
+{
+    const s = _.join('.')(_.repeat('x')(5))
+    if (s != 'x.x.x.x.x') { throw s }
+}
+
 // stress()
 
 module.exports = {
