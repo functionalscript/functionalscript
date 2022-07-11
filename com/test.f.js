@@ -30,14 +30,16 @@ const library = {
         '\n' +
         'namespace My\n' +
         '{\n' +
+        '    [StructLayout(LayoutKind.Sequential)]\n' +
         '    public struct Slice\n' +
         '    {\n' +
         '    }\n' +
+        '    [Guid("C66FB270-2D80-49AD-BB6E-88C1F90B805D"),InterfaceType(ComInterfaceType.InterfaceIsUnknown)]\n' +
         '    public interface IMy\n' +
         '    {\n' +
         '    }\n' +
         '}'
-    if (cs !== e) { throw cs }
+    if (cs !== e) { throw [cs,e] }
 }
 
 module.exports = {}

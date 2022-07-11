@@ -42,10 +42,15 @@ const csUsing = v => `using ${v};`
 /** @type {(type: string) => (name: string) => (body: text.Block) => text.Block} */
 const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
 
-/** @type {(e: obj.Entry<Definition>) => text.Block} */
+/** @type {(attributes: string) => (type: string) => (name: string) => (body: text.Block) => list.List<text.Item>} */
+const csType = attributes => type => name => body => list.flat([[`[${attributes}]`], csBlock(`public ${type}`)(name)(body)])
+
+/** @type {(e: obj.Entry<Definition>) => list.List<text.Item>} */
 const csDef = ([n, d]) => {
     const i = d.interface
-    return i === undefined ? csBlock('public struct')(n)([]) : csBlock('public interface')(n)([])
+    return i === undefined ?
+        csType('StructLayout(LayoutKind.Sequential)')('struct')(n)([]) :
+        csType(`Guid("${d.guid}"),InterfaceType(ComInterfaceType.InterfaceIsUnknown)`)('interface')(n)([])
 }
 
 /** @type {(name: string) => (library: Library) => text.Block} */
