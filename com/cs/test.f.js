@@ -1,8 +1,9 @@
+const types = require('../types/main.f.js')
 const _ = require('./main.f.js')
-const list = require('../types/list/main.f.js')
-const text = require('../text/main.f.js')
+const list = require('../../types/list/main.f.js')
+const text = require('../../text/main.f.js')
 
-/** @type {_.Library} */
+/** @type {types.Library} */
 const library = {
     Slice: {
         struct: [
