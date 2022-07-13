@@ -20,6 +20,7 @@ const library = {
     }
 }
 
+const f = () =>
 {
     const cs = list.join('\n')(text.flat('    ')(_.cs('My')(library)))
     const e =
@@ -31,11 +32,11 @@ const library = {
         '    [StructLayout(LayoutKind.Sequential)]\n' +
         '    public struct Slice\n' +
         '    {\n' +
-        '        public byte* Start;\n' +
+        '        public unsafe byte* Start;\n' +
         '        public UIntPtr Size;\n' +
         '    }\n' +
         '    [Guid("C66FB270-2D80-49AD-BB6E-88C1F90B805D")]\n' +
-        '    [InterfaceType(ComInterfaceType.InterfaceIsUnknown)]\n' +
+        '    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\n' +
         '    public interface IMy\n' +
         '    {\n' +
         '        [PreserveSig]\n' +
@@ -45,6 +46,12 @@ const library = {
         '    }\n' +
         '}'
     if (cs !== e) { throw [cs,e] }
+    return cs
 }
 
-module.exports = {}
+const result = f()
+
+module.exports = {
+    /** @readonly */
+    result,
+}

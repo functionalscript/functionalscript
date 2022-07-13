@@ -41,26 +41,39 @@ const csBaseType = t => {
     }
 }
 
-/** @type {(t: types.Type) => string} */
+/** @type {(isUnsafe: boolean) => string} */
+const unsafe = isUnsafe => isUnsafe ? 'unsafe ' : ''
+
+/** @type {(t: types.Type) => readonly[boolean, string]} */
 const csType = t =>
-    typeof (t) === 'string' ? csBaseType(t) :
-        t instanceof Array ? t[0] :
-            `${csType(t['*'])}*`
+    typeof (t) === 'string' ? [false, csBaseType(t)] :
+        t instanceof Array ? [false, t[0]] :
+            [true, `${csType(t['*'])[1]}*`]
 
 /** @type {(f: types.Field) => string} */
-const csParam = ([name, type]) => `${csType(type)} ${name}`
+const csParam = ([name, type]) => `${csType(type)[1]} ${name}`
 
 /** @type {(f: types.Field) => string} */
-const csField = f => `public ${csParam(f)};`
+const csField = ([name, type]) => {
+    const [isUnsafe, t] = csType(type)
+    return `public ${unsafe(isUnsafe)}${t} ${name};`
+}
 
-/** @type {(m: types.Method) => string} */
-const csResult = m => m.length === 2 ? 'void' : csType(m[2])
+/** @type {(m: types.Method) => readonly[boolean, string]} */
+const csResult = m => m.length === 2 ? [false, 'void'] : csType(m[2])
+
+/** @type {(field: types.Field) => boolean} */
+const isUnsafeField = field => csType(field[1])[0]
 
 /** @type {(m: types.Method) => readonly string[]} */
-const csMethod = m => [
-    '[PreserveSig]',
-    `${csResult(m)} ${m[0]}(${list.join(',')(list.map(csParam)(m[1]))});`
-]
+const csMethod = m => {
+    const result = csResult(m)
+    const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(m[1]))
+    return [
+        '[PreserveSig]',
+        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(',')(list.map(csParam)(m[1]))});`
+    ]
+}
 
 /** @type {(e: obj.Entry<types.Definition>) => list.List<text.Item>} */
 const csDef = ([n, d]) => {
@@ -72,7 +85,7 @@ const csDef = ([n, d]) => {
             (n)
             (() => list.map(csField)(d.struct)) :
         csTypeDef
-            ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsUnknown)'])
+            ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
             (() => list.flatMap(csMethod)(d.interface))

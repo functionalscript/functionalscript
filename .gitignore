@@ -102,3 +102,11 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Visual Studio
+obj/
+bin/
+.vs/
+
+# temoprary files
+_result.cs
