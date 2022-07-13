@@ -71,7 +71,7 @@ const csMethod = m => {
     const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(m[1]))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(',')(list.map(csParam)(m[1]))});`
+        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(', ')(list.map(csParam)(m[1]))});`
     ]
 }
 

@@ -16,7 +16,8 @@ const library = {
         interface: [
             ['GetSlice', [], ['Slice']],
             ['SetSlice', [['slice', ['Slice']]]],
-            ['Unsafe', [['p', {'*': ['Slice']}]]],
+            ['GetUnsafe', [], {'*': 'bool'}],
+            ['SetUnsafe', [['p', {'*': ['Slice']}], ['size', 'u32']]],
         ],
     }
 }
@@ -45,7 +46,9 @@ const f = () =>
         '        [PreserveSig]\n' +
         '        void SetSlice(Slice slice);\n' +
         '        [PreserveSig]\n' +
-        '        unsafe void Unsafe(Slice* p);\n' +
+        '        unsafe bool* GetUnsafe();\n' +
+        '        [PreserveSig]\n' +
+        '        unsafe void SetUnsafe(Slice* p, uint size);\n' +
         '    }\n' +
         '}'
     if (cs !== e) { throw [cs,e] }
