@@ -16,6 +16,7 @@ const library = {
         interface: [
             ['GetSlice', [], ['Slice']],
             ['SetSlice', [['slice', ['Slice']]]],
+            ['Unsafe', [['p', {'*': ['Slice']}]]],
         ],
     }
 }
@@ -43,6 +44,8 @@ const f = () =>
         '        Slice GetSlice();\n' +
         '        [PreserveSig]\n' +
         '        void SetSlice(Slice slice);\n' +
+        '        [PreserveSig]\n' +
+        '        unsafe void Unsafe(Slice* p);\n' +
         '    }\n' +
         '}'
     if (cs !== e) { throw [cs,e] }
