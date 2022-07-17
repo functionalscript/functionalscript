@@ -12,8 +12,12 @@ const codePointToUtf8Map = input =>
         return [['ok', input & 0x7f]]
     else if (input >= 0x0080 && input <= 0x07ff)
         return [['ok', input >> 6 | 0xc0],['ok', input & 0x3f | 0x80]]
+    else if (input >= 0x0800 && input <= 0xffff)
+        return [['ok', input >> 12 | 0xe0],['ok', input >> 6 & 0x3f | 0x80],['ok', input & 0x3f | 0x80]]
+    else if (input >= 0x10000 && input <= 0x10ffff)
+        return [['ok', input >> 18 | 0xf0],['ok', input >> 12 & 0x3f | 0x80],['ok', input >> 6 & 0x3f | 0x80],['ok', input & 0x3f | 0x80]]
     else
-        return todo()
+        return [['error', input]]
 }
 
 /** @type {(input: list.List<number>) => list.List<Utf8Result>} */
