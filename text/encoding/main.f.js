@@ -6,7 +6,7 @@ const list = require('../../types/list/main.f.js')
 /** @typedef {result.Result<number,number>} Utf8Result */
 
 /** @type {(input:number) => list.List<Utf8Result>} */
-const codePointToUtf8Map = input =>
+const codePointToUtf8 = input =>
 {
     if (input >= 0x0000 && input <= 0x007f)
         return [['ok', input & 0x7f]]
@@ -21,9 +21,9 @@ const codePointToUtf8Map = input =>
 }
 
 /** @type {(input: list.List<number>) => list.List<Utf8Result>} */
-const codePointToUtf8 = list.flatMap(codePointToUtf8Map)
+const codePointsToUtf8 = list.flatMap(codePointToUtf8)
 
 module.exports = {
     /** @readonly */
-    codePointToUtf8
+    codePointsToUtf8
 }
