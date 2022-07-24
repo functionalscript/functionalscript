@@ -91,4 +91,29 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[["ok",255],["ok",255]]') { throw result }
 }
 
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([0x10000])))
+    if (result !== '[["ok",216],["ok",0],["ok",220],["ok",0]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([0x10437])))
+    if (result !== '[["ok",216],["ok",1],["ok",220],["ok",55]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([0x24B62])))
+    if (result !== '[["ok",216],["ok",82],["ok",223],["ok",98]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([0x10ffff])))
+    if (result !== '[["ok",219],["ok",255],["ok",223],["ok",255]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([-1, 0xd800, 0xdfff, 0x110000])))
+    if (result !== '[["error",-1],["error",55296],["error",57343],["error",1114112]]') { throw result }
+}
+
 module.exports = {}

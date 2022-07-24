@@ -24,9 +24,19 @@ const codePointToUtf8 = input =>
 const codePointToUtf16 = input =>
 {
     if (input >= 0x0000 && input <= 0xd7ff || input >= 0xe000 && input <= 0xffff)
-        return [['ok', input >> 8 & 0xff], ['ok', input & 0xff]]
+    {
+        return [['ok', input >> 8], ['ok', input & 0xff]]
+    }        
+    else if (input >= 0x010000 && input <= 0x10ffff)
+    {
+        const high = ((input - 0x10000) >> 10) + 0xd800
+        const low = ((input - 0x10000) & 0x3ff) + 0xdc00       
+        return [['ok', high >> 8], ['ok', high & 0xff], ['ok', low >> 8], ['ok', low & 0xff]]
+    }        
     else
-        return todo()
+    {
+        return [['error', input]]
+    }    
 }
 
 /** @type {(input: list.List<number>) => list.List<Utf8Result>} */
