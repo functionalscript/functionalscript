@@ -27,14 +27,14 @@ const codePointToUtf16 = input =>
 }
 
 /** @type {(input: list.List<number>) => list.List<Utf8Result>} */
-const codePointsToUtf8 = list.flatMap(codePointToUtf8)
+const codePointListToUtf8 = list.flatMap(codePointToUtf8)
 
 /** @type {(input: list.List<number>) => list.List<Utf8Result>} */
-const codePointsToUtf16 = list.flatMap(codePointToUtf16)
+const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 
 module.exports = {
     /** @readonly */
-    codePointsToUtf8,
+    codePointListToUtf8,
     /** @readonly */
-    codePointsToUtf16,
+    codePointListToUtf16,
 }
