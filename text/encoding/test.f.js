@@ -61,4 +61,34 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[["error",-1],["error",1114112]]') { throw result }
 }
 
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([0])))
+    if (result !== '[["ok",0],["ok",0]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([36])))
+    if (result !== '[["ok",0],["ok",36]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([8364])))
+    if (result !== '[["ok",32],["ok",172]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([55295])))
+    if (result !== '[["ok",215],["ok",255]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([57344])))
+    if (result !== '[["ok",224],["ok",0]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.codePointsToUtf16([65535])))
+    if (result !== '[["ok",255],["ok",255]]') { throw result }
+}
+
 module.exports = {}

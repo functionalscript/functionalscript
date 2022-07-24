@@ -20,10 +20,24 @@ const codePointToUtf8 = input =>
         return [['error', input]]
 }
 
+/** @type {(input:number) => list.List<Utf8Result>} */
+const codePointToUtf16 = input =>
+{
+    if (input >= 0x0000 && input <= 0xd7ff || input >= 0xe000 && input <= 0xffff)
+        return [['ok', input >> 8 & 0xff], ['ok', input & 0xff]]
+    else
+        return todo()
+}
+
 /** @type {(input: list.List<number>) => list.List<Utf8Result>} */
 const codePointsToUtf8 = list.flatMap(codePointToUtf8)
 
+/** @type {(input: list.List<number>) => list.List<Utf8Result>} */
+const codePointsToUtf16 = list.flatMap(codePointToUtf16)
+
 module.exports = {
     /** @readonly */
-    codePointsToUtf8
+    codePointsToUtf8,
+    /** @readonly */
+    codePointsToUtf16,
 }
