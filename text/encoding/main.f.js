@@ -1,8 +1,17 @@
 const result = require('../../types/result/main.f.js')
 const list = require('../../types/list/main.f.js')
+const operator = require('../../types/function/operator/main.f.js')
+const array = require('../../types/array/main.f.js')
+const { todo } = require('../../dev/main.f.js')
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} ByteResult */
+
+/** @typedef {result.Result<number,readonly number[]>} CodePointResult */
+
+/** @typedef {number|undefined} ByteOrEof */
+
+/** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8State */
 
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
@@ -32,9 +41,36 @@ const codePointListToUtf8 = list.flatMap(codePointToUtf8)
 /** @type {(input: list.List<number>) => list.List<ByteResult>} */
 const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 
+/** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
+const utf8ByteToCodePointOp = state => byte => {
+    if (byte < 0 || byte > 255) {        
+        return [[error(list.toArray(list.concat(state)([byte])))], undefined]
+    }
+    if (state == undefined) {
+        return todo()
+    }
+    switch(state.length)
+    {
+        case 1: return todo()
+        case 2: return todo()
+        case 3: return todo()
+    }
+}
+
+/** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf8State]} */
+const utf8EofToCodePointOp = state => [state == undefined ? undefined : [error(state)],  undefined]
+
+/** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<CodePointResult>>} */
+const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
+
+/** @type {(input: list.List<number>) => list.List<CodePointResult>} */
+const utf8ListToCodePoint = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+
 module.exports = {
     /** @readonly */
     codePointListToUtf8,
     /** @readonly */
     codePointListToUtf16,
+    /** @readonly */
+    utf8ListToCodePoint
 }
