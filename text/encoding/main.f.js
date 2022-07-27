@@ -2,9 +2,9 @@ const result = require('../../types/result/main.f.js')
 const list = require('../../types/list/main.f.js')
 const { ok, error } = result
 
-/** @typedef {result.Result<number,number>} Utf8Result */
+/** @typedef {result.Result<number,number>} ByteResult */
 
-/** @type {(input:number) => list.List<Utf8Result>} */
+/** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
 {
     if (input >= 0x0000 && input <= 0x007f) { return [ok(input & 0x7f)] }
@@ -14,7 +14,7 @@ const codePointToUtf8 = input =>
     return [error(input)]
 }
 
-/** @type {(input:number) => list.List<Utf8Result>} */
+/** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf16 = input =>
 {
     if (input >= 0x0000 && input <= 0xd7ff || input >= 0xe000 && input <= 0xffff) { return [ok(input >> 8), ok(input & 0xff)] }
@@ -26,10 +26,10 @@ const codePointToUtf16 = input =>
     return [error(input)]
 }
 
-/** @type {(input: list.List<number>) => list.List<Utf8Result>} */
+/** @type {(input: list.List<number>) => list.List<ByteResult>} */
 const codePointListToUtf8 = list.flatMap(codePointToUtf8)
 
-/** @type {(input: list.List<number>) => list.List<Utf8Result>} */
+/** @type {(input: list.List<number>) => list.List<ByteResult>} */
 const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 
 module.exports = {
