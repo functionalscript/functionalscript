@@ -4,11 +4,11 @@ module.exports = {
     /** @readonly */
     dev: require('./dev/main.f.cjs'),
     /** @readonly */
-    html: require('./html/main.f.js'),
+    html: require('./html/main.f.cjs'),
     /** @readonly */
-    json: require('./json/main.f.js'),
+    json: require('./json/main.f.cjs'),
     /** @readonly */
-    sha2: require('./sha2/main.f.js'),
+    sha2: require('./sha2/main.f.cjs'),
     /** @readonly */
-    types: require('./types/main.f.js'),
+    types: require('./types/main.f.cjs'),
 }

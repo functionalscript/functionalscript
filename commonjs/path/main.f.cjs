@@ -1,4 +1,4 @@
-const list = require("../../types/list/main.f.js")
+const list = require("../../types/list/main.f.cjs")
 const package_ = require("../package/main.f.cjs")
 const module_ = require("../module/main.f.cjs")
 

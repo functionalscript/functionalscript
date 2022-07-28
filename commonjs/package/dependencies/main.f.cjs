@@ -1,5 +1,5 @@
-const json = require('../../../json/main.f.js')
-const list = require('../../../types/list/main.f.js')
+const json = require('../../../json/main.f.cjs')
+const list = require('../../../types/list/main.f.cjs')
 
 /** @typedef {readonly[string, string]} DependencyJson */
 

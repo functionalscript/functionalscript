@@ -1,7 +1,7 @@
 const types = require('../types/main.f.cjs')
-const text = require('../../text/main.f.js')
-const list = require('../../types/list/main.f.js')
-const obj = require('../../types/object/main.f.js')
+const text = require('../../text/main.f.cjs')
+const list = require('../../types/list/main.f.cjs')
+const obj = require('../../types/object/main.f.cjs')
 
 /** @type {(v: string) => string} */
 const using = v => `using ${v};`

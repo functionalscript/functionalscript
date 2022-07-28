@@ -1,9 +1,9 @@
 const _ = require('./main.f.cjs')
 const { todo } = require('../../dev/main.f.cjs')
-const json = require('../../json/main.f.js')
-const { identity } = require('../../types/function/main.f.js')
-const object = require('../../types/object/main.f.js')
-const { at } = require('../../types/object/main.f.js')
+const json = require('../../json/main.f.cjs')
+const { identity } = require('../../types/function/main.f.cjs')
+const object = require('../../types/object/main.f.cjs')
+const { at } = require('../../types/object/main.f.cjs')
 const package_ = require('../package/main.f.cjs')
 
 /** @type {(g: json.Unknown|undefined) => string} */

@@ -1,7 +1,7 @@
 const types = require('../types/main.f.cjs')
 const _ = require('./main.f.cjs')
-const list = require('../../types/list/main.f.js')
-const text = require('../../text/main.f.js')
+const list = require('../../types/list/main.f.cjs')
+const text = require('../../text/main.f.cjs')
 
 /** @type {types.Library} */
 const library = {

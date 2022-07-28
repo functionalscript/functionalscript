@@ -2,7 +2,7 @@
  * An IO interface for creating and running module functions.
  */
 
-const result = require('../../../types/result/main.f.js')
+const result = require('../../../types/result/main.f.cjs')
 
 /** @typedef {<M>(require: Require<M>) => (prior: M) => Result<M>} Function_ */
 
