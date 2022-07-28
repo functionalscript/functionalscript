@@ -1,6 +1,6 @@
 const list = require("../../types/list/main.f.js")
-const package_ = require("../package/main.f.js")
-const module_ = require("../module/main.f.js")
+const package_ = require("../package/main.f.cjs")
+const module_ = require("../module/main.f.cjs")
 
 /** @typedef {readonly string[]} Items */
 
@@ -98,7 +98,7 @@ const mapDependency = d => ([external, internal]) => {
  *  (items: list.List<string>) =>
  *  Path|undefined}
  */
-const parseGlobal = dependencies => 
+const parseGlobal = dependencies =>
 {
     const filterMap = list.filterMap(mapDependency(dependencies))
     return dir => items => {

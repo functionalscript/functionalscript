@@ -1,4 +1,4 @@
-const types = require('../types/main.f.js')
+const types = require('../types/main.f.cjs')
 const text = require('../../text/main.f.js')
 
 /** @type {(name: string) => (library: types.Library) => text.Block} */

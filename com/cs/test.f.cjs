@@ -1,4 +1,4 @@
-const types = require('../types/main.f.js')
+const types = require('../types/main.f.cjs')
 const _ = require('./main.f.cjs')
 const list = require('../../types/list/main.f.js')
 const text = require('../../text/main.f.js')

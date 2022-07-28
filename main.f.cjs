@@ -1,6 +1,6 @@
 module.exports = {
     /** @readonly */
-    commonjs: require('./commonjs/main.f.js'),
+    commonjs: require('./commonjs/main.f.cjs'),
     /** @readonly */
     dev: require('./dev/main.f.js'),
     /** @readonly */

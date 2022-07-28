@@ -1,6 +1,6 @@
-const _ = require('./main.f.js')
+const _ = require('./main.f.cjs')
 
-require('./dependencies/test.f.js')
+require('./dependencies/test.f.cjs')
 
 {
     if (_.isPackageJson(null)) { throw 'error' }

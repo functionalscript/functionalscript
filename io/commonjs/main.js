@@ -1,6 +1,6 @@
 const { tryCatch } = require('../result/main.js')
 const { unwrap } = require('../../types/result/main.f.js')
-const moduleFunction = require('../../commonjs/module/function/main.f.js')
+const moduleFunction = require('../../commonjs/module/function/main.f.cjs')
 
 /** @type {(f: Function) => moduleFunction.Function_} */
 const build = f => immutableRequire => mutableData => {

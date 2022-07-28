@@ -1,4 +1,4 @@
-const _ = require('./main.f.js')
+const _ = require('./main.f.cjs')
 
 {
     if (!_.isDependenciesJson(undefined)) { throw 'error' }
