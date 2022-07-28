@@ -4,7 +4,7 @@ const json = require('../main.f.js')
 const { sort } = require('../../types/object/main.f.js')
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
-const tokenizeString = s => list.toArray(tokenizer.tokenize(list.toCharCodes(s)))
+const tokenizeString = s => list.toArray(tokenizer.tokenize(list.toCharCodeList(s)))
 
 const stringify = json.stringify(sort)
 

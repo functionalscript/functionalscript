@@ -4,10 +4,7 @@ const list = require('../../types/list/main.f.js')
 const obj = require('../../types/object/main.f.js')
 
 /** @type {(v: string) => string} */
-const csUsing = v => `using ${v};`
-
-/** @type {(type: string) => (name: string) => (body: text.Block) => text.Block} */
-const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
+const using = v => `using ${v};`
 
 /**
  * @type {(attributes: list.List<string>) =>
@@ -16,14 +13,14 @@ const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
  *  (body: text.Block) =>
  *  list.List<text.Item>}
  */
-const csTypeDef = attributes => type => name => body =>
+const typeDef = attributes => type => name => body =>
     list.flat([
         list.map(v => `[${v}]`)(attributes),
-        csBlock(`public ${type}`)(name)(body)
+        text.curly(`public ${type}`)(name)(body)
     ])
 
 /** @type {(t: types.BaseType) => string} */
-const csBaseType = t => {
+const baseType = t => {
     switch (t) {
         case 'bool': return 'bool'
         case 'f32': return 'float'
@@ -45,69 +42,72 @@ const csBaseType = t => {
 const unsafe = isUnsafe => isUnsafe ? 'unsafe ' : ''
 
 /** @type {(t: types.Type) => readonly[boolean, string]} */
-const csType = t =>
-    typeof (t) === 'string' ? [false, csBaseType(t)] :
+const type = t =>
+    typeof (t) === 'string' ? [false, baseType(t)] :
         t.length === 1 ? [false, t[0]] :
-            [true, `${csType(t[1])[1]}*`]
+            [true, `${type(t[1])[1]}*`]
 
 /** @type {(f: types.Field) => string} */
-const csParam = ([name, type]) => `${csType(type)[1]} ${name}`
+const param = ([name, t]) => `${type(t)[1]} ${name}`
 
 /** @type {(f: types.Field) => string} */
-const csField = ([name, type]) => {
-    const [isUnsafe, t] = csType(type)
+const field = ([name, comType]) => {
+    const [isUnsafe, t] = type(comType)
     return `public ${unsafe(isUnsafe)}${t} ${name};`
 }
 
-/** @type {(m: types.FieldArray) => readonly[boolean, string]} */
-const csResult = m => m._ === undefined ? [false, 'void'] : csType(m._)
+/** @type {(m: types.FieldArray) => string} */
+const result = m => {
+    const result = m._
+    return result === undefined ? 'void' : type(result)[1]
+}
 
 /** @type {(field: types.Field) => boolean} */
-const isUnsafeField = field => csType(field[1])[0]
+const isUnsafeField = field => type(field[1])[0]
 
 /** @type {(kv: obj.Entry<types.Type>) => boolean} */
 const isParam = kv => kv[0] !== '_'
 
 /** @type {(e: obj.Entry<types.FieldArray>) => readonly string[]} */
-const csMethod = ([name, m]) => {
-    const result = csResult(m)
-    const paramArray = list.filter(isParam)(Object.entries(m))
-    const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(paramArray))
+const method = ([name, m]) => {
+    const paramAndResultList = Object.entries(m)
+    const paramList = list.filter(isParam)(paramAndResultList)
+    const isUnsafe = list.some(list.map(isUnsafeField)(paramAndResultList))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${result[1]} ${name}(${list.join(', ')(list.map(csParam)(paramArray))});`
+        `${unsafe(isUnsafe)}${result(m)} ${name}(${list.join(', ')(list.map(param)(paramList))});`
     ]
 }
 
 /** @type {(e: obj.Entry<types.Definition>) => list.List<text.Item>} */
-const csDef = ([n, d]) => {
+const def = ([n, d]) => {
     const i = d.interface
     return i === undefined ?
-        csTypeDef
+        typeDef
             (['StructLayout(LayoutKind.Sequential)'])
             ('struct')
             (n)
-            (() => list.map(csField)(Object.entries(d.struct))) :
-        csTypeDef
+            (list.map(field)(Object.entries(d.struct))) :
+        typeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (() => list.flatMap(csMethod)(Object.entries(d.interface)))
+            (list.flatMap(method)(Object.entries(d.interface)))
 }
 
 /** @type {(name: string) => (library: types.Library) => text.Block} */
 const cs = name => library => {
-    const v = list.flatMap(csDef)(Object.entries(library))
+    const v = list.flatMap(def)(Object.entries(library))
 
     /** @type {text.Block} */
     const h = [
-        csUsing('System'),
-        csUsing('System.Runtime.InteropServices'),
+        using('System'),
+        using('System.Runtime.InteropServices'),
         ''
     ]
 
-    const ns = csBlock('namespace')(name)(() => v)
-    return () => list.flat([h, ns])
+    const ns = text.curly('namespace')(name)(() => v)
+    return list.flat([h, ns])
 }
 
 module.exports = {

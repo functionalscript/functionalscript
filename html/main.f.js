@@ -73,7 +73,7 @@ const escapeCharCode = code => {
     }
 }
 
-const escape = compose(list.toCharCodes)(list.map(escapeCharCode))
+const escape = compose(list.toCharCodeList)(list.map(escapeCharCode))
 
 /** @type {(n: Node) => list.List<string>} */
 const node = n => typeof n === 'string' ? escape(n) : element(n)
