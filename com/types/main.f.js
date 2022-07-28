@@ -9,7 +9,7 @@
  * }} Struct
  */
 
-/** @typedef {readonly Field[]} FieldArray */
+/** @typedef {{readonly[k in string]: Type}} FieldArray */
 
 /** @typedef {readonly[string, Type]} Field */
 

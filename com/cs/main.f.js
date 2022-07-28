@@ -68,10 +68,11 @@ const isUnsafeField = field => csType(field[1])[0]
 /** @type {(m: types.Method) => readonly string[]} */
 const csMethod = m => {
     const result = csResult(m)
-    const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(m[1]))
+    const paramArray = Object.entries(m[1])
+    const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(paramArray))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(', ')(list.map(csParam)(m[1]))});`
+        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(', ')(list.map(csParam)(paramArray))});`
     ]
 }
 
@@ -83,7 +84,7 @@ const csDef = ([n, d]) => {
             (['StructLayout(LayoutKind.Sequential)'])
             ('struct')
             (n)
-            (() => list.map(csField)(d.struct)) :
+            (() => list.map(csField)(Object.entries(d.struct))) :
         csTypeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
