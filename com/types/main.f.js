@@ -20,11 +20,11 @@
  * }} Interface
  */
 
-/** @typedef {readonly Method[]} MethodArray */
+/** @typedef {{readonly[k in string]: Method}} MethodArray */
 
-/** @typedef {readonly[string, FieldArray, Type]} GetMethod */
+/** @typedef {readonly[FieldArray, Type]} GetMethod */
 
-/** @typedef {readonly[string, FieldArray]} SetMethod */
+/** @typedef {readonly[FieldArray]} SetMethod */
 
 /** @typedef {GetMethod|SetMethod} Method */
 

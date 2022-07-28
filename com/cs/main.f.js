@@ -60,19 +60,19 @@ const csField = ([name, type]) => {
 }
 
 /** @type {(m: types.Method) => readonly[boolean, string]} */
-const csResult = m => m.length === 2 ? [false, 'void'] : csType(m[2])
+const csResult = m => m.length === 1 ? [false, 'void'] : csType(m[1])
 
 /** @type {(field: types.Field) => boolean} */
 const isUnsafeField = field => csType(field[1])[0]
 
-/** @type {(m: types.Method) => readonly string[]} */
-const csMethod = m => {
+/** @type {(e: obj.Entry<types.Method>) => readonly string[]} */
+const csMethod = ([name, m]) => {
     const result = csResult(m)
-    const paramArray = Object.entries(m[1])
+    const paramArray = Object.entries(m[0])
     const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(paramArray))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(', ')(list.map(csParam)(paramArray))});`
+        `${unsafe(isUnsafe)}${result[1]} ${name}(${list.join(', ')(list.map(csParam)(paramArray))});`
     ]
 }
 
@@ -89,7 +89,7 @@ const csDef = ([n, d]) => {
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (() => list.flatMap(csMethod)(d.interface))
+            (() => list.flatMap(csMethod)(Object.entries(d.interface)))
 }
 
 /** @type {(name: string) => (library: types.Library) => text.Block} */
