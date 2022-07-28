@@ -21,7 +21,12 @@ const flat = indent => {
     return f('')
 }
 
+/** @type {(type: string) => (name: string) => (body: Block) => Block} */
+const curly = type => name => body => [`${type} ${name}`, '{', body, '}']
+
 module.exports = {
     /** @readonly */
     flat,
+    /** @readonly */
+    curly,
 }

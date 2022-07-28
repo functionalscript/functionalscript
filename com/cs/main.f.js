@@ -6,9 +6,6 @@ const obj = require('../../types/object/main.f.js')
 /** @type {(v: string) => string} */
 const csUsing = v => `using ${v};`
 
-/** @type {(type: string) => (name: string) => (body: text.Block) => text.Block} */
-const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
-
 /**
  * @type {(attributes: list.List<string>) =>
  *  (type: string) =>
@@ -19,7 +16,7 @@ const csBlock = type => name => body => [`${type} ${name}`, '{', body, '}']
 const csTypeDef = attributes => type => name => body =>
     list.flat([
         list.map(v => `[${v}]`)(attributes),
-        csBlock(`public ${type}`)(name)(body)
+        text.curly(`public ${type}`)(name)(body)
     ])
 
 /** @type {(t: types.BaseType) => string} */
@@ -106,7 +103,7 @@ const cs = name => library => {
         ''
     ]
 
-    const ns = csBlock('namespace')(name)(() => v)
+    const ns = text.curly('namespace')(name)(() => v)
     return () => list.flat([h, ns])
 }
 
