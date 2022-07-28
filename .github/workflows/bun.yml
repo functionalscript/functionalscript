@@ -12,4 +12,5 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash 
-    - run: /home/runner/.bun/bin/bun run ./test.f.js
+    - run: /home/runner/.bun/bin/bun install
+    - run: /home/runner/.bun/bin/bun test
