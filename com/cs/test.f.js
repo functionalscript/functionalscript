@@ -7,7 +7,7 @@ const text = require('../../text/main.f.js')
 const library = {
     Slice: {
         struct: {
-            Start: { '*': 'u8' },
+            Start: ['*', 'u8'],
             Size: 'usize',
         },
     },
@@ -23,11 +23,11 @@ const library = {
             ],
             GetUnsafe: [
                 {},
-                {'*': 'bool'}
+                ['*', 'bool']
             ],
             SetUnsafe: [
                 {
-                    p: {'*': ['Slice']},
+                    p: ['*', ['Slice']],
                     size: 'u32'
                 },
             ],

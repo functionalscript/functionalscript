@@ -47,8 +47,8 @@ const unsafe = isUnsafe => isUnsafe ? 'unsafe ' : ''
 /** @type {(t: types.Type) => readonly[boolean, string]} */
 const csType = t =>
     typeof (t) === 'string' ? [false, csBaseType(t)] :
-        t instanceof Array ? [false, t[0]] :
-            [true, `${csType(t['*'])[1]}*`]
+        t.length === 1 ? [false, t[0]] :
+            [true, `${csType(t[1])[1]}*`]
 
 /** @type {(f: types.Field) => string} */
 const csParam = ([name, type]) => `${csType(type)[1]} ${name}`

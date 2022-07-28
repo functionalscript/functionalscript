@@ -50,6 +50,6 @@
  * } BaseType
  */
 
-/** @typedef {{readonly '*': Type}} Pointer */
+/** @typedef {readonly['*', Type]} Pointer */
 
 module.exports = {}
