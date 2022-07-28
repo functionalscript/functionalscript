@@ -9,7 +9,7 @@
  * }} Struct
  */
 
-/** @typedef {readonly Field[]} FieldArray */
+/** @typedef {{readonly[k in string]: Type}} FieldArray */
 
 /** @typedef {readonly[string, Type]} Field */
 
@@ -20,13 +20,7 @@
  * }} Interface
  */
 
-/** @typedef {readonly Method[]} MethodArray */
-
-/** @typedef {readonly[string, FieldArray, Type]} GetMethod */
-
-/** @typedef {readonly[string, FieldArray]} SetMethod */
-
-/** @typedef {GetMethod|SetMethod} Method */
+/** @typedef {{readonly[k in string]: FieldArray}} MethodArray */
 
 /** @typedef {BaseType|Id|Pointer} Type */
 
@@ -50,6 +44,6 @@
  * } BaseType
  */
 
-/** @typedef {{readonly '*': Type}} Pointer */
+/** @typedef {readonly['*', Type]} Pointer */
 
 module.exports = {}

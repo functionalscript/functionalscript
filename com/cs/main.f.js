@@ -47,8 +47,8 @@ const unsafe = isUnsafe => isUnsafe ? 'unsafe ' : ''
 /** @type {(t: types.Type) => readonly[boolean, string]} */
 const csType = t =>
     typeof (t) === 'string' ? [false, csBaseType(t)] :
-        t instanceof Array ? [false, t[0]] :
-            [true, `${csType(t['*'])[1]}*`]
+        t.length === 1 ? [false, t[0]] :
+            [true, `${csType(t[1])[1]}*`]
 
 /** @type {(f: types.Field) => string} */
 const csParam = ([name, type]) => `${csType(type)[1]} ${name}`
@@ -59,19 +59,23 @@ const csField = ([name, type]) => {
     return `public ${unsafe(isUnsafe)}${t} ${name};`
 }
 
-/** @type {(m: types.Method) => readonly[boolean, string]} */
-const csResult = m => m.length === 2 ? [false, 'void'] : csType(m[2])
+/** @type {(m: types.FieldArray) => readonly[boolean, string]} */
+const csResult = m => m._ === undefined ? [false, 'void'] : csType(m._)
 
 /** @type {(field: types.Field) => boolean} */
 const isUnsafeField = field => csType(field[1])[0]
 
-/** @type {(m: types.Method) => readonly string[]} */
-const csMethod = m => {
+/** @type {(kv: obj.Entry<types.Type>) => boolean} */
+const isParam = kv => kv[0] !== '_'
+
+/** @type {(e: obj.Entry<types.FieldArray>) => readonly string[]} */
+const csMethod = ([name, m]) => {
     const result = csResult(m)
-    const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(m[1]))
+    const paramArray = list.filter(isParam)(Object.entries(m))
+    const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(paramArray))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${result[1]} ${m[0]}(${list.join(', ')(list.map(csParam)(m[1]))});`
+        `${unsafe(isUnsafe)}${result[1]} ${name}(${list.join(', ')(list.map(csParam)(paramArray))});`
     ]
 }
 
@@ -83,12 +87,12 @@ const csDef = ([n, d]) => {
             (['StructLayout(LayoutKind.Sequential)'])
             ('struct')
             (n)
-            (() => list.map(csField)(d.struct)) :
+            (() => list.map(csField)(Object.entries(d.struct))) :
         csTypeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (() => list.flatMap(csMethod)(d.interface))
+            (() => list.flatMap(csMethod)(Object.entries(d.interface)))
 }
 
 /** @type {(name: string) => (library: types.Library) => text.Block} */
