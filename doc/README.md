@@ -1,7 +1,8 @@
 # Documentation
 
 FunctionalScript files have `.f.cjs` file extensions because it's using a `Common.JS` module system. See
-[ESM. Resolver Algorithm Specification](https://nodejs.org/api/esm.html#resolver-algorithm-specification).
+[ESM. Resolver Algorithm Specification](https://nodejs.org/api/esm.html#resolver-algorithm-specification)
+and [ESM. Enabling](https://nodejs.org/docs/latest-v13.x/api/esm.html#esm_enabling).
 
 ## 1. Creating a New Repository
 
