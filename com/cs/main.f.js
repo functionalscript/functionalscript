@@ -59,16 +59,19 @@ const csField = ([name, type]) => {
     return `public ${unsafe(isUnsafe)}${t} ${name};`
 }
 
-/** @type {(m: types.Method) => readonly[boolean, string]} */
-const csResult = m => m.length === 1 ? [false, 'void'] : csType(m[1])
+/** @type {(m: types.FieldArray) => readonly[boolean, string]} */
+const csResult = m => m._ === undefined ? [false, 'void'] : csType(m._)
 
 /** @type {(field: types.Field) => boolean} */
 const isUnsafeField = field => csType(field[1])[0]
 
-/** @type {(e: obj.Entry<types.Method>) => readonly string[]} */
+/** @type {(kv: obj.Entry<types.Type>) => boolean} */
+const isParam = kv => kv[0] !== '_'
+
+/** @type {(e: obj.Entry<types.FieldArray>) => readonly string[]} */
 const csMethod = ([name, m]) => {
     const result = csResult(m)
-    const paramArray = Object.entries(m[0])
+    const paramArray = list.filter(isParam)(Object.entries(m))
     const isUnsafe = result[0] || list.some(list.map(isUnsafeField)(paramArray))
     return [
         '[PreserveSig]',
