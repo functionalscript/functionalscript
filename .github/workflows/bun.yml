@@ -16,9 +16,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash 
-    - env: 
-        BUN_INSTALL: /Users/sergeyshandar/.bun
-    - env:
-        PATH: $BUN_INSTALL/bin:$PATH
+    # - env: 
+    #    BUN_INSTALL: /Users/sergeyshandar/.bun
+    # - env:
+    #    PATH: $BUN_INSTALL/bin:$PATH
     - run: bun install
     - run: bun test
