@@ -17,7 +17,7 @@ if (json.setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
 
 {
     const x = json.stringify(sort)(json.setProperty("Hello")(['a'])({c:[],b:12}))
-    if (x !== '{"a":"Hello","b":12,"c":[]}') { throw x }
+    if (x !== '{"a":"Hello","b":12,"c":[]} ') { throw x }
 }
 
 {
