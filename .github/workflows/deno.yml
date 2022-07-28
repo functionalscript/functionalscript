@@ -1,0 +1,15 @@
+name: Deno CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: curl -fsSL https://deno.land/install.sh | sh
+    - run: deno run --unstable --compat --allow-read --allow-env ./test.f.js
