@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+# export BUN_INSTALL="/Users/sergeyshandar/.bun"
+# export PATH="$BUN_INSTALL/bin:$PATH"
+
 jobs:
   build:
 
@@ -13,8 +16,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash 
-    # export BUN_INSTALL="/Users/sergeyshandar/.bun"
-    # export PATH="$BUN_INSTALL/bin:$PATH"
     - env: 
         BUN_INSTALL: /Users/sergeyshandar/.bun
     - env:
