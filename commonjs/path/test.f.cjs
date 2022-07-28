@@ -1,5 +1,5 @@
 const _ = require('./main.f.cjs')
-const { todo } = require('../../dev/main.f.js')
+const { todo } = require('../../dev/main.f.cjs')
 const json = require('../../json/main.f.js')
 const { identity } = require('../../types/function/main.f.js')
 const object = require('../../types/object/main.f.js')
