@@ -7,5 +7,5 @@ try {
     console.log(cp.execSync('dotnet build').toString())
 } catch (e) {
     // @ts-ignore
-    console.log(e.output.toString())
+    console.error(e.output.toString())
 }
