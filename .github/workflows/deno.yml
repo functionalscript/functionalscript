@@ -14,4 +14,4 @@ jobs:
     - uses: denoland/setup-deno@v1
       with:
         deno-version: v1.x
-    - run: deno run --unstable --compat --allow-read --allow-env ./test.f.js
+    - run: deno run --unstable --compat --allow-read --allow-env ./test.f.cjs
