@@ -87,12 +87,12 @@ const def = ([n, d]) => {
             (['StructLayout(LayoutKind.Sequential)'])
             ('struct')
             (n)
-            (() => list.map(field)(Object.entries(d.struct))) :
+            (list.map(field)(Object.entries(d.struct))) :
         typeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (() => list.flatMap(method)(Object.entries(d.interface)))
+            (list.flatMap(method)(Object.entries(d.interface)))
 }
 
 /** @type {(name: string) => (library: types.Library) => text.Block} */
@@ -107,7 +107,7 @@ const cs = name => library => {
     ]
 
     const ns = text.curly('namespace')(name)(() => v)
-    return () => list.flat([h, ns])
+    return list.flat([h, ns])
 }
 
 module.exports = {

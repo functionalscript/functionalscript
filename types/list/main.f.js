@@ -105,7 +105,7 @@ const toArray = list => {
     return u instanceof Array ? u : Array.from(iterable(u))
 }
 
-/** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => List<O>} */
+/** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => Thunk<O>} */
 const apply = f => input => () => {
     const n = next(input)
     if (n === undefined) { return undefined }
@@ -115,16 +115,16 @@ const apply = f => input => () => {
 /** @type {<T>(n: NonEmpty<List<T>>) => List<T>} */
 const flatStep = n => concat(n.first)(flat(n.tail))
 
-/** @type {<T>(list: List<List<T>>) => List<T>} */
+/** @type {<T>(list: List<List<T>>) => Thunk<T>} */
 const flat = apply(flatStep)
 
 /** @type {<I, O>(f: (value: I) => O) => (n: NonEmpty<I>) => List<O>} */
 const mapStep = f => n => ({ first: f(n.first), tail: map(f)(n.tail) })
 
-/** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => List<O>} */
+/** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
 const map = f => apply(mapStep(f))
 
-/** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => List<O>} */
+/** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
 const flatMap = f => compose(map(f))(flat)
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
