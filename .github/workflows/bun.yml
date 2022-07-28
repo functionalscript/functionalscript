@@ -9,8 +9,13 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash 
-    - run: /home/runner/.bun/bin/bun install
-    - run: /home/runner/.bun/bin/bun test
+    # export BUN_INSTALL="/Users/sergeyshandar/.bun"
+    # export PATH="$BUN_INSTALL/bin:$PATH"
+    - run: echo "BUN_INSTALL=/Users/sergeyshandar/.bun" >> $GITHUB_ENV
+    - run: echo "PATH=$BUN_INSTALL/bin:$PATH" >> $GITHUB_ENV
+    - run: bun install
+    - run: bun test
