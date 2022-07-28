@@ -1,0 +1,15 @@
+name: Bun CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: curl https://bun.sh/install | bash 
+    - run: /home/runner/.bun/bin/bun run ./test.f.js
