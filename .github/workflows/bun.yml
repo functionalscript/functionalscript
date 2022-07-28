@@ -15,7 +15,9 @@ jobs:
     - run: curl https://bun.sh/install | bash 
     # export BUN_INSTALL="/Users/sergeyshandar/.bun"
     # export PATH="$BUN_INSTALL/bin:$PATH"
-    - run: echo "BUN_INSTALL=/Users/sergeyshandar/.bun" >> $GITHUB_ENV
-    - run: echo "PATH=$BUN_INSTALL/bin:$PATH" >> $GITHUB_ENV
+    - env: 
+        BUN_INSTALL: /Users/sergeyshandar/.bun
+    - env:
+        PATH: $BUN_INSTALL/bin:$PATH
     - run: bun install
     - run: bun test
