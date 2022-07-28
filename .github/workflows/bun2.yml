@@ -1,0 +1,24 @@
+name: Bun CI
+
+on:
+  push:
+  pull_request:
+
+# export BUN_INSTALL="/Users/sergeyshandar/.bun"
+# export PATH="$BUN_INSTALL/bin:$PATH"
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    env:
+    steps:
+    - uses: actions/checkout@v2
+    - run: curl https://bun.sh/install | bash 
+    # - env: 
+    #    BUN_INSTALL: /Users/sergeyshandar/.bun
+    # - env:
+    #    PATH: $BUN_INSTALL/bin:$PATH
+    - run: bun install
+    - run: bun test
