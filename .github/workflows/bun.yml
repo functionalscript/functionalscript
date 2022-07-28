@@ -12,9 +12,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash 
-    - env: 
-        BUN_INSTALL: /home/runner/.bun
-    - env:
-        PATH: $BUN_INSTALL/bin:$PATH
-     - run: bun install
-     - run: bun test
+    - run: /home/runner/.bun/bin/bun ./test.f.js
