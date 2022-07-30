@@ -159,33 +159,35 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
     if (result !== '[[0,"a"],[1,"b"]]') { throw result }
 }
 
+const map5 = _.map(x => x > 5)
+
 {
-    const result = _.some(_.map(x => x > 5)([0, 1, 7]))
+    const result = _.some(map5([0, 1, 7]))
     if (!result) { throw result }
 }
 
 {
-    const result = _.some(_.map(x => x > 5)([0, 1, 4]))
+    const result = _.some(map5([0, 1, 4]))
     if (result) { throw result }
 }
 
 {
-    const result = _.some(_.map(x => x > 5)([]))
+    const result = _.some(map5([]))
     if (result) { throw result }
 }
 
 {
-    const result = _.every(_.map(x => x > 5)([0, 1, 7]))
+    const result = _.every(map5([0, 1, 7]))
     if (result) { throw result }
 }
 
 {
-    const result = _.every(_.map(x => x > 5)([6, 11, 7]))
+    const result = _.every(map5([6, 11, 7]))
     if (!result) { throw result }
 }
 
 {
-    const result = _.every(_.map(x => x > 5)([]))
+    const result = _.every(map5([]))
     if (!result) { throw result }
 }
 
