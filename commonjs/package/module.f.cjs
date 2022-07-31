@@ -1,5 +1,5 @@
-const json = require('../../json/main.f.cjs')
-const dependencies = require('./dependencies/main.f.cjs')
+const json = require('../../json/module.f.cjs')
+const dependencies = require('./dependencies/module.f.cjs')
 
 /**
  * @typedef {{

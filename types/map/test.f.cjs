@@ -1,5 +1,5 @@
-const { at, set, empty, entries, remove } = require('./main.f.cjs')
-const seq = require('../list/main.f.cjs')
+const { at, set, empty, entries, remove } = require('./module.f.cjs')
+const seq = require('../list/module.f.cjs')
 
 {
     let m = set('a')(1)(undefined)
@@ -53,7 +53,7 @@ const seq = require('../list/main.f.cjs')
 }
 
 {
-    /** @type {import('./main.f.cjs').Map<number>} */
+    /** @type {import('./module.f.cjs').Map<number>} */
     let m = empty
     for (let i = 0; i < 100_000; ++i) {
         m = set((i * i).toString())(i)(m)

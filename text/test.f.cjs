@@ -1,5 +1,5 @@
-const _ = require('./main.f.cjs')
-const list = require('../types/list/main.f.cjs')
+const _ = require('./module.f.cjs')
+const list = require('../types/list/module.f.cjs')
 
 {
     /** @type {_.Block} */

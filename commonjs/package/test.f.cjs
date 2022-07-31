@@ -1,4 +1,4 @@
-const _ = require('./main.f.cjs')
+const _ = require('./module.f.cjs')
 
 require('./dependencies/test.f.cjs')
 
