@@ -43,25 +43,31 @@ const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 
 /** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
 const utf8ByteToCodePointOp = state => byte => {
-    if (byte < 0 || byte > 255) {
+    if (byte < 0x00 || byte > 0xff) {
         return [[error(list.toArray(list.concat(state)([byte])))], undefined]
     }    
     if (state == undefined) {
         if (byte < 0x80) return [[ok(byte)], undefined]
         if (byte >= 0xc0 && byte < 0xf8) return [[], [byte]]
         return todo()
-    } 
-    switch(state.length)
-    {
-        case 1:
-            if (state[0] < 0xe0 && byte >= 0x80 && byte < 0xc0) return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined]
-            if (state[0] < 0xf8 && byte >= 0x80 && byte < 0xc0) return [[], [state[0], byte]]
-            return [[error(list.toArray(list.concat(state)([byte])))], undefined]
-        case 2:
-            if (state[0] < 0xf0 && byte >= 0x80 && byte < 0xc0) return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined]
-            return [[error(list.toArray(list.concat(state)([byte])))], undefined]
-        case 3: return todo()
     }
+    if (byte >= 0x80 && byte < 0xc0)
+    {
+        switch(state.length)
+        {
+            case 1:
+                if (state[0] < 0xe0) return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined]
+                if (state[0] < 0xf8) return [[], [state[0], byte]]   
+                break         
+            case 2:
+                if (state[0] < 0xf0) return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined]
+                if (state[0] < 0xf8) return [[], [state[0], state[1], byte]]
+                break
+            case 3: 
+                return [[ok(((state[0] & 0x07) << 18) + ((state[1] & 0x3f) << 12) + ((state[2] & 0x3f) << 6) + (byte & 0x3f))], undefined]
+        }
+    }    
+    return [[error(list.toArray(list.concat(state)([byte])))], undefined]
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf8State]} */

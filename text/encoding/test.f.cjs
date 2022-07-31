@@ -151,4 +151,14 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[["error",[224,160,127]],["error",[224,160,192]]]') { throw result }
 }
 
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([240, 144, 128, 128, 240, 144, 128, 129, 244, 143, 191, 191])))
+    if (result !== '[["ok",65536],["ok",65537],["ok",1114111]]') { throw result }
+}
+
+{    
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([240, 144, 128, 127, 240, 144, 128, 192])))
+    if (result !== '[["error",[240,144,128,127]],["error",[240,144,128,192]]]') { throw result }
+}
+
 module.exports = {}
