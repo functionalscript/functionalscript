@@ -43,10 +43,11 @@ const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 
 /** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
 const utf8ByteToCodePointOp = state => byte => {
-    if (byte < 0 || byte > 255) {        
+    if (byte < 0 || byte > 255) {
         return [[error(list.toArray(list.concat(state)([byte])))], undefined]
     }
     if (state == undefined) {
+        if (byte < 0x80) return [[ok(byte)], undefined]
         return todo()
     }
     switch(state.length)
