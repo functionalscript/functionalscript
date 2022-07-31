@@ -3,6 +3,14 @@
 
 #include <cstdint>
 
+#if defined(__aarch64__)
+#define COM_STDCALL
+#elif defined(__clang__)
+#define COM_STDCALL __attribute__((stdcall))
+#else
+#define COM_STDCALL __stdcall
+#endif
+
 namespace com
 {
     class GUID
@@ -18,9 +26,9 @@ namespace com
     class IUnknown
     {
     public:
-        virtual HRESULT __stdcall QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
-        virtual ULONG __stdcall AddRef() noexcept = 0;
-        virtual ULONG __stdcall Release() noexcept = 0;
+        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
+        virtual ULONG COM_STDCALL AddRef() noexcept = 0;
+        virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
 
     template <class I>

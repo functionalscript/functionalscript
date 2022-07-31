@@ -4,7 +4,7 @@ const cp = require('node:child_process')
 
 // fs.writeFileSync('_result.cpp', cs)
 try {
-    console.log(cp.execSync('clang main.cpp').toString())
+    console.log(cp.execSync('clang -std=c++11 main.cpp').toString())
 } catch (e) {
     // @ts-ignore
     console.error(e.output.toString())
