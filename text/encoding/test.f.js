@@ -131,4 +131,19 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[["ok",0],["ok",1],["ok",127]]') { throw result }
 }
 
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([0xc2, 0x80])))
+    if (result !== '[["ok",128]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 169])))
+    if (result !== '[["ok",169]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([223,191])))
+    if (result !== '[["ok",2047]]') { throw result }
+}
+
 module.exports = {}

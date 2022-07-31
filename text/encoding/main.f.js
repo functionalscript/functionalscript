@@ -45,14 +45,17 @@ const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 const utf8ByteToCodePointOp = state => byte => {
     if (byte < 0 || byte > 255) {
         return [[error(list.toArray(list.concat(state)([byte])))], undefined]
-    }
+    }    
     if (state == undefined) {
         if (byte < 0x80) return [[ok(byte)], undefined]
+        if (byte >= 0xc0 && byte < 0xf7) return [[], [byte]]
         return todo()
     }
     switch(state.length)
     {
-        case 1: return todo()
+        case 1:
+            if (state[0] < 0xe0 && byte >= 0x80 && byte < 0xc0) return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined]
+            return todo()
         case 2: return todo()
         case 3: return todo()
     }
