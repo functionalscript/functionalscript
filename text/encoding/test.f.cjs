@@ -122,8 +122,13 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {    
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([-1, 256])))
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([-1, 256,])))
     if (result !== '[["error",[-1]],["error",[256]]]') { throw result }
+}
+
+{    
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([128, 193, 245, 255])))
+    if (result !== '[["error",[128]],["error",[193]],["error",[245]],["error",[255]]]') { throw result }
 }
 
 {    
@@ -137,8 +142,8 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {    
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 127, 194, 192])))
-    if (result !== '[["error",[194,127]],["error",[194,192]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 127, 194, 192, 194])))
+    if (result !== '[["error",[194,127]],["error",[194,192]],["error",[194]]]') { throw result }
 }
 
 {
@@ -147,8 +152,8 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {    
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([224, 160, 127, 224, 160, 192])))
-    if (result !== '[["error",[224,160,127]],["error",[224,160,192]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([224, 160, 127, 224, 160, 192, 224, 160])))
+    if (result !== '[["error",[224,160,127]],["error",[224,160,192]],["error",[224,160]]]') { throw result }
 }
 
 {
@@ -157,8 +162,13 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {    
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([240, 144, 128, 127, 240, 144, 128, 192])))
-    if (result !== '[["error",[240,144,128,127]],["error",[240,144,128,192]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([240, 144, 128, 127, 240, 144, 128, 192, 240, 144, 128])))
+    if (result !== '[["error",[240,144,128,127]],["error",[240,144,128,192]],["error",[240,144,128]]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, -1, 128])))
+    if (result !== '[["error",[-1]],["ok",128]]') { throw result }
 }
 
 module.exports = {}
