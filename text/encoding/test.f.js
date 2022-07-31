@@ -132,7 +132,7 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([0xc2, 0x80])))
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 128])))
     if (result !== '[["ok",128]]') { throw result }
 }
 
@@ -142,7 +142,7 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([223,191])))
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([223, 191])))
     if (result !== '[["ok",2047]]') { throw result }
 }
 
