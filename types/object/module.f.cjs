@@ -1,5 +1,5 @@
-const list = require('../list/main.f.cjs')
-const map = require('../map/main.f.cjs')
+const list = require('../list/module.f.cjs')
+const map = require('../map/module.f.cjs')
 
 /**
  * @template T

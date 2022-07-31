@@ -10,11 +10,11 @@
 
 module.exports = {
     /** @readonly */
-    build: require('./build/main.f.cjs'),
+    build: require('./build/module.f.cjs'),
     /** @readonly */
-    module: require('./module/main.f.cjs'),
+    module: require('./module/module.f.cjs'),
     /** @readonly */
-    package: require('./package/main.f.cjs'),
+    package: require('./package/module.f.cjs'),
     /** @readonly */
-    path: require('./path/main.f.cjs'),
+    path: require('./path/module.f.cjs'),
 }

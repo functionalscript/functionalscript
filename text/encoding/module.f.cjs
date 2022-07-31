@@ -1,5 +1,5 @@
-const result = require('../../types/result/main.f.cjs')
-const list = require('../../types/list/main.f.cjs')
+const result = require('../../types/result/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} Utf8Result */

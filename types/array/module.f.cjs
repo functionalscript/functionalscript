@@ -1,4 +1,4 @@
-const option = require('../option/main.f.cjs')
+const option = require('../option/module.f.cjs')
 
 /**
  * @template T

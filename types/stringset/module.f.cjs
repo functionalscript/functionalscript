@@ -1,9 +1,9 @@
-const btTypes = require('../btree/types/main.f.cjs')
-const btree = require('../btree/main.f.cjs')
+const btTypes = require('../btree/types/module.f.cjs')
+const btree = require('../btree/module.f.cjs')
 const { find } = btree
-const { stringCmp } = require("../function/compare/main.f.cjs")
-const list = require('../list/main.f.cjs')
-const { compose } = require('../function/main.f.cjs')
+const { stringCmp } = require("../function/compare/module.f.cjs")
+const list = require('../list/module.f.cjs')
+const { compose } = require('../function/module.f.cjs')
 
 /** @typedef {btTypes.Tree<string>} StringSet */
 

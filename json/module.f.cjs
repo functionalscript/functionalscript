@@ -1,7 +1,7 @@
-const list = require('../types/list/main.f.cjs')
-const object = require('../types/object/main.f.cjs')
-const operator = require('../types/function/operator/main.f.cjs')
-const { compose } = require('../types/function/main.f.cjs')
+const list = require('../types/list/module.f.cjs')
+const object = require('../types/object/module.f.cjs')
+const operator = require('../types/function/operator/module.f.cjs')
+const { compose } = require('../types/function/module.f.cjs')
 
 /**
  * @typedef {{
@@ -111,7 +111,7 @@ const isObject = value => typeof value === 'object' && value !== null && !(value
 
 module.exports = {
     /** @readonly */
-    tokenizer: require('./tokenizer/main.f.cjs'),
+    tokenizer: require('./tokenizer/module.f.cjs'),
     /** @readonly */
     setProperty,
     /** @readonly */

@@ -1,4 +1,4 @@
-const _ = require('./main.f.cjs')
+const _ = require('./module.f.cjs')
 
 {
     if (!_.contains([0, 5])(1)) { throw 1 }

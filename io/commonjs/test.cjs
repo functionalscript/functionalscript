@@ -1,5 +1,5 @@
-const _ = require('./main.cjs')
-const run = require('../../commonjs/module/function/main.f.cjs')
+const _ = require('./module.cjs')
+const run = require('../../commonjs/module/function/module.f.cjs')
 
 // ok:
 {
