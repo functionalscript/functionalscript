@@ -108,5 +108,7 @@ obj/
 bin/
 .vs/
 
+*.exe
+
 # temoprary files
 _result.cs
