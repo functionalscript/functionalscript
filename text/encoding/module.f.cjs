@@ -48,15 +48,18 @@ const utf8ByteToCodePointOp = state => byte => {
     }    
     if (state == undefined) {
         if (byte < 0x80) return [[ok(byte)], undefined]
-        if (byte >= 0xc0 && byte < 0xf7) return [[], [byte]]
+        if (byte >= 0xc0 && byte < 0xf8) return [[], [byte]]
         return todo()
-    }
+    } 
     switch(state.length)
     {
         case 1:
             if (state[0] < 0xe0 && byte >= 0x80 && byte < 0xc0) return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined]
+            if (state[0] < 0xf8 && byte >= 0x80 && byte < 0xc0) return [[], [state[0], byte]]
             return [[error(list.toArray(list.concat(state)([byte])))], undefined]
-        case 2: return todo()
+        case 2:
+            if (state[0] < 0xf0 && byte >= 0x80 && byte < 0xc0) return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined]
+            return [[error(list.toArray(list.concat(state)([byte])))], undefined]
         case 3: return todo()
     }
 }

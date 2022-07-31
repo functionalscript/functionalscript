@@ -132,23 +132,23 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 128])))
-    if (result !== '[["ok",128]]') { throw result }
-}
-
-{
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 169])))
-    if (result !== '[["ok",169]]') { throw result }
-}
-
-{
-    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([223, 191])))
-    if (result !== '[["ok",2047]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 128, 194, 169, 223, 191])))
+    if (result !== '[["ok",128],["ok",169],["ok",2047]]') { throw result }
 }
 
 {    
     const result = stringify(list.toArray(encoding.utf8ListToCodePoint([194, 127, 194, 192])))
     if (result !== '[["error",[194,127]],["error",[194,192]]]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([224, 160, 128, 224, 160, 129, 239, 191, 191])))
+    if (result !== '[["ok",2048],["ok",2049],["ok",65535]]') { throw result }
+}
+
+{    
+    const result = stringify(list.toArray(encoding.utf8ListToCodePoint([224, 160, 127, 224, 160, 192])))
+    if (result !== '[["error",[224,160,127]],["error",[224,160,192]]]') { throw result }
 }
 
 module.exports = {}
