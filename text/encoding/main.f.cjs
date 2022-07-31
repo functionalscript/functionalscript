@@ -1,8 +1,8 @@
-const result = require('../../types/result/main.f.js')
-const list = require('../../types/list/main.f.js')
-const operator = require('../../types/function/operator/main.f.js')
-const array = require('../../types/array/main.f.js')
-const { todo } = require('../../dev/main.f.js')
+const result = require('../../types/result/main.f.cjs')
+const list = require('../../types/list/main.f.cjs')
+const operator = require('../../types/function/operator/main.f.cjs')
+const array = require('../../types/array/main.f.cjs')
+const { todo } = require('../../dev/main.f.cjs')
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} ByteResult */
