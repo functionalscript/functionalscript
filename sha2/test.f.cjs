@@ -1,7 +1,7 @@
-const _ = require('./main.f.cjs')
-const json = require('../json/main.f.cjs')
-const { sort } = require('../types/object/main.f.cjs')
-const list = require('../types/list/main.f.cjs')
+const _ = require('./module.f.cjs')
+const json = require('../json/module.f.cjs')
+const { sort } = require('../types/object/module.f.cjs')
+const list = require('../types/list/module.f.cjs')
 
 /** @type {(a: number) => number} */
 const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000

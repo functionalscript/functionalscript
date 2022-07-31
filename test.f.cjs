@@ -1,4 +1,4 @@
-const i = require('./main.f.cjs')
+const i = require('./module.f.cjs')
 
 require('./types/list/test.f.cjs')
 require('./types/array/test.f.cjs')

@@ -1,10 +1,10 @@
-const _ = require('./main.f.cjs')
-const { todo } = require('../../dev/main.f.cjs')
-const json = require('../../json/main.f.cjs')
-const { identity } = require('../../types/function/main.f.cjs')
-const object = require('../../types/object/main.f.cjs')
-const { at } = require('../../types/object/main.f.cjs')
-const package_ = require('../package/main.f.cjs')
+const _ = require('./module.f.cjs')
+const { todo } = require('../../dev/module.f.cjs')
+const json = require('../../json/module.f.cjs')
+const { identity } = require('../../types/function/module.f.cjs')
+const object = require('../../types/object/module.f.cjs')
+const { at } = require('../../types/object/module.f.cjs')
+const package_ = require('../package/module.f.cjs')
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {

@@ -1,4 +1,4 @@
-const _ = require('./main.f.cjs')
+const _ = require('./module.f.cjs')
 
 {
     const result = _.numberCmp(4)(5)

@@ -1,4 +1,4 @@
-const list = require('../types/list/main.f.cjs')
+const list = require('../types/list/module.f.cjs')
 
 /** @typedef {ItemThunk|ItemArray} Block */
 
