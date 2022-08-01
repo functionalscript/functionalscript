@@ -20,6 +20,7 @@ require('./html/test.f.cjs')
 require('./text/test.f.cjs')
 require('./text/encoding/test.f.cjs')
 require('./com/cs/test.f.cjs')
+require('./com/cpp/test.f.cjs')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

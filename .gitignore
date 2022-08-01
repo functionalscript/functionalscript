@@ -112,4 +112,4 @@ bin/
 *.out
 
 # temoprary files
-_result.cs
+_result.*

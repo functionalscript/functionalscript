@@ -1,8 +1,8 @@
 const fs = require('node:fs')
 const cp = require('node:child_process')
-// const cs = require('../test.f.js').result
+const cpp = require('../test.f.cjs').result
 
-// fs.writeFileSync('_result.cpp', cs)
+fs.writeFileSync('_result.hpp', cpp)
 try {
     console.log(cp.execSync('clang -std=c++11 main.cpp').toString())
 } catch (e) {
