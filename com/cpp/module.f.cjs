@@ -26,7 +26,7 @@ const baseType = t => {
 }
 
 /** @type {(t: types.Type) => string} */
-const type = t => typeof(t) === 'string' ? baseType(t) : 'int*'
+const type = t => typeof(t) === 'string' ? baseType(t) : t.length === 1 ? t[0] : `${type(t[1])}*`
 
 /** @type {(s: types.Field) => text.Item} */
 const field = ([name, t]) => `${type(t)} ${name};`

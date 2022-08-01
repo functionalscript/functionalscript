@@ -11,15 +11,15 @@ const f = () =>
         '{\n' +
         '    struct Slice\n' +
         '    {\n' +
-        '        int* Start;\n' +
+        '        uint8_t* Start;\n' +
         '        size_t Size;\n' +
         '    };\n' +
         '    struct IMy: ::com::IUnknown\n' +
         '    {\n' +
-        '        virtual int* COM_STDCALL GetSlice() = 0;\n' +
-        '        virtual void COM_STDCALL SetSlice(int* slice) = 0;\n' +
-        '        virtual int* COM_STDCALL GetUnsafe() = 0;\n' +
-        '        virtual void COM_STDCALL SetUnsafe(int* p, uint32_t size) = 0;\n' +
+        '        virtual Slice COM_STDCALL GetSlice() = 0;\n' +
+        '        virtual void COM_STDCALL SetSlice(Slice slice) = 0;\n' +
+        '        virtual ::com::BOOL* COM_STDCALL GetUnsafe() = 0;\n' +
+        '        virtual void COM_STDCALL SetUnsafe(Slice* p, uint32_t size) = 0;\n' +
         '        virtual ::com::BOOL COM_STDCALL Some() = 0;\n' +
         '    };\n' +
         '}'
