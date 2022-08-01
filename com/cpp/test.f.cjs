@@ -11,9 +11,15 @@ const f = () =>
         '{\n' +
         '    struct Slice\n' +
         '    {\n' +
+        '        int* Start;\n' +
+        '        int Size;\n' +
         '    };\n' +
-        '    struct IMy\n' +
+        '    struct IMy: ::com::IUnknown\n' +
         '    {\n' +
+        '        virtual int* COM_STDCALL GetSlice() = 0;\n' +
+        '        virtual void COM_STDCALL SetSlice() = 0;\n' +
+        '        virtual int* COM_STDCALL GetUnsafe() = 0;\n' +
+        '        virtual void COM_STDCALL SetUnsafe() = 0;\n' +
         '    };\n' +
         '}'
     if (r !== e) { throw r }

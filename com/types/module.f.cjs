@@ -22,6 +22,8 @@
 
 /** @typedef {{readonly[k in string]: FieldArray}} MethodArray */
 
+/** @typedef {readonly[string, FieldArray]} Method */
+
 /** @typedef {BaseType|Id|Pointer} Type */
 
 /** @typedef {readonly[string]} Id */
