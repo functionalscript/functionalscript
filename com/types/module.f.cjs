@@ -1,5 +1,6 @@
 const obj = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
+const { types } = require('../module.f.cjs')
 
 /** @typedef {{readonly[k in string]: Definition}} Library */
 
@@ -54,7 +55,8 @@ const list = require('../../types/list/module.f.cjs')
 /** @type {(kv: obj.Entry<Type>) => boolean} */
 const isParam = ([name]) => name !== '_'
 
-const paramList = list.filter(isParam)
+/** @type {(fa: FieldArray) => list.List<Field> } */
+const paramList = fa => list.filter(isParam)(Object.entries(fa))
 
 /** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */
 const result = v => f => fa => {

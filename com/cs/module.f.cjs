@@ -65,7 +65,7 @@ const isUnsafeField = field => fullType(field[1])[0]
 /** @type {(e: obj.Entry<types.FieldArray>) => readonly string[]} */
 const method = ([name, m]) => {
     const paramAndResultList = Object.entries(m)
-    const pl = types.paramList(paramAndResultList)
+    const pl = types.paramList(m)
     const isUnsafe = list.some(list.map(isUnsafeField)(paramAndResultList))
     return [
         '[PreserveSig]',

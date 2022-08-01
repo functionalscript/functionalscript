@@ -36,8 +36,12 @@ const defStruct = s => list.map(field)(Object.entries(s.struct))
 
 const result = types.result('void')(type)
 
+/** @type {(p: types.Field) => string} */
+const param = ([name, t]) => `${type(t)} ${name}`
+
 /** @type {(m: types.Method) => text.Item} */
-const method = ([name, paramArray]) => `virtual ${result(paramArray)} COM_STDCALL ${name}() = 0;`
+const method = ([name, paramArray]) => 
+    `virtual ${result(paramArray)} COM_STDCALL ${name}(${list.join(', ')(list.map(param)(types.paramList(paramArray)))}) = 0;`
 
 /** @type {(i: types.Interface) => text.Block} */
 const defInterface = i => list.map(method)(Object.entries(i.interface))
