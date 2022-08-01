@@ -1,12 +1,11 @@
 const cp = require('child_process')
 const fs = require('fs')
 const package_json = require('../../package.json')
+const { version } = require('./module.f.cjs')
 
-const b =cp.execSync('git log --oneline')
+const b = cp.execSync('git log --oneline')
 
-const r = b.toString().split('\n').length
-
-const v = `0.0.${r}`
+const v = version(b)
 
 console.log(`version: ${v}`)
 
