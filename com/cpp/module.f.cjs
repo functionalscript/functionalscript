@@ -6,8 +6,27 @@ const { list } = require('../../types/module.f.cjs')
 /** @type {(name: string) => (body: text.Block) => text.Block} */
 const struct = name => body => [`struct ${name}`, '{', body, '};']
 
+/** @type {(t: types.BaseType) => string} */
+const baseType = t => {
+    switch (t) {
+        case 'u8': return 'uint8_t'
+        case 'i8': return 'int8_t'
+        case 'u16': return 'uint16_t'
+        case 'i16': return 'int16_t'
+        case 'u32': return 'uint32_t'
+        case 'i32': return 'int32_t'
+        case 'u64': return 'uint64_t'
+        case 'i64': return 'int64_t'
+        case 'usize': return 'size_t'
+        case 'isize': return 'ptrdiff_t'
+        case 'f32': return 'float'
+        case 'f64': return 'double'
+        case 'bool': return '::com::BOOL'
+    }
+}
+
 /** @type {(t: types.Type) => string} */
-const type = t => typeof(t) === 'string' ? 'int' : 'int*'
+const type = t => typeof(t) === 'string' ? baseType(t) : 'int*'
 
 /** @type {(s: types.Field) => text.Item} */
 const field = ([name, t]) => `${type(t)} ${name};`
@@ -15,11 +34,7 @@ const field = ([name, t]) => `${type(t)} ${name};`
 /** @type {(s: types.Struct) => text.Block} */
 const defStruct = s => list.map(field)(Object.entries(s.struct))
 
-/** @type {(m: types.FieldArray) => string} */
-const result = m => {
-    const result = m._
-    return result === undefined ? 'void' : type(result)
-}
+const result = types.result('void')(type)
 
 /** @type {(m: types.Method) => text.Item} */
 const method = ([name, paramArray]) => `virtual ${result(paramArray)} COM_STDCALL ${name}() = 0;`

@@ -2,6 +2,7 @@
 #define COM_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 #if defined(__aarch64__)
 #define COM_STDCALL
@@ -22,6 +23,7 @@ namespace com
 
     typedef uint32_t HRESULT;
     typedef uint32_t ULONG;
+    typedef int32_t BOOL;
 
     class IUnknown
     {
@@ -46,7 +48,6 @@ namespace com
         {
             p.Release();
         }
-
     private:
         I &p;
     };

@@ -31,6 +31,8 @@ const f = () =>
         '        unsafe bool* GetUnsafe();\n' +
         '        [PreserveSig]\n' +
         '        unsafe void SetUnsafe(Slice* p, uint size);\n' +
+        '        [PreserveSig]\n' +
+        '        bool Some();\n' +
         '    }\n' +
         '}'
     if (cs !== e) { throw [cs,e] }

@@ -12,7 +12,7 @@ const f = () =>
         '    struct Slice\n' +
         '    {\n' +
         '        int* Start;\n' +
-        '        int Size;\n' +
+        '        size_t Size;\n' +
         '    };\n' +
         '    struct IMy: ::com::IUnknown\n' +
         '    {\n' +
@@ -20,6 +20,7 @@ const f = () =>
         '        virtual void COM_STDCALL SetSlice() = 0;\n' +
         '        virtual int* COM_STDCALL GetUnsafe() = 0;\n' +
         '        virtual void COM_STDCALL SetUnsafe() = 0;\n' +
+        '        virtual ::com::BOOL COM_STDCALL Some() = 0;\n' +
         '    };\n' +
         '}'
     if (r !== e) { throw r }
