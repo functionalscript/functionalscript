@@ -38,7 +38,7 @@ const x = {
 
 const e = '{\n' +
     '  "name": "functionalscript",\n' +
-    '  "version": "0.0.3",\n' +
+    '  "version": "0.0.2",\n' +
     '  "description": "FunctionalScript is a functional subset of JavaScript",\n' +
     '  "main": "module.f.cjs",\n' +
     '  "scripts": {\n' +
