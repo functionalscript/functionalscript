@@ -20,7 +20,7 @@ const f = () =>
         '        virtual void COM_STDCALL SetSlice(Slice slice) = 0;\n' +
         '        virtual ::com::BOOL* COM_STDCALL GetUnsafe() = 0;\n' +
         '        virtual void COM_STDCALL SetUnsafe(Slice* p, uint32_t size) = 0;\n' +
-        '        virtual ::com::BOOL COM_STDCALL Some(IMy* p) = 0;\n' +
+        '        virtual ::com::BOOL COM_STDCALL Some(IMy& p) = 0;\n' +
         '    };\n' +
         '}'
     if (r !== e) { throw r }
