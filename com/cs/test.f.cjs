@@ -33,6 +33,8 @@ const f = () =>
         '        unsafe void SetUnsafe(Slice* p, uint size);\n' +
         '        [PreserveSig]\n' +
         '        bool Some(IMy p);\n' +
+        '        [PreserveSig]\n' +
+        '        IMy GetIMy();\n' +
         '    }\n' +
         '}'
     if (cs !== e) { throw [cs,e] }
