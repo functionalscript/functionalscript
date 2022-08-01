@@ -109,6 +109,7 @@ bin/
 .vs/
 
 *.exe
+*.out
 
 # temoprary files
-_result.cs
+_result.*

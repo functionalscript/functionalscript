@@ -1,3 +1,7 @@
+const obj = require('../../types/object/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
+const { types } = require('../module.f.cjs')
+
 /** @typedef {{readonly[k in string]: Definition}} Library */
 
 /** @typedef {Struct|Interface} Definition */
@@ -11,7 +15,7 @@
 
 /** @typedef {{readonly[k in string]: Type}} FieldArray */
 
-/** @typedef {readonly[string, Type]} Field */
+/** @typedef {obj.Entry<Type>} Field */
 
 /**
  * @typedef {{
@@ -21,6 +25,8 @@
  */
 
 /** @typedef {{readonly[k in string]: FieldArray}} MethodArray */
+
+/** @typedef {obj.Entry<FieldArray>} Method */
 
 /** @typedef {BaseType|Id|Pointer} Type */
 
@@ -46,4 +52,21 @@
 
 /** @typedef {readonly['*', Type]} Pointer */
 
-module.exports = {}
+/** @type {(kv: obj.Entry<Type>) => boolean} */
+const isParam = ([name]) => name !== '_'
+
+/** @type {(fa: FieldArray) => list.List<Field> } */
+const paramList = fa => list.filter(isParam)(Object.entries(fa))
+
+/** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */
+const result = v => f => fa => {
+    const type = fa._
+    return type === undefined ? v : f(type)
+} 
+
+module.exports = {
+    /** @readonly */
+    paramList,
+    /** @readonly */
+    result,
+}
