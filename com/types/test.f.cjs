@@ -18,7 +18,7 @@ module.exports = {
                 p: ['*', ['Slice']],
                 size: 'u32'
             },
-            Some: { _: 'bool' },
+            Some: { p: ['IMy'], _: 'bool' },
         },
     }
 }

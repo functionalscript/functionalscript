@@ -25,37 +25,44 @@ const baseType = t => {
     }
 }
 
-/** @type {(t: types.Type) => string} */
-const type = t => typeof(t) === 'string' ? baseType(t) : t.length === 1 ? t[0] : `${type(t[1])}*`
+/** @type {(lib: types.Library) => (t: string) => string} */
+const typeRef = lib => t => {
+    const d = lib[t]
+    return d.interface === undefined ? t : `${t}*`
+}
 
-/** @type {(s: types.Field) => text.Item} */
-const field = ([name, t]) => `${type(t)} ${name};`
+/** @type {(lib: types.Library) => (t: types.Type) => string} */
+const type = lib => t => typeof(t) === 'string' ? baseType(t) : t.length === 1 ? typeRef(lib)(t[0]) : `${type(lib)(t[1])}*`
 
-/** @type {(s: types.Struct) => text.Block} */
-const defStruct = s => list.map(field)(Object.entries(s.struct))
+/** @type {(lib: types.Library) => (s: types.Field) => text.Item} */
+const field = lib => ([name, t]) => `${type(lib)(t)} ${name};`
 
-const result = types.result('void')(type)
+/** @type {(lib: types.Library) => (s: types.Struct) => text.Block} */
+const defStruct = lib => s => list.map(field(lib))(Object.entries(s.struct))
 
-/** @type {(p: types.Field) => string} */
-const param = ([name, t]) => `${type(t)} ${name}`
+/** @type {(lib: types.Library) => (fa: types.FieldArray) => string} */
+const result = lib => types.result('void')(type(lib))
 
-/** @type {(m: types.Method) => text.Item} */
-const method = ([name, paramArray]) => 
-    `virtual ${result(paramArray)} COM_STDCALL ${name}(${list.join(', ')(list.map(param)(types.paramList(paramArray)))}) = 0;`
+/** @type {(lib: types.Library) => (p: types.Field) => string} */
+const param = lib => ([name, t]) => `${type(lib)(t)} ${name}`
 
-/** @type {(i: types.Interface) => text.Block} */
-const defInterface = i => list.map(method)(Object.entries(i.interface))
+/** @type {(lib: types.Library) => (m: types.Method) => text.Item} */
+const method = lib => ([name, paramArray]) => 
+    `virtual ${result(lib)(paramArray)} COM_STDCALL ${name}(${list.join(', ')(list.map(param(lib))(types.paramList(paramArray)))}) = 0;`
 
-/** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
-const def = ([name, d]) => d.interface === undefined 
-    ? struct(name)(defStruct(d)) 
-    : struct(`${name}: ::com::IUnknown`)(defInterface(d))
+/** @type {(lib: types.Library) => (i: types.Interface) => text.Block} */
+const defInterface = lib => i => list.map(method(lib))(Object.entries(i.interface))
+
+/** @type {(lib: types.Library) => (kv: obj.Entry<types.Definition>) => text.Block} */
+const def = lib => ([name, d]) => d.interface === undefined 
+    ? struct(name)(defStruct(lib)(d)) 
+    : struct(`${name}: ::com::IUnknown`)(defInterface(lib)(d))
 
 /** @type {(name: string) => (library: types.Library) => text.Block} */
 const cpp = name => library => text.curly
     ('namespace')
     (name)
-    (list.flatMap(def)(Object.entries(library)))
+    (list.flatMap(def(library))(Object.entries(library)))
 
 module.exports = {
     /** @readonly */
