@@ -7,8 +7,4 @@ const b = cp.execSync('git log --oneline')
 
 const v = version(package_json)(b)
 
-console.log(`version: ${v}`)
-
-const x = { ...package_json, version: v }
-
-fs.writeFileSync('package.json', JSON.stringify(x, null, 2))
+fs.writeFileSync('package.json', v)

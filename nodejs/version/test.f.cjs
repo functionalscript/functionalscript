@@ -1,6 +1,6 @@
 const _ = require('./module.f.cjs')
 
-const e = {
+const x = {
     "name": "functionalscript",
     "version": "0.1.0",
     "description": "FunctionalScript is a functional subset of JavaScript",
@@ -36,9 +36,45 @@ const e = {
     }
 }
 
+const e = '{\n' +
+    '  "name": "functionalscript",\n' +
+    '  "version": "0.0.3",\n' +
+    '  "description": "FunctionalScript is a functional subset of JavaScript",\n' +
+    '  "main": "module.f.cjs",\n' +
+    '  "scripts": {\n' +
+    '    "tsc": "tsc",\n' +
+    '    "test": "tsc && npm run test-only",\n' +
+    '    "version": "node ./nodejs/version/main.cjs",\n' +
+    '    "test-only": "node --trace-uncaught ./test.f.cjs"\n' +
+    '  },\n' +
+    '  "repository": {\n' +
+    '    "type": "git",\n' +
+    '    "url": "git+https://github.com/functionalscript/functionalscript.git"\n' +
+    '  },\n' +
+    '  "author": "NatFoam",\n' +
+    '  "license": "MIT",\n' +
+    '  "keywords": [\n' +
+    '    "lambda",\n' +
+    '    "functional-programming",\n' +
+    '    "closure",\n' +
+    '    "pure-functional",\n' +
+    '    "typescript",\n' +
+    '    "programming-language",\n' +
+    '    "lazy-evaluation"\n' +
+    '  ],\n' +
+    '  "bugs": {\n' +
+    '    "url": "https://github.com/functionalscript/functionalscript/issues"\n' +
+    '  },\n' +
+    '  "homepage": "https://github.com/functionalscript/functionalscript#readme",\n' +
+    '  "devDependencies": {\n' +
+    '    "@types/node": "^18.6.2",\n' +
+    '    "typescript": "^4.7.4"\n' +
+    '  }\n' +
+    '}'
+
 {
-    const v = _.version(e)(Buffer.from("123\n456\n"))
-    if (v !== '0.0.3') { throw v }
+    const v = _.version(x)(Buffer.from("123\n456\n"))
+    if (v !== e) { throw [v, e] }
 }
 
 module.exports = {}
