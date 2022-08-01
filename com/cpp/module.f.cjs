@@ -37,7 +37,7 @@ const cpp = name => lib => {
         return i(id)
     }
 
-    const type = objectType(id => `::com::Ref<${id}>`)
+    const type = objectType(id => `::com::ref<${id}>`)
 
     /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
@@ -63,10 +63,13 @@ const cpp = name => lib => {
         ? struct(name)(defStruct(d)) 
         : struct(`${name}: ::com::IUnknown`)(defInterface(d))
 
-    return text.curly
-        ('namespace')
-        (name)
-        (list.flatMap(def)(Object.entries(lib)))
+    return list.flat([
+        ['#pragma once', ''],
+        text.curly
+            ('namespace')
+            (name)
+            (list.flatMap(def)(Object.entries(lib)))
+    ])
 }
 
 module.exports = {

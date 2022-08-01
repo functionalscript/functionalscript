@@ -1,5 +1,4 @@
-#ifndef COM_HPP
-#define COM_HPP
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -34,17 +33,17 @@ namespace com
     };
 
     template <class I>
-    class Ref
+    class ref
     {
     public:
-        explicit Ref(I &other) noexcept : p(other.p)
+        explicit ref(I &other) noexcept : p(other.p)
         {
             p.AddRef();
         }
-        Ref(Ref const &other) noexcept : Ref(other.p)
+        ref(ref const &other) noexcept : ref(other.p)
         {
         }
-        ~Ref() noexcept
+        ~ref() noexcept
         {
             p.Release();
         }
@@ -52,5 +51,3 @@ namespace com
         I &p;
     };
 }
-
-#endif
