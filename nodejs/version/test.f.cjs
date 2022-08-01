@@ -37,7 +37,7 @@ const e = {
 }
 
 {
-    const v = _.version(Buffer.from("123\n456\n"))
+    const v = _.version(e)(Buffer.from("123\n456\n"))
     if (v !== '0.0.3') { throw v }
 }
 

@@ -5,7 +5,7 @@ const { version } = require('./module.f.cjs')
 
 const b = cp.execSync('git log --oneline')
 
-const v = version(b)
+const v = version(package_json)(b)
 
 console.log(`version: ${v}`)
 
