@@ -1,4 +1,4 @@
-const { tryCatch } = require('../result/module.cjs')
+const { tryCatch } = require('../../types/result/module.cjs')
 const { unwrap } = require('../../types/result/module.f.cjs')
 const moduleFunction = require('../../commonjs/module/function/module.f.cjs')
 
