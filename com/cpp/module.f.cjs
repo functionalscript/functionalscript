@@ -28,14 +28,16 @@ const baseType = t => {
 /** @type {(name: string) => (lib: types.Library) => text.Block} */
 const cpp = name => lib => {
 
-    /** @type {(t: string) => string} */
-    const typeRef = t => {
-        const d = lib[t]
-        return d.interface === undefined ? t : `${t}&`
+    /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
+    const objectType = i => t => {
+        if (typeof(t) === 'string') { return baseType(t) }
+        if (t.length === 2) { return `${type(t[1])}*` } 
+        const [id] = t
+        if (lib[id].interface === undefined) { return id }
+        return i(id)
     }
 
-    /** @type {(t: types.Type) => string} */
-    const type = t => typeof(t) === 'string' ? baseType(t) : t.length === 1 ? typeRef(t[0]) : `${type(t[1])}*`
+    const type = objectType(id => `::com::Ref<${id}>`)
 
     /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
@@ -47,7 +49,7 @@ const cpp = name => lib => {
     const result = types.result('void')(type)
 
     /** @type {(p: types.Field) => string} */
-    const param = ([name, t]) => `${type(t)} ${name}`
+    const param = ([name, t]) => `${objectType(id => `${id}&`)(t)} ${name}`
 
     /** @type {(m: types.Method) => text.Item} */
     const method = ([name, paramArray]) => 

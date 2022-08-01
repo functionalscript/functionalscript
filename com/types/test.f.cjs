@@ -19,6 +19,7 @@ module.exports = {
                 size: 'u32'
             },
             Some: { p: ['IMy'], _: 'bool' },
+            GetIMy: { _: ['IMy'] }
         },
     }
 }
