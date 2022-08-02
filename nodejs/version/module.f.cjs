@@ -14,14 +14,22 @@ const pack = require('../../commonjs/package/module.f.cjs')
  * }} Fs
  */
 
-/** @type {<T>(fs: Fs<T>) => (cp: ChildProcess) => T} */
-const version = fs => cp =>
+/**
+ * @template T
+ * @typedef {{
+ *  readonly child_process: ChildProcess
+ *  readonly fs: Fs<T>
+ * }} Node
+ */
+
+/** @type {<T>(node: Node<T>) => T} */
+const version = ({ child_process, fs }) =>
     fs.writeFileSync(
         'package.json',
         JSON.stringify(
             {
                 ...JSON.parse(fs.readFileSync('package.json').toString()), 
-                version: `0.0.${cp.execSync('git log --oneline').toString().split('\n').length - 1}` 
+                version: `0.0.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}` 
             }, 
             null, 
             2))

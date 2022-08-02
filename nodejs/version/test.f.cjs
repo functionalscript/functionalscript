@@ -73,16 +73,15 @@ const e = '{\n' +
     '}'
 
 {
-    /** @type {_.ChildProcess} */
-    const cp = {
-        execSync: () => Buffer.from("123\n456\n")
+    /** @type {_.Node<string>} */
+    const node = {
+        child_process: { execSync: () => Buffer.from("123\n456\n") },
+        fs: {
+            readFileSync: () => Buffer.from(JSON.stringify(x)),
+            writeFileSync: (_, content) => content
+        }
     }
-    /** @type {_.Fs<string>} */
-    const fs = {
-        readFileSync: () => Buffer.from(JSON.stringify(x)),
-        writeFileSync: (_, content) => content
-    }
-    const v = _.version(fs)(cp)
+    const v = _.version(node)
     if (v !== e) { throw [v, e] }
 }
 
