@@ -73,7 +73,11 @@ const e = '{\n' +
     '}'
 
 {
-    const v = _.version(x)(Buffer.from("123\n456\n"))
+    /** @type {_.ChildProcess} */
+    const cp = {
+        execSync: () => Buffer.from("123\n456\n")
+    }
+    const v = _.version(x)(cp)
     if (v !== e) { throw [v, e] }
 }
 
