@@ -77,7 +77,12 @@ const e = '{\n' +
     const cp = {
         execSync: () => Buffer.from("123\n456\n")
     }
-    const v = _.version(x)(cp)
+    /** @type {_.Fs<string>} */
+    const fs = {
+        readFileSync: () => Buffer.from(JSON.stringify(x)),
+        writeFileSync: (_, content) => content
+    }
+    const v = _.version(fs)(cp)
     if (v !== e) { throw [v, e] }
 }
 
