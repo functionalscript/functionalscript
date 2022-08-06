@@ -15,6 +15,15 @@ const { ok, error } = result
 
 /** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf16State */
 
+/** @type {(a:number) => boolean} */
+const bmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
+
+/** @type {(a:number) => boolean} */
+const highSurrogate = a => a >= 0xd800 && a <= 0xdbff
+
+/** @type {(a:number) => boolean} */
+const lowSurrogate = a => a >= 0xdc00 && a <= 0xdfff
+
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
 {
@@ -28,7 +37,7 @@ const codePointToUtf8 = input =>
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf16 = input =>
 {
-    if (input >= 0x0000 && input <= 0xd7ff || input >= 0xe000 && input <= 0xffff) { return [ok(input >> 8), ok(input & 0xff)] }
+    if (bmpCodePoint(input)) { return [ok(input >> 8), ok(input & 0xff)] }
     if (input >= 0x010000 && input <= 0x10ffff) {
         const high = ((input - 0x10000) >> 10) + 0xd800
         const low = ((input - 0x10000) & 0x3ff) + 0xdc00
@@ -85,8 +94,22 @@ const utf8ListToCodePoint = input => list.flat(list.stateScan(utf8ByteOrEofToCod
 const utf16ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
         return [[error([byte])], state]
-    } 
-    return todo()
+    }
+    if (state == undefined) {
+        return [[], [byte]]
+    }
+    switch(state.length)
+    {
+        case 1:
+            const codeUnit = (state[0] << 8) + byte
+            if (bmpCodePoint(codeUnit)) return [[ok(codeUnit)], undefined]
+            if (highSurrogate(codeUnit)) return [[], [state[0], byte]]
+            return [[error([state[0], byte])], undefined]
+        case 2:
+            return todo()
+        case 3: 
+            return todo()
+    }
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf16State]} */

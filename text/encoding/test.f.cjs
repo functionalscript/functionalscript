@@ -171,4 +171,9 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[["error",[-1]],["error",[256]]]') { throw result }
 }
 
+{
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([0, 0, 0, 36, 32, 172, 215, 255, 224, 0, 255, 255])))
+    if (result !== '[["ok",0],["ok",36],["ok",8364],["ok",55295],["ok",57344],["ok",65535]]') { throw result }
+}
+
 module.exports = {}
