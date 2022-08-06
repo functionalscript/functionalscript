@@ -13,6 +13,8 @@ const { ok, error } = result
 
 /** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8State */
 
+/** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf16State */
+
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
 {
@@ -79,11 +81,30 @@ const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8E
 /** @type {(input: list.List<number>) => list.List<CodePointResult>} */
 const utf8ListToCodePoint = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
 
+/** @type {operator.StateScan<number, Utf16State, list.List<CodePointResult>>} */
+const utf16ByteToCodePointOp = state => byte => {
+    if (byte < 0x00 || byte > 0xff) {
+        return [[error([byte])], state]
+    } 
+    return todo()
+}
+
+/** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf16State]} */
+const utf16EofToCodePointOp = state => [state == undefined ? undefined : [error(state)],  undefined]
+
+/** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<CodePointResult>>} */
+const utf16ByteOrEofToCodePointOp = state => input => input === undefined ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
+
+/** @type {(input: list.List<number>) => list.List<CodePointResult>} */
+const utf16ListToCodePoint = input => list.flat(list.stateScan(utf16ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+
 module.exports = {
     /** @readonly */
     codePointListToUtf8,
     /** @readonly */
     codePointListToUtf16,
     /** @readonly */
-    utf8ListToCodePoint
+    utf8ListToCodePoint,
+    /** @readonly */
+    utf16ListToCodePoint
 }
