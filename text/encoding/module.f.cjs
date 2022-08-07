@@ -2,7 +2,7 @@ const result = require('../../types/result/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
-const { todo } = require('../../dev/module.f.cjs')
+const { contains } = require('../../types/range/module.f.cjs')
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} ByteResult */
@@ -18,11 +18,10 @@ const { ok, error } = result
 /** @type {(a:number) => boolean} */
 const isBmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
 
-/** @type {(a:number) => boolean} */
-const isHighSurrogate = a => a >= 0xd800 && a <= 0xdbff
+const isHighSurrogate = contains([0xd800, 0xdbff])
 
 /** @type {(a:number) => boolean} */
-const isLowSurrogate = a => a >= 0xdc00 && a <= 0xdfff
+const isLowSurrogate = contains([0xdc00, 0xdfff])
 
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
