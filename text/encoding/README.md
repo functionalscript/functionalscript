@@ -30,6 +30,9 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 |[a,e]    |-        |
 |[a,]     |-        |
 
+- UTF8 => codepoint => UTF16 => codepoint => UTF8 ?
+- UTF16 => codepoint => UTF8 => codepoint => UTF16 ?
+
 ```js
 /** @typedef {number} u8 */
 /** @typedef {number} i8 */
