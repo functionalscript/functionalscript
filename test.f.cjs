@@ -7,7 +7,7 @@ require('./sha2/test.f.cjs')
 require('./json/test.f.cjs')
 require('./json/tokenizer/test.f.cjs')
 require('./types/object/test.f.cjs')
-require('./io/commonjs/test.cjs')
+require('./commonjs/test.cjs')
 require('./commonjs/package/dependencies/test.f.cjs')
 require('./commonjs/package/test.f.cjs')
 require('./commonjs/path/test.f.cjs')
@@ -20,6 +20,7 @@ require('./html/test.f.cjs')
 require('./text/test.f.cjs')
 require('./text/encoding/test.f.cjs')
 require('./com/cs/test.f.cjs')
+require('./com/cpp/test.f.cjs')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }

@@ -1,7 +1,15 @@
-#ifndef COM_HPP
-#define COM_HPP
+#pragma once
 
 #include <cstdint>
+#include <cstddef>
+
+#if defined(__aarch64__)
+#define COM_STDCALL
+#elif defined(__clang__)
+#define COM_STDCALL __attribute__((stdcall))
+#else
+#define COM_STDCALL __stdcall
+#endif
 
 namespace com
 {
@@ -14,34 +22,32 @@ namespace com
 
     typedef uint32_t HRESULT;
     typedef uint32_t ULONG;
+    typedef int32_t BOOL;
 
     class IUnknown
     {
     public:
-        virtual HRESULT __stdcall QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
-        virtual ULONG __stdcall AddRef() noexcept = 0;
-        virtual ULONG __stdcall Release() noexcept = 0;
+        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
+        virtual ULONG COM_STDCALL AddRef() noexcept = 0;
+        virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
 
     template <class I>
-    class Ref
+    class ref
     {
     public:
-        explicit Ref(I &other) noexcept : p(other.p)
+        explicit ref(I &other) noexcept : p(other.p)
         {
             p.AddRef();
         }
-        Ref(Ref const &other) noexcept : Ref(other.p)
+        ref(ref const &other) noexcept : ref(other.p)
         {
         }
-        ~Ref() noexcept
+        ~ref() noexcept
         {
             p.Release();
         }
-
     private:
         I &p;
     };
 }
-
-#endif

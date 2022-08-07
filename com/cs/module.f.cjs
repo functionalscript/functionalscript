@@ -42,40 +42,34 @@ const baseType = t => {
 const unsafe = isUnsafe => isUnsafe ? 'unsafe ' : ''
 
 /** @type {(t: types.Type) => readonly[boolean, string]} */
-const type = t =>
+const fullType = t =>
     typeof (t) === 'string' ? [false, baseType(t)] :
         t.length === 1 ? [false, t[0]] :
-            [true, `${type(t[1])[1]}*`]
+            [true, `${type(t[1])}*`]
+
+/** @type {(m: types.Type) => string} */
+const type = t => fullType(t)[1]
 
 /** @type {(f: types.Field) => string} */
-const param = ([name, t]) => `${type(t)[1]} ${name}`
+const param = ([name, t]) => `${type(t)} ${name}`
 
 /** @type {(f: types.Field) => string} */
 const field = ([name, comType]) => {
-    const [isUnsafe, t] = type(comType)
+    const [isUnsafe, t] = fullType(comType)
     return `public ${unsafe(isUnsafe)}${t} ${name};`
 }
 
-/** @type {(m: types.FieldArray) => string} */
-const result = m => {
-    const result = m._
-    return result === undefined ? 'void' : type(result)[1]
-}
-
 /** @type {(field: types.Field) => boolean} */
-const isUnsafeField = field => type(field[1])[0]
-
-/** @type {(kv: obj.Entry<types.Type>) => boolean} */
-const isParam = kv => kv[0] !== '_'
+const isUnsafeField = field => fullType(field[1])[0]
 
 /** @type {(e: obj.Entry<types.FieldArray>) => readonly string[]} */
 const method = ([name, m]) => {
     const paramAndResultList = Object.entries(m)
-    const paramList = list.filter(isParam)(paramAndResultList)
+    const pl = types.paramList(m)
     const isUnsafe = list.some(list.map(isUnsafeField)(paramAndResultList))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${result(m)} ${name}(${list.join(', ')(list.map(param)(paramList))});`
+        `${unsafe(isUnsafe)}${types.result('void')(type)(m)} ${name}(${list.join(', ')(list.map(param)(pl))});`
     ]
 }
 

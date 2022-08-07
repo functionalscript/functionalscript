@@ -6,7 +6,7 @@
   "scripts": {
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
-    "version": "node ./io/nodejs/version/main.cjs",
+    "version": "node ./nodejs/version/main.cjs",
     "test-only": "node --trace-uncaught ./test.f.cjs"
   },
   "repository": {
