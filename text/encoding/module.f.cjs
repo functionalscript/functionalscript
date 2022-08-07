@@ -16,13 +16,13 @@ const { ok, error } = result
 /** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf16State */
 
 /** @type {(a:number) => boolean} */
-const bmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
+const isBmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
 
 /** @type {(a:number) => boolean} */
-const highSurrogate = a => a >= 0xd800 && a <= 0xdbff
+const isHighSurrogate = a => a >= 0xd800 && a <= 0xdbff
 
 /** @type {(a:number) => boolean} */
-const lowSurrogate = a => a >= 0xdc00 && a <= 0xdfff
+const isLowSurrogate = a => a >= 0xdc00 && a <= 0xdfff
 
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
@@ -37,7 +37,7 @@ const codePointToUtf8 = input =>
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf16 = input =>
 {
-    if (bmpCodePoint(input)) { return [ok(input >> 8), ok(input & 0xff)] }
+    if (isBmpCodePoint(input)) { return [ok(input >> 8), ok(input & 0xff)] }
     if (input >= 0x010000 && input <= 0x10ffff) {
         const high = ((input - 0x10000) >> 10) + 0xd800
         const low = ((input - 0x10000) & 0x3ff) + 0xdc00
@@ -102,14 +102,20 @@ const utf16ByteToCodePointOp = state => byte => {
     {
         case 1:
             const codeUnit = (state[0] << 8) + byte
-            if (bmpCodePoint(codeUnit)) return [[ok(codeUnit)], undefined]
-            if (highSurrogate(codeUnit)) return [[], [state[0], byte]]
-            return [[error([state[0], byte])], undefined]
+            if (isBmpCodePoint(codeUnit)) return [[ok(codeUnit)], undefined]
+            if (isHighSurrogate(codeUnit)) return [[], [state[0], byte]]
+            break
         case 2:
-            return todo()
-        case 3: 
-            return todo()
+            return [[], [state[0], state[1], byte]]
+        case 3:             
+            if (isLowSurrogate((state[2] << 8) + byte)) {
+                const high = (state[0] << 8) + state[1] - 0xd800
+                const low = (state[2] << 8) + byte - 0xdc00
+                return [[ok((high << 10) + low + 0x10000)], undefined]
+            } 
+            break
     }
+    return [[error(list.toArray(list.concat(state)([byte])))], undefined]
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf16State]} */
