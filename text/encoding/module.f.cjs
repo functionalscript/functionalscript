@@ -101,7 +101,7 @@ const utf16ByteToCodePointOp = state => byte => {
     {
         case 1:
             const codeUnit = (state[0] << 8) + byte
-            if (isBmpCodePoint(codeUnit)) return [[ok(codeUnit)], undefined]
+            if (isBmpCodePoint(codeUnit)) { return [[ok(codeUnit)], undefined] }
             if (isHighSurrogate(codeUnit)) return [[], [state[0], byte]]
             break
         case 2:
