@@ -57,8 +57,8 @@ const utf8ByteToCodePointOp = state => byte => {
         return [[error([byte])], state]
     }    
     if (state == undefined) {
-        if (byte < 0x80) return [[ok(byte)], undefined]
-        if (byte >= 0xc2 && byte <= 0xf4) return [[], [byte]]
+        if (byte < 0x80) { return [[ok(byte)], undefined] }
+        if (byte >= 0xc2 && byte <= 0xf4) { return [[], [byte]] }
         return [[error([byte])], undefined]
     }
     if (byte >= 0x80 && byte < 0xc0)
@@ -66,12 +66,12 @@ const utf8ByteToCodePointOp = state => byte => {
         switch(state.length)
         {
             case 1:
-                if (state[0] < 0xe0) return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined]
-                if (state[0] < 0xf8) return [[], [state[0], byte]]   
+                if (state[0] < 0xe0) { return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined] }
+                if (state[0] < 0xf8) { return [[], [state[0], byte]] }
                 break         
             case 2:
-                if (state[0] < 0xf0) return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined]
-                if (state[0] < 0xf8) return [[], [state[0], state[1], byte]]
+                if (state[0] < 0xf0) { return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined] }
+                if (state[0] < 0xf8) { return [[], [state[0], state[1], byte]] }
                 break
             case 3: 
                 return [[ok(((state[0] & 0x07) << 18) + ((state[1] & 0x3f) << 12) + ((state[2] & 0x3f) << 6) + (byte & 0x3f))], undefined]
@@ -102,7 +102,7 @@ const utf16ByteToCodePointOp = state => byte => {
         case 1:
             const codeUnit = (state[0] << 8) + byte
             if (isBmpCodePoint(codeUnit)) { return [[ok(codeUnit)], undefined] }
-            if (isHighSurrogate(codeUnit)) return [[], [state[0], byte]]
+            if (isHighSurrogate(codeUnit)) { return [[], [state[0], byte]] }
             break
         case 2:
             return [[], [state[0], state[1], byte]]
