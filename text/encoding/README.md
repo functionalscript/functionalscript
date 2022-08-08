@@ -88,3 +88,5 @@ const stringToUtf16List
 /** @type {(input: List<u16>) => string} */
 const utf16ListToString
 ```
+
+UTF-16 => CP => UTF-9 => CP = UTF-16
