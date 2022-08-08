@@ -37,10 +37,10 @@ Total error states:
 |[d,]      |1111_0xxx                    | 3 bit|                   |
 |[c,]      |1110_xxxx                    | 4 bit|                   |
 |[b,]      |110x_xxxx                    | 5 bit|                   |
-|[e]       |10xx_xxxx                    | 6 bit|1111_1111 1xxx_xxxx|
-|[d,c,]    |1111_0xxx 10xx_xxxx          | 9 bit|1111_0xxx 10xx_xxxx|
-|[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|1110_xxxx 10xx_xxxx|
-|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|0xxx_xxxx xxxx_xxxx|
+|[e]       |10xx_xxxx                    | 6 bit|0000_0000 0xxx_xxxx|
+|[d,c,]    |1111_0xxx 10xx_xxxx          | 9 bit|0000_001x xxxx_xxxx|
+|[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|0000_01xx xxxx_xxxx|
+|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|1xxx_xxxx xxxx_xxxx|
 
 ```js
 /** @type {(input: List<u8|undefined>) => List<i32>} */
