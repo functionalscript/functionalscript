@@ -90,3 +90,7 @@ const utf16ListToString
 ```
 
 UTF-16 => CP => UTF-8 => CP = UTF-16
+
+## Example
+
+UTF-8: 1101_11xx_xxxx_xxxx 1101_11xx_xxxx_xxxx
