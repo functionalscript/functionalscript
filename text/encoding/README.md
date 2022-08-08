@@ -93,4 +93,22 @@ UTF-16 => CP => UTF-8 => CP = UTF-16
 
 ## Example
 
-UTF-8: 1101_11xx_xxxx_xxxx 1101_11xx_xxxx_xxxx
+- UTF-16: 
+  - 1101_11xx_xxxx_xxxx 
+  - 1101_11xx_xxxx_xxxx
+- CP: 
+  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx 
+  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx
+- UTF-8:
+  - 1111_0.101 
+  - 10.11_xxxx 
+  - 10xx_xxxx
+  - 1111_0.101 
+  - 10.11_xxxx 
+  - 10xx_xxxx 
+- CP:
+  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx 
+  - 1000_0000_0000_0000_1101_11xx_xxxx_xxxx
+- UTF-16: 
+  - 1101_11xx_xxxx_xxxx 
+  - 1101_11xx_xxxx_xxxx
