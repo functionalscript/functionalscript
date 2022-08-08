@@ -20,7 +20,7 @@ Requirement: no loss for UTF8 => codepoint => UTF8
 |[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|
 |[d,]      |1111_0xxx                    |3 bit |
 |[d,c,]    |1111_0xxx 10xx_xxxx          |9 bit |
-|[d,c,b]   |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|
+|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|
 
 Total error states:
 
@@ -40,7 +40,7 @@ Total error states:
 |[e]       |10xx_xxxx                    | 6 bit|1111_1111 1xxx_xxxx|
 |[d,c,]    |1111_0xxx 10xx_xxxx          | 9 bit|1111_0xxx 10xx_xxxx|
 |[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|1110_xxxx 10xx_xxxx|
-|[d,c,b]   |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|0xxx_xxxx xxxx_xxxx|
+|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|0xxx_xxxx xxxx_xxxx|
 
 ```js
 /** @type {(input: List<u8|undefined>) => List<i32>} */
