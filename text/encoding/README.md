@@ -89,4 +89,4 @@ const stringToUtf16List
 const utf16ListToString
 ```
 
-UTF-16 => CP => UTF-9 => CP = UTF-16
+UTF-16 => CP => UTF-8 => CP = UTF-16
