@@ -77,14 +77,14 @@ Total error states: 11 bit
 
 ```js
 /** @type {(input: List<u16|undefined>) => List<i32>} */
-const utf16ToCodePoint
+const utf16ListToCodePointList
 
 /** @type {(input: List<i32>) => List<u16>} */
-const codePointToUtf16
+const codePointListToUtf16List
 
 /** @type {(input: string) => List<u16> */
-const stringToUtf16
+const stringToUtf16List
 
 /** @type {(input: List<u16>) => string} */
-const utf16ToString
+const utf16ListToString
 ```
