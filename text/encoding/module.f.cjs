@@ -50,10 +50,10 @@ const codePointToUtf16 = input =>
 }
 
 /** @type {(input: list.List<number>) => list.List<ByteResult>} */
-const codePointListToUtf8 = list.flatMap(codePointToUtf8)
+const codePointListToUtf8List = list.flatMap(codePointToUtf8)
 
 /** @type {(input: list.List<i32>) => list.List<u16>} */
-const codePointListToUtf16 = list.flatMap(codePointToUtf16)
+const codePointListToUtf16List = list.flatMap(codePointToUtf16)
 
 /** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
 const utf8ByteToCodePointOp = state => byte => {
@@ -91,7 +91,7 @@ const utf8EofToCodePointOp = state => [state === undefined ? undefined : [error(
 const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
 /** @type {(input: list.List<number>) => list.List<CodePointResult>} */
-const utf8ListToCodePoint = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+const utf8ListToCodePointList = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
 
 /** @type {operator.StateScan<number, Utf16State, list.List<CodePointResult>>} */
 const utf16ByteToCodePointOp = state => byte => {
@@ -118,15 +118,15 @@ const utf16EofToCodePointOp = state => [state === undefined ? undefined : [error
 const utf16ByteOrEofToCodePointOp = state => input => input === undefined ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 /** @type {(input: list.List<number>) => list.List<CodePointResult>} */
-const utf16ListToCodePoint = input => list.flat(list.stateScan(utf16ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+const utf16ListToCodePointList = input => list.flat(list.stateScan(utf16ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
 
 module.exports = {
     /** @readonly */
-    codePointListToUtf8,
+    codePointListToUtf8List,
     /** @readonly */
-    codePointListToUtf16,
+    codePointListToUtf16List,
     /** @readonly */
-    utf8ListToCodePoint,
+    utf8ListToCodePointList,
     /** @readonly */
-    utf16ListToCodePoint
+    utf16ListToCodePointList
 }
