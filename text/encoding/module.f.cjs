@@ -13,7 +13,7 @@ const { ok, error } = result
 
 /** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8State */
 
-/** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf16State */
+/** @typedef {undefined|number} Utf16State */
 
 /** @type {(a:number) => boolean} */
 const isBmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
@@ -36,11 +36,11 @@ const codePointToUtf8 = input =>
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf16 = input =>
 {
-    if (isBmpCodePoint(input)) { return [ok(input >> 8), ok(input & 0xff)] }
+    if (isBmpCodePoint(input)) { return [ok(input)] }
     if (input >= 0x010000 && input <= 0x10ffff) {
         const high = ((input - 0x10000) >> 10) + 0xd800
-        const low = ((input - 0x10000) & 0x3ff) + 0xdc00
-        return [ok(high >> 8), ok(high & 0xff), ok(low >> 8), ok(low & 0xff)]
+        const low = ((input - 0x10000) & 0b0011_1111_1111) + 0xdc00
+        return [ok(high), ok(low)]
     }
     return [error(input)]
 }
@@ -81,7 +81,7 @@ const utf8ByteToCodePointOp = state => byte => {
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf8State]} */
-const utf8EofToCodePointOp = state => [state == undefined ? undefined : [error(state)],  undefined]
+const utf8EofToCodePointOp = state => [state === undefined ? undefined : [error(state)],  undefined]
 
 /** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<CodePointResult>>} */
 const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
@@ -91,36 +91,26 @@ const utf8ListToCodePoint = input => list.flat(list.stateScan(utf8ByteOrEofToCod
 
 /** @type {operator.StateScan<number, Utf16State, list.List<CodePointResult>>} */
 const utf16ByteToCodePointOp = state => byte => {
-    if (byte < 0x00 || byte > 0xff) {
+    if (byte < 0x00 || byte > 0xffff) {
         return [[error([byte])], state]
     }
-    if (state == undefined) {
-        return [[], [byte]]
+    if (state === undefined) {
+        if (isBmpCodePoint(byte)) { return [[ok(byte)], undefined] } 
+        if (isHighSurrogate(byte)) { return [[], byte] }
+        return [[error(list.toArray(list.concat(state)([byte])))], undefined]
     }
-    switch(state.length)
-    {
-        case 1:
-            const codeUnit = (state[0] << 8) + byte
-            if (isBmpCodePoint(codeUnit)) { return [[ok(codeUnit)], undefined] }
-            if (isHighSurrogate(codeUnit)) { return [[], [state[0], byte]] }
-            break
-        case 2:
-            return [[], [state[0], state[1], byte]]
-        case 3:             
-            if (isLowSurrogate((state[2] << 8) + byte)) {
-                const high = (state[0] << 8) + state[1] - 0xd800
-                const low = (state[2] << 8) + byte - 0xdc00
-                return [[ok((high << 10) + low + 0x10000)], undefined]
-            } 
-            break
+    if (isLowSurrogate(byte)) {
+        const high = state - 0xd800
+        const low = byte - 0xdc00
+        return [[ok((high << 10) + low + 0x10000)], undefined]
     }
-    return [[error(list.toArray(list.concat(state)([byte])))], undefined]
+    return [[error([state, byte])], undefined]
 }
 
-/** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf16State]} */
-const utf16EofToCodePointOp = state => [state == undefined ? undefined : [error(state)],  undefined]
+/** @type {(state: Utf16State) => readonly[list.List<CodePointResult>, Utf16State]} */
+const utf16EofToCodePointOp = state => [state === undefined ? undefined : [error([state])],  undefined]
 
-/** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<CodePointResult>>} */
+/** @type {operator.StateScan<ByteOrEof, Utf16State, list.List<CodePointResult>>} */
 const utf16ByteOrEofToCodePointOp = state => input => input === undefined ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 /** @type {(input: list.List<number>) => list.List<CodePointResult>} */

@@ -63,52 +63,52 @@ const stringify = a => json.stringify(sort)(a)
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0])))
-    if (result !== '[["ok",0],["ok",0]]') { throw result }
+    if (result !== '[["ok",0]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x24])))
-    if (result !== '[["ok",0],["ok",36]]') { throw result }
+    if (result !== '[["ok",36]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x20AC])))
-    if (result !== '[["ok",32],["ok",172]]') { throw result }
+    if (result !== '[["ok",8364]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0xd7ff])))
-    if (result !== '[["ok",215],["ok",255]]') { throw result }
+    if (result !== '[["ok",55295]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0xe000])))
-    if (result !== '[["ok",224],["ok",0]]') { throw result }
+    if (result !== '[["ok",57344]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0xffff])))
-    if (result !== '[["ok",255],["ok",255]]') { throw result }
+    if (result !== '[["ok",65535]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x10000])))
-    if (result !== '[["ok",216],["ok",0],["ok",220],["ok",0]]') { throw result }
+    if (result !== '[["ok",55296],["ok",56320]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x10437])))
-    if (result !== '[["ok",216],["ok",1],["ok",220],["ok",55]]') { throw result }
+    if (result !== '[["ok",55297],["ok",56375]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x24B62])))
-    if (result !== '[["ok",216],["ok",82],["ok",223],["ok",98]]') { throw result }
+    if (result !== '[["ok",55378],["ok",57186]]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x10ffff])))
-    if (result !== '[["ok",219],["ok",255],["ok",223],["ok",255]]') { throw result }
+    if (result !== '[["ok",56319],["ok",57343]]') { throw result }
 }
 
 {
@@ -167,33 +167,33 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {    
-    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([-1, 256,])))
-    if (result !== '[["error",[-1]],["error",[256]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([-1, 65536,])))
+    if (result !== '[["error",[-1]],["error",[65536]]]') { throw result }
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([0, 0, 0, 36, 32, 172, 215, 255, 224, 0, 255, 255])))
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([0, 36, 8364, 55295, 57344, 65535])))
     if (result !== '[["ok",0],["ok",36],["ok",8364],["ok",55295],["ok",57344],["ok",65535]]') { throw result }
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([220, 0, 223, 255])))
-    if (result !== '[["error",[220,0]],["error",[223,255]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([56320, 57343])))
+    if (result !== '[["error",[56320]],["error",[57343]]]') { throw result }
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([216, 0, 220, 0, 216, 1, 220, 55, 216, 82, 223, 98, 219, 255, 223, 255])))
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([55296, 56320, 55297, 56375, 55378, 57186, 56319, 57343])))
     if (result !== '[["ok",65536],["ok",66615],["ok",150370],["ok",1114111]]') { throw result }
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([216, 0, 216, 0])))
-    if (result !== '[["error",[216,0,216,0]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([55296, 55296])))
+    if (result !== '[["error",[55296,55296]]]') { throw result }
 }
 
 {
-    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([216, 0, 0, 0])))
-    if (result !== '[["error",[216,0,0,0]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf16ListToCodePoint([55296, 0])))
+    if (result !== '[["error",[55296,0]]]') { throw result }
 }
 
 module.exports = {}
