@@ -15,6 +15,10 @@ const { ok, error } = result
 
 /** @typedef {undefined|number} Utf16State */
 
+/** @typedef {number} u16 */
+
+/** @typedef {number} i32 */
+
 /** @type {(a:number) => boolean} */
 const isBmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
 
@@ -33,22 +37,22 @@ const codePointToUtf8 = input =>
     return [error(input)]
 }
 
-/** @type {(input:number) => list.List<ByteResult>} */
+/** @type {(input:i32) => list.List<u16>} */
 const codePointToUtf16 = input =>
-{
-    if (isBmpCodePoint(input)) { return [ok(input)] }
+{    
+    if (isBmpCodePoint(input)) { return [input] }
     if (input >= 0x010000 && input <= 0x10ffff) {
         const high = ((input - 0x10000) >> 10) + 0xd800
         const low = ((input - 0x10000) & 0b0011_1111_1111) + 0xdc00
-        return [ok(high), ok(low)]
+        return [high, low]
     }
-    return [error(input)]
+    return [input & 0xffff]
 }
 
 /** @type {(input: list.List<number>) => list.List<ByteResult>} */
 const codePointListToUtf8 = list.flatMap(codePointToUtf8)
 
-/** @type {(input: list.List<number>) => list.List<ByteResult>} */
+/** @type {(input: list.List<i32>) => list.List<u16>} */
 const codePointListToUtf16 = list.flatMap(codePointToUtf16)
 
 /** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */

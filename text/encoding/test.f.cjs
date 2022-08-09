@@ -63,57 +63,57 @@ const stringify = a => json.stringify(sort)(a)
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0])))
-    if (result !== '[["ok",0]]') { throw result }
+    if (result !== '[0]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x24])))
-    if (result !== '[["ok",36]]') { throw result }
+    if (result !== '[36]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x20AC])))
-    if (result !== '[["ok",8364]]') { throw result }
+    if (result !== '[8364]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0xd7ff])))
-    if (result !== '[["ok",55295]]') { throw result }
+    if (result !== '[55295]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0xe000])))
-    if (result !== '[["ok",57344]]') { throw result }
+    if (result !== '[57344]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0xffff])))
-    if (result !== '[["ok",65535]]') { throw result }
+    if (result !== '[65535]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x10000])))
-    if (result !== '[["ok",55296],["ok",56320]]') { throw result }
+    if (result !== '[55296,56320]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x10437])))
-    if (result !== '[["ok",55297],["ok",56375]]') { throw result }
+    if (result !== '[55297,56375]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x24B62])))
-    if (result !== '[["ok",55378],["ok",57186]]') { throw result }
+    if (result !== '[55378,57186]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([0x10ffff])))
-    if (result !== '[["ok",56319],["ok",57343]]') { throw result }
+    if (result !== '[56319,57343]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16([-1, 0xd800, 0xdfff, 0x110000])))
-    if (result !== '[["error",-1],["error",55296],["error",57343],["error",1114112]]') { throw result }
+    if (result !== '[65535,55296,57343,0]') { throw result }
 }
 
 {    
