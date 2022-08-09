@@ -68,10 +68,10 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 |[a]      |xxxx_xxxx_xxxx_xxxx                    |16 bit|
 |[b,a]    |1101_10xx_xxxx_xxxx 1101_11xx_xxxx_xxxx|20 bit|
 
-|utf16 error|codepoint          |size  |
-|-----------|-------------------|------|
-|[e]        |1101_11xx_xxxx_xxxx|10 bit|
-|[b,]       |1101_10xx_xxxx_xxxx|10 bit|
+|utf16 error|codepoint          |size  |map                |
+|-----------|-------------------|------|-------------------|
+|[e]        |1101_11xx_xxxx_xxxx|10 bit|1101_11xx_xxxx_xxxx|
+|[b,]       |1101_10xx_xxxx_xxxx|10 bit|1101_10xx_xxxx_xxxx|
 
 Total error states: 11 bit
 
