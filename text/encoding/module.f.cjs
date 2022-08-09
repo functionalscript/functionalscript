@@ -11,6 +11,8 @@ const { ok, error } = result
 
 /** @typedef {number|undefined} ByteOrEof */
 
+/** @typedef {u16|undefined} WordOrEof */
+
 /** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8State */
 
 /** @typedef {undefined|number} Utf16State */
@@ -26,6 +28,8 @@ const isHighSurrogate = contains([0xd800, 0xdbff])
 
 /** @type {(a:number) => boolean} */
 const isLowSurrogate = contains([0xdc00, 0xdfff])
+
+const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /** @type {(input:number) => list.List<ByteResult>} */
 const codePointToUtf8 = input =>
@@ -93,32 +97,34 @@ const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8E
 /** @type {(input: list.List<number>) => list.List<CodePointResult>} */
 const utf8ListToCodePointList = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
 
-/** @type {operator.StateScan<number, Utf16State, list.List<CodePointResult>>} */
+/** @type {operator.StateScan<u16, Utf16State, list.List<i32>>} */
 const utf16ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xffff) {
-        return [[error([byte])], state]
+        return [[0xffffffff], state]
     }
     if (state === undefined) {
-        if (isBmpCodePoint(byte)) { return [[ok(byte)], undefined] } 
+        if (isBmpCodePoint(byte)) { return [[byte], undefined] }
         if (isHighSurrogate(byte)) { return [[], byte] }
-        return [[error(list.toArray(list.concat(state)([byte])))], undefined]
+        return [[byte | errorMask], undefined]
     }
     if (isLowSurrogate(byte)) {
         const high = state - 0xd800
         const low = byte - 0xdc00
-        return [[ok((high << 10) + low + 0x10000)], undefined]
+        return [[(high << 10) + low + 0x10000], undefined]
     }
-    return [[error([state, byte])], undefined]
+    if (isBmpCodePoint(byte)) { return [[state | errorMask, byte], undefined] }
+    if (isHighSurrogate(byte)) { return [[state | errorMask], byte] }
+    return [[state | errorMask, byte | errorMask], undefined]
 }
 
-/** @type {(state: Utf16State) => readonly[list.List<CodePointResult>, Utf16State]} */
-const utf16EofToCodePointOp = state => [state === undefined ? undefined : [error([state])],  undefined]
+/** @type {(state: Utf16State) => readonly[list.List<i32>, Utf16State]} */
+const utf16EofToCodePointOp = state => [state === undefined ? undefined : [state | errorMask],  undefined]
 
-/** @type {operator.StateScan<ByteOrEof, Utf16State, list.List<CodePointResult>>} */
+/** @type {operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
 const utf16ByteOrEofToCodePointOp = state => input => input === undefined ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
-/** @type {(input: list.List<number>) => list.List<CodePointResult>} */
-const utf16ListToCodePointList = input => list.flat(list.stateScan(utf16ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+/** @type {(input: list.List<u16>) => list.List<i32>} */
+const utf16ListToCodePointList = input => list.flat(list.stateScan(utf16ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<WordOrEof>} */(input))([undefined])))
 
 module.exports = {
     /** @readonly */

@@ -167,33 +167,43 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {    
-    const result = stringify(list.toArray(encoding.utf16ListToCodePointList([-1, 65536,])))
-    if (result !== '[["error",[-1]],["error",[65536]]]') { throw result }
+    const result = stringify(list.toArray(encoding.utf16ListToCodePointList([-1, 65536])))
+    if (result !== '[4294967295,4294967295]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.utf16ListToCodePointList([0, 36, 8364, 55295, 57344, 65535])))
-    if (result !== '[["ok",0],["ok",36],["ok",8364],["ok",55295],["ok",57344],["ok",65535]]') { throw result }
+    if (result !== '[0,36,8364,55295,57344,65535]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.utf16ListToCodePointList([56320, 57343])))
-    if (result !== '[["error",[56320]],["error",[57343]]]') { throw result }
+    if (result !== '[-2147427328,-2147426305]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.utf16ListToCodePointList([55296, 56320, 55297, 56375, 55378, 57186, 56319, 57343])))
-    if (result !== '[["ok",65536],["ok",66615],["ok",150370],["ok",1114111]]') { throw result }
+    if (result !== '[65536,66615,150370,1114111]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.utf16ListToCodePointList([55296, 55296])))
-    if (result !== '[["error",[55296,55296]]]') { throw result }
+    if (result !== '[-2147428352,-2147428352]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.utf16ListToCodePointList([55296, 0])))
-    if (result !== '[["error",[55296,0]]]') { throw result }
+    if (result !== '[-2147428352,0]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.utf16ListToCodePointList([56320])))
+    if (result !== '[-2147427328]') { throw result }
+}
+
+{
+    const result = stringify(list.toArray(encoding.utf16ListToCodePointList([56320, 0])))
+    if (result !== '[-2147427328,0]') { throw result }
 }
 
 module.exports = {}
