@@ -82,7 +82,7 @@ const utf16ListToCodePointList
 /** @type {(input: List<i32>) => List<u16>} */
 const codePointListToUtf16List
 
-/** @type {(input: string) => List<u16> */
+/** @type {(input: string) => List<u16>} */
 const stringToUtf16List
 
 /** @type {(input: List<u16>) => string} */
