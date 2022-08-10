@@ -102,8 +102,23 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 
 ## Object Structure
 
-- `type`:
-  - 0: float64
-  - 1: object
-- `ref counter`
-  - 31 or 63 bits.
+- counter&type: 32 + float64: 64
+- counter&type: 32 + object: len: 32 + payload
+- counter&type: 32 + array: len: 32 + payload
+- counter&type: 32 + function: 32 + 32
+- counter&type: 32 + string: len: 32 + payload
+- counter&type: 32 + bigint: len: 32 + payload
+
+minimal size: 64 bit = 8 byte
+alignment: 3 bit.
+
+## Type
+
+- 000 number
+- 001 string
+- 010 object
+- 011 array
+- 100 function
+- 101 bigint
+- 110 ...
+- 111 ...
