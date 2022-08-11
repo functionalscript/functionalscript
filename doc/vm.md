@@ -92,23 +92,25 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 
 ## Object Structure
 
-- counter&type: 32 + float64: 64
-- counter&type: 32 + object: len: 32 + payload
-- counter&type: 32 + array: len: 32 + payload
-- counter&type: 32 + function: 32 + 32
-- counter&type: 32 + string: len: 32 + payload
-- counter&type: 32 + bigint: len: 32 + payload
+- type&counter: 32 + float64: 64
+- type&counter: 32 + object: len: 32 + payload
+- type&counter: 32 + array: len: 32 + payload
+- type&counter: 32 + function: 32 + 32
+- type&counter: 32 + string: len: 32 + payload
+- type&counter: 32 + bigint: len: 32 + payload
 
-minimal size: 64 bit = 8 byte
-counter: 64 - 3 = 61 bit.
+minimal size: 64 bit = 8 byte. It means that a number of objects can't be more than 2^(32-3) on 32-bit platform and 2^(64-3) on 64-bit platform.  
+counter: 
+- 32 - 3 = 29 bit,
+- 64 - 3 = 61 bit.
 
 ## Type
 
-- 000 number
+- 000 float64
 - 001 string
 - 010 object
 - 011 array
 - 100 function
 - 101 bigint
-- 110 ...
+- 110 int32
 - 111 ...
