@@ -93,6 +93,7 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 ## Object Structure
 
 - type&counter: 32 + float64: 64
+- type&counter: 32 + int32: 32
 - type&counter: 32 + object: len: 32 + payload
 - type&counter: 32 + array: len: 32 + payload
 - type&counter: 32 + function: 32 + 32
@@ -114,3 +115,9 @@ counter:
 - 101 bigint
 - 110 int32
 - 111 ...
+
+## Using Pools for small objects
+
+- float64
+- function
+- int32
