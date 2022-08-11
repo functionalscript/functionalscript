@@ -4,65 +4,55 @@
 
 https://en.wikipedia.org/wiki/Tagged_pointer
 
-### Common (17 bit)
+### Common (3 bit)
 
-- `{16} 0`: 1 UTF-16
-- `{16} 1`:
-  - `{3} 00000_00000000`:
-    - `{2} 0`:
-      - `00`: false
-      - `01`: true
-      - `10`: undefined
-      - `11`: ""
-    - `{2} 1`: double
-      - `00`: -infinity
-      - `01`: +infinity
-      - `10`: -0
-      - `11`: NaN`
-  - `{3} NNNNN_NNNNNNNN`: reserved
+- `false`
+- `true`
+- `undefined`
+- `""`
+- `-infinity`
+- `+infinity`
+- `-0`
+- `NaN`
 
 ### 32 bit platform
 
-- `{31} 0`:
-  - `{30} 0`: pointer + null
-  - `{30} 1`:
-    - `{28} 00`: 4 x 7 bit string
-    - `{28} 01`: 2 x 14 bit string
-    - `{28} 10`:
-      - `{27} 0`: 3 x 9 bit string
-      - `{27} 1`:
-        - `{20} 0000000`: a UTF-16 surrogate pair
-        - `{20} 0000001`:
-          - `{17} 000`:  common
-          - `{17} NNN`: reserved
-        - `{20} NNNNNNN`: reserved
-    - `{28} 11`: reserved
-- `{31} 1`: int31
+- `31` bigInt31 (-1_073_741_824..1_073_741_823)
+- `31`:
+  - `30`: pointer + null
+  - `30`:
+    - `29`:
+      - `28`: 4 x 7 bit string
+      - `28`: 2 x 14 bit string
+    - `29`:
+      - `28`: int28 (-134_217_728..134_217_727)
+      - `28`:
+        - `27`: 3 x 9 bit string
+        - `20`: a UTF-16 surrogate pair
+        - `16`: 1 x 16 bit string
+        - `3`: common
 
 ### 64 bit platform
 
-- `{63} 0`:
-  - `{62} 0`:
-    - `{61} 0`: pointer + null
-    - `{61} 1`: float61
-  - `{62} 1`:
-    - `{60} 00`: 6 x 10 bit string
-    - `{60} 01`: 5 x 12 bit string
-    - `{60} 10`: 4 x 15 bit string
-    - `{60} 11`:
-      - `{56} 0000`: 8 x 7-bit string
-      - `{56} 0001`: 7 x 8-bit string
-      - `{56} 0010`:
-        - `{48} 00000000`: 3 x 16 bit string
-        - `{48} NNNNNNNN`:
-          - `{32} 00000000_00000000`: 2 x 16 bit string
-          - `{32} 00000000_00000001`: int32
-          - `{32} 00000000_00000010`:
-            - `{17} 0000000_00000000`: common
-            - `{17} NNNNNNN_NNNNNNNN`: reserved
-          - `{32} NNNNNNNN_NNNNNNNN`: reserved
-      - `{56} NNNN`: reserved
-- `{63} 1`: 9 x 7 bit ASCII string
+- `63`: 9 x 7 bit string
+- `63`:
+  - `62`:
+    - `61`: pointer + null
+    - `61`: float61
+  - `62`:
+    - `60`: 6 x 10 bit string
+    - `60`: 5 x 12 bit string
+    - `60`: 4 x 15 bit string
+    - `60`:
+      - `59`: bigInt59 (-576_460_752_303_423_488..576_460_752_303_423_487)
+      - `59`:
+        - `56`: 8 x 7-bit string
+        - `56`: 7 x 8-bit string
+        - `48`: 3 x 16 bit string
+        - `32`: 2 x 16 bit string
+        - `32`: int32
+        - `16`: 1 x UTF16 string
+        - `3`: common
 
 ### Float64
 
