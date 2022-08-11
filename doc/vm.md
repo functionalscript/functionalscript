@@ -105,6 +105,8 @@ counter:
 - 32 - 3 = 29 bit,
 - 64 - 3 = 61 bit.
 
+Max length of JS string/array/object can't be bigger that 2^53-1
+
 ## Type
 
 - 000 float64
@@ -116,8 +118,19 @@ counter:
 - 110 int32
 - 111 ...
 
+## Type & counter
+
+|field  |x32   |x64   |
+|-------|------|------|
+|type   |29..31|61..63|
+|counter|0..28 |0..62 |
+
 ## Using Pools for small objects
 
-- float64
-- function
-- int32
+|type        |size on x32|size on x64|
+|------------|-----------|-----------|
+|float64     |4+8 = 12   |8+8 = 16   |
+|function    |4+4 = 8    |8+8 = 16   |
+|int32       |4+4 = 8    |8+4 = 12   |
+|empty object|4+4 = 8    |8+8 = 16   |
+|empty array |4+4 = 8    |8+8 = 16   |
