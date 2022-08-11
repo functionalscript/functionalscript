@@ -100,7 +100,7 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 - counter&type: 32 + bigint: len: 32 + payload
 
 minimal size: 64 bit = 8 byte
-alignment: 3 bit.
+counter: 64 - 3 = 61 bit.
 
 ## Type
 
