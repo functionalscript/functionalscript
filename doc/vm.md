@@ -19,7 +19,7 @@ https://en.wikipedia.org/wiki/Tagged_pointer
 
 - `31` bigInt31 (-1_073_741_824..1_073_741_823)
 - `31`:
-  - `30`: pointer + null
+  - `30`: pointer + null, alignment - 4 bytes.
   - `30`:
     - `29`:
       - `28`: 4 x 7 bit string
@@ -37,7 +37,7 @@ https://en.wikipedia.org/wiki/Tagged_pointer
 - `63`: 9 x 7 bit string
 - `63`:
   - `62`:
-    - `61`: pointer + null
+    - `61`: pointer + null, alignment - 8 bytes
     - `61`: float61
   - `62`:
     - `60`: 6 x 10 bit string
