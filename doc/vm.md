@@ -8,14 +8,12 @@
 - `true`
 - `undefined`
 - `""`
-- `-infinity`
 - `+infinity`
+- `-infinity`
 - `-0`
 - `NaN`
 
 ## 6-bit Id String
-
-6-bit string
 
 |symbol  |code          |# |sum|
 |--------|--------------|--|---|
@@ -25,112 +23,38 @@
 |`_`     |`\x5F`        | 1| 26|
 |`a`..`z`|`\x61`..`\x7A`|1A| 40|
 
-## 32 bit platform with ref counter.
-
-Pointer = 2^32 / 2^3 = 2^29
-
-### Object Structure
-
-Memory max size is 2^32.
-
-String max size is 2^32 / 2 (UTF-8 size) = 2^31.
-
-Counter max size is 2^32 / 4 (pointer size) = 2^30.
-Array max size is 2^32 / 4 (pointer size) = 2^30.
-
-Object max size is 2^32 / 8 (a size of 2 pointers) = 2^29
-BigInt max size is 2^32 / 8 (uint64 size) = 2^29.
-See https://doc.rust-lang.org/std/primitive.u64.html#method.carrying_mul
-
-- counter `32`
-  - type: `2`
-    - double
-    - int32
-    - function
-    - varObject
-- len:
-  - `31`: string
-  - `31`:
-    - `30`: array
-    - `30`:
-      - `29`: object
-      - `29`: bigint
-
-double: 4+8 = 12 (or 16 if aligned)
-int32: 4+4 = 8
-function: 4+4+4 = 12
-object: 8+
-array: 8+
-string: 8+
-bigint: 8+
-
-### Pointer32
-
-- `30`: 5 x 6 bit string
-- `30`: pointer + null, alignment - 4 bytes.
-- `30`:
-  - `29`: bigInt30 (-268_435_456..268_435_456)
-  - `29`: int28 (-268_435_456..268_435_456)
-- `30`:
-  - `28`: 4 x 7 bit string
-  - `28`: 2 x 14 bit string
-  - `28`:
-    - `27`: 3 x 9 bit string
-    - `27`:
-      - `20`: a UTF-16 surrogate pair
-      - `16`: 1 x 16 bit string
-      - `3`: common
-
 ## 64 bit platform
 
-Pointer = 2^32 / 2^3 = 2^29
+Alignment: 8 bytes.
 
-### Object Structure
+Pointer: 2^64 / 2^3 = 2^61 bit
 
-Memory max size is 2^64.
-
-String max size is 2^64 / 2^1 (UTF-8 size) = 2^63. JS limitation: 2^53
-BigInt max size is 2^64 / 2^2 (uint32 size) = 2^62.
-
-Counter max size is 2^64 / 2^3 (pointer size) = 2^61
-Array max size is 2^64 / 2^3 (pointer size) = 2^61. JS limitation: 2^32
-Object max size is 2^64 / 2^4 (a size of 2 pointers) = 2^60. JS limitation: 2^53
-
-- type&counter (64 bit)
-  - type: 3 bit
-  - counter: 61 bit
-
-- type:
-  - double
-  - function
-  - 
-
-### Pointer64
+### Value
 
 - `63`: 9 x 7 bit string
 - `63`:
   - `61`: pointer + null, alignment - 8 bytes
   - `61`:
-    - `60`: float60
+    - `60`: 4 x 15 bit string
     - `60`: 10 x 6 bit string
   - `61`:
     - `60`: 6 x 10 bit string
     - `60`: 5 x 12 bit string
   - `61`
-    - `60`: 4 x 15 bit string
+    - `60`: float60
     - `60`:
       - `59`: bigInt59 (-576_460_752_303_423_488..576_460_752_303_423_487)
       - `59`:
         - `56`: 8 x 7-bit string
         - `56`: 7 x 8-bit string
+        - `53`: int53
+        - `53`: stringUInt53
         - `48`: 3 x 16 bit string
         - `32`: 2 x 16 bit string
-        - `32`: int32
-        - `32`: stringUInt32
         - `16`: 1 x UTF16 string
         - `3`: common
 
-### Float64
+## Float64
 
 https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 
@@ -151,7 +75,7 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 |111_1111_1111|F = 0: signed infinities|
 |             |F != 0: NaN             |
 
-### Float60
+## Float60
 
 - 1 bit - sign
 - 7 bit - exponent
@@ -166,64 +90,73 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 |...     |           |
 |111_1111|E = 2^64   |
 
+The type has no `+0`, `-0`, `+inf`, `-inf`, `NaN`.
+
 ## Object Structure
 
-- type&counter: 32 + float64: 64
-- type&counter: 32 + int32: 32
-- type&counter: 32 + object: len: 32 + payload
-- type&counter: 32 + array: len: 32 + payload
-- type&counter: 32 + function: 32 + 32
-- type&counter: 32 + string: len: 32 + payload
-- type&counter: 32 + bigint: len: 32 + payload
+Value Size = 8
+Counter size = max_memory_size / value_size.
 
-Max length of JS string/array/object can't be bigger that 2^53-1
+### Type
 
-Array index can't be bigger than 2^32-1
+- `000`: double
+- `001`: string
+- `010`: array
+- `011`: object
+- `100`: bigInt
+- `101`: function
+- `110`:
+- `111`:
 
-## Type
+### Type & Counter
 
-- 00 float64
-- 10 function
-- 01 string or bigint
-- 11 object.
-    - object
-    - array
+- AtomicUSize:
+  - `3`: type
+  - `...`: counter
 
-## Type & counter
-
-|field  |x32   |x64   |
-|-------|------|------|
-|type   |29..31|61..63|
-|counter|0..28 |0..62 |
-
-## Using Pools for small objects
-
-|type        |size on x32|size on x64|
-|------------|-----------|-----------|
-|float64     |4+8 = 12   |8+8 = 16   |
-|function    |4+4+4 = 12 |8+8+8 = 24 |
-|int32       |4+4 = 8    |8+4 = 12   |
-|empty object|4+4 = 8    |8+4 = 12   |
-|empty array |4+4 = 8    |8+4 = 12   |
-
-## Array
+### String
 
 ```rust
-struct FsArray {
-  typeAndCounter: AtomicUSize,
-  length: usize,
-  items: [FsPointer; self.length],
+struct String {
+  length: u32,
+  array: [u16; self.length],
 }
 ```
 
-## Object
+### Function
 
 ```rust
-struct FsObject {
-  typeAndCounter: AtomicUSize,
-  length: usize,
-  propertyArray: [(FsString, FsPointer), self.length],
-  indexArray: [usize, (self.length * log2(self.length) + usize::BITS - 1) / usize::BITS],
+struct Function<length: u32> {
+  func: pointer,
+  array: [value; length]
+}
+```
+
+### BigInt
+
+```rust
+struct BigInt {
+  length: u32,
+  array: [u64; self.length],
+}
+```
+
+### Array
+
+```rust
+struct Array {
+  length: u32,
+  array: [Value; self.length],
+}
+```
+
+### Object
+
+```rust
+struct Object {
+  length: u32,
+  array: [(Value, Value), self.length],
+  indexArray: [u32, (self.length * log2(self.length) + 31) / u32],
 }
 ```
 
