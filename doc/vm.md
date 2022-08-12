@@ -27,62 +27,53 @@
 
 ## 32 bit platform with ref counter.
 
+Pointer = 2^32 / 2^3 = 2^29
+
 ### Object Structure
 
 Memory max size is 2^32.
 
 String max size is 2^32 / 2 (UTF-8 size) = 2^31.
-BigInt max size is 2^32 / 4 (uint32 size) = 2^30
 
 Counter max size is 2^32 / 4 (pointer size) = 2^30.
 Array max size is 2^32 / 4 (pointer size) = 2^30.
+
 Object max size is 2^32 / 8 (a size of 2 pointers) = 2^29
+BigInt max size is 2^32 / 8 (uint64 size) = 2^29.
+See https://doc.rust-lang.org/std/primitive.u64.html#method.carrying_mul
 
-type and counter `32`:
+- counter `32`
+  - type: `2`
+    - double
+    - int32
+    - function
+    - varObject
+- len:
+  - `31`: string
+  - `31`:
+    - `30`: array
+    - `30`:
+      - `29`: object
+      - `29`: bigint
 
-- type `2`:
-  - `#0` double
-  - `#1` function
-  - `#2` int32
-  - `#3` object | array | string | bigint
-- counter `30`
-
-```rust
-struct Function {
-  f: pointer32,
-  d: pointer32,
-}
-
-struct String {
-  len: u32,
-  data: [u16; self.len],
-}
-```
-
-object|array|bigint
-
-- `30`: array
-- `30`: bigint
-- `29`: object
-
-double: 4+8 = 12
+double: 4+8 = 12 (or 16 if aligned)
+int32: 4+4 = 8
 function: 4+4+4 = 12
-object: 4+4 = 8
-array: 4+4 = 8
-string: 4+4 +4 = 12
-bigint: 4+4 +4 = 12
+object: 8+
+array: 8+
+string: 8+
+bigint: 8+
 
 ### Pointer32
 
-- `30`: pointer + null, alignment - 4 bytes.
 - `30`: 5 x 6 bit string
+- `30`: pointer + null, alignment - 4 bytes.
 - `30`:
   - `29`: bigInt30 (-268_435_456..268_435_456)
   - `29`: int28 (-268_435_456..268_435_456)
 - `30`:
   - `28`: 4 x 7 bit string
   - `28`: 2 x 14 bit string
-  - `28`: stringUInt28 (0..268_435_456)
   - `28`:
     - `27`: 3 x 9 bit string
     - `27`:
@@ -92,6 +83,8 @@ bigint: 4+4 +4 = 12
 
 ## 64 bit platform
 
+Pointer = 2^32 / 2^3 = 2^29
+
 ### Object Structure
 
 Memory max size is 2^64.
@@ -100,8 +93,17 @@ String max size is 2^64 / 2^1 (UTF-8 size) = 2^63. JS limitation: 2^53
 BigInt max size is 2^64 / 2^2 (uint32 size) = 2^62.
 
 Counter max size is 2^64 / 2^3 (pointer size) = 2^61
-Array max size is 2^64 / 2^3 (pointer size) = 2^61. JS limitation: 2^53
+Array max size is 2^64 / 2^3 (pointer size) = 2^61. JS limitation: 2^32
 Object max size is 2^64 / 2^4 (a size of 2 pointers) = 2^60. JS limitation: 2^53
+
+- type&counter (64 bit)
+  - type: 3 bit
+  - counter: 61 bit
+
+- type:
+  - double
+  - function
+  - 
 
 ### Pointer64
 
