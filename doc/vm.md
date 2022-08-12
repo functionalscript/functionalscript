@@ -1,10 +1,8 @@
 # VM
 
-## Tagged Pointers
+[Tagged Pointer](https://en.wikipedia.org/wiki/Tagged_pointer).
 
-https://en.wikipedia.org/wiki/Tagged_pointer
-
-### Common (3 bit)
+## Common (3 bit)
 
 - `false`
 - `true`
@@ -15,7 +13,7 @@ https://en.wikipedia.org/wiki/Tagged_pointer
 - `-0`
 - `NaN`
 
-### 6-bit Id String
+## 6-bit Id String
 
 6-bit string
 
@@ -27,25 +25,85 @@ https://en.wikipedia.org/wiki/Tagged_pointer
 |`_`     |`\x5F`        | 1| 26|
 |`a`..`z`|`\x61`..`\x7A`|1A| 40|
 
-### 32 bit platform
+## 32 bit platform with ref counter.
+
+### Object Structure
+
+Memory max size is 2^32.
+
+String max size is 2^32 / 2 (UTF-8 size) = 2^31.
+BigInt max size is 2^32 / 4 (uint32 size) = 2^30
+
+Counter max size is 2^32 / 4 (pointer size) = 2^30.
+Array max size is 2^32 / 4 (pointer size) = 2^30.
+Object max size is 2^32 / 8 (a size of 2 pointers) = 2^29
+
+type and counter `32`:
+
+- type `2`:
+  - `#0` double
+  - `#1` function
+  - `#2` int32
+  - `#3` object | array | string | bigint
+- counter `30`
+
+```rust
+struct Function {
+  f: pointer32,
+  d: pointer32,
+}
+
+struct String {
+  len: u32,
+  data: [u16; self.len],
+}
+```
+
+object|array|bigint
+
+- `30`: array
+- `30`: bigint
+- `29`: object
+
+double: 4+8 = 12
+function: 4+4+4 = 12
+object: 4+4 = 8
+array: 4+4 = 8
+string: 4+4 +4 = 12
+bigint: 4+4 +4 = 12
+
+### Pointer32
 
 - `30`: pointer + null, alignment - 4 bytes.
-- `30`: bigInt30 (-536_870_912..536_870_911)
 - `30`: 5 x 6 bit string
+- `30`:
+  - `29`: bigInt30 (-268_435_456..268_435_456)
+  - `29`: int28 (-268_435_456..268_435_456)
 - `30`:
   - `28`: 4 x 7 bit string
   - `28`: 2 x 14 bit string
-  - `28`: int28 (-134_217_728..134_217_727)
+  - `28`: stringUInt28 (0..268_435_456)
   - `28`:
     - `27`: 3 x 9 bit string
     - `27`:
-      - `26`: stringUInt26 (0..67_08_863)
-      - `26`:
-        - `20`: a UTF-16 surrogate pair
-        - `16`: 1 x 16 bit string
-        - `3`: common
+      - `20`: a UTF-16 surrogate pair
+      - `16`: 1 x 16 bit string
+      - `3`: common
 
-### 64 bit platform
+## 64 bit platform
+
+### Object Structure
+
+Memory max size is 2^64.
+
+String max size is 2^64 / 2^1 (UTF-8 size) = 2^63. JS limitation: 2^53
+BigInt max size is 2^64 / 2^2 (uint32 size) = 2^62.
+
+Counter max size is 2^64 / 2^3 (pointer size) = 2^61
+Array max size is 2^64 / 2^3 (pointer size) = 2^61. JS limitation: 2^53
+Object max size is 2^64 / 2^4 (a size of 2 pointers) = 2^60. JS limitation: 2^53
+
+### Pointer64
 
 - `63`: 9 x 7 bit string
 - `63`:
