@@ -1,10 +1,14 @@
 # Documentation
 
+FunctionalScript files have `.f.cjs` file extensions because it's using a `Common.JS` module system. See
+[ESM. Resolver Algorithm Specification](https://nodejs.org/api/esm.html#resolver-algorithm-specification)
+and [ESM. Enabling](https://nodejs.org/docs/latest-v13.x/api/esm.html#esm_enabling).
+
 ## 1. Creating a New Repository
 
 Creating from a template https://github.com/functionalscript/template/generate
 
-## 1.1. Creating From Scratch 
+## 1.1. Creating From Scratch
 
 Prerequisites:
 
@@ -16,10 +20,10 @@ Creating a new GitHub repository
 
 1. Create a public git repository on GitHub using Node template.
 2. Clone the repository.
-3. Go to the root directory of the cloned repository. 
+3. Go to the root directory of the cloned repository.
 4. Run `npm init`. It should create `package.json` file.
-5. Create an `index.js` file in the repository root directory.
-6. Edit the `index.js` file. For example
+5. Create a `main.f.cjs` file in the repository root directory.
+6. Edit the `main.f.cjs` file. For example
     ```js
     module.exports = "Hello world!"
     ```
@@ -54,7 +58,7 @@ module.exports = x => x * x
 #### 2.2.1. Local File
 
 ```js
-const x = require('./folder/index.js')
+const x = require('./folder/main.f.cjs')
 ```
 
 ### 2.2.2. External Module
@@ -62,7 +66,7 @@ const x = require('./folder/index.js')
 Run `npm install -D github:USER/REPO`
 
 ```js
-const x = require(`REPO/DIR/FILE.js`)
+const x = require(`REPO/DIR/FILE.f.cjs`)
 ```
 
 ### 2.3. Functions

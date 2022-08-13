@@ -206,3 +206,43 @@ const f = () => x // < invalid
 ### 9.7. Block
 
 [Block](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/block)
+
+## 10. Generators
+
+For compatibility reason, FunctionalScript allows to create generators as implementation of `[Symbol.iterator]` function. However, it doesn't allow to read the `[Symbol.iterator]` property. For example
+
+This code is allowed
+
+```js
+/** @type {<T>(list: List<T>) => Iterable<T>} */
+const iterable = list => ({
+    *[Symbol.iterator]() {
+        let i = list
+        while (true) {
+            const r = next(i)
+            if (r === undefined) { return }
+            yield r.first
+            i = r.tail
+        }
+    }
+})
+```
+
+The following code is not allowed, because `iterator` is a mutated object by design in JavaScript.
+
+```js
+const it = [0, 1, 2][Symbol.iterator] //< compilation error.
+```
+
+Use `Iterable` instead of `Iterator`.
+
+```js
+const x = () => {
+    const a = [0, 1, 2] // iterable
+    let sum = 0;
+    for (let i in a) {
+        sum = sum + i
+    }
+    return sum;
+}
+```

@@ -2,11 +2,12 @@
   "name": "functionalscript",
   "version": "0.1.0",
   "description": "FunctionalScript is a functional subset of JavaScript",
-  "main": "index.js",
+  "main": "module.f.cjs",
   "scripts": {
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
-    "test-only": "node --trace-uncaught ./test"
+    "version": "node ./nodejs/version/main.cjs",
+    "test-only": "node --trace-uncaught ./test.f.cjs"
   },
   "repository": {
     "type": "git",
@@ -28,7 +29,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^16.11.19",
-    "typescript": "^4.5.4"
+    "@types/node": "^18.6.3",
+    "typescript": "^4.7.4"
   }
 }
