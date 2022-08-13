@@ -4,14 +4,14 @@
 
 Requirement: no loss for UTF8 => codepoint => UTF8
 
-|utf8     |codepoint                              |size     |codepoint                                         |
+|utf8     |utf8 code                              |size     |codepoint                                         |
 |---------|---------------------------------------|---------|--------------------------------------------------|
 |[a]      |0xxx_xxxx                              |7 bit    |0_0000_0000_0000_0xxx_xxxx                        |
 |[b,a]    |110x_xxxx 10xx_xxxx                    |11 bit   |0_0000_0000_0xxx_xxxx_xxxx + 0_0000_0000_1000_0000|
 |[c,b,a]  |1110_xxxx 10xx_xxxx 10xx_xxxx          |16 bit   |0_0000_xxxx_xxxx_xxxx_xxxx + 0_0000_1000_0000_0000|
 |[d,c,b,a]|1111_0xxx 10xx_xxxx 10xx_xxxx 10xx_xxxx|21 bit   |x_xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000|
 
-|utf8 error|                             |size  |codepoint          |
+|utf8 error|utf8 code                    |size  |codepoint          |
 |----------|-----------------------------|------|-------------------|
 |[e]       |1111_1xxx                    | 3 bit|                   |
 |[d,]      |1111_0xxx                    | 3 bit|                   |
@@ -55,15 +55,15 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 - first : 0xD800: 0b_1101_10xx_xxxx_xxxx : 10 bit
 - second: 0xDC00: 0b_1101_11xx_xxxx_xxxx : 10 bit
 
-|utf16    |codepoint                              |size  |
-|---------|---------------------------------------|------|
-|[a]      |xxxx_xxxx_xxxx_xxxx                    |16 bit|
-|[b,a]    |1101_10xx_xxxx_xxxx 1101_11xx_xxxx_xxxx|20 bit|
+|utf16    |utf16 code                             |size  |codepoint                                       |
+|---------|---------------------------------------|------|------------------------------------------------|
+|[a]      |xxxx_xxxx_xxxx_xxxx                    |16 bit|0000_xxxx_xxxx_xxxx_xxxx                        |
+|[b,a]    |1101_10xx_xxxx_xxxx 1101_11xx_xxxx_xxxx|20 bit|xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000|
 
-|utf16 error|codepoint          |size  |
-|-----------|-------------------|------|
-|[e]        |1101_11xx_xxxx_xxxx|10 bit|
-|[b,]       |1101_10xx_xxxx_xxxx|10 bit|
+|utf16 error|utf16 code         |size  |codepoint          |
+|-----------|-------------------|------|-------------------|
+|[e]        |1101_11xx_xxxx_xxxx|10 bit|1101_11xx_xxxx_xxxx|
+|[b,]       |1101_10xx_xxxx_xxxx|10 bit|1101_10xx_xxxx_xxxx|
 
 Total error states: 11 bit
 
@@ -74,7 +74,7 @@ const utf16ListToCodePointList
 /** @type {(input: List<i32>) => List<u16>} */
 const codePointListToUtf16List
 
-/** @type {(input: string) => List<u16> */
+/** @type {(input: string) => List<u16>} */
 const stringToUtf16List
 
 /** @type {(input: List<u16>) => string} */
