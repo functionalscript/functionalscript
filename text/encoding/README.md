@@ -57,7 +57,7 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 
 |utf16    |utf16 code                             |size  |codepoint                                       |
 |---------|---------------------------------------|------|------------------------------------------------|
-|[a]      |xxxx_xxxx_xxxx_xxxx                    |16 bit|xxxx_xxxx_xxxx_xxxx                             |
+|[a]      |xxxx_xxxx_xxxx_xxxx                    |16 bit|0000_xxxx_xxxx_xxxx_xxxx                        |
 |[b,a]    |1101_10xx_xxxx_xxxx 1101_11xx_xxxx_xxxx|20 bit|xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000|
 
 |utf16 error|utf16 code         |size  |codepoint          |
