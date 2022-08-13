@@ -1,5 +1,16 @@
 # VM
 
+Value:
+
+- bool
+- number : float64
+- string
+- null
+- undefined
+- object `{...}`
+- array `[]`
+- function `() = {}`
+
 [Tagged Pointer](https://en.wikipedia.org/wiki/Tagged_pointer).
 
 ## Common (3 bit)
@@ -90,7 +101,7 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 
 Note: the type has no `+0`, `-0`, `+inf`, `-inf`, `NaN`.
 
-## Object Structure
+## Dynamic Value
 
 Value Size = 8
 Counter size = max_memory_size / value_size.
