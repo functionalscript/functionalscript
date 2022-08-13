@@ -23,13 +23,11 @@
 |`_`     |`\x5F`        | 1| 26|
 |`a`..`z`|`\x61`..`\x7A`|1A| 40|
 
-## 64 bit platform
+## Value
 
 Alignment: 8 bytes.
 
 Pointer: 2^64 / 2^3 = 2^61 bit
-
-### Value
 
 - `63`: 9 x 7 bit string
 - `63`:
