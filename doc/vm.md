@@ -15,14 +15,17 @@ Value:
 
 ## Common (3 bit)
 
-- `false`
-- `true`
-- `undefined`
-- `""`
-- `+infinity`
-- `-infinity`
-- `-0`
-- `NaN`
+|#  |value      |
+|---|-----------|
+|000|`false`    |
+|001|`true`     |
+|010|`undefined`|
+|011|`""`       |
+|100|`-0`       |
+|101|`+infinity`|
+|110|`-infinity`|
+|111|`NaN`      |
+
 
 ## 6-bit Id String
 
