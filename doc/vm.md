@@ -90,7 +90,7 @@ https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 |...     |           |
 |111_1111|E = 2^64   |
 
-The type has no `+0`, `-0`, `+inf`, `-inf`, `NaN`.
+Note: the type has no `+0`, `-0`, `+inf`, `-inf`, `NaN`.
 
 ## Object Structure
 
