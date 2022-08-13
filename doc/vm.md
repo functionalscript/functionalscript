@@ -41,17 +41,17 @@ Value:
 
 Alignment: 8 bytes.
 
-Pointer: 2^64 / 2^3 = 2^61 bit
+Pointer: 2^64 / 2^3 = 2^61 bit.
 
 - `63`: 9 x 7 bit string
 - `63`:
   - `61`: pointer + null, alignment - 8 bytes
   - `61`:
-    - `60`: 4 x 15 bit string
     - `60`: 10 x 6 bit string
-  - `61`:
     - `60`: 6 x 10 bit string
+  - `61`:
     - `60`: 5 x 12 bit string
+    - `60`: 4 x 15 bit string
   - `61`
     - `60`: float60
     - `60`:
@@ -59,12 +59,36 @@ Pointer: 2^64 / 2^3 = 2^61 bit
       - `59`:
         - `56`: 8 x 7-bit string
         - `56`: 7 x 8-bit string
-        - `53`: int53
-        - `53`: stringUInt53
+        - `53`: stringUInt53 "an integer index".
         - `48`: 3 x 16 bit string
         - `32`: 2 x 16 bit string
         - `16`: 1 x UTF16 string
         - `3`: common
+
+|bit              |                 |
+|-----------------|-----------------|
+|`__ ___ _ _ __.1`|9 x 7 bit string |
+|`__ ___ _ _.00.0`|pointer + null   |
+|`__ ___ _ 0.01.0`|10 x 6 bit string|
+|`__ ___ _ 1.01.0`|6 x 10 bit string|
+|`__ ___ _ 0.10.0`|5 x 12 bit string|
+|`__ ___ _ 1.10.0`|4 x 15 bit string|
+|`__ ___ _.0.11.0`|float60          |
+|`__ ___.0.1.11.0`|bigInt59         |
+|`__ 000.1.1.11.0`|8 x 7 bit string |
+|`__ 001.1.1.11.0`|7 x 8 bit string |
+|`__ 010.1.1.11.0`|stringUInt53     |
+|`__ 011.1.1.11.0`|3 x 16 bit string|
+|`__ 100.1.1.11.0`|2 x 16 bit string|
+|`__ 101.1.1.11.0`|1 x 16 bit string|
+|`00.110.1.1.11.0`|false            |
+|`01.110.1.1.11.0`|true             |
+|`10.110.1.1.11.0`|undefine         |
+|`11.110.1.1.11.0`|""               |
+|`00.111.1.1.11.0`|-0.0             |
+|`01.111.1.1.11.0`|+inf             |
+|`10.111.1.1.11.0`|-inf             |
+|`11.111.1.1.11.0`|NaN              |
 
 ## Float64
 
