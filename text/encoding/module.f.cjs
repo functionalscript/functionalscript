@@ -43,7 +43,7 @@ const codePointToUtf8 = input =>
 
 /** @type {(input:i32) => list.List<u16>} */
 const codePointToUtf16 = input =>
-{    
+{
     if (isBmpCodePoint(input)) { return [input] }
     if (input >= 0x010000 && input <= 0x10ffff) {
         const high = ((input - 0x10000) >> 10) + 0xd800
@@ -63,7 +63,7 @@ const codePointListToUtf16List = list.flatMap(codePointToUtf16)
 const utf8ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
         return [[error([byte])], state]
-    }    
+    }
     if (state == undefined) {
         if (byte < 0x80) { return [[ok(byte)], undefined] }
         if (byte >= 0xc2 && byte <= 0xf4) { return [[], [byte]] }
@@ -76,15 +76,15 @@ const utf8ByteToCodePointOp = state => byte => {
             case 1:
                 if (state[0] < 0xe0) { return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined] }
                 if (state[0] < 0xf8) { return [[], [state[0], byte]] }
-                break         
+                break
             case 2:
                 if (state[0] < 0xf0) { return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined] }
                 if (state[0] < 0xf8) { return [[], [state[0], state[1], byte]] }
                 break
-            case 3: 
+            case 3:
                 return [[ok(((state[0] & 0x07) << 18) + ((state[1] & 0x3f) << 12) + ((state[2] & 0x3f) << 6) + (byte & 0x3f))], undefined]
         }
-    }    
+    }
     return [[error(list.toArray(list.concat(state)([byte])))], undefined]
 }
 
