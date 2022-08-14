@@ -206,4 +206,18 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[-2147427328,0]') { throw result }
 }
 
+{
+    const utf16List = encoding.stringToUtf16List("Hello world!😂🚜🚲")
+    const result = encoding.utf16ListToString(utf16List)
+    if (result !== "Hello world!😂🚜🚲") { throw result }
+}
+
+{
+    const a = encoding.stringToUtf16List("Hello world!😂🚜🚲")
+    const b = encoding.utf16ListToCodePointList(a)
+    const c = encoding.codePointListToUtf16List(b)
+    const result = encoding.utf16ListToString(c)
+    if (result !== "Hello world!😂🚜🚲") { throw result }
+}
+
 module.exports = {}

@@ -3,6 +3,8 @@ const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
+const { compose } = require('../../types/function/module.f.cjs')
+const { map, flat, stateScan, concat, fold, toArray, flatMap } = list
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} ByteResult */
@@ -54,10 +56,10 @@ const codePointToUtf16 = input =>
 }
 
 /** @type {(input: list.List<number>) => list.List<ByteResult>} */
-const codePointListToUtf8List = list.flatMap(codePointToUtf8)
+const codePointListToUtf8List = flatMap(codePointToUtf8)
 
 /** @type {(input: list.List<i32>) => list.List<u16>} */
-const codePointListToUtf16List = list.flatMap(codePointToUtf16)
+const codePointListToUtf16List = flatMap(codePointToUtf16)
 
 /** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
 const utf8ByteToCodePointOp = state => byte => {
@@ -85,7 +87,7 @@ const utf8ByteToCodePointOp = state => byte => {
                 return [[ok(((state[0] & 0x07) << 18) + ((state[1] & 0x3f) << 12) + ((state[2] & 0x3f) << 6) + (byte & 0x3f))], undefined]
         }
     }
-    return [[error(list.toArray(list.concat(state)([byte])))], undefined]
+    return [[error(toArray(concat(state)([byte])))], undefined]
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf8State]} */
@@ -95,7 +97,7 @@ const utf8EofToCodePointOp = state => [state === undefined ? undefined : [error(
 const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
 /** @type {(input: list.List<number>) => list.List<CodePointResult>} */
-const utf8ListToCodePointList = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+const utf8ListToCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(undefined)(concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
 
 /** @type {operator.StateScan<u16, Utf16State, list.List<i32>>} */
 const utf16ByteToCodePointOp = state => byte => {
@@ -124,7 +126,19 @@ const utf16EofToCodePointOp = state => [state === undefined ? undefined : [state
 const utf16ByteOrEofToCodePointOp = state => input => input === undefined ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 /** @type {(input: list.List<u16>) => list.List<i32>} */
-const utf16ListToCodePointList = input => list.flat(list.stateScan(utf16ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<WordOrEof>} */(input))([undefined])))
+const utf16ListToCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(undefined)(concat(/** @type {list.List<WordOrEof>} */(input))([undefined])))
+
+/** @type {(s: string) => list.List<u16>} */
+const stringToUtf16List = s => {
+    /** @type {(i: number) => list.Result<number>} */
+    const at = i => {
+        const first = s.charCodeAt(i)
+        return isNaN(first) ? undefined : { first, tail: () => at(i + 1) }
+    }
+    return at(0)
+}
+
+const utf16ListToString = compose(map(String.fromCharCode))(fold(operator.concat)(''))
 
 module.exports = {
     /** @readonly */
@@ -134,5 +148,9 @@ module.exports = {
     /** @readonly */
     utf8ListToCodePointList,
     /** @readonly */
-    utf16ListToCodePointList
+    utf16ListToCodePointList,
+    /** @readonly */
+    stringToUtf16List,
+    /** @readonly */
+    utf16ListToString
 }
