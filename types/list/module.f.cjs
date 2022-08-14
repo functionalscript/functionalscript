@@ -296,18 +296,6 @@ const equalZip = e => a => b => () => {
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
 const equal = e => a => b => every(equalZip(e)(a)(b))
 
-/** @type {(s: string) => List<number>} */
-const toCharCodeList = s => {
-    /** @type {(i: number) => Result<number>} */
-    const at = i => {
-        const first = s.charCodeAt(i)
-        return isNaN(first) ? undefined : { first, tail: () => at(i + 1) }
-    }
-    return at(0)
-}
-
-const fromCharCodeList = compose(map(String.fromCharCode))(fold(operator.concat)(''))
-
 module.exports = {
     /** @readonly */
     empty: undefined,
@@ -384,9 +372,5 @@ module.exports = {
     /** @readonly */
     zip,
     /** @readonly */
-    equal,
-    /** @readonly */
-    toCharCodeList,
-    /** @readonly */
-    fromCharCodeList,
+    equal
 }

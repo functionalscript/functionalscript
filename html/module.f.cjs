@@ -1,6 +1,7 @@
 const list = require('../types/list/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { operator, compose } = require('../types/function/module.f.cjs')
+const encoding = require('../text/encoding/module.f.cjs');
 
 /**
  * @typedef {|
@@ -73,7 +74,7 @@ const escapeCharCode = code => {
     }
 }
 
-const escape = compose(list.toCharCodeList)(list.map(escapeCharCode))
+const escape = compose(encoding.stringToUtf16List)(list.map(escapeCharCode))
 
 /** @type {(n: Node) => list.List<string>} */
 const node = n => typeof n === 'string' ? escape(n) : element(n)

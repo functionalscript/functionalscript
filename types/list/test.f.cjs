@@ -236,11 +236,7 @@ const map5 = _.map(x => x > 5)
     if (result !== false) { throw result }
 }
 
-{
-    const r = _.toCharCodeList("Hello world!")
-    const x = _.fromCharCodeList(r)
-    if (x !== "Hello world!") { throw x }
-}
+
 
 // stress tests
 
