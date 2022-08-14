@@ -90,27 +90,6 @@ Pointer: 2^64 / 2^3 = 2^61 bit.
 |`10.111.1.1.11.0`|-inf             |
 |`11.111.1.1.11.0`|NaN              |
 
-## Float64
-
-https://en.wikipedia.org/wiki/Double-precision_floating-point_format
-
-- 1 bit - sign (S)
-- 11 bit - exponent (E)
-- 52 bit - fraction (F)
-
-|E            |Description             |
-|-------------|------------------------|
-|000_0000_0000|F = 0: signed zeros     |
-|             |F != 0: subnormals      |
-|000_0000_0001|E = 2^-1022             |
-|...          |                        |
-|011_1111_1111|E = 2^0                 |
-|100_0000_0000|E = 2^1                 |
-|...          |                        |
-|111_1111_1110|E = 2^1023              |
-|111_1111_1111|F = 0: signed infinities|
-|             |F != 0: NaN             |
-
 ## Float60
 
 - 1 bit - sign
