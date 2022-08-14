@@ -66,23 +66,7 @@ Least used letters in English: Q, J, Z and X.
 
 ### Layout 52
 
-Starts with `0b1111_1111_1111`
-
-|          |  |  |             |
-|----------|--|--|-------------|
-|`11`      |50|  |5 x 10 string|
-|`10.1`    |49|  |7 x 7 string |
-|`10.0.0`  |48|  |stringUInt48 |
-|`10.0.1.0`|47|32|2 x 16 string|
-|`10.0.1.1`|47|16|1 x 16 string|
-|`01.11`   |48|  |8 x 6 string |
-|`01.10`   |48|  |6 x 8 string |
-|`01.01`   |48|  |4 x 12 string|
-|`01.00`   |48|  |3 x 16 string|
-|`00.11`   |48|  |pointer      |
-|`00.10`   |48|  |bigInt48     |
-|`00.01`   |48|  |common       |
-|`00.00`   |48|  |inf          |
+Starts with `0xFFF`
 
 - `50`: 5 x 10 string
 - `50`:
@@ -92,6 +76,7 @@ Starts with `0b1111_1111_1111`
     - `48`:
       - `32`: 2 x 16 string
       - `16`: 1 x 16 string
+      - `0`: ""
 - `50`:
   - `48`: 3 x 16 string
   - `48`: 8 x 6 string
@@ -100,9 +85,34 @@ Starts with `0b1111_1111_1111`
 - `50`:
   - `48`: ptr
   - `48`: bigInt48 (140_737_488_355_328..140_737_488_355_327)
-  - `48`:
-  - `48`:
-    - -inf
+  - `48`: common
+  - `48`: `-inf`
+
+|           |  |  |             |
+|-----------|--|--|-------------|
+|`11`       |50|  |5 x 10 string|
+|`10.1`     |49|  |7 x 7 string |
+|`10.0.0`   |48|  |stringUInt48 |
+|`10.0.1.11`|46|32|2 x 16 string|
+|`10.0.1.10`|46|16|1 x 16 string|
+|`10.0.1.01`|46| 0|empty string |
+|`01.11`    |48|  |8 x 6 string |
+|`01.10`    |48|  |6 x 8 string |
+|`01.01`    |48|  |4 x 12 string|
+|`01.00`    |48|  |3 x 16 string|
+|`00.11`    |48|  |pointer      |
+|`00.10`    |48|  |bigInt48     |
+|`00.01`    |48|  |common       |
+|`00.00`    |48|  |inf          |
+
+## Pointer
+
+- function
+  - static function
+- string
+- bigint
+- object
+- array
 
 ## Order of object properties
 
