@@ -89,50 +89,39 @@ Starts with `0xFFF`
   - `48`: undefined
   - `48`: `-inf`
 
-|      |  |             |
-|------|--|-------------|
-|`1111`|48|stringUInt48 |
-|`1110`|48|8 x 6 string |
-|`1101`|42|7 x 6 string |
-|`1100`|48|6 x 8 string |
-|`1011`|45|5 x 9 string |
-|`1010`|48|4 x 12 string|
-|`1001`|48|3 x 16 string|
-|`1000`|32|2 x 16 string|
-|`0111`|16|1 x 16 string|
-|`0110`| 0|empty string |
-|`0101`| 0|true         |
-|`0100`| 0|false        |
-|`0011`|48|ptr          |
-|`0010`|48|bigInt48     |
-|`0001`| 0|undefined    |
-|`0000`| 0|-inf         |
+|      |  |             |type       |
+|------|--|-------------|-----------|
+|`1111`|48|stringUInt48 |`string`   |
+|`1110`|48|8 x 6 string |           |
+|`1101`|48|7 x 7 stringA|           |
+|`1100`|48|7 x 7 stringB|           |
+|`1011`|48|6 x 8 string |           |
+|`1010`|45|5 x 9 string |           |
+|`1001`|48|4 x 12 string|           |
+|`1000`|48|3 x 16 string|           |
+|`0111`|32|2 x 16 string|           |
+|`0110`|16|1 x 16 string|           |
+|`0101`| 0|empty string |           |
+|`0100`| 0|undefined    |`undefined`|
+|`0011`|48|ptr          |...        |
+|`0010`|48|bigInt48     |`bigint`   |
+|`0001`| 0|bool         |`bool`     |
+|`0000`| 0|-inf         |`number`   |
 
-|           |  |  |             |
-|-----------|--|--|-------------|
-|`11`       |50|  |5 x 10 string|
-|`10.1`     |49|  |7 x 7 string |
-|`10.0.0`   |48|  |stringUInt48 |
-|`10.0.1.11`|46|32|2 x 16 string|
-|`10.0.1.10`|46|16|1 x 16 string|
-|`10.0.1.01`|46| 0|empty string |
-|`01.11`    |48|  |8 x 6 string |
-|`01.10`    |48|  |6 x 8 string |
-|`01.01`    |48|  |4 x 12 string|
-|`01.00`    |48|  |3 x 16 string|
-|`00.11`    |48|  |pointer      |
-|`00.10`    |48|  |bigInt48     |
-|`00.01`    |48|  |common       |
-|`00.00`    |48|  |inf          |
+## Pointer Kind
 
-## Pointer
+Alignment 8 bytes. 3 bits.
 
-- function
-  - static function
-- string
-- bigint
-- object
-- array
+|    |type      |               |
+|----|----------|---------------|
+|00.0|`object`  |null           |
+|00.1|          |object         |
+|01.0|`string`  |string         |
+|01.1|          |               |
+|10.0|`function`|function       |
+|10.1|          |static function|
+|11.0|`bigint`  |bigint         |
+|11.1|          |               |
 
 ## Order of object properties
 
