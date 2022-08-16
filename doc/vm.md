@@ -102,8 +102,8 @@ Starts with `0xFFF`
 |`0111`|32|2 x 16 string|           |
 |`0110`|16|1 x 16 string|           |
 |`0101`| 0|empty string |           |
-|`0100`| 0|undefined    |`undefined`|
-|`0011`|48|ptr          |...        |
+|`0100`|48|ptr          |?          |
+|`0011`| 0|undefined    |`undefined`|
 |`0010`|48|bigInt48     |`bigint`   |
 |`0001`| 0|bool         |`bool`     |
 |`0000`| 0|-inf         |`number`   |
@@ -114,14 +114,55 @@ Alignment 8 bytes. 3 bits.
 
 |    |type      |               |
 |----|----------|---------------|
-|00.0|`object`  |null           |
-|00.1|          |object         |
+|00.0|`object`  |object         |
+|00.1|          |array          |
 |01.0|`string`  |string         |
 |01.1|          |               |
 |10.0|`function`|function       |
 |10.1|          |static function|
 |11.0|`bigint`  |bigint         |
 |11.1|          |               |
+
+## Object
+
+```rust
+struct Object {
+  propertySet: PropertySet
+  iterable: Func<Iterator>
+}
+
+struct Array {
+  length: u32,
+  array: [Value; self.lenght],
+}
+```
+
+## String
+
+```rust
+struct String {
+  length: u32,
+  array: [u16; self.length],
+}
+```
+
+## Function
+
+```rust
+struct Function {
+  pointer: FunctionBody,
+  array: [Value; length],
+}
+```
+
+## BigInt
+
+```rust
+struct BigInt {
+  length: u32,
+  array: [u64; self.length],
+}
+```
 
 ## Order of object properties
 

@@ -55,10 +55,8 @@ const codePointToUtf16 = input =>
     return [input & 0xffff]
 }
 
-/** @type {(input: list.List<number>) => list.List<ByteResult>} */
 const codePointListToUtf8List = flatMap(codePointToUtf8)
 
-/** @type {(input: list.List<i32>) => list.List<u16>} */
 const codePointListToUtf16List = flatMap(codePointToUtf16)
 
 /** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
