@@ -1,17 +1,35 @@
-# VM
+# NaNVM
 
-[Tagged Pointer](https://en.wikipedia.org/wiki/Tagged_pointer).
+https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 
-## Common (3 bit)
+https://anniecherkaev.com/the-secret-life-of-nan
+https://brionv.com/log/2018/05/17/javascript-engine-internals-nan-boxing/
 
-- `false`
-- `true`
-- `undefined`
-- `""`
-- `+infinity`
-- `-infinity`
-- `-0`
-- `NaN`
+
+- 1 bit - sign (S)
+- 11 bit - exponent (E)
+- 52 bit - fraction (F)
+
+|SE |F             |Value           |
+|---|--------------|----------------|
+|000|00000_00000000|+000000_00000000|
+|...|              |                |
+|3FF|00000_00000000|+000000_00000001|
+|...|              |                |
+|434|00000_00000000|+200000_00000000|
+|...|              |                |
+|7FF|00000_00000000|+inf            |
+|...|              |NaN             |
+|800|00000_00000000|-0.0            |
+|...|              |                |
+|BFF|00000_00000000|-000000_00000001|
+|...|              |                |
+|C34|00000_00000000|-200000_00000000|
+|...|              |                |
+|FFF|00000_00000000|-inf            |
+|...|              |NaN             |
+
+integer range: `[-2^53; +2^53]`.
 
 ## 6-bit Id String
 
@@ -23,141 +41,90 @@
 |`_`     |`\x5F`        | 1| 26|
 |`a`..`z`|`\x61`..`\x7A`|1A| 40|
 
-## Value
+## 7FF & FFF
 
-Alignment: 8 bytes.
+53 bits.
 
-Pointer: 2^64 / 2^3 = 2^61 bit
+Other values:
 
-- `63`: 9 x 7 bit string
-- `63`:
-  - `61`: pointer + null, alignment - 8 bytes
-  - `61`:
-    - `60`: 4 x 15 bit string
-    - `60`: 10 x 6 bit string
-  - `61`:
-    - `60`: 6 x 10 bit string
-    - `60`: 5 x 12 bit string
-  - `61`
-    - `60`: float60
-    - `60`:
-      - `59`: bigInt59 (-576_460_752_303_423_488..576_460_752_303_423_487)
-      - `59`:
-        - `56`: 8 x 7-bit string
-        - `56`: 7 x 8-bit string
-        - `53`: int53
-        - `53`: stringUInt53
-        - `48`: 3 x 16 bit string
-        - `32`: 2 x 16 bit string
-        - `16`: 1 x UTF16 string
-        - `3`: common
+- `NaN`
+- `+Inf`: 0x7FF00000_00000000
+- `-Inf`: 0xFFF00000_00000000
+- pointer + null:
+  - 32 bit for 32 bit platforms.
+  - 48 bit for current AMD64 https://en.wikipedia.org/wiki/X86-64#Canonical_form_addresses and ARM64
+    note: with alignments it can be further narrowed to 44-45 bit.
+- `true`
+- `false`
+- `undefined`
 
-## Float64
+Optimization for
+- string
+- bigInt
 
-https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+Least used letters in English: Q, J, Z and X.
 
-- 1 bit - sign (S)
-- 11 bit - exponent (E)
-- 52 bit - fraction (F)
+### Layout 52
 
-|E            |Description             |
-|-------------|------------------------|
-|000_0000_0000|F = 0: signed zeros     |
-|             |F != 0: subnormals      |
-|000_0000_0001|E = 2^-1022             |
-|...          |                        |
-|011_1111_1111|E = 2^0                 |
-|100_0000_0000|E = 2^1                 |
-|...          |                        |
-|111_1111_1110|E = 2^1023              |
-|111_1111_1111|F = 0: signed infinities|
-|             |F != 0: NaN             |
+Starts with `0xFFF`
 
-## Float60
+- `50`:
+  - `48`: stringUInt48 (0..281_474_976_710_655)
+  - `48`: 8 x 6 string
+  - `48`: `42` 7 x 6 string
+  - `48`: 6 x 8 string
+- `50`:
+  - `48`: `45` 5 x 9 string
+  - `48`: 4 x 12 string
+  - `48`: 3 x 16 string
+  - `48`: `32`: 2 x 16 string
+- `50`:
+  - `48`: `16`: 1 x 16 string
+  - `48`: `0`: ""
+  - `48`: false
+  - `48`: true
+- `50`:
+  - `48`: ptr
+  - `48`: bigInt48 (140_737_488_355_328..140_737_488_355_327)
+  - `48`: undefined
+  - `48`: `-inf`
 
-- 1 bit - sign
-- 7 bit - exponent
-- 52 bit - fraction
+|      |  |             |type       |
+|------|--|-------------|-----------|
+|`1111`|48|stringUInt48 |`string`   |
+|`1110`|48|8 x 6 string |           |
+|`1101`|48|7 x 7 stringA|           |
+|`1100`|48|7 x 7 stringB|           |
+|`1011`|48|6 x 8 string |           |
+|`1010`|45|5 x 9 string |           |
+|`1001`|48|4 x 12 string|           |
+|`1000`|48|3 x 16 string|           |
+|`0111`|32|2 x 16 string|           |
+|`0110`|16|1 x 16 string|           |
+|`0101`| 0|empty string |           |
+|`0100`| 0|undefined    |`undefined`|
+|`0011`|48|ptr          |...        |
+|`0010`|48|bigInt48     |`bigint`   |
+|`0001`| 0|bool         |`bool`     |
+|`0000`| 0|-inf         |`number`   |
 
-|E       |Description|
-|--------|-----------|
-|000_0000|E = 2^-63  |
-|...     |           |
-|011_1111|E = 2^0    |
-|100_0000|E = 2^1    |
-|...     |           |
-|111_1111|E = 2^64   |
+## Pointer Kind
 
-Note: the type has no `+0`, `-0`, `+inf`, `-inf`, `NaN`.
+Alignment 8 bytes. 3 bits.
 
-## Object Structure
+|    |type      |               |
+|----|----------|---------------|
+|00.0|`object`  |null           |
+|00.1|          |object         |
+|01.0|`string`  |string         |
+|01.1|          |               |
+|10.0|`function`|function       |
+|10.1|          |static function|
+|11.0|`bigint`  |bigint         |
+|11.1|          |               |
 
-Value Size = 8
-Counter size = max_memory_size / value_size.
+## Order of object properties
 
-### Type
-
-- `000`: double
-- `001`: string
-- `010`: array
-- `011`: object
-- `100`: bigInt
-- `101`: function
-- `110`:
-- `111`:
-
-### Type & Counter
-
-- AtomicUSize:
-  - `3`: type
-  - `...`: counter
-
-### String
-
-```rust
-struct String {
-  length: u32,
-  array: [u16; self.length],
-}
-```
-
-### Function
-
-```rust
-struct Function<length: u32> {
-  func: pointer,
-  array: [value; length]
-}
-```
-
-### BigInt
-
-```rust
-struct BigInt {
-  length: u32,
-  array: [u64; self.length],
-}
-```
-
-### Array
-
-```rust
-struct Array {
-  length: u32,
-  array: [Value; self.length],
-}
-```
-
-### Object
-
-```rust
-struct Object {
-  length: u32,
-  array: [(Value, Value), self.length],
-  indexArray: [u32, (self.length * log2(self.length) + 31) / u32],
-}
-```
-
-Note: see https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys and https://262.ecma-international.org/6.0/#sec-object-type
+See https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys and https://262.ecma-international.org/6.0/#sec-object-type
 
 An integer index for Node.js, Deno and Bun means a value from `0` to `4294967294` including. 4_294_967_294 = 0xFFFF_FFFE. But an integer index in the ES6 standard is +0..2^53-1.
