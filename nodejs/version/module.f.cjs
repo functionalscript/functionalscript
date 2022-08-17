@@ -1,5 +1,3 @@
-const pack = require('../../commonjs/package/module.f.cjs')
-
 /** 
  * @typedef {{
  *  readonly execSync: (cmd: string) => Buffer

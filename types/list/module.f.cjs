@@ -261,6 +261,8 @@ const max = fold(operator.max)(undefined)
 /** @type {(separator: string) => (input: List<string>) => string} */
 const join = separator => fold(operator.join(separator))('')
 
+const stringConcat = fold(operator.concat)('')
+
 /** @type {<T>(input: List<T>) => number} */
 const length = reduce(operator.counter)(0)
 
@@ -373,6 +375,8 @@ module.exports = {
     max,
     /** @readonly */
     join,
+    /** @readonly */
+    stringConcat,
     /** @readonly */
     length,
     /** @readonly */
