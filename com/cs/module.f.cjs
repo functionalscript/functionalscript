@@ -1,8 +1,9 @@
 const types = require('../types/module.f.cjs')
+const { result, paramList } = types
 const text = require('../../text/module.f.cjs')
 const { curly } = text
 const list = require('../../types/list/module.f.cjs')
-const { flat, map } = list
+const { flat, map, some, join, flatMap } = list
 const obj = require('../../types/object/module.f.cjs')
 const { entries } = Object
 
@@ -56,6 +57,8 @@ const type = t => fullType(t)[1]
 /** @type {(f: types.Field) => string} */
 const param = ([name, t]) => `${type(t)} ${name}`
 
+const mapParam = map(param)
+
 /** @type {(f: types.Field) => string} */
 const field = ([name, comType]) => {
     const [isUnsafe, t] = fullType(comType)
@@ -65,48 +68,55 @@ const field = ([name, comType]) => {
 /** @type {(field: types.Field) => boolean} */
 const isUnsafeField = field => fullType(field[1])[0]
 
+const mapIsUnsafeField = map(isUnsafeField)
+
+const resultVoid = result('void')
+
+const joinComma = join(', ')
+
 /** @type {(e: obj.Entry<types.FieldArray>) => readonly string[]} */
 const method = ([name, m]) => {
     const paramAndResultList = entries(m)
-    const pl = types.paramList(m)
-    const isUnsafe = list.some(map(isUnsafeField)(paramAndResultList))
+    const pl = paramList(m)
+    const isUnsafe = some(mapIsUnsafeField(paramAndResultList))
     return [
         '[PreserveSig]',
-        `${unsafe(isUnsafe)}${types.result('void')(type)(m)} ${name}(${list.join(', ')(map(param)(pl))});`
+        `${unsafe(isUnsafe)}${resultVoid(type)(m)} ${name}(${joinComma(mapParam(pl))});`
     ]
 }
+
+const struct = typeDef
+    (['StructLayout(LayoutKind.Sequential)'])
+    ('struct')
 
 /** @type {(e: obj.Entry<types.Definition>) => list.List<text.Item>} */
 const def = ([n, d]) => {
     const i = d.interface
     return i === undefined ?
-        typeDef
-            (['StructLayout(LayoutKind.Sequential)'])
-            ('struct')
-            (n)
-            (map(field)(entries(d.struct))) :
+        struct(n)(map(field)(entries(d.struct))) :
         typeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (list.flatMap(method)(entries(d.interface)))
+            (flatMap(method)(entries(i)))
 }
+
+const flatMapDef = flatMap(def)
 
 const namespace = curly('namespace')
 
+/** @type {text.Block} */
+const header = [
+    using('System'),
+    using('System.Runtime.InteropServices'),
+    ''
+]
+
 /** @type {(name: string) => (library: types.Library) => text.Block} */
 const cs = name => library => {
-    const v = list.flatMap(def)(entries(library))
-
-    /** @type {text.Block} */
-    const h = [
-        using('System'),
-        using('System.Runtime.InteropServices'),
-        ''
-    ]
-
+    const v = flatMapDef(entries(library))
     const ns = namespace(name)(() => v)
-    return flat([h, ns])
+    return flat([header, ns])
 }
 
 module.exports = {
