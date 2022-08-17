@@ -1,6 +1,18 @@
 const { compose, identity } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
-const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = operator
+const { 
+    addition, 
+    min: minOp, 
+    max: maxOp, 
+    join: joinOp, 
+    concat: concatOp, 
+    counter,
+    logicalNot, 
+    strictEqual, 
+    stateScanToScan, 
+    reduceToScan, 
+    foldToScan 
+} = operator
 
 /**
  * @template T
@@ -252,19 +264,19 @@ const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
 /** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const fold = op => def => input => last(def)(scan(foldToScan(op))(input))
 
-const sum = fold(operator.addition)(0)
+const sum = fold(addition)(0)
 
-const min = fold(operator.min)(undefined)
+const min = fold(minOp)(undefined)
 
-const max = fold(operator.max)(undefined)
+const max = fold(maxOp)(undefined)
 
 /** @type {(separator: string) => (input: List<string>) => string} */
-const join = separator => fold(operator.join(separator))('')
+const join = separator => fold(joinOp(separator))('')
 
-const stringConcat = fold(operator.concat)('')
+const stringConcat = fold(concatOp)('')
 
 /** @type {<T>(input: List<T>) => number} */
-const length = reduce(operator.counter)(0)
+const length = reduce(counter)(0)
 
 /**
  * @template T
