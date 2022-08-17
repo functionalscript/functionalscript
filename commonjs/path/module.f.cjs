@@ -1,4 +1,5 @@
 const list = require("../../types/list/module.f.cjs")
+const { next, reduce, reverse, first, flat, toArray, filterMap, isEmpty, concat, join } = list
 const package_ = require("../package/module.f.cjs")
 const module_ = require("../module/module.f.cjs")
 
@@ -24,7 +25,7 @@ const normItemsOp = first => prior => {
     switch (first) {
         case '': case '.': { return prior }
         case '..': {
-            const result = list.next(tail)
+            const result = next(tail)
             if (result === undefined) { return undefined }
             return [result.tail]
         }
@@ -36,10 +37,11 @@ const normItemsOp = first => prior => {
 
 /** @type {(items: list.List<string>) => OptionList} */
 const normItems = items => {
-    const result = list.reduce(normItemsOp)([undefined])(items)
-    if (result === undefined) { return result }
-    return [list.reverse(result[0])]
+    const result = reduce(normItemsOp)([undefined])(items)
+    return result === undefined ? result : [reverse(result[0])]
 }
+
+const firstUndefined = first(undefined)
 
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parseLocal = local => {
@@ -47,8 +49,8 @@ const parseLocal = local => {
     const fSeq = path => {
         const pathSeq = split(path)
         const dir = [undefined, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
-        return /** @type {readonly (string|undefined)[]} */(['.', '..']).includes(list.first(undefined)(pathSeq)) ?
-            [false, dir, list.flat([split(local), pathSeq])] :
+        return /** @type {readonly (string|undefined)[]} */(['.', '..']).includes(firstUndefined(pathSeq)) ?
+            [false, dir, flat([split(local), pathSeq])] :
             [true, dir, pathSeq]
     }
     /** @type {(path: string) => LocalPath|undefined} */
@@ -59,7 +61,7 @@ const parseLocal = local => {
         return {
             external,
             dir,
-            items: list.toArray(n[0])
+            items: toArray(n[0])
         }
     }
     return f
@@ -70,7 +72,7 @@ const parseLocal = local => {
 /** @type {(prior: readonly[string|undefined, list.List<string>]) => list.Thunk<IdPath>} */
 const variants = prior => () => {
     const [a, b] = prior
-    const r = list.next(b)
+    const r = next(b)
     if (r === undefined) { return undefined }
     const { first, tail } = r
     /** @type {IdPath} */
@@ -100,12 +102,12 @@ const mapDependency = d => ([external, internal]) => {
  */
 const parseGlobal = dependencies =>
 {
-    const filterMap = list.filterMap(mapDependency(dependencies))
+    const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
         const v = variants([undefined, items])
-        const r = list.first(undefined)(filterMap(v))
+        const r = firstUndefined(fMap(v))
         if (r === undefined) { return undefined }
-        return { package: r[0], items: list.toArray(r[1]), dir }
+        return { package: r[0], items: toArray(r[1]), dir }
     }
 }
 
@@ -154,9 +156,9 @@ const parseAndFind = packageGet => moduleId => path => {
         return source === undefined ? undefined : { id: { package: p.package, path: file.split('/') }, source }
     }
     const file = p.items.join('/')
-    const indexJs = list.join('/')(list.concat(p.items)(['index.js']))
-    const fileList = p.dir || list.isEmpty(p.items) ? [indexJs] : [file, `${file}.js`, indexJs]
-    return list.first(undefined)(list.filterMap(tryFile)(fileList))
+    const indexJs = join('/')(concat(p.items)(['index.js']))
+    const fileList = p.dir || isEmpty(p.items) ? [indexJs] : [file, `${file}.js`, indexJs]
+    return firstUndefined(filterMap(tryFile)(fileList))
 }
 
 module.exports = {

@@ -1,6 +1,7 @@
 const _ = require('../types/module.f.cjs')
 const list = require('../../list/module.f.cjs')
 const cmp = require('../../function/compare/module.f.cjs')
+const { index3, index5 } = cmp
 const array = require('../../array/module.f.cjs')
 
 /**
@@ -62,8 +63,8 @@ const child = item =>
 
 /** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => Result<T>} */
 const find = c => {
-    const i3 = cmp.index3(c)
-    const i5 = cmp.index5(c)
+    const i3 = index3(c)
+    const i5 = index5(c)
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     /** @type {(prior: Path<T>) => (node: _.Node<T>) => Result<T>} */
     const f = tail => node => {

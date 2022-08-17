@@ -1,4 +1,5 @@
 const list = require('../types/list/module.f.cjs')
+const { flatMap } = list
 
 /** @typedef {ItemThunk|ItemArray} Block */
 
@@ -15,7 +16,7 @@ const flat = indent => {
     const f = prefix => {
         /** @type {(item: Item) => list.List<string>} */
         const g = item => typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
-        return list.flatMap(g)
+        return flatMap(g)
     }
 
     return f('')

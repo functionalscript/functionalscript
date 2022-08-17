@@ -1,6 +1,18 @@
 const { compose, identity } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
-const { logicalNot, strictEqual, stateScanToScan, reduceToScan, foldToScan } = operator
+const { 
+    addition, 
+    min: minOp, 
+    max: maxOp, 
+    join: joinOp, 
+    concat: concatOp, 
+    counter,
+    logicalNot, 
+    strictEqual, 
+    stateScanToScan, 
+    reduceToScan, 
+    foldToScan 
+} = operator
 
 /**
  * @template T
@@ -99,10 +111,12 @@ const iterable = list => ({
     }
 })
 
+const { from } = Array
+
 /** @type {<T>(list: List<T>) => readonly T[]} */
 const toArray = list => {
     const u = trampoline(list)
-    return u instanceof Array ? u : Array.from(iterable(u))
+    return u instanceof Array ? u : from(iterable(u))
 }
 
 /** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => Thunk<O>} */
@@ -192,17 +206,23 @@ const last = first => tail => {
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (input: List<T>) => D|T} */
 const find = def => f => input => first(def)(filter(f)(input))
 
+const findTrue = find(false)
+
 /** @type {(input: List<boolean>) => boolean} */
-const some = input => find
-    (false)
+const some = input => findTrue
     (/** @type {(_: boolean) => boolean} */(identity))
     (input)
 
+/** @type {<T>(f: List<T>) => Thunk<boolean>} */
+const mapTrue = map(() => true)
+
 /** @type {<T>(input: List<T>) => boolean} */
-const isEmpty = input => !some(map(() => true)(input))
+const isEmpty = input => !some(mapTrue(input))
+
+const mapNot = map(logicalNot)
 
 /** @type {(input: List<boolean>) => boolean} */
-const every = input => !some(map(logicalNot)(input))
+const every = input => !some(mapNot(input))
 
 /** @type {<T>(value: T) => (sequence: List<T>) => boolean} */
 const includes = value => input => some(map(strictEqual(value))(input))
@@ -244,17 +264,19 @@ const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
 /** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const fold = op => def => input => last(def)(scan(foldToScan(op))(input))
 
-const sum = fold(operator.addition)(0)
+const sum = fold(addition)(0)
 
-const min = fold(operator.min)(undefined)
+const min = fold(minOp)(undefined)
 
-const max = fold(operator.max)(undefined)
+const max = fold(maxOp)(undefined)
 
 /** @type {(separator: string) => (input: List<string>) => string} */
-const join = separator => fold(operator.join(separator))('')
+const join = separator => fold(joinOp(separator))('')
+
+const stringConcat = fold(concatOp)('')
 
 /** @type {<T>(input: List<T>) => number} */
-const length = reduce(operator.counter)(0)
+const length = reduce(counter)(0)
 
 /**
  * @template T
@@ -267,7 +289,9 @@ const entryOperator = index => value => [[index, value], index + 1]
 /** @type {<T>(input: List<T>) => Thunk<Entry<T>>} */
 const entries = input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
-    return stateScan(/** @type {operator.StateScan<T, Number, Entry<T>>} */(entryOperator))(0)(input)
+    /** @type {operator.StateScan<T, Number, Entry<T>>} */
+    const o = entryOperator
+    return stateScan(o)(0)(input)
 }
 
 /** @type {<T>(value: T) => (prior: List<T>) => List<T>} */
@@ -295,18 +319,6 @@ const equalZip = e => a => b => () => {
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
 const equal = e => a => b => every(equalZip(e)(a)(b))
-
-/** @type {(s: string) => List<number>} */
-const toCharCodeList = s => {
-    /** @type {(i: number) => Result<number>} */
-    const at = i => {
-        const first = s.charCodeAt(i)
-        return isNaN(first) ? undefined : { first, tail: () => at(i + 1) }
-    }
-    return at(0)
-}
-
-const fromCharCodeList = compose(map(String.fromCharCode))(fold(operator.concat)(''))
 
 module.exports = {
     /** @readonly */
@@ -376,6 +388,8 @@ module.exports = {
     /** @readonly */
     join,
     /** @readonly */
+    stringConcat,
+    /** @readonly */
     length,
     /** @readonly */
     entries,
@@ -384,9 +398,5 @@ module.exports = {
     /** @readonly */
     zip,
     /** @readonly */
-    equal,
-    /** @readonly */
-    toCharCodeList,
-    /** @readonly */
-    fromCharCodeList,
+    equal
 }

@@ -2,8 +2,9 @@ const _ = require('../types/module.f.cjs')
 const cmp = require('../../function/compare/module.f.cjs')
 const find = require('../find/module.f.cjs')
 const list = require('../../list/module.f.cjs')
+const { reduce: listReduce, concat, next } = list
 const array = require('../../array/module.f.cjs')
-const option = require('../../option/module.f.cjs')
+const { map } = require('../../option/module.f.cjs')
 
 /**
  * @template T
@@ -110,7 +111,7 @@ const reduceX = ms => ([i, n]) => a => {
     }
 }
 
-const reduce = list.reduce(reduceX([reduceValue0, reduceValue2]))
+const reduce = listReduce(reduceX([reduceValue0, reduceValue2]))
 
 const initReduce = reduceX([initValue0, initValue1])
 
@@ -123,7 +124,7 @@ const nodeRemove = c => node => {
         /** @type {(n: _.Node<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>} */
         const branch = n => f => {
             const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n)
-            return { first: p.first, tail: list.concat(p.tail)({ first: f(v), tail }) }
+            return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
         }
         const [i, n] = first
         switch (i) {
@@ -147,7 +148,7 @@ const nodeRemove = c => node => {
     const r = f()
     if (r === undefined) { return node }
     const { first, tail } = r
-    const tailR = list.next(tail)
+    const tailR = next(tail)
     if (tailR === undefined) { return first }
     const { first: tf, tail: tt } = tailR
     const result = reduce(initReduce(tf)(first))(tt)
@@ -155,7 +156,7 @@ const nodeRemove = c => node => {
 }
 
 /** @type {<T>(c: cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
-const remove = c => option.map(nodeRemove(c))
+const remove =  c => map(nodeRemove(c))
 
 module.exports = {
     /** @readonly */
