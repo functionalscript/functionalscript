@@ -5,6 +5,7 @@ const function_ = require('../module/function/module.f.cjs')
 const map = require('../../types/map/module.f.cjs')
 const { set: mapSet } = map
 const object = require('../../types/object/module.f.cjs')
+const { fromMap } = object
 const path = require('../path/module.f.cjs')
 const { parseAndFind } = path
 const stringSet = require('../../types/stringset/module.f.cjs')
@@ -75,7 +76,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             const [[state, value], [requireMap, moduleMap2]] = result(require_)([undefined, moduleMap])
             const x = state === 'error' ?
                 error(['runtime error', value]) :
-                set(['ok', { exports: value, requireMap: object.fromMap(requireMap) }])
+                set(['ok', { exports: value, requireMap: fromMap(requireMap) }])
             return x(moduleMap2)
         }
     }
