@@ -89,16 +89,20 @@ const struct = typeDef
     (['StructLayout(LayoutKind.Sequential)'])
     ('struct')
 
+const mapField = map(field)
+
+const flatMapMethod = flatMap(method)
+
 /** @type {(e: obj.Entry<types.Definition>) => list.List<text.Item>} */
 const def = ([n, d]) => {
     const i = d.interface
     return i === undefined ?
-        struct(n)(map(field)(entries(d.struct))) :
+        struct(n)(mapField(entries(d.struct))) :
         typeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (flatMap(method)(entries(i)))
+            (flatMapMethod(entries(i)))
 }
 
 const flatMapDef = flatMap(def)
@@ -115,7 +119,7 @@ const header = [
 /** @type {(name: string) => (library: types.Library) => text.Block} */
 const cs = name => library => {
     const v = flatMapDef(entries(library))
-    const ns = namespace(name)(() => v)
+    const ns = namespace(name)(v)
     return flat([header, ns])
 }
 
