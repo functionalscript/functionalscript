@@ -1,7 +1,9 @@
 const _ = require('../types/module.f.cjs')
-const find = require('../find/module.f.cjs')
+const btreeFind = require('../find/module.f.cjs')
+const { find } = btreeFind
 const cmp = require('../../function/compare/module.f.cjs')
 const list = require('../../list/module.f.cjs')
+const { reduce } = list
 
 /**
  * @template T
@@ -11,8 +13,8 @@ const list = require('../../list/module.f.cjs')
 /** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(i: find.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
-const reduce = ([i, x]) => a => {
+/** @type {<T>(i: btreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
+const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: {
             switch (x.length) {
@@ -32,9 +34,11 @@ const reduce = ([i, x]) => a => {
     }
 }
 
+const reduceBranch = reduce(reduceOp)
+
 /** @type {<T>(c: cmp.Compare<T>) => (value: T) => (node: _.Node<T>) => _.Node<T>} */
 const nodeSet = c => value => node => {
-    const { first, tail } = find.find(c)(node)
+    const { first, tail } = find(c)(node)
     const [i, x] = first;
     /** @typedef {typeof value} T */
     /** @type {() => Branch1To3<T>} */
@@ -77,7 +81,7 @@ const nodeSet = c => value => node => {
             }
         }
     }
-    const r = list.reduce(reduce)(f())(tail)
+    const r = reduceBranch(f())(tail)
     return r.length === 1 ? r[0] : r
 }
 

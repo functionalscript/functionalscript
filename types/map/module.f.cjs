@@ -7,8 +7,7 @@ const compare = require('../function/compare/module.f.cjs')
 const { stringCmp } = require('../function/compare/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const { reduce } = list
-const btreeRemove = require('../btree/remove/module.f.cjs').remove
-const { compose } = require('../function/module.f.cjs')
+const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
 
 /** @typedef {compare.Sign} Sign */
 
