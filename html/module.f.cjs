@@ -1,7 +1,12 @@
 const list = require('../types/list/module.f.cjs')
+const { map, flatMap, flat, concat, fold } = list
 const object = require('../types/object/module.f.cjs')
-const { operator, compose } = require('../types/function/module.f.cjs')
+const { compose } = require('../types/function/module.f.cjs')
 const encoding = require('../text/encoding/module.f.cjs');
+const { stringToUtf16List } = encoding
+
+const { fromCharCode } = String
+const { entries } = Object
 
 /**
  * @typedef {|
@@ -70,22 +75,22 @@ const escapeCharCode = code => {
         case 0x26: return '&amp;'
         case 0x3C: return '&lt;'
         case 0x3E: return '&gt;'
-        default: return String.fromCharCode(code)
+        default: return fromCharCode(code)
     }
 }
 
-const escape = compose(encoding.stringToUtf16List)(list.map(escapeCharCode))
+const escape = compose(stringToUtf16List)(map(escapeCharCode))
 
 /** @type {(n: Node) => list.List<string>} */
 const node = n => typeof n === 'string' ? escape(n) : element(n)
 
-const nodes = list.flatMap(node)
+const nodes = flatMap(node)
 
 /** @type {(a: object.Entry<string>) => list.List<string>} */
-const attribute = ([name, value]) => list.flat([[' ', name, '="'], escape(value), ['"']])
+const attribute = ([name, value]) => flat([[' ', name, '="'], escape(value), ['"']])
 
 /** @type {(a: Attributes) => list.List<string>} */
-const attributes = compose(Object.entries)(list.flatMap(attribute))
+const attributes = compose(entries)(flatMap(attribute))
 
 /** @type {(element: Element) => list.List<string>} */
 const element = e => {
@@ -104,12 +109,12 @@ const element = e => {
             }
         }
     }
-    return list.flat(f())
+    return flat(f())
 }
 
-const html = compose(element)(list.concat(['<!DOCTYPE html>']))
+const html = compose(element)(concat(['<!DOCTYPE html>']))
 
-const htmlToString = compose(html)(list.fold(operator.concat)(''))
+const htmlToString =  compose(html)(list.stringConcat)
 
 module.exports = {
     /** @readonly */

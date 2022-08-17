@@ -1,5 +1,3 @@
-const pack = require('../../commonjs/package/module.f.cjs')
-
 /** 
  * @typedef {{
  *  readonly execSync: (cmd: string) => Buffer
@@ -22,13 +20,15 @@ const pack = require('../../commonjs/package/module.f.cjs')
  * }} Node
  */
 
+const { stringify, parse } = JSON
+
 /** @type {<T>(node: Node<T>) => T} */
 const version = ({ child_process, fs }) =>
     fs.writeFileSync(
         'package.json',
-        JSON.stringify(
+        stringify(
             {
-                ...JSON.parse(fs.readFileSync('package.json').toString()), 
+                ...parse(fs.readFileSync('package.json').toString()), 
                 version: `0.0.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}` 
             }, 
             null, 

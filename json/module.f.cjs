@@ -1,7 +1,10 @@
 const list = require('../types/list/module.f.cjs')
+const { next, flat, fold, map, stringConcat } = list
 const object = require('../types/object/module.f.cjs')
+const { at } = object
 const operator = require('../types/function/operator/module.f.cjs')
 const { compose } = require('../types/function/module.f.cjs')
+const { entries } = Object
 
 /**
  * @typedef {{
@@ -17,20 +20,22 @@ const { compose } = require('../types/function/module.f.cjs')
 const setProperty = value => {
     /** @type {(path: list.List<string>) => (src: Unknown|undefined) => Unknown} */
     const f = path => src => {
-        const result = list.next(path)
+        const result = next(path)
         if (result === undefined) { return value }
         const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
-        return { ...srcObject, [first]: f(tail)(object.at(first)(srcObject)) }
+        return { ...srcObject, [first]: f(tail)(at(first)(srcObject)) }
     }
     return f
 }
 
+const jsonStringify = JSON.stringify
+
 /** @type {(_: string) => list.List<string>} */
-const stringSerialize = input => [JSON.stringify(input)]
+const stringSerialize = input => [jsonStringify(input)]
 
 /** @type {(_: number) => list.List<string>} */
-const numberSerialize = input => [JSON.stringify(input)]
+const numberSerialize = input => [jsonStringify(input)]
 
 const nullSerialize = ['null']
 
@@ -45,16 +50,16 @@ const colon = [':']
 const comma = [',']
 
 /** @type {operator.Fold<list.List<string>>} */
-const joinOp = b => prior => list.flat([prior, comma, b])
+const joinOp = b => prior => flat([prior, comma, b])
 
 /** @type {(input: list.List<list.List<string>>) => list.List<string>} */
-const join = list.fold(joinOp)([])
+const join = fold(joinOp)([])
 
 /** @type {(open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>} */
 const wrap = open => close => {
     const seqOpen = [open]
     const seqClose = [close]
-    return input => list.flat([seqOpen, join(input), seqClose])
+    return input => flat([seqOpen, join(input), seqClose])
 }
 
 const objectWrap = wrap('{')('}')
@@ -70,13 +75,14 @@ const arrayWrap = wrap('[')(']')
 /** @type {(mapEntries: MapEntries) => (value: Unknown) => list.List<string>} */
 const serialize = sort => {
     /** @type {(kv: readonly[string, Unknown]) => list.List<string>} */
-    const propertySerialize = ([k, v]) => list.flat([
+    const propertySerialize = ([k, v]) => flat([
         stringSerialize(k),
         colon,
         f(v)
     ])
+    const mapPropertySerialize = map(propertySerialize)
     /** @type {(object: Object) => list.List<string>} */
-    const objectSerialize = input => objectWrap(list.map(propertySerialize)(sort(Object.entries(input))))
+    const objectSerialize = input => objectWrap(mapPropertySerialize(sort(entries(input))))
     /** @type {(value: Unknown) => list.List<string>} */
     const f = value => {
         switch (typeof value) {
@@ -90,8 +96,9 @@ const serialize = sort => {
             }
         }
     }
+    const mapF = map(f)
     /** @type {(input: Array) => list.List<string>} */
-    const arraySerialize = compose(list.map(f))(arrayWrap)
+    const arraySerialize = compose(mapF)(arrayWrap)
     return f
 }
 
@@ -101,7 +108,7 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => compose(serialize(sort))(list.join(''))
+const stringify = sort => compose(serialize(sort))(stringConcat)
 
 /** @type {(value: string) => Unknown} */
 const parse = JSON.parse

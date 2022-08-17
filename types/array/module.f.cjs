@@ -1,4 +1,5 @@
 const option = require('../option/module.f.cjs')
+const { map } = option
 
 /**
  * @template T
@@ -97,7 +98,7 @@ const splitFirst = a => {
     /** @typedef {typeof a[0]} T*/
     /** @type {(_: T) => readonly[T, readonly T[]]} */
     const split = first => [first, uncheckTail(a)]
-    return option.map(split)(a[0])
+    return map(split)(a[0])
 }
 
 /** @type {<T>(_: readonly T[]) => readonly T[]|undefined} */
