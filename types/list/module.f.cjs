@@ -99,10 +99,12 @@ const iterable = list => ({
     }
 })
 
+const { from } = Array
+
 /** @type {<T>(list: List<T>) => readonly T[]} */
 const toArray = list => {
     const u = trampoline(list)
-    return u instanceof Array ? u : Array.from(iterable(u))
+    return u instanceof Array ? u : from(iterable(u))
 }
 
 /** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => Thunk<O>} */
@@ -192,17 +194,23 @@ const last = first => tail => {
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (input: List<T>) => D|T} */
 const find = def => f => input => first(def)(filter(f)(input))
 
+const findTrue = find(false)
+
 /** @type {(input: List<boolean>) => boolean} */
-const some = input => find
-    (false)
+const some = input => findTrue
     (/** @type {(_: boolean) => boolean} */(identity))
     (input)
 
+/** @type {<T>(f: List<T>) => Thunk<boolean>} */
+const mapTrue = map(() => true)
+
 /** @type {<T>(input: List<T>) => boolean} */
-const isEmpty = input => !some(map(() => true)(input))
+const isEmpty = input => !some(mapTrue(input))
+
+const mapNot = map(logicalNot)
 
 /** @type {(input: List<boolean>) => boolean} */
-const every = input => !some(map(logicalNot)(input))
+const every = input => !some(mapNot(input))
 
 /** @type {<T>(value: T) => (sequence: List<T>) => boolean} */
 const includes = value => input => some(map(strictEqual(value))(input))
@@ -267,7 +275,9 @@ const entryOperator = index => value => [[index, value], index + 1]
 /** @type {<T>(input: List<T>) => Thunk<Entry<T>>} */
 const entries = input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
-    return stateScan(/** @type {operator.StateScan<T, Number, Entry<T>>} */(entryOperator))(0)(input)
+    /** @type {operator.StateScan<T, Number, Entry<T>>} */
+    const o = entryOperator
+    return stateScan(o)(0)(input)
 }
 
 /** @type {<T>(value: T) => (prior: List<T>) => List<T>} */

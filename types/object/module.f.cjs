@@ -1,5 +1,8 @@
 const list = require('../list/module.f.cjs')
+const { iterable } = list
 const map = require('../map/module.f.cjs')
+const { entries: mapEntries, fromEntries: mapFromEntries } = map
+const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
 /**
  * @template T
@@ -14,16 +17,16 @@ const map = require('../map/module.f.cjs')
  */
 
 /** @type {(name: string) => <T>(object: Map<T>) => T|undefined} */
-const at = name => object => Object.getOwnPropertyDescriptor(object, name)?.value
+const at = name => object => getOwnPropertyDescriptor(object, name)?.value
 
-/** @type {<T>(entries: list.List<Entry<T>>) => list.List<Entry<T>>} */
-const sort = entries => map.entries(map.fromEntries(entries))
+/** @type {<T>(e: list.List<Entry<T>>) => list.List<Entry<T>>} */
+const sort = e => mapEntries(mapFromEntries(e))
 
-/** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = entries => Object.fromEntries(list.iterable(entries))
+/** @type {<T>(e: list.List<Entry<T>>) => Map<T>} */
+const fromEntries = e => objectFromEntries(iterable(e))
 
 /** @type {<T>(m: map.Map<T>) => Map<T>} */
-const fromMap = m => fromEntries(map.entries(m))
+const fromMap =  m => fromEntries(mapEntries(m))
 
 module.exports = {
     /** @readonly */
