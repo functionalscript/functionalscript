@@ -1,5 +1,6 @@
 const list = require('../types/list/module.f.cjs')
-const { map, flatMap, flat, concat, fold } = list
+const { map, flatMap, flat, concat: listConcat } = list
+const { concat: stringConcat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { compose } = require('../types/function/module.f.cjs')
 const encoding = require('../text/encoding/module.f.cjs');
@@ -112,9 +113,9 @@ const element = e => {
     return flat(f())
 }
 
-const html = compose(element)(concat(['<!DOCTYPE html>']))
+const html = compose(element)(listConcat(['<!DOCTYPE html>']))
 
-const htmlToString =  compose(html)(list.stringConcat)
+const htmlToString =  compose(html)(stringConcat)
 
 module.exports = {
     /** @readonly */

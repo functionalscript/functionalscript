@@ -1,5 +1,6 @@
 const list = require('../types/list/module.f.cjs')
-const { next, flat, fold, map, stringConcat } = list
+const { next, flat, fold, map } = list
+const { concat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { at } = object
 const operator = require('../types/function/operator/module.f.cjs')
@@ -108,7 +109,7 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => compose(serialize(sort))(stringConcat)
+const stringify = sort => compose(serialize(sort))(concat)
 
 /** @type {(value: string) => Unknown} */
 const parse = JSON.parse

@@ -110,21 +110,6 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const result = _.join('/')([])
-    if (result !== '') { throw result }
-}
-
-{
-    const result = _.join('/')([''])
-    if (result !== '') { throw result }
-}
-
-{
-    const result = _.join(' ')(['hello', 'world', '!'])
-    if (result !== 'hello world !') { throw result }
-}
-
-{
     const result = stringify(_.entries([]))
     if (result !== '[]') { throw result }
 }
@@ -330,16 +315,6 @@ const stress = () => {
         const result = _.toArray(_.reverse(_.countdown(n)))
         if (result.length !== n) { throw result.length }
     }
-}
-
-{
-    const s = _.join('.')(_.repeat('x')(0))
-    if (s != '') { throw s }
-}
-
-{
-    const s = _.join('.')(_.repeat('x')(5))
-    if (s != 'x.x.x.x.x') { throw s }
 }
 
 // stress()

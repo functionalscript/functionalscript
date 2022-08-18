@@ -3,7 +3,8 @@ const { paramList } = types
 const text = require('../../text/module.f.cjs')
 const obj = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { map, join, flatMap } = list
+const { map, flatMap } = list
+const { join } = require('../../types/string/module.f.cjs')
 const { entries } =  Object
 
 /** @type {(name: string) => (body: text.Block) => text.Block} */
