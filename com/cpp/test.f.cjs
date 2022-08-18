@@ -1,12 +1,12 @@
 const _ = require('./module.f.cjs')
 const library = require('../types/test.f.cjs')
 const text = require('../../text/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
+const { join } = require('../../types/module.f.cjs').string
 
 const f = () =>
 {
-    const r = list.join('\n')(text.flat('    ')(_.cpp('My')(library)))
-    const e = 
+    const r = join('\n')(text.flat('    ')(_.cpp('My')(library)))
+    const e =
         '#pragma once\n' +
         '\n' +
         'namespace My\n' +

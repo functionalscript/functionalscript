@@ -261,10 +261,6 @@ const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
 /** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const fold = op => def => input => last(def)(scan(foldToScan(op))(input))
 
-/** @type {(separator: string) => (input: List<string>) => string} */
-const join = separator => fold(joinOp(separator))('')
-
-const stringConcat = fold(concatOp)('')
 
 /** @type {<T>(input: List<T>) => number} */
 const length = reduce(counter)(0)
@@ -370,10 +366,6 @@ module.exports = {
     reduce,
     /** @readonly */
     fold,
-    /** @readonly */
-    join,
-    /** @readonly */
-    stringConcat,
     /** @readonly */
     length,
     /** @readonly */

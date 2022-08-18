@@ -1,5 +1,6 @@
 const list = require("../../types/list/module.f.cjs")
-const { next, reduce, reverse, first, flat, toArray, filterMap, isEmpty, concat, join } = list
+const { next, reduce, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
+const { join } = require('../../types/string/module.f.cjs')
 const package_ = require("../package/module.f.cjs")
 const module_ = require("../module/module.f.cjs")
 

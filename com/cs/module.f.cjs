@@ -3,7 +3,8 @@ const { result, paramList } = types
 const text = require('../../text/module.f.cjs')
 const { curly } = text
 const list = require('../../types/list/module.f.cjs')
-const { flat, map, some, join, flatMap } = list
+const { flat, map, some, flatMap } = list
+const { join } = require('../../types/string/module.f.cjs')
 const obj = require('../../types/object/module.f.cjs')
 const { entries } = Object
 
@@ -36,7 +37,7 @@ const baseTypeMap = {
     u32: 'uint',
     u64: 'ulong',
     u8: 'byte',
-    usize: 'UIntPtr',    
+    usize: 'UIntPtr',
 }
 
 /** @type {(t: types.BaseType) => string} */

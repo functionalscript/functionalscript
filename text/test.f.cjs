@@ -1,5 +1,5 @@
 const _ = require('./module.f.cjs')
-const list = require('../types/list/module.f.cjs')
+const { string: { join } } = require('../types/module.f.cjs')
 
 {
     /** @type {_.Block} */
@@ -12,7 +12,7 @@ const list = require('../types/list/module.f.cjs')
         ],
         'e',
     ]
-    const result = list.join('\n')(_.flat(':')(text))
+    const result = join('\n')(_.flat(':')(text))
     if (result !== 'a\nb\n:c\n::d\ne') { throw result }
 }
 

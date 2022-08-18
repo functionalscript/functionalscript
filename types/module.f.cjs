@@ -21,4 +21,6 @@ module.exports = {
     bigint: require('./bigint/module.f.cjs'),
     /** @readonly */
     number: require('./number/module.f.cjs'),
+    /** @readonly */
+    string: require('./string/module.f.cjs'),
 }

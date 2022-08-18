@@ -1,12 +1,11 @@
-const types = require('../types/module.f.cjs')
 const _ = require('./module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
 const text = require('../../text/module.f.cjs')
 const library = require('../types/test.f.cjs')
+const { join } = require('../../types/string/module.f.cjs')
 
 const f = () =>
 {
-    const cs = list.join('\n')(text.flat('    ')(_.cs('My')(library)))
+    const cs = join('\n')(text.flat('    ')(_.cs('My')(library)))
     const e =
         'using System;\n' +
         'using System.Runtime.InteropServices;\n' +
