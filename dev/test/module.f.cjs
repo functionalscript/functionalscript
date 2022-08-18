@@ -7,7 +7,7 @@ const package_ = require('../../commonjs/package/module.f.cjs')
  * @type {(c: function_.Compile) =>
  *  (files: string) =>
  *  (packageGet: package_.Get) =>
- *  }
+ *  never}
  */
 const test = compile => files => packageGet => {
     return todo()
