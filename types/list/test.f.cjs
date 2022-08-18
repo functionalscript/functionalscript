@@ -100,11 +100,6 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const result = _.sum([2, 3, 4, 5])
-    if (result !== 14) { throw result }
-}
-
-{
     const result = _.fold(addition)(undefined)([2, 3, 4, 5])
     if (result !== 14) { throw result }
 }
@@ -209,21 +204,6 @@ const map5 = _.map(x => x > 5)
 {
     const result = _.equal(strictEqual)([])([])
     if (!result) { throw result }
-}
-
-{
-    const result = _.min([])
-    if (result !== undefined) { throw result }
-}
-
-{
-    const result = _.min([1, 2, 12, -4, 8])
-    if (result !== -4) { throw result }
-}
-
-{
-    const result = _.max([1, 2, 12, -4, 8])
-    if (result !== 12) { throw result }
 }
 
 {

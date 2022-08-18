@@ -16,11 +16,6 @@ const join = separator => value => prior => `${prior}${separator}${value}`
 /** @type {Fold<string>} */
 const concat = i => acc => `${acc}${i}`
 
-/** @type {Fold<number>} */
-const addition = a => b => a + b
-
-const increment = addition(1)
-
 /**
  * @template T
  * @template R
@@ -37,12 +32,6 @@ const logicalNot = v => !v
 
 /** @type {<T>(a: T) => (b: T) => boolean} */
 const strictEqual = a => b => a === b
-
-/** @type {Fold<number>} */
-const min = a => b => a < b ? a : b
-
-/** @type {Fold<number>} */
-const max = a => b => a > b ? a : b
 
 /**
  * @template I,O
@@ -73,6 +62,17 @@ const reduceToScan = reduce => prior => i => {
 
 /** @type {<T>(fold: Fold<T>) => Scan<T, T>} */
 const foldToScan = op => init => [init, reduceToScan(op)(init)]
+
+/** @type {Fold<number>} */
+const addition = a => b => a + b
+
+/** @type {Fold<number>} */
+const min = a => b => a < b ? a : b
+
+/** @type {Fold<number>} */
+const max = a => b => a > b ? a : b
+
+const increment = addition(1)
 
 const counter = () => increment
 
