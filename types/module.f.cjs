@@ -16,5 +16,9 @@ module.exports = {
     /** @readonly */
     result: require('./result/module.f.cjs'),
     /** @readonly */
-    stringSet: require('./string_set/module.f.cjs'),
+    string_set: require('./string_set/module.f.cjs'),
+    /** @readonly */
+    bigint: require('./bigint/module.f.cjs'),
+    /** @readonly */
+    number: require('./number/module.f.cjs'),
 }
