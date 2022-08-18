@@ -1,17 +1,17 @@
 const { compose, identity } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
-const { 
-    addition, 
-    min: minOp, 
-    max: maxOp, 
-    join: joinOp, 
-    concat: concatOp, 
+const {
+    addition,
+    min: minOp,
+    max: maxOp,
+    join: joinOp,
+    concat: concatOp,
     counter,
-    logicalNot, 
-    strictEqual, 
-    stateScanToScan, 
-    reduceToScan, 
-    foldToScan 
+    logicalNot,
+    strictEqual,
+    stateScanToScan,
+    reduceToScan,
+    foldToScan
 } = operator
 
 /**
@@ -264,12 +264,6 @@ const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
 /** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const fold = op => def => input => last(def)(scan(foldToScan(op))(input))
 
-const sum = fold(addition)(0)
-
-const min = fold(minOp)(undefined)
-
-const max = fold(maxOp)(undefined)
-
 /** @type {(separator: string) => (input: List<string>) => string} */
 const join = separator => fold(joinOp(separator))('')
 
@@ -379,12 +373,6 @@ module.exports = {
     reduce,
     /** @readonly */
     fold,
-    /** @readonly */
-    sum,
-    /** @readonly */
-    min,
-    /** @readonly */
-    max,
     /** @readonly */
     join,
     /** @readonly */

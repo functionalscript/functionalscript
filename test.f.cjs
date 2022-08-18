@@ -1,6 +1,8 @@
 const i = require('./module.f.cjs')
 
 require('./types/list/test.f.cjs')
+require('./types/number/test.f.cjs')
+require('./types/bigint/module.f.cjs')
 require('./types/array/test.f.cjs')
 require('./types/btree/test.f.cjs')
 require('./sha2/test.f.cjs')
