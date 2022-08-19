@@ -66,7 +66,7 @@ const paramList = compose(entries)(filterParam)
 const result = v => f => fa => {
     const type = fa._
     return type === undefined ? v : f(type)
-} 
+}
 
 module.exports = {
     /** @readonly */
