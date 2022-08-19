@@ -1,9 +1,9 @@
 const btTypes = require('../btree/types/module.f.cjs')
 const btree = require('../btree/module.f.cjs')
-const { 
+const {
     find: { find, isFound },
-    remove: { remove: btreeRemove }, 
-    set: { set: btreeSet }, 
+    remove: { remove: btreeRemove },
+    set: { set: btreeSet },
     /** @type {(s: StringSet) => list.List<string>} */
     values,
 } = btree
