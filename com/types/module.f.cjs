@@ -1,6 +1,6 @@
 const obj = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { compose } = require('../../types/function/module.f.cjs')
+const { compose2: compose } = require('../../types/function/module.f.cjs')
 const { filter } = list
 const { entries } = Object
 
@@ -66,7 +66,7 @@ const paramList = compose(entries)(filterParam)
 const result = v => f => fa => {
     const type = fa._
     return type === undefined ? v : f(type)
-} 
+}
 
 module.exports = {
     /** @readonly */

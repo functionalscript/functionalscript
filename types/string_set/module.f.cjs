@@ -1,16 +1,16 @@
 const btTypes = require('../btree/types/module.f.cjs')
 const btree = require('../btree/module.f.cjs')
-const { 
+const {
     find: { find, isFound },
-    remove: { remove: btreeRemove }, 
-    set: { set: btreeSet }, 
+    remove: { remove: btreeRemove },
+    set: { set: btreeSet },
     /** @type {(s: StringSet) => list.List<string>} */
     values,
 } = btree
 const { stringCmp } = require("../function/compare/module.f.cjs")
 const list = require('../list/module.f.cjs')
 const { reduce } = list
-const { compose } = require('../function/module.f.cjs')
+const { compose2: compose } = require('../function/module.f.cjs')
 
 /** @typedef {btTypes.Tree<string>} StringSet */
 

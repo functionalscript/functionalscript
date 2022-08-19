@@ -4,7 +4,7 @@ const { concat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { at } = object
 const operator = require('../types/function/operator/module.f.cjs')
-const { compose } = require('../types/function/module.f.cjs')
+const { compose2: compose } = require('../types/function/module.f.cjs')
 const { entries } = Object
 
 /**
