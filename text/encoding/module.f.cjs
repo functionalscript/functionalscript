@@ -3,7 +3,7 @@ const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
-const { compose2: compose } = require('../../types/function/module.f.cjs')
+const { compose: compose } = require('../../types/function/module.f.cjs')
 const { map, flat, stateScan, concat, fold, toArray, flatMap } = list
 const { ok, error } = result
 

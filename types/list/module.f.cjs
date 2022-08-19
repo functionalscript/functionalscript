@@ -1,4 +1,4 @@
-const { compose2: compose, identity } = require('../function/module.f.cjs')
+const { compose: compose, identity } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 const {
     join: joinOp,

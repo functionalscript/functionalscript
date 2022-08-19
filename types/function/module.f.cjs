@@ -9,7 +9,7 @@
  *
  * @type {<I, X>(g: Func<I, X>) => <O>(f: Func<X, O>) => Func<I, O>}
  */
-const compose2 = g => f => x => f(g(x))
+const compose = g => f => x => f(g(x))
 
 /** @type {<T>(value: T) => T} */
 const identity = value => value
@@ -20,16 +20,16 @@ const flip = f => b => a => f(a)(b)
 /**
  * @template I,O
  * @typedef {{
- *  readonly f: Func<I, O>
- *  readonly and: <T>(g: Func<O, T>) => Fn<I, T>
+ *  readonly result: Func<I, O>
+ *  readonly then: <T>(g: Func<O, T>) => Fn<I, T>
  * }} Fn
  */
 
 /** @type {<I, O>(f: (i: I) => O) => Fn<I, O>} */
-const compose = f => {
+const fn = result => {
     return {
-        f,
-        and: g => compose(compose2(f)(g))
+        result,
+        then: g => fn(compose(result)(g))
     }
 }
 
@@ -41,9 +41,9 @@ module.exports = {
     /** @readonly */
     identity,
     /** @readonly */
-    compose2,
+    compose,
     /** @readonly */
     flip,
     /** @readonly */
-    compose,
+    fn,
 }

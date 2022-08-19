@@ -1,6 +1,6 @@
 const list = require('../list/module.f.cjs')
 const { fold: listFold, repeat: listRepeat } = list
-const { compose2: compose } = require('../function/module.f.cjs')
+const { compose: compose } = require('../function/module.f.cjs')
 const op = require('../function/operator/module.f.cjs')
 const { join: joinOp, concat: concatOp } = op
 
