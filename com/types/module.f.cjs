@@ -1,6 +1,6 @@
 const obj = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { compose: compose } = require('../../types/function/module.f.cjs')
+const { compose } = require('../../types/function/module.f.cjs')
 const { filter } = list
 const { entries } = Object
 

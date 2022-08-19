@@ -10,7 +10,7 @@ const {
 const { stringCmp } = require("../function/compare/module.f.cjs")
 const list = require('../list/module.f.cjs')
 const { reduce } = list
-const { compose: compose } = require('../function/module.f.cjs')
+const { compose } = require('../function/module.f.cjs')
 
 /** @typedef {btTypes.Tree<string>} StringSet */
 

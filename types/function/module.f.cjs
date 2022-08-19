@@ -26,12 +26,10 @@ const flip = f => b => a => f(a)(b)
  */
 
 /** @type {<I, O>(f: (i: I) => O) => Fn<I, O>} */
-const fn = result => {
-    return {
-        result,
-        then: g => fn(compose(result)(g))
-    }
-}
+const fn = result => ({
+    result,
+    then: g => fn(compose(result)(g))
+})
 
 module.exports = {
     /** @readonly */

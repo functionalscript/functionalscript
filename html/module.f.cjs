@@ -2,7 +2,7 @@ const list = require('../types/list/module.f.cjs')
 const { map, flatMap, flat, concat: listConcat } = list
 const { concat: stringConcat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
-const { compose: compose } = require('../types/function/module.f.cjs')
+const { compose } = require('../types/function/module.f.cjs')
 const encoding = require('../text/encoding/module.f.cjs');
 const { stringToUtf16List } = encoding
 
