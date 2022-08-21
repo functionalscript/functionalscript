@@ -1,13 +1,11 @@
 const { compose, identity } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 const {
-    join: joinOp,
-    concat: concatOp,
     counter,
     logicalNot,
     strictEqual,
     stateScanToScan,
-    reduceToScan,
+    foldTToScan,
     foldToScan
 } = operator
 
@@ -252,10 +250,10 @@ const scan = op => apply(scanStep(op))
 /** @type {<I, S, O>(op: operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
 const stateScan = op => init => scan(stateScanToScan(op)(init))
 
-/** @type {<I,O>(op: operator.Reduce<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
-const reduceScan = op => init => scan(reduceToScan(op)(init))
+/** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
+const reduceScan = op => init => scan(foldTToScan(op)(init))
 
-/** @type {<I,O>(op: operator.Reduce<I, O>) => (init: O) => (input: List<I>) => O} */
+/** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => O} */
 const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
 
 /** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
