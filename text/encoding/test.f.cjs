@@ -162,6 +162,11 @@ const stringify = a => json.stringify(sort)(a)
 }
 
 {
+    const result = stringify(list.toArray(encoding.utf8ListToCodePointList([240, 160, 160, 244, 160, 160])))
+    if (result !== '[-2147448800,-2147432416]') { throw result }
+}
+
+{
     const result = stringify(list.toArray(encoding.utf16ListToCodePointList([-1, 65536])))
     if (result !== '[4294967295,4294967295]') { throw result }
 }

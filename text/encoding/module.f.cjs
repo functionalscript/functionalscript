@@ -70,8 +70,9 @@ const utf8StateToError = state => {
         case 2:
             if (state[0] < 0b1111_0000) return (((state[0] & 0b0000_1111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0100_0000_0000) | errorMask
             return (((state[0] & 0b0000_0111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0010_0000_0000) | errorMask
+        case 3:
+            return (((state[0] & 0b0000_0111) << 12) + ((state[1] & 0b0011_1111) << 6) + (state[2] & 0b0011_1111) + 0b1000_0000_0000_0000) | errorMask
     }
-    return todo()
 }
 
 /** @type {operator.StateScan<number, Utf8State, list.List<i32>>} */
