@@ -1,17 +1,17 @@
 const list = require('../list/module.f.cjs')
-const { fold: listFold, repeat: listRepeat } = list
+const { reduce: listReduce, repeat: listRepeat } = list
 const { compose } = require('../function/module.f.cjs')
 const compare = require('../function/compare/module.f.cjs')
 const { unsafeCmp } = compare
 const op = require('../function/operator/module.f.cjs')
 const { join: joinOp, concat: concatOp } = op
 
-/** @type {(o: op.Fold<string>) => (input: list.List<string>) => string} */
-const fold = o => listFold(o)('')
+/** @type {(o: op.Reduce<string>) => (input: list.List<string>) => string} */
+const reduce = o => listReduce(o)('')
 
-const join = compose(joinOp)(fold)
+const join = compose(joinOp)(reduce)
 
-const concat = fold(concatOp)
+const concat = reduce(concatOp)
 
 /** @type {(n: string) => (v: number) => string} */
 const repeat = v => compose(listRepeat(v))(concat)

@@ -6,7 +6,7 @@ const btreeSet = require('../btree/set/module.f.cjs').set
 const compare = require('../function/compare/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
-const { reduce } = list
+const { fold } = list
 const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 
@@ -37,10 +37,10 @@ const at = name => map => {
     return result === undefined ? undefined : result[1]
 }
 
-/** @type {<T>(o: operator.Fold<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
+/** @type {<T>(o: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
 const setUpdateEntry = o => entry => btreeSet(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], o(old[1])(entry[1])])
 
-/** @type {<T>(o: operator.Fold<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
+/** @type {<T>(o: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
 const setUpdate = o => name => value => setUpdateEntry(o)([name, value])
 
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
@@ -53,7 +53,7 @@ const entries = values
 const replace = () => b => b
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = reduce(setUpdateEntry(replace))(undefined)
+const fromEntries = fold(setUpdateEntry(replace))(undefined)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
 const remove =  name => btreeRemove(keyCmp(name))

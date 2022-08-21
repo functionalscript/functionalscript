@@ -1,5 +1,5 @@
 const list = require('../types/list/module.f.cjs')
-const { next, flat, fold, map } = list
+const { next, flat, reduce: fold, map } = list
 const { concat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { at } = object
@@ -50,7 +50,7 @@ const boolSerialize = value => value ? trueSerialize : falseSerialize
 const colon = [':']
 const comma = [',']
 
-/** @type {operator.Fold<list.List<string>>} */
+/** @type {operator.Reduce<list.List<string>>} */
 const joinOp = b => prior => flat([prior, comma, b])
 
 /** @type {(input: list.List<list.List<string>>) => list.List<string>} */

@@ -1,14 +1,12 @@
 const { compose, identity } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 const {
-    join: joinOp,
-    concat: concatOp,
     counter,
     logicalNot,
     strictEqual,
     stateScanToScan,
-    reduceToScan,
-    foldToScan
+    foldToScan,
+    reduceToScan
 } = operator
 
 /**
@@ -252,18 +250,18 @@ const scan = op => apply(scanStep(op))
 /** @type {<I, S, O>(op: operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
 const stateScan = op => init => scan(stateScanToScan(op)(init))
 
-/** @type {<I,O>(op: operator.Reduce<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
-const reduceScan = op => init => scan(reduceToScan(op)(init))
+/** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
+const foldScan = op => init => scan(foldToScan(op)(init))
 
-/** @type {<I,O>(op: operator.Reduce<I, O>) => (init: O) => (input: List<I>) => O} */
-const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
+/** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => O} */
+const fold = op => init => input => last(init)(foldScan(op)(init)(input))
 
-/** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
-const fold = op => def => input => last(def)(scan(foldToScan(op))(input))
+/** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
+const reduce = op => def => input => last(def)(scan(reduceToScan(op))(input))
 
 
 /** @type {<T>(input: List<T>) => number} */
-const length = reduce(counter)(0)
+const length = fold(counter)(0)
 
 /**
  * @template T
@@ -285,7 +283,7 @@ const entries = input => {
 const reverseOperator = first => tail => ({ first, tail })
 
 /** @type {<T>(input: List<T>) => List<T>} */
-const reverse = reduce(reverseOperator)(undefined)
+const reverse = fold(reverseOperator)(undefined)
 
 /** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<readonly[A, B]>} */
 const zip = a => b => () => {
@@ -361,11 +359,11 @@ module.exports = {
     /** @readonly */
     stateScan,
     /** @readonly */
-    reduceScan,
-    /** @readonly */
-    reduce,
+    foldScan,
     /** @readonly */
     fold,
+    /** @readonly */
+    reduce,
     /** @readonly */
     length,
     /** @readonly */
