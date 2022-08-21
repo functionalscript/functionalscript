@@ -6,7 +6,7 @@ const { unsafeCmp } = compare
 const op = require('../function/operator/module.f.cjs')
 const { join: joinOp, concat: concatOp } = op
 
-/** @type {(o: op.Fold<string>) => (input: list.List<string>) => string} */
+/** @type {(o: op.Reduce<string>) => (input: list.List<string>) => string} */
 const fold = o => listFold(o)('')
 
 const join = compose(joinOp)(fold)

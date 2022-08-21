@@ -50,7 +50,7 @@ const boolSerialize = value => value ? trueSerialize : falseSerialize
 const colon = [':']
 const comma = [',']
 
-/** @type {operator.Fold<list.List<string>>} */
+/** @type {operator.Reduce<list.List<string>>} */
 const joinOp = b => prior => flat([prior, comma, b])
 
 /** @type {(input: list.List<list.List<string>>) => list.List<string>} */

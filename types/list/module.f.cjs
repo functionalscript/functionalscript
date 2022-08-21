@@ -6,7 +6,7 @@ const {
     strictEqual,
     stateScanToScan,
     foldTToScan,
-    foldToScan
+    reduceToScan
 } = operator
 
 /**
@@ -256,8 +256,8 @@ const reduceScan = op => init => scan(foldTToScan(op)(init))
 /** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => O} */
 const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
 
-/** @type {<T>(op: operator.Fold<T>) => <D>(def: D) => (input: List<T>) => D|T} */
-const fold = op => def => input => last(def)(scan(foldToScan(op))(input))
+/** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
+const fold = op => def => input => last(def)(scan(reduceToScan(op))(input))
 
 
 /** @type {<T>(input: List<T>) => number} */

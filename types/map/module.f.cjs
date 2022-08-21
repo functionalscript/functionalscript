@@ -37,10 +37,10 @@ const at = name => map => {
     return result === undefined ? undefined : result[1]
 }
 
-/** @type {<T>(o: operator.Fold<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
+/** @type {<T>(o: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
 const setUpdateEntry = o => entry => btreeSet(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], o(old[1])(entry[1])])
 
-/** @type {<T>(o: operator.Fold<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
+/** @type {<T>(o: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
 const setUpdate = o => name => value => setUpdateEntry(o)([name, value])
 
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
