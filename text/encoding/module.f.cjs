@@ -4,7 +4,7 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
 const { compose } = require('../../types/function/module.f.cjs')
-const { map, flat, stateScan, concat, reduce: fold, toArray, flatMap } = list
+const { map, flat, stateScan, concat, reduce, toArray, flatMap } = list
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} ByteResult */
@@ -136,7 +136,7 @@ const stringToUtf16List = s => {
     return at(0)
 }
 
-const utf16ListToString = compose(map(String.fromCharCode))(fold(operator.concat)(''))
+const utf16ListToString = compose(map(String.fromCharCode))(reduce(operator.concat)(''))
 
 module.exports = {
     /** @readonly */
