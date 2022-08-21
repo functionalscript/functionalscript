@@ -5,7 +5,7 @@ const {
     logicalNot,
     strictEqual,
     stateScanToScan,
-    foldToScan: foldTToScan,
+    foldToScan,
     reduceToScan
 } = operator
 
@@ -251,7 +251,7 @@ const scan = op => apply(scanStep(op))
 const stateScan = op => init => scan(stateScanToScan(op)(init))
 
 /** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
-const reduceScan = op => init => scan(foldTToScan(op)(init))
+const reduceScan = op => init => scan(foldToScan(op)(init))
 
 /** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => O} */
 const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
