@@ -50,9 +50,9 @@ const stateScanToScan = op => prior => i => {
 }
 
 /** @type {<I, O>(fold: FoldT<I, O>) => (prior: O) => Scan<I, O>} */
-const foldTToScan = fold => prior => i => {
+const foldToScan = fold => prior => i => {
     const result = fold(i)(prior)
-    return [result, foldTToScan(fold)(result)]
+    return [result, foldToScan(fold)(result)]
 }
 
 /**
@@ -61,7 +61,7 @@ const foldTToScan = fold => prior => i => {
  */
 
 /** @type {<T>(fold: Reduce<T>) => Scan<T, T>} */
-const reduceToScan = op => init => [init, foldTToScan(op)(init)]
+const reduceToScan = op => init => [init, foldToScan(op)(init)]
 
 /** @type {Reduce<number>} */
 const addition = a => b => a + b
@@ -94,7 +94,7 @@ module.exports = {
     /** @readonly */
     stateScanToScan,
     /** @readonly */
-    foldTToScan,
+    foldToScan,
     /** @readonly */
     reduceToScan,
     /** @readonly */

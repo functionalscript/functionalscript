@@ -5,7 +5,7 @@ const {
     logicalNot,
     strictEqual,
     stateScanToScan,
-    foldTToScan,
+    foldToScan: foldTToScan,
     reduceToScan
 } = operator
 
