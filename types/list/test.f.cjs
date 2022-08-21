@@ -1,7 +1,7 @@
 const _ = require('./module.f.cjs')
 const json = require('../../json/module.f.cjs')
 const { sort } = require('../object/module.f.cjs')
-const { addition, strictEqual, reduceToScan: foldToScan } = require('../function/operator/module.f.cjs')
+const { addition, strictEqual, reduceToScan } = require('../function/operator/module.f.cjs')
 
 /** @type {(sequence: _.List<json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
@@ -94,7 +94,7 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const op = foldToScan(addition)
+    const op = reduceToScan(addition)
     const result = stringify(_.scan(op)([2, 3, 4, 5]))
     if (result !== '[2,5,9,14]') { throw result }
 }
