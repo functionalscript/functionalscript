@@ -3,19 +3,19 @@ const list = require('../../list/module.f.cjs')
 const json = require('../../../json/module.f.cjs')
 const { sort } = require('../../object/module.f.cjs')
 const btree = require('../types/module.f.cjs')
-const { stringCmp } = require('../../function/compare/module.f.cjs')
+const { cmp } = require('../../string/module.f.cjs')
 const s = require('../set/module.f.cjs')
 
 const jsonStr = json.stringify(sort)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(stringCmp(value))(() => value)(node)
+const set = node => value => s.set(cmp(value))(() => value)(node)
 
 /** @type {(r: _.Result<json.Unknown>) => string} */
 const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
 
 /** @type {(i: string) => (m: btree.Node<string>) => string} */
-const find = i => m => str(_.find(stringCmp(i))(m))
+const find = i => m => str(_.find(cmp(i))(m))
 
 {
     /** @type {btree.Node<string>} */

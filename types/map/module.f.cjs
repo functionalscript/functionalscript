@@ -4,7 +4,7 @@ const btreeFind = require('../btree/find/module.f.cjs')
 const { value, find } = btreeFind
 const btreeSet = require('../btree/set/module.f.cjs').set
 const compare = require('../function/compare/module.f.cjs')
-const { stringCmp } = require('../function/compare/module.f.cjs')
+const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const { reduce } = list
 const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
@@ -28,7 +28,7 @@ const operator = require('../function/operator/module.f.cjs')
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
-const keyCmp = a => ([b]) => stringCmp(a)(b)
+const keyCmp = a => ([b]) => cmp(a)(b)
 
 /** @type {(name: string) => <T>(map: Map<T>) => T|undefined} */
 const at = name => map => {

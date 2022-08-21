@@ -1,13 +1,8 @@
-const _ = require('./module.f.cjs')
+const { unsafeCmp } = require('./module.f.cjs')
 
 {
-    const result = _.numberCmp(4)(5)
-    if (result !== -1) { throw result }
-}
-
-{
-    const result = _.stringCmp('3')('4')
-    if (result !== -1) { throw result }
+    const result = unsafeCmp(true)(false)
+    if (result !== 1) { throw result }
 }
 
 module.exports = {}
