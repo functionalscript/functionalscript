@@ -146,6 +146,11 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[2048,2049,65535]') { throw result }
 }
 
+{
+    const result = stringify(list.toArray(encoding.utf8ListToCodePointList([224,224,160,127,239,191])))
+    if (result !== '[-2147483424,-2147482592,127,-2147481601]') { throw result }
+}
+
 // {
 //     const result = stringify(list.toArray(encoding.utf8ListToCodePointList([224, 160, 127, 224, 160, 192, 224, 160])))
 //     if (result !== '[["error",[224,160,127]],["error",[224,160,192]],["error",[224,160]]]') { throw result }

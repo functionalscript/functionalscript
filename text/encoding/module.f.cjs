@@ -65,7 +65,10 @@ const codePointListToUtf16List = flatMap(codePointToUtf16)
 /** @type {(state: Utf8NonEmptyState) => i32}*/
 const utf8StateToError = state => {
     switch(state.length) {
-        case 1: return state[0] | errorMask
+        case 1:
+             return state[0] | errorMask
+        case 2:
+            if (state[0] < 0b1111_0000) return (((state[0] & 0b0000_1111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0100_0000_0000) | errorMask
     }
     return todo()
 }
