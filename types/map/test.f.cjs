@@ -1,4 +1,4 @@
-const { at, set, empty, entries, remove } = require('./module.f.cjs')
+const { at, setReplace: set, empty, entries, remove } = require('./module.f.cjs')
 const seq = require('../list/module.f.cjs')
 
 {

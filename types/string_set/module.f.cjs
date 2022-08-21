@@ -18,7 +18,7 @@ const { compose } = require('../function/module.f.cjs')
 const contains = value => s => s !== undefined && isFound(find(stringCmp(value))(s).first)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const set = value => btreeSet(stringCmp(value))(value)
+const set = value => btreeSet(stringCmp(value))(() => value)
 
 const fromValues = reduce(set)(undefined)
 

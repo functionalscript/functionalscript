@@ -17,7 +17,7 @@ const jsonStr = json.stringify(sort)
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(stringCmp(value))(value)(node)
+const set = node => value => s.set(stringCmp(value))(() => value)(node)
 
 {
     /** @type {btree.Node<string>} */

@@ -6,7 +6,7 @@ const json = require('../../../json/module.f.cjs')
 const { sort } = require('../../object/module.f.cjs')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(stringCmp(value))(value)(node)
+const set = node => value => s.set(stringCmp(value))(() => value)(node)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string> | undefined} */
 const remove = node => value => _.nodeRemove(stringCmp(value))(node)
