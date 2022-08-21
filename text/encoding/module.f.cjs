@@ -1,4 +1,3 @@
-const result = require('../../types/result/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
@@ -6,9 +5,6 @@ const { contains } = require('../../types/range/module.f.cjs')
 const { compose } = require('../../types/function/module.f.cjs')
 const { todo } = require('../../dev/module.f.cjs')
 const { map, flat, stateScan, concat, fold, toArray, flatMap } = list
-const { ok, error } = result
-
-/** @typedef {result.Result<number,number>} ByteResult */
 
 /** @typedef {u8|undefined} ByteOrEof */
 
@@ -36,14 +32,14 @@ const isLowSurrogate = contains([0xdc00, 0xdfff])
 
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
-/** @type {(input:number) => list.List<ByteResult>} */
+/** @type {(input:number) => list.List<u8>} */
 const codePointToUtf8 = input =>
 {
-    if (input >= 0x0000 && input <= 0x007f) { return [ok(input & 0x7f)] }
-    if (input >= 0x0080 && input <= 0x07ff) { return [ok(input >> 6 | 0xc0), ok(input & 0x3f | 0x80)] }
-    if (input >= 0x0800 && input <= 0xffff) { return [ok(input >> 12 | 0xe0), ok(input >> 6 & 0x3f | 0x80), ok(input & 0x3f | 0x80)] }
-    if (input >= 0x10000 && input <= 0x10ffff) { return [ok(input >> 18 | 0xf0), ok(input >> 12 & 0x3f | 0x80), ok(input >> 6 & 0x3f | 0x80), ok(input & 0x3f | 0x80)] }
-    return [error(input)]
+    if (input >= 0x0000 && input <= 0x007f) { return [input & 0x7f] }
+    if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0xc0, input & 0x3f | 0x80] }
+    if (input >= 0x0800 && input <= 0xffff) { return [input >> 12 | 0xe0, input >> 6 & 0x3f | 0x80, input & 0x3f | 0x80] }
+    if (input >= 0x10000 && input <= 0x10ffff) { return [input >> 18 | 0xf0, input >> 12 & 0x3f | 0x80, input >> 6 & 0x3f | 0x80, input & 0x3f | 0x80] }
+    return todo()
 }
 
 /** @type {(input:i32) => list.List<u16>} */

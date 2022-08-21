@@ -8,58 +8,58 @@ const stringify = a => json.stringify(sort)(a)
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0,1,0x7F])))
-    if (result !== '[["ok",0],["ok",1],["ok",127]]') { throw result }
+    if (result !== '[0,1,127]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x80])))
-    if (result !== '[["ok",194],["ok",128]]') { throw result }
+    if (result !== '[194,128]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0xa9])))
-    if (result !== '[["ok",194],["ok",169]]') { throw result }
+    if (result !== '[194,169]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x7ff])))
-    if (result !== '[["ok",223],["ok",191]]') { throw result }
+    if (result !== '[223,191]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x800])))
-    if (result !== '[["ok",224],["ok",160],["ok",128]]') { throw result }
+    if (result !== '[224,160,128]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x801])))
-    if (result !== '[["ok",224],["ok",160],["ok",129]]') { throw result }
+    if (result !== '[224,160,129]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0xffff])))
-    if (result !== '[["ok",239],["ok",191],["ok",191]]') { throw result }
+    if (result !== '[239,191,191]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x10000])))
-    if (result !== '[["ok",240],["ok",144],["ok",128],["ok",128]]') { throw result }
+    if (result !== '[240,144,128,128]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x10001])))
-    if (result !== '[["ok",240],["ok",144],["ok",128],["ok",129]]') { throw result }
+    if (result !== '[240,144,128,129]') { throw result }
 }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x10FFFF])))
-    if (result !== '[["ok",244],["ok",143],["ok",191],["ok",191]]') { throw result }
+    if (result !== '[244,143,191,191]') { throw result }
 }
 
-{
-    const result = stringify(list.toArray(encoding.codePointListToUtf8List([-1,0x110000])))
-    if (result !== '[["error",-1],["error",1114112]]') { throw result }
-}
+// {
+//     const result = stringify(list.toArray(encoding.codePointListToUtf8List([-1,0x110000])))
+//     if (result !== '[["error",-1],["error",1114112]]') { throw result }
+// }
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16List([0])))
