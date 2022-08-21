@@ -251,10 +251,10 @@ const scan = op => apply(scanStep(op))
 const stateScan = op => init => scan(stateScanToScan(op)(init))
 
 /** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
-const reduceScan = op => init => scan(foldToScan(op)(init))
+const foldScan = op => init => scan(foldToScan(op)(init))
 
 /** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => O} */
-const fold = op => init => input => last(init)(reduceScan(op)(init)(input))
+const fold = op => init => input => last(init)(foldScan(op)(init)(input))
 
 /** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const reduce = op => def => input => last(def)(scan(reduceToScan(op))(input))
@@ -359,7 +359,7 @@ module.exports = {
     /** @readonly */
     stateScan,
     /** @readonly */
-    reduceScan,
+    foldScan,
     /** @readonly */
     fold,
     /** @readonly */
