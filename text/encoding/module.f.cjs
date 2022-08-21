@@ -4,20 +4,21 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
 const { compose } = require('../../types/function/module.f.cjs')
+const { todo } = require('../../dev/module.f.cjs')
 const { map, flat, stateScan, concat, fold, toArray, flatMap } = list
 const { ok, error } = result
 
 /** @typedef {result.Result<number,number>} ByteResult */
 
-/** @typedef {result.Result<number,readonly number[]>} CodePointResult */
-
-/** @typedef {number|undefined} ByteOrEof */
+/** @typedef {u8|undefined} ByteOrEof */
 
 /** @typedef {u16|undefined} WordOrEof */
 
 /** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8State */
 
 /** @typedef {undefined|number} Utf16State */
+
+/** @typedef {number} u8 */
 
 /** @typedef {number} u16 */
 
@@ -59,43 +60,46 @@ const codePointListToUtf8List = flatMap(codePointToUtf8)
 
 const codePointListToUtf16List = flatMap(codePointToUtf16)
 
-/** @type {operator.StateScan<number, Utf8State, list.List<CodePointResult>>} */
+/** @type {operator.StateScan<number, Utf8State, list.List<i32>>} */
 const utf8ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
-        return [[error([byte])], state]
+        return [[0xffffffff], state]
     }
     if (state == undefined) {
-        if (byte < 0x80) { return [[ok(byte)], undefined] }
-        if (byte >= 0xc2 && byte <= 0xf4) { return [[], [byte]] }
-        return [[error([byte])], undefined]
+        if (byte < 0b1000_0000) { return [[byte], undefined] }
+        if (byte >= 0b1100_0010 && byte <= 0b1111_0100) { return [[], [byte]] }
+        return todo()
     }
-    if (byte >= 0x80 && byte < 0xc0)
+    if (byte >= 0b1000_0000 && byte < 0b1100_0000)
     {
         switch(state.length)
         {
             case 1:
-                if (state[0] < 0xe0) { return [[ok(((state[0] & 0x1f) << 6) + (byte & 0x3f))], undefined] }
-                if (state[0] < 0xf8) { return [[], [state[0], byte]] }
+                if (state[0] < 0b1110_0000) { return [[((state[0] & 0b0001_1111) << 6) + (byte & 0b0011_1111)], undefined] }
+                if (state[0] < 0b1111_1000) { return [[], [state[0], byte]] }
                 break
             case 2:
-                if (state[0] < 0xf0) { return [[ok(((state[0] & 0x0f) << 12) + ((state[1] & 0x3f) << 6) + (byte & 0x3f))], undefined] }
-                if (state[0] < 0xf8) { return [[], [state[0], state[1], byte]] }
+                if (state[0] < 0b1111_0000) { return [[((state[0] & 0b0000_1111) << 12) + ((state[1] & 0b0011_1111) << 6) + (byte & 0b0011_1111)], undefined] }
+                if (state[0] < 0b1111_1000) { return [[], [state[0], state[1], byte]] }
                 break
             case 3:
-                return [[ok(((state[0] & 0x07) << 18) + ((state[1] & 0x3f) << 12) + ((state[2] & 0x3f) << 6) + (byte & 0x3f))], undefined]
+                return [[((state[0] & 0b0000_0111) << 18) + ((state[1] & 0b0011_1111) << 12) + ((state[2] & 0b0011_1111) << 6) + (byte & 0b0011_1111)], undefined]
         }
     }
-    return [[error(toArray(concat(state)([byte])))], undefined]
+    return todo()
 }
 
-/** @type {(state: Utf8State) => readonly[list.List<CodePointResult>, Utf8State]} */
-const utf8EofToCodePointOp = state => [state === undefined ? undefined : [error(state)],  undefined]
+/** @type {(state: Utf8State) => readonly[list.List<i32>, Utf8State]} */
+const utf8EofToCodePointOp = state => {
+    if (state === undefined) { return [undefined, undefined] }
+    return todo()
+}
 
-/** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<CodePointResult>>} */
+/** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<i32>>} */
 const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
-/** @type {(input: list.List<number>) => list.List<CodePointResult>} */
-const utf8ListToCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(undefined)(concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+/** @type {(input: list.List<u8>) => list.List<i32>} */
+const utf8ListToCodePointList = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
 
 /** @type {operator.StateScan<u16, Utf16State, list.List<i32>>} */
 const utf16ByteToCodePointOp = state => byte => {
