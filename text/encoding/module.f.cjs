@@ -64,8 +64,7 @@ const codePointListToUtf16List = flatMap(codePointToUtf16)
 
 /** @type {(state: Utf8NonEmptyState) => i32}*/
 const utf8StateToError = state => {
-    switch(state.length)
-    {
+    switch(state.length) {
         case 1: return state[0] | errorMask
     }
     return todo()
@@ -81,10 +80,8 @@ const utf8ByteToCodePointOp = state => byte => {
         if (byte >= 0b1100_0010 && byte <= 0b1111_0100) { return [[], [byte]] }
         return [[byte | errorMask], undefined]
     }
-    if (byte >= 0b1000_0000 && byte < 0b1100_0000)
-    {
-        switch(state.length)
-        {
+    if (byte >= 0b1000_0000 && byte < 0b1100_0000) {
+        switch(state.length) {
             case 1:
                 if (state[0] < 0b1110_0000) { return [[((state[0] & 0b0001_1111) << 6) + (byte & 0b0011_1111)], undefined] }
                 if (state[0] < 0b1111_1000) { return [[], [state[0], byte]] }
