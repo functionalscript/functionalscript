@@ -6,5 +6,8 @@ const addition = a => b => a + b
 const sum = fold(addition)(0n)
 
 module.exports = {
+    /** @readonly */
+    addition,
+    /** @readonly */
     sum,
 }

@@ -1,4 +1,4 @@
-const { join, concat, repeat } = require('./module.f.cjs')
+const { join, concat, repeat, cmp } = require('./module.f.cjs')
 const { repeat: repeatList } = require('../list/module.f.cjs')
 
 {
@@ -34,6 +34,11 @@ const { repeat: repeatList } = require('../list/module.f.cjs')
 {
     const s = repeat('x')(5)
     if (s != 'xxxxx') { throw s }
+}
+
+{
+    const result = cmp('3')('4')
+    if (result !== -1) { throw result }
 }
 
 module.exports = {}
