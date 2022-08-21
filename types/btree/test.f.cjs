@@ -2,7 +2,7 @@ const btree = require('./types/module.f.cjs')
 const { values } = require('./module.f.cjs')
 const json = require('../../json/module.f.cjs')
 const { sort } = require('../object/module.f.cjs')
-const { stringCmp } = require('../function/compare/module.f.cjs')
+const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const s = require('./set/module.f.cjs')
 const f = require('./find/module.f.cjs')
@@ -17,7 +17,7 @@ const jsonStr = json.stringify(sort)
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(stringCmp(value))(value)(node)
+const set = node => value => s.set(cmp(value))(() => value)(node)
 
 {
     /** @type {btree.Node<string>} */
@@ -45,7 +45,7 @@ const set = node => value => s.set(stringCmp(value))(value)(node)
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = f.value(f.find(stringCmp('b'))(_map).first)
+    const result = f.value(f.find(cmp('b'))(_map).first)
     if (result !== 'b') { throw result }
 }
 
@@ -54,7 +54,7 @@ const set = node => value => s.set(stringCmp(value))(value)(node)
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = f.value(f.find(stringCmp('e'))(_map).first)
+    const result = f.value(f.find(cmp('e'))(_map).first)
     if (result !== undefined) { throw result }
 }
 

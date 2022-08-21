@@ -27,19 +27,11 @@ const index5 = cmp => ([v0, v1]) => {
 /** @type {<T>(a: T) => (b: T) => Sign} */
 const unsafeCmp = a => b => a < b ? -1 : a === b ? 0 : 1
 
-/** @type {(a: string) => (b: string) => Sign} */
-const stringCmp = unsafeCmp
-
-/** @type {(a: number) => (b: number) => Sign} */
-const numberCmp = unsafeCmp
-
 module.exports = {
+    /** @readonly */
+    unsafeCmp,
     /** @readonly */
     index3,
     /** @readonly */
     index5,
-    /** @readonly */
-    stringCmp,
-    /** @readonly */
-    numberCmp,
 }
