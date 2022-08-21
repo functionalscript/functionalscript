@@ -14,7 +14,9 @@ const { ok, error } = result
 
 /** @typedef {u16|undefined} WordOrEof */
 
-/** @typedef {undefined|array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8State */
+/** @typedef {array.Array1<number>|array.Array2<number>|array.Array3<number>} Utf8NonEmptyState */
+
+/** @typedef {undefined|Utf8NonEmptyState} Utf8State */
 
 /** @typedef {undefined|number} Utf16State */
 
@@ -60,6 +62,15 @@ const codePointListToUtf8List = flatMap(codePointToUtf8)
 
 const codePointListToUtf16List = flatMap(codePointToUtf16)
 
+/** @type {(state: Utf8NonEmptyState) => i32}*/
+const utf8StateToError = state => {
+    switch(state.length)
+    {
+        case 1: return state[0] | errorMask
+    }
+    return todo()
+}
+
 /** @type {operator.StateScan<number, Utf8State, list.List<i32>>} */
 const utf8ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
@@ -68,7 +79,7 @@ const utf8ByteToCodePointOp = state => byte => {
     if (state == undefined) {
         if (byte < 0b1000_0000) { return [[byte], undefined] }
         if (byte >= 0b1100_0010 && byte <= 0b1111_0100) { return [[], [byte]] }
-        return todo()
+        return [[byte | errorMask], undefined]
     }
     if (byte >= 0b1000_0000 && byte < 0b1100_0000)
     {
@@ -86,13 +97,16 @@ const utf8ByteToCodePointOp = state => byte => {
                 return [[((state[0] & 0b0000_0111) << 18) + ((state[1] & 0b0011_1111) << 12) + ((state[2] & 0b0011_1111) << 6) + (byte & 0b0011_1111)], undefined]
         }
     }
-    return todo()
+    const error = utf8StateToError(state)
+    if (byte < 0b1000_0000) { return [[error, byte], undefined] }
+    if (byte >= 0b1100_0010 && byte <= 0b1111_0100) { return [[error], [byte]] }
+    return [[error, byte | errorMask], undefined]
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<i32>, Utf8State]} */
 const utf8EofToCodePointOp = state => {
     if (state === undefined) { return [undefined, undefined] }
-    return todo()
+    return [[utf8StateToError(state)], undefined]
 }
 
 /** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<i32>>} */
