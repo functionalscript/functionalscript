@@ -1,5 +1,5 @@
 const list = require('../list/module.f.cjs')
-const { fold: listFold, repeat: listRepeat } = list
+const { foldT: listFold, repeat: listRepeat } = list
 const { compose } = require('../function/module.f.cjs')
 const compare = require('../function/compare/module.f.cjs')
 const { unsafeCmp } = compare

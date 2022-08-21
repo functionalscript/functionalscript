@@ -254,14 +254,14 @@ const stateScan = op => init => scan(stateScanToScan(op)(init))
 const reduceScan = op => init => scan(foldToScan(op)(init))
 
 /** @type {<I,O>(op: operator.FoldT<I, O>) => (init: O) => (input: List<I>) => O} */
-const reduce = op => init => input => last(init)(reduceScan(op)(init)(input))
+const fold = op => init => input => last(init)(reduceScan(op)(init)(input))
 
 /** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
-const fold = op => def => input => last(def)(scan(reduceToScan(op))(input))
+const reduce = op => def => input => last(def)(scan(reduceToScan(op))(input))
 
 
 /** @type {<T>(input: List<T>) => number} */
-const length = reduce(counter)(0)
+const length = fold(counter)(0)
 
 /**
  * @template T
@@ -283,7 +283,7 @@ const entries = input => {
 const reverseOperator = first => tail => ({ first, tail })
 
 /** @type {<T>(input: List<T>) => List<T>} */
-const reverse = reduce(reverseOperator)(undefined)
+const reverse = fold(reverseOperator)(undefined)
 
 /** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<readonly[A, B]>} */
 const zip = a => b => () => {
@@ -361,9 +361,9 @@ module.exports = {
     /** @readonly */
     reduceScan,
     /** @readonly */
-    reduce,
+    reduce: fold,
     /** @readonly */
-    fold,
+    foldT: reduce,
     /** @readonly */
     length,
     /** @readonly */

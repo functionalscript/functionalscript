@@ -1,5 +1,5 @@
 const list = require('../types/list/module.f.cjs')
-const { next, flat, fold, map } = list
+const { next, flat, foldT: fold, map } = list
 const { concat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { at } = object

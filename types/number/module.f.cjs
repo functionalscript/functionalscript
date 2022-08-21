@@ -1,4 +1,4 @@
-const { fold } = require('../list/module.f.cjs')
+const { foldT: fold } = require('../list/module.f.cjs')
 const { addition, min: minOp, max: maxOp } = require('../function/operator/module.f.cjs')
 const compare = require('../function/compare/module.f.cjs')
 const { unsafeCmp } = compare
