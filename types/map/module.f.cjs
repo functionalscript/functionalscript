@@ -6,7 +6,7 @@ const btreeSet = require('../btree/set/module.f.cjs').set
 const compare = require('../function/compare/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
-const { reduce } = list
+const { fold: reduce } = list
 const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 

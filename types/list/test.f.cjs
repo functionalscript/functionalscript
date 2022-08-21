@@ -100,12 +100,12 @@ const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 }
 
 {
-    const result = _.foldT(addition)(undefined)([2, 3, 4, 5])
+    const result = _.reduce(addition)(undefined)([2, 3, 4, 5])
     if (result !== 14) { throw result }
 }
 
 {
-    const result = _.foldT(addition)(undefined)([])
+    const result = _.reduce(addition)(undefined)([])
     if (result !== undefined) { throw result }
 }
 

@@ -3,7 +3,7 @@ const btreeFind = require('../find/module.f.cjs')
 const { find } = btreeFind
 const cmp = require('../../function/compare/module.f.cjs')
 const list = require('../../list/module.f.cjs')
-const { reduce } = list
+const { fold: reduce } = list
 
 /**
  * @template T

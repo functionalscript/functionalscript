@@ -361,9 +361,9 @@ module.exports = {
     /** @readonly */
     reduceScan,
     /** @readonly */
-    reduce: fold,
+    fold,
     /** @readonly */
-    foldT: reduce,
+    reduce,
     /** @readonly */
     length,
     /** @readonly */

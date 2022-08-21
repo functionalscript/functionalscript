@@ -2,7 +2,7 @@ const _ = require('../types/module.f.cjs')
 const cmp = require('../../function/compare/module.f.cjs')
 const find = require('../find/module.f.cjs')
 const list = require('../../list/module.f.cjs')
-const { reduce: listReduce, concat, next } = list
+const { fold: listReduce, concat, next } = list
 const array = require('../../array/module.f.cjs')
 const { map } = require('../../option/module.f.cjs')
 
