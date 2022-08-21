@@ -2,7 +2,7 @@ const _ = require('../types/module.f.cjs')
 const cmp = require('../../function/compare/module.f.cjs')
 const find = require('../find/module.f.cjs')
 const list = require('../../list/module.f.cjs')
-const { fold: listReduce, concat, next } = list
+const { fold, concat, next } = list
 const array = require('../../array/module.f.cjs')
 const { map } = require('../../option/module.f.cjs')
 
@@ -111,7 +111,7 @@ const reduceX = ms => ([i, n]) => a => {
     }
 }
 
-const reduce = listReduce(reduceX([reduceValue0, reduceValue2]))
+const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 
 const initReduce = reduceX([initValue0, initValue1])
 
