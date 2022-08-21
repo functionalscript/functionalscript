@@ -1,9 +1,9 @@
-const { reduce: fold } = require('../list/module.f.cjs')
+const { reduce } = require('../list/module.f.cjs')
 
 /** @type {(a: bigint) => (b: bigint) => bigint} */
 const addition = a => b => a + b
 
-const sum = fold(addition)(0n)
+const sum = reduce(addition)(0n)
 
 module.exports = {
     /** @readonly */
