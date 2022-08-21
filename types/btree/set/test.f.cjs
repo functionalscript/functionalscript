@@ -5,7 +5,7 @@ const json = require('../../../json/module.f.cjs')
 const { sort } = require('../../object/module.f.cjs')
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => _.set(stringCmp(value))(value)(node)
+const set = node => value => _.set(stringCmp(value))(() => value)(node)
 
 const jsonStr = json.stringify(sort)
 

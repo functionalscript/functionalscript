@@ -3,7 +3,7 @@ const module_ = require('../module/module.f.cjs')
 const { idToString, dir } = module_
 const function_ = require('../module/function/module.f.cjs')
 const map = require('../../types/map/module.f.cjs')
-const { set: mapSet } = map
+const { setReplace } = map
 const object = require('../../types/object/module.f.cjs')
 const { fromMap } = object
 const path = require('../path/module.f.cjs')
@@ -62,11 +62,11 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             const rIdStr = idToString(r.id)
             if (setContains(rIdStr)(buildSet1)) { return error('circular reference') }
             const [state, m1] = build(buildSet1)(r.id)(r.source)(m)
-            return [state[0] === 'error' ? state : ['ok', state[1].exports], [mapSet(p)(rIdStr)(requireMap), m1]]
+            return [state[0] === 'error' ? state : ['ok', state[1].exports], [setReplace(p)(rIdStr)(requireMap), m1]]
         }
         return source => moduleMap => {
             /** @type {(s: module_.State) => (m: M) => Result<M>} */
-            const set = s => m => [s, moduleMapInterface.set(moduleIdStr)(s)(m)]
+            const set = s => m => [s, moduleMapInterface.setReplace(moduleIdStr)(s)(m)]
             /** @type {(e: module_.Error) => (m: M) => Result<M>} */
             const error = e => set(['error', e])
             // check compilation
