@@ -15,7 +15,10 @@ const { compose } = require('../function/module.f.cjs')
 /** @typedef {btTypes.Tree<string>} StringSet */
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
-const contains = value => s => s !== undefined && isFound(find(cmp(value))(s).first)
+const contains = value => {
+    const f = find(cmp(value))
+    return s => s !== undefined && isFound(f(s).first)
+}
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
 const set = value => btreeSet(cmp(value))(() => value)
