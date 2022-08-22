@@ -34,7 +34,7 @@ Total error states:
 - 34_432
 - < 2^16
 
-### utf8.f.cjs
+### utf8/module.f.cjs
 
 ```js
 /** @type {(input: List<u8|undefined>) => List<i32>} */
@@ -69,7 +69,7 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 
 Total error states: 11 bit
 
-### utf16.f.cjs
+### utf16/module.f.cjs
 
 ```js
 /** @type {(input: List<u16|undefined>) => List<i32>} */
