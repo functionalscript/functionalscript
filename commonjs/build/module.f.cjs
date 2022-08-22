@@ -8,7 +8,7 @@ const object = require('../../types/object/module.f.cjs')
 const { fromMap } = object
 const path = require('../path/module.f.cjs')
 const { parseAndFind } = path
-const stringSet = require('../../types/string_set/module.f.cjs')
+const stringSet = require('../../types/stringset/module.f.cjs')
 const { set: setSet, contains: setContains } = stringSet
 
 /**
