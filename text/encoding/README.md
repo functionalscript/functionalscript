@@ -34,12 +34,14 @@ Total error states:
 - 34_432
 - < 2^16
 
+### utf8.f.cjs
+
 ```js
 /** @type {(input: List<u8|undefined>) => List<i32>} */
-const utf8ToCodePoint
+const toCodePointList
 
 /** @type {(input: List<i32>) => List<u8>} */
-const codePointToUtf8
+const fromCodePointList
 ```
 
 ## UTF-16
@@ -67,18 +69,20 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 
 Total error states: 11 bit
 
+### utf16.f.cjs
+
 ```js
 /** @type {(input: List<u16|undefined>) => List<i32>} */
-const utf16ListToCodePointList
+const toCodePointList
 
 /** @type {(input: List<i32>) => List<u16>} */
-const codePointListToUtf16List
+const fromCodePointList
 
 /** @type {(input: string) => List<u16>} */
-const stringToUtf16List
+const stringToList
 
 /** @type {(input: List<u16>) => string} */
-const utf16ListToString
+const listToString
 ```
 
 UTF-16 => CP => UTF-8 => CP = UTF-16
