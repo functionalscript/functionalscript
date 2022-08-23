@@ -139,7 +139,9 @@ Expressions could fall under these categories:
   - Relations Operators: `in`, `instanceof`.
   - Member Operators: `.`, `[]`.
 
-**Note:** the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function. `[]` accepts only integers.
+**Note:** the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the
+[Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
+`[]` accepts only numbers.
 
 ## 8. Arrow Functions
 
@@ -246,3 +248,121 @@ const x = () => {
     return sum;
 }
 ```
+
+## 11. Limitations
+
+Global objects. Global objects can't be assigned to something `const r = Object`. They can only be used as namespaces `Object.getOwnProperties()`.
+
+Value properties:
+
+- [x] `Infinity`
+- [x] `NaN`
+- [x] `undefined`
+- [ ] `globalThis`
+
+Function properties:
+
+- [ ] `eval`
+- [x] `isFinite()`
+- [x] `isNan()`
+- [x] `parseFloat()`
+- [x] `parseInt()`
+- [ ] `encodeURI()`
+- [ ] `encodeURIComponent()`
+- [ ] `decodeURI()`
+- [ ] `decodeURIComponent()`
+
+Fundamental objects:
+
+- [x] `Object`
+- [ ] `Function`
+- [ ] `Boolean`
+- [ ] `Symbol`
+
+Error objects:
+
+- [ ] `Number`
+- [ ] `BigInt`
+- [ ] `Math`
+- [ ] `Date`
+
+Text processing:
+
+- [ ] `String`
+- [ ] `RegExp`
+
+Indexed collections:
+
+- [x] `Array`
+- [ ] `Int8Array`
+- [ ] `UInt8Array`
+- [ ] `UInt8ClampedArray`
+- [ ] `Int16Array`
+- [ ] `UInt16Array`
+- [ ] `Int32Array`
+- [ ] `UInt32Array`
+- [ ] `Float32Array`
+- [ ] `Float64Array`
+- [ ] `BigInt64Array`
+- [ ] `BigUint64Array`
+
+Keyed collections:
+
+- [ ] `Map`
+- [ ] `Set`
+- [ ] `WeakMap`
+- [ ] `WeakSet`
+
+Structured data:
+
+- [ ] `ArrayBuffer`
+- [ ] `SharedArrayBuffer`
+- [ ] `Atomics`
+- [ ] `DataView`
+- [ ] `JSON`
+
+Control abstraction objects
+
+- [ ] `Promise`
+- [ ] `Generator`
+- [ ] `GeneratorFunction`
+- [ ] `AsyncFunction`
+- [ ] `AsyncGeneratorFunction`
+
+Reflection
+
+- [ ] `Reflect`
+- [ ] `Proxy`
+
+Internalization
+
+- [ ] `Intl`
+
+WebAssembly
+
+- [ ] `WebAssembly`
+- [ ] `WebAssembly.Module`
+- [ ] `WebAssembly.Instance`
+- [ ] `WebAssembly.Memory`
+- [ ] `WebAssembly.Table`
+- [ ] `WebAssembly.CompileError`
+- [ ] `WebAssembly.LinkError`
+- [ ] `WebAssembly.RuntimeError`
+
+Prohibited Properties:
+
+- Object:
+  - [ ] ! `constructor`
+  - [ ] ! `__defineGetter__`
+  - [ ] ! `__defineSetter__`
+
+- Array:
+  - [ ] ! `copyWithin`
+  - [ ] ! `fill`
+  - [ ] ! `pop`
+  - [ ] ! `push`
+  - [ ] ! `reverse`
+  - [ ] ! `shift`
+  - [ ] ! `sort`
+  - [ ] ! `splice`
+  - [ ] ! `unshift`
