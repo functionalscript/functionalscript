@@ -41,7 +41,7 @@ const at = name => map => {
 const setUpdateEntry = o => entry => btreeSet(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], o(old[1])(entry[1])])
 
 /** @type {<T>(o: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
-const setUpdate = o => name => value => setUpdateEntry(o)([name, value])
+const setReduce = o => name => value => setUpdateEntry(o)([name, value])
 
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
 const setReplace = name => value => setUpdateEntry(replace)([name, value])
@@ -64,7 +64,7 @@ module.exports = {
     /** @readonly */
     at,
     /** @readonly */
-    setUpdate,
+    setReduce,
     /** @readonly */
     setReplace,
     /** @readonly */
