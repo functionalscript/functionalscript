@@ -1,13 +1,14 @@
 const btreeTypes = require('../btree/types/module.f.cjs')
-const { values } = require("../btree/module.f.cjs")
-const btreeFind = require('../btree/find/module.f.cjs')
-const { value, find } = btreeFind
-const { set: btreeSet } = require('../btree/set/module.f.cjs')
+const {
+    values,
+    find: { value, find },
+    set: { set },
+    remove: { remove: btreeRemove }
+} = require("../btree/module.f.cjs")
 const compare = require('../function/compare/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const { fold } = list
-const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 
 /** @typedef {compare.Sign} Sign */
@@ -38,7 +39,7 @@ const at = name => map => {
 }
 
 /** @type {<T>(reduce: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
-const setReduceEntry = reduce => entry => btreeSet(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], reduce(old[1])(entry[1])])
+const setReduceEntry = reduce => entry => set(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], reduce(old[1])(entry[1])])
 
 /** @type {<T>(reduce: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
 const setReduce = reduce => name => value => setReduceEntry(reduce)([name, value])
@@ -56,7 +57,7 @@ const entries = values
 const fromEntries = fold(setReduceEntry(replace))(undefined)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
-const remove =  name => btreeRemove(keyCmp(name))
+const remove = name => btreeRemove(keyCmp(name))
 
 module.exports = {
     /** @readonly */
