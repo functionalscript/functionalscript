@@ -7,7 +7,7 @@ FunctionalScript is a purely functional programming language and a strict subset
 - [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly), as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-[A brief description of FunctionalScript Programming Language](./LANGUAGE.md).
+[A brief description of FunctionalScript Programming Language](./doc/LANGUAGE.md).
 
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 

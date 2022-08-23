@@ -1,13 +1,14 @@
 const btreeTypes = require('../btree/types/module.f.cjs')
-const { values } = require("../btree/module.f.cjs")
-const btreeFind = require('../btree/find/module.f.cjs')
-const { value, find } = btreeFind
-const btreeSet = require('../btree/set/module.f.cjs').set
+const {
+    values,
+    find: { value, find },
+    set: { set },
+    remove: { remove: btreeRemove }
+} = require("../btree/module.f.cjs")
 const compare = require('../function/compare/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const { fold } = list
-const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 
 /** @typedef {compare.Sign} Sign */
@@ -37,26 +38,26 @@ const at = name => map => {
     return result === undefined ? undefined : result[1]
 }
 
-/** @type {<T>(o: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
-const setUpdateEntry = o => entry => btreeSet(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], o(old[1])(entry[1])])
+/** @type {<T>(reduce: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
+const setReduceEntry = reduce => entry => set(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], reduce(old[1])(entry[1])])
 
-/** @type {<T>(o: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
-const setReduce = o => name => value => setUpdateEntry(o)([name, value])
-
-/** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
-const setReplace = name => value => setUpdateEntry(replace)([name, value])
-
-/** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
-const entries = values
+/** @type {<T>(reduce: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
+const setReduce = reduce => name => value => setReduceEntry(reduce)([name, value])
 
 /** @type {<T>(a: T) => (b: T) => T} */
 const replace = () => b => b
 
+/** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
+const setReplace = name => value => setReduceEntry(replace)([name, value])
+
+/** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
+const entries = values
+
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = fold(setUpdateEntry(replace))(undefined)
+const fromEntries = fold(setReduceEntry(replace))(undefined)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
-const remove =  name => btreeRemove(keyCmp(name))
+const remove = name => btreeRemove(keyCmp(name))
 
 module.exports = {
     /** @readonly */
