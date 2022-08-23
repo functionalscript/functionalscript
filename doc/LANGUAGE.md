@@ -1,5 +1,9 @@
 # FunctionalScript Programming Language
 
+Principals:
+- FunctionalScript VM should behaves the same way as a JavaScript VM
+- Any unsupported feature should be reported at compile-time.
+
 ## 1. Module Ecosystem
 
 FunctionalScript uses [CommonJS](https://en.wikipedia.org/wiki/CommonJS) conventions as a module ecosystem. For example,
