@@ -101,9 +101,7 @@ const serialize = sort => {
             }
         }
     }
-    const mapF = map(f)
-    /** @type {(input: Array) => list.List<string>} */
-    const arraySerialize = compose(mapF)(arrayWrap)
+    const arraySerialize = compose(map(f))(arrayWrap)
     return f
 }
 
