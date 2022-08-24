@@ -17,3 +17,7 @@ pub struct IUnknownVmt {
     pub AddRef: extern "stdcall" fn(this: &mut IUnknown) -> ULONG,
     pub Release: extern "stdcall" fn(this: &mut IUnknown) -> ULONG,
 }
+
+pub trait Interface {
+    const IID: IID;
+}
