@@ -56,10 +56,40 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== '[244,143,191,191]') { throw result }
 }
 
-// {
-//     const result = stringify(list.toArray(encoding.codePointListToUtf8List([-1,0x110000])))
-//     if (result !== '[["error",-1],["error",1114112]]') { throw result }
-// }
+{
+    const result = stringify(list.toArray(encoding.codePointListToUtf8List([0x110000,2147483648])))
+    if (result !== '[2147483648,2147483648]') { throw result }
+}
+
+{
+    const codePointList = encoding.utf8ListToCodePointList([128, 193, 245, 255])
+    const result = stringify(list.toArray(encoding.codePointListToUtf8List(codePointList)))
+    if (result !== '[128,193,245,255]') { throw result }
+}
+
+{
+    const codePointList = encoding.utf8ListToCodePointList([194, 194, 127, 194, 192, 194])
+    const result = stringify(list.toArray(encoding.codePointListToUtf8List(codePointList)))
+    if (result !== '[194,194,127,194,192,194]') { throw result }
+}
+
+{
+    const codePointList = encoding.utf8ListToCodePointList([224, 224, 160, 127, 239, 191])
+    const result = stringify(list.toArray(encoding.codePointListToUtf8List(codePointList)))
+    if (result !== '[224,224,160,127,239,191]') { throw result }
+}
+
+{
+    const codePointList = encoding.utf8ListToCodePointList([240, 240, 160, 127, 244, 191])
+    const result = stringify(list.toArray(encoding.codePointListToUtf8List(codePointList)))
+    if (result !== '[240,240,160,127,244,191]') { throw result }
+}
+
+{
+    const codePointList = encoding.utf8ListToCodePointList([240, 160, 160, 244, 160, 160])
+    const result = stringify(list.toArray(encoding.codePointListToUtf8List(codePointList)))
+    if (result !== '[240,160,160,244,160,160]') { throw result }
+}
 
 {
     const result = stringify(list.toArray(encoding.codePointListToUtf16List([0])))
@@ -118,7 +148,7 @@ const stringify = a => json.stringify(sort)(a)
 
 {
      const result = stringify(list.toArray(encoding.utf8ListToCodePointList([-1, 256])))
-     if (result !== '[4294967295,4294967295]') { throw result }
+     if (result !== '[2147483648,2147483648]') { throw result }
 }
 
 {

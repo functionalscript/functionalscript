@@ -3,7 +3,6 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
 const { compose } = require('../../types/function/module.f.cjs')
-const { todo } = require('../../dev/module.f.cjs')
 const { map, flat, stateScan, concat, reduce, toArray, flatMap } = list
 
 /** @typedef {u8|undefined} ByteOrEof */
@@ -35,11 +34,17 @@ const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 /** @type {(input:number) => list.List<u8>} */
 const codePointToUtf8 = input =>
 {
-    if (input >= 0x0000 && input <= 0x007f) { return [input & 0x7f] }
-    if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0xc0, input & 0x3f | 0x80] }
-    if (input >= 0x0800 && input <= 0xffff) { return [input >> 12 | 0xe0, input >> 6 & 0x3f | 0x80, input & 0x3f | 0x80] }
-    if (input >= 0x10000 && input <= 0x10ffff) { return [input >> 18 | 0xf0, input >> 12 & 0x3f | 0x80, input >> 6 & 0x3f | 0x80, input & 0x3f | 0x80] }
-    return todo()
+    if (input >= 0x0000 && input <= 0x007f) { return [input & 0b01111_1111] }
+    if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000] }
+    if (input >= 0x0800 && input <= 0xffff) { return [input >> 12 | 0b1110_0000, input >> 6 & 0b0011_1111 | 0b1000_0000, input & 0b0011_1111 | 0b1000_0000] }
+    if (input >= 0x10000 && input <= 0x10ffff) { return [input >> 18 | 0b1111_0000, input >> 12 & 0b0011_1111 | 0b1000_0000, input >> 6 & 0b0011_1111 | 0b1000_0000, input & 0b0011_1111 | 0b1000_0000] }
+    if ((input & errorMask) !== 0) {
+        if ((input & 0b1000_0000_0000_0000) !== 0) { return [input >> 12 & 0b0000_0111 | 0b1111_0000, input >> 6 & 0b0011_1111 | 0b1000_0000, input & 0b0011_1111 | 0b1000_0000] }
+        if ((input & 0b0000_0100_0000_0000) !== 0) { return [input >> 6 & 0b0000_1111 | 0b1110_0000, input & 0b0011_1111 | 0b1000_0000] }
+        if ((input & 0b0000_0010_0000_0000) !== 0) { return [input >> 6 & 0b0000_0111 | 0b1111_0000, input & 0b0011_1111 | 0b1000_0000] }
+        if ((input & 0b0000_0000_1000_0000) !== 0) { return [input & 0b1111_1111] }
+    }
+    return [errorMask]
 }
 
 /** @type {(input:i32) => list.List<u16>} */
@@ -74,7 +79,7 @@ const utf8StateToError = state => {
 /** @type {operator.StateScan<number, Utf8State, list.List<i32>>} */
 const utf8ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
-        return [[0xffffffff], state]
+        return [[errorMask], state]
     }
     if (state == undefined) {
         if (byte < 0b1000_0000) { return [[byte], undefined] }
