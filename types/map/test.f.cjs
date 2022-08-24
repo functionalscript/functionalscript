@@ -1,4 +1,4 @@
-const { at, setReplace, setUpdate, empty, entries, remove } = require('./module.f.cjs')
+const { at, setReplace, setReduce, empty, entries, remove } = require('./module.f.cjs')
 const seq = require('../list/module.f.cjs')
 
 {
@@ -41,7 +41,7 @@ const seq = require('../list/module.f.cjs')
     m = remove('Hello world!')(m)
     if (at('Hello world!')(m) !== undefined) { throw m }
 
-    m = setUpdate(a => b => a + b)('a')(43)(m)
+    m = setReduce(a => b => a + b)('a')(43)(m)
     if (at('a')(m) !== 44) { throw 'error' }
 }
 

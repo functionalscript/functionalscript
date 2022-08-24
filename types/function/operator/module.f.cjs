@@ -7,13 +7,13 @@
 
 /**
  * @template I,O
- * @typedef {Binary<I, O, O>} Reduce
+ * @typedef {Binary<I, O, O>} FoldT
  */
 
-/** @type {(separator: string) => Fold<string>} */
+/** @type {(separator: string) => Reduce<string>} */
 const join = separator => value => prior => `${prior}${separator}${value}`
 
-/** @type {Fold<string>} */
+/** @type {Reduce<string>} */
 const concat = i => acc => `${acc}${i}`
 
 /**
@@ -49,27 +49,27 @@ const stateScanToScan = op => prior => i => {
     return [o, stateScanToScan(op)(s)]
 }
 
-/** @type {<I, O>(reduce: Reduce<I, O>) => (prior: O) => Scan<I, O>} */
-const reduceToScan = reduce => prior => i => {
-    const result = reduce(i)(prior)
-    return [result, reduceToScan(reduce)(result)]
+/** @type {<I, O>(fold: FoldT<I, O>) => (prior: O) => Scan<I, O>} */
+const foldToScan = fold => prior => i => {
+    const result = fold(i)(prior)
+    return [result, foldToScan(fold)(result)]
 }
 
 /**
  * @template T
- * @typedef {Reduce<T, T>} Fold
+ * @typedef {FoldT<T, T>} Reduce
  */
 
-/** @type {<T>(fold: Fold<T>) => Scan<T, T>} */
-const foldToScan = op => init => [init, reduceToScan(op)(init)]
+/** @type {<T>(fold: Reduce<T>) => Scan<T, T>} */
+const reduceToScan = op => init => [init, foldToScan(op)(init)]
 
-/** @type {Fold<number>} */
+/** @type {Reduce<number>} */
 const addition = a => b => a + b
 
-/** @type {Fold<number>} */
+/** @type {Reduce<number>} */
 const min = a => b => a < b ? a : b
 
-/** @type {Fold<number>} */
+/** @type {Reduce<number>} */
 const max = a => b => a > b ? a : b
 
 const increment = addition(1)
@@ -94,9 +94,9 @@ module.exports = {
     /** @readonly */
     stateScanToScan,
     /** @readonly */
-    reduceToScan,
-    /** @readonly */
     foldToScan,
+    /** @readonly */
+    reduceToScan,
     /** @readonly */
     counter,
     /** @readonly */

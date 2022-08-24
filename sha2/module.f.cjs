@@ -74,41 +74,41 @@ const smallSigma0 = smallSigma(7)(18)(3)
 const smallSigma1 = smallSigma(17)(19)(10)
 
 /** @type {(a: array.Array4<number>) => number} */
-const wi = a => (smallSigma1(a[0]) + a[1] + smallSigma0(a[2]) + a[3]) | 0
+const wi = ([a0, a1, a2, a3]) => (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) | 0
 
-/** @type {(input: Array16) => Array16} */
-const nextW = w => {
-    const _0 = wi([w[14], w[ 9], w[ 1], w[ 0]])
-    const _1 = wi([w[15], w[10], w[ 2], w[ 1]])
-    const _2 = wi([   _0, w[11], w[ 3], w[ 2]])
-    const _3 = wi([   _1, w[12], w[ 4], w[ 3]])
-    const _4 = wi([   _2, w[13], w[ 5], w[ 4]])
-    const _5 = wi([   _3, w[14], w[ 6], w[ 5]])
-    const _6 = wi([   _4, w[15], w[ 7], w[ 6]])
-    const _7 = wi([   _5,    _0, w[ 8], w[ 7]])
-    const _8 = wi([   _6,    _1, w[ 9], w[ 8]])
-    const _9 = wi([   _7,    _2, w[10], w[ 9]])
-    const _A = wi([   _8,    _3, w[11], w[10]])
-    const _B = wi([   _9,    _4, w[12], w[11]])
-    const _C = wi([   _A,    _5, w[13], w[12]])
-    const _D = wi([   _B,    _6, w[14], w[13]])
-    const _E = wi([   _C,    _7, w[15], w[14]])
-    const _F = wi([   _D,    _8,    _0, w[15]])
-    return [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _A, _B, _C, _D, _E, _F]
+/** @type {(w: Array16) => Array16} */
+const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]) => {
+    w0 = wi([wE, w9, w1, w0])
+    w1 = wi([wF, wA, w2, w1])
+    w2 = wi([w0, wB, w3, w2])
+    w3 = wi([w1, wC, w4, w3])
+    w4 = wi([w2, wD, w5, w4])
+    w5 = wi([w3, wE, w6, w5])
+    w6 = wi([w4, wF, w7, w6])
+    w7 = wi([w5, w0, w8, w7])
+    w8 = wi([w6, w1, w9, w8])
+    w9 = wi([w7, w2, wA, w9])
+    wA = wi([w8, w3, wB, wA])
+    wB = wi([w9, w4, wC, wB])
+    wC = wi([wA, w5, wD, wC])
+    wD = wi([wB, w6, wE, wD])
+    wE = wi([wC, w7, wF, wE])
+    wF = wi([wD, w8, w0, wF])
+    return [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]
 }
 
 /** @type {(init: Hash8) => (data: Array16) => Hash8} */
-const compress = init => data => {
+const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
     let w = data
 
-    let a = init[0]
-    let b = init[1]
-    let c = init[2]
-    let d = init[3]
-    let e = init[4]
-    let f = init[5]
-    let g = init[6]
-    let h = init[7]
+    let a = a0
+    let b = b0
+    let c = c0
+    let d = d0
+    let e = e0
+    let f = f0
+    let g = g0
+    let h = h0
 
     for (let i = 0; i < 4; ++i) {
         const ki = k[i]
@@ -128,14 +128,14 @@ const compress = init => data => {
     }
 
     return [
-        (init[0] + a) | 0,
-        (init[1] + b) | 0,
-        (init[2] + c) | 0,
-        (init[3] + d) | 0,
-        (init[4] + e) | 0,
-        (init[5] + f) | 0,
-        (init[6] + g) | 0,
-        (init[7] + h) | 0,
+        (a0 + a) | 0,
+        (b0 + b) | 0,
+        (c0 + c) | 0,
+        (d0 + d) | 0,
+        (e0 + e) | 0,
+        (f0 + f) | 0,
+        (g0 + g) | 0,
+        (h0 + h) | 0,
     ]
 }
 

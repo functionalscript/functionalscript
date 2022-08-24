@@ -3,7 +3,7 @@ const btreeFind = require('../find/module.f.cjs')
 const { find } = btreeFind
 const cmp = require('../../function/compare/module.f.cjs')
 const list = require('../../list/module.f.cjs')
-const { reduce } = list
+const { fold } = list
 
 /**
  * @template T
@@ -34,7 +34,7 @@ const reduceOp = ([i, x]) => a => {
     }
 }
 
-const reduceBranch = reduce(reduceOp)
+const reduceBranch = fold(reduceOp)
 
 /** @type {<T>(c: cmp.Compare<T>) => (g: (value?: T) => T) => (node: _.Node<T>) => _.Node<T>} */
 const nodeSet = c => g => node => {

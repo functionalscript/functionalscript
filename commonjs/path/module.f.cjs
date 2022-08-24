@@ -1,5 +1,5 @@
 const list = require("../../types/list/module.f.cjs")
-const { next, reduce, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
+const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
 const { join } = require('../../types/string/module.f.cjs')
 const package_ = require("../package/module.f.cjs")
 const module_ = require("../module/module.f.cjs")
@@ -38,7 +38,7 @@ const normItemsOp = first => prior => {
 
 /** @type {(items: list.List<string>) => OptionList} */
 const normItems = items => {
-    const result = reduce(normItemsOp)([undefined])(items)
+    const result = fold(normItemsOp)([undefined])(items)
     return result === undefined ? result : [reverse(result[0])]
 }
 

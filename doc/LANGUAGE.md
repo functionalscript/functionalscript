@@ -1,5 +1,9 @@
 # FunctionalScript Programming Language
 
+Principals:
+- FunctionalScript VM should behaves the same way as a JavaScript VM
+- Any unsupported feature should be reported at compile-time.
+
 ## 1. Module Ecosystem
 
 FunctionalScript uses [CommonJS](https://en.wikipedia.org/wiki/CommonJS) conventions as a module ecosystem. For example,
@@ -139,7 +143,9 @@ Expressions could fall under these categories:
   - Relations Operators: `in`, `instanceof`.
   - Member Operators: `.`, `[]`.
 
-**Note:** the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
+**Note:** the `.` member operator has prohibited property names, such as `constructor` and `push`. To access such properties, it's recommended to use the
+[Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/getOwnPropertyDescriptor) function.
+`[]` accepts only numbers. For example `+'0'`
 
 ## 8. Arrow Functions
 
