@@ -3,8 +3,8 @@ const { map, flatMap, flat, concat: listConcat } = list
 const { concat: stringConcat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { compose } = require('../types/function/module.f.cjs')
-const encoding = require('../text/encoding/module.f.cjs');
-const { stringToUtf16List } = encoding
+const encoding = require('../text/encoding/utf16/module.f.cjs');
+const { stringToList } = encoding
 
 const { fromCharCode } = String
 const { entries } = Object
@@ -80,7 +80,7 @@ const escapeCharCode = code => {
     }
 }
 
-const escape = compose(stringToUtf16List)(map(escapeCharCode))
+const escape = compose(stringToList)(map(escapeCharCode))
 
 /** @type {(n: Node) => list.List<string>} */
 const node = n => typeof n === 'string' ? escape(n) : element(n)

@@ -2,10 +2,10 @@ const tokenizer = require('./module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 const json = require('../module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
-const encoding = require('../../text/encoding/module.f.cjs');
+const encoding = require('../../text/encoding/utf16/module.f.cjs');
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
-const tokenizeString = s => list.toArray(tokenizer.tokenize(encoding.stringToUtf16List(s)))
+const tokenizeString = s => list.toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = json.stringify(sort)
 
