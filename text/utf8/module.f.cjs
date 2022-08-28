@@ -1,6 +1,6 @@
-const list = require('../../../types/list/module.f.cjs')
-const operator = require('../../../types/function/operator/module.f.cjs')
-const array = require('../../../types/array/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
+const operator = require('../../types/function/operator/module.f.cjs')
+const array = require('../../types/array/module.f.cjs')
 const { flatMap } = list
 
 /** @typedef {u8|undefined} ByteOrEof */
