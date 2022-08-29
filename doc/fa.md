@@ -64,3 +64,95 @@ const id = [
 
 const dfa = ([t, f, n, id]) => ?
 ```
+
+## Set
+
+```js
+const letter = byteSet(['_', '$', ['a', 'z'], ['A', 'Z']])
+```
+
+Letters and digits
+
+|      |            |
+|------|------------|
+|`$`   |`0x24`      |
+|`0..9`|`0x30..0x39`|
+|`A..Z`|`0x41..0x5A`|
+|`_`   |`0x5F`      |
+|`a..z`|`0x61..0x7A`|
+
+## Bit set
+
+For a byte, it is an array of 8 uint32, bigint (0..2^256-1), or string of 16 characters.
+
+### 16 bit set.
+
+It can use an intermediate state.
+
+|   |       |        |
+|---|-------|--------|
+|`2`|`4`    |`$`     |
+|`3`|`..9`  |`0..9`  |
+|`4`|`1..`  |`A..O`  |
+|`5`|`..A,F`|`P..Z,_`|
+|`6`|`1..`  |`a..o`  |
+|`7`|`..A`  |`p..z`  |
+
+```js
+const init = [
+   _,  _, i2,  _,
+  i4, i5, i4, i7,
+   _,  _,  _,  _,
+   _,  _,  _,  _]
+
+const i2 = [
+   _,  _,  _,  _,
+  id,  _,  _,  _,
+   _,  _,  _,  _,
+   _,  _,  _,  _]
+
+const i3 = [
+  id, id, id, id,
+  id, id, id, id,
+  id, id,  _,  _,
+   _,  _,  _,  _]
+
+const i4 = [
+   _, id, id, id,
+  id, id, id, id,
+  id, id, id, id,
+  id, id, id, id]
+
+const i5 = [
+  id, id, id, id,
+  id, id, id, id,
+  id, id, id,  _,
+   _,  _,  _, id]
+
+const i6 = [
+  id, id, id, id,
+  id, id, id, id,
+  id, id, id,  _,
+   _,  _,  _,  _]
+```
+
+```js
+const init =
+  000_000_001_000
+  010_011_100_101
+  000_000_000_000
+  000_000_000_000
+
+const i = [
+  // 1
+  0000_1000_0000_0000,
+  // 2
+  1111_1111_1100_0000,
+  // 3
+  0111_1111_1111_1111,
+  // 4
+  1111_1111_1110_0001,
+  // 5
+  1111_1111_1110_0000,
+]
+```
