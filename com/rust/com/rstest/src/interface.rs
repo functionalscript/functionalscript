@@ -31,6 +31,7 @@ type HRESULT = u32;
 type ULONG = u32;
 
 const S_OK: HRESULT = 0;
+const E_NOINTERFACE: HRESULT = 0x80004002;
 
 #[repr(C)]
 pub struct Vmt<I: 'static, D: 'static> {
@@ -86,12 +87,51 @@ impl<I, D> From<&Object<I, D>> for Ref<I, D> {
 
 #[cfg(test)]
 mod tests {
-    use super::Object;
+    use super::{IUnknown, Interface, Object, Vmt, E_NOINTERFACE, HRESULT, IID, ULONG};
+
+    // interface
 
     #[repr(C)]
-    struct ITest<D: 'static> {
+    struct ITest<D: 'static = ()> {
         get5: extern "stdcall" fn(this: &Object<ITest<D>, D>) -> u32,
     }
+    impl<D> Interface for ITest<D> {
+        const GUID: super::IID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
+    }
+
+    // implementation
+
+    extern "stdcall" fn get5(this: &Object<ITest<u32>, u32>) -> u32 {
+        this.data
+    }
+
+    extern "stdcall" fn query_interface(
+        _this: &Object<ITest<u32>, u32>,
+        _riid: &IID,
+        _ppvObject: &mut *const Object<IUnknown>,
+    ) -> HRESULT {
+        E_NOINTERFACE
+    }
+
+    extern "stdcall" fn add_ref(_this: &Object<ITest<u32>, u32>) -> ULONG {
+        0
+    }
+    extern "stdcall" fn release(_this: &Object<ITest<u32>, u32>) -> ULONG {
+        0
+    }
+
+    static VMT: Vmt<ITest<u32>, u32> = Vmt {
+        query_interface,
+        add_ref,
+        release,
+        interface: ITest { get5 },
+    };
+
     #[test]
-    fn interface() {}
+    fn check() {
+        let o = Object {
+            vmt: &VMT,
+            data: 15,
+        };
+    }
 }
