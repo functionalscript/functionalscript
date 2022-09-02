@@ -83,3 +83,15 @@ impl<I, D> From<&Object<I, D>> for Ref<I, D> {
         Self(this)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Object;
+
+    #[repr(C)]
+    struct ITest<D: 'static> {
+        get5: extern "stdcall" fn(this: &Object<ITest<D>, D>) -> u32,
+    }
+    #[test]
+    fn interface() {}
+}
