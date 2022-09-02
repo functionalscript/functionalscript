@@ -133,7 +133,7 @@ struct Object {
 
 struct Array {
   length: u32,
-  array: [Value; self.lenght],
+  array: [Value; self.length],
 }
 ```
 
