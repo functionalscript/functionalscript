@@ -1,2 +1,2 @@
-mod interface;
-mod class;
+pub mod class;
+pub mod interface;

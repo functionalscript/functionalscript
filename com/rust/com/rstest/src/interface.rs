@@ -1,11 +1,23 @@
-use std::ptr::null_mut;
+use std::{ops::Deref, ptr::null};
 
 type IID = u128;
 
 #[repr(C)]
 pub struct Object<I: 'static, D: 'static = ()> {
-    pub vmt: &'static Vmt<I, D>,
-    pub data: D,
+    vmt: &'static Vmt<I, D>,
+    data: D,
+}
+
+impl<I, D> Object<I, D> {
+    #[allow(non_snake_case)]
+    pub fn QueryInterface<J: Interface>(&self) -> Option<Ref<J>> {
+        let mut p = null();
+        if (self.vmt.QueryInterface)(self, &J::GUID, &mut p) == S_OK {
+            Some(Ref(p as *const Object<J>))
+        } else {
+            None
+        }
+    }
 }
 
 type HRESULT = u32;
@@ -17,55 +29,45 @@ const S_OK: HRESULT = 0;
 #[repr(C)]
 pub struct Vmt<I: 'static, D: 'static> {
     pub QueryInterface: extern "stdcall" fn(
-        this: &mut Object<I, D>,
+        this: &Object<I, D>,
         riid: &IID,
-        ppvObject: &mut *mut Object<I, D>,
+        ppvObject: &mut *const Object<I, D>,
     ) -> HRESULT,
-    pub AddRef: extern "stdcall" fn(this: &mut Object<I, D>) -> ULONG,
-    pub Release: extern "stdcall" fn(this: &mut Object<I, D>) -> ULONG,
+    pub AddRef: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
+    pub Release: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
     pub interface: I,
 }
 
-trait Interface {
+pub trait Interface {
     const GUID: IID;
 }
 
-struct IUnknown();
+pub struct IUnknown();
 
 impl Interface for IUnknown {
     const GUID: IID = 0x00000000_0000_0000_C000_000000000046;
 }
 
 #[repr(transparent)]
-pub struct Ref<I: 'static, D: 'static = ()>(*mut Object<I, D>);
+pub struct Ref<I: 'static, D: 'static = ()>(*const Object<I, D>);
 
-impl<I, D> Ref<I, D> {
-    fn this<'t>(&'t self) -> &'t mut Object<I, D> {
-        unsafe { &mut  (*self.0) }
-    }
-    #[allow(non_snake_case)]
-    fn QueryInterface<N: Interface>(&self) -> Option<Ref<N>> {
-        let this = self.this();
-        let mut p = null_mut();
-        if (this.vmt.QueryInterface)(this, &N::GUID, &mut p) == S_OK {
-            Some(Ref(p as *mut Object<N>))
-        } else {
-            None
-        }
+impl<I, D> Deref for Ref<I, D> {
+    type Target = Object<I, D>;
+    fn deref(&self) -> &Self::Target {
+        let p = self.0;
+        unsafe { &*p }
     }
 }
 
 impl<I, D> Drop for Ref<I, D> {
     fn drop(&mut self) {
-        let this = self.this();
-        (this.vmt.Release)(this);
+        (self.vmt.Release)(self);
     }
 }
 
 impl<I, D> Clone for Ref<I, D> {
     fn clone(&self) -> Self {
-        let this = self.this();
-        (this.vmt.AddRef)(this);
+        (self.vmt.AddRef)(self);
         Self(self.0)
     }
 }
