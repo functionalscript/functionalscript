@@ -8,14 +8,14 @@ pub struct Object<I: 'static, D: 'static = ()> {
     data: D,
 }
 
-impl<I, D> Object<I, D> {
-    #[allow(non_snake_case)]
-    pub fn QueryInterface<J: Interface>(&self) -> Option<Ref<J>> {
+impl<I, D, J: Interface> TryFrom<&Object<I, D>> for Ref<J> {
+    type Error = ();
+    fn try_from(value: &Object<I, D>) -> Result<Self, Self::Error> {
         let mut p = null();
-        if (self.vmt.QueryInterface)(self, &J::GUID, &mut p) == S_OK {
-            Some(Ref(p as *const Object<J>))
+        if (value.vmt.QueryInterface)(value, &J::GUID, &mut p) == S_OK {
+            Ok(Ref(p as *const Object<J>))
         } else {
-            None
+            Err(())
         }
     }
 }
