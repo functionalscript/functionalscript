@@ -8,7 +8,7 @@ pub struct Object<I: 'static, D: 'static = ()> {
     pub data: D,
 }
 
-impl<I> Object<I> {
+impl<I, D> Object<I, D> {
     pub fn query_interface<J: Interface>(&self) -> Result<Ref<J>, HRESULT> {
         let mut p = null();
         match (self.vmt.query_interface)(self, &J::GUID, &mut p) {
@@ -18,6 +18,10 @@ impl<I> Object<I> {
             },
             e => Err(e)
         }
+    }
+    pub fn to_interface(&self) -> &Object<I> {
+        let p = self as *const Object<I, D> as *const Object<I>;
+        unsafe { &*p }
     }
     pub fn query_iunknown(&self) -> Ref<IUnknown> {
         self.query_interface().unwrap()
@@ -84,15 +88,15 @@ impl<I> From<&Object<I>> for Ref<I> {
 
 #[cfg(test)]
 mod tests {
-    use super::{IUnknown, Interface, Object, Vmt, E_NOINTERFACE, HRESULT, IID, ULONG};
+    use super::{IUnknown, Interface, Object, Vmt, E_NOINTERFACE, HRESULT, IID, ULONG, S_OK};
 
     // interface
 
     #[repr(C)]
-    struct ITest<D: 'static> {
+    struct ITest<D: 'static = ()> {
         get5: extern "stdcall" fn(this: &Object<ITest<D>, D>) -> u32,
     }
-    impl<T> Interface for ITest<T> {
+    impl Interface for ITest {
         const GUID: super::IID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
     }
 
@@ -103,11 +107,18 @@ mod tests {
     }
 
     extern "stdcall" fn query_interface(
-        _this: &Object<ITest<u32>, u32>,
-        _riid: &IID,
-        _ppv_object: &mut *const Object<IUnknown>,
+        this: &Object<ITest<u32>, u32>,
+        riid: &IID,
+        ppv_object: &mut *const Object<IUnknown>,
     ) -> HRESULT {
-        E_NOINTERFACE
+        match *riid {
+            IUnknown::GUID|ITest::GUID => {
+                *ppv_object = this as *const Object<ITest<u32>, u32> as *const Object<IUnknown>;
+                (this.vmt.add_ref)(this); // replace with non-virtual method
+                S_OK
+            }
+            _ => E_NOINTERFACE
+        }
     }
 
     extern "stdcall" fn add_ref(_this: &Object<ITest<u32>, u32>) -> ULONG {
