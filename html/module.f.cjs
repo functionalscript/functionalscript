@@ -3,7 +3,7 @@ const { map, flatMap, flat, concat: listConcat } = list
 const { concat: stringConcat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { compose } = require('../types/function/module.f.cjs')
-const { stringToList } = require('../text/encoding/utf16/module.f.cjs');
+const { stringToList } = require('../text/utf16/module.f.cjs')
 const { fromCharCode } = String
 const { entries } = Object
 
