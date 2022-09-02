@@ -4,19 +4,26 @@ type IID = u128;
 
 #[repr(C)]
 pub struct Object<I: 'static, D: 'static = ()> {
-    vmt: &'static Vmt<I, D>,
-    data: D,
+    pub vmt: &'static Vmt<I, D>,
+    pub data: D,
 }
 
-impl<I, D, J: Interface> TryFrom<&Object<I, D>> for Ref<J> {
-    type Error = ();
-    fn try_from(value: &Object<I, D>) -> Result<Self, Self::Error> {
+impl<I, D> Object<I, D> {
+    pub fn query_interface<J: Interface>(&self) -> Option<Ref<J>> {
         let mut p = null();
-        if (value.vmt.QueryInterface)(value, &J::GUID, &mut p) == S_OK {
-            Ok(Ref(p as *const Object<J>))
+        if (self.vmt.query_interface)(self, &J::GUID, &mut p) == S_OK {
+            let j = p as *const Object<J>;
+            Some(Ref(j))
         } else {
-            Err(())
+            None
         }
+    }
+    pub fn to_interface(&self) -> &Object<I> {
+        let p = self as *const Object<I, D> as *const Object<I>;
+        unsafe { &*p }
+    }
+    pub fn query_iunknown(&self) -> Ref<IUnknown> {
+        self.query_interface().unwrap()
     }
 }
 
@@ -25,16 +32,15 @@ type ULONG = u32;
 
 const S_OK: HRESULT = 0;
 
-#[allow(non_snake_case)]
 #[repr(C)]
 pub struct Vmt<I: 'static, D: 'static> {
-    pub QueryInterface: extern "stdcall" fn(
+    pub query_interface: extern "stdcall" fn(
         this: &Object<I, D>,
         riid: &IID,
-        ppvObject: &mut *const Object<I, D>,
+        ppvObject: &mut *const Object<IUnknown>,
     ) -> HRESULT,
-    pub AddRef: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
-    pub Release: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
+    pub add_ref: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
+    pub release: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
     pub interface: I,
 }
 
@@ -61,13 +67,19 @@ impl<I, D> Deref for Ref<I, D> {
 
 impl<I, D> Drop for Ref<I, D> {
     fn drop(&mut self) {
-        (self.vmt.Release)(self);
+        (self.vmt.release)(self);
     }
 }
 
 impl<I, D> Clone for Ref<I, D> {
     fn clone(&self) -> Self {
-        (self.vmt.AddRef)(self);
-        Self(self.0)
+        self.deref().into()
+    }
+}
+
+impl<I, D> From<&Object<I, D>> for Ref<I, D> {
+    fn from(this: &Object<I, D>) -> Self {
+        (this.vmt.add_ref)(this);
+        Self(this)
     }
 }
