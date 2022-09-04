@@ -4,6 +4,7 @@ mod test {
 
     // interface definition:
 
+    #[repr(C)]
     struct IMy {
         pub a: unsafe extern "stdcall" fn(this: &Object<IMy>) -> Ref<IMy>,
         pub b: unsafe extern "stdcall" fn(this: &Object<IMy>) -> u32,
@@ -31,7 +32,7 @@ mod test {
     where
         CObject<Self>: IMyEx,
     {
-        const CLASS_INTERFACE: IMy = IMy {
+        const INTERFACE: IMy = IMy {
             a: a::<Self>,
             b: b::<Self>,
         };
@@ -59,9 +60,11 @@ mod test {
 
     impl Class for X {
         type Interface = IMy;
-        const INTERFACE: Self::Interface = Self::CLASS_INTERFACE;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
-            static V: Vmt<IMy> = X::VMT;
+            static V: Vmt<IMy> = Vmt {
+                iunknown: X::IUNKNOWN,
+                interface: X::INTERFACE,
+            };
             &V
         }
     }

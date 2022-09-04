@@ -1,16 +1,17 @@
 use std::{ptr::null, sync::atomic::Ordering};
 
-use crate::{hresult::HRESULT, iunknown::IUnknown, CObject, Interface, Object, Ref, Vmt};
+use crate::{
+    hresult::HRESULT, iunknown::IUnknown, iunknownvmt::IUnknownVmt, CObject, Interface, Object,
+    Ref, Vmt,
+};
 
 pub trait Class: Sized {
     type Interface: Interface;
-    const INTERFACE: Self::Interface;
     fn static_vmt() -> &'static Vmt<Self::Interface>;
-    const VMT: Vmt<Self::Interface> = Vmt {
+    const IUNKNOWN: IUnknownVmt<Self::Interface> = IUnknownVmt {
         QueryInterface: QueryInterface::<Self>,
         AddRef: AddRef::<Self>,
         Release: Release::<Self>,
-        interface: Self::INTERFACE,
     };
     fn c_new(self) -> Ref<Self::Interface> {
         let c = CObject {

@@ -2,6 +2,7 @@ mod guid;
 mod hresult;
 mod interface;
 mod iunknown;
+mod iunknownvmt;
 mod object;
 mod r#ref;
 mod vmt;

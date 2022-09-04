@@ -14,7 +14,7 @@ impl<I> Object<I> {
     }
     pub fn query_interface<J: Interface>(&self) -> Result<Ref<J>, HRESULT> {
         let mut p = null();
-        match unsafe { (self.0.QueryInterface)(self, &J::GUID, &mut p) } {
+        match unsafe { (self.0.iunknown.QueryInterface)(self, &J::GUID, &mut p) } {
             HRESULT::S_OK => {
                 let r = p as *const Object<J>;
                 Ok(unsafe { Ref::from_raw(r) })

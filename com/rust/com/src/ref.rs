@@ -21,7 +21,7 @@ impl<I> Deref for Ref<I> {
 
 impl<I> Drop for Ref<I> {
     fn drop(&mut self) {
-        unsafe { (self.vmt().Release)(self) };
+        unsafe { (self.vmt().iunknown.Release)(self) };
     }
 }
 
@@ -33,7 +33,7 @@ impl<I> Clone for Ref<I> {
 
 impl<I> From<&Object<I>> for Ref<I> {
     fn from(this: &Object<I>) -> Self {
-        unsafe { (this.vmt().AddRef)(this) };
+        unsafe { (this.vmt().iunknown.AddRef)(this) };
         Self(this)
     }
 }
