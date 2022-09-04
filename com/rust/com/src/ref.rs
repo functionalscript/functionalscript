@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{ops::Deref, fmt::Debug, cmp::Eq};
 
 use crate::object::Object;
 
@@ -37,3 +37,17 @@ impl<I> From<&Object<I>> for Ref<I> {
         Self(this)
     }
 }
+
+impl<I> Debug for Ref<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Ref").field(&self.0).finish()
+    }
+}
+
+impl<I> PartialEq for Ref<I> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<I> Eq for Ref<I> {}
