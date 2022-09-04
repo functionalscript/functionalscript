@@ -68,27 +68,6 @@ Least used letters in English: Q, J, Z and X.
 
 Starts with `0xFFF`
 
-- `50`:
-  - `48`: stringUInt48 (0..281_474_976_710_655)
-  - `48`: 8 x 6 string
-  - `48`: `42` 7 x 6 string
-  - `48`: 6 x 8 string
-- `50`:
-  - `48`: `45` 5 x 9 string
-  - `48`: 4 x 12 string
-  - `48`: 3 x 16 string
-  - `48`: `32`: 2 x 16 string
-- `50`:
-  - `48`: `16`: 1 x 16 string
-  - `48`: `0`: ""
-  - `48`: false
-  - `48`: true
-- `50`:
-  - `48`: ptr
-  - `48`: bigInt48 (140_737_488_355_328..140_737_488_355_327)
-  - `48`: undefined
-  - `48`: `-inf`
-
 |      |  |             |type       |
 |------|--|-------------|-----------|
 |`1111`|48|stringUInt48 |`string`   |
