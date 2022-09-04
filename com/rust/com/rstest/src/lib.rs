@@ -37,9 +37,7 @@ mod test {
         };
     }
 
-    impl<T: Class<Interface = IMy>> IMyClass for T
-    where CObject<T>: IMyEx
-    {}
+    impl<T: Class<Interface = IMy>> IMyClass for T where CObject<T>: IMyEx {}
 
     extern "stdcall" fn a<T: IMyClass>(this: &Object<IMy>) -> Ref<IMy>
     where
