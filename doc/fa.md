@@ -129,10 +129,16 @@ const i5 = [
   id, id, id,  _,
    _,  _,  _, id]
 
-const i6 = [
+const i7 = [
   id, id, id, id,
   id, id, id, id,
   id, id, id,  _,
+   _,  _,  _,  _]
+
+const id = [
+   _,  _, i2, i3,
+  i4, i5, i4, i7,
+   _,  _,  _,  _,
    _,  _,  _,  _]
 ```
 
