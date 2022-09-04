@@ -4,27 +4,30 @@ mod test {
 
     // interface definition:
 
+    #[allow(non_snake_case)]
     #[repr(C)]
     struct IMy {
-        pub a: unsafe extern "stdcall" fn(this: &Object<IMy>) -> Ref<IMy>,
-        pub b: unsafe extern "stdcall" fn(this: &Object<IMy>) -> u32,
+        pub A: unsafe extern "stdcall" fn(this: &Object<IMy>) -> Ref<IMy>,
+        pub B: unsafe extern "stdcall" fn(this: &Object<IMy>) -> u32,
     }
 
     impl Interface for IMy {
         const GUID: GUID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
     }
 
+    #[allow(non_snake_case)]
     trait IMyEx {
-        fn a(&self) -> Ref<IMy>;
-        fn b(&self) -> u32;
+        fn A(&self) -> Ref<IMy>;
+        fn B(&self) -> u32;
     }
 
+    #[allow(non_snake_case)]
     impl IMyEx for Object<IMy> {
-        fn a(&self) -> Ref<IMy> {
-            unsafe { (self.interface().a)(self) }
+        fn A(&self) -> Ref<IMy> {
+            unsafe { (self.interface().A)(self) }
         }
-        fn b(&self) -> u32 {
-            unsafe { (self.interface().b)(self) }
+        fn B(&self) -> u32 {
+            unsafe { (self.interface().B)(self) }
         }
     }
 
@@ -33,26 +36,27 @@ mod test {
         CObject<Self>: IMyEx,
     {
         const INTERFACE: IMy = IMy {
-            a: a::<Self>,
-            b: b::<Self>,
+            A: Self::A,
+            B: Self::B,
         };
     }
 
     impl<T: Class<Interface = IMy>> IMyClass for T where CObject<T>: IMyEx {}
 
-    extern "stdcall" fn a<T: IMyClass>(this: &Object<IMy>) -> Ref<IMy>
+    #[allow(non_snake_case)]
+    trait IMyImpl: Class<Interface = IMy>
     where
-        CObject<T>: IMyEx,
+        CObject<Self>: IMyEx,
     {
-        unsafe { T::to_cobject(this) }.a()
+        extern "stdcall" fn A(this: &Object<IMy>) -> Ref<IMy> {
+            unsafe { Self::to_cobject(this) }.A()
+        }
+        extern "stdcall" fn B(this: &Object<IMy>) -> u32 {
+            unsafe { Self::to_cobject(this) }.B()
+        }
     }
 
-    extern "stdcall" fn b<T: IMyClass>(this: &Object<IMy>) -> u32
-    where
-        CObject<T>: IMyEx,
-    {
-        unsafe { T::to_cobject(this) }.b()
-    }
+    impl<T: Class<Interface = IMy>> IMyImpl for T where CObject<T>: IMyEx {}
 
     // interface implementation
 
@@ -69,11 +73,12 @@ mod test {
         }
     }
 
+    #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
-        fn a(&self) -> Ref<IMy> {
+        fn A(&self) -> Ref<IMy> {
             self.to_interface().into()
         }
-        fn b(&self) -> u32 {
+        fn B(&self) -> u32 {
             self.value.0
         }
     }
