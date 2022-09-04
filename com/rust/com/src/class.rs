@@ -4,13 +4,14 @@ use crate::interface::{IUnknown, Interface, Object, Ref, Vmt, HRESULT, ULONG};
 
 pub struct Data<T> {
     counter: AtomicU32,
-    value: T,
+    pub value: T,
 }
 
 pub trait Class: Sized + 'static {
     type Interface: Interface;
-    type Internal: Interface + 'static;
+    type Internal: Interface;
     const INTERNAL: Self::Internal;
+    fn static_vmt() -> &'static CVmt<Self>;
     fn vmt() -> CVmt<Self> {
         Vmt {
             QueryInterface,
@@ -19,7 +20,6 @@ pub trait Class: Sized + 'static {
             interface: Self::INTERNAL,
         }
     }
-    fn static_vmt() -> &'static Vmt<Self::Internal, Data<Self>>;
     fn class_new(self) -> Ref<Self::Interface> {
         let c = CObject {
             vmt: Self::static_vmt(),
@@ -65,5 +65,18 @@ extern "stdcall" fn Release<T: Class>(this: &CObject<T>) -> ULONG {
     }
 }
 
-type CVmt<T: Class> = Vmt<T::Internal, Data<T>>;
-type CObject<T: Class> = Object<T::Internal, Data<T>>;
+pub trait CObjectEx {
+    type InterfaceObject;
+    fn to_interface(&self) -> &Self::InterfaceObject;
+}
+
+impl<T: Class> CObjectEx for CObject<T> {
+    type InterfaceObject = Object<T::Interface>;
+    fn to_interface(&self) -> &Self::InterfaceObject {
+        let p = self as *const CObject<T> as *const Object<T::Interface>;
+        unsafe { &*p }
+    }
+}
+
+type CVmt<T> = Vmt<<T as Class>::Internal, Data<T>>;
+type CObject<T> = Object<<T as Class>::Internal, Data<T>>;

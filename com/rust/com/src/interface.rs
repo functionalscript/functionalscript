@@ -16,7 +16,7 @@ impl<I, D> Object<I, D> {
     pub fn query_interface<J: Interface>(&self) -> Result<Ref<J>, HRESULT> {
         let mut p = null();
         match (self.vmt.QueryInterface)(self, &J::GUID, &mut p) {
-            S_OK => Ok(Ref(p as *const Object<J>)),
+            HRESULT::S_OK => Ok(Ref(p as *const Object<J>)),
             e => Err(e),
         }
     }
@@ -47,6 +47,7 @@ pub struct Vmt<I: 'static, D: 'static> {
     pub interface: I,
 }
 
+/* COM Interface */
 pub trait Interface {
     const GUID: GUID;
 }
