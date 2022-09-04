@@ -1,13 +1,13 @@
 /** @typedef {bigint} byteSet */
-/** @typedef {number} u8 */
+/** @typedef {number} byte */
 
-/** @type {(n: u8) => (s: byteSet) => boolean} */
+/** @type {(n: byte) => (s: byteSet) => boolean} */
 const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
-/** @type {(n: u8) => (s: byteSet) => byteSet} */
+/** @type {(n: byte) => (s: byteSet) => byteSet} */
 const set = n => s => s | (1n << BigInt(n))
 
-/** @type {(n: u8) => (s: byteSet) => byteSet} */
+/** @type {(n: byte) => (s: byteSet) => byteSet} */
 // const unset = n => s =>
 
 /** @type {(r: readonly[number, number]) => (s: byteSet) => byteSet} */
