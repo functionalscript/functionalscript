@@ -21,10 +21,10 @@ mod test {
 
     impl IMyEx for Object<IMy> {
         fn a(&self) -> Ref<IMy> {
-            unsafe { (self.vmt().interface.a)(self) }
+            unsafe { (self.interface().a)(self) }
         }
         fn b(&self) -> u32 {
-            unsafe { (self.vmt().interface.b)(self) }
+            unsafe { (self.interface().b)(self) }
         }
     }
 

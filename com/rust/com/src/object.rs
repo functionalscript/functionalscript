@@ -1,12 +1,15 @@
 use std::{ptr::null};
-use crate::{vmt::Vmt, iunknown::IUnknown, interface::Interface, hresult::HRESULT, r#ref::Ref};
+use crate::{vmt::Vmt, iunknown::IUnknown, interface::Interface, hresult::HRESULT, r#ref::Ref, iunknownvmt::IUnknownVmt};
 
 #[repr(C)]
 pub struct Object<I: 'static>(&'static Vmt<I>);
 
 impl<I> Object<I> {
-    pub fn vmt(&self) -> &Vmt<I> {
-        self.0
+    pub unsafe fn iunknown(&self) -> &'static IUnknownVmt<I> {
+        &self.0.iunknown
+    }
+    pub unsafe fn interface(&self) -> &'static I {
+        &self.0.interface
     }
     pub fn to_iunknown(&self) -> &Object<IUnknown> {
         let p = self as *const Object<I> as *const Object<IUnknown>;
