@@ -39,13 +39,17 @@ extern "stdcall" fn QueryInterface<T: Class>(
     riid: &u128,
     ppv_object: &mut *const Object<IUnknown>,
 ) -> HRESULT {
-    if *riid == IUnknown::GUID || *riid == T::Interface::GUID {
+    let (p, r) = if *riid == IUnknown::GUID || *riid == T::Interface::GUID {
         AddRef(this);
-        *ppv_object = this as *const CObject<T> as *const Object<IUnknown>;
-        HRESULT::S_OK
+        (
+            this as *const CObject<T> as *const Object<IUnknown>,
+            HRESULT::S_OK,
+        )
     } else {
-        HRESULT::E_NOINTERFACE
-    }
+        (null(), HRESULT::E_NOINTERFACE)
+    };
+    *ppv_object = p;
+    r
 }
 
 #[allow(non_snake_case)]

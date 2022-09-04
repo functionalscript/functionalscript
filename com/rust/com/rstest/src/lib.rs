@@ -1,3 +1,4 @@
+/*
 #[cfg(test)]
 mod test {
     use com::{Object, Ref};
@@ -6,3 +7,4 @@ mod test {
         a: extern "stdcall" fn(a: &Object<IMy<T>, T>) -> Ref<IMy>
     }
 }
+*/

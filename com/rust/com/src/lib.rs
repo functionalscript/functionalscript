@@ -1,5 +1,9 @@
-mod class;
+mod object;
+mod vmt;
+mod guid;
+mod iunknown;
 mod interface;
+mod hresult;
+mod r#ref;
 
-pub use interface::{Object, Interface, Ref};
-pub use class::Class;
+pub use object::Object;
