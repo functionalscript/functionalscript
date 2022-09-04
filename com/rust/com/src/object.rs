@@ -1,5 +1,8 @@
-use std::{ptr::null};
-use crate::{vmt::Vmt, iunknown::IUnknown, interface::Interface, hresult::HRESULT, r#ref::Ref, iunknownvmt::IUnknownVmt};
+use crate::{
+    hresult::HRESULT, interface::Interface, iunknown::IUnknown, iunknownvmt::IUnknownVmt,
+    r#ref::Ref, vmt::Vmt,
+};
+use std::ptr::null;
 
 #[repr(C)]
 pub struct Object<I: 'static>(&'static Vmt<I>);
@@ -21,7 +24,7 @@ impl<I> Object<I> {
             HRESULT::S_OK => {
                 let r = p as *const Object<J>;
                 Ok(unsafe { Ref::from_raw(r) })
-            },
+            }
             e => Err(e),
         }
     }

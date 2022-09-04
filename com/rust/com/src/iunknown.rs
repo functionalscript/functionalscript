@@ -1,4 +1,4 @@
-use crate::{interface::Interface, guid::GUID};
+use crate::{guid::GUID, interface::Interface};
 
 pub struct IUnknown();
 

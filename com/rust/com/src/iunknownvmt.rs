@@ -1,4 +1,4 @@
-use crate::{Object, GUID, iunknown::IUnknown, hresult::HRESULT};
+use crate::{hresult::HRESULT, iunknown::IUnknown, Object, GUID};
 
 #[allow(non_snake_case)]
 #[repr(C)]

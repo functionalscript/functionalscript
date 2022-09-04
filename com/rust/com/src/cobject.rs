@@ -1,6 +1,12 @@
-use std::{sync::atomic::{AtomicU32, Ordering}, ptr::null};
+use std::{
+    ptr::null,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
-use crate::{Class, Object, Ref, Vmt, iunknownvmt::IUnknownVmt, iunknown::IUnknown, hresult::HRESULT, Interface};
+use crate::{
+    hresult::HRESULT, iunknown::IUnknown, iunknownvmt::IUnknownVmt, Class, Interface, Object, Ref,
+    Vmt,
+};
 
 #[repr(C)]
 pub struct CObject<T: Class> {
@@ -10,7 +16,6 @@ pub struct CObject<T: Class> {
 }
 
 impl<T: Class> CObject<T> {
-
     pub fn new(value: T) -> Ref<T::Interface> {
         let c = CObject {
             vmt: T::static_vmt(),
@@ -50,7 +55,10 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "stdcall" fn AddRef(this: &Object<T::Interface>) -> u32 {
-        unsafe { T::to_cobject(this) }.counter.fetch_add(1, Ordering::Relaxed) + 1
+        unsafe { T::to_cobject(this) }
+            .counter
+            .fetch_add(1, Ordering::Relaxed)
+            + 1
     }
 
     #[allow(non_snake_case)]
