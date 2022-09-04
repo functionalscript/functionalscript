@@ -1,6 +1,6 @@
 use std::{ops::Deref, ptr::null};
 
-type IID = u128;
+pub type GUID = u128;
 
 #[repr(C)]
 pub struct Object<I: 'static, D: 'static = ()> {
@@ -9,51 +9,52 @@ pub struct Object<I: 'static, D: 'static = ()> {
 }
 
 impl<I, D> Object<I, D> {
+    pub fn to_iunknown(&self) -> &Object<IUnknown> {
+        let p = self as *const Object<I, D> as *const Object<IUnknown>;
+        unsafe { &*p }
+    }
     pub fn query_interface<J: Interface>(&self) -> Result<Ref<J>, HRESULT> {
         let mut p = null();
-        match (self.vmt.query_interface)(self, &J::GUID, &mut p) {
-            S_OK => {
-                let j = p as *const Object<J>;
-                Ok(Ref(j))
-            },
-            e => Err(e)
+        match (self.vmt.QueryInterface)(self, &J::GUID, &mut p) {
+            S_OK => Ok(Ref(p as *const Object<J>)),
+            e => Err(e),
         }
-    }
-    pub fn to_interface(&self) -> &Object<I> {
-        let p = self as *const Object<I, D> as *const Object<I>;
-        unsafe { &*p }
     }
     pub fn query_iunknown(&self) -> Ref<IUnknown> {
         self.query_interface().unwrap()
     }
 }
 
-type HRESULT = u32;
-type ULONG = u32;
+#[allow(non_camel_case_types)]
+#[repr(u32)]
+#[derive(Debug)]
+pub enum HRESULT {
+    S_OK = 0,
+    E_NOINTERFACE = 0x80004002,
+}
+pub type ULONG = u32;
 
-const S_OK: HRESULT = 0;
-pub const E_NOINTERFACE: HRESULT = 0x80004002;
-
+#[allow(non_snake_case)]
 #[repr(C)]
 pub struct Vmt<I: 'static, D: 'static> {
-    pub query_interface: extern "stdcall" fn(
+    pub QueryInterface: extern "stdcall" fn(
         this: &Object<I, D>,
-        riid: &IID,
+        riid: &GUID,
         ppv_object: &mut *const Object<IUnknown>,
     ) -> HRESULT,
-    pub add_ref: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
-    pub release: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
+    pub AddRef: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
+    pub Release: extern "stdcall" fn(this: &Object<I, D>) -> ULONG,
     pub interface: I,
 }
 
 pub trait Interface {
-    const GUID: IID;
+    const GUID: GUID;
 }
 
 pub struct IUnknown();
 
 impl Interface for IUnknown {
-    const GUID: IID = 0x00000000_0000_0000_C000_000000000046;
+    const GUID: GUID = 0x00000000_0000_0000_C000_000000000046;
 }
 
 #[repr(transparent)]
@@ -69,7 +70,7 @@ impl<I> Deref for Ref<I> {
 
 impl<I> Drop for Ref<I> {
     fn drop(&mut self) {
-        (self.vmt.release)(self);
+        (self.vmt.Release)(self);
     }
 }
 
@@ -81,14 +82,14 @@ impl<I> Clone for Ref<I> {
 
 impl<I> From<&Object<I>> for Ref<I> {
     fn from(this: &Object<I>) -> Self {
-        (this.vmt.add_ref)(this);
+        (this.vmt.AddRef)(this);
         Self(this)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{IUnknown, Interface, Object, Vmt, E_NOINTERFACE, HRESULT, IID, ULONG, S_OK};
+    use super::{IUnknown, Interface, Object, Vmt, GUID, HRESULT, ULONG};
 
     // interface
 
@@ -97,7 +98,7 @@ mod tests {
         get5: extern "stdcall" fn(this: &Object<ITest<D>, D>) -> u32,
     }
     impl Interface for ITest {
-        const GUID: super::IID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
+        const GUID: super::GUID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
     }
 
     // implementation
@@ -108,16 +109,16 @@ mod tests {
 
     extern "stdcall" fn query_interface(
         this: &Object<ITest<u32>, u32>,
-        riid: &IID,
+        riid: &GUID,
         ppv_object: &mut *const Object<IUnknown>,
     ) -> HRESULT {
         match *riid {
-            IUnknown::GUID|ITest::GUID => {
+            IUnknown::GUID | ITest::GUID => {
                 *ppv_object = this as *const Object<ITest<u32>, u32> as *const Object<IUnknown>;
-                (this.vmt.add_ref)(this); // replace with non-virtual method
-                S_OK
+                (this.vmt.AddRef)(this); // replace with non-virtual method
+                HRESULT::S_OK
             }
-            _ => E_NOINTERFACE
+            _ => HRESULT::E_NOINTERFACE,
         }
     }
 
@@ -129,9 +130,9 @@ mod tests {
     }
 
     static VMT: Vmt<ITest<u32>, u32> = Vmt {
-        query_interface,
-        add_ref,
-        release,
+        QueryInterface: query_interface,
+        AddRef: add_ref,
+        Release: release,
         interface: ITest { get5 },
     };
 
