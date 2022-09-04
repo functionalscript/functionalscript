@@ -2,6 +2,8 @@
 mod test {
     use com::{CObject, Class, Interface, Object, Ref, Vmt, GUID};
 
+    // interface definition:
+
     struct IMy {
         pub a: unsafe extern "stdcall" fn(this: &Object<IMy>) -> Ref<IMy>,
         pub b: unsafe extern "stdcall" fn(this: &Object<IMy>) -> u32,
@@ -25,7 +27,7 @@ mod test {
         }
     }
 
-    trait IMyVmt: Class<Interface = IMy>
+    trait IMyClass: Class<Interface = IMy>
     where
         CObject<Self>: IMyEx,
     {
@@ -35,25 +37,25 @@ mod test {
         };
     }
 
-    impl<T: Class<Interface = IMy>> IMyVmt for T
+    impl<T: Class<Interface = IMy>> IMyClass for T
     where CObject<T>: IMyEx
     {}
 
-    extern "stdcall" fn a<T: IMyVmt>(this: &Object<IMy>) -> Ref<IMy>
+    extern "stdcall" fn a<T: IMyClass>(this: &Object<IMy>) -> Ref<IMy>
     where
         CObject<T>: IMyEx,
     {
         unsafe { T::to_cobject(this) }.a()
     }
 
-    extern "stdcall" fn b<T: IMyVmt>(this: &Object<IMy>) -> u32
+    extern "stdcall" fn b<T: IMyClass>(this: &Object<IMy>) -> u32
     where
         CObject<T>: IMyEx,
     {
         unsafe { T::to_cobject(this) }.b()
     }
 
-    //
+    // interface implementation
 
     struct X(u32);
 
