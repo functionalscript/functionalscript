@@ -6,22 +6,24 @@ pub trait Class: Sized {
     type Interface: Interface;
     const INTERFACE: Self::Interface;
     fn static_vmt() -> &'static Vmt<Self::Interface>;
-    fn vmt() -> Vmt<Self::Interface> {
-        Vmt {
-            QueryInterface: QueryInterface::<Self>,
-            AddRef: AddRef::<Self>,
-            Release: Release::<Self>,
-            interface: Self::INTERFACE,
-        }
-    }
+    const VMT: Vmt<Self::Interface> = Vmt {
+        QueryInterface: QueryInterface::<Self>,
+        AddRef: AddRef::<Self>,
+        Release: Release::<Self>,
+        interface: Self::INTERFACE,
+    };
     fn c_new(self) -> Ref<Self::Interface> {
         let c = CObject {
             vmt: Self::static_vmt(),
             counter: Default::default(),
             value: self,
         };
-        let p = Box::into_raw(Box::new(c)) as *const Object<Self::Interface>;
-        unsafe { Ref::from_raw(p) }
+        let p = Box::into_raw(Box::new(c));
+        unsafe { &*p }.to_interface().into()
+    }
+    unsafe fn to_cobject(this: &Object<Self::Interface>) -> &CObject<Self> {
+        let p = this as *const Object<Self::Interface> as *const CObject<Self>;
+        &*p
     }
 }
 
@@ -33,10 +35,7 @@ extern "stdcall" fn QueryInterface<T: Class>(
 ) -> HRESULT {
     let (p, r) = if *riid == IUnknown::GUID || *riid == T::Interface::GUID {
         AddRef::<T>(this);
-        (
-            this as *const Object<T::Interface> as *const Object<IUnknown>,
-            HRESULT::S_OK,
-        )
+        (this.to_iunknown() as *const Object<IUnknown>, HRESULT::S_OK)
     } else {
         (null(), HRESULT::E_NOINTERFACE)
     };
@@ -46,17 +45,18 @@ extern "stdcall" fn QueryInterface<T: Class>(
 
 #[allow(non_snake_case)]
 extern "stdcall" fn AddRef<T: Class>(this: &Object<T::Interface>) -> u32 {
-    let p = this as *const Object<T::Interface> as *const CObject<T>;
-    unsafe { &*p }.counter.fetch_add(1, Ordering::Relaxed) + 1
+    unsafe { T::to_cobject(this) }
+        .counter
+        .fetch_add(1, Ordering::Relaxed)
+        + 1
 }
 
 #[allow(non_snake_case)]
 extern "stdcall" fn Release<T: Class>(this: &Object<T::Interface>) -> u32 {
-    let p = this as *const Object<T::Interface> as *const CObject<T>;
-    let t = unsafe { &*p };
+    let t = unsafe { T::to_cobject(this) };
     match t.counter.fetch_sub(1, Ordering::Relaxed) {
         1 => {
-            let m = p as *mut CObject<T>;
+            let m = t as *const CObject<T> as *mut CObject<T>;
             unsafe { Box::from_raw(m) };
             0
         }
