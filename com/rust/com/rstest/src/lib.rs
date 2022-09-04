@@ -1,13 +1,9 @@
 #[cfg(test)]
 mod test {
-    use com::Class;
-
-    use self::{x::X, library::IMyEx};
-
     // interface definition:
 
     mod library {
-        use com::{Object, Interface, Ref, GUID, Class, CObject};
+        use com::{CObject, Class, Interface, Object, Ref, GUID};
 
         #[allow(non_snake_case)]
         #[repr(C)]
@@ -66,7 +62,7 @@ mod test {
 
     // interface implementation
     mod x {
-        use com::{Class, Vmt, CObject, Ref};
+        use com::{CObject, Class, Ref, Vmt};
 
         use super::library::{IMy, IMyEx, IMyVmt};
 
@@ -94,14 +90,20 @@ mod test {
         }
     }
 
-    #[test]
-    fn test() {
-        let a = X(42).cobject_new();
-        let a1 = a.A();
-        assert_eq!(a, a1);
-        assert_eq!(a.B(), 42);
-        let b = X(43).cobject_new();
-        assert_ne!(a, b);
-        assert_eq!(b.B(), 43);
+    mod using {
+        use com::Class;
+
+        use crate::test::{library::IMyEx, x::X};
+
+        #[test]
+        fn test() {
+            let a = X(42).cobject_new();
+            let a1 = a.A();
+            assert_eq!(a, a1);
+            assert_eq!(a.B(), 42);
+            let b = X(43).cobject_new();
+            assert_ne!(a, b);
+            assert_eq!(b.B(), 43);
+        }
     }
 }

@@ -1,4 +1,4 @@
-use std::{ops::Deref, fmt::Debug, cmp::Eq};
+use std::{cmp::Eq, fmt::Debug, ops::Deref};
 
 use crate::object::Object;
 
