@@ -3,7 +3,7 @@ use std::{cmp::Eq, fmt::Debug, ops::Deref};
 use crate::object::Object;
 
 #[repr(transparent)]
-pub struct Ref<I: 'static>(*const Object<I>);
+pub struct Ref<I: 'static = ()>(*const Object<I>);
 
 impl<I: 'static> Ref<I> {
     pub unsafe fn from_raw(p: *const Object<I>) -> Ref<I> {
