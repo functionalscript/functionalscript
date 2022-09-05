@@ -3,7 +3,7 @@ mod test {
     // interface definition:
 
     mod library {
-        use com::{CObject, Class, Interface, Object, Ref, GUID};
+        use nanocom::{CObject, Class, Interface, Object, Ref, GUID};
 
         #[allow(non_snake_case)]
         #[repr(C)]
@@ -62,7 +62,7 @@ mod test {
 
     // interface implementation
     mod x {
-        use com::{CObject, Class, Ref, Vmt};
+        use nanocom::{CObject, Class, Ref, Vmt};
 
         use super::library::{IMy, IMyEx, IMyVmt};
 
@@ -91,7 +91,7 @@ mod test {
     }
 
     mod using {
-        use com::Class;
+        use nanocom::Class;
 
         use crate::test::{library::IMyEx, x::X};
 
