@@ -3,10 +3,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use crate::{
-    hresult::HRESULT, iunknown::IUnknown, iunknownvmt::IUnknownVmt, Class, Interface, Object, Ref,
-    Vmt,
-};
+use crate::{hresult::HRESULT, iunknown::IUnknown, Class, Interface, Object, Ref, Vmt};
 
 #[repr(C)]
 pub struct CObject<T: Class> {
@@ -31,7 +28,7 @@ impl<T: Class> CObject<T> {
         unsafe { &*p }
     }
 
-    pub const IUNKNOWN: IUnknownVmt<T::Interface> = IUnknownVmt {
+    pub const IUNKNOWN: IUnknown<T::Interface> = IUnknown {
         QueryInterface: Self::QueryInterface,
         AddRef: Self::AddRef,
         Release: Self::Release,
@@ -41,11 +38,11 @@ impl<T: Class> CObject<T> {
     extern "stdcall" fn QueryInterface(
         this: &Object<T::Interface>,
         riid: &u128,
-        ppv_object: &mut *const Object<IUnknown>,
+        ppv_object: &mut *const Object,
     ) -> HRESULT {
-        let (p, r) = if *riid == IUnknown::GUID || *riid == T::Interface::GUID {
+        let (p, r) = if *riid == <()>::GUID || *riid == T::Interface::GUID {
             Self::AddRef(this);
-            (this.to_iunknown() as *const Object<IUnknown>, HRESULT::S_OK)
+            (this.to_iunknown() as *const Object, HRESULT::S_OK)
         } else {
             (null(), HRESULT::E_NOINTERFACE)
         };

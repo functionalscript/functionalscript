@@ -61,7 +61,7 @@ mod test {
     }
 
     // interface implementation
-    mod x {
+    mod number {
         use nanocom::{CObject, Class, Ref, Vmt};
 
         use super::library::{IMy, IMyEx, IMyVmt};
@@ -90,10 +90,10 @@ mod test {
         }
     }
 
-    mod using {
+    mod use_number {
         use nanocom::Class;
 
-        use crate::test::{library::IMyEx, x::X};
+        use crate::test::{library::IMyEx, number::X};
 
         #[test]
         fn test() {
@@ -104,6 +104,88 @@ mod test {
             let b = X(43).cobject_new();
             assert_ne!(a, b);
             assert_eq!(b.B(), 43);
+        }
+    }
+
+    mod destructor {
+        use std::{
+            rc::Rc,
+            sync::atomic::{AtomicU32, Ordering},
+        };
+
+        use nanocom::{CObject, Class, Ref, Vmt};
+
+        use super::library::{IMy, IMyEx, IMyVmt};
+
+        pub struct X {
+            p: Rc<AtomicU32>,
+        }
+
+        impl X {
+            pub fn new(p: Rc<AtomicU32>) -> Self {
+                p.fetch_add(1, Ordering::Relaxed);
+                Self { p }
+            }
+        }
+
+        impl Drop for X {
+            fn drop(&mut self) {
+                self.p.fetch_sub(1, Ordering::Relaxed);
+            }
+        }
+
+        impl Class for X {
+            type Interface = IMy;
+            fn static_vmt() -> &'static Vmt<Self::Interface> {
+                static V: Vmt<IMy> = Vmt {
+                    iunknown: X::IUNKNOWN,
+                    interface: X::INTERFACE,
+                };
+                &V
+            }
+        }
+
+        #[allow(non_snake_case)]
+        impl IMyEx for CObject<X> {
+            fn A(&self) -> Ref<IMy> {
+                self.to_interface().into()
+            }
+            fn B(&self) -> u32 {
+                self.value.p.load(Ordering::Relaxed)
+            }
+        }
+    }
+
+    mod use_destructor {
+        use std::{
+            rc::Rc,
+            sync::atomic::{AtomicU32, Ordering},
+        };
+
+        use nanocom::Class;
+
+        use crate::test::{destructor::X, library::IMyEx};
+
+        #[test]
+        fn test() {
+            let p = Rc::new(AtomicU32::default());
+            {
+                assert_eq!(p.load(Ordering::Relaxed), 0);
+                let a = X::new(p.clone()).cobject_new();
+                assert_eq!(p.load(Ordering::Relaxed), 1);
+                let a1 = a.A();
+                assert_eq!(p.load(Ordering::Relaxed), 1);
+                assert_eq!(a, a1);
+                assert_eq!(a.B(), 1);
+                {
+                    let b = X::new(p.clone()).cobject_new();
+                    assert_eq!(p.load(Ordering::Relaxed), 2);
+                    assert_ne!(a, b);
+                    assert_eq!(b.B(), 2);
+                }
+                assert_eq!(p.load(Ordering::Relaxed), 1);
+            }
+            assert_eq!(p.load(Ordering::Relaxed), 0);
         }
     }
 }

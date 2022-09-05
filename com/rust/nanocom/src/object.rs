@@ -1,21 +1,18 @@
-use crate::{
-    hresult::HRESULT, interface::Interface, iunknown::IUnknown, iunknownvmt::IUnknownVmt,
-    r#ref::Ref, vmt::Vmt,
-};
+use crate::{hresult::HRESULT, interface::Interface, iunknown::IUnknown, r#ref::Ref, vmt::Vmt};
 use std::ptr::null;
 
 #[repr(C)]
-pub struct Object<I: 'static>(&'static Vmt<I>);
+pub struct Object<I: 'static = ()>(&'static Vmt<I>);
 
 impl<I> Object<I> {
-    pub unsafe fn iunknown(&self) -> &'static IUnknownVmt<I> {
+    pub unsafe fn iunknown(&self) -> &'static IUnknown<I> {
         &self.0.iunknown
     }
     pub unsafe fn interface(&self) -> &'static I {
         &self.0.interface
     }
-    pub fn to_iunknown(&self) -> &Object<IUnknown> {
-        let p = self as *const Object<I> as *const Object<IUnknown>;
+    pub fn to_iunknown(&self) -> &Object {
+        let p = self as *const Object<I> as *const Object;
         unsafe { &*p }
     }
     pub fn query_interface<J: Interface>(&self) -> Result<Ref<J>, HRESULT> {
@@ -28,7 +25,7 @@ impl<I> Object<I> {
             e => Err(e),
         }
     }
-    pub fn query_iunknown(&self) -> Ref<IUnknown> {
+    pub fn query_iunknown(&self) -> Ref {
         self.query_interface().unwrap()
     }
 }
