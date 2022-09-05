@@ -108,7 +108,10 @@ mod test {
     }
 
     mod destructor {
-        use std::{sync::atomic::{AtomicU32, Ordering}, rc::Rc};
+        use std::{
+            rc::Rc,
+            sync::atomic::{AtomicU32, Ordering},
+        };
 
         use nanocom::{CObject, Class, Ref, Vmt};
 
@@ -154,7 +157,10 @@ mod test {
     }
 
     mod use_destructor {
-        use std::{sync::atomic::{AtomicU32, Ordering}, rc::Rc};
+        use std::{
+            rc::Rc,
+            sync::atomic::{AtomicU32, Ordering},
+        };
 
         use nanocom::Class;
 
