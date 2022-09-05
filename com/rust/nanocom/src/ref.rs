@@ -1,4 +1,4 @@
-use std::{cmp::Eq, fmt::Debug, ops::Deref};
+use std::{cmp::Eq, fmt::{Debug, Formatter}, ops::Deref};
 
 use crate::object::Object;
 
@@ -39,7 +39,7 @@ impl<I> From<&Object<I>> for Ref<I> {
 }
 
 impl<I> Debug for Ref<I> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Ref").field(&self.0).finish()
     }
 }
