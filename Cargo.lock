@@ -5,10 +5,3 @@ version = 3
 [[package]]
 name = "nanocom"
 version = "0.1.2"
-
-[[package]]
-name = "rstest"
-version = "0.1.0"
-dependencies = [
- "nanocom",
-]
