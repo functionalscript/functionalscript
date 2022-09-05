@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "com/rust/com",
-    "com/rust/com/rstest",
+    "com/rust/nanocom",
+    "com/rust/nanocom/rstest",
 ]
