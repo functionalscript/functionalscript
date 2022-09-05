@@ -3,6 +3,7 @@ name = "nanocom"
 version = "0.1.1"
 edition = "2021"
 description = "Nano-COM, extremly small subset of cross-platform COM"
+authors = ["NatFoam"]
 license = "MIT"
 homepage = "https://github.com/functionalscript/functionalscript/com/rust/nanocom"
 repository = "https://github.com/functionalscript/functionalscript"
