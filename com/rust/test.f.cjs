@@ -25,10 +25,10 @@ const library = require('../types/test.f.cjs')
         '        pub Some: unsafe extern "system" fn(this: &Object, p: &super::IMy::Object) -> bool,\n' +
         '        pub GetIMy: unsafe extern "system" fn(this: &Object) -> super::IMy::Ref,\n' +
         '    }\n' +
-        '    impl nanocom::Interface for IMy {\n' +
+        '    impl nanocom::Interface for Interface {\n' +
         '        const GUID: nanocom::GUID = 0xC66FB270_2D80_49AD_BB6E_88C1F90B805D;\n' +
         '    }\n' +
-        '    pub trait IMyEx {\n' +
+        '    pub trait Ex {\n' +
         '        fn GetSlice(&self) -> super::Slice;\n' +
         '        fn SetSlice(&self, slice: super::Slice);\n' +
         '        fn GetUnsafe(&self) -> *const bool;\n' +
