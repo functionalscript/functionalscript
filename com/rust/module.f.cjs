@@ -18,7 +18,11 @@ const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, mapRustFi
 
 const commaJoin = join(', ')
 
-const ref = 'nanocom::Ref'
+/** @type {(name: string) => string} */
+const ref = name => `super::${name}::Ref`
+
+/** @type {(name: string) => string} */
+const obj = name => `&super::${name}::Object`
 
 const self = ['&self']
 
@@ -36,18 +40,18 @@ const mapAssign = map(assign)
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
-    /** @type {(o: string) => (t: types.Type) => string} */
+    /** @type {(o: (_: string) => string) => (t: types.Type) => string} */
     const type = o => t => {
         if (typeof t === 'string') { return t }
         if (t.length === 2) { return `*const ${type(ref)(t[1])}` }
         const [id] = t
-        return library[id].interface === undefined ? id : `${o}<${id}>`
+        return library[id].interface === undefined ? `super::${id}` : o(id)
     }
 
-    /** @type {(o: string) => (f: types.Field) => string} */
+    /** @type {(o: (_: string) => string) => (f: types.Field) => string} */
     const pf = o => ([name, t]) => `${name}: ${type(o)(t)}`
 
-    const param = pf('&nanocom::Object')
+    const param = pf(obj)
 
     const mapParam = map(param)
 
@@ -90,7 +94,7 @@ const rust = library => {
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
 
-        const this_ = [param(['this', [name]])]
+        const this_ = ['this: &Object']
 
         /** @type {(m: types.Method) => string} */
         const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${func(this_)(p)}`
@@ -103,7 +107,12 @@ const rust = library => {
 
         return [
             `pub mod ${name} {`,
-            rustStruct(map(virtualFn)(e))(name),
+            [
+                'type Object = nanocom::Object<Interface>;',
+                'type Ref = nanocom::Ref<Interface>;',
+                'type Vmt = nanocom::Vmt<Interface>;',
+            ],
+            rustStruct(map(virtualFn)(e))('Interface'),
             [   `impl nanocom::Interface for ${name} {`,
                 [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
                 '}',
