@@ -37,26 +37,32 @@ const assign = ([n]) => `${n}: Self::${n},`
 
 const mapAssign = map(assign)
 
+const super_ = 'super::'
+
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
-    /** @type {(o: (_: string) => string) => (t: types.Type) => string} */
-    const type = o => t => {
-        if (typeof t === 'string') { return t }
-        if (t.length === 2) { return `*const ${type(ref)(t[1])}` }
-        const [id] = t
-        const fullId = `super::${id}`
-        return library[id].interface === undefined ? fullId : o(fullId)
+    /** @type {(p: string) => (o: (_: string) => string) => (t: types.Type) => string} */
+    const type = p => {
+        /** @type {(o: (_: string) => string) => (t: types.Type) => string} */
+        const f = o => t => {
+            if (typeof t === 'string') { return t }
+            if (t.length === 2) { return `*const ${f(ref)(t[1])}` }
+            const [id] = t
+            const fullId = `${p}${id}`
+            return library[id].interface === undefined ? fullId : o(fullId)
+        }
+        return f
     }
 
-    /** @type {(o: (_: string) => string) => (f: types.Field) => string} */
-    const pf = o => ([name, t]) => `${name}: ${type(o)(t)}`
+    /** @type {(p: string) => (o: (_: string) => string) => (f: types.Field) => string} */
+    const pf = p => o => ([name, t]) => `${name}: ${type(p)(o)(t)}`
 
-    const param = pf(obj)
+    const param = pf(super_)(obj)
 
     const mapParam = map(param)
 
-    const mapField = map(pf(ref))
+    const mapField = map(pf('')(ref))
 
     /** @type {(fa: types.FieldArray) => (name: string) => text.Block} */
     const struct = fn(entries)
@@ -67,7 +73,7 @@ const rust = library => {
     /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
     const func = first => p => {
         const result = p._
-        const resultStr = result === undefined ? '' : ` -> ${type(ref)(result)}`
+        const resultStr = result === undefined ? '' : ` -> ${type(super_)(ref)(result)}`
         const params = commaJoin(flat([first, mapParam(paramList(p))]))
         return `(${params})${resultStr}`
     }

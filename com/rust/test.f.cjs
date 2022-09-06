@@ -10,7 +10,7 @@ const library = require('../types/test.f.cjs')
         'pub struct Slice {\n' +
         '    pub Start: *const u8,\n' +
         '    pub Size: usize,\n' +
-        '    pub M: super::IMy::Ref,\n' +
+        '    pub M: IMy::Ref,\n' +
         '}\n' +
         'pub mod IMy {\n' +
         '    type Object = nanocom::Object<Interface>;\n' +
