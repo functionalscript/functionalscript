@@ -30,9 +30,29 @@ const library = require('../types/test.f.cjs')
         '    fn SetUnsafe(&self, p: *const Slice, size: u32);\n' +
         '    fn Some(&self, p: &nanocom::Object<IMy>) -> bool;\n' +
         '    fn GetIMy(&self) -> nanocom::Ref<IMy>;\n' +
+        '}\n' +
+        'impl IMyEx for nanocom::Object<IMy> {\n' +
+        '    fn GetSlice(&self) -> Slice {\n' +
+        '        unsafe { (self.interface().GetSlice)(self) }\n' +
+        '    }\n' +
+        '    fn SetSlice(&self, slice: Slice) {\n' +
+        '        unsafe { (self.interface().SetSlice)(self, slice) }\n' +
+        '    }\n' +
+        '    fn GetUnsafe(&self) -> *const bool {\n' +
+        '        unsafe { (self.interface().GetUnsafe)(self) }\n' +
+        '    }\n' +
+        '    fn SetUnsafe(&self, p: *const Slice, size: u32) {\n' +
+        '        unsafe { (self.interface().SetUnsafe)(self, p, size) }\n' +
+        '    }\n' +
+        '    fn Some(&self, p: &nanocom::Object<IMy>) -> bool {\n' +
+        '        unsafe { (self.interface().Some)(self, p) }\n' +
+        '    }\n' +
+        '    fn GetIMy(&self) -> nanocom::Ref<IMy> {\n' +
+        '        unsafe { (self.interface().GetIMy)(self) }\n' +
+        '    }\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
-    if (r !== e) { throw [e, r] }
+    if (r !== e) { throw r }
 }
 
 module.exports = {}

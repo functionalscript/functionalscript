@@ -3,7 +3,7 @@ const { paramList } = types
 const text = require('../../text/module.f.cjs')
 const object = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { flat, map } = list
+const { flat, map, flatMap } = list
 const { entries } = Object
 const { fn } = require('../../types/function/module.f.cjs')
 const { join } = require('../../types/string/module.f.cjs')
@@ -21,6 +21,12 @@ const commaJoin = join(', ')
 const ref = 'nanocom::Ref'
 
 const self = ['&self']
+
+/** @type {(p: types.Field) => string} */
+const paramName = ([n]) => n
+
+/** @type {(p: types.FieldArray) => string} */
+const call = p => commaJoin(flat([['self'], map(paramName)(paramList(p))]))
 
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
@@ -48,34 +54,56 @@ const rust = library => {
         .then(rustStruct)
         .result
 
+    /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
+    const func = first => p => {
+        const result = p._
+        const resultStr = result === undefined ? '' : ` -> ${type(ref)(result)}`
+        const params = commaJoin(flat([first, mapParam(paramList(p))]))
+        return `(${params})${resultStr}`
+    }
+
+    /** @type {(m: types.Method) => string} */
+    const headerFn = ([n, p]) => `fn ${n}${func(self)(p)}`
+
+    /** @type {(m: types.Method) => string} */
+    const traitFn = m => `${headerFn(m)};`
+
+    const mapTraitFn = map(traitFn)
+
+    /** @type {(m: types.Method) => text.Block} */
+    const implFn = m => {
+        const [n, p] = m
+        return [
+            `${headerFn(m)} {`,
+            [`unsafe { (self.interface().${n})(${call(p)}) }`],
+            '}'
+        ]
+    }
+
+    const flatMapImplFn = flatMap(implFn)
+
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
 
         const this_ = [param(['this', [name]])]
 
-        /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
-        const fn = first => p => {
-            const result = p._
-            const resultStr = result === undefined ? '' : ` -> ${type(ref)(result)}`
-            const params = commaJoin(flat([first, mapParam(paramList(p))]))
-            return `(${params})${resultStr}`
-        }
-
         /** @type {(m: types.Method) => string} */
-        const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${fn(this_)(p)}`
-
-        /** @type {(m: types.Method) => string} */
-        const traitFn = ([n, p]) => `fn ${n}${fn(self)(p)};`
+        const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${func(this_)(p)}`
 
         const e = entries(i)
+
+        const nameEx = `${name}Ex`
 
         return flat([
             rustStruct(map(virtualFn)(e))(name),
             [   `impl nanocom::Interface for ${name} {`,
                 [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
                 '}',
-                `pub trait ${name}Ex {`,
-                map(traitFn)(e),
+                `pub trait ${nameEx} {`,
+                mapTraitFn(e),
+                '}',
+                `impl ${nameEx} for nanocom::Object<${name}> {`,
+                flatMapImplFn(e),
                 '}'
             ]
         ])
@@ -84,7 +112,7 @@ const rust = library => {
     /** @type {(type: object.Entry<types.Definition>) => text.Block} */
     const def = ([name, type]) => (type.interface === undefined ? struct(type.struct) : interface_(type))(name)
 
-    return flat([['#![allow(non_snake_case)]'], flat(map(def)(entries(library)))])
+    return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])
 }
 
 module.exports = {
