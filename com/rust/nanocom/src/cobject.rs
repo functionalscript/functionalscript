@@ -35,7 +35,7 @@ impl<T: Class> CObject<T> {
     };
 
     #[allow(non_snake_case)]
-    extern "stdcall" fn QueryInterface(
+    extern "system" fn QueryInterface(
         this: &Object<T::Interface>,
         riid: &u128,
         ppv_object: &mut *const Object,
@@ -51,7 +51,7 @@ impl<T: Class> CObject<T> {
     }
 
     #[allow(non_snake_case)]
-    extern "stdcall" fn AddRef(this: &Object<T::Interface>) -> u32 {
+    extern "system" fn AddRef(this: &Object<T::Interface>) -> u32 {
         unsafe { T::to_cobject(this) }
             .counter
             .fetch_add(1, Ordering::Relaxed)
@@ -59,7 +59,7 @@ impl<T: Class> CObject<T> {
     }
 
     #[allow(non_snake_case)]
-    extern "stdcall" fn Release(this: &Object<T::Interface>) -> u32 {
+    extern "system" fn Release(this: &Object<T::Interface>) -> u32 {
         let t = unsafe { T::to_cobject(this) };
         match t.counter.fetch_sub(1, Ordering::Relaxed) {
             1 => {
