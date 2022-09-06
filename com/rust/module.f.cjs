@@ -19,10 +19,10 @@ const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, mapRustFi
 const commaJoin = join(', ')
 
 /** @type {(name: string) => string} */
-const ref = name => `super::${name}::Ref`
+const ref = name => `${name}::Ref`
 
 /** @type {(name: string) => string} */
-const obj = name => `&super::${name}::Object`
+const obj = name => `&${name}::Object`
 
 const self = ['&self']
 
@@ -45,7 +45,8 @@ const rust = library => {
         if (typeof t === 'string') { return t }
         if (t.length === 2) { return `*const ${type(ref)(t[1])}` }
         const [id] = t
-        return library[id].interface === undefined ? `super::${id}` : o(id)
+        const fullId = `super::${id}`
+        return library[id].interface === undefined ? fullId : o(fullId)
     }
 
     /** @type {(o: (_: string) => string) => (f: types.Field) => string} */
