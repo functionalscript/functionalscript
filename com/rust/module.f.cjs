@@ -26,7 +26,7 @@ const mapField = map(field)
 const struct = fa => rustStruct(mapField(entries(fa)))
 
 /** @type {(m: types.Method) => string} */
-const method = ([name, m]) => `${name}: extern "system" fn(),`
+const method = ([name, m]) => `${name}: extern "system" fn(this: &nanocom::Object),`
 
 const mapMethod = map(method)
 
