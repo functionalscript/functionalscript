@@ -56,9 +56,9 @@ const library = require('../types/test.f.cjs')
         '            unsafe { (self.interface().GetIMy)(self) }\n' +
         '        }\n' +
         '    }\n' +
-        '    pub trait IMyVmt: nanocom::Class<Interface = IMy>\n' +
+        '    pub trait ClassEx: nanocom::Class<Interface = Interface>\n' +
         '    where\n' +
-        '        nanocom::CObject<Self>: IMyEx,\n' +
+        '        nanocom::CObject<Self>: Ex,\n' +
         '    {\n' +
         '        const INTERFACE: IMy = IMy {\n' +
         '            GetSlice: Self::GetSlice,\n' +

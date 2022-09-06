@@ -32,7 +32,7 @@ mod library {
             }
         }
 
-        pub trait Class: nanocom::Class<Interface = Interface>
+        pub trait ClassEx: nanocom::Class<Interface = Interface>
         where
             nanocom::CObject<Self>: Ex,
         {
@@ -42,9 +42,9 @@ mod library {
             };
         }
 
-        impl<T: nanocom::Class<Interface = Interface>> Class for T where nanocom::CObject<T>: Ex {}
+        impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}
 
-        trait PrivateClass: nanocom::Class<Interface = Interface>
+        trait PrivateClassEx: nanocom::Class<Interface = Interface>
         where
             nanocom::CObject<Self>: Ex,
         {
@@ -56,7 +56,7 @@ mod library {
             }
         }
 
-        impl<T: nanocom::Class<Interface = Interface>> PrivateClass for T where nanocom::CObject<T>: Ex {}
+        impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}
     }
 }
 
@@ -64,7 +64,7 @@ mod library {
 mod number {
     use nanocom::{CObject, Vmt};
 
-    use crate::library::IMy::Class;
+    use crate::library::IMy::ClassEx;
 
     use super::library::IMy;
 
@@ -118,7 +118,7 @@ mod destructor {
 
     use nanocom::{CObject, Vmt};
 
-    use crate::library::IMy::Class;
+    use crate::library::IMy::ClassEx;
 
     use super::library::IMy;
 
