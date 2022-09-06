@@ -16,8 +16,8 @@ const library = require('../types/test.f.cjs')
         '    SetSlice: extern "system" fn(this: &nanocom::Object<IMy>, slice: Slice),\n' +
         '    GetUnsafe: extern "system" fn(this: &nanocom::Object<IMy>) -> *const bool,\n' +
         '    SetUnsafe: extern "system" fn(this: &nanocom::Object<IMy>, p: *const Slice, size: u32),\n' +
-        '    Some: extern "system" fn(this: &nanocom::Object<IMy>, p: IMy) -> bool,\n' +
-        '    GetIMy: extern "system" fn(this: &nanocom::Object<IMy>) -> IMy,\n' +
+        '    Some: extern "system" fn(this: &nanocom::Object<IMy>, p: &nanocom::Object<IMy>) -> bool,\n' +
+        '    GetIMy: extern "system" fn(this: &nanocom::Object<IMy>) -> nanocom::Ref<IMy>,\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw [e, r] }

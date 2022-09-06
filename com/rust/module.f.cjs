@@ -14,45 +14,63 @@ const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, b, `}`]
 /** @type {(t: types.BaseType) => string} */
 const baseType = t => t
 
-/** @type {(t: types.Id) => string} */
-const id = ([t]) => t
-
-/** @type {(t: types.Type) => string} */
-const type = t => typeof t === 'string' ? baseType(t) : t.length === 2 ? `*const ${type(t[1])}` : id(t)
-
-/** @type {(f: types.Field) => string} */
-const param = ([name, t]) => `${name}: ${type(t)}`
-
-const mapParam = map(param)
-
-/** @type {(f: types.Field) => string} */
-const field = f => `${param(f)},`
-
-const mapField = map(field)
-
-/** @type {(fa: types.FieldArray) => (name: string) => text.Block} */
-const struct = fa => rustStruct(mapField(entries(fa)))
-
 const commaJoin = join(', ')
 
-/** @type {(i: types.Interface) => (name: string) => text.Block} */
-const interface_ = ({interface: i}) => name => {
-    const this_ = [`this: &nanocom::Object<${name}>`]
-    /** @type {(m: types.Method) => string} */
-    const method = ([n, p]) => {
-        const r = p._
-        const s = r === undefined ? '' : ` -> ${type(r)}`
-        const rp = commaJoin(flat([this_, mapParam(paramList(p))]))
-        return `${n}: extern "system" fn(${rp})${s},`
-    }
-    return rustStruct(map(method)(entries(i)))(name)
-}
-
-/** @type {(type: object.Entry<types.Definition>) => text.Block} */
-const def = ([name, type]) => (type.interface === undefined ? struct(type.struct) : interface_(type))(name)
+const ref = 'nanocom::Ref'
 
 /** @type {(library: types.Library) => text.Block} */
-const rust = fn(entries).then(map(def)).then(flat).result
+const rust = library => {
+
+    // /** @type {(o: string) => (t: string) => string} */
+    // const id = o => t =>
+
+    /** @type {(o: string) => (t: types.Type) => string} */
+    const type = o => t => {
+        if (typeof t === 'string') { return baseType(t) }
+        if (t.length === 2) { return `*const ${type(ref)(t[1])}` }
+        const [id] = t
+        return library[id].interface === undefined ? id : `${o}<${id}>`
+    }
+
+    /** @type {(o: string) => (f: types.Field) => string} */
+    const pf = o => ([name, t]) => `${name}: ${type(o)(t)}`
+
+    const param = pf('&nanocom::Object')
+
+    const mapParam = map(param)
+
+    /** @type {(f: types.Field) => string} */
+    const field = f => `${pf(ref)(f)},`
+
+    const mapField = map(field)
+
+    /** @type {(fa: types.FieldArray) => (name: string) => text.Block} */
+    const struct = fn(entries)
+        .then(mapField)
+        .then(rustStruct)
+        .result
+
+    /** @type {(i: types.Interface) => (name: string) => text.Block} */
+    const interface_ = ({ interface: i }) => name => {
+
+        const this_ = [param(['this', [name]])]
+
+        /** @type {(m: types.Method) => string} */
+        const method = ([n, p]) => {
+            const result = p._
+            const resultStr = result === undefined ? '' : ` -> ${type(ref)(result)}`
+            const params = commaJoin(flat([this_, mapParam(paramList(p))]))
+            return `${n}: extern "system" fn(${params})${resultStr},`
+        }
+
+        return rustStruct(map(method)(entries(i)))(name)
+    }
+
+    /** @type {(type: object.Entry<types.Definition>) => text.Block} */
+    const def = ([name, type]) => (type.interface === undefined ? struct(type.struct) : interface_(type))(name)
+
+    return flat(map(def)(entries(library)))
+}
 
 module.exports = {
     /** @readonly */
