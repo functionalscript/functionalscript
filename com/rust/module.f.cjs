@@ -101,28 +101,33 @@ const rust = library => {
 
         const nameVmt = `${name}Vmt`
 
-        return flat([
-            rustStruct(map(virtualFn)(e))(name),
-            [   `impl nanocom::Interface for ${name} {`,
-                [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
-                '}',
-                `pub trait ${nameEx} {`,
-                mapTraitFn(e),
-                '}',
-                `impl ${nameEx} for nanocom::Object<${name}> {`,
-                flatMapImplFn(e),
-                '}',
-                `pub trait ${nameVmt}: nanocom::Class<Interface = ${name}>`,
-                'where',
-                [   `nanocom::CObject<Self>: ${nameEx},`],
-                '{',
-                [   `const INTERFACE: ${name} = ${name} {`,
-                    mapAssign(e),
-                    '};'
-                ],
-                '}'
-            ]
-        ])
+        return [
+            `pub mod ${name} {`,
+            flat([
+                rustStruct(map(virtualFn)(e))(name),
+                [   `impl nanocom::Interface for ${name} {`,
+                    [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
+                    '}',
+                    `pub trait ${nameEx} {`,
+                    mapTraitFn(e),
+                    '}',
+                    `impl ${nameEx} for nanocom::Object<${name}> {`,
+                    flatMapImplFn(e),
+                    '}',
+                    `pub trait ${nameVmt}: nanocom::Class<Interface = ${name}>`,
+                    'where',
+                    [   `nanocom::CObject<Self>: ${nameEx},`],
+                    '{',
+                    [   `const INTERFACE: ${name} = ${name} {`,
+                        mapAssign(e),
+                        '};'
+                    ],
+                    '}'
+
+                ]
+            ]),
+            '}'
+        ]
     }
 
     /** @type {(type: object.Entry<types.Definition>) => text.Block} */
