@@ -7,7 +7,6 @@ const x: u32 = 0;
 mod library {
     use nanocom::{CObject, Class, Interface, Object, Ref, GUID};
 
-
     #[repr(C)]
     pub struct IMy {
         pub A: unsafe extern "stdcall" fn(this: &Object<IMy>) -> Ref<IMy>,

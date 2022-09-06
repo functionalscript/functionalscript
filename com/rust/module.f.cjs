@@ -94,6 +94,8 @@ const rust = library => {
 
         const nameEx = `${name}Ex`
 
+        const nameVmt = `${name}Vmt`
+
         return flat([
             rustStruct(map(virtualFn)(e))(name),
             [   `impl nanocom::Interface for ${name} {`,
@@ -104,6 +106,11 @@ const rust = library => {
                 '}',
                 `impl ${nameEx} for nanocom::Object<${name}> {`,
                 flatMapImplFn(e),
+                '}',
+                `pub trait ${nameVmt}: nanocom::Class<Interface = ${name}>`,
+                'where',
+                [   `nanocom::CObject<Self>: ${nameEx},`],
+                '{',
                 '}'
             ]
         ])

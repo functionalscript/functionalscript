@@ -50,6 +50,11 @@ const library = require('../types/test.f.cjs')
         '    fn GetIMy(&self) -> nanocom::Ref<IMy> {\n' +
         '        unsafe { (self.interface().GetIMy)(self) }\n' +
         '    }\n' +
+        '}\n' +
+        'pub trait IMyVmt: nanocom::Class<Interface = IMy>\n' +
+        'where\n' +
+        '    nanocom::CObject<Self>: IMyEx,\n' +
+        '{\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw r }
