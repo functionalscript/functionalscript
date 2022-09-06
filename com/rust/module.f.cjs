@@ -11,9 +11,6 @@ const { join } = require('../../types/string/module.f.cjs')
 /** @type {(b: text.Block) => (name: string) => text.Block} */
 const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, b, `}`]
 
-/** @type {(t: types.BaseType) => string} */
-const baseType = t => t
-
 const commaJoin = join(', ')
 
 const ref = 'nanocom::Ref'
@@ -21,12 +18,9 @@ const ref = 'nanocom::Ref'
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
-    // /** @type {(o: string) => (t: string) => string} */
-    // const id = o => t =>
-
     /** @type {(o: string) => (t: types.Type) => string} */
     const type = o => t => {
-        if (typeof t === 'string') { return baseType(t) }
+        if (typeof t === 'string') { return t }
         if (t.length === 2) { return `*const ${type(ref)(t[1])}` }
         const [id] = t
         return library[id].interface === undefined ? id : `${o}<${id}>`
