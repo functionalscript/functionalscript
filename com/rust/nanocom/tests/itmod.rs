@@ -3,71 +3,77 @@
 // interface definition:
 
 mod library {
-    use nanocom::{CObject, Class, Interface, Object, Ref, GUID};
+    pub mod IMy {
+        pub type Object = nanocom::Object<Interface>;
+        pub type Ref = nanocom::Ref<Interface>;
+        pub type Vmt = nanocom::Vmt<Interface>;
 
-    #[repr(C)]
-    pub struct IMy {
-        pub A: unsafe extern "system" fn(this: &Object<IMy>) -> Ref<IMy>,
-        pub B: unsafe extern "system" fn(this: &Object<IMy>) -> u32,
-    }
-
-    impl Interface for IMy {
-        const GUID: GUID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
-    }
-
-    pub trait IMyEx {
-        fn A(&self) -> Ref<IMy>;
-        fn B(&self) -> u32;
-    }
-
-    impl IMyEx for Object<IMy> {
-        fn A(&self) -> Ref<IMy> {
-            unsafe { (self.interface().A)(self) }
+        #[repr(C)]
+        pub struct Interface {
+            pub A: unsafe extern "system" fn(this: &Object) -> Ref,
+            pub B: unsafe extern "system" fn(this: &Object) -> u32,
         }
-        fn B(&self) -> u32 {
-            unsafe { (self.interface().B)(self) }
+
+        impl nanocom::Interface for Interface {
+            const GUID: nanocom::GUID = 0x01234567_89AB_CDEF_0123_456789ABCDEF;
         }
-    }
 
-    pub trait IMyVmt: Class<Interface = IMy>
-    where
-        CObject<Self>: IMyEx,
-    {
-        const INTERFACE: IMy = IMy {
-            A: Self::A,
-            B: Self::B,
-        };
-    }
-
-    impl<T: Class<Interface = IMy>> IMyVmt for T where CObject<T>: IMyEx {}
-
-    trait IMyVmtFn: Class<Interface = IMy>
-    where
-        CObject<Self>: IMyEx,
-    {
-        extern "system" fn A(this: &Object<IMy>) -> Ref<IMy> {
-            unsafe { Self::to_cobject(this) }.A()
+        pub trait Ex {
+            fn A(&self) -> Ref;
+            fn B(&self) -> u32;
         }
-        extern "system" fn B(this: &Object<IMy>) -> u32 {
-            unsafe { Self::to_cobject(this) }.B()
-        }
-    }
 
-    impl<T: Class<Interface = IMy>> IMyVmtFn for T where CObject<T>: IMyEx {}
+        impl Ex for Object {
+            fn A(&self) -> Ref {
+                unsafe { (self.interface().A)(self) }
+            }
+            fn B(&self) -> u32 {
+                unsafe { (self.interface().B)(self) }
+            }
+        }
+
+        pub trait Class: nanocom::Class<Interface = Interface>
+        where
+            nanocom::CObject<Self>: Ex,
+        {
+            const INTERFACE: Interface = Interface {
+                A: Self::A,
+                B: Self::B,
+            };
+        }
+
+        impl<T: nanocom::Class<Interface = Interface>> Class for T where nanocom::CObject<T>: Ex {}
+
+        trait PrivateClass: nanocom::Class<Interface = Interface>
+        where
+            nanocom::CObject<Self>: Ex,
+        {
+            extern "system" fn A(this: &Object) -> Ref {
+                unsafe { Self::to_cobject(this) }.A()
+            }
+            extern "system" fn B(this: &Object) -> u32 {
+                unsafe { Self::to_cobject(this) }.B()
+            }
+        }
+
+        impl<T: nanocom::Class<Interface = Interface>> PrivateClass for T where nanocom::CObject<T>: Ex {}
+    }
 }
 
 // interface implementation
 mod number {
-    use nanocom::{CObject, Class, Ref, Vmt};
+    use nanocom::{CObject, Vmt};
 
-    use super::library::{IMy, IMyEx, IMyVmt};
+    use crate::library::IMy::Class;
+
+    use super::library::IMy;
 
     pub struct X(pub u32);
 
-    impl Class for X {
-        type Interface = IMy;
+    impl nanocom::Class for X {
+        type Interface = IMy::Interface;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
-            static V: Vmt<IMy> = Vmt {
+            static V: IMy::Vmt = Vmt {
                 iunknown: X::IUNKNOWN,
                 interface: X::INTERFACE,
             };
@@ -75,9 +81,8 @@ mod number {
         }
     }
 
-    #[allow(non_snake_case)]
-    impl IMyEx for CObject<X> {
-        fn A(&self) -> Ref<IMy> {
+    impl IMy::Ex for CObject<X> {
+        fn A(&self) -> IMy::Ref {
             self.to_interface().into()
         }
         fn B(&self) -> u32 {
@@ -89,7 +94,9 @@ mod number {
 mod use_number {
     use nanocom::Class;
 
-    use super::{library::IMyEx, number::X};
+    use crate::library::IMy::Ex;
+
+    use super::number::X;
 
     #[test]
     fn test() {
@@ -109,9 +116,11 @@ mod destructor {
         sync::atomic::{AtomicU32, Ordering},
     };
 
-    use nanocom::{CObject, Class, Ref, Vmt};
+    use nanocom::{CObject, Vmt};
 
-    use super::library::{IMy, IMyEx, IMyVmt};
+    use crate::library::IMy::Class;
+
+    use super::library::IMy;
 
     pub struct X {
         p: Rc<AtomicU32>,
@@ -130,10 +139,10 @@ mod destructor {
         }
     }
 
-    impl Class for X {
-        type Interface = IMy;
+    impl nanocom::Class for X {
+        type Interface = IMy::Interface;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
-            static V: Vmt<IMy> = Vmt {
+            static V: IMy::Vmt = Vmt {
                 iunknown: X::IUNKNOWN,
                 interface: X::INTERFACE,
             };
@@ -141,9 +150,8 @@ mod destructor {
         }
     }
 
-    #[allow(non_snake_case)]
-    impl IMyEx for CObject<X> {
-        fn A(&self) -> Ref<IMy> {
+    impl IMy::Ex for CObject<X> {
+        fn A(&self) -> IMy::Ref {
             self.to_interface().into()
         }
         fn B(&self) -> u32 {
@@ -160,7 +168,9 @@ mod use_destructor {
 
     use nanocom::Class;
 
-    use super::{destructor::X, library::IMyEx};
+    use crate::library::IMy::Ex;
+
+    use super::destructor::X;
 
     #[test]
     fn test() {

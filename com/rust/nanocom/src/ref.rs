@@ -1,4 +1,8 @@
-use std::{cmp::Eq, fmt::{Debug, Formatter}, ops::Deref};
+use std::{
+    cmp::Eq,
+    fmt::{Debug, Formatter},
+    ops::Deref,
+};
 
 use crate::object::Object;
 
