@@ -55,6 +55,14 @@ const library = require('../types/test.f.cjs')
         'where\n' +
         '    nanocom::CObject<Self>: IMyEx,\n' +
         '{\n' +
+        '    const INTERFACE: IMy = IMy {\n' +
+        '        GetSlice: Self::GetSlice,\n' +
+        '        SetSlice: Self::SetSlice,\n' +
+        '        GetUnsafe: Self::GetUnsafe,\n' +
+        '        SetUnsafe: Self::SetUnsafe,\n' +
+        '        Some: Self::Some,\n' +
+        '        GetIMy: Self::GetIMy,\n' +
+        '    };\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw r }

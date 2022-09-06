@@ -28,6 +28,11 @@ const paramName = ([n]) => n
 /** @type {(p: types.FieldArray) => string} */
 const call = p => commaJoin(flat([['self'], map(paramName)(paramList(p))]))
 
+/** @type {(m: types.Method) => string} */
+const assign = ([n]) => `${n}: Self::${n},`
+
+const mapAssign = map(assign)
+
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
@@ -111,6 +116,10 @@ const rust = library => {
                 'where',
                 [   `nanocom::CObject<Self>: ${nameEx},`],
                 '{',
+                [   `const INTERFACE: ${name} = ${name} {`,
+                    mapAssign(e),
+                    '};'
+                ],
                 '}'
             ]
         ])
