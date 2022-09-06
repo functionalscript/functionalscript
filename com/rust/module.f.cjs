@@ -20,6 +20,8 @@ const commaJoin = join(', ')
 
 const ref = 'nanocom::Ref'
 
+const self = ['&self']
+
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
@@ -51,18 +53,29 @@ const rust = library => {
 
         const this_ = [param(['this', [name]])]
 
-        /** @type {(m: types.Method) => string} */
-        const method = ([n, p]) => {
+        /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
+        const fn = first => p => {
             const result = p._
             const resultStr = result === undefined ? '' : ` -> ${type(ref)(result)}`
-            const params = commaJoin(flat([this_, mapParam(paramList(p))]))
-            return `${n}: extern "system" fn(${params})${resultStr}`
+            const params = commaJoin(flat([first, mapParam(paramList(p))]))
+            return `(${params})${resultStr}`
         }
 
+        /** @type {(m: types.Method) => string} */
+        const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${fn(this_)(p)}`
+
+        /** @type {(m: types.Method) => string} */
+        const traitFn = ([n, p]) => `fn ${n}${fn(self)(p)};`
+
+        const e = entries(i)
+
         return flat([
-            rustStruct(map(method)(entries(i)))(name),
+            rustStruct(map(virtualFn)(e))(name),
             [   `impl nanocom::Interface for ${name} {`,
                 [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
+                '}',
+                `pub trait ${name}Ex {`,
+                map(traitFn)(e),
                 '}'
             ]
         ])
