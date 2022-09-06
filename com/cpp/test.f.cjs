@@ -15,6 +15,7 @@ const f = () =>
         '    {\n' +
         '        uint8_t* Start;\n' +
         '        size_t Size;\n' +
+        '        ::com::ref<IMy> M;\n' +
         '    };\n' +
         '    struct IMy: ::com::IUnknown\n' +
         '    {\n' +

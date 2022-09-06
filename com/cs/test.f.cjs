@@ -17,6 +17,7 @@ const f = () =>
         '    {\n' +
         '        public unsafe byte* Start;\n' +
         '        public UIntPtr Size;\n' +
+        '        public IMy M;\n' +
         '    }\n' +
         '    [Guid("C66FB270-2D80-49AD-BB6E-88C1F90B805D")]\n' +
         '    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\n' +
