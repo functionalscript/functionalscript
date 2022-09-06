@@ -8,8 +8,13 @@ const { entries } = Object
 const { fn } = require('../../types/function/module.f.cjs')
 const { join } = require('../../types/string/module.f.cjs')
 
-/** @type {(b: text.Block) => (name: string) => text.Block} */
-const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, b, `}`]
+/** @type {(field: string) => string} */
+const rustField = field => `pub ${field},`
+
+const mapRustField = map(rustField)
+
+/** @type {(b: list.Thunk<string>) => (name: string) => text.Block} */
+const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, mapRustField(b), `}`]
 
 const commaJoin = join(', ')
 
@@ -33,10 +38,7 @@ const rust = library => {
 
     const mapParam = map(param)
 
-    /** @type {(f: types.Field) => string} */
-    const field = f => `${pf(ref)(f)},`
-
-    const mapField = map(field)
+    const mapField = map(pf(ref))
 
     /** @type {(fa: types.FieldArray) => (name: string) => text.Block} */
     const struct = fn(entries)
@@ -45,7 +47,7 @@ const rust = library => {
         .result
 
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
-    const interface_ = ({ interface: i }) => name => {
+    const interface_ = ({ interface: i, guid }) => name => {
 
         const this_ = [param(['this', [name]])]
 
@@ -54,16 +56,22 @@ const rust = library => {
             const result = p._
             const resultStr = result === undefined ? '' : ` -> ${type(ref)(result)}`
             const params = commaJoin(flat([this_, mapParam(paramList(p))]))
-            return `${n}: extern "system" fn(${params})${resultStr},`
+            return `${n}: extern "system" fn(${params})${resultStr}`
         }
 
-        return rustStruct(map(method)(entries(i)))(name)
+        return flat([
+            rustStruct(map(method)(entries(i)))(name),
+            [   `impl nanocom::Interface for ${name} {`,
+                [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
+                '}'
+            ]
+        ])
     }
 
     /** @type {(type: object.Entry<types.Definition>) => text.Block} */
     const def = ([name, type]) => (type.interface === undefined ? struct(type.struct) : interface_(type))(name)
 
-    return flat(map(def)(entries(library)))
+    return flat([['#![allow(non_snake_case)]'], flat(map(def)(entries(library)))])
 }
 
 module.exports = {

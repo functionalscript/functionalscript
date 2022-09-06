@@ -1,9 +1,13 @@
+#![allow(non_snake_case)]
+
+const x: u32 = 0;
+
 // interface definition:
 
 mod library {
     use nanocom::{CObject, Class, Interface, Object, Ref, GUID};
 
-    #[allow(non_snake_case)]
+
     #[repr(C)]
     pub struct IMy {
         pub A: unsafe extern "stdcall" fn(this: &Object<IMy>) -> Ref<IMy>,
