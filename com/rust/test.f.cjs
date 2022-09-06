@@ -12,12 +12,12 @@ const library = require('../types/test.f.cjs')
         '}\n' +
         '#[repr(C)]\n' +
         'pub struct IMy {\n' +
-        '    GetSlice: extern "system" fn(this: &nanocom::Object<IMy>),\n' +
+        '    GetSlice: extern "system" fn(this: &nanocom::Object<IMy>) -> Slice,\n' +
         '    SetSlice: extern "system" fn(this: &nanocom::Object<IMy>),\n' +
-        '    GetUnsafe: extern "system" fn(this: &nanocom::Object<IMy>),\n' +
+        '    GetUnsafe: extern "system" fn(this: &nanocom::Object<IMy>) -> *const bool,\n' +
         '    SetUnsafe: extern "system" fn(this: &nanocom::Object<IMy>),\n' +
-        '    Some: extern "system" fn(this: &nanocom::Object<IMy>),\n' +
-        '    GetIMy: extern "system" fn(this: &nanocom::Object<IMy>),\n' +
+        '    Some: extern "system" fn(this: &nanocom::Object<IMy>) -> bool,\n' +
+        '    GetIMy: extern "system" fn(this: &nanocom::Object<IMy>) -> IMy,\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw [e, r] }

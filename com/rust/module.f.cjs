@@ -28,7 +28,11 @@ const struct = fa => rustStruct(mapField(entries(fa)))
 /** @type {(i: types.Interface) => (name: string) => text.Block} */
 const interface_ = ({interface: i}) => name => {
     /** @type {(m: types.Method) => string} */
-    const method = ([n, m]) => `${n}: extern "system" fn(this: &nanocom::Object<${name}>),`
+    const method = ([n, m]) => {
+        const r = m._
+        const s = r === undefined ? '' : ` -> ${type(r)}`
+        return `${n}: extern "system" fn(this: &nanocom::Object<${name}>)${s},`
+    }
     return rustStruct(map(method)(entries(i)))(name)
 }
 
