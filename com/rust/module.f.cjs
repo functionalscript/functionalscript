@@ -25,13 +25,12 @@ const mapField = map(field)
 /** @type {(fa: types.FieldArray) => (name: string) => text.Block} */
 const struct = fa => rustStruct(mapField(entries(fa)))
 
-/** @type {(m: types.Method) => string} */
-const method = ([name, m]) => `${name}: extern "system" fn(this: &nanocom::Object),`
-
-const mapMethod = map(method)
-
 /** @type {(i: types.Interface) => (name: string) => text.Block} */
-const interface_ = ({interface: i}) => rustStruct(mapMethod(entries(i)))
+const interface_ = ({interface: i}) => name => {
+    /** @type {(m: types.Method) => string} */
+    const method = ([n, m]) => `${n}: extern "system" fn(this: &nanocom::Object<${name}>),`
+    return rustStruct(map(method)(entries(i)))(name)
+}
 
 /** @type {(type: object.Entry<types.Definition>) => text.Block} */
 const def = ([name, type]) => (type.interface === undefined ? struct(type.struct) : interface_(type))(name)
