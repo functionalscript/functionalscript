@@ -63,7 +63,7 @@ const library = require('../types/test.f.cjs')
         '        Some: Self::Some,\n' +
         '        GetIMy: Self::GetIMy,\n' +
         '    };\n' +
-        '}\n'
+        '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw r }
 }
