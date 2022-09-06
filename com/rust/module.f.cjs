@@ -126,7 +126,7 @@ const rust = library => {
                 'pub trait Ex {',
                 mapTraitFn(e),
                 '}',
-                `impl ${nameEx} for nanocom::Object<${name}> {`,
+                'impl Ex for Object {',
                 flatMapImplFn(e),
                 '}',
                 `pub trait ${nameVmt}: nanocom::Class<Interface = ${name}>`,

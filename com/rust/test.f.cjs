@@ -36,7 +36,7 @@ const library = require('../types/test.f.cjs')
         '        fn Some(&self, p: &super::IMy::Object) -> bool;\n' +
         '        fn GetIMy(&self) -> super::IMy::Ref;\n' +
         '    }\n' +
-        '    impl IMyEx for nanocom::Object<IMy> {\n' +
+        '    impl Ex for Object {\n' +
         '        fn GetSlice(&self) -> super::Slice {\n' +
         '            unsafe { (self.interface().GetSlice)(self) }\n' +
         '        }\n' +
