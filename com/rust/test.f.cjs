@@ -60,7 +60,7 @@ const library = require('../types/test.f.cjs')
         '    where\n' +
         '        nanocom::CObject<Self>: Ex,\n' +
         '    {\n' +
-        '        const INTERFACE: IMy = IMy {\n' +
+        '        const INTERFACE: Interface = Interface {\n' +
         '            GetSlice: Self::GetSlice,\n' +
         '            SetSlice: Self::SetSlice,\n' +
         '            GetUnsafe: Self::GetUnsafe,\n' +

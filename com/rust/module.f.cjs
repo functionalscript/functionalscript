@@ -133,7 +133,7 @@ const rust = library => {
                 'where',
                 [   'nanocom::CObject<Self>: Ex,'],
                 '{',
-                [   `const INTERFACE: ${name} = ${name} {`,
+                [   `const INTERFACE: Interface = Interface {`,
                     mapAssign(e),
                     '};'
                 ],
