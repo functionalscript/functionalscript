@@ -137,7 +137,8 @@ const rust = library => {
                     mapAssign(e),
                     '};'
                 ],
-                '}'
+                '}',
+                'impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}',
             ],
             '}'
         ]

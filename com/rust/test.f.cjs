@@ -69,6 +69,7 @@ const library = require('../types/test.f.cjs')
         '            GetIMy: Self::GetIMy,\n' +
         '        };\n' +
         '    }\n' +
+        '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw [e, r] }
