@@ -13,7 +13,7 @@ const set = n => s => s | (1n << BigInt(n))
 const unset = n => s => s & ~(1n << BigInt(n))
 
 /** @type {(r: readonly[number, number]) => (s: byteSet) => byteSet} */
-// const setRange = r => s =>
+ const setRange = r => s => s | ((1n << BigInt(r[1] - r[0] + 1)) - 1n << BigInt(r[0]))
 
 // how to define FA???
 // const stateA = [init, set] ????
@@ -27,4 +27,6 @@ module.exports = {
     set,
     /** @readonly */
     unset,
+    /** @readonly */
+    setRange
 }

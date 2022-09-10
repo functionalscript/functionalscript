@@ -39,6 +39,11 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== 0n) { throw result }
 }
 
+{
+    const result = _.setRange([2, 5])(_.empty)
+    if (result !== 60n) { throw result }
+}
+
 module.exports = {
 
 }
