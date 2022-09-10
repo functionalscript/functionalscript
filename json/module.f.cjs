@@ -1,10 +1,10 @@
 const list = require('../types/list/module.f.cjs')
-const { next, flat, reduce: fold, map } = list
+const { next, flat, reduce, map, empty } = list
 const { concat } = require('../types/string/module.f.cjs')
 const object = require('../types/object/module.f.cjs')
 const { at } = object
 const operator = require('../types/function/operator/module.f.cjs')
-const { compose } = require('../types/function/module.f.cjs')
+const { compose, fn } = require('../types/function/module.f.cjs')
 const { entries } = Object
 
 /**
@@ -54,7 +54,7 @@ const comma = [',']
 const joinOp = b => prior => flat([prior, comma, b])
 
 /** @type {(input: list.List<list.List<string>>) => list.List<string>} */
-const join = fold(joinOp)([])
+const join = reduce(joinOp)(empty)
 
 /** @type {(open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>} */
 const wrap = open => close => {
@@ -83,7 +83,11 @@ const serialize = sort => {
     ])
     const mapPropertySerialize = map(propertySerialize)
     /** @type {(object: Object) => list.List<string>} */
-    const objectSerialize = input => objectWrap(mapPropertySerialize(sort(entries(input))))
+    const objectSerialize = fn(entries)
+        .then(sort)
+        .then(mapPropertySerialize)
+        .then(objectWrap)
+        .result
     /** @type {(value: Unknown) => list.List<string>} */
     const f = value => {
         switch (typeof value) {
@@ -97,9 +101,7 @@ const serialize = sort => {
             }
         }
     }
-    const mapF = map(f)
-    /** @type {(input: Array) => list.List<string>} */
-    const arraySerialize = compose(mapF)(arrayWrap)
+    const arraySerialize = compose(map(f))(arrayWrap)
     return f
 }
 

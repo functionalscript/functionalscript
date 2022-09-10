@@ -6,6 +6,7 @@ module.exports = {
         struct: {
             Start: ['*', 'u8'],
             Size: 'usize',
+            M: ['IMy'],
         },
     },
     IMy: {

@@ -29,6 +29,7 @@ require('./text/utf16/test.f.cjs')
 require('./com/cs/test.f.cjs')
 require('./com/cpp/test.f.cjs')
 require('./nodejs/version/test.f.cjs')
+require('./com/rust/test.f.cjs')
 
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
