@@ -1,9 +1,4 @@
 const _ = require('./module.f.cjs')
-const json = require('../../json/module.f.cjs')
-const { sort } = require('../object/module.f.cjs')
-
-/** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
 
 {
     if (_.has(0)(_.empty)) { throw _.empty }
