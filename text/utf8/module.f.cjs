@@ -1,7 +1,7 @@
 const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
 const array = require('../../types/array/module.f.cjs')
-const { flatMap } = list
+const { flatMap, flat, stateScan } = list
 
 /** @typedef {u8|undefined} ByteOrEof */
 
@@ -16,8 +16,7 @@ const { flatMap } = list
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /** @type {(input:number) => list.List<u8>} */
-const codePointToUtf8 = input =>
-{
+const codePointToUtf8 = input => {
     if (input >= 0x0000 && input <= 0x007f) { return [input & 0b01111_1111] }
     if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000] }
     if (input >= 0x0800 && input <= 0xffff) { return [input >> 12 | 0b1110_0000, input >> 6 & 0b0011_1111 | 0b1000_0000, input & 0b0011_1111 | 0b1000_0000] }
@@ -35,9 +34,9 @@ const fromCodePointList = flatMap(codePointToUtf8)
 
 /** @type {(state: Utf8NonEmptyState) => i32}*/
 const utf8StateToError = state => {
-    switch(state.length) {
+    switch (state.length) {
         case 1:
-             return state[0] | errorMask
+            return state[0] | errorMask
         case 2:
             if (state[0] < 0b1111_0000) return (((state[0] & 0b0000_1111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0100_0000_0000) | errorMask
             return (((state[0] & 0b0000_0111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0010_0000_0000) | errorMask
@@ -57,7 +56,7 @@ const utf8ByteToCodePointOp = state => byte => {
         return [[byte | errorMask], undefined]
     }
     if (byte >= 0b1000_0000 && byte < 0b1100_0000) {
-        switch(state.length) {
+        switch (state.length) {
             case 1:
                 if (state[0] < 0b1110_0000) { return [[((state[0] & 0b0001_1111) << 6) + (byte & 0b0011_1111)], undefined] }
                 if (state[0] < 0b1111_1000) { return [[], [state[0], byte]] }
@@ -85,8 +84,11 @@ const utf8EofToCodePointOp = state => {
 /** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<i32>>} */
 const utf8ByteOrEofToCodePointOp = state => input => input === undefined ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
+/** @type {list.List<ByteOrEof>} */
+const eofList = [undefined]
+
 /** @type {(input: list.List<u8>) => list.List<i32>} */
-const toCodePointList = input => list.flat(list.stateScan(utf8ByteOrEofToCodePointOp)(undefined)(list.concat(/** @type {list.List<ByteOrEof>} */(input))([undefined])))
+const toCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(undefined)(flat([input, eofList])))
 
 module.exports = {
     /** @readonly */
