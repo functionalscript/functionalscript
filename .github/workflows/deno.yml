@@ -14,4 +14,4 @@ jobs:
     - uses: denoland/setup-deno@v1
       with:
         deno-version: v1.x
-    - run: deno run --allow-read ./deno-test
+    - run: deno run --allow-read ./denotest.mjs
