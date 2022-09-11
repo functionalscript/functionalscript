@@ -1,6 +1,5 @@
 const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
-const array = require('../../types/array/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
 const { compose } = require('../../types/function/module.f.cjs')
 const { map, flat, stateScan, concat, reduce, flatMap } = list
@@ -13,23 +12,24 @@ const { map, flat, stateScan, concat, reduce, flatMap } = list
 
 /** @typedef {number} i32 */
 
-/** @type {(a:number) => boolean} */
+/** @type {(a: u16) => boolean} */
 const isBmpCodePoint = a => a >= 0x0000 && a <= 0xd7ff || a >= 0xe000 && a <= 0xffff
 
 const isHighSurrogate = contains([0xd800, 0xdbff])
 
-/** @type {(a:number) => boolean} */
+/** @type {(a: u16) => boolean} */
 const isLowSurrogate = contains([0xdc00, 0xdfff])
 
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
-/** @type {(input:i32) => list.List<u16>} */
+/** @type {(input: i32) => list.List<u16>} */
 const codePointToUtf16 = input =>
 {
     if (isBmpCodePoint(input)) { return [input] }
-    if (input >= 0x010000 && input <= 0x10ffff) {
-        const high = ((input - 0x10000) >> 10) + 0xd800
-        const low = ((input - 0x10000) & 0b0011_1111_1111) + 0xdc00
+    if (input >= 0x01_0000 && input <= 0x10_ffff) {
+        const n = input - 0x1_0000
+        const high = (n >> 10) + 0xd800
+        const low = (n & 0b0011_1111_1111) + 0xdc00
         return [high, low]
     }
     return [input & 0xffff]
@@ -76,6 +76,7 @@ const stringToList = s => {
     return at(0)
 }
 
+/** @type {(input: list.List<u16>) => string} */
 const listToString = compose(map(String.fromCharCode))(reduce(operator.concat)(''))
 
 module.exports = {
