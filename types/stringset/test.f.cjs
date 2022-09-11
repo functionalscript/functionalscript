@@ -31,3 +31,5 @@ const _ = require('./module.f.cjs')
     r = _.remove('WORLD!')(r)
     if (r !== undefined) { throw r }
 }
+
+module.exports = {}

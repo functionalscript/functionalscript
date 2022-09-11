@@ -485,3 +485,5 @@ const jsonStr = json.stringify(sort)
         if (_map !== undefined) { throw _map }
     }
 }
+
+module.exports = {}

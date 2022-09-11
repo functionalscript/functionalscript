@@ -11,3 +11,5 @@ const _ = require('./module.f.cjs')
     const s = _.htmlToString(x)
     if (s !== '<!DOCTYPE html><div>&lt;div&gt;&amp;amp;&lt;/div&gt;<a href="hello&quot;"></a></div>') { throw s }
 }
+
+module.exports = {}

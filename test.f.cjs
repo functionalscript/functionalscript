@@ -8,11 +8,12 @@ require('./types/btree/test.f.cjs')
 require('./types/byteSet/test.f.cjs')
 require('./types/nibbleSet/test.f.cjs')
 require('./sha2/test.f.cjs')
+require('./types/map/test.f.cjs')
 require('./json/test.f.cjs')
 require('./types/string/test.f.cjs')
 require('./json/tokenizer/test.f.cjs')
 require('./types/object/test.f.cjs')
-require('./commonjs/test.cjs')
+// require('./commonjs/test.cjs')
 require('./commonjs/package/dependencies/test.f.cjs')
 require('./commonjs/package/test.f.cjs')
 require('./commonjs/path/test.f.cjs')
@@ -90,3 +91,5 @@ const assert_if = c => { if (c) { throw 'assert_if' } }
     const c = Object.getOwnPropertyDescriptor(x, 'constructor')
     const a = Object.getOwnPropertyDescriptor(x, 'a')
 }
+
+module.exports = {}

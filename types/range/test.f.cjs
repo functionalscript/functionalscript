@@ -7,3 +7,5 @@ const _ = require('./module.f.cjs')
     if (_.contains([0, 5])(-1)) { throw -1 }
     if (_.contains([0, 5])(6)) { throw 6 }
 }
+
+module.exports = {}

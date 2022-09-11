@@ -72,12 +72,17 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
+/** @type {(s: string) => _.Buffer} */
+const buffer = s => ({
+    toString: () => s
+})
+
 {
     /** @type {_.Node<string>} */
     const node = {
-        child_process: { execSync: () => Buffer.from("123\n456\n") },
+        child_process: { execSync: () => buffer("123\n456\n") },
         fs: {
-            readFileSync: () => Buffer.from(JSON.stringify(x)),
+            readFileSync: () => buffer(JSON.stringify(x)),
             writeFileSync: (_, content) => content
         }
     }
