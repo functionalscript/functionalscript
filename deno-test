@@ -60,29 +60,29 @@ const run = async () => {
     const m = await dir('.')
     /** @type {ModuleMap} */
     const d = {}
-    /** @type {(p: readonly string[]) => (k: string) => unknown} */
+    /** @type {(base: readonly string[]) => (k: string) => unknown} */
     const req = p => k => {
         const relativePath = k.split('/')
         const bPath = relativePath.filter(v => !['..', '.'].includes(v))
         const dif = relativePath.filter(v => v === '..').length
-        const pk = [p.slice(0, p.length - dif), bPath.slice(0, bPath.length)].flat()
-        const pathStr = pk.join('/')
-        const newP = pk.slice(0, pk.length - 1)
-        const r = d[pathStr]
-        if (r === undefined) {
+        const path = [p.slice(0, p.length - dif), bPath.slice(0, bPath.length)].flat()
+        const pathStr = path.join('/')
+        const newBase = path.slice(0, path.length - 1)
+        const result = d[pathStr]
+        if (result === undefined) {
             /** @type {Module} */
             const me = {}
-            m[pathStr](me, req(newP))
-            const rNew = me.exports
-            d[pathStr] = rNew
-            return rNew
+            m[pathStr](me, req(newBase))
+            const newResult = me.exports
+            d[pathStr] = newResult
+            return newResult
         } else {
-            return r
+            return result
         }
     }
     const r = req(['.'])
     for (const k of Object.keys(m)) {
-        console.log(k)
+        r(k)
     }
 }
 
