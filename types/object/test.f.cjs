@@ -11,3 +11,5 @@ const _ = require('./module.f.cjs')
     const value = _.at('constructor')(a)
     if (value !== 42) { throw value }
 }
+
+module.exports = {}

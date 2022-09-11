@@ -189,3 +189,5 @@ const stringify = g => {
     const result = stringify(_.parseAndFind(p => at(p)(packages))({package: '', path: ['a', 'b']})('z/a/c'))
     if (result !== '{"id":{"package":"node_modules/z/a/c","path":["index.js"]},"source":"return \\"a/c\\""}') { throw result }
 }
+
+module.exports = {}

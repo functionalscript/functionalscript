@@ -1,8 +1,10 @@
-/** 
+/**
  * @typedef {{
  *  readonly execSync: (cmd: string) => Buffer
  * }} ChildProcess
  */
+
+/** @typedef {{}} Buffer */
 
 /**
  * @template T
@@ -28,10 +30,10 @@ const version = ({ child_process, fs }) =>
         'package.json',
         stringify(
             {
-                ...parse(fs.readFileSync('package.json').toString()), 
-                version: `0.0.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}` 
-            }, 
-            null, 
+                ...parse(fs.readFileSync('package.json').toString()),
+                version: `0.0.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}`
+            },
+            null,
             2))
 
 module.exports = {

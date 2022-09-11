@@ -38,3 +38,5 @@ if (json.setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
     const _2 = json.stringify(identity)(_1)
     if (_2 !== '{"a":{"y":[24],"x":"Hello"},"c":[],"b":12}') { throw _2 }
 }
+
+module.exports = {}

@@ -303,3 +303,5 @@ const stringify = json.stringify(sort)
     const result = stringify(tokenizeString('0e-'))
     if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
 }
+
+module.exports = {}

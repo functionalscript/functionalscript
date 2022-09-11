@@ -112,3 +112,5 @@ const find = i => m => str(_.find(cmp(i))(m))
         if (r !== '[4,2,2]') { throw r }
     }
 }
+
+module.exports = {}

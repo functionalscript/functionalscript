@@ -70,3 +70,5 @@ const seq = require('../list/module.f.cjs')
         */
     }
 }
+
+module.exports = {}
