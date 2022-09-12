@@ -25,7 +25,7 @@ const index5 = cmp => ([v0, v1]) => {
 }
 
 /** @type {<T>(a: T) => (b: T) => Sign} */
-const unsafeCmp = a => b => a < b ? -1 : a === b ? 0 : 1
+const unsafeCmp = a => b => a < b ? -1 : a > b ? 1 : 0
 
 module.exports = {
     /** @readonly */
