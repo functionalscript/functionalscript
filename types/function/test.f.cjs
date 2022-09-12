@@ -1,6 +1,6 @@
 const { fn } = require('./module.f.cjs')
 
-{
+module.exports = () => {
     /** @type {(x: string) => readonly[string]} */
     const f = x => [x]
     /** @type {(x: readonly[string]) => readonly[number]} */
@@ -13,5 +13,3 @@ const { fn } = require('./module.f.cjs')
     const result = r('hello')
     if (result !== 5) { throw r }
 }
-
-module.exports = {}
