@@ -69,7 +69,7 @@ const getOrBuild = _.getOrBuild
     (packageGet)
     (/** @type {module_.MapInterface<map.Map<module_.State>>} */(map))
 
-{
+module.exports = () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
     if (JSON.stringify(r) !==
         '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js","x/r":"/node_modules/x/r.js"}}]'
@@ -82,12 +82,10 @@ const getOrBuild = _.getOrBuild
     ) {
         throw r
     }
-    [r, m] = getOrBuild({ package: '', path: ['c.js']})(m)
+    [r, m] = getOrBuild({ package: '', path: ['c.js'] })(m)
     if (JSON.stringify(r) !==
         '["error",["file not found"]]'
     ) {
         throw r
     }
 }
-
-module.exports = {}
