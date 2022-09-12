@@ -1,7 +1,13 @@
+// import * as fs from "https://deno.land/std/node/fs.ts"
+
+/**
+ * @type {{
+ *  readonly readDir: (path: string | URL) => AsyncIterable<DirEntry>,
+ *  readonly readTextFile: (path: string | URL) => Promise<string>,
+ * }}
+ */
 const {
-    /** @type {(path: string | URL) => AsyncIterable<DirEntry>} */
     readDir,
-    /** @type {(path: string | URL) => Promise<string>} */
     readTextFile,
 } = Deno
 
@@ -39,7 +45,7 @@ const dir = async p => {
                         await f(file)
                     }
                 } else if (name.endsWith('.f.cjs')) {
-                    // console.log(name)
+                    console.log(`loading ${file}`)
                     const source = await readTextFile(file)
                     map[file] = Function('module', 'require', `"use strict";${source}`)
                 }
@@ -60,19 +66,20 @@ const run = async () => {
     const m = await dir('.')
     /** @type {ModuleMap} */
     const d = {}
-    /** @type {(base: readonly string[]) => (k: string) => unknown} */
-    const req = p => k => {
+    /** @type {(base: readonly string[]) => (i: string) => (k: string) => unknown} */
+    const req = p => i => k => {
         const relativePath = k.split('/')
-        const bPath = relativePath.filter(v => !['..', '.'].includes(v))
         const dif = relativePath.filter(v => v === '..').length
-        const path = [p.slice(0, p.length - dif), bPath.slice(0, bPath.length)].flat()
+        const path = [p.slice(0, p.length - dif), relativePath.filter(v => !['..', '.'].includes(v))]
+            .flat()
         const pathStr = path.join('/')
         const newBase = path.slice(0, path.length - 1)
         const result = d[pathStr]
         if (result === undefined) {
             /** @type {Module} */
             const me = {}
-            m[pathStr](me, req(newBase))
+            console.log(`${i}building ${pathStr}`)
+            m[pathStr](me, req(newBase)(`${i}| `))
             const newResult = me.exports
             d[pathStr] = newResult
             return newResult
@@ -80,7 +87,7 @@ const run = async () => {
             return result
         }
     }
-    const r = req(['.'])
+    const r = req(['.'])('')
     for (const k of Object.keys(m)) {
         r(k)
     }
