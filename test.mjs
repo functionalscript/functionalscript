@@ -1,24 +1,52 @@
-// import * as fs from "https://deno.land/std/node/fs.ts"
-
 /**
- * @type {{
- *  readonly readDir: (path: string | URL) => AsyncIterable<DirEntry>,
- *  readonly readTextFile: (path: string | URL) => Promise<string>,
- * }}
+ * @typedef {{
+ *  readonly withFileTypes: true
+ * }} Options
  */
-const {
-    readDir,
-    readTextFile,
-} = Deno
 
 /**
  * @typedef {{
- *  readonly isDirectory: boolean
- *  readonly isFile: boolean
- *  readonly isSymlink: boolean
  *  readonly name: string
- * }} DirEntry
+ *  readonly isDirectory: () => boolean
+ * }} Dirent
  */
+
+/**
+ * @typedef {{
+ *  readonly readdir: (path: string, options: Options) => Promise<readonly Dirent[]>
+ *  readonly readFile: (path: string, options: 'utf8') => Promise<Buffer>
+ * }} FsPromises
+ */
+
+/** @type {FsPromises} */
+const { readdir, readFile } = await import(globalThis.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
+
+const load = async() => {
+    /** @type {FunctionMap} */
+    const map = {}
+    /** @type {(path: string) => Promise<void>} */
+    const f = async p => {
+        for (const i of await readdir(p, { withFileTypes: true })) {
+            const { name } = i
+            if (!name.startsWith('.')) {
+                const file = `${p}/${name}`
+                if (i.isDirectory()) {
+                    if (!['node_modules', 'target'].includes(name)) {
+                        await f(file)
+                    }
+                } else if (name.endsWith('.f.cjs')) {
+                    console.log(`loading ${file}`)
+                    const source = await readFile(file, 'utf8')
+                    map[file] = Function('module', 'require', `"use strict";${source}`)
+                }
+            }
+        }
+    }
+    await f('.')
+    return map
+}
+
+const map = await load()
 
 /** @typedef {{ exports?: unknown }} Module */
 
@@ -30,40 +58,13 @@ const {
  * }} FunctionMap
  */
 
-/** @type {(path: string) => Promise<FunctionMap>} */
-const dir = async p => {
-    /** @type {FunctionMap} */
-    const map = {}
-    /** @type {(path: string) => Promise<void>} */
-    const f = async p => {
-        for await (const i of readDir(p)) {
-            const { name } = i
-            if (!name.startsWith('.')) {
-                const file = `${p}/${name}`
-                if (i.isDirectory) {
-                    if (!['node_modules', 'target'].includes(name)) {
-                        await f(file)
-                    }
-                } else if (name.endsWith('.f.cjs')) {
-                    console.log(`loading ${file}`)
-                    const source = await readTextFile(file)
-                    map[file] = Function('module', 'require', `"use strict";${source}`)
-                }
-            }
-        }
-    }
-    await f(p)
-    return map
-}
-
 /**
  * @typedef {{
  *  [k in string]: unknown
  * }} ModuleMap
  */
 
-const run = async () => {
-    const m = await dir('.')
+const build = async () => {
     /** @type {ModuleMap} */
     const d = {}
     /** @type {(base: readonly string[]) => (i: string) => (k: string) => unknown} */
@@ -79,7 +80,7 @@ const run = async () => {
             /** @type {Module} */
             const me = {}
             console.log(`${i}building ${pathStr}`)
-            m[pathStr](me, req(newBase)(`${i}| `))
+            map[pathStr](me, req(newBase)(`${i}| `))
             const newResult = me.exports
             d[pathStr] = newResult
             return newResult
@@ -88,9 +89,10 @@ const run = async () => {
         }
     }
     const r = req(['.'])('')
-    for (const k of Object.keys(m)) {
+    for (const k of Object.keys(map)) {
         r(k)
     }
+    return d
 }
 
-run()
+const modules = await build()
