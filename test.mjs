@@ -88,7 +88,7 @@ const map = await load()
 const build = async () => {
     /** @type {ModuleMap} */
     const d = {}
-    /** @type {(base: readonly string[]) => (i: string) => (k: string) => Module} */
+    /** @type {(base: readonly string[]) => (i: string) => (k: string) => readonly[string, Module]} */
     const req = base => i => k => {
         const relativePath = k.split('/')
         const dif = relativePath.filter(v => v === '..').length
@@ -99,7 +99,7 @@ const build = async () => {
         {
             const module = d[pathStr]
             if (module !== undefined) {
-                return module
+                return [pathStr, module]
             }
         }
         {
@@ -110,13 +110,13 @@ const build = async () => {
             console.log(`${i}building ${pathStr}`)
             const getModule = req(newBase)(`${i}| `)
             const newReq = s => {
-                const result = getModule(s)
-                module.dependencies[s] = result
+                const [p, result] = getModule(s)
+                module.dependencies[p] = result
                 return result.exports
             }
             map[pathStr](module, newReq)
             d[pathStr] = module
-            return module
+            return [pathStr, module]
         }
     }
     const r = req(['.'])('')
@@ -127,6 +127,13 @@ const build = async () => {
 }
 
 const modules = await build()
+
+// graph
+
+for (const [k, v] of Object.entries(modules)) {
+    console.log(`: ${k}`)
+    console.log(Object.keys(v.dependencies))
+}
 
 // test runner.
 
