@@ -155,9 +155,8 @@ const test = i => v => {
                 }
             } else {
                 for (const [k, v2] of Object.entries(v)) {
-                    const i2 = `${i}| `
                     console.log(`${i}${k}:`)
-                    test(i2)(v2)
+                    test(`${i}| `)(v2)
                 }
             }
             return;
