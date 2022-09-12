@@ -11,7 +11,7 @@ const set = n => s => s | (1n << BigInt(n))
 const unset = n => s => s & ~(1n << BigInt(n))
 
 /** @type {(r: readonly[number, number]) => (s: byteSet) => byteSet} */
- const setRange = ([b, e]) => s => s | ((1n << BigInt(b - e + 1)) - 1n << BigInt(b))
+ const setRange = ([b, e]) => s => s | ((1n << BigInt(e - b + 1)) - 1n << BigInt(b))
 
 // how to define FA???
 // const stateA = [init, set] ????
