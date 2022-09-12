@@ -89,6 +89,4 @@ const stringify = a => json.stringify(sort)(a)
     if (result !== undefined) {throw result}
 }
 
-module.exports = {
-
-}
+module.exports = {}
