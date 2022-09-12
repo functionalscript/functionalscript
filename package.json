@@ -7,8 +7,7 @@
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
     "version": "node ./nodejs/version/main.cjs",
-    "test-only": "node --trace-uncaught ./test.f.cjs",
-    "test-only2": "node --trace-uncaught ./test.mjs"
+    "test-only": "node --trace-uncaught ./test.mjs"
   },
   "repository": {
     "type": "git",

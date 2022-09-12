@@ -19,14 +19,14 @@
  */
 
 /** @type {FsPromises} */
-const fs = await import(globalThis.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
+const { readdir, readFile } = await import(globalThis.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
 
 const load = async() => {
     /** @type {FunctionMap} */
     const map = {}
     /** @type {(path: string) => Promise<void>} */
     const f = async p => {
-        for (const i of await fs.readdir(p, { withFileTypes: true })) {
+        for (const i of await readdir(p, { withFileTypes: true })) {
             const { name } = i
             if (!name.startsWith('.')) {
                 const file = `${p}/${name}`
@@ -36,7 +36,7 @@ const load = async() => {
                     }
                 } else if (name.endsWith('.f.cjs')) {
                     console.log(`loading ${file}`)
-                    const source = await fs.readFile(file, 'utf8')
+                    const source = await readFile(file, 'utf8')
                     map[file] = Function('module', 'require', `"use strict";${source}`)
                 }
             }
