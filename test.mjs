@@ -111,23 +111,21 @@ const test = i => v => {
     switch (typeof v) {
         case 'function': {
             if (v.length === 0) {
-                console.log(`${i}()`)
                 const r = v()
+                console.log(`${i}() passed`)
                 test(`${i}| `)(r)
             }
             return;
         }
         case 'object': {
             if (v instanceof Array) {
-                console.log(`${i}[]`)
                 for (const v2 of v) {
                     test(`${i}| `)(v2)
                 }
             } else {
-                console.log(`${i}{}`)
                 for (const [k, v2] of Object.entries(v)) {
                     const i2 = `${i}| `
-                    console.log(`${i2}${k}:`)
+                    console.log(`${i}${k}:`)
                     test(i2)(v2)
                 }
             }
