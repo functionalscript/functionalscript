@@ -21,7 +21,18 @@
 /** @type {FsPromises} */
 const { readdir, readFile } = await import(globalThis.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
 
-/** @typedef {{ exports?: unknown }} Module */
+/**
+ * @typedef {{
+ *  [k: in string]?: Module
+ * }} Dependencies
+ */
+
+/**
+ * @typedef {{
+ *  dependencies: Dependencies
+ *  exports?: unknown
+ * }} Module
+ */
 
 /** @typedef {(name: string) => unknown} Require */
 
@@ -70,32 +81,42 @@ const map = await load()
 
 /**
  * @typedef {{
- *  [k in string]: unknown
+ *  [k in string]: Module
  * }} ModuleMap
  */
 
 const build = async () => {
     /** @type {ModuleMap} */
     const d = {}
-    /** @type {(base: readonly string[]) => (i: string) => (k: string) => unknown} */
-    const req = p => i => k => {
+    /** @type {(base: readonly string[]) => (i: string) => (k: string) => readonly[string, Module]} */
+    const req = base => i => k => {
         const relativePath = k.split('/')
         const dif = relativePath.filter(v => v === '..').length
-        const path = [p.slice(0, p.length - dif), relativePath.filter(v => !['..', '.'].includes(v))]
+        const path = [base.slice(0, base.length - dif), relativePath.filter(v => !['..', '.'].includes(v))]
             .flat()
         const pathStr = path.join('/')
         const newBase = path.slice(0, path.length - 1)
-        const result = d[pathStr]
-        if (result === undefined) {
+        {
+            const module = d[pathStr]
+            if (module !== undefined) {
+                return [pathStr, module]
+            }
+        }
+        {
             /** @type {Module} */
-            const me = {}
+            const module = {
+                dependencies: {}
+            }
             console.log(`${i}building ${pathStr}`)
-            map[pathStr](me, req(newBase)(`${i}| `))
-            const newResult = me.exports
-            d[pathStr] = newResult
-            return newResult
-        } else {
-            return result
+            const getModule = req(newBase)(`${i}| `)
+            const newReq = s => {
+                const [p, result] = getModule(s)
+                module.dependencies[p] = result
+                return result.exports
+            }
+            map[pathStr](module, newReq)
+            d[pathStr] = module
+            return [pathStr, module]
         }
     }
     const r = req(['.'])('')
@@ -107,6 +128,16 @@ const build = async () => {
 
 const modules = await build()
 
+// graph
+
+for (const [k, v] of Object.entries(modules)) {
+    console.log(`: ${k}`)
+    console.log(Object.keys(v.dependencies))
+}
+
+// test runner.
+
+/** @type {(i: string) => (v: unknown) => void} */
 const test = i => v => {
     switch (typeof v) {
         case 'function': {
@@ -124,9 +155,8 @@ const test = i => v => {
                 }
             } else {
                 for (const [k, v2] of Object.entries(v)) {
-                    const i2 = `${i}| `
                     console.log(`${i}${k}:`)
-                    test(i2)(v2)
+                    test(`${i}| `)(v2)
                 }
             }
             return;
@@ -137,6 +167,6 @@ const test = i => v => {
 for (const [k, v] of Object.entries(modules)) {
     if (k.endsWith('test.f.cjs')) {
         console.log(`testing ${k}`)
-        test('| ')(v)
+        test('| ')(v.exports)
     }
 }
