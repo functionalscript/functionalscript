@@ -17,7 +17,7 @@ const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
 /** @type {(i: string) => (m: btree.Node<string>) => string} */
 const find = i => m => str(_.find(cmp(i))(m))
 
-{
+const test = () => {
     /** @type {btree.Node<string>} */
     let _map = ['1']
     for (let i = 2; i <= 10; i++)
@@ -113,4 +113,4 @@ const find = i => m => str(_.find(cmp(i))(m))
     }
 }
 
-module.exports = {}
+module.exports = test

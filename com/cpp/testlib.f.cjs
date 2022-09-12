@@ -1,5 +1,5 @@
 const _ = require('./module.f.cjs')
-const library = require('../types/test.f.cjs')
+const library = require('../types/testlib.f.cjs')
 const text = require('../../text/module.f.cjs')
 const { join } = require('../../types/module.f.cjs').string
 

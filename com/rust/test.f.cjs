@@ -1,9 +1,9 @@
 const { rust } = require('./module.f.cjs')
 const { flat } = require('../../text/module.f.cjs')
 const { join } = require('../../types/string/module.f.cjs')
-const library = require('../types/test.f.cjs')
+const library = require('../types/testlib.f.cjs')
 
-{
+module.exports = () => {
     const e =
         '#![allow(non_snake_case)]\n' +
         '#[repr(C)]\n' +
@@ -74,5 +74,3 @@ const library = require('../types/test.f.cjs')
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw [e, r] }
 }
-
-module.exports = {}

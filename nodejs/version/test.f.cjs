@@ -77,7 +77,7 @@ const buffer = s => ({
     toString: () => s
 })
 
-{
+module.exports = () => {
     /** @type {_.Node<string>} */
     const node = {
         child_process: { execSync: () => buffer("123\n456\n") },
@@ -89,5 +89,3 @@ const buffer = s => ({
     const v = _.version(node)
     if (v !== e) { throw [v, e] }
 }
-
-module.exports = {}

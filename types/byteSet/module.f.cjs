@@ -1,8 +1,6 @@
 /** @typedef {bigint} byteSet */
 /** @typedef {number} byte */
 
-const empty = 0n
-
 /** @type {(n: byte) => (s: byteSet) => boolean} */
 const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
@@ -13,14 +11,14 @@ const set = n => s => s | (1n << BigInt(n))
 const unset = n => s => s & ~(1n << BigInt(n))
 
 /** @type {(r: readonly[number, number]) => (s: byteSet) => byteSet} */
- const setRange = r => s => s | ((1n << BigInt(r[1] - r[0] + 1)) - 1n << BigInt(r[0]))
+ const setRange = ([b, e]) => s => s | ((1n << BigInt(e - b + 1)) - 1n << BigInt(b))
 
 // how to define FA???
 // const stateA = [init, set] ????
 
 module.exports = {
     /** @readonly */
-    empty,
+    empty: 0n,
     /** @readonly */
     has,
     /** @readonly */

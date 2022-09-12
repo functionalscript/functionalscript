@@ -19,7 +19,7 @@ const stringify = sequence => jsonStr(list.toArray(sequence))
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)
 
-{
+const valueTest1 = () => {
     /** @type {btree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
@@ -31,7 +31,7 @@ const set = node => value => s.set(cmp(value))(() => value)(node)
     if (result !== '["a","b","c","d","e","f"]') { throw result }
 }
 
-{
+const valuesTest2 = () => {
     /** @type {btree.Node<string>} */
     let _map = ['1']
     for(let i = 2; i <= 10; i++)
@@ -40,7 +40,7 @@ const set = node => value => s.set(cmp(value))(() => value)(node)
     if (result !== '["1","100","16","25","36","4","49","64","81","9"]') { throw result }
 }
 
-{
+const findTrue = () => {
     /** @type {btree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
@@ -49,7 +49,7 @@ const set = node => value => s.set(cmp(value))(() => value)(node)
     if (result !== 'b') { throw result }
 }
 
-{
+const find = () => {
     /** @type {btree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
@@ -76,6 +76,10 @@ const test = () => {
     }
 }
 
-test()
-
-module.exports = {}
+module.exports = {
+    valueTest1,
+    valuesTest2,
+    findTrue,
+    find,
+    test,
+}

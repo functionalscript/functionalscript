@@ -13,7 +13,7 @@ const remove = node => value => _.nodeRemove(cmp(value))(node)
 
 const jsonStr = json.stringify(sort)
 
-{
+const test = () => {
     /** @type {btree.Node<string> | undefined} */
     let _map = ['1']
     for (let i = 2; i <= 38; i++)
@@ -408,7 +408,7 @@ const jsonStr = json.stringify(sort)
     }
 }
 
-{
+const test2 = () => {
     /** @type {btree.Node<string>|undefined} */
     let _map = ['1']
     for (let i = 2; i <= 10; i++)
@@ -486,4 +486,7 @@ const jsonStr = json.stringify(sort)
     }
 }
 
-module.exports = {}
+module.exports = {
+    test,
+    test2,
+}
