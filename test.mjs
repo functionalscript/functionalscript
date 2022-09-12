@@ -14,7 +14,7 @@
 /**
  * @typedef {{
  *  readonly readdir: (path: string, options: Options) => Promise<readonly Dirent[]>
- *  readonly readFile: (path: string) => Promise<Buffer>
+ *  readonly readFile: (path: string, options: 'utf8') => Promise<Buffer>
  * }} FsPromises
  */
 
@@ -36,7 +36,7 @@ const load = async() => {
                     }
                 } else if (name.endsWith('.f.cjs')) {
                     console.log(`loading ${file}`)
-                    const source = (await fs.readFile(file)).toString()
+                    const source = await fs.readFile(file, 'utf8')
                     map[file] = Function('module', 'require', `"use strict";${source}`)
                 }
             }
