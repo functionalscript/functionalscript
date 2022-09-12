@@ -21,9 +21,28 @@
 /** @type {FsPromises} */
 const { readdir, readFile } = await import(globalThis.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
 
-const load = async() => {
-    /** @type {FunctionMap} */
-    const map = {}
+/** @typedef {{ exports?: unknown }} Module */
+
+/** @typedef {(name: string) => unknown} Require */
+
+/**
+ * @typedef {{
+ *  readonly[k in string]: Function
+ * }} FunctionMap
+ */
+
+/**
+ * @template T
+ * @typedef {readonly[string, T]} Entry
+ */
+
+/** @type {(a: Entry<Function>, b: Entry<Function>) => number} */
+const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
+
+/** @type {() => Promise<FunctionMap>} */
+const load = async () => {
+    /** @type {(readonly[string, Function])[]} */
+    const map = []
     /** @type {(path: string) => Promise<void>} */
     const f = async p => {
         for (const i of await readdir(p, { withFileTypes: true })) {
@@ -37,26 +56,17 @@ const load = async() => {
                 } else if (name.endsWith('.f.cjs')) {
                     console.log(`loading ${file}`)
                     const source = await readFile(file, 'utf8')
-                    map[file] = Function('module', 'require', `"use strict";${source}`)
+                    map.push([file, Function('module', 'require', `"use strict";${source}`)])
                 }
             }
         }
     }
     await f('.')
-    return map
+    map.sort(cmp)
+    return Object.fromEntries(map)
 }
 
 const map = await load()
-
-/** @typedef {{ exports?: unknown }} Module */
-
-/** @typedef {(name: string) => unknown} Require */
-
-/**
- * @typedef {{
- *  [k in string]: Function
- * }} FunctionMap
- */
 
 /**
  * @typedef {{
@@ -96,3 +106,37 @@ const build = async () => {
 }
 
 const modules = await build()
+
+const test = i => v => {
+    switch (typeof v) {
+        case 'function': {
+            if (v.length === 0) {
+                const r = v()
+                console.log(`${i}() passed`)
+                test(`${i}| `)(r)
+            }
+            return;
+        }
+        case 'object': {
+            if (v instanceof Array) {
+                for (const v2 of v) {
+                    test(`${i}| `)(v2)
+                }
+            } else {
+                for (const [k, v2] of Object.entries(v)) {
+                    const i2 = `${i}| `
+                    console.log(`${i}${k}:`)
+                    test(i2)(v2)
+                }
+            }
+            return;
+        }
+    }
+}
+
+for (const [k, v] of Object.entries(modules)) {
+    if (k.endsWith('test.f.cjs')) {
+        console.log(`testing ${k}`)
+        test('| ')(v)
+    }
+}
