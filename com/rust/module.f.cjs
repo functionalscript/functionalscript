@@ -52,6 +52,7 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
 
 /**
  * @typedef {{
+ *  readonly param?: string
  *  readonly trait: string
  *  readonly type: string
  *  readonly content: text.Item
@@ -59,11 +60,14 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
  */
 
 /** @type {(impl: Impl) => text.ItemArray} */
-const rustImpl = ({trait, type, content}) => [
-    `impl ${trait} for ${type} {`,
-    content,
-    '}'
-]
+const rustImpl = ({param, trait, type, content}) => {
+    const p = param === undefined ? '' : `<${param}>`
+    return [
+        `impl${p} ${trait} for ${type} {`,
+        content,
+        '}'
+    ]
+}
 
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
@@ -185,7 +189,7 @@ const rust = library => {
             [
                 'impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}',
             ],
-            [    'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
+            [   'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 [   'nanocom::CObject<Self>: Ex'],
                 `{`,
