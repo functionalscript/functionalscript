@@ -109,11 +109,13 @@ const rust = library => {
 
     const flatMapImpl = flatMap(impl)
 
+    /** @type {(m: types.Method) => string} */
+    const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${func(this_)(p)}`
+
+    const mapVirtualFn = map(virtualFn)
+
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
-
-        /** @type {(m: types.Method) => string} */
-        const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${func(this_)(p)}`
 
         const e = entries(i)
 
@@ -124,7 +126,7 @@ const rust = library => {
                 'type Ref = nanocom::Ref<Interface>;',
                 'type Vmt = nanocom::Vmt<Interface>;',
             ],
-            rustStruct(map(virtualFn)(e))('Interface'),
+            rustStruct(mapVirtualFn(e))('Interface'),
             [   'impl nanocom::Interface for Interface {',
                 [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
                 '}',
