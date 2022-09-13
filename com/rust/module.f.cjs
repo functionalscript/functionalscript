@@ -72,6 +72,15 @@ const rustImpl = ({ param, trait, type, where, content }) => {
     ]
 }
 
+/** @type {(trait: string) => text.ItemArray} */
+const defaultImpl = trait => rustImpl({
+    param: 'T: nanocom::Class<Interface = Interface>',
+    trait,
+    type: 'T',
+    where: 'nanocom::CObject<T>: Ex',
+    content: []
+})
+
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
@@ -179,7 +188,7 @@ const rust = library => {
                 type: 'Object',
                 content: flatMapImplFn(e)
             }),
-            ['pub trait ClassEx: nanocom::Class<Interface = Interface>',
+            [   'pub trait ClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 ['nanocom::CObject<Self>: Ex,'],
                 '{',
@@ -189,20 +198,15 @@ const rust = library => {
                 ],
                 '}'
             ],
-            rustImpl({
-                param: 'T: nanocom::Class<Interface = Interface>',
-                trait: 'ClassEx',
-                type: 'T',
-                where: 'nanocom::CObject<T>: Ex',
-                content: []
-            }),
-            ['trait PrivateClassEx: nanocom::Class<Interface = Interface>',
+            defaultImpl('ClassEx'),
+            [   'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 ['nanocom::CObject<Self>: Ex'],
                 `{`,
                 flatMapImpl(e),
                 `}`,
-                'impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}',
+            ],
+            [   'impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}',
             ],
             '}'
         ]
