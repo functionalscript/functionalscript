@@ -1,6 +1,6 @@
 const fs = require('node:fs')
 const cp = require('node:child_process')
-const cs = require('../testlib.f.cjs').result
+const cs = require('../test.f.cjs').result
 
 fs.writeFileSync('_result.cs', cs)
 try {

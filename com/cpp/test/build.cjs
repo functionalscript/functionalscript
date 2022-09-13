@@ -1,7 +1,7 @@
 const fs = require('node:fs')
 const cp = require('node:child_process')
 const os = require('node:os');
-const cpp = require('../testlib.f.cjs').result
+const cpp = require('../test.f.cjs').result
 const { string: { join }, list: { flat } } = require('../../../types/module.f.cjs')
 
 fs.writeFileSync('_result.hpp', cpp)

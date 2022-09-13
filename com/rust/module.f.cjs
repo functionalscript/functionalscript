@@ -29,15 +29,23 @@ const self = ['&self']
 /** @type {(p: types.Field) => string} */
 const paramName = ([n]) => n
 
+/** @type {(p: types.FieldArray) => list.Thunk<string>} */
+const callList = p => map(paramName)(paramList(p))
+
 /** @type {(p: types.FieldArray) => string} */
-const call = p => commaJoin(flat([['self'], map(paramName)(paramList(p))]))
+const call = p => commaJoin(callList(p))
+
+/** @type {(p: types.FieldArray) => string} */
+const virtualCall = p => commaJoin(flat([['self'], callList(p)]))
+
+const super_ = 'super::'
 
 /** @type {(m: types.Method) => string} */
 const assign = ([n]) => `${n}: Self::${n},`
 
 const mapAssign = map(assign)
 
-const super_ = 'super::'
+const this_ = ['this: &Object']
 
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
@@ -78,6 +86,14 @@ const rust = library => {
         return `(${params})${resultStr}`
     }
 
+    /** @type {(n: string) => (p: types.FieldArray) => string} */
+    const virtualFnType = n => p => `extern "system" fn${n}${func(this_)(p)}`
+
+    /** @type {(m: types.Method) => string} */
+    const virtualFn = ([n, p]) => `${n}: unsafe ${virtualFnType('')(p)}`
+
+    const mapVirtualFn = map(virtualFn)
+
     /** @type {(m: types.Method) => string} */
     const headerFn = ([n, p]) => `fn ${n}${func(self)(p)}`
 
@@ -91,35 +107,38 @@ const rust = library => {
         const [n, p] = m
         return [
             `${headerFn(m)} {`,
-            [`unsafe { (self.interface().${n})(${call(p)}) }`],
+            [`unsafe { (self.interface().${n})(${virtualCall(p)}) }`],
             '}'
         ]
     }
 
     const flatMapImplFn = flatMap(implFn)
 
+    /** @type {(m: types.Method) => text.Block} */
+    const impl = ([n, p]) => {
+        const type = virtualFnType(` ${n}`)(p)
+        return [
+            `${type} {`,
+            [`unsafe { Self::to_cobject(this) }.${n}(${call(p)})`],
+            '}'
+        ]
+    }
+
+    const flatMapImpl = flatMap(impl)
+
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
 
-        const this_ = ['this: &Object']
-
-        /** @type {(m: types.Method) => string} */
-        const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${func(this_)(p)}`
-
         const e = entries(i)
-
-        const nameEx = `${name}Ex`
-
-        const nameVmt = `${name}Vmt`
 
         return [
             `pub mod ${name} {`,
             [
-                'type Object = nanocom::Object<Interface>;',
-                'type Ref = nanocom::Ref<Interface>;',
-                'type Vmt = nanocom::Vmt<Interface>;',
+                'pub type Object = nanocom::Object<Interface>;',
+                'pub type Ref = nanocom::Ref<Interface>;',
+                'pub type Vmt = nanocom::Vmt<Interface>;',
             ],
-            rustStruct(map(virtualFn)(e))('Interface'),
+            rustStruct(mapVirtualFn(e))('Interface'),
             [   'impl nanocom::Interface for Interface {',
                 [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
                 '}',
@@ -139,6 +158,13 @@ const rust = library => {
                 ],
                 '}',
                 'impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}',
+                'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
+                'where',
+                [   'nanocom::CObject<Self>: Ex'],
+                `{`,
+                flatMapImpl(e),
+                `}`,
+                'impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}',
             ],
             '}'
         ]
