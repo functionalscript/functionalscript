@@ -3,7 +3,7 @@ const { paramList } = types
 const text = require('../../text/module.f.cjs')
 const object = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { flat, map, flatMap } = list
+const { flat, map, flatMap, isEmpty } = list
 const { entries } = Object
 const { fn } = require('../../types/function/module.f.cjs')
 const { join } = require('../../types/string/module.f.cjs')
@@ -56,16 +56,17 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
  *  readonly trait: string
  *  readonly type: string
  *  readonly where?: string
- *  readonly content: text.Item
+ *  readonly content: text.Block
  * }} Impl
  */
 
 /** @type {(impl: Impl) => text.ItemArray} */
-const rustImpl = ({param, trait, type, where, content}) => {
+const rustImpl = ({ param, trait, type, where, content }) => {
     const p = param === undefined ? '' : `<${param}>`
     const w = where === undefined ? '' : ` where ${where}`
-    return [
-        `impl${p} ${trait} for ${type}${w} {`,
+    const header = `impl${p} ${trait} for ${type}${w} {`
+    return isEmpty(content) ? [`${header}}`] : [
+        header,
         content,
         '}'
     ]
@@ -176,24 +177,28 @@ const rust = library => {
             rustImpl({
                 trait: 'Ex',
                 type: 'Object',
-                content:flatMapImplFn(e)
+                content: flatMapImplFn(e)
             }),
-            [   'pub trait ClassEx: nanocom::Class<Interface = Interface>',
+            ['pub trait ClassEx: nanocom::Class<Interface = Interface>',
                 'where',
-                [   'nanocom::CObject<Self>: Ex,'],
+                ['nanocom::CObject<Self>: Ex,'],
                 '{',
-                [   `const INTERFACE: Interface = Interface {`,
+                [`const INTERFACE: Interface = Interface {`,
                     mapAssign(e),
                     '};'
                 ],
                 '}'
             ],
-            [
-                'impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}',
-            ],
-            [   'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
+            rustImpl({
+                param: 'T: nanocom::Class<Interface = Interface>',
+                trait: 'ClassEx',
+                type: 'T',
+                where: 'nanocom::CObject<T>: Ex',
+                content: []
+            }),
+            ['trait PrivateClassEx: nanocom::Class<Interface = Interface>',
                 'where',
-                [   'nanocom::CObject<Self>: Ex'],
+                ['nanocom::CObject<Self>: Ex'],
                 `{`,
                 flatMapImpl(e),
                 `}`,
