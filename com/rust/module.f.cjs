@@ -29,8 +29,14 @@ const self = ['&self']
 /** @type {(p: types.Field) => string} */
 const paramName = ([n]) => n
 
+/** @type {(p: types.FieldArray) => list.Thunk<string>} */
+const callList = p => map(paramName)(paramList(p))
+
 /** @type {(p: types.FieldArray) => string} */
-const call = p => commaJoin(flat([['self'], map(paramName)(paramList(p))]))
+const call = p => commaJoin(callList(p))
+
+/** @type {(p: types.FieldArray) => string} */
+const virtualCall = p => commaJoin(flat([['self'], callList(p)]))
 
 const super_ = 'super::'
 
@@ -101,7 +107,7 @@ const rust = library => {
         const [n, p] = m
         return [
             `${headerFn(m)} {`,
-            [`unsafe { (self.interface().${n})(${call(p)}) }`],
+            [`unsafe { (self.interface().${n})(${virtualCall(p)}) }`],
             '}'
         ]
     }
@@ -113,7 +119,7 @@ const rust = library => {
         const type = virtualFnType(` ${n}`)(p)
         return [
             `${type} {`,
-            [`unsafe { Self::to_cobject(this) }.${n}()`],
+            [`unsafe { Self::to_cobject(this) }.${n}(${call(p)})`],
             '}'
         ]
     }
@@ -128,9 +134,9 @@ const rust = library => {
         return [
             `pub mod ${name} {`,
             [
-                'type Object = nanocom::Object<Interface>;',
-                'type Ref = nanocom::Ref<Interface>;',
-                'type Vmt = nanocom::Vmt<Interface>;',
+                'pub type Object = nanocom::Object<Interface>;',
+                'pub type Ref = nanocom::Ref<Interface>;',
+                'pub type Vmt = nanocom::Vmt<Interface>;',
             ],
             rustStruct(mapVirtualFn(e))('Interface'),
             [   'impl nanocom::Interface for Interface {',
