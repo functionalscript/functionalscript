@@ -155,11 +155,7 @@ const rust = library => {
                 mapTraitFn(e),
                 '}',
             ],
-            [
-                'impl Ex for Object {',
-                flatMapImplFn(e),
-                '}',
-            ],
+            rustImpl('Ex')('Object')(flatMapImplFn(e)),
             [   'pub trait ClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 [   'nanocom::CObject<Self>: Ex,'],
@@ -168,9 +164,12 @@ const rust = library => {
                     mapAssign(e),
                     '};'
                 ],
-                '}',
+                '}'
+            ],
+            [
                 'impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}',
-                'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
+            ],
+            [    'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 [   'nanocom::CObject<Self>: Ex'],
                 `{`,
