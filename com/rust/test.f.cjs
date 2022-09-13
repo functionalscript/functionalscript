@@ -74,6 +74,24 @@ module.exports = () => {
         '    where\n' +
         '        nanocom::CObject<Self>: Ex\n' +
         '    {\n' +
+        '        external "system" fn GetSlice(this: &Object) -> Ref {\n' +
+        '            unsafe { Self::to_cobject(this) }.GetSlice()\n' +
+        '        }\n' +
+        '        external "system" fn SetSlice(this: &Object) -> Ref {\n' +
+        '            unsafe { Self::to_cobject(this) }.SetSlice()\n' +
+        '        }\n' +
+        '        external "system" fn GetUnsafe(this: &Object) -> Ref {\n' +
+        '            unsafe { Self::to_cobject(this) }.GetUnsafe()\n' +
+        '        }\n' +
+        '        external "system" fn SetUnsafe(this: &Object) -> Ref {\n' +
+        '            unsafe { Self::to_cobject(this) }.SetUnsafe()\n' +
+        '        }\n' +
+        '        external "system" fn Some(this: &Object) -> Ref {\n' +
+        '            unsafe { Self::to_cobject(this) }.Some()\n' +
+        '        }\n' +
+        '        external "system" fn GetIMy(this: &Object) -> Ref {\n' +
+        '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
+        '        }\n' +
         '    }\n' +
         '    impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}\n' +
         '}'

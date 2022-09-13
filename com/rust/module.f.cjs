@@ -37,6 +37,15 @@ const assign = ([n]) => `${n}: Self::${n},`
 
 const mapAssign = map(assign)
 
+/** @type {(m: types.Method) => text.Block} */
+const impl = ([n]) => [
+    `external "system" fn ${n}(this: &Object) -> Ref {`,
+    [   `unsafe { Self::to_cobject(this) }.${n}()`],
+    '}'
+]
+
+const flatMapImpl = flatMap(impl)
+
 const super_ = 'super::'
 
 /** @type {(library: types.Library) => text.Block} */
@@ -108,10 +117,6 @@ const rust = library => {
 
         const e = entries(i)
 
-        const nameEx = `${name}Ex`
-
-        const nameVmt = `${name}Vmt`
-
         return [
             `pub mod ${name} {`,
             [
@@ -143,6 +148,7 @@ const rust = library => {
                 'where',
                 [   'nanocom::CObject<Self>: Ex'],
                 `{`,
+                flatMapImpl(e),
                 `}`,
                 'impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}',
             ],
