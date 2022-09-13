@@ -65,7 +65,7 @@ const load = async () => {
                         await f(file)
                     }
                 } else if (name.endsWith('.f.cjs')) {
-                    console.log(`loading ${file}`)
+                    // console.log(`loading ${file}`)
                     const source = await readFile(file, 'utf8')
                     map.push([file, Function('module', 'require', `"use strict";${source}`)])
                 }
@@ -107,7 +107,7 @@ const build = async () => {
             const module = {
                 dependencies: {}
             }
-            console.log(`${i}building ${pathStr}`)
+            // console.log(`${i}building ${pathStr}`)
             const getModule = req(newBase)(`${i}| `)
             const newReq = s => {
                 const [p, result] = getModule(s)
@@ -130,10 +130,12 @@ const modules = await build()
 
 // graph
 
+/*
 for (const [k, v] of Object.entries(modules)) {
     console.log(`: ${k}`)
     console.log(Object.keys(v.dependencies))
 }
+*/
 
 // test runner.
 
