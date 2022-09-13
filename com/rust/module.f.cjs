@@ -50,8 +50,16 @@ const this_ = ['this: &Object']
 /** @type {(n: string) => string} */
 const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
 
-/** @type {(trait: string) => (type: string) => (content: text.Item) => text.ItemArray} */
-const rustImpl = trait => type => content => [
+/**
+ * @typedef {{
+ *  readonly trait: string
+ *  readonly type: string
+ *  readonly content: text.Item
+ * }} Impl
+ */
+
+/** @type {(impl: Impl) => text.ItemArray} */
+const rustImpl = ({trait, type, content}) => [
     `impl ${trait} for ${type} {`,
     content,
     '}'
@@ -149,13 +157,21 @@ const rust = library => {
                 rustType('Vmt'),
             ],
             rustStruct(mapVirtualFn(e))('Interface'),
-            rustImpl('nanocom::Interface')('Interface')([`const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`]),
+            rustImpl({
+                trait: 'nanocom::Interface',
+                type: 'Interface',
+                content: [`const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`]
+            }),
             [
                 'pub trait Ex {',
                 mapTraitFn(e),
                 '}',
             ],
-            rustImpl('Ex')('Object')(flatMapImplFn(e)),
+            rustImpl({
+                trait: 'Ex',
+                type: 'Object',
+                content:flatMapImplFn(e)
+            }),
             [   'pub trait ClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 [   'nanocom::CObject<Self>: Ex,'],
