@@ -32,21 +32,14 @@ const paramName = ([n]) => n
 /** @type {(p: types.FieldArray) => string} */
 const call = p => commaJoin(flat([['self'], map(paramName)(paramList(p))]))
 
+const super_ = 'super::'
+
 /** @type {(m: types.Method) => string} */
 const assign = ([n]) => `${n}: Self::${n},`
 
 const mapAssign = map(assign)
 
-/** @type {(m: types.Method) => text.Block} */
-const impl = ([n]) => [
-    `external "system" fn ${n}(this: &Object) -> Ref {`,
-    [   `unsafe { Self::to_cobject(this) }.${n}()`],
-    '}'
-]
-
-const flatMapImpl = flatMap(impl)
-
-const super_ = 'super::'
+const this_ = ['this: &Object']
 
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
@@ -107,10 +100,17 @@ const rust = library => {
 
     const flatMapImplFn = flatMap(implFn)
 
+    /** @type {(m: types.Method) => text.Block} */
+    const impl = ([n, p]) => [
+        `external "system" fn ${n}(this: &Object) -> Ref {`,
+        [`unsafe { Self::to_cobject(this) }.${n}()`],
+        '}'
+    ]
+
+    const flatMapImpl = flatMap(impl)
+
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
-
-        const this_ = ['this: &Object']
 
         /** @type {(m: types.Method) => string} */
         const virtualFn = ([n, p]) => `${n}: unsafe extern "system" fn${func(this_)(p)}`
