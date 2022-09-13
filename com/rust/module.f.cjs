@@ -72,6 +72,20 @@ const rustImpl = ({ param, trait, type, where, content }) => {
     ]
 }
 
+/**
+ * @typedef {{
+ *  readonly type: string
+ *  readonly content: text.Block
+ * }} Trait
+ */
+
+/** @type {(t: Trait) => text.ItemArray} */
+const trait = ({type, content}) => [
+    `pub trait ${type} {`,
+    content,
+    '}',
+]
+
 /** @type {(trait: string) => text.ItemArray} */
 const defaultImpl = trait => rustImpl({
     param: 'T: nanocom::Class<Interface = Interface>',
@@ -178,11 +192,7 @@ const rust = library => {
                 type: 'Interface',
                 content: [`const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`]
             }),
-            [
-                'pub trait Ex {',
-                mapTraitFn(e),
-                '}',
-            ],
+            trait({ type: 'Ex', content: mapTraitFn(e) }),
             rustImpl({
                 trait: 'Ex',
                 type: 'Object',
