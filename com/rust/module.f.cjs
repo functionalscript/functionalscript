@@ -143,7 +143,8 @@ const rust = library => {
                 'where',
                 [   'nanocom::CObject<Self>: Ex'],
                 `{`,
-                `}`
+                `}`,
+                'impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}',
             ],
             '}'
         ]

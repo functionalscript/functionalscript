@@ -75,6 +75,7 @@ module.exports = () => {
         '        nanocom::CObject<Self>: Ex\n' +
         '    {\n' +
         '    }\n' +
+        '    impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}\n' +
         '}'
     const r = join('\n')(flat('    ')(rust(library)))
     if (r !== e) { throw [e, r] }
