@@ -206,8 +206,7 @@ const rust = library => {
                 flatMapImpl(e),
                 `}`,
             ],
-            [   'impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}',
-            ],
+            defaultImpl('PrivateClassEx'),
             '}'
         ]
     }
