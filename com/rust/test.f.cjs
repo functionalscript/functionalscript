@@ -74,22 +74,22 @@ module.exports = () => {
         '    where\n' +
         '        nanocom::CObject<Self>: Ex\n' +
         '    {\n' +
-        '        external "system" fn GetSlice(this: &Object) -> Ref {\n' +
+        '        extern "system" fn GetSlice(this: &Object) -> super::Slice {\n' +
         '            unsafe { Self::to_cobject(this) }.GetSlice()\n' +
         '        }\n' +
-        '        external "system" fn SetSlice(this: &Object) -> Ref {\n' +
+        '        extern "system" fn SetSlice(this: &Object, slice: super::Slice) {\n' +
         '            unsafe { Self::to_cobject(this) }.SetSlice()\n' +
         '        }\n' +
-        '        external "system" fn GetUnsafe(this: &Object) -> Ref {\n' +
+        '        extern "system" fn GetUnsafe(this: &Object) -> *const bool {\n' +
         '            unsafe { Self::to_cobject(this) }.GetUnsafe()\n' +
         '        }\n' +
-        '        external "system" fn SetUnsafe(this: &Object) -> Ref {\n' +
+        '        extern "system" fn SetUnsafe(this: &Object, p: *const super::Slice, size: u32) {\n' +
         '            unsafe { Self::to_cobject(this) }.SetUnsafe()\n' +
         '        }\n' +
-        '        external "system" fn Some(this: &Object) -> Ref {\n' +
+        '        extern "system" fn Some(this: &Object, p: &super::IMy::Object) -> bool {\n' +
         '            unsafe { Self::to_cobject(this) }.Some()\n' +
         '        }\n' +
-        '        external "system" fn GetIMy(this: &Object) -> Ref {\n' +
+        '        extern "system" fn GetIMy(this: &Object) -> super::IMy::Ref {\n' +
         '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
         '        }\n' +
         '    }\n' +

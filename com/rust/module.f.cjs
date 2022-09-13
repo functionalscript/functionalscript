@@ -81,10 +81,10 @@ const rust = library => {
     }
 
     /** @type {(n: string) => (p: types.FieldArray) => string} */
-    const virtualFnType = n => p => `unsafe extern "system" fn${n}${func(this_)(p)}`
+    const virtualFnType = n => p => `extern "system" fn${n}${func(this_)(p)}`
 
     /** @type {(m: types.Method) => string} */
-    const virtualFn = ([n, p]) => `${n}: ${virtualFnType('')(p)}`
+    const virtualFn = ([n, p]) => `${n}: unsafe ${virtualFnType('')(p)}`
 
     const mapVirtualFn = map(virtualFn)
 
@@ -109,15 +109,16 @@ const rust = library => {
     const flatMapImplFn = flatMap(implFn)
 
     /** @type {(m: types.Method) => text.Block} */
-    const impl = ([n, p]) => [
-        `external "system" fn ${n}(this: &Object) -> Ref {`,
-        [`unsafe { Self::to_cobject(this) }.${n}()`],
-        '}'
-    ]
+    const impl = ([n, p]) => {
+        const type = virtualFnType(` ${n}`)(p)
+        return [
+            `${type} {`,
+            [`unsafe { Self::to_cobject(this) }.${n}()`],
+            '}'
+        ]
+    }
 
     const flatMapImpl = flatMap(impl)
-
-
 
     /** @type {(i: types.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
