@@ -55,15 +55,17 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
  *  readonly param?: string
  *  readonly trait: string
  *  readonly type: string
+ *  readonly where?: string
  *  readonly content: text.Item
  * }} Impl
  */
 
 /** @type {(impl: Impl) => text.ItemArray} */
-const rustImpl = ({param, trait, type, content}) => {
+const rustImpl = ({param, trait, type, where, content}) => {
     const p = param === undefined ? '' : `<${param}>`
+    const w = where === undefined ? '' : ` where ${where}`
     return [
-        `impl${p} ${trait} for ${type} {`,
+        `impl${p} ${trait} for ${type}${w} {`,
         content,
         '}'
     ]
