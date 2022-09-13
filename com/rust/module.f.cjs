@@ -47,6 +47,16 @@ const mapAssign = map(assign)
 
 const this_ = ['this: &Object']
 
+/** @type {(n: string) => string} */
+const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
+
+/** @type {(trait: string) => (type: string) => (content: text.Item) => text.ItemArray} */
+const rustImpl = trait => type => content => [
+    `impl ${trait} for ${type} {`,
+    content,
+    '}'
+]
+
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
@@ -134,14 +144,13 @@ const rust = library => {
         return [
             `pub mod ${name} {`,
             [
-                'pub type Object = nanocom::Object<Interface>;',
-                'pub type Ref = nanocom::Ref<Interface>;',
-                'pub type Vmt = nanocom::Vmt<Interface>;',
+                rustType('Object'),
+                rustType('Ref'),
+                rustType('Vmt'),
             ],
             rustStruct(mapVirtualFn(e))('Interface'),
-            [   'impl nanocom::Interface for Interface {',
-                [   `const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`],
-                '}',
+            rustImpl('nanocom::Interface')('Interface')([`const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`]),
+            [
                 'pub trait Ex {',
                 mapTraitFn(e),
                 '}',
