@@ -58,7 +58,7 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
  */
 
 /** @type {(h: string) => (wh: WhereContent) => text.Block} */
-const whereContent = h => ({where, content}) => {
+const whereContent = h => ({ where, content }) => {
     const w = isEmpty(where) ? [`${h} {`] : [
         h,
         `where`,
@@ -110,21 +110,8 @@ const trait = t => {
     return whereContent(h)(t)
 }
 
-/** @type {(trait: string) => text.Block} */
-const defaultImpl = trait => rustImpl({
-    param: 'T',
-    trait,
-    type: 'T',
-    where: [
-        'Self: nanocom::Class<Interface = Interface>',
-        'nanocom::CObject<T>: Ex',
-    ],
-    content: []
-})
-
 /** @type {(t: Trait) => text.Block} */
 const traitImpl = t => {
-    const tr = trait(t)
     const i = rustImpl({
         param: 'T',
         trait: t.type,
@@ -132,8 +119,10 @@ const traitImpl = t => {
         where: t.where,
         content: [],
     })
-    return flat([tr, i])
+    return flat([trait(t), i])
 }
+
+const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex']
 
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
@@ -241,19 +230,17 @@ const rust = library => {
             traitImpl({
                 pub: true,
                 type: 'ClassEx',
-                where: ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex'],
+                where,
                 content: [`const INTERFACE: Interface = Interface {`,
                     mapAssign(e),
                     '};'
                 ]
             }),
-            // defaultImpl('ClassEx'),
             traitImpl({
                 type: 'PrivateClassEx',
-                where: ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex'],
+                where,
                 content: flatMapImpl(e)
             }),
-            // defaultImpl('PrivateClassEx'),
             '}'
         ]
     }
