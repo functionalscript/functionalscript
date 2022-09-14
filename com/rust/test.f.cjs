@@ -71,7 +71,11 @@ module.exports = {
             '            GetIMy: Self::GetIMy,\n' +
             '        };\n' +
             '    }\n' +
-            '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}\n' +
+            '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T\n' +
+            '    where\n' +
+            '        nanocom::CObject<T>: Ex,\n' +
+            '    {\n' +
+            '    }\n' +
             '    trait PrivateClassEx\n' +
             '    where\n' +
             '        Self: nanocom::Class<Interface = Interface>,\n' +
@@ -96,7 +100,11 @@ module.exports = {
             '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
             '        }\n' +
             '    }\n' +
-            '    impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}\n' +
+            '    impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T\n' +
+            '    where\n' +
+            '        nanocom::CObject<T>: Ex,\n' +
+            '    {\n' +
+            '    }\n' +
             '}'
         const r = join('\n')(flat('    ')(rust(library)))
         if (r !== e) { throw [e, r] }

@@ -77,21 +77,16 @@ const whereContent = h => ({where, content}) => {
  *  readonly param?: string
  *  readonly trait: string
  *  readonly type: string
- *  readonly where?: string
+ *  readonly where?: readonly string[]
  *  readonly content: text.Block
  * }} Impl
  */
 
-/** @type {(impl: Impl) => text.ItemArray} */
-const rustImpl = ({ param, trait, type, where, content }) => {
-    const p = param === undefined ? '' : `<${param}>`
-    const w = where === undefined ? '' : ` where ${where}`
-    const header = `impl${p} ${trait} for ${type}${w} {`
-    return isEmpty(content) ? [`${header}}`] : [
-        header,
-        content,
-        '}'
-    ]
+/** @type {(impl: Impl) => text.Block} */
+const rustImpl = i => {
+    const p = i.param === undefined ? '' : `<${i.param}>`
+    const header = `impl${p} ${i.trait} for ${i.type}`
+    return whereContent(header)(i)
 }
 
 /**
@@ -115,12 +110,12 @@ const trait = t => {
     return whereContent(h)(t)
 }
 
-/** @type {(trait: string) => text.ItemArray} */
+/** @type {(trait: string) => text.Block} */
 const defaultImpl = trait => rustImpl({
     param: 'T: nanocom::Class<Interface = Interface>',
     trait,
     type: 'T',
-    where: 'nanocom::CObject<T>: Ex',
+    where: ['nanocom::CObject<T>: Ex'],
     content: []
 })
 
