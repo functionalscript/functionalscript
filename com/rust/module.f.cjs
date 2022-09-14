@@ -81,7 +81,7 @@ const rustImpl = ({ param, trait, type, where, content }) => {
  * }} Trait
  */
 
-/** @type {(t: Trait) => text.ItemArray} */
+/** @type {(t: Trait) => text.Block} */
 const trait = ({ pub, type, where, content }) => {
     const p = pub === true ? 'pub ' : ''
     const h = `${p}trait ${type}`
@@ -89,12 +89,13 @@ const trait = ({ pub, type, where, content }) => {
         h,
         `where`,
         [`${where},`],
+        '{'
     ]
-    return [
-        `${h} {`,
+    const x = [
         content,
         '}',
     ]
+    return flat([w, x])
 }
 
 /** @type {(trait: string) => text.ItemArray} */
