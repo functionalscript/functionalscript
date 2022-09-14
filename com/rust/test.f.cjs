@@ -73,7 +73,7 @@ module.exports = {
             '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}\n' +
             '    trait PrivateClassEx: nanocom::Class<Interface = Interface>\n' +
             '    where\n' +
-            '        nanocom::CObject<Self>: Ex\n' +
+            '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '        extern "system" fn GetSlice(this: &Object) -> super::Slice {\n' +
             '            unsafe { Self::to_cobject(this) }.GetSlice()\n' +
