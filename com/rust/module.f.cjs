@@ -76,19 +76,24 @@ const rustImpl = ({ param, trait, type, where, content }) => {
  * @typedef {{
  *  readonly pub?: true
  *  readonly type: string
- *  readonly where?: string
+ *  readonly where?: readonly string[]
  *  readonly content: text.Block
  * }} Trait
  */
+
+/** @type {(s: string) => string} */
+const comma = s => `${s},`
+
+const mapComma = map(comma)
 
 /** @type {(t: Trait) => text.Block} */
 const trait = ({ pub, type, where, content }) => {
     const p = pub === true ? 'pub ' : ''
     const h = `${p}trait ${type}`
-    const w = where === undefined ? [`${h} {`] : [
+    const w = isEmpty(where) ? [`${h} {`] : [
         h,
         `where`,
-        [`${where},`],
+        mapComma(where),
         '{'
     ]
     const x = [
@@ -213,7 +218,7 @@ const rust = library => {
             trait({
                 pub: true,
                 type: 'ClassEx: nanocom::Class<Interface = Interface>',
-                where: 'nanocom::CObject<Self>: Ex',
+                where: ['nanocom::CObject<Self>: Ex'],
                 content: [`const INTERFACE: Interface = Interface {`,
                     mapAssign(e),
                     '};'
@@ -222,7 +227,7 @@ const rust = library => {
             defaultImpl('ClassEx'),
             trait({
                 type: 'PrivateClassEx: nanocom::Class<Interface = Interface>',
-                where: 'nanocom::CObject<Self>: Ex',
+                where: ['nanocom::CObject<Self>: Ex'],
                 content: flatMapImpl(e)
             }),
             defaultImpl('PrivateClassEx'),
