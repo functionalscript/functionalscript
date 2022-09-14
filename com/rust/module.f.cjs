@@ -116,10 +116,10 @@ const traitImpl = t => {
         param: 'T',
         trait: t.type,
         type: 'T',
-        where: t.where,
+        where,
         content: [],
     })
-    return flat([trait(t), i])
+    return flat([trait({ ...t, where }), i])
 }
 
 const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex']
@@ -230,7 +230,6 @@ const rust = library => {
             traitImpl({
                 pub: true,
                 type: 'ClassEx',
-                where,
                 content: [`const INTERFACE: Interface = Interface {`,
                     mapAssign(e),
                     '};'
@@ -238,7 +237,6 @@ const rust = library => {
             }),
             traitImpl({
                 type: 'PrivateClassEx',
-                where,
                 content: flatMapImpl(e)
             }),
             '}'
