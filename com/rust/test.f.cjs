@@ -57,8 +57,9 @@ module.exports = {
             '            unsafe { (self.interface().GetIMy)(self) }\n' +
             '        }\n' +
             '    }\n' +
-            '    pub trait ClassEx: nanocom::Class<Interface = Interface>\n' +
+            '    pub trait ClassEx\n' +
             '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
             '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '        const INTERFACE: Interface = Interface {\n' +
@@ -70,10 +71,16 @@ module.exports = {
             '            GetIMy: Self::GetIMy,\n' +
             '        };\n' +
             '    }\n' +
-            '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}\n' +
-            '    trait PrivateClassEx: nanocom::Class<Interface = Interface>\n' +
+            '    impl<T> ClassEx for T\n' +
             '    where\n' +
-            '        nanocom::CObject<Self>: Ex\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
+            '        nanocom::CObject<Self>: Ex,\n' +
+            '    {\n' +
+            '    }\n' +
+            '    trait PrivateClassEx\n' +
+            '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
+            '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '        extern "system" fn GetSlice(this: &Object) -> super::Slice {\n' +
             '            unsafe { Self::to_cobject(this) }.GetSlice()\n' +
@@ -94,7 +101,12 @@ module.exports = {
             '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
             '        }\n' +
             '    }\n' +
-            '    impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T where nanocom::CObject<T>: Ex {}\n' +
+            '    impl<T> PrivateClassEx for T\n' +
+            '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
+            '        nanocom::CObject<Self>: Ex,\n' +
+            '    {\n' +
+            '    }\n' +
             '}'
         const r = join('\n')(flat('    ')(rust(library)))
         if (r !== e) { throw [e, r] }
