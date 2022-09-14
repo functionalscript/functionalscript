@@ -57,8 +57,9 @@ module.exports = {
             '            unsafe { (self.interface().GetIMy)(self) }\n' +
             '        }\n' +
             '    }\n' +
-            '    pub trait ClassEx: nanocom::Class<Interface = Interface>\n' +
+            '    pub trait ClassEx\n' +
             '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
             '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '        const INTERFACE: Interface = Interface {\n' +
@@ -71,8 +72,9 @@ module.exports = {
             '        };\n' +
             '    }\n' +
             '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T where nanocom::CObject<T>: Ex {}\n' +
-            '    trait PrivateClassEx: nanocom::Class<Interface = Interface>\n' +
+            '    trait PrivateClassEx\n' +
             '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
             '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '        extern "system" fn GetSlice(this: &Object) -> super::Slice {\n' +
