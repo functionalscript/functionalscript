@@ -122,6 +122,19 @@ const defaultImpl = trait => rustImpl({
     content: []
 })
 
+/** @type {(t: Trait) => text.Block} */
+const traitImpl = t => {
+    const tr = trait(t)
+    const i = rustImpl({
+        param: 'T',
+        trait: t.type,
+        type: 'T',
+        where: t.where,
+        content: [],
+    })
+    return flat([tr, i])
+}
+
 /** @type {(library: types.Library) => text.Block} */
 const rust = library => {
 
