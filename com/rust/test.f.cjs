@@ -74,7 +74,7 @@ module.exports = {
             '    impl<T> ClassEx for T\n' +
             '    where\n' +
             '        Self: nanocom::Class<Interface = Interface>,\n' +
-            '        nanocom::CObject<T>: Ex,\n' +
+            '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '    }\n' +
             '    trait PrivateClassEx\n' +
@@ -104,7 +104,7 @@ module.exports = {
             '    impl<T> PrivateClassEx for T\n' +
             '    where\n' +
             '        Self: nanocom::Class<Interface = Interface>,\n' +
-            '        nanocom::CObject<T>: Ex,\n' +
+            '        nanocom::CObject<Self>: Ex,\n' +
             '    {\n' +
             '    }\n' +
             '}'

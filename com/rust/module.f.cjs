@@ -238,7 +238,7 @@ const rust = library => {
                 type: 'Object',
                 content: flatMapImplFn(e)
             }),
-            trait({
+            traitImpl({
                 pub: true,
                 type: 'ClassEx',
                 where: ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex'],
@@ -247,13 +247,13 @@ const rust = library => {
                     '};'
                 ]
             }),
-            defaultImpl('ClassEx'),
-            trait({
+            // defaultImpl('ClassEx'),
+            traitImpl({
                 type: 'PrivateClassEx',
                 where: ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex'],
                 content: flatMapImpl(e)
             }),
-            defaultImpl('PrivateClassEx'),
+            // defaultImpl('PrivateClassEx'),
             '}'
         ]
     }
