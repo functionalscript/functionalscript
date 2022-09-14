@@ -52,6 +52,28 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
 
 /**
  * @typedef {{
+ *  readonly where?: readonly string[]
+ *  readonly content: text.Block
+ * }} WhereContent
+ */
+
+/** @type {(h: string) => (wh: WhereContent) => text.Block} */
+const whereContent = h => ({where, content}) => {
+    const w = isEmpty(where) ? [`${h} {`] : [
+        h,
+        `where`,
+        mapComma(where),
+        '{'
+    ]
+    const x = [
+        content,
+        '}',
+    ]
+    return flat([w, x])
+}
+
+/**
+ * @typedef {{
  *  readonly param?: string
  *  readonly trait: string
  *  readonly type: string
@@ -87,20 +109,10 @@ const comma = s => `${s},`
 const mapComma = map(comma)
 
 /** @type {(t: Trait) => text.Block} */
-const trait = ({ pub, type, where, content }) => {
-    const p = pub === true ? 'pub ' : ''
-    const h = `${p}trait ${type}`
-    const w = isEmpty(where) ? [`${h} {`] : [
-        h,
-        `where`,
-        mapComma(where),
-        '{'
-    ]
-    const x = [
-        content,
-        '}',
-    ]
-    return flat([w, x])
+const trait = t => {
+    const p = t.pub === true ? 'pub ' : ''
+    const h = `${p}trait ${t.type}`
+    return whereContent(h)(t)
 }
 
 /** @type {(trait: string) => text.ItemArray} */
