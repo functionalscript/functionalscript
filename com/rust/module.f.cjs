@@ -82,9 +82,16 @@ const rustImpl = ({ param, trait, type, where, content }) => {
  */
 
 /** @type {(t: Trait) => text.ItemArray} */
-const trait = ({ pub, type, content }) => {
+const trait = ({ pub, type, where, content }) => {
     const p = pub === true ? 'pub ' : ''
-    return [`${p}trait ${type} {`,
+    const h = `${p}trait ${type}`
+    const w = where === undefined ? [`${h} {`] : [
+        h,
+        `where`,
+        [`${where},`],
+    ]
+    return [
+        `${h} {`,
         content,
         '}',
     ]
