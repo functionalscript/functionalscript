@@ -112,10 +112,13 @@ const trait = t => {
 
 /** @type {(trait: string) => text.Block} */
 const defaultImpl = trait => rustImpl({
-    param: 'T: nanocom::Class<Interface = Interface>',
+    param: 'T',
     trait,
     type: 'T',
-    where: ['nanocom::CObject<T>: Ex'],
+    where: [
+        'Self: nanocom::Class<Interface = Interface>',
+        'nanocom::CObject<T>: Ex',
+    ],
     content: []
 })
 

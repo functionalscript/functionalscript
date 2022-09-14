@@ -71,8 +71,9 @@ module.exports = {
             '            GetIMy: Self::GetIMy,\n' +
             '        };\n' +
             '    }\n' +
-            '    impl<T: nanocom::Class<Interface = Interface>> ClassEx for T\n' +
+            '    impl<T> ClassEx for T\n' +
             '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
             '        nanocom::CObject<T>: Ex,\n' +
             '    {\n' +
             '    }\n' +
@@ -100,8 +101,9 @@ module.exports = {
             '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
             '        }\n' +
             '    }\n' +
-            '    impl<T: nanocom::Class<Interface = Interface>> PrivateClassEx for T\n' +
+            '    impl<T> PrivateClassEx for T\n' +
             '    where\n' +
+            '        Self: nanocom::Class<Interface = Interface>,\n' +
             '        nanocom::CObject<T>: Ex,\n' +
             '    {\n' +
             '    }\n' +
