@@ -74,17 +74,21 @@ const rustImpl = ({ param, trait, type, where, content }) => {
 
 /**
  * @typedef {{
+ *  readonly pub?: true
  *  readonly type: string
+ *  readonly where?: string
  *  readonly content: text.Block
  * }} Trait
  */
 
 /** @type {(t: Trait) => text.ItemArray} */
-const trait = ({type, content}) => [
-    `pub trait ${type} {`,
-    content,
-    '}',
-]
+const trait = ({ pub, type, content }) => {
+    const p = pub === true ? 'pub ' : ''
+    return [`${p}trait ${type} {`,
+        content,
+        '}',
+    ]
+}
 
 /** @type {(trait: string) => text.ItemArray} */
 const defaultImpl = trait => rustImpl({
@@ -192,13 +196,13 @@ const rust = library => {
                 type: 'Interface',
                 content: [`const GUID: nanocom::GUID = 0x${guid.replaceAll('-', '_')};`]
             }),
-            trait({ type: 'Ex', content: mapTraitFn(e) }),
+            trait({ pub: true, type: 'Ex', content: mapTraitFn(e) }),
             rustImpl({
                 trait: 'Ex',
                 type: 'Object',
                 content: flatMapImplFn(e)
             }),
-            [   'pub trait ClassEx: nanocom::Class<Interface = Interface>',
+            ['pub trait ClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 ['nanocom::CObject<Self>: Ex,'],
                 '{',
@@ -209,7 +213,7 @@ const rust = library => {
                 '}'
             ],
             defaultImpl('ClassEx'),
-            [   'trait PrivateClassEx: nanocom::Class<Interface = Interface>',
+            ['trait PrivateClassEx: nanocom::Class<Interface = Interface>',
                 'where',
                 ['nanocom::CObject<Self>: Ex'],
                 `{`,
