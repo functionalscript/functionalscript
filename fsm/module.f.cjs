@@ -21,4 +21,9 @@ const escape = faId => todo()
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => todo()
 
-module.exports = {}
+module.exports = {
+    /** @readonly */
+    escape,
+    /** @readonly */
+    dfa,
+}
