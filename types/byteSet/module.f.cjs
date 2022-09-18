@@ -28,7 +28,7 @@ const set = fn(one).then(union).result
 const setRange = fn(range).then(union).result
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
-const unset = n => s => s & ~(1n << BigInt(n))
+const unset = n => s => s & ~one(n)
 
 module.exports = {
     /** @readonly */
