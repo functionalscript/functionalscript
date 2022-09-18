@@ -1,3 +1,5 @@
+const { fn } = require('../function/module.f.cjs')
+
 /** @typedef {bigint} ByteSet */
 /** @typedef {number} Byte */
 
@@ -21,11 +23,9 @@ const union = a => b => a | b
 
 // additional operations
 
-/** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
-const set = n => union(one(n))
+const set = fn(one).then(union).result
 
-/** @type {(r: readonly[Byte, Byte]) => (s: ByteSet) => ByteSet} */
-const setRange = r => union(range(r))
+const setRange = fn(range).then(union).result
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const unset = n => s => s & ~(1n << BigInt(n))
