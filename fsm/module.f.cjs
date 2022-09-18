@@ -2,7 +2,7 @@ const { todo } = require('../dev/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
 const byteSet = require('../types/byteSet/module.f.cjs')
 
-/** @typedef {readonly[string, byteSet.byteSet, string]} Rule */
+/** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
 /** @typedef {list.List<Rule>} Grammar */
 
