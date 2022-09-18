@@ -21,6 +21,9 @@ const range = ([b, e]) => one(e - b + 1) - 1n << BigInt(b)
 /** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
 const union = a => b => a | b
 
+/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
+const intersect = a => b => a & b
+
 // additional operations
 
 const set = fn(one).then(union).result
@@ -28,7 +31,7 @@ const set = fn(one).then(union).result
 const setRange = fn(range).then(union).result
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
-const unset = n => s => s & ~one(n)
+const unset = n => s => intersect(s)(~one(n))
 
 module.exports = {
     /** @readonly */
