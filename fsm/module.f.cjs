@@ -10,7 +10,7 @@ const list = require('../types/list/module.f.cjs')
 
 /**
  * @typedef {{
- *  readonly [k in string]: ByteMap
+ *  readonly[state in string]: ByteMap
  * }} Dfa
  */
 
