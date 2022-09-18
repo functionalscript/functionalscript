@@ -14,7 +14,7 @@ const empty = 0n
 const one = n => 1n << BigInt(n)
 
 /** @type {(r: readonly[Byte, Byte]) => ByteSet} */
-const range = ([b, e]) => (1n << BigInt(e - b + 1)) - 1n << BigInt(b)
+const range = ([b, e]) => one(e - b + 1) - 1n << BigInt(b)
 
 // set operations
 
