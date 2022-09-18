@@ -15,6 +15,9 @@ const list = require('../types/list/module.f.cjs')
  * }} Dfa
  */
 
+/** @type {(faId: string) => string} */
+const escape = faId => todo()
+
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => todo()
 
