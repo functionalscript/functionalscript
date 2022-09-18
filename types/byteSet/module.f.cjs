@@ -4,8 +4,11 @@
 /** @type {(n: Byte) => (s: ByteSet) => boolean} */
 const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
+/** @type {(n: Byte) => ByteSet} */
+const one = n => 1n << BigInt(n)
+
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
-const set = n => s => s | (1n << BigInt(n))
+const set = n => s => s | one(n)
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const unset = n => s => s & ~(1n << BigInt(n))
