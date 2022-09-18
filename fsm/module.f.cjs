@@ -1,3 +1,4 @@
+const { todo } = require('../dev/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
 
 /** @typedef {number} Byte */
@@ -13,5 +14,8 @@ const list = require('../types/list/module.f.cjs')
  *  readonly[state in string]: ByteMap
  * }} Dfa
  */
+
+/** @type {(grammar: Grammar) => Dfa} */
+const dfa = grammar => todo()
 
 module.exports = {}
