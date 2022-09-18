@@ -25,7 +25,10 @@ const union = a => b => a | b
 const intersect = a => b => a & b
 
 /** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
-const difference = a => b => intersect(a)(~b)
+const difference = a => b => intersect(a)(complement(b))
+
+/** @type {(n: ByteSet) => ByteSet} */
+const complement = n => ~n
 
 // additional operations
 
