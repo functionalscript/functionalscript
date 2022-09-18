@@ -4,8 +4,22 @@
 /** @type {(n: Byte) => (s: ByteSet) => boolean} */
 const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
+// create a set
+
+const empty = 0n
+
 /** @type {(n: Byte) => ByteSet} */
 const one = n => 1n << BigInt(n)
+
+/** @type {(r: readonly[Byte, Byte]) => ByteSet} */
+const range = ([b, e]) => (1n << BigInt(e - b + 1)) - 1n << BigInt(b)
+
+// set operations
+
+/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
+const union = a => b => a | b
+
+// additional operations
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const set = n => s => s | one(n)
@@ -13,16 +27,8 @@ const set = n => s => s | one(n)
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const unset = n => s => s & ~(1n << BigInt(n))
 
-/** @type {(r: readonly[Byte, Byte]) => ByteSet} */
-const range = ([b, e]) => (1n << BigInt(e - b + 1)) - 1n << BigInt(b)
-
-/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
-const union = a => b => a | b
-
 /** @type {(r: readonly[Byte, Byte]) => (s: ByteSet) => ByteSet} */
 const setRange = r => s => union(s)(range(r))
-
-const empty = 0n
 
 module.exports = {
     /** @readonly */
