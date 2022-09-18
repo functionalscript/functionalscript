@@ -24,6 +24,9 @@ const union = a => b => a | b
 /** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
 const intersect = a => b => a & b
 
+/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
+const difference = a => b => intersect(a)(~b)
+
 // additional operations
 
 const set = fn(one).then(union).result
@@ -31,7 +34,7 @@ const set = fn(one).then(union).result
 const setRange = fn(range).then(union).result
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
-const unset = n => s => intersect(s)(~one(n))
+const unset = n => s => difference(s)(one(n))
 
 module.exports = {
     /** @readonly */
