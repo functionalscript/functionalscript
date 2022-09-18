@@ -10,13 +10,13 @@ const set = n => s => s | (1n << BigInt(n))
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const unset = n => s => s & ~(1n << BigInt(n))
 
+/** @type {(r: readonly[Byte, Byte]) => ByteSet} */
+const range = ([b, e]) => (1n << BigInt(e - b + 1)) - 1n << BigInt(b)
+
 /** @type {(r: readonly[Byte, Byte]) => (s: ByteSet) => ByteSet} */
-const setRange = ([b, e]) => s => s | ((1n << BigInt(e - b + 1)) - 1n << BigInt(b))
+const setRange = r => s => s | range(r)
 
 const empty = 0n
-
-/** @type {(r: readonly[Byte, Byte]) => ByteSet} */
-const range = r => setRange(r)(empty)
 
 module.exports = {
     /** @readonly */
