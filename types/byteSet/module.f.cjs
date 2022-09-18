@@ -22,13 +22,13 @@ const union = a => b => a | b
 // additional operations
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
-const set = n => s => s | one(n)
+const set = n => union(one(n))
+
+/** @type {(r: readonly[Byte, Byte]) => (s: ByteSet) => ByteSet} */
+const setRange = r => union(range(r))
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const unset = n => s => s & ~(1n << BigInt(n))
-
-/** @type {(r: readonly[Byte, Byte]) => (s: ByteSet) => ByteSet} */
-const setRange = r => s => union(s)(range(r))
 
 module.exports = {
     /** @readonly */
