@@ -1,6 +1,6 @@
 const { todo } = require('../dev/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
-const byteSet = require('../types/byteSet/module.f.cjs')
+const byteSet = require('../types/byte_set/module.f.cjs')
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
