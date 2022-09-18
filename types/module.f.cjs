@@ -10,13 +10,15 @@ module.exports = {
     /** @readonly */
     map: require('./map/module.f.cjs'),
     /** @readonly */
+    nibbleSet: require('./nibble_set/module.f.cjs'),
+    /** @readonly */
     object: require('./object/module.f.cjs'),
     /** @readonly */
     range: require('./range/module.f.cjs'),
     /** @readonly */
     result: require('./result/module.f.cjs'),
     /** @readonly */
-    stringset: require('./stringset/module.f.cjs'),
+    stringSet: require('./string_set/module.f.cjs'),
     /** @readonly */
     bigint: require('./bigint/module.f.cjs'),
     /** @readonly */
