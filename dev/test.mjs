@@ -65,7 +65,6 @@ const load = async () => {
                         await f(file)
                     }
                 } else if (name.endsWith('.f.cjs')) {
-                    // console.log(`loading ${file}`)
                     const source = await readFile(file, 'utf8')
                     map.push([file, Function('module', 'require', `"use strict";${source}`)])
                 }
@@ -88,8 +87,8 @@ const map = await load()
 const build = async () => {
     /** @type {ModuleMap} */
     const d = {}
-    /** @type {(base: readonly string[]) => (i: string) => (k: string) => readonly[string, Module]} */
-    const req = base => i => k => {
+    /** @type {(base: readonly string[]) => (k: string) => readonly[string, Module]} */
+    const req = base => k => {
         const relativePath = k.split('/')
         const dif = relativePath.filter(v => v === '..').length
         const path = [base.slice(0, base.length - dif), relativePath.filter(v => !['..', '.'].includes(v))]
@@ -107,8 +106,7 @@ const build = async () => {
             const module = {
                 dependencyMap: {}
             }
-            // console.log(`${i}building ${pathStr}`)
-            const getModule = req(newBase)(`${i}| `)
+            const getModule = req(newBase)
             const newReq = s => {
                 const [p, result] = getModule(s)
                 module.dependencyMap[p] = result
@@ -119,56 +117,18 @@ const build = async () => {
             return [pathStr, module]
         }
     }
-    const r = req(['.'])('')
+    const r = req(['.'])
     for (const k of Object.keys(map)) {
         r(k)
     }
     return d
 }
 
-const modules = await build()
-
-// graph
-
-/*
-for (const [k, v] of Object.entries(modules)) {
-    console.log(`: ${k}`)
-    console.log(Object.keys(v.dependencies))
-}
-*/
+const moduleMap = await build()
 
 // test runner.
 
-/** @type {(i: string) => (v: unknown) => void} */
-const test = i => v => {
-    switch (typeof v) {
-        case 'function': {
-            if (v.length === 0) {
-                const r = v()
-                console.log(`${i}() passed`)
-                test(`${i}| `)(r)
-            }
-            return;
-        }
-        case 'object': {
-            if (v instanceof Array) {
-                for (const v2 of v) {
-                    test(`${i}| `)(v2)
-                }
-            } else {
-                for (const [k, v2] of Object.entries(v)) {
-                    console.log(`${i}${k}:`)
-                    test(`${i}| `)(v2)
-                }
-            }
-            return;
-        }
-    }
-}
-
-for (const [k, v] of Object.entries(modules)) {
-    if (k.endsWith('test.f.cjs')) {
-        console.log(`testing ${k}`)
-        test('| ')(v.exports)
-    }
-}
+moduleMap['./dev/test/module.f.cjs'].exports({
+    moduleMap,
+    log: console.log,
+})
