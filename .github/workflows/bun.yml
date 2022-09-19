@@ -12,4 +12,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash
-    - run: /home/runner/.bun/bin/bun ./test.mjs
+    - run: /home/runner/.bun/bin/bun ./dev/test.mjs
