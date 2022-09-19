@@ -36,24 +36,25 @@ const main = ({moduleMap, log, state}) => {
     /** @typedef {log extends Log<infer T> ? T : never} T */
     /** @type {(i: string) => (v: unknown) => (state: T) => T} */
     const test = i => v => state => {
+        const next = test(`${i}| `)
         switch (typeof v) {
             case 'function': {
                 if (v.length === 0) {
                     const r = v()
                     state = log(`${i}() passed`)(state)
-                    state = test(`${i}| `)(r)(state)
+                    state = next(r)(state)
                 }
                 break
             }
             case 'object': {
                 if (v instanceof Array) {
                     for (const v2 of v) {
-                        state = test(`${i}| `)(v2)(state)
+                        state = next(v2)(state)
                     }
                 } else if (v !== null) {
                     for (const [k, v2] of Object.entries(v)) {
                         state = log(`${i}${k}:`)(state)
-                        state = test(`${i}| `)(v2)(state)
+                        state = next(v2)(state)
                     }
                 }
                 break
@@ -61,10 +62,11 @@ const main = ({moduleMap, log, state}) => {
         }
         return state
     }
+    const next = test('| ')
     for (const [k, v] of Object.entries(moduleMap)) {
         if (k.endsWith('test.f.cjs')) {
             state = log(`testing ${k}`)(state)
-            state = test('| ')(v.exports)(state)
+            state = next(v.exports)(state)
         }
     }
     return state
