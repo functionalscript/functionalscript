@@ -23,13 +23,13 @@ const { readdir, readFile } = await import(globalThis.Deno ? 'https://deno.land/
 
 /**
  * @typedef {{
- *  [k: in string]?: Module
- * }} Dependencies
+ *  [k in string]?: Module
+ * }} DependencyMap
  */
 
 /**
  * @typedef {{
- *  dependencies: Dependencies
+ *  dependencyMap: DependencyMap
  *  exports?: unknown
  * }} Module
  */
@@ -105,13 +105,13 @@ const build = async () => {
         {
             /** @type {Module} */
             const module = {
-                dependencies: {}
+                dependencyMap: {}
             }
             // console.log(`${i}building ${pathStr}`)
             const getModule = req(newBase)(`${i}| `)
             const newReq = s => {
                 const [p, result] = getModule(s)
-                module.dependencies[p] = result
+                module.dependencyMap[p] = result
                 return result.exports
             }
             map[pathStr](module, newReq)

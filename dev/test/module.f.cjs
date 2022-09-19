@@ -1,19 +1,22 @@
-const { todo } = require('../module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
-const function_ = require('../../commonjs/module/function/module.f.cjs')
-const package_ = require('../../commonjs/package/module.f.cjs')
+/**
+ * @typedef {{
+ *  readonly[k in string]?: Module
+ * }} DependencyMap
+ */
 
 /**
- * @type {(c: function_.Compile) =>
- *  (files: string) =>
- *  (packageGet: package_.Get) =>
- *  never}
+ * @typedef {{
+ *  readonly dependencyMap: DependencyMap
+ *  readonly exports?: unknown
+ * }} Module
  */
-const test = compile => files => packageGet => {
-    return todo()
-}
 
-module.exports = {
-    /** @readonly */
-    test,
-}
+/**
+ * @typedef {{
+ *  readonly[k in string]: Module
+ * }} ModuleMap
+ */
+
+const main = () => {}
+
+module.exports = main
