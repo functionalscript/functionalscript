@@ -126,7 +126,12 @@ const moduleMap = await build()
 
 // test runner.
 
+const log = s => state => {
+    console.log(s)
+    return state
+}
+
 moduleMap['./dev/test/module.f.cjs'].exports({
     moduleMap,
-    log: console.log,
+    log,
 })

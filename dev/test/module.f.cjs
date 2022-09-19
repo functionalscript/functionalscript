@@ -18,46 +18,56 @@
  */
 
 /**
+ * @template T
+ * @typedef {(v: string) => (state: T) => T} Log
+ */
+
+/**
+ * @template T
  * @typedef {{
  *  readonly moduleMap: ModuleMap,
- *  readonly log: (v: string) => void,
+ *  readonly log: Log<T>,
+ *  readonly state: T,
  * }} Input
  */
 
-/** @type {(input: Input) => void} */
-const main = ({moduleMap, log}) => {
-    /** @type {(i: string) => (v: unknown) => void} */
-    const test = i => v => {
+/** @type {<T>(input: Input<T>) => T} */
+const main = ({moduleMap, log, state}) => {
+    /** @typedef {log extends Log<infer T> ? T : never} T */
+    /** @type {(i: string) => (v: unknown) => (state: T) => T} */
+    const test = i => v => state => {
         switch (typeof v) {
             case 'function': {
                 if (v.length === 0) {
                     const r = v()
-                    log(`${i}() passed`)
-                    test(`${i}| `)(r)
+                    state = log(`${i}() passed`)(state)
+                    state = test(`${i}| `)(r)(state)
                 }
-                return;
+                break
             }
             case 'object': {
                 if (v instanceof Array) {
                     for (const v2 of v) {
-                        test(`${i}| `)(v2)
+                        state = test(`${i}| `)(v2)(state)
                     }
                 } else if (v !== null) {
                     for (const [k, v2] of Object.entries(v)) {
-                        log(`${i}${k}:`)
-                        test(`${i}| `)(v2)
+                        state = log(`${i}${k}:`)(state)
+                        state = test(`${i}| `)(v2)(state)
                     }
                 }
-                return;
+                break
             }
         }
+        return state
     }
     for (const [k, v] of Object.entries(moduleMap)) {
         if (k.endsWith('test.f.cjs')) {
-            log(`testing ${k}`)
-            test('| ')(v.exports)
+            state = log(`testing ${k}`)(state)
+            state = test('| ')(v.exports)(state)
         }
     }
+    return state
 }
 
 module.exports = main
