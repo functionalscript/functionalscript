@@ -61,9 +61,7 @@ const load = async () => {
             if (!name.startsWith('.')) {
                 const file = `${p}/${name}`
                 if (i.isDirectory()) {
-                    if (!['node_modules', 'target'].includes(name)) {
-                        await f(file)
-                    }
+                    await f(file)
                 } else if (name.endsWith('.f.cjs')) {
                     const source = await readFile(file, 'utf8')
                     map.push([file, Function('module', 'require', `"use strict";${source}`)])
