@@ -82,6 +82,9 @@ const map = await load()
  * }} ModuleMap
  */
 
+/** @type {(v: readonly string[]) => (dif: number) => readonly string[]} */
+const truncate = v => dif => v.slice(0, v.length - dif)
+
 const build = async () => {
     /** @type {ModuleMap} */
     const d = {}
@@ -89,10 +92,9 @@ const build = async () => {
     const req = base => k => {
         const relativePath = k.split('/')
         const dif = relativePath.filter(v => v === '..').length
-        const path = [base.slice(0, base.length - dif), relativePath.filter(v => !['..', '.'].includes(v))]
+        const path = [truncate(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
             .flat()
         const pathStr = path.join('/')
-        const newBase = path.slice(0, path.length - 1)
         {
             const module = d[pathStr]
             if (module !== undefined) {
@@ -104,7 +106,7 @@ const build = async () => {
             const module = {
                 dependencyMap: {}
             }
-            const getModule = req(newBase)
+            const getModule = req(truncate(path)(1))
             const newReq = s => {
                 const [p, result] = getModule(s)
                 module.dependencyMap[p] = result
