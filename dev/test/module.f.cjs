@@ -1,3 +1,6 @@
+const list = require('../../types/list/module.f.cjs')
+const { fold } = list
+
 /**
  * @typedef {{
  *  readonly[k in string]?: Module
@@ -31,6 +34,9 @@
  * }} Input
  */
 
+/** @type {(s: string) => boolean} */
+const isTest = s => s.endsWith('test.f.cjs')
+
 /** @type {<T>(input: Input<T>) => T} */
 const main = ({moduleMap, log, state}) => {
     /** @typedef {log extends Log<infer T> ? T : never} T */
@@ -47,15 +53,17 @@ const main = ({moduleMap, log, state}) => {
                 break
             }
             case 'object': {
+                /** @type {(k: readonly[string|number, unknown]) => (state: T) => T} */
+                const f = ([k, v]) => state => {
+                    state = log(`${i}${k}:`)(state)
+                    state = next(v)(state)
+                    return state
+                }
+                const foldF = fold(f)(state)
                 if (v instanceof Array) {
-                    for (const v2 of v) {
-                        state = next(v2)(state)
-                    }
+                    state = foldF(list.entries(v))
                 } else if (v !== null) {
-                    for (const [k, v2] of Object.entries(v)) {
-                        state = log(`${i}${k}:`)(state)
-                        state = next(v2)(state)
-                    }
+                    state = foldF(Object.entries(v))
                 }
                 break
             }
@@ -63,13 +71,15 @@ const main = ({moduleMap, log, state}) => {
         return state
     }
     const next = test('| ')
-    for (const [k, v] of Object.entries(moduleMap)) {
-        if (k.endsWith('test.f.cjs')) {
+    /** @type {(k: readonly[string, Module]) => (state: T) => T} */
+    const f = ([k, v]) => state => {
+        if (isTest(k)) {
             state = log(`testing ${k}`)(state)
             state = next(v.exports)(state)
         }
+        return state
     }
-    return state
+    return fold(f)(state)(Object.entries(moduleMap))
 }
 
 module.exports = main
