@@ -15,7 +15,7 @@ const byteSet = require('../types/byte_set/module.f.cjs')
  */
 
 /** @type {(faId: string) => string} */
-const escape = faId => todo()
+const escape = faId => faId.replaceAll('\\', '\\\\').replaceAll('|', '\\|')
 
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => todo()
