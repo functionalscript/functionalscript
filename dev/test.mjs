@@ -54,7 +54,7 @@ const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
  */
 
 /** @type {(v: readonly string[]) => (dif: number) => readonly string[]} */
-const remove_right = v => dif => v.slice(0, v.length - dif)
+const remove_tail = v => dif => v.slice(0, v.length - dif)
 
 const boot = async() => {
     /** @type {any} */
@@ -96,7 +96,7 @@ const boot = async() => {
         const req = base => k => {
             const relativePath = k.split('/')
             const dif = relativePath.filter(v => v === '..').length
-            const path = [remove_right(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
+            const path = [remove_tail(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
                 .flat()
             const pathStr = path.join('/')
             {
@@ -110,7 +110,7 @@ const boot = async() => {
                 const module = {
                     dependencyMap: {}
                 }
-                const getModule = req(remove_right(path)(1))
+                const getModule = req(remove_tail(path)(1))
                 /** @type {(s: string) => unknown} */
                 const newReq = s => {
                     const [p, result] = getModule(s)
