@@ -1,7 +1,9 @@
-name: Bun CI
+name: bun
 
 on:
   push:
+    branches:
+    - master
   pull_request:
 
 jobs:

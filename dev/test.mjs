@@ -20,15 +20,28 @@
 
 /**
  * @typedef {{
- *  [k in string]?: Module
- * }} DependencyMap
+ *  [k in string]?: MutableModule
+ * }} MutableDependencyMap
  */
 
 /**
  * @typedef {{
- *  dependencyMap: DependencyMap
+ *  dependencyMap: MutableDependencyMap
  *  exports?: unknown
+ * }} MutableModule
+ */
+
+/**
+ * @typedef {{
+ *  readonly dependencyMap: DependencyMap
+ *  readonly exports?: unknown
  * }} Module
+ */
+
+/**
+ * @typedef {{
+ *   readonly[k in string]?: Module
+ * }} DependencyMap
  */
 
 /** @typedef {(name: string) => unknown} Require */
@@ -49,21 +62,27 @@ const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
 
 /**
  * @typedef {{
- *  [k in string]: Module
+ *  [k in string]: MutableModule
+ * }} MutableModuleMap
+ */
+
+/**
+ * @typedef {{
+ *  readonly[k in string]: Module
  * }} ModuleMap
  */
 
 /** @type {(v: readonly string[]) => (dif: number) => readonly string[]} */
-const remove_right = v => dif => v.slice(0, v.length - dif)
+const remove_tail = v => dif => v.slice(0, v.length - dif)
+
+/** @type {any} */
+const self = globalThis
 
 const boot = async() => {
-    /** @type {any} */
-    const self = globalThis
-
     /** @type {FsPromises} */
     const { readdir, readFile } = await import(self.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
 
-        /** @type {() => Promise<FunctionMap>} */
+    /** @type {() => Promise<FunctionMap>} */
     const load = async () => {
         /** @type {(readonly[string, Function])[]} */
         const map = []
@@ -89,14 +108,15 @@ const boot = async() => {
 
     const map = await load()
 
-    const build = async () => {
-        /** @type {ModuleMap} */
+    /** @type {() => ModuleMap} */
+    const build = () => {
+        /** @type {MutableModuleMap} */
         const d = {}
-        /** @type {(base: readonly string[]) => (k: string) => readonly[string, Module]} */
-        const req = base => k => {
+        /** @type {(base: readonly string[]) => (k: string) => readonly[string, MutableModule]} */
+        const getModule = base => k => {
             const relativePath = k.split('/')
             const dif = relativePath.filter(v => v === '..').length
-            const path = [remove_right(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
+            const path = [remove_tail(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
                 .flat()
             const pathStr = path.join('/')
             {
@@ -106,15 +126,15 @@ const boot = async() => {
                 }
             }
             {
-                /** @type {Module} */
-                const module = {
-                    dependencyMap: {}
-                }
-                const getModule = req(remove_right(path)(1))
+                /** @type {MutableDependencyMap} */
+                const dependencyMap = {}
+                /** @type {MutableModule} */
+                const module = { dependencyMap }
+                const get = getModule(remove_tail(path)(1))
                 /** @type {(s: string) => unknown} */
                 const newReq = s => {
-                    const [p, result] = getModule(s)
-                    module.dependencyMap[p] = result
+                    const [p, result] = get(s)
+                    dependencyMap[p] = result
                     return result.exports
                 }
                 map[pathStr](module, newReq)
@@ -122,14 +142,16 @@ const boot = async() => {
                 return [pathStr, module]
             }
         }
-        const r = req(['.'])
-        for (const k of Object.keys(map)) {
-            r(k)
+        {
+            const get = getModule(['.'])
+            for (const k of Object.keys(map)) {
+                get(k)
+            }
         }
         return d
     }
 
-    return await build()
+    return build()
 }
 
 // test runner.
