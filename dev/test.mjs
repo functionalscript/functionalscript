@@ -54,7 +54,8 @@ const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
  */
 
 /** @type {(v: readonly string[]) => (dif: number) => readonly string[]} */
-const remove_tail = v => dif => v.slice(0, v.length - dif)
+const remove_tail = v => dif =>
+    v.slice(0, v.length - dif)
 
 const boot = async() => {
     /** @type {any} */
