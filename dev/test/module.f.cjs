@@ -1,19 +1,75 @@
-const { todo } = require('../module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
-const function_ = require('../../commonjs/module/function/module.f.cjs')
-const package_ = require('../../commonjs/package/module.f.cjs')
+/**
+ * @typedef {{
+ *  readonly[k in string]?: Module
+ * }} DependencyMap
+ */
 
 /**
- * @type {(c: function_.Compile) =>
- *  (files: string) =>
- *  (packageGet: package_.Get) =>
- *  never}
+ * @typedef {{
+ *  readonly dependencyMap: DependencyMap
+ *  readonly exports?: unknown
+ * }} Module
  */
-const test = compile => files => packageGet => {
-    return todo()
+
+/**
+ * @typedef {{
+ *  readonly[k in string]: Module
+ * }} ModuleMap
+ */
+
+/**
+ * @template T
+ * @typedef {(v: string) => (state: T) => T} Log
+ */
+
+/**
+ * @template T
+ * @typedef {{
+ *  readonly moduleMap: ModuleMap,
+ *  readonly log: Log<T>,
+ *  readonly state: T,
+ * }} Input
+ */
+
+/** @type {<T>(input: Input<T>) => T} */
+const main = ({moduleMap, log, state}) => {
+    /** @typedef {log extends Log<infer T> ? T : never} T */
+    /** @type {(i: string) => (v: unknown) => (state: T) => T} */
+    const test = i => v => state => {
+        const next = test(`${i}| `)
+        switch (typeof v) {
+            case 'function': {
+                if (v.length === 0) {
+                    const r = v()
+                    state = log(`${i}() passed`)(state)
+                    state = next(r)(state)
+                }
+                break
+            }
+            case 'object': {
+                if (v instanceof Array) {
+                    for (const v2 of v) {
+                        state = next(v2)(state)
+                    }
+                } else if (v !== null) {
+                    for (const [k, v2] of Object.entries(v)) {
+                        state = log(`${i}${k}:`)(state)
+                        state = next(v2)(state)
+                    }
+                }
+                break
+            }
+        }
+        return state
+    }
+    const next = test('| ')
+    for (const [k, v] of Object.entries(moduleMap)) {
+        if (k.endsWith('test.f.cjs')) {
+            state = log(`testing ${k}`)(state)
+            state = next(v.exports)(state)
+        }
+    }
+    return state
 }
 
-module.exports = {
-    /** @readonly */
-    test,
-}
+module.exports = main
