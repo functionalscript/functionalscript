@@ -1,5 +1,3 @@
-const i = require('./module.f.cjs')
-
 /** @type {() => never} */
 const assert = () => { throw 'assert' }
 
