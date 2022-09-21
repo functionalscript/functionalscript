@@ -34,6 +34,17 @@ const { fold } = list
  * }} Input
  */
 
+/**
+ * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
+ *
+ * @type {(c: number) => string}
+ */
+const sgr = c => `\x1b[${c.toString()}m`
+
+const reset = sgr(0)
+
+const fgGreen = sgr(32)
+
 /** @type {(s: string) => boolean} */
 const isTest = s => s.endsWith('test.f.cjs')
 
@@ -47,7 +58,7 @@ const main = ({moduleMap, log, state}) => {
             case 'function': {
                 if (v.length === 0) {
                     const r = v()
-                    state = log(`${i}() ok`)(state)
+                    state = log(`${i}() ${fgGreen}ok${reset}`)(state)
                     state = next(r)(state)
                 }
                 break
