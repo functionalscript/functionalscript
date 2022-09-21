@@ -47,7 +47,7 @@ const main = ({moduleMap, log, state}) => {
             case 'function': {
                 if (v.length === 0) {
                     const r = v()
-                    state = log(`${i}() passed`)(state)
+                    state = log(`${i}() ok`)(state)
                     state = next(r)(state)
                 }
                 break

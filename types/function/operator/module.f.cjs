@@ -7,7 +7,7 @@
 
 /**
  * @template I,O
- * @typedef {Binary<I, O, O>} FoldT
+ * @typedef {Binary<I, O, O>} Fold
  */
 
 /** @type {(separator: string) => Reduce<string>} */
@@ -49,7 +49,7 @@ const stateScanToScan = op => prior => i => {
     return [o, stateScanToScan(op)(s)]
 }
 
-/** @type {<I, O>(fold: FoldT<I, O>) => (prior: O) => Scan<I, O>} */
+/** @type {<I, O>(fold: Fold<I, O>) => (prior: O) => Scan<I, O>} */
 const foldToScan = fold => prior => i => {
     const result = fold(i)(prior)
     return [result, foldToScan(fold)(result)]
@@ -57,7 +57,7 @@ const foldToScan = fold => prior => i => {
 
 /**
  * @template T
- * @typedef {FoldT<T, T>} Reduce
+ * @typedef {Fold<T, T>} Reduce
  */
 
 /** @type {<T>(fold: Reduce<T>) => Scan<T, T>} */
