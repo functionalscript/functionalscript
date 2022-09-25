@@ -1,6 +1,7 @@
 const { todo } = require('../dev/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
 const byteSet = require('../types/byte_set/module.f.cjs')
+const object = require('../types/object/module.f.cjs')
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
@@ -17,8 +18,15 @@ const byteSet = require('../types/byte_set/module.f.cjs')
 /** @type {(faId: string) => string} */
 const escape = faId => faId.replaceAll('\\', '\\\\').replaceAll('|', '\\|')
 
+/** @type {(rule: Rule) =>  object.Entry<Rule>} */
+const toEntry = r => [escape(r[2]), r]
+
 /** @type {(grammar: Grammar) => Dfa} */
-const dfa = grammar => todo()
+const dfa = grammar =>
+{
+    const sorted = object.sort(list.map(toEntry)(grammar))
+    return todo()
+}
 
 module.exports = {
     /** @readonly */
