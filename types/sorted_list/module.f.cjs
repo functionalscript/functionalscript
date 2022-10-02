@@ -23,7 +23,7 @@ const { next, toArray } = list
 const sortedMerge = cmp => a => b => toArray(listMerge(cmp)(a)(b))
 
 /** @type {<T>(cmp: Cmp<T>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
-const listMerge = cmp => a => b => {
+const listMerge = cmp => a => b => () => {
     const aResult = next(a)
     if (aResult === undefined) { return b }
     const bResult = next(b)
