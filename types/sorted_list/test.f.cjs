@@ -4,12 +4,13 @@ const json = require('../../json/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const { toArray, countdown, length } = require('../list/module.f.cjs')
 const map = require('../map/module.f.cjs')
+const { cmp } = require('../number/test.f.cjs')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 /** @type {<T>(a: T) => (b: T) => map.Sign} */
-const reverseCmp =  a => b => a < b ? 1 : a > b ? -1 : 0
+const reverseCmp =  a => b => unsafeCmp(b)(a)
 
 module.exports = {
     sortedMergre: [
