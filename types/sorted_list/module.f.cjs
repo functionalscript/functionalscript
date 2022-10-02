@@ -12,6 +12,13 @@ const { next, toArray } = list
  * @typedef {(a: T) => (b: T) => compare.Sign} Cmp
  */
 
+/** @typedef {number} Byte */
+
+/**
+ * @template T
+ * @typedef {SortedList<[Byte, readonly string[]]>} RangeMap
+ */
+
 /** @type {<T>(cmp: Cmp<T>) => (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>} */
 const sortedMerge = cmp => a => b => toArray(listMerge(cmp)(a)(b))
 
