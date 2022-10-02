@@ -15,17 +15,17 @@ const reverseCmp =  a => b => unsafeCmp(b)(a)
 module.exports = {
     sortedMergre: [
         () => {
-            const result = stringify(_.sortedMerge(unsafeCmp)([2, 3, 4])([1, 3, 5]))
+            const result = stringify(toArray(_.merge(unsafeCmp)([2, 3, 4])([1, 3, 5])))
             if (result !== '[1,2,3,4,5]') { throw result }
         },
         () => {
-            const result = stringify(_.sortedMerge(unsafeCmp)([1, 2, 3])([]))
+            const result = stringify(toArray(_.merge(unsafeCmp)([1, 2, 3])([])))
             if (result !== '[1,2,3]') { throw result }
         },
         () => {
             const n = 10_000
             const list = toArray(countdown(n))
-            const result = _.sortedMerge(reverseCmp)(list)(list)
+            const result = _.merge(reverseCmp)(list)(list)
             const len = length(result)
             if (len != n) { throw result }
         }
