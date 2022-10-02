@@ -4,7 +4,6 @@ const json = require('../../json/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const { toArray, countdown, length } = require('../list/module.f.cjs')
 const map = require('../map/module.f.cjs')
-const { cmp } = require('../number/test.f.cjs')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
@@ -24,7 +23,7 @@ module.exports = {
         },
         () => {
             const n = 10_000
-            const list = toArray(countdown(n))
+            const list = countdown(n)
             const result = _.merge(reverseCmp)(list)(list)
             const len = length(result)
             if (len != n) { throw result }
