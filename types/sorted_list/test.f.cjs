@@ -2,9 +2,14 @@ const _ = require('./module.f.cjs')
 const { unsafeCmp } = require('../function/compare/module.f.cjs')
 const json = require('../../json/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
+const { toArray, countdown, length } = require('../list/module.f.cjs')
+const map = require('../map/module.f.cjs')
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
+
+/** @type {<T>(a: T) => (b: T) => map.Sign} */
+const reverseCmp =  a => b => a < b ? 1 : a > b ? -1 : 0
 
 module.exports = {
     sortedMergre: [
@@ -15,6 +20,13 @@ module.exports = {
         () => {
             const result = stringify(_.sortedMerge(unsafeCmp)([1, 2, 3])([]))
             if (result !== '[1,2,3]') { throw result }
+        },
+        () => {
+            const n = 10_000
+            const list = toArray(countdown(n))
+            const result = _.sortedMerge(reverseCmp)(list)(list)
+            const len = length(result)
+            if (len != n) { throw result }
         }
     ]
 }
