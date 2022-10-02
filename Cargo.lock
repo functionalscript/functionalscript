@@ -7,7 +7,7 @@ name = "nanocom"
 version = "0.1.2"
 
 [[package]]
-name = "rtest"
+name = "testrust"
 version = "0.1.0"
 dependencies = [
  "nanocom",
