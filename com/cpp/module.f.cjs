@@ -3,7 +3,7 @@ const { paramList } = types
 const text = require('../../text/module.f.cjs')
 const obj = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { map, flatMap } = list
+const { map, flatMap, flat } = list
 const { join } = require('../../types/string/module.f.cjs')
 const { entries } =  Object
 
@@ -77,9 +77,14 @@ const cpp = name => lib => {
         ? struct(name)(defStruct(d))
         : struct(`${name}: ::com::IUnknown`)(defInterface(d))
 
+    /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
+    const forward = ([name]) => [`struct ${name};`]
+
+    const e = entries(lib)
+
     return list.flat([
         ['#pragma once', ''],
-        namespace(name)(flatMap(def)(entries(lib)))
+        namespace(name)(flat([flatMap(forward)(e), flatMap(def)(e)]))
     ])
 }
 
