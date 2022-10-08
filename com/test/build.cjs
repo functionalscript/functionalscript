@@ -25,3 +25,13 @@ try {
     // @ts-ignore
     console.error(e.output.toString())
 }
+
+const rust = require("../rust/test.f.cjs").result();
+
+fs.writeFileSync(`${dirname}/rust/src/_result.rs`, rust);
+try {
+    console.log(cp.execSync("cargo build").toString());
+} catch (e) {
+    // @ts-ignore
+    console.error(e.output.toString());
+}
