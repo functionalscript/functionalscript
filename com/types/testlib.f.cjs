@@ -6,8 +6,12 @@ module.exports = {
         struct: {
             Start: ['*', 'u8'],
             Size: 'usize',
-            M: ['IMy'],
         },
+    },
+    ManagedStruct: {
+        struct: {
+            M: ['IMy']
+        }
     },
     IMy: {
         guid: 'C66FB270-2D80-49AD-BB6E-88C1F90B805D',
@@ -20,7 +24,8 @@ module.exports = {
                 size: 'u32'
             },
             Some: { p: ['IMy'], _: 'bool' },
-            GetIMy: { _: ['IMy'] }
+            GetIMy: { _: ['IMy'] },
+            SetManagedStruct: { a: ['ManagedStruct'] },
         },
     }
 }

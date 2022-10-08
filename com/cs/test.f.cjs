@@ -17,6 +17,10 @@ const f = () =>
         '    {\n' +
         '        public unsafe byte* Start;\n' +
         '        public UIntPtr Size;\n' +
+        '    }\n' +
+        '    [StructLayout(LayoutKind.Sequential)]\n' +
+        '    public struct ManagedStruct\n' +
+        '    {\n' +
         '        public IMy M;\n' +
         '    }\n' +
         '    [Guid("C66FB270-2D80-49AD-BB6E-88C1F90B805D")]\n' +
@@ -35,9 +39,11 @@ const f = () =>
         '        bool Some(IMy p);\n' +
         '        [PreserveSig]\n' +
         '        IMy GetIMy();\n' +
+        '        [PreserveSig]\n' +
+        '        void SetManagedStruct(ManagedStruct a);\n' +
         '    }\n' +
         '}'
-    if (cs !== e) { throw [cs,e] }
+    if (cs !== e) { throw cs }
     return cs
 }
 

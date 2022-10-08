@@ -11,6 +11,9 @@ module.exports = {
             'pub struct Slice {\n' +
             '    pub Start: *const u8,\n' +
             '    pub Size: usize,\n' +
+            '}\n' +
+            '#[repr(C)]\n' +
+            'pub struct ManagedStruct {\n' +
             '    pub M: IMy::Ref,\n' +
             '}\n' +
             'pub mod IMy {\n' +
@@ -25,6 +28,7 @@ module.exports = {
             '        pub SetUnsafe: unsafe extern "system" fn(this: &Object, p: *const super::Slice, size: u32),\n' +
             '        pub Some: unsafe extern "system" fn(this: &Object, p: &super::IMy::Object) -> bool,\n' +
             '        pub GetIMy: unsafe extern "system" fn(this: &Object) -> super::IMy::Ref,\n' +
+            '        pub SetManagedStruct: unsafe extern "system" fn(this: &Object, a: super::ManagedStruct),\n' +
             '    }\n' +
             '    impl nanocom::Interface for Interface {\n' +
             '        const GUID: nanocom::GUID = 0xC66FB270_2D80_49AD_BB6E_88C1F90B805D;\n' +
@@ -36,6 +40,7 @@ module.exports = {
             '        fn SetUnsafe(&self, p: *const super::Slice, size: u32);\n' +
             '        fn Some(&self, p: &super::IMy::Object) -> bool;\n' +
             '        fn GetIMy(&self) -> super::IMy::Ref;\n' +
+            '        fn SetManagedStruct(&self, a: super::ManagedStruct);\n' +
             '    }\n' +
             '    impl Ex for Object {\n' +
             '        fn GetSlice(&self) -> super::Slice {\n' +
@@ -56,6 +61,9 @@ module.exports = {
             '        fn GetIMy(&self) -> super::IMy::Ref {\n' +
             '            unsafe { (self.interface().GetIMy)(self) }\n' +
             '        }\n' +
+            '        fn SetManagedStruct(&self, a: super::ManagedStruct) {\n' +
+            '            unsafe { (self.interface().SetManagedStruct)(self, a) }\n' +
+            '        }\n' +
             '    }\n' +
             '    pub trait ClassEx\n' +
             '    where\n' +
@@ -69,6 +77,7 @@ module.exports = {
             '            SetUnsafe: Self::SetUnsafe,\n' +
             '            Some: Self::Some,\n' +
             '            GetIMy: Self::GetIMy,\n' +
+            '            SetManagedStruct: Self::SetManagedStruct,\n' +
             '        };\n' +
             '    }\n' +
             '    impl<T> ClassEx for T\n' +
@@ -100,6 +109,9 @@ module.exports = {
             '        extern "system" fn GetIMy(this: &Object) -> super::IMy::Ref {\n' +
             '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
             '        }\n' +
+            '        extern "system" fn SetManagedStruct(this: &Object, a: super::ManagedStruct) {\n' +
+            '            unsafe { Self::to_cobject(this) }.SetManagedStruct(a)\n' +
+            '        }\n' +
             '    }\n' +
             '    impl<T> PrivateClassEx for T\n' +
             '    where\n' +
@@ -109,7 +121,7 @@ module.exports = {
             '    }\n' +
             '}'
         const r = join('\n')(flat('    ')(rust(library)))
-        if (r !== e) { throw [e, r] }
+        if (r !== e) { throw r }
         return r
     }
 }
