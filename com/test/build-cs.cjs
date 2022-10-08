@@ -1,8 +1,8 @@
 const fs = require('node:fs')
 const cp = require('node:child_process')
-const cs = require('../../cs/test.f.cjs').result
+const cs = require('../cs/test.f.cjs').result
 
-fs.writeFileSync('_result.cs', cs)
+fs.writeFileSync('cs/_result.cs', cs)
 try {
     console.log(cp.execSync('dotnet build').toString())
 } catch (e) {
