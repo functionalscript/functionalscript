@@ -11,6 +11,8 @@ const f = () =>
         '\n' +
         'namespace My\n' +
         '{\n' +
+        '    struct Slice;\n' +
+        '    struct IMy;\n' +
         '    struct Slice\n' +
         '    {\n' +
         '        uint8_t* Start;\n' +
