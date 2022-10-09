@@ -29,5 +29,16 @@ module.exports = {
             const len = length(result)
             if (len != n) { throw result }
         }
+    ],
+    intersect: [
+        () => {
+            const result = stringify(toArray(_.intersect(unsafeCmp)([2, 3, 4])([1, 3, 5])))
+            console.log(result)
+            if (result !== '[3]') { throw result }
+        },
+        () => {
+            const result = stringify(toArray(_.intersect(unsafeCmp)([1, 2, 3])([])))
+            if (result !== '[]') { throw result }
+        }
     ]
 }
