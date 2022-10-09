@@ -35,7 +35,7 @@ const { next } = list
 /**
  * @template S
  * @template T
- *  @typedef {(init: S) => (reduce: ReduceOp<S,T>) => (tailReduce: TailReduce<S, T>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} GenericMerge
+ * @typedef {(init: S) => (reduce: ReduceOp<S,T>) => (tailReduce: TailReduce<S, T>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} GenericMerge
  */
 
 /** @type {<T>(cmp: Cmp<T>) => (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>} */
