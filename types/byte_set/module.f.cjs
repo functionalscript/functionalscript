@@ -10,6 +10,9 @@ const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
 const empty = 0n
 
+//                 0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
+const universe = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFFn
+
 /** @type {(n: Byte) => ByteSet} */
 const one = n => 1n << BigInt(n)
 
@@ -28,7 +31,7 @@ const intersect = a => b => a & b
 const difference = a => b => intersect(a)(complement(b))
 
 /** @type {(n: ByteSet) => ByteSet} */
-const complement = n => ~n
+const complement = n => universe ^ n
 
 // additional operations
 
@@ -43,6 +46,8 @@ module.exports = {
     /** @readonly */
     empty,
     /** @readonly */
+    universe,
+    /** @readonly */
     has,
     /** @readonly */
     set,
@@ -54,4 +59,6 @@ module.exports = {
     setRange,
     /** @readonly */
     range,
+    /** @readonly */
+    complement,
 }

@@ -1,4 +1,5 @@
 const _ = require('./module.f.cjs')
+const { every, countdown, map } = require('../list/module.f.cjs')
 
 module.exports = {
     has: [
@@ -37,5 +38,19 @@ module.exports = {
             const result = _.unset(255)(a)
             if (result !== 0n) { throw result }
         }
-    ]
+    ],
+    universe: () => {
+        const x = every(map(v => _.has(v)(_.universe))(countdown(256)))
+        if (!x) { throw x }
+    },
+    compliment: {
+        empty: () => {
+            const r = _.complement(_.empty)
+            if (r !== _.universe) { throw r }
+        },
+        universe: () => {
+            const r = _.complement(_.universe)
+            if (r !== _.empty) { throw r }
+        },
+    }
 }
