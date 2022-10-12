@@ -34,9 +34,11 @@ module.exports = {
     /** @readonly */
     has,
     /** @readonly */
+    complement,
+    /** @readonly */
     set,
     /** @readonly */
     unset,
     /** @readonly */
-    setRange
+    setRange,
 }
