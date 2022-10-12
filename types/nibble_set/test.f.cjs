@@ -17,7 +17,7 @@ module.exports = {
         },
         () => {
             const s = _.set(15)(_.empty)
-            if (s !== 32768) { throw s }
+            if (s !== 0x8000) { throw s }
             if (_.has(0)(s)) { throw s }
             if (_.has(1)(s)) { throw s }
             if (!_.has(15)(s)) { throw s }

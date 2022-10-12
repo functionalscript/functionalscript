@@ -26,9 +26,6 @@ const range = ([a, b]) => one(b - a + 1) - 1 << a
 /** @type {(r: readonly[number, number]) => (s: NibbleSet) => NibbleSet} */
 const setRange = r => s => s | range(r)
 
-// how to define FA???
-// const stateA = [init, set] ????
-
 module.exports = {
     /** @readonly */
     empty,
