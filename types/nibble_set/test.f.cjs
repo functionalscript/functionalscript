@@ -1,3 +1,4 @@
+const { every, map, countdown } = require('../list/module.f.cjs')
 const _ = require('./module.f.cjs')
 
 module.exports = {
@@ -37,5 +38,9 @@ module.exports = {
     setRange: () => {
         const result = _.setRange([2, 5])(_.empty)
         if (result !== 60) { throw result }
+    },
+    universe: () => {
+        const x = every(map(v => _.has(v)(_.universe))(countdown(16)))
+        if (!x) { throw x }
     }
 }

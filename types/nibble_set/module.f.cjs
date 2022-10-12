@@ -3,6 +3,8 @@
 
 const empty = 0
 
+const universe = 0xFFFF
+
 /** @type {(n: nibble) => (s: nibbleSet) => boolean} */
 const has = n => s => ((s >> n) & 1) === 1
 
@@ -21,6 +23,8 @@ const unset = n => s => s & ~(1 << n)
 module.exports = {
     /** @readonly */
     empty,
+    /** @readonly */
+    universe,
     /** @readonly */
     has,
     /** @readonly */
