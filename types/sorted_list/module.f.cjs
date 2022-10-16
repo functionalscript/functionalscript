@@ -1,7 +1,8 @@
-const compare = require("../function/compare/module.f.cjs")
-const list = require("../list/module.f.cjs")
-const option = require("../option/module.f.cjs")
+const compare = require('../function/compare/module.f.cjs')
+const list = require('../list/module.f.cjs')
+const option = require('../option/module.f.cjs')
 const { next } = list
+const { identity } = require('../function/module.f.cjs')
 
 /**
  * @template T
@@ -87,7 +88,7 @@ const cmpReduce = cmp => () => a => b => {
 }
 
 /** @type {() => <T>(tail: list.List<T>) => list.List<T>} */
-const mergeTail = () => tail => tail
+const mergeTail = () => identity
 
 module.exports = {
     /** @readonly */
