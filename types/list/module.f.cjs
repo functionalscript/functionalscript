@@ -295,11 +295,13 @@ const zip = a => b => () => {
 }
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => List<boolean>} */
-const equalZip = e => a => b => () => {
-    const [aResult, bResult] = [next(a), next(b)]
-    return aResult === undefined || bResult === undefined
-        ? { first: aResult === bResult, tail: undefined }
-        : { first: e(aResult.first)(bResult.first), tail: equalZip(e)(aResult.tail)(bResult.tail) }
+const equalZip = e => {
+    return a => b => () => {
+        const [aResult, bResult] = [next(a), next(b)]
+        return aResult === undefined || bResult === undefined
+            ? { first: aResult === bResult, tail: undefined }
+            : { first: e(aResult.first)(bResult.first), tail: equalZip(e)(aResult.tail)(bResult.tail) }
+    }
 }
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
