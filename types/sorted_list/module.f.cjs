@@ -69,16 +69,18 @@ const cmpReduce = cmp => () => a => b => {
 const mergeTail = () => tail => tail
 
 /** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
-const genericMerge = reduce => state => a => b => () => {
-    const aResult = next(a)
-    if (aResult === undefined) { return reduce.tailReduce(state)(b) }
-    const bResult = next(b)
-    if (bResult === undefined) { return reduce.tailReduce(state)(a) }
-    const [result, sign, stateNext] = reduce.reduceOp(state)(aResult.first)(bResult.first)
-    const aNext = sign === 1 ? a : aResult.tail
-    const bNext = sign === -1 ? b : bResult.tail
-    const mergeNext = genericMerge(reduce)(stateNext)(aNext)(bNext)
-    return result === undefined ? mergeNext : { first: result, tail: mergeNext }
+const genericMerge = reduce => {
+    return state => a => b => () => {
+        const aResult = next(a)
+        if (aResult === undefined) { return reduce.tailReduce(state)(b) }
+        const bResult = next(b)
+        if (bResult === undefined) { return reduce.tailReduce(state)(a) }
+        const [result, sign, stateNext] = reduce.reduceOp(state)(aResult.first)(bResult.first)
+        const aNext = sign === 1 ? a : aResult.tail
+        const bNext = sign === -1 ? b : bResult.tail
+        const mergeNext = genericMerge(reduce)(stateNext)(aNext)(bNext)
+        return result === undefined ? mergeNext : { first: result, tail: mergeNext }
+    }
 }
 
 module.exports = {
