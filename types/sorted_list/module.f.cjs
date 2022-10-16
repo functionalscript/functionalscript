@@ -40,12 +40,6 @@ const { identity } = require('../function/module.f.cjs')
   * }} MergeReduce
  */
 
-/**
- * @template T
- * @template S
- * @typedef {(state: S) => (reduce: MergeReduce<T,S>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} GenericMerge
- */
-
 /** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
 const genericMerge = reduce => {
     const { reduceOp, tailReduce } = reduce
