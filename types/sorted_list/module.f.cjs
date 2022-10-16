@@ -70,17 +70,23 @@ const mergeTail = () => tail => tail
 
 /** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
 const genericMerge = reduce => {
-    return state => a => b => () => {
+    const { reduceOp, tailReduce } = reduce
+    /** @typedef {typeof reduce extends MergeReduce<infer T, infer S> ? [T, S] : never} TS */
+    /** @typedef {TS[0]} T */
+    /** @typedef {TS[1]} S */
+    /** @type {(state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
+    const f = state => a => b => () => {
         const aResult = next(a)
-        if (aResult === undefined) { return reduce.tailReduce(state)(b) }
+        if (aResult === undefined) { return tailReduce(state)(b) }
         const bResult = next(b)
-        if (bResult === undefined) { return reduce.tailReduce(state)(a) }
-        const [result, sign, stateNext] = reduce.reduceOp(state)(aResult.first)(bResult.first)
+        if (bResult === undefined) { return tailReduce(state)(a) }
+        const [result, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
         const aNext = sign === 1 ? a : aResult.tail
         const bNext = sign === -1 ? b : bResult.tail
-        const mergeNext = genericMerge(reduce)(stateNext)(aNext)(bNext)
+        const mergeNext = f(stateNext)(aNext)(bNext)
         return result === undefined ? mergeNext : { first: result, tail: mergeNext }
     }
+    return f
 }
 
 module.exports = {
