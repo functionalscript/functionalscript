@@ -16,8 +16,7 @@ const { next } = list
 /** @typedef {number} Byte */
 
 /**
- * @template T
- * @typedef {SortedList<[Byte, readonly string[]]>} RangeMap
+  * @typedef {SortedList<[Byte, readonly string[]]>} RangeMap
  */
 
 /**
