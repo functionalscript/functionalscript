@@ -24,16 +24,16 @@ const union = cmp => a => b => toArray(merge(cmp)(a)(b))
 const intersect = cmp => a => b => toArray(intersectMerge(cmp)(a)(b))
 
 /** @type {<T>(cmp: Cmp<T>) => (a: sortedList.SortedList<T>) => (b: sortedList.SortedList<T>) => sortedList.SortedList<T>} */
-const intersectMerge = cmp => genericMerge({reduceOp: intersectReduce(cmp), tailReduce: intersectTail})
+const intersectMerge = cmp => genericMerge(undefined)({reduceOp: intersectReduce(cmp), tailReduce: intersectTail})
 
-/** @type {<T>(cmp: Cmp<T>) => sortedList.ReduceOp<T>} */
-const intersectReduce = cmp => a => b => {
+/** @type {<T,S>(cmp: Cmp<T>) => sortedList.ReduceOp<T,S>} */
+const intersectReduce = cmp => state => a => b => {
     const sign = cmp(a)(b)
-    return [sign === 0 ? a : undefined, sign]
+    return [sign === 0 ? a : undefined, sign, state]
 }
 
-/** @type {<T>(tail: list.List<T>) => list.List<T>} */
-const intersectTail = input => undefined
+/** @type {<T,S>(state: S) => (tail: list.List<T>) => list.List<T>} */
+const intersectTail = state => input => undefined
 
 module.exports = {
     /** @readonly */

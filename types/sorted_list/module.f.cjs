@@ -22,71 +22,53 @@ const { next } = list
 
 /**
  * @template T
- * @typedef {(a: T) => (b: T) => readonly[option.Option<T>, compare.Sign]} ReduceOp
+ * @template S
+ * @typedef {(state: S) => (a: T) => (b: T) => readonly[option.Option<T>, compare.Sign, S]} ReduceOp
  */
 
 /**
  * @template T
  * @template S
- * @typedef {(state: S) => (a: T) => (b: T) => readonly[option.Option<T>, compare.Sign, S]} StateReduceOp
+ * @typedef {(state: S) => (tail: list.List<T>) => list.List<T>} TailReduce
  */
 
 /**
  * @template T
+ * @template S
   * @typedef {{
- *  readonly reduceOp: ReduceOp<T>
- *  readonly tailReduce: TailReduce<T>
+ *  readonly reduceOp: ReduceOp<T,S>
+ *  readonly tailReduce: TailReduce<T,S>
   * }} MergeReduce
  */
 
 /**
  * @template T
- * @typedef {(tail: list.List<T>) => list.List<T>} TailReduce
- */
-
-/**
- * @template T
  * @template S
- * @typedef {(state: S) => (tail: list.List<T>) => list.List<T>} StateTailReduce
- */
-
-/**
- * @template T
- * @template S
-  * @typedef {{
- *  readonly reduceOp: StateReduceOp<T,S>
- *  readonly tailReduce: StateTailReduce<T,S>
-  * }} StateMergeReduce
- */
-
-/**
- * @template T
- * @template S
- * @typedef {(reduce: MergeReduce<T>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} GenericMerge
+ * @typedef {(state: S) => (reduce: MergeReduce<T,S>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} GenericMerge
  */
 
 /** @type {<T>(cmp: Cmp<T>) => (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>} */
-const merge = cmp => genericMerge({reduceOp: cmpReduce(cmp), tailReduce: mergeTail})
+const merge = cmp => genericMerge(undefined)({reduceOp: cmpReduce(cmp), tailReduce: mergeTail})
 
-/** @type {<T>(cmp: Cmp<T>) => ReduceOp<T>} */
-const cmpReduce = cmp => a => b => {
+/** @type {<T,S>(cmp: Cmp<T>) => ReduceOp<T,S>} */
+const cmpReduce = cmp => state => a => b => {
     const sign = cmp(a)(b)
-    return [sign === 1 ? b : a, sign]
+    return [sign === 1 ? b : a, sign, state]
 }
 
-/** @type {<T>(tail: list.List<T>) => list.List<T>} */
-const mergeTail = tail => tail
+/** @type {<T,S>(state: S) => (tail: list.List<T>) => list.List<T>} */
+const mergeTail = state => tail => tail
 
-/** @type {<T>(reduce: MergeReduce<T>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
-const genericMerge = reduce => a => b => () => {
+/** @type {<T,S>(state: S) => (reduce: MergeReduce<T,S>) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
+const genericMerge = state => reduce => a => b => () => {
     const aResult = next(a)
-    if (aResult === undefined) { return reduce.tailReduce(b) }
+    if (aResult === undefined) { return reduce.tailReduce(state)(b) }
     const bResult = next(b)
-    if (bResult === undefined) { return reduce.tailReduce(a) }
-    const [result, sign] = reduce.reduceOp(aResult.first)(bResult.first)
+    if (bResult === undefined) { return reduce.tailReduce(state)(a) }
+    const [result, sign, stateNext] = reduce.reduceOp(state)(aResult.first)(bResult.first)
     const aNext = sign === 1 ? a : aResult.tail
     const bNext = sign === -1 ? b : bResult.tail
-    const mergeNext = genericMerge(reduce)(aNext)(bNext)
+    const mergeNext = genericMerge(stateNext)(reduce)(aNext)(bNext)
     return result === undefined ? mergeNext : { first: result, tail: mergeNext }
 }
 
