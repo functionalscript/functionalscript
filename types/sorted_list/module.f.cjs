@@ -14,10 +14,9 @@ const { identity } = require('../function/module.f.cjs')
  * @typedef {(a: T) => (b: T) => compare.Sign} Cmp
  */
 
-/** @typedef {number} Byte */
-
 /**
-  * @typedef {SortedList<[Byte, readonly string[]]>} RangeMap
+ * @template T
+ * @typedef {SortedList<[T, number]>} RangeMap
  */
 
 /**
