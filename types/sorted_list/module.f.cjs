@@ -52,11 +52,11 @@ const genericMerge = reduce => {
         if (aResult === undefined) { return tailReduce(state)(b) }
         const bResult = next(b)
         if (bResult === undefined) { return tailReduce(state)(a) }
-        const [result, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
+        const [first, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
         const aNext = sign === 1 ? a : aResult.tail
         const bNext = sign === -1 ? b : bResult.tail
-        const mergeNext = f(stateNext)(aNext)(bNext)
-        return result === undefined ? mergeNext : { first: result, tail: mergeNext }
+        const tail = f(stateNext)(aNext)(bNext)
+        return first === undefined ? tail : { first, tail }
     }
     return f
 }
