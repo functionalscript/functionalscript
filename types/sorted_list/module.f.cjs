@@ -16,11 +16,6 @@ const { identity } = require('../function/module.f.cjs')
 
 /**
  * @template T
- * @typedef {SortedList<[T, number]>} RangeMap
- */
-
-/**
- * @template T
  * @template S
  * @typedef {(state: S) => (a: T) => (b: T) => readonly[option.Option<T>, compare.Sign, S]} ReduceOp
  */
