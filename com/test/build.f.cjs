@@ -3,6 +3,7 @@ const { flat } = list
 
 const cppContent = require('../cpp/test.f.cjs').result
 const csContent = require('../cs/test.f.cjs').result
+const rustContent = require("../rust/test.f.cjs").result();
 
 /**
  * @typedef {|
@@ -61,9 +62,20 @@ const cs = ({dirname}) => ({
     line: ['dotnet', 'build', `${dirname}/cs/cs.csproj`],
 })
 
+/** @type {Func} */
+const rust = ({dirname}) => ({
+    file: {
+        name: `${dirname}/rust/src/_result.rs`,
+        content: rustContent,
+    },
+    line: ['cargo', 'build']
+})
+
 module.exports = {
     /** @readonly */
     cpp,
     /** @readonly */
     cs,
+    /** @readonly */
+    rust,
 }
