@@ -3,7 +3,21 @@ const { join } = require('../../types/string/module.f.cjs')
 
 const cppContent = require('../cpp/test.f.cjs').result
 
-/** @typedef {'aix'|'darwin'|'freebsd'|'linux'|'openbsd'|'sunos'|'win32'} Platform */
+/**
+ * @typedef {|
+ *  'aix' |
+ *  'android' |
+ *  'darwin' |
+ *  'freebsd' |
+ *  'haiku' |
+ *  'linux' |
+ *  'openbsd' |
+ *  'sunos' |
+ *  'win32' |
+ *  'cygwin' |
+ *  'netbsd'
+ * } Platform
+ */
 
 /**
  * @typedef {{
@@ -32,7 +46,7 @@ const cpp = ({dirname, platform}) => {
             name: `${dirname}/cpp/_result.hpp`,
             content: cppContent,
         },
-        line: join(' ')(flat([['clang'], flags, [dirname + '/cpp/main.cpp']])),
+        line: join(' ')(flat([['clang'], flags, [`${dirname}/cpp/main.cpp`]])),
     }
 }
 
