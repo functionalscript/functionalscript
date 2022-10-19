@@ -1,7 +1,8 @@
-const { flat } = require('../../types/list/module.f.cjs')
-const { join } = require('../../types/string/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
+const { flat } = list
 
 const cppContent = require('../cpp/test.f.cjs').result
+const csContent = require('../cs/test.f.cjs').result
 
 /**
  * @typedef {|
@@ -32,25 +33,37 @@ const cppContent = require('../cpp/test.f.cjs').result
  *      readonly name: string
  *      readonly content: string
  *  }
- *  readonly line: string
+ *  readonly line: list.List<string>
  * }} Output
  */
 
 /** @typedef {(nodejs: NodeJs) => Output} Func */
 
 /** @type {Func} */
-const cpp = ({dirname, platform}) => {
-    const flags = platform === 'win32' ? [] : ['-std=c++11', '-lc++']
-    return {
-        file: {
-            name: `${dirname}/cpp/_result.hpp`,
-            content: cppContent,
-        },
-        line: join(' ')(flat([['clang'], flags, [`${dirname}/cpp/main.cpp`]])),
-    }
-}
+const cpp = ({dirname, platform}) => ({
+    file: {
+        name: `${dirname}/cpp/_result.hpp`,
+        content: cppContent,
+    },
+    line: flat([
+        ['clang'],
+        platform === 'win32' ? [] : ['-std=c++11', '-lc++'],
+        [`${dirname}/cpp/main.cpp`]]
+    ),
+})
+
+/** @type {Func} */
+const cs = ({dirname}) => ({
+    file: {
+        name: `${dirname}/cs/_result.cs`,
+        content: csContent,
+    },
+    line: ['dotnet', 'build', `${dirname}/cs/cs.csproj`],
+})
 
 module.exports = {
     /** @readonly */
     cpp,
+    /** @readonly */
+    cs,
 }

@@ -2,6 +2,7 @@ const { writeFileSync } = require('node:fs')
 const { execSync } = require('node:child_process')
 const { platform } = require('node:process')
 const build = require('./build.f.cjs')
+const { join } = require('../../types/string/module.f.cjs')
 
 const dirname = __dirname
 
@@ -15,7 +16,7 @@ const run = f => {
     const { file: { name, content }, line } = f(nodeJs)
     writeFileSync(name, content)
     try {
-        console.log(execSync(line).toString())
+        console.log(execSync(join(' ')(line)).toString())
     } catch (e) {
         // @ts-ignore
         console.error(e.output.toString())
@@ -23,18 +24,7 @@ const run = f => {
 }
 
 run(build.cpp)
-
-{
-    const cs = require('../cs/test.f.cjs').result
-
-    writeFileSync(`${dirname}/cs/_result.cs`, cs)
-    try {
-        console.log(execSync(`dotnet build ${dirname}/cs/cs.csproj`).toString())
-    } catch (e) {
-        // @ts-ignore
-        console.error(e.output.toString())
-    }
-}
+run(build.cs)
 
 {
     const rust = require("../rust/test.f.cjs").result();
