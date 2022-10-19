@@ -294,16 +294,18 @@ const zip = a => b => () => {
     return { first: [aResult.first, bResult.first], tail: zip(aResult.tail)(bResult.tail) }
 }
 
-/** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => List<boolean>} */
-const equalZip = e => a => b => () => {
-    const [aResult, bResult] = [next(a), next(b)]
-    return aResult === undefined || bResult === undefined
-        ? { first: aResult === bResult, tail: undefined }
-        : { first: e(aResult.first)(bResult.first), tail: equalZip(e)(aResult.tail)(bResult.tail) }
-}
-
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
-const equal = e => a => b => every(equalZip(e)(a)(b))
+const equal = e => {
+    /** @typedef {typeof e extends operator.Equal<infer T> ? T : never} T */
+    /** @type {(a: List<T>) => (b: List<T>) => List<boolean>} */
+    const f = a => b => () => {
+        const [aResult, bResult] = [next(a), next(b)]
+        return aResult === undefined || bResult === undefined
+            ? { first: aResult === bResult, tail: undefined }
+            : { first: e(aResult.first)(bResult.first), tail: f(aResult.tail)(bResult.tail) }
+    }
+    return a => b => every(f(a)(b))
+}
 
 module.exports = {
     /** @readonly */
