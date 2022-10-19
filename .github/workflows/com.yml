@@ -21,5 +21,4 @@ jobs:
       with:
         node-version: 19
     - run: npm ci
-    - run: npm test
     - run: node ./com/test/build.cjs
