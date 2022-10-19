@@ -1,37 +1,32 @@
-const fs = require('node:fs')
-const cp = require('node:child_process')
-const os = require('node:os');
-const cpp = require('../cpp/test.f.cjs').result
-const { string: { join }, list: { flat } } = require('../../types/module.f.cjs')
+const { writeFileSync } = require('node:fs')
+const { execSync } = require('node:child_process')
+const { platform } = require('node:process')
+const build = require('./build.f.cjs')
+const { cpp, cs, rust } = build
+const { join } = require('../../types/string/module.f.cjs')
+const { log, error } = console
+const { bold, reset } = require('../../text/sgr/module.f.cjs')
 
-const dirname = __dirname
-
-fs.writeFileSync(`${dirname}/cpp/_result.hpp`, cpp)
-try {
-    const flags = os.platform() === 'win32' ? [] : ['-std=c++11', '-lc++']
-    const line = join(' ')(flat([['clang'], flags, [dirname + '/cpp/main.cpp']]))
-    console.log(cp.execSync(line).toString())
-} catch (e) {
-    // @ts-ignore
-    console.error(e.output.toString())
+const nodeJs = {
+    dirname: __dirname,
+    platform,
 }
 
-const cs = require('../cs/test.f.cjs').result
-
-fs.writeFileSync(`${dirname}/cs/_result.cs`, cs)
-try {
-    console.log(cp.execSync(`dotnet build ${dirname}/cs/cs.csproj`).toString())
-} catch (e) {
-    // @ts-ignore
-    console.error(e.output.toString())
+/** @type {(f: build.Func) => void} */
+const run = f => {
+    const { file: { name, content }, line } = f(nodeJs)
+    log(`${bold}writing: ${name}${reset}`)
+    writeFileSync(name, content)
+    const cmd = join(' ')(line)
+    log(`${bold}running: ${cmd}${reset}`)
+    try {
+        log(execSync(cmd).toString())
+    } catch (e) {
+        // @ts-ignore
+        error(e.output.toString())
+    }
 }
 
-const rust = require("../rust/test.f.cjs").result();
-
-fs.writeFileSync(`${dirname}/rust/src/_result.rs`, rust);
-try {
-    console.log(cp.execSync("cargo build").toString());
-} catch (e) {
-    // @ts-ignore
-    console.error(e.output.toString());
-}
+run(cpp)
+run(cs)
+run(rust)

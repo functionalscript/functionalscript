@@ -82,7 +82,7 @@ const cpp = name => lib => {
 
     const e = entries(lib)
 
-    return list.flat([
+    return flat([
         ['#pragma once', ''],
         namespace(name)(flat([flatMap(forward)(e), flatMap(def)(e)]))
     ])
