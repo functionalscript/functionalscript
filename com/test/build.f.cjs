@@ -40,6 +40,18 @@ const rustContent = require("../rust/test.f.cjs").result();
 
 /** @typedef {(nodejs: NodeJs) => Output} Func */
 
+/** @type {(platform: Platform) => readonly string[]} */
+const flags = platform => {
+    switch (platform) {
+        case 'win32':
+            return []
+        case 'linux':
+            return ['-lstdc++']
+        default:
+            return ['-std=c++11', '-lc++']
+    }
+}
+
 /** @type {Func} */
 const cpp = ({dirname, platform}) => ({
     file: {
@@ -48,7 +60,7 @@ const cpp = ({dirname, platform}) => ({
     },
     line: flat([
         ['clang'],
-        platform === 'win32' ? [] : ['-std=c++11', '-lc++'],
+        flags(platform),
         [`${dirname}/cpp/main.cpp`]]
     ),
 })
