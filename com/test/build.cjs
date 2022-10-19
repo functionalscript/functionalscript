@@ -1,13 +1,13 @@
 const fs = require('node:fs')
 const cp = require('node:child_process')
-const os = require('node:os');
+const process = require('node:process');
 const { string: { join }, list: { flat } } = require('../../types/module.f.cjs')
 
 const dirname = __dirname
 
 {
     const cpp = require('../cpp/test.f.cjs').result
-    const flags = os.platform() === 'win32' ? [] : ['-std=c++11', '-lc++']
+    const flags = process.platform === 'win32' ? [] : ['-std=c++11', '-lc++']
     const line = join(' ')(flat([['clang'], flags, [dirname + '/cpp/main.cpp']]))
 
     fs.writeFileSync(`${dirname}/cpp/_result.hpp`, cpp)
