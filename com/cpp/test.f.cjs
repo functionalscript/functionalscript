@@ -1,11 +1,7 @@
-const _ = require('./module.f.cjs')
-const library = require('../types/testlib.f.cjs')
-const text = require('../../text/module.f.cjs')
-const { join } = require('../../types/module.f.cjs').string
+const cpp = require('./testlib.f.cjs')
 
 const f = () =>
 {
-    const r = join('\n')(text.flat('    ')(_.cpp('My')(library)))
     const e =
         '#pragma once\n' +
         '\n' +
@@ -34,8 +30,7 @@ const f = () =>
         '        virtual void COM_STDCALL SetManagedStruct(ManagedStruct a) = 0;\n' +
         '    };\n' +
         '}'
-    if (r !== e) { throw r }
-    return r
+    if (cpp !== e) { throw cpp }
 }
 
 module.exports = {
