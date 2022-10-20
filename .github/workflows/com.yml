@@ -25,4 +25,4 @@ jobs:
       with:
         node-version: 19
     - run: npm ci
-    - run: node ./com/test/build.cjs
+    - run: npm run comtest

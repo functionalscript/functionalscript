@@ -1,9 +1,9 @@
 const list = require('../../types/list/module.f.cjs')
 const { flat } = list
 
-const cppContent = require('../cpp/test.f.cjs').result
-const csContent = require('../cs/test.f.cjs').result
-const rustContent = require("../rust/test.f.cjs").result();
+const cppContent = require('../cpp/testlib.f.cjs')
+const csContent = require('../cs/testlib.f.cjs')
+const rustContent = require("../rust/testlib.f.cjs")
 
 /**
  * @typedef {|
