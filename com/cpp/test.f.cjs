@@ -33,7 +33,4 @@ const f = () =>
     if (cpp !== e) { throw cpp }
 }
 
-module.exports = {
-    /** @readonly */
-    result: f()
-}
+module.exports = f
