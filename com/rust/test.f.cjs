@@ -66,14 +66,17 @@ module.exports = () => {
         '        Self: nanocom::Class<Interface = Interface>,\n' +
         '        nanocom::CObject<Self>: Ex,\n' +
         '    {\n' +
-        '        const INTERFACE: Interface = Interface {\n' +
-        '            GetSlice: Self::GetSlice,\n' +
-        '            SetSlice: Self::SetSlice,\n' +
-        '            GetUnsafe: Self::GetUnsafe,\n' +
-        '            SetUnsafe: Self::SetUnsafe,\n' +
-        '            Some: Self::Some,\n' +
-        '            GetIMy: Self::GetIMy,\n' +
-        '            SetManagedStruct: Self::SetManagedStruct,\n' +
+        '        const VMT: Vmt = Vmt {\n' +
+        '            iunknown: Self::IUNKNOWN,\n' +
+        '            interface: Interface {\n' +
+        '                GetSlice: Self::GetSlice,\n' +
+        '                SetSlice: Self::SetSlice,\n' +
+        '                GetUnsafe: Self::GetUnsafe,\n' +
+        '                SetUnsafe: Self::SetUnsafe,\n' +
+        '                Some: Self::Some,\n' +
+        '                GetIMy: Self::GetIMy,\n' +
+        '                SetManagedStruct: Self::SetManagedStruct,\n' +
+        '            },\n' +
         '        };\n' +
         '    }\n' +
         '    impl<T> ClassEx for T\n' +

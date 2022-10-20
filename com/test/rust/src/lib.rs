@@ -7,11 +7,8 @@ struct My {}
 impl nanocom::Class for My {
     type Interface = _result::IMy::Interface;
     fn static_vmt() -> &'static _result::IMy::Vmt {
-        static vmt: _result::IMy::Vmt = _result::IMy::Vmt {
-            iunknown: My::IUNKNOWN,
-            interface: My::INTERFACE,
-        };
-        &vmt
+        static VMT: _result::IMy::Vmt = My::VMT;
+        &VMT
     }
 }
 
