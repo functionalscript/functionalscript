@@ -13,7 +13,7 @@ const operator = require("../function/operator/module.f.cjs")
 
 /**
  * @template T
- * @typedef {sortedList.SortedList<[Entry<T>]>} RangeMap
+ * @typedef {sortedList.SortedList<Entry<T>>} RangeMap
  */
 
 /**
@@ -48,7 +48,7 @@ const tailReduce = equal => state => tail => {
   return { first: state, tail: tail}
 }
 
- /** @type {<T>(op: Operators<T>) => (a: list.List<Entry<T>>) => (b:list.List<Entry<T>>) => list.List<Entry<T>>} */
+ /** @type {<T>(op: Operators<T>) => (a: RangeMap<T>) => (b: RangeMap<T>) => RangeMap<T>} */
 const merge = op => {
     const { union, equal } = op
     return genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
