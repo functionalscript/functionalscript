@@ -5,7 +5,6 @@ const option = require("../option/module.f.cjs")
 const { unsafeCmp } = require('../function/compare/module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
 
-
 /**
  * @template T
  * @typedef {[T, number]} Entry
@@ -15,6 +14,7 @@ const operator = require("../function/operator/module.f.cjs")
  * @template T
  * @typedef {sortedList.SortedList<Entry<T>>} RangeMap
  */
+
 
 /**
  * @template T
@@ -29,10 +29,15 @@ const operator = require("../function/operator/module.f.cjs")
  * @typedef {option.Option<Entry<T>>} RangeState
  */
 
+/**
+ * @template T
+ * @typedef {(a: RangeMap<T>) => (b: RangeMap<T>) => RangeMap<T>} RangeMerge
+ */
+
 /** @type {<T>(union: operator.Reduce<T>) => (equal: operator.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
 const reduceOp = union => equal => state => a => b => {
   const sign = unsafeCmp(a[1])(b[1])
-  const min = sign === 1 ? a[1] : b[1]
+  const min = sign === 1 ? b[1] : a[1]
   const u = union(a[0])(b[0])
   if (state !== undefined && equal(state[0])(u)) {
     return [undefined, sign, state]
@@ -48,7 +53,7 @@ const tailReduce = equal => state => tail => {
   return { first: state, tail: tail}
 }
 
- /** @type {<T>(op: Operators<T>) => (a: RangeMap<T>) => (b: RangeMap<T>) => RangeMap<T>} */
+ /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
 const merge = op => {
     const { union, equal } = op
     return genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
