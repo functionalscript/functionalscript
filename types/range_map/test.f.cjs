@@ -17,6 +17,39 @@ module.exports = {
             /** @type {_.Operators<sortedSet.SortedSet<string>>} */
             const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2]]
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const b = undefined
+            const merged = _.merge(op)(a)(b)
+            const result = stringify(list.toArray(merged))
+            if (result !== '[[["a"],1],[["b"],2]]') { throw result }
+        },
+        () => {
+            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
+            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const a = undefined
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const b = [[['a'], 1], [['b'], 2]]
+            const merged = _.merge(op)(a)(b)
+            const result = stringify(list.toArray(merged))
+            if (result !== '[[["a"],1],[["b"],2]]') { throw result }
+        },
+        () => {
+            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
+            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2]]
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const b = [[['a'], 1], [['b'], 2]]
+            const merged = _.merge(op)(a)(b)
+            const result = stringify(list.toArray(merged))
+            if (result !== '[[["a"],1],[["b"],2]]') { throw result }
+        },
+        () => {
+            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
+            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['c'], 3]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const b = [[['b'], 2], [['d'], 4]]
