@@ -230,8 +230,12 @@ const rust = library => {
             traitImpl({
                 pub: true,
                 type: 'ClassEx',
-                content: [`const INTERFACE: Interface = Interface {`,
-                    mapAssign(e),
+                content: ['const VMT: Vmt = Vmt {',
+                    [   'iunknown: Self::IUNKNOWN,',
+                        'interface: Interface {',
+                            mapAssign(e),
+                        '},',
+                    ],
                     '};'
                 ]
             }),

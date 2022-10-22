@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__amd64__)
 #define COM_STDCALL
 #elif defined(__clang__)
 #define COM_STDCALL __attribute__((stdcall))

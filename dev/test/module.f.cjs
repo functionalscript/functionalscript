@@ -1,5 +1,6 @@
 const list = require('../../types/list/module.f.cjs')
 const { fold } = list
+const { reset, fgGreen } = require('../../text/sgr/module.f.cjs')
 
 /**
  * @typedef {{
@@ -33,17 +34,6 @@ const { fold } = list
  *  readonly state: T,
  * }} Input
  */
-
-/**
- * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
- *
- * @type {(c: number) => string}
- */
-const sgr = c => `\x1b[${c.toString()}m`
-
-const reset = sgr(0)
-
-const fgGreen = sgr(32)
 
 /** @type {(s: string) => boolean} */
 const isTest = s => s.endsWith('test.f.cjs')

@@ -36,9 +36,12 @@ mod library {
         where
             nanocom::CObject<Self>: Ex,
         {
-            const INTERFACE: Interface = Interface {
-                A: Self::A,
-                B: Self::B,
+            const VMT: Vmt = Vmt {
+                iunknown: Self::IUNKNOWN,
+                interface: Interface {
+                    A: Self::A,
+                    B: Self::B,
+                }
             };
         }
 
@@ -73,10 +76,7 @@ mod number {
     impl nanocom::Class for X {
         type Interface = IMy::Interface;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
-            static V: IMy::Vmt = Vmt {
-                iunknown: X::IUNKNOWN,
-                interface: X::INTERFACE,
-            };
+            static V: IMy::Vmt = X::VMT;
             &V
         }
     }
@@ -142,10 +142,7 @@ mod destructor {
     impl nanocom::Class for X {
         type Interface = IMy::Interface;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
-            static V: IMy::Vmt = Vmt {
-                iunknown: X::IUNKNOWN,
-                interface: X::INTERFACE,
-            };
+            static V: IMy::Vmt = X::VMT;
             &V
         }
     }

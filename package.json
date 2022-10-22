@@ -7,7 +7,8 @@
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
     "version": "node ./nodejs/version/main.cjs",
-    "test-only": "node --trace-uncaught ./dev/test.mjs"
+    "test-only": "node --trace-uncaught ./dev/test.mjs",
+    "comtest": "node ./com/test/build.cjs"
   },
   "repository": {
     "type": "git",
@@ -29,7 +30,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^18.8.4",
+    "@types/node": "^18.11.2",
     "typescript": "^4.8.4"
   }
 }
