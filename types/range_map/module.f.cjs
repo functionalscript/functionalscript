@@ -52,7 +52,7 @@ const tailReduce = equal => state => tail => {
   return { first: state, tail: tail}
 }
 
- /** @type {<T>(op: Operators<T>) => (a: list.List<Entry<T>>) => (b:list.List<Entry<T>>) => list.List<Entry<T>} */
+ /** @type {<T>(op: Operators<T>) => (a: list.List<Entry<T>>) => (b:list.List<Entry<T>>) => list.List<Entry<T>>} */
 const merge = op => {
     const { union, equal } = op
     return sortedList.genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
