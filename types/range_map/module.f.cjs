@@ -1,12 +1,8 @@
-const compare = require("../function/compare/module.f.cjs")
-const { toArray } = require("../list/module.f.cjs")
 const sortedList = require("../sorted_list/module.f.cjs")
-const sortedSet = require("../sorted_set/module.f.cjs")
 const { genericMerge } = sortedList
 const list = require("../list/module.f.cjs")
 const option = require("../option/module.f.cjs")
 const { unsafeCmp } = require('../function/compare/module.f.cjs')
-const { todo } = require("../../dev/module.f.cjs")
 const operator = require("../function/operator/module.f.cjs")
 
 
@@ -55,7 +51,7 @@ const tailReduce = equal => state => tail => {
  /** @type {<T>(op: Operators<T>) => (a: list.List<Entry<T>>) => (b:list.List<Entry<T>>) => list.List<Entry<T>>} */
 const merge = op => {
     const { union, equal } = op
-    return sortedList.genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
+    return genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
 }
 
 module.exports = {
