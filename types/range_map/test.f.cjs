@@ -23,6 +23,28 @@ module.exports = {
             const merged = _.merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]') { throw result }
+        },
+        () => {
+            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
+            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const a = [[['a'], 1], [['d'], 4]]
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const b = [[['b'], 2], [['c'], 3]]
+            const merged = _.merge(op)(a)(b)
+            const result = stringify(list.toArray(merged))
+            if (result !== '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]') { throw result }
+        },
+        () => {
+            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
+            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2]]
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const b = [[['b'], 1], [['a'], 2]]
+            const merged = _.merge(op)(a)(b)
+            const result = stringify(list.toArray(merged))
+            if (result !== '[[["a","b"],2]]') { throw result }
         }
     ]
 }

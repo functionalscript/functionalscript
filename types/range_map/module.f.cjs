@@ -40,7 +40,7 @@ const reduceOp = union => equal => state => a => b => {
   const min = sign === 1 ? b[1] : a[1]
   const u = union(a[0])(b[0])
   if (state !== undefined && equal(state[0])(u)) {
-    return [undefined, sign, state]
+    return [undefined, sign, [state[0], min]]
   }
   return [state, sign, [u, min]]
 }
