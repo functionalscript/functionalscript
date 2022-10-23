@@ -36,9 +36,16 @@ const idBegin = byteSet.union(alpha)(idSymbol)
 const digit = byteSet.range('0')('9')
 const idNext = byteSet.union(idBegin)(digit)
 
+const dot = byteSet('.')
+
 const grammar = [
   ['init', digit, 'int'],
   ['int', digit, 'int'],
+  ['init', digit, 'floatBegin'],
+  ['floatBegin', digit, 'floatBegin'],
+  ['floatBegin', dot, 'floatDot'],
+  ['floatDot', digit, 'float'],
+  ['float', dogot, 'float'],
   ['init', idBegin, 'id'],
   ['id', idNext, 'id'],
 ]
