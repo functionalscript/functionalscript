@@ -11,11 +11,14 @@ const operator = require("../function/operator/module.f.cjs")
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
+/** @type {_.Operators<sortedSet.SortedSet<string>>} */
+const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+
+
+
 module.exports = {
     merge: [
         () => {
-            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
-            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['b'], 2]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
@@ -25,8 +28,6 @@ module.exports = {
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
-            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
-            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = undefined
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
@@ -36,8 +37,6 @@ module.exports = {
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
-            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
-            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['b'], 2]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
@@ -47,8 +46,6 @@ module.exports = {
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
-            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
-            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['c'], 3]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
@@ -58,8 +55,6 @@ module.exports = {
             if (result !== '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
-            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
-            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['d'], 4]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
@@ -69,8 +64,6 @@ module.exports = {
             if (result !== '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
-            /** @type {_.Operators<sortedSet.SortedSet<string>>} */
-            const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['b'], 2]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
