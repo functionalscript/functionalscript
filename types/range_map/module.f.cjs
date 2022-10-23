@@ -15,7 +15,6 @@ const operator = require("../function/operator/module.f.cjs")
  * @typedef {sortedList.SortedList<Entry<T>>} RangeMap
  */
 
-
 /**
  * @template T
  * @typedef {{
@@ -35,10 +34,10 @@ const operator = require("../function/operator/module.f.cjs")
  */
 
 /** @type {<T>(union: operator.Reduce<T>) => (equal: operator.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
-const reduceOp = union => equal => state => a => b => {
-  const sign = unsafeCmp(a[1])(b[1])
-  const min = sign === 1 ? b[1] : a[1]
-  const u = union(a[0])(b[0])
+const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax])  => {
+  const sign = unsafeCmp(aMax)(bMax)
+  const min = sign === 1 ? bMax : aMax
+  const u = union(aItem)(bItem)
   if (state !== undefined && equal(state[0])(u)) {
     return [undefined, sign, [state[0], min]]
   }
