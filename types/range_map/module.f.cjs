@@ -48,7 +48,7 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax])  
 const tailReduce = equal => state => tail => {
   if (state === undefined) { return tail }
   const next = list.next(tail)
-  if (next !== undefined  && equal(state[0])(next.first[0])) { return { first: state, tail: next.tail} }
+  if (next !== undefined  && equal(state[0])(next.first[0])) { return { first: [state[0], next.first[1]], tail: next.tail} }
   return { first: state, tail: tail}
 }
 

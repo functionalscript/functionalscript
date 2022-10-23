@@ -67,6 +67,15 @@ module.exports = {
             const merged = _.merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a","b"],2]]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const a = [[['a'], 1], [['b'], 2], [['a'], 3]]
+            /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
+            const b = [[['a'], 5]]
+            const merged = _.merge(op)(a)(b)
+            const result = stringify(list.toArray(merged))
+            if (result !== '[[["a"],1],[["a","b"],2],[["a"],5]]') { throw result }
         }
     ]
 }
