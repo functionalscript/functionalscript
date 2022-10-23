@@ -46,7 +46,7 @@ const genericMerge = reduce => {
         const aResult = next(a)
         if (aResult === undefined) { return tailReduce(state)(b) }
         const bResult = next(b)
-        if (bResult === undefined) { return tailReduce(state)(a) }
+        if (bResult === undefined) { return tailReduce(state)(aResult) }
         const [first, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
         const aNext = sign === 1 ? a : aResult.tail
         const bNext = sign === -1 ? b : bResult.tail
