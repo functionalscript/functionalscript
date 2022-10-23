@@ -11,4 +11,4 @@ This module is about a [finite-state machine](https://en.wikipedia.org/wiki/Fini
 ## FA Rule
 
 - `from`
-- `FA Rule`
+- `FA Epression`
