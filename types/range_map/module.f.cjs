@@ -45,10 +45,10 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax])  
 /** @type {<T>(equal: operator.Equal<T>) => sortedList.TailReduce<Entry<T>, RangeState<T>>} */
 const tailReduce = equal => state => tail => {
   if (state === undefined) { return tail }
-  const next = list.next(tail)
-  if (next === undefined) { return [state] }
-  if (equal(state[0])(next.first[0])) { return next }
-  return { first: state, tail: next }
+  const tailResult = list.next(tail)
+  if (tailResult === undefined) { return [state] }
+  if (equal(state[0])(tailResult.first[0])) { return tailResult }
+  return { first: state, tail: tailResult }
 }
 
  /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
