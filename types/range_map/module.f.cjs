@@ -54,10 +54,7 @@ const tailReduce = equal => state => tail => {
 }
 
  /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
-const merge = op => {
-    const { union, equal } = op
-    return genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
-}
+const merge = ({union, equal}) => genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
 
 module.exports = {
     /** @readonly */
