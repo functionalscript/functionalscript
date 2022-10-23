@@ -37,6 +37,8 @@ const digit = byteSet.range('0')('9')
 const idNext = byteSet.union(idBegin)(digit)
 
 const grammar = [
+  ['init', digit, 'int'],
+  ['int', digit, 'int'],
   ['init', idBegin, 'id'],
   ['id', idNext, 'id'],
 ]
