@@ -91,25 +91,25 @@ module.exports = () => {
         '        nanocom::CObject<Self>: Ex,\n' +
         '    {\n' +
         '        extern "system" fn GetSlice(this: &Object) -> super::Slice {\n' +
-        '            unsafe { Self::to_cobject(this) }.GetSlice()\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.GetSlice()\n' +
         '        }\n' +
         '        extern "system" fn SetSlice(this: &Object, slice: super::Slice) {\n' +
-        '            unsafe { Self::to_cobject(this) }.SetSlice(slice)\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.SetSlice(slice)\n' +
         '        }\n' +
         '        extern "system" fn GetUnsafe(this: &Object) -> *const bool {\n' +
-        '            unsafe { Self::to_cobject(this) }.GetUnsafe()\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.GetUnsafe()\n' +
         '        }\n' +
         '        extern "system" fn SetUnsafe(this: &Object, p: *const super::Slice, size: u32) {\n' +
-        '            unsafe { Self::to_cobject(this) }.SetUnsafe(p, size)\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.SetUnsafe(p, size)\n' +
         '        }\n' +
         '        extern "system" fn Some(this: &Object, p: &super::IMy::Object) -> bool {\n' +
-        '            unsafe { Self::to_cobject(this) }.Some(p)\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.Some(p)\n' +
         '        }\n' +
         '        extern "system" fn GetIMy(this: &Object) -> super::IMy::Ref {\n' +
-        '            unsafe { Self::to_cobject(this) }.GetIMy()\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.GetIMy()\n' +
         '        }\n' +
         '        extern "system" fn SetManagedStruct(this: &Object, a: super::ManagedStruct) {\n' +
-        '            unsafe { Self::to_cobject(this) }.SetManagedStruct(a)\n' +
+        '            unsafe { Self::downcast_unchecked(this) }.SetManagedStruct(a)\n' +
         '        }\n' +
         '    }\n' +
         '    impl<T> PrivateClassEx for T\n' +

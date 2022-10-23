@@ -7,7 +7,7 @@ pub trait Class: Sized {
     fn cobject_new(self) -> Ref<Self::Interface> {
         CObject::new(self)
     }
-    unsafe fn to_cobject(this: &Object<Self::Interface>) -> &CObject<Self> {
+    unsafe fn downcast_unchecked(this: &Object<Self::Interface>) -> &CObject<Self> {
         let p = this as *const Object<Self::Interface> as *const CObject<Self>;
         &*p
     }

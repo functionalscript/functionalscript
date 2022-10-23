@@ -52,7 +52,7 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "system" fn AddRef(this: &Object<T::Interface>) -> u32 {
-        unsafe { T::to_cobject(this) }
+        unsafe { T::downcast_unchecked(this) }
             .counter
             .fetch_add(1, Ordering::Relaxed)
             + 1
@@ -60,7 +60,7 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "system" fn Release(this: &Object<T::Interface>) -> u32 {
-        let t = unsafe { T::to_cobject(this) };
+        let t = unsafe { T::downcast_unchecked(this) };
         match t.counter.fetch_sub(1, Ordering::Relaxed) {
             1 => {
                 let m = t as *const CObject<T> as *mut CObject<T>;

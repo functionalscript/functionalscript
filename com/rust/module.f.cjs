@@ -196,7 +196,7 @@ const rust = library => {
         const type = virtualFnType(` ${n}`)(p)
         return [
             `${type} {`,
-            [`unsafe { Self::to_cobject(this) }.${n}(${call(p)})`],
+            [`unsafe { Self::downcast_unchecked(this) }.${n}(${call(p)})`],
             '}'
         ]
     }

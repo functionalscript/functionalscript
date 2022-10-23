@@ -52,10 +52,10 @@ mod library {
             nanocom::CObject<Self>: Ex,
         {
             extern "system" fn A(this: &Object) -> Ref {
-                unsafe { Self::to_cobject(this) }.A()
+                unsafe { Self::downcast_unchecked(this) }.A()
             }
             extern "system" fn B(this: &Object) -> u32 {
-                unsafe { Self::to_cobject(this) }.B()
+                unsafe { Self::downcast_unchecked(this) }.B()
             }
         }
 

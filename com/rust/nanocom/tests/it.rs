@@ -46,10 +46,10 @@ mod library {
         CObject<Self>: IMyEx,
     {
         extern "system" fn A(this: &Object<IMy>) -> Ref<IMy> {
-            unsafe { Self::to_cobject(this) }.A()
+            unsafe { Self::downcast_unchecked(this) }.A()
         }
         extern "system" fn B(this: &Object<IMy>) -> u32 {
-            unsafe { Self::to_cobject(this) }.B()
+            unsafe { Self::downcast_unchecked(this) }.B()
         }
     }
 
