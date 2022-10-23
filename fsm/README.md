@@ -5,10 +5,10 @@ This module is about a [finite-state machine](https://en.wikipedia.org/wiki/Fini
 
 ## FA Expression
 
-- `symbol`
+- `symbol(s)`
 - `next state`
 
 ## FA Rule
 
-- `from`
+- `init state`
 - `FA Epression`
