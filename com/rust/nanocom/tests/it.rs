@@ -68,7 +68,7 @@ mod number {
         type Interface = IMy;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
             static V: Vmt<IMy> = Vmt {
-                iunknown: X::IUNKNOWN,
+                iunknown: CObject::<X>::IUNKNOWN,
                 interface: X::INTERFACE,
             };
             &V
@@ -134,7 +134,7 @@ mod destructor {
         type Interface = IMy;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
             static V: Vmt<IMy> = Vmt {
-                iunknown: X::IUNKNOWN,
+                iunknown: CObject::<X>::IUNKNOWN,
                 interface: X::INTERFACE,
             };
             &V

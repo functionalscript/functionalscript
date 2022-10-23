@@ -67,7 +67,7 @@ module.exports = () => {
         '        nanocom::CObject<Self>: Ex,\n' +
         '    {\n' +
         '        const VMT: Vmt = Vmt {\n' +
-        '            iunknown: Self::IUNKNOWN,\n' +
+        '            iunknown: nanocom::CObject::<Self>::IUNKNOWN,\n' +
         '            interface: Interface {\n' +
         '                GetSlice: Self::GetSlice,\n' +
         '                SetSlice: Self::SetSlice,\n' +

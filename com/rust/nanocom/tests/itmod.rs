@@ -4,6 +4,8 @@
 
 mod library {
     pub mod IMy {
+        use nanocom::CObject;
+
         pub type Object = nanocom::Object<Interface>;
         pub type Ref = nanocom::Ref<Interface>;
         pub type Vmt = nanocom::Vmt<Interface>;
@@ -37,7 +39,7 @@ mod library {
             nanocom::CObject<Self>: Ex,
         {
             const VMT: Vmt = Vmt {
-                iunknown: Self::IUNKNOWN,
+                iunknown: CObject::<Self>::IUNKNOWN,
                 interface: Interface {
                     A: Self::A,
                     B: Self::B,

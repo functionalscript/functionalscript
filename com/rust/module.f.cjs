@@ -231,7 +231,7 @@ const rust = library => {
                 pub: true,
                 type: 'ClassEx',
                 content: ['const VMT: Vmt = Vmt {',
-                    [   'iunknown: Self::IUNKNOWN,',
+                    [   'iunknown: nanocom::CObject::<Self>::IUNKNOWN,',
                         'interface: Interface {',
                             mapAssign(e),
                         '},',
