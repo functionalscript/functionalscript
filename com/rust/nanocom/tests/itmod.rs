@@ -54,10 +54,10 @@ mod library {
             nanocom::CObject<Self>: Ex,
         {
             extern "system" fn A(this: &Object) -> Ref {
-                unsafe { Self::downcast_unchecked(this) }.A()
+                unsafe { CObject::from_object_unchecked(this) }.A()
             }
             extern "system" fn B(this: &Object) -> u32 {
-                unsafe { Self::downcast_unchecked(this) }.B()
+                unsafe { CObject::from_object_unchecked(this) }.B()
             }
         }
 
@@ -85,7 +85,7 @@ mod number {
 
     impl IMy::Ex for CObject<X> {
         fn A(&self) -> IMy::Ref {
-            self.to_interface().into()
+            self.to_object().into()
         }
         fn B(&self) -> u32 {
             self.value.0
@@ -151,7 +151,7 @@ mod destructor {
 
     impl IMy::Ex for CObject<X> {
         fn A(&self) -> IMy::Ref {
-            self.to_interface().into()
+            self.to_object().into()
         }
         fn B(&self) -> u32 {
             self.value.p.load(Ordering::Relaxed)

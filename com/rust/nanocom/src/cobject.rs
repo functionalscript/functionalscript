@@ -20,10 +20,10 @@ impl<T: Class> CObject<T> {
             value,
         };
         let p = Box::into_raw(Box::new(c));
-        unsafe { &*p }.to_interface().into()
+        unsafe { &*p }.to_object().into()
     }
 
-    pub fn to_interface(&self) -> &Object<T::Interface> {
+    pub fn to_object(&self) -> &Object<T::Interface> {
         let p = self as *const Self as *const Object<T::Interface>;
         unsafe { &*p }
     }
@@ -33,6 +33,11 @@ impl<T: Class> CObject<T> {
         AddRef: Self::AddRef,
         Release: Self::Release,
     };
+
+    pub unsafe fn from_object_unchecked(this: &Object<T::Interface>) -> &CObject<T> {
+        let p = this as *const Object<T::Interface> as *const CObject<T>;
+        &*p
+    }
 
     #[allow(non_snake_case)]
     extern "system" fn QueryInterface(
@@ -52,7 +57,7 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "system" fn AddRef(this: &Object<T::Interface>) -> u32 {
-        unsafe { T::downcast_unchecked(this) }
+        unsafe { Self::from_object_unchecked(this) }
             .counter
             .fetch_add(1, Ordering::Relaxed)
             + 1
@@ -60,7 +65,7 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "system" fn Release(this: &Object<T::Interface>) -> u32 {
-        let t = unsafe { T::downcast_unchecked(this) };
+        let t = unsafe { Self::from_object_unchecked(this) };
         match t.counter.fetch_sub(1, Ordering::Relaxed) {
             1 => {
                 let m = t as *const CObject<T> as *mut CObject<T>;

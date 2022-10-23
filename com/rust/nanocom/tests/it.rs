@@ -46,10 +46,10 @@ mod library {
         CObject<Self>: IMyEx,
     {
         extern "system" fn A(this: &Object<IMy>) -> Ref<IMy> {
-            unsafe { Self::downcast_unchecked(this) }.A()
+            unsafe { CObject::from_object_unchecked(this) }.A()
         }
         extern "system" fn B(this: &Object<IMy>) -> u32 {
-            unsafe { Self::downcast_unchecked(this) }.B()
+            unsafe { CObject::from_object_unchecked(this) }.B()
         }
     }
 
@@ -78,7 +78,7 @@ mod number {
     #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
         fn A(&self) -> Ref<IMy> {
-            self.to_interface().into()
+            self.to_object().into()
         }
         fn B(&self) -> u32 {
             self.value.0
@@ -144,7 +144,7 @@ mod destructor {
     #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
         fn A(&self) -> Ref<IMy> {
-            self.to_interface().into()
+            self.to_object().into()
         }
         fn B(&self) -> u32 {
             self.value.p.load(Ordering::Relaxed)

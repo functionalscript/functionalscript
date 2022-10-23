@@ -196,7 +196,7 @@ const rust = library => {
         const type = virtualFnType(` ${n}`)(p)
         return [
             `${type} {`,
-            [`unsafe { Self::downcast_unchecked(this) }.${n}(${call(p)})`],
+            [`unsafe { nanocom::CObject::from_object_unchecked(this) }.${n}(${call(p)})`],
             '}'
         ]
     }

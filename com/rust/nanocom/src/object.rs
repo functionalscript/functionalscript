@@ -1,4 +1,4 @@
-use crate::{hresult::HRESULT, interface::Interface, iunknown::IUnknown, r#ref::Ref, vmt::Vmt};
+use crate::{hresult::HRESULT, interface::Interface, iunknown::IUnknown, r#ref::Ref, vmt::Vmt, Class, CObject};
 use std::ptr::null;
 
 #[repr(C)]
