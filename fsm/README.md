@@ -27,8 +27,17 @@ id2 ::= `_$a..zA..Z0..9` id2
 ### FA
 
 ```js
+const lowercaseAlpha = byteSet.range('a')('z')
+const uppercaseAlpha = byteSet.range('A')('Z')
+const alpha = byteSet.union(lowercaseAlpha)(uppercaseAlpha)
+const idSymbol = byteSet.union(byteSet.one('_'))(byteSet.one('$'))
+const idBegin = byteSet.union(alpha)(idSymbol)
+
+const digit = byteSet.range('0')('9')
+const idNext = byteSet.union(idBegin)(digit)
+
 const grammar = [
-  ['init', toByteSet('_$a..zA..Z'), 'id'],
-  ['id', toByteSet('_$a..zA..Z0..9'), 'id'],
+  ['init', idBegin, 'id'],
+  ['id', idNext, 'id'],
 ]
 ```
