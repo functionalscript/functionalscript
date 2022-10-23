@@ -3,8 +3,6 @@ const { unsafeCmp } = require('../function/compare/module.f.cjs')
 const json = require('../../json/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const sortedSet = require('../sorted_set/module.f.cjs')
-const sortedList = require('../sorted_list/module.f.cjs')
-const map = require('../map/module.f.cjs')
 const { list } = require('../module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
 
@@ -13,8 +11,6 @@ const stringify = a => json.stringify(sort)(a)
 
 /** @type {_.Operators<sortedSet.SortedSet<string>>} */
 const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
-
-
 
 module.exports = {
     merge: [
