@@ -1,9 +1,8 @@
-use crate::{iunknown::IUnknown, CObject, Interface, Object, Ref, Vmt};
+use crate::{CObject, Interface, Object, Ref, Vmt};
 
 pub trait Class: Sized {
     type Interface: Interface;
     fn static_vmt() -> &'static Vmt<Self::Interface>;
-    // const IUNKNOWN: IUnknown<Self::Interface> = CObject::<Self>::IUNKNOWN;
     fn cobject_new(self) -> Ref<Self::Interface> {
         CObject::new(self)
     }
