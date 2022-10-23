@@ -38,9 +38,8 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax])  
   const sign = unsafeCmp(aMax)(bMax)
   const min = sign === 1 ? bMax : aMax
   const u = union(aItem)(bItem)
-  if (state !== undefined && equal(state[0])(u)) {
-    return [undefined, sign, [state[0], min]]
-  }
+  if (state === undefined) { return [undefined, sign, [u, min]] }
+  if (equal(state[0])(u)) { return [undefined, sign, [state[0], min]] }
   return [state, sign, [u, min]]
 }
 
