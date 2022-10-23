@@ -28,7 +28,7 @@ id2 ::= `_$a..zA..Z0..9` id2
 
 ```js
 const grammar = [
-  ['init', '_$a..zA..Z', 'id'],
-  ['id', '_$a..zA..Z0..9', 'id'],
+  ['init', toByteSet('_$a..zA..Z'), 'id'],
+  ['id', toByteSet('_$a..zA..Z0..9'), 'id'],
 ]
 ```
