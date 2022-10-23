@@ -2,7 +2,7 @@ const sortedList = require("../sorted_list/module.f.cjs")
 const { genericMerge } = sortedList
 const list = require("../list/module.f.cjs")
 const option = require("../option/module.f.cjs")
-const { unsafeCmp } = require('../function/compare/module.f.cjs')
+const { cmp } = require('../number/module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
 
 /**
@@ -35,7 +35,7 @@ const operator = require("../function/operator/module.f.cjs")
 
 /** @type {<T>(union: operator.Reduce<T>) => (equal: operator.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
 const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax])  => {
-  const sign = unsafeCmp(aMax)(bMax)
+  const sign = cmp(aMax)(bMax)
   const min = sign === 1 ? bMax : aMax
   const u = union(aItem)(bItem)
   const newState = state !== undefined && equal(state[0])(u) ? undefined : state
