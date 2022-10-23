@@ -24,4 +24,11 @@ id ::= `_$a..zA..Z` id2
 id2 ::= `_$a..zA..Z0..9` id2
 ```
 
-### FSM
+### FA
+
+```js
+const grammar = [
+  ['init', '_$a..zA..Z', 'id'],
+  ['id', '_$a..zA..Z0..9', 'id'],
+]
+```
