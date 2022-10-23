@@ -12,3 +12,16 @@ This module is about a [finite-state machine](https://en.wikipedia.org/wiki/Fini
 
 - `init state`
 - `FA Epression`
+
+## Example
+
+FunctionalScript Identifier
+
+### Grammar (EBNF)
+
+```
+id ::= `_$a..zA..Z` id2
+id2 ::= `_$a..zA..Z0..9` id2
+```
+
+### FSM
