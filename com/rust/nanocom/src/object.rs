@@ -5,6 +5,9 @@ use std::ptr::null;
 pub struct Object<I: 'static = ()>(&'static Vmt<I>);
 
 impl<I> Object<I> {
+    pub fn new(vmt: &'static Vmt<I>) -> Self {
+        Self(vmt)
+    }
     pub unsafe fn iunknown(&self) -> &'static IUnknown<I> {
         &self.0.iunknown
     }

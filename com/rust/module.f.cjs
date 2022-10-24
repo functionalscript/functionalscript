@@ -196,7 +196,7 @@ const rust = library => {
         const type = virtualFnType(` ${n}`)(p)
         return [
             `${type} {`,
-            [`unsafe { Self::to_cobject(this) }.${n}(${call(p)})`],
+            [`unsafe { nanocom::CObject::from_object_unchecked(this) }.${n}(${call(p)})`],
             '}'
         ]
     }
@@ -231,7 +231,7 @@ const rust = library => {
                 pub: true,
                 type: 'ClassEx',
                 content: ['const VMT: Vmt = Vmt {',
-                    [   'iunknown: Self::IUNKNOWN,',
+                    [   'iunknown: nanocom::CObject::<Self>::IUNKNOWN,',
                         'interface: Interface {',
                             mapAssign(e),
                         '},',

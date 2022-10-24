@@ -4,6 +4,8 @@
 
 mod library {
     pub mod IMy {
+        use nanocom::CObject;
+
         pub type Object = nanocom::Object<Interface>;
         pub type Ref = nanocom::Ref<Interface>;
         pub type Vmt = nanocom::Vmt<Interface>;
@@ -37,11 +39,11 @@ mod library {
             nanocom::CObject<Self>: Ex,
         {
             const VMT: Vmt = Vmt {
-                iunknown: Self::IUNKNOWN,
+                iunknown: CObject::<Self>::IUNKNOWN,
                 interface: Interface {
                     A: Self::A,
                     B: Self::B,
-                }
+                },
             };
         }
 
@@ -52,10 +54,10 @@ mod library {
             nanocom::CObject<Self>: Ex,
         {
             extern "system" fn A(this: &Object) -> Ref {
-                unsafe { Self::to_cobject(this) }.A()
+                unsafe { CObject::from_object_unchecked(this) }.A()
             }
             extern "system" fn B(this: &Object) -> u32 {
-                unsafe { Self::to_cobject(this) }.B()
+                unsafe { CObject::from_object_unchecked(this) }.B()
             }
         }
 
@@ -83,7 +85,7 @@ mod number {
 
     impl IMy::Ex for CObject<X> {
         fn A(&self) -> IMy::Ref {
-            self.to_interface().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.0
@@ -92,7 +94,7 @@ mod number {
 }
 
 mod use_number {
-    use nanocom::Class;
+    use nanocom::CObjectEx;
 
     use crate::library::IMy::Ex;
 
@@ -100,11 +102,11 @@ mod use_number {
 
     #[test]
     fn test() {
-        let a = X(42).cobject_new();
+        let a = X(42).to_cobject();
         let a1 = a.A();
         assert_eq!(a, a1);
         assert_eq!(a.B(), 42);
-        let b = X(43).cobject_new();
+        let b = X(43).to_cobject();
         assert_ne!(a, b);
         assert_eq!(b.B(), 43);
     }
@@ -149,7 +151,7 @@ mod destructor {
 
     impl IMy::Ex for CObject<X> {
         fn A(&self) -> IMy::Ref {
-            self.to_interface().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.p.load(Ordering::Relaxed)
@@ -163,7 +165,7 @@ mod use_destructor {
         sync::atomic::{AtomicU32, Ordering},
     };
 
-    use nanocom::Class;
+    use nanocom::CObjectEx;
 
     use crate::library::IMy::Ex;
 
@@ -174,14 +176,14 @@ mod use_destructor {
         let p = Rc::new(AtomicU32::default());
         {
             assert_eq!(p.load(Ordering::Relaxed), 0);
-            let a = X::new(p.clone()).cobject_new();
+            let a = X::new(p.clone()).to_cobject();
             assert_eq!(p.load(Ordering::Relaxed), 1);
             let a1 = a.A();
             assert_eq!(p.load(Ordering::Relaxed), 1);
             assert_eq!(a, a1);
             assert_eq!(a.B(), 1);
             {
-                let b = X::new(p.clone()).cobject_new();
+                let b = X::new(p.clone()).to_cobject();
                 assert_eq!(p.load(Ordering::Relaxed), 2);
                 assert_ne!(a, b);
                 assert_eq!(b.B(), 2);

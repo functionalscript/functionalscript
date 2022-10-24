@@ -7,32 +7,22 @@ use crate::{hresult::HRESULT, iunknown::IUnknown, Class, Interface, Object, Ref,
 
 #[repr(C)]
 pub struct CObject<T: Class> {
-    vmt: &'static Vmt<T::Interface>,
+    object: Object<T::Interface>,
     counter: AtomicU32,
     pub value: T,
 }
 
 impl<T: Class> CObject<T> {
-    pub fn new(value: T) -> Ref<T::Interface> {
-        let c = CObject {
-            vmt: T::static_vmt(),
-            counter: Default::default(),
-            value,
-        };
-        let p = Box::into_raw(Box::new(c));
-        unsafe { &*p }.to_interface().into()
-    }
-
-    pub fn to_interface(&self) -> &Object<T::Interface> {
-        let p = self as *const Self as *const Object<T::Interface>;
-        unsafe { &*p }
-    }
-
     pub const IUNKNOWN: IUnknown<T::Interface> = IUnknown {
         QueryInterface: Self::QueryInterface,
         AddRef: Self::AddRef,
         Release: Self::Release,
     };
+
+    pub unsafe fn from_object_unchecked(this: &Object<T::Interface>) -> &CObject<T> {
+        let p = this as *const Object<T::Interface> as *const CObject<T>;
+        &*p
+    }
 
     #[allow(non_snake_case)]
     extern "system" fn QueryInterface(
@@ -52,7 +42,7 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "system" fn AddRef(this: &Object<T::Interface>) -> u32 {
-        unsafe { T::to_cobject(this) }
+        unsafe { Self::from_object_unchecked(this) }
             .counter
             .fetch_add(1, Ordering::Relaxed)
             + 1
@@ -60,7 +50,7 @@ impl<T: Class> CObject<T> {
 
     #[allow(non_snake_case)]
     extern "system" fn Release(this: &Object<T::Interface>) -> u32 {
-        let t = unsafe { T::to_cobject(this) };
+        let t = unsafe { Self::from_object_unchecked(this) };
         match t.counter.fetch_sub(1, Ordering::Relaxed) {
             1 => {
                 let m = t as *const CObject<T> as *mut CObject<T>;
@@ -69,5 +59,32 @@ impl<T: Class> CObject<T> {
             }
             x => x - 1,
         }
+    }
+}
+
+pub trait CObjectEx: Class {
+    fn to_cobject(self) -> Ref<Self::Interface> {
+        let c = CObject {
+            object: Object::new(Self::static_vmt()),
+            counter: Default::default(),
+            value: self,
+        };
+        let p = Box::into_raw(Box::new(c));
+        let o = &unsafe { &*p }.object;
+        o.into()
+    }
+}
+
+impl<T: Class> CObjectEx for T {}
+
+impl<'a, T: Class> From<&'a CObject<T>> for &'a Object<T::Interface> {
+    fn from(this: &'a CObject<T>) -> Self {
+        &this.object
+    }
+}
+
+impl<T: Class> From<&CObject<T>> for Ref<T::Interface> {
+    fn from(this: &CObject<T>) -> Self {
+        (&this.object).into()
     }
 }

@@ -46,10 +46,10 @@ mod library {
         CObject<Self>: IMyEx,
     {
         extern "system" fn A(this: &Object<IMy>) -> Ref<IMy> {
-            unsafe { Self::to_cobject(this) }.A()
+            unsafe { CObject::from_object_unchecked(this) }.A()
         }
         extern "system" fn B(this: &Object<IMy>) -> u32 {
-            unsafe { Self::to_cobject(this) }.B()
+            unsafe { CObject::from_object_unchecked(this) }.B()
         }
     }
 
@@ -68,7 +68,7 @@ mod number {
         type Interface = IMy;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
             static V: Vmt<IMy> = Vmt {
-                iunknown: X::IUNKNOWN,
+                iunknown: CObject::<X>::IUNKNOWN,
                 interface: X::INTERFACE,
             };
             &V
@@ -78,7 +78,7 @@ mod number {
     #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
         fn A(&self) -> Ref<IMy> {
-            self.to_interface().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.0
@@ -87,17 +87,17 @@ mod number {
 }
 
 mod use_number {
-    use nanocom::Class;
+    use nanocom::{CObjectEx, Class};
 
     use super::{library::IMyEx, number::X};
 
     #[test]
     fn test() {
-        let a = X(42).cobject_new();
+        let a = X(42).to_cobject();
         let a1 = a.A();
         assert_eq!(a, a1);
         assert_eq!(a.B(), 42);
-        let b = X(43).cobject_new();
+        let b = X(43).to_cobject();
         assert_ne!(a, b);
         assert_eq!(b.B(), 43);
     }
@@ -134,7 +134,7 @@ mod destructor {
         type Interface = IMy;
         fn static_vmt() -> &'static Vmt<Self::Interface> {
             static V: Vmt<IMy> = Vmt {
-                iunknown: X::IUNKNOWN,
+                iunknown: CObject::<X>::IUNKNOWN,
                 interface: X::INTERFACE,
             };
             &V
@@ -144,7 +144,7 @@ mod destructor {
     #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
         fn A(&self) -> Ref<IMy> {
-            self.to_interface().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.p.load(Ordering::Relaxed)
@@ -158,7 +158,7 @@ mod use_destructor {
         sync::atomic::{AtomicU32, Ordering},
     };
 
-    use nanocom::Class;
+    use nanocom::CObjectEx;
 
     use super::{destructor::X, library::IMyEx};
 
@@ -167,14 +167,14 @@ mod use_destructor {
         let p = Rc::new(AtomicU32::default());
         {
             assert_eq!(p.load(Ordering::Relaxed), 0);
-            let a = X::new(p.clone()).cobject_new();
+            let a = X::new(p.clone()).to_cobject();
             assert_eq!(p.load(Ordering::Relaxed), 1);
             let a1 = a.A();
             assert_eq!(p.load(Ordering::Relaxed), 1);
             assert_eq!(a, a1);
             assert_eq!(a.B(), 1);
             {
-                let b = X::new(p.clone()).cobject_new();
+                let b = X::new(p.clone()).to_cobject();
                 assert_eq!(p.load(Ordering::Relaxed), 2);
                 assert_ne!(a, b);
                 assert_eq!(b.B(), 2);
