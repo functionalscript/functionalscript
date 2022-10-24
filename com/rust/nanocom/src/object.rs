@@ -1,10 +1,13 @@
-use crate::{hresult::HRESULT, interface::Interface, iunknown::IUnknown, r#ref::Ref, vmt::Vmt, Class, CObject};
+use crate::{hresult::HRESULT, interface::Interface, iunknown::IUnknown, r#ref::Ref, vmt::Vmt};
 use std::ptr::null;
 
 #[repr(C)]
 pub struct Object<I: 'static = ()>(&'static Vmt<I>);
 
 impl<I> Object<I> {
+    pub fn new(vmt: &'static Vmt<I>) -> Self {
+        Self(vmt)
+    }
     pub unsafe fn iunknown(&self) -> &'static IUnknown<I> {
         &self.0.iunknown
     }

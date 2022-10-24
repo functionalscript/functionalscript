@@ -85,7 +85,7 @@ mod number {
 
     impl IMy::Ex for CObject<X> {
         fn A(&self) -> IMy::Ref {
-            self.to_object().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.0
@@ -151,7 +151,7 @@ mod destructor {
 
     impl IMy::Ex for CObject<X> {
         fn A(&self) -> IMy::Ref {
-            self.to_object().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.p.load(Ordering::Relaxed)

@@ -78,7 +78,7 @@ mod number {
     #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
         fn A(&self) -> Ref<IMy> {
-            self.to_object().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.0
@@ -144,7 +144,7 @@ mod destructor {
     #[allow(non_snake_case)]
     impl IMyEx for CObject<X> {
         fn A(&self) -> Ref<IMy> {
-            self.to_object().into()
+            self.into()
         }
         fn B(&self) -> u32 {
             self.value.p.load(Ordering::Relaxed)

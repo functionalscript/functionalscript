@@ -7,7 +7,7 @@ use crate::{hresult::HRESULT, iunknown::IUnknown, Class, Interface, Object, Ref,
 
 #[repr(C)]
 pub struct CObject<T: Class> {
-    vmt: &'static Vmt<T::Interface>,
+    object: Object<T::Interface>,
     counter: AtomicU32,
     pub value: T,
 }
@@ -15,17 +15,13 @@ pub struct CObject<T: Class> {
 impl<T: Class> CObject<T> {
     pub fn new(value: T) -> Ref<T::Interface> {
         let c = CObject {
-            vmt: T::static_vmt(),
+            object: Object::new(T::static_vmt()),
             counter: Default::default(),
             value,
         };
         let p = Box::into_raw(Box::new(c));
-        unsafe { &*p }.to_object().into()
-    }
-
-    pub fn to_object(&self) -> &Object<T::Interface> {
-        let p = self as *const Self as *const Object<T::Interface>;
-        unsafe { &*p }
+        let o = &unsafe { &*p }.object;
+        o.into()
     }
 
     pub const IUNKNOWN: IUnknown<T::Interface> = IUnknown {
@@ -74,5 +70,17 @@ impl<T: Class> CObject<T> {
             }
             x => x - 1,
         }
+    }
+}
+
+impl<'a, T: Class> From<&'a CObject<T>> for &'a Object<T::Interface> {
+    fn from(this: &'a CObject<T>) -> Self {
+        &this.object
+    }
+}
+
+impl<T: Class> From<&CObject<T>> for Ref<T::Interface> {
+    fn from(this: &CObject<T>) -> Self {
+        (&this.object).into()
     }
 }
