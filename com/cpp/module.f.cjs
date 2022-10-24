@@ -65,7 +65,7 @@ const cpp = name => lib => {
 
     /** @type {(m: types.Method) => text.Item} */
     const method = ([name, paramArray]) =>
-        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) = 0;`
+        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) noexcept = 0;`
 
     const mapMethod = map(method)
 
