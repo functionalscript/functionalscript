@@ -13,17 +13,6 @@ pub struct CObject<T: Class> {
 }
 
 impl<T: Class> CObject<T> {
-    pub fn new(value: T) -> Ref<T::Interface> {
-        let c = CObject {
-            object: Object::new(T::static_vmt()),
-            counter: Default::default(),
-            value,
-        };
-        let p = Box::into_raw(Box::new(c));
-        let o = &unsafe { &*p }.object;
-        o.into()
-    }
-
     pub const IUNKNOWN: IUnknown<T::Interface> = IUnknown {
         QueryInterface: Self::QueryInterface,
         AddRef: Self::AddRef,
@@ -72,6 +61,21 @@ impl<T: Class> CObject<T> {
         }
     }
 }
+
+pub trait CObjectEx: Class {
+    fn to_cobject(self) -> Ref<Self::Interface> {
+        let c = CObject {
+            object: Object::new(Self::static_vmt()),
+            counter: Default::default(),
+            value: self,
+        };
+        let p = Box::into_raw(Box::new(c));
+        let o = &unsafe { &*p }.object;
+        o.into()
+    }
+}
+
+impl<T: Class> CObjectEx for T {}
 
 impl<'a, T: Class> From<&'a CObject<T>> for &'a Object<T::Interface> {
     fn from(this: &'a CObject<T>) -> Self {

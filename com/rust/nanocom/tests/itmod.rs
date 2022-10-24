@@ -43,7 +43,7 @@ mod library {
                 interface: Interface {
                     A: Self::A,
                     B: Self::B,
-                }
+                },
             };
         }
 
@@ -94,7 +94,7 @@ mod number {
 }
 
 mod use_number {
-    use nanocom::Class;
+    use nanocom::CObjectEx;
 
     use crate::library::IMy::Ex;
 
@@ -102,11 +102,11 @@ mod use_number {
 
     #[test]
     fn test() {
-        let a = X(42).cobject_new();
+        let a = X(42).to_cobject();
         let a1 = a.A();
         assert_eq!(a, a1);
         assert_eq!(a.B(), 42);
-        let b = X(43).cobject_new();
+        let b = X(43).to_cobject();
         assert_ne!(a, b);
         assert_eq!(b.B(), 43);
     }
@@ -165,7 +165,7 @@ mod use_destructor {
         sync::atomic::{AtomicU32, Ordering},
     };
 
-    use nanocom::Class;
+    use nanocom::CObjectEx;
 
     use crate::library::IMy::Ex;
 
@@ -176,14 +176,14 @@ mod use_destructor {
         let p = Rc::new(AtomicU32::default());
         {
             assert_eq!(p.load(Ordering::Relaxed), 0);
-            let a = X::new(p.clone()).cobject_new();
+            let a = X::new(p.clone()).to_cobject();
             assert_eq!(p.load(Ordering::Relaxed), 1);
             let a1 = a.A();
             assert_eq!(p.load(Ordering::Relaxed), 1);
             assert_eq!(a, a1);
             assert_eq!(a.B(), 1);
             {
-                let b = X::new(p.clone()).cobject_new();
+                let b = X::new(p.clone()).to_cobject();
                 assert_eq!(p.load(Ordering::Relaxed), 2);
                 assert_ne!(a, b);
                 assert_eq!(b.B(), 2);
