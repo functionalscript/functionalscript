@@ -1,6 +1,6 @@
 const { writeFileSync } = require('node:fs')
 const { execSync } = require('node:child_process')
-const { platform } = require('node:process')
+const { platform, exit } = require('node:process')
 const build = require('./build.f.cjs')
 const { cpp, cs, rust } = build
 const { join } = require('../../types/string/module.f.cjs')
@@ -24,6 +24,7 @@ const run = f => {
     } catch (e) {
         // @ts-ignore
         error(e.output.toString())
+        exit(-1)
     }
 }
 
