@@ -45,10 +45,10 @@ const flags = platform => {
     switch (platform) {
         case 'win32':
             return []
-        case 'linux':
-            return ['-lstdc++']
+        //case 'linux':
+        //    return ['-lstdc++']
         default:
-            return ['-std=c++11', '-lstdc++', '-lc++']
+            return ['-std=c++11', '-lc++', '-lstdc++']
     }
 }
 
