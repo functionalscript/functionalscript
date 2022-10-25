@@ -110,6 +110,8 @@ bin/
 
 *.exe
 *.out
+*.dll
+*.so
 
 # temoprary files
 _result.*

@@ -6,6 +6,7 @@ const { cpp, cs, rust } = build
 const { join } = require('../../types/string/module.f.cjs')
 const { log, error } = console
 const { bold, reset } = require('../../text/sgr/module.f.cjs')
+const { list } = require('../../types/module.f.cjs')
 
 const nodeJs = {
     dirname: __dirname,
@@ -17,14 +18,16 @@ const run = f => {
     const { file: { name, content }, line } = f(nodeJs)
     log(`${bold}writing: ${name}${reset}`)
     writeFileSync(name, content)
-    const cmd = join(' ')(line)
-    log(`${bold}running: ${cmd}${reset}`)
-    try {
-        log(execSync(cmd).toString())
-    } catch (e) {
-        // @ts-ignore
-        error(e.output.toString())
-        exit(-1)
+    for (const i of list.iterable(line)) {
+        const cmd = join(' ')(i)
+        log(`${bold}running: ${cmd}${reset}`)
+        try {
+            log(execSync(cmd).toString())
+        } catch (e) {
+            // @ts-ignore
+            error(e.output.toString())
+            exit(-1)
+        }
     }
 }
 
