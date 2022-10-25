@@ -44,7 +44,7 @@ const rustContent = require("../rust/testlib.f.cjs")
 const flags = platform => {
     switch (platform) {
         case 'win32':
-            return ['-std=c++11']
+            return []
         case 'linux':
             return ['-lstdc++']
         default:
