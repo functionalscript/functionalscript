@@ -41,7 +41,9 @@ const rustContent = require("../rust/testlib.f.cjs")
 /** @typedef {(nodejs: NodeJs) => Output} Func */
 
 /** @type {(platform: Platform) => readonly string[]} */
-const flags = platform => {
+const flags = () => ['-std=c++11', '-lc++', '-lstdc++']
+/*
+{
     switch (platform) {
         case 'win32':
             return []
@@ -51,6 +53,7 @@ const flags = platform => {
             return ['-std=c++11', '-lc++', '-lstdc++']
     }
 }
+*/
 
 /** @type {Func} */
 const cpp = ({dirname, platform}) => ({
