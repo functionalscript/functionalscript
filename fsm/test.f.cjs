@@ -9,10 +9,10 @@ const stringify = a => json.stringify(sort)(a)
 
 module.exports = {
     toRangeMap: [
-        // () => {
-        //     const result =_.toRangeMap(byteSet.empty)('a')
-        //     if (result !== undefined) { throw result }
-        // },
+        () => {
+            const result = stringify(toArray(_.toRangeMap(byteSet.empty)('a')))
+            if (result !== '[]') { throw result }
+        },
         // () => {
         //     const result = stringify(toArray(_.toRangeMap(byteSet.universe)('a')))
         //     if (result !== '[[["a"],63]]') { throw result }
