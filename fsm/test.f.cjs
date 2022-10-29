@@ -13,14 +13,14 @@ module.exports = {
             const result = stringify(toArray(_.toRangeMap(byteSet.empty)('a')))
             if (result !== '[]') { throw result }
         },
+        () => {
+            const s = byteSet.set(0)(byteSet.empty)
+            const result = stringify(toArray(_.toRangeMap(s)('a')))
+            if (result !== '[[["a"],0]]') { throw result }
+        }
         // () => {
         //     const result = stringify(toArray(_.toRangeMap(byteSet.universe)('a')))
         //     if (result !== '[[["a"],63]]') { throw result }
         // },
-        // () => {
-        //     const s = byteSet.set(0)(byteSet.empty)
-        //     const result = stringify(toArray(_.toRangeMap(s)('a')))
-        //     if (result !== '[[["a"],1]]') { throw result }
-        // }
     ]
 }
