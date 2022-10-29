@@ -9,9 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="../../../target/debug/*.dll" CopyToOutputDirectory="PreserveNewest"/>
-    <None Include="../../../target/debug/*.so" CopyToOutputDirectory="PreserveNewest"/>
-    <None Include="../../../target/debug/*.dylib" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="../../../target/debug/*testrust.*" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
 </Project>
