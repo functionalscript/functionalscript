@@ -83,7 +83,8 @@ const cs = ({dirname}) => ({
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
     },
-    line: [['dotnet', 'build', `${dirname}/cs/cs.csproj`]],
+    line: [
+        ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]],
 })
 
 /** @type {Func} */

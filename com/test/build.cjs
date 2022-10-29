@@ -32,5 +32,5 @@ const run = f => {
 }
 
 run(cpp)
-run(cs)
 run(rust)
+run(cs)
