@@ -14,15 +14,10 @@ const byteSet = require('../types/byte_set/module.f.cjs')
  * }} Dfa
  */
 
-/** @type {(faId: string) => string} */
-const escape = faId => faId.replaceAll('\\', '\\\\').replaceAll('|', '\\|')
-
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => todo()
 
 module.exports = {
-    /** @readonly */
-    escape,
     /** @readonly */
     dfa,
 }
