@@ -41,3 +41,6 @@ impl _result::IMy::Ex for nanocom::CObject<My> {
         todo!()
     }
 }
+
+#[no_mangle]
+pub extern "C" fn get() -> i32 { 42 }

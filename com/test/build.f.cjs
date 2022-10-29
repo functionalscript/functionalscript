@@ -62,22 +62,20 @@ const output = platform => name => {
 }
 
 /** @type {Func} */
-const cpp = ({dirname, platform}) => {
-    const extension = platform === 'win32' ? 'dll' : 'so'
-    return {
-        file: {
-            name: `${dirname}/cpp/_result.hpp`,
-            content: cppContent,
-        },
-        line: [
-            flat([
-                ['clang', '-shared', '-o', output(platform)('main')],
-                flags(platform),
-                [`${dirname}/cpp/main.cpp`]]
-            ),
-        ],
-    }
-}
+const cpp = ({dirname, platform}) => ({
+    file: {
+        name: `${dirname}/cpp/_result.hpp`,
+        content: cppContent,
+    },
+    line: [
+        flat([
+            ['clang', '-shared', '-o', output(platform)('main')],
+            flags(platform),
+            [`${dirname}/cpp/main.cpp`]]
+        ),
+    ],
+})
+
 
 /** @type {Func} */
 const cs = ({dirname}) => ({
@@ -85,7 +83,8 @@ const cs = ({dirname}) => ({
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
     },
-    line: [['dotnet', 'build', `${dirname}/cs/cs.csproj`]],
+    line: [
+        ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]],
 })
 
 /** @type {Func} */
