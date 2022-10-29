@@ -1,5 +1,11 @@
 const _ = require('./module.f.cjs')
 const { every, countdown, map } = require('../list/module.f.cjs')
+const json = require('../../json/module.f.cjs')
+const { sort } = require('../object/module.f.cjs')
+const { toArray } = require('../list/module.f.cjs')
+
+/** @type {(a: readonly json.Unknown[]) => string} */
+const stringify = a => json.stringify(sort)(a)
 
 module.exports = {
     has: [
@@ -52,5 +58,25 @@ module.exports = {
             const r = _.complement(_.universe)
             if (r !== _.empty) { throw r }
         },
-    }
+    },
+    toRangeMap: [
+        () => {
+            const result = stringify(toArray(_.toRangeMap(_.empty)('a')))
+            if (result !== '[]') { throw result }
+        },
+        () => {
+            const s = _.set(0)(_.empty)
+            const result = stringify(toArray(_.toRangeMap(s)('a')))
+            if (result !== '[[["a"],0]]') { throw result }
+        },
+        () => {
+            const s = _.setRange([1,2])(_.empty)
+            const result = stringify(toArray(_.toRangeMap(s)('a')))
+            if (result !== '[[[],0],[["a"],2]]') { throw result }
+        },
+        () => {
+            const result = stringify(toArray(_.toRangeMap(_.universe)('a')))
+            if (result !== '[[["a"],255]]') { throw result }
+        },
+    ]
 }
