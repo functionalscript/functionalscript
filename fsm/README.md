@@ -39,16 +39,75 @@ const idNext = byteSet.union(idBegin)(digit)
 const dot = byteSet('.')
 
 const grammar = [
-  ['init', digit, 'int'],
+  ['', digit, 'int'],
   ['int', digit, 'int'],
   //
-  ['init', digit, 'floatBegin'],
+  ['', digit, 'floatBegin'],
   ['floatBegin', digit, 'floatBegin'],
   ['floatBegin', dot, 'floatDot'],
   ['floatDot', digit, 'float'],
   ['float', digit, 'float'],
   //
-  ['init', idBegin, 'id'],
+  ['', idBegin, 'id'],
   ['id', idNext, 'id'],
 ]
+```
+
+```js
+const result = {
+  "['']": {
+    digit: "['floatBegin','int']",
+    idBegin: "['id']"
+  },
+  "['floatBegin','int']": {
+    digit: "['floatBegin','int']",
+    dot: "['floatDot']",
+  },
+  "['floatDot']": {
+    digit: "['float']"
+  },
+  "['float']": {
+    digit: "['float']"
+  },
+  "['id']": {
+    idNext: "['id']"
+  }
+}
+```
+
+```js
+const result = [
+  { // 0
+    digit: 1,
+    idBegin: 4
+  },
+  { // 1
+    digit: 1,
+    dot: 2,
+  },
+  { // 2
+    digit: 3
+  },
+  { // 3
+    digit: 3
+  },
+  { // 4
+    idNext: 4
+  }
+}
+```
+
+## How to Add a Property # 1
+
+```js
+const a = { x: 5, y: 6 }
+const b = { ...a, z: 7 }
+```
+
+## How to Add a Property # 2
+
+```js
+const map = reauire('./types/map/module.f.js')
+const a = map.fromEntries(Object.entries({ x: 5, y: 6 }))
+const b = map.setReplace('z')(7)(a)
 ```

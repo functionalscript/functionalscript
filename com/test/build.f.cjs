@@ -34,7 +34,7 @@ const rustContent = require("../rust/testlib.f.cjs")
  *      readonly name: string
  *      readonly content: string
  *  }
- *  readonly line: list.List<string>
+ *  readonly line: list.List<list.List<string>>
  * }} Output
  */
 
@@ -52,18 +52,32 @@ const flags = platform => {
     }
 }
 
+/** @type {(platform: Platform) => (name: string) => string} */
+const output = platform => name => {
+    switch (platform) {
+        case 'win32': return `${name}.dll`
+        case 'darwin': return `lib${name}.dylib`
+        default: return `lib${name}.so`
+    }
+}
+
 /** @type {Func} */
-const cpp = ({dirname, platform}) => ({
-    file: {
-        name: `${dirname}/cpp/_result.hpp`,
-        content: cppContent,
-    },
-    line: flat([
-        ['clang'],
-        flags(platform),
-        [`${dirname}/cpp/main.cpp`]]
-    ),
-})
+const cpp = ({dirname, platform}) => {
+    const extension = platform === 'win32' ? 'dll' : 'so'
+    return {
+        file: {
+            name: `${dirname}/cpp/_result.hpp`,
+            content: cppContent,
+        },
+        line: [
+            flat([
+                ['clang', '-shared', '-o', output(platform)('main')],
+                flags(platform),
+                [`${dirname}/cpp/main.cpp`]]
+            ),
+        ],
+    }
+}
 
 /** @type {Func} */
 const cs = ({dirname}) => ({
@@ -71,7 +85,7 @@ const cs = ({dirname}) => ({
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
     },
-    line: ['dotnet', 'build', `${dirname}/cs/cs.csproj`],
+    line: [['dotnet', 'build', `${dirname}/cs/cs.csproj`]],
 })
 
 /** @type {Func} */
@@ -80,7 +94,7 @@ const rust = ({dirname}) => ({
         name: `${dirname}/rust/src/_result.rs`,
         content: rustContent,
     },
-    line: ['cargo', 'build']
+    line: [['cargo', 'build']]
 })
 
 module.exports = {
