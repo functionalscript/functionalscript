@@ -24,6 +24,5 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 19
-    - run: rustup target add x86_64-pc-windows-msvc
     - run: npm ci
     - run: npm run comtest
