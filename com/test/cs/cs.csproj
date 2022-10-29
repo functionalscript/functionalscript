@@ -8,4 +8,8 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="../../../target/debug/testrust.dll" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+
 </Project>
