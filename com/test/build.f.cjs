@@ -66,7 +66,6 @@ const cpp = ({dirname, platform}) => {
                 flags(platform),
                 [`${dirname}/cpp/main.cpp`]]
             ),
-            // ['clang', '-shared', 'main.o'],
         ],
     }
 }
