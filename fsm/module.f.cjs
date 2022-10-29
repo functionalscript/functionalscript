@@ -21,7 +21,7 @@ const sortedSet = require('../types/sorted_set/module.f.cjs')
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => todo()
 
-const counter = reverse(countdown(64))
+const counter = reverse(countdown(256))
 
 /** @type {(n: byteSet.ByteSet) => (s: string) => (i: number) => rangeMap.RangeMap<sortedSet.SortedSet<string>>} */
 const toRangeMapOp = n => s => i =>
