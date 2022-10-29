@@ -52,6 +52,15 @@ const flags = platform => {
     }
 }
 
+/** @type {(platform: Platform) => (name: string) => string} */
+const output = platform => name => {
+    switch (platform) {
+        case 'win32': return `${name}.dll`
+        case 'darwin': return `lib${name}.dylib`
+        default: return `lib${name}.so`
+    }
+}
+
 /** @type {Func} */
 const cpp = ({dirname, platform}) => {
     const extension = platform === 'win32' ? 'dll' : 'so'
@@ -62,7 +71,7 @@ const cpp = ({dirname, platform}) => {
         },
         line: [
             flat([
-                ['clang', '-shared', '-o', `main.${extension}`],
+                ['clang', '-shared', '-o', output(platform)('main')],
                 flags(platform),
                 [`${dirname}/cpp/main.cpp`]]
             ),
