@@ -112,6 +112,7 @@ bin/
 *.out
 *.dll
 *.so
+*.dylib
 
 # temoprary files
 _result.*
