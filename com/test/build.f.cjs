@@ -93,7 +93,7 @@ const rust = ({dirname}) => ({
         name: `${dirname}/rust/src/_result.rs`,
         content: rustContent,
     },
-    line: [['cargo', 'build']]
+    line: [['cargo', 'build', '--target', 'x86_64-pc-windows-msvc']]
 })
 
 module.exports = {
