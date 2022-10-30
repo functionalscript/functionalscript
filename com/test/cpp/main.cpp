@@ -12,3 +12,7 @@ extern "C" int c_get()
 {
     return 43;
 }
+
+class Impl: My::IMy {
+
+};
