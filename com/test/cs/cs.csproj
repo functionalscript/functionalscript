@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <None Include="../../../target/debug/*testrust.*" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="../../../*testc.*" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
 </Project>
