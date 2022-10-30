@@ -24,5 +24,8 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 19
+    - uses: actions/setup-dotnet@3
+      with:
+        dotnet-version: 7
     - run: npm ci
     - run: npm run comtest
