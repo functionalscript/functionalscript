@@ -12,6 +12,14 @@ pub struct CObject<T: Class> {
     pub value: T,
 }
 
+const fn guid<I: Interface>() -> u128 {
+    let x = <I>::GUID;
+    (x >> 96) |
+    ((x >>  48) & 0x00000_000_0000_0000_0000_FFFF_0000_0000) |
+    ((x >>  16) & 0x0000_0000_0000_0000_FFFF_0000_0000_0000) |
+    (((x as u64).swap_bytes() as u128) << 64)
+}
+
 impl<T: Class> CObject<T> {
     pub const IUNKNOWN: IUnknown<T::Interface> = IUnknown {
         QueryInterface: Self::QueryInterface,
@@ -30,7 +38,7 @@ impl<T: Class> CObject<T> {
         riid: &u128,
         ppv_object: &mut *const Object,
     ) -> HRESULT {
-        let (p, r) = if *riid == <()>::GUID || *riid == T::Interface::GUID {
+        let (p, r) = if *riid == guid::<()>() || *riid == guid::<T::Interface>() {
             Self::AddRef(this);
             (this.to_iunknown() as *const Object, HRESULT::S_OK)
         } else {

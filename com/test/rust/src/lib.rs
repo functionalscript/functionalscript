@@ -1,6 +1,9 @@
-use crate::_result::IMy::ClassEx;
-
 mod _result;
+
+use _result::IMy;
+use nanocom::CObjectEx;
+
+use crate::_result::IMy::ClassEx;
 
 struct My {}
 
@@ -18,7 +21,7 @@ impl _result::IMy::Ex for nanocom::CObject<My> {
     }
 
     fn SetSlice(&self, slice: _result::Slice) {
-        todo!()
+        println!("SetSlice: {:?}, {:?}", slice.Start, slice.Size);
     }
 
     fn GetUnsafe(&self) -> *const bool {
@@ -44,3 +47,8 @@ impl _result::IMy::Ex for nanocom::CObject<My> {
 
 #[no_mangle]
 pub extern "C" fn get() -> i32 { 42 }
+
+#[no_mangle]
+pub extern "C" fn rust_my_create() -> IMy::Ref {
+    My {}.to_cobject()
+}

@@ -87,7 +87,7 @@ mod number {
 }
 
 mod use_number {
-    use nanocom::{CObjectEx, Class};
+    use nanocom::CObjectEx;
 
     use super::{library::IMyEx, number::X};
 
