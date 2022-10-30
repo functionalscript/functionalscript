@@ -69,13 +69,12 @@ const cpp = ({dirname, platform}) => ({
     },
     line: [
         flat([
-            ['clang', '-shared', '-o', output(platform)('main')],
+            ['clang', '-shared', '-o', output(platform)('testc')],
             flags(platform),
             [`${dirname}/cpp/main.cpp`]]
         ),
     ],
 })
-
 
 /** @type {Func} */
 const cs = ({dirname}) => ({

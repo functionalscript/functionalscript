@@ -113,6 +113,8 @@ bin/
 *.dll
 *.so
 *.dylib
+*.exp
+*.lib
 
 # temoprary files
 _result.*
