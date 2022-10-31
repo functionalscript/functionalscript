@@ -15,5 +15,5 @@ Console.WriteLine("Hello, World!");
 Console.WriteLine(get());
 Console.WriteLine(c_get());
 
-var x = rust_my_create();
+// var x = rust_my_create();
 // x.SetSlice(new Slice { Start = null, Size = (UIntPtr)44 });
