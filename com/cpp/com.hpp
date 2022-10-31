@@ -32,7 +32,7 @@ namespace com
         virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
 
-    template <class I>
+    template<class I>
     class ref
     {
     public:
@@ -49,5 +49,14 @@ namespace com
         }
     private:
         I &p;
+    };
+
+    template<class I>
+    class implementation: I
+    {
+        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
+        {
+            return E_NOINTERFACE;
+        }
     };
 }

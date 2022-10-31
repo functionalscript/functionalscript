@@ -13,6 +13,14 @@ extern "C" int c_get()
     return 43;
 }
 
-class Impl: My::IMy {
-
+class Impl: com::implementation<My::IMy>
+{
 };
+
+/*
+DLL_EXPORT
+extern "C" My::IMy* c_my_create()
+{
+    return new Impl();
+}
+*/
