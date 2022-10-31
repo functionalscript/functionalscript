@@ -46,7 +46,9 @@ impl _result::IMy::Ex for nanocom::CObject<My> {
 }
 
 #[no_mangle]
-pub extern "C" fn get() -> i32 { 42 }
+pub extern "C" fn get() -> i32 {
+    42
+}
 
 #[no_mangle]
 pub extern "C" fn rust_my_create() -> IMy::Ref {
