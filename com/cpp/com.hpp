@@ -21,7 +21,12 @@ namespace com
     };
 
     typedef uint32_t HRESULT;
+
+    static HRESULT const E_NOINTERFACE = 0x80004002;
+    static HRESULT const S_OK = 0;
+
     typedef uint32_t ULONG;
+
     typedef int32_t BOOL;
 
     class IUnknown
@@ -32,7 +37,7 @@ namespace com
         virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
 
-    template <class I>
+    template<class I>
     class ref
     {
     public:
@@ -49,5 +54,22 @@ namespace com
         }
     private:
         I &p;
+    };
+
+    template<class I>
+    class implementation: public I
+    {
+        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
+        {
+            return E_NOINTERFACE;
+        }
+        ULONG COM_STDCALL AddRef() noexcept override
+        {
+            return 0;
+        }
+        ULONG COM_STDCALL Release() noexcept override
+        {
+            return 0;
+        }
     };
 }
