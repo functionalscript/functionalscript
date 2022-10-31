@@ -77,13 +77,17 @@ const cpp = ({dirname, platform}) => ({
 })
 
 /** @type {Func} */
-const cs = ({dirname}) => ({
+const cs = ({dirname, platform}) => ({
     file: {
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
     },
     line: [
-        ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]],
+        platform === 'win32'
+            ? ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]
+        // .Net on Linux and Windows doesn't properly support COM object marshalling
+            : ['dotnet', 'build', `${dirname}/cs/cs.csproj`]
+    ],
 })
 
 /** @type {Func} */
