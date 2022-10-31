@@ -57,7 +57,7 @@ namespace com
     };
 
     template<class I>
-    class implementation: I
+    class implementation: public I
     {
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
         {
