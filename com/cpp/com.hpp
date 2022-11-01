@@ -17,11 +17,11 @@ namespace com
 {
     constexpr uint64_t byteswap(uint64_t v)
     {
-        v = ((v >>  8) & 0x00FF00FF00FF00FF) |
-            ((v <<  8) & 0xFF00FF00FF00FF00);
-        v = ((v >> 16) & 0x0000FFFF0000FFFF) |
-            ((v << 16) & 0xFFFF0000FFFF0000);
-        return (v >> 32) | (v << 32);
+        v = v >> 8 & 0x00FF00FF00FF00FF |
+            v << 8 & 0xFF00FF00FF00FF00;
+        v = v >> 16 & 0x0000FFFF0000FFFF |
+            v << 16 & 0xFFFF0000FFFF0000;
+        return v >> 32 | v << 32;
     }
 
     class GUID
@@ -30,7 +30,9 @@ namespace com
         uint64_t lo;
         uint64_t hi;
         constexpr GUID(uint64_t const lo, uint64_t const hi) noexcept
-            : lo(((lo & 0xFFFF) << 48) | ((lo & 0xFFFF'0000) << 16) | (lo >> 32)),
+            : lo(lo << 48 & 0xFFFF'0000'0000'0000 |
+                 lo << 16 & 0xFFFF'0000'0000 |
+                 lo >> 32),
               hi(byteswap(hi))
         {
         }
