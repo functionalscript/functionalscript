@@ -46,7 +46,7 @@ const flags = platform => {
         case 'win32':
             return []
         case 'linux':
-            return ['-lstdc++']
+            return ['-lstdc++', '-fPIC']
         default:
             return ['-std=c++11', '-lc++']
     }
