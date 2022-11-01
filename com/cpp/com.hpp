@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <atomic>
+#include <iostream>
 
 #if defined(__aarch64__) || defined(__amd64__)
 #define COM_STDCALL
@@ -14,12 +15,23 @@
 
 namespace com
 {
+    constexpr uint64_t byteswap(uint64_t v)
+    {
+        v = ((v >>  8) & 0x00FF00FF00FF00FF) |
+            ((v <<  8) & 0xFF00FF00FF00FF00);
+        v = ((v >> 16) & 0x0000FFFF0000FFFF) |
+            ((v << 16) & 0xFFFF0000FFFF0000);
+        return (v >> 32) | (v << 32);
+    }
+
     class GUID
     {
     public:
         uint64_t lo;
         uint64_t hi;
-        constexpr GUID(uint64_t const lo, uint64_t const hi) noexcept : lo(lo), hi(hi)
+        constexpr GUID(uint64_t const lo, uint64_t const hi) noexcept
+            : lo(((lo & 0xFFFF) << 48) | ((lo & 0xFFFF'0000) << 16) | (lo >> 32)),
+              hi(byteswap(hi))
         {
         }
         constexpr bool operator==(GUID const b) const noexcept
@@ -31,6 +43,24 @@ namespace com
             return !(*this == b);
         }
     };
+
+    inline void guid_part(std::ostream &os, uint64_t v)
+    {
+        for (int i = 64; i > 0;)
+        {
+            i -= 4;
+            char const c = (v >> i) & 0xF;
+            char const x = c < 10 ? c + '0' : c + ('A' - 10);
+            os << x;
+        }
+    }
+
+    inline std::ostream &operator<<(std::ostream &os, GUID const &self)
+    {
+        guid_part(os, self.lo);
+        guid_part(os, self.hi);
+        return os;
+    }
 
     typedef uint32_t HRESULT;
 
@@ -81,6 +111,10 @@ namespace com
     private:
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept override
         {
+            std::cout << "riid    :" << riid << std::endl;
+            std::cout << "iunknown:" << iunknown_guid << std::endl;
+            std::cout << "T       :" << T::guid << std::endl;
+            std::cout << std::endl;
             if (riid != iunknown_guid && riid != T::guid)
             {
                 return E_NOINTERFACE;
