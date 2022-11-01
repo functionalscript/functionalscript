@@ -79,10 +79,9 @@ namespace com
     template <class T>
     class implementation : public T
     {
-        constexpr static GUID const guid = GUID(0, 0);
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept override
         {
-            if (riid != iunknown_guid && riid != guid)
+            if (riid != iunknown_guid && riid != T::guid)
             {
                 return E_NOINTERFACE;
             }

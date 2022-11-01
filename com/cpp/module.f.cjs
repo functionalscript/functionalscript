@@ -70,7 +70,15 @@ const cpp = name => lib => {
     const mapMethod = map(method)
 
     /** @type {(i: types.Interface) => text.Block} */
-    const defInterface = i => mapMethod(entries(i.interface))
+    const defInterface = ({guid, interface: i}) => {
+        const g = guid.replaceAll('-', '');
+        const lo = g.substring(0, 16);
+        const hi = g.substring(16);
+        return flat([
+            [`constexpr static ::com::GUID const guid = ::com::GUID(0x${lo}, 0x${hi});`],
+            mapMethod(entries(i))
+        ])
+    }
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => d.interface === undefined
