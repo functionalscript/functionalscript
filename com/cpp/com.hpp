@@ -19,8 +19,7 @@ namespace com
     public:
         uint64_t lo;
         uint64_t hi;
-        constexpr GUID(uint64_t lo, uint64_t hi) noexcept : lo(lo),
-                                                            hi(hi)
+        constexpr GUID(uint64_t const lo, uint64_t const hi) noexcept : lo(lo), hi(hi)
         {
         }
         constexpr bool operator==(GUID const b) const noexcept
@@ -54,7 +53,7 @@ namespace com
     class ref
     {
     public:
-        explicit ref(I &other) noexcept : p(other.p)
+        explicit ref(I &other) noexcept : p(other)
         {
             p.AddRef();
         }
@@ -79,6 +78,7 @@ namespace com
     template <class T>
     class implementation : public T
     {
+    private:
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept override
         {
             if (riid != iunknown_guid && riid != T::guid)

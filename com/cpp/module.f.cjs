@@ -5,7 +5,7 @@ const obj = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 const { map, flatMap, flat } = list
 const { join } = require('../../types/string/module.f.cjs')
-const { entries } =  Object
+const { entries } = Object
 
 /** @type {(name: string) => (body: text.Block) => text.Block} */
 const struct = name => body => [`struct ${name}`, '{', body, '};']
@@ -70,7 +70,7 @@ const cpp = name => lib => {
     const mapMethod = map(method)
 
     /** @type {(i: types.Interface) => text.Block} */
-    const defInterface = ({guid, interface: i}) => {
+    const defInterface = ({ guid, interface: i }) => {
         const g = guid.replaceAll('-', '');
         const lo = g.substring(0, 16);
         const hi = g.substring(16);
