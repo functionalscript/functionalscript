@@ -44,7 +44,7 @@ namespace com
         }
     };
 
-    inline void guid_part(std::ostream &os, uint64_t v)
+    inline void guid_part(std::ostream &os, uint64_t const v)
     {
         for (int i = 64; i > 0;)
         {
@@ -74,7 +74,7 @@ namespace com
     class IUnknown
     {
     public:
-        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept = 0;
+        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
         virtual ULONG COM_STDCALL AddRef() noexcept = 0;
         virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
@@ -109,14 +109,14 @@ namespace com
     class implementation : public T
     {
     private:
-        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept override
+        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
         {
             if (riid != iunknown_guid && riid != T::guid)
             {
                 return E_NOINTERFACE;
             }
             add_ref();
-            *pvObject = this;
+            *ppvObject = this;
             return S_OK;
         }
 
