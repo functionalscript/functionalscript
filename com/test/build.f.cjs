@@ -48,7 +48,7 @@ const flags = platform => {
         case 'linux':
             return ['-lstdc++', '-fPIC']
         default:
-            return ['-std=c++11', '-lc++']
+            return ['-std=c++14', '-lc++']
     }
 }
 
