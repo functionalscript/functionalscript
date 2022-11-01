@@ -13,6 +13,14 @@ extern "C" int c_get()
     return 43;
 }
 
+namespace com {
+    template<>
+    constexpr GUID interface_guid<My::IMy>()
+    {
+        return GUID(0, 0);
+    }
+}
+
 class Impl: public com::implementation<My::IMy>
 {
     My::Slice COM_STDCALL GetSlice() noexcept override

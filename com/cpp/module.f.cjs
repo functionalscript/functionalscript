@@ -75,7 +75,7 @@ const cpp = name => lib => {
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => d.interface === undefined
         ? struct(name)(defStruct(d))
-        : struct(`${name}: ::com::IUnknown`)(defInterface(d))
+        : struct(`${name} : ::com::IUnknown`)(defInterface(d))
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]

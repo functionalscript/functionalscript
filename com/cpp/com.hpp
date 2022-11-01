@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <atomic>
 
 #if defined(__aarch64__) || defined(__amd64__)
 #define COM_STDCALL
@@ -16,8 +17,20 @@ namespace com
     class GUID
     {
     public:
-        uint64_t hi;
         uint64_t lo;
+        uint64_t hi;
+        constexpr GUID(uint64_t lo, uint64_t hi) noexcept : lo(lo),
+                                                            hi(hi)
+        {
+        }
+        constexpr bool operator==(GUID const b) const noexcept
+        {
+            return lo == b.lo && hi == b.hi;
+        }
+        constexpr bool operator!=(GUID const b) const noexcept
+        {
+            return !(*this == b);
+        }
     };
 
     typedef uint32_t HRESULT;
@@ -32,12 +45,12 @@ namespace com
     class IUnknown
     {
     public:
-        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
+        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept = 0;
         virtual ULONG COM_STDCALL AddRef() noexcept = 0;
         virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
 
-    template<class I>
+    template <class I>
     class ref
     {
     public:
@@ -52,24 +65,52 @@ namespace com
         {
             p.Release();
         }
+
     private:
         I &p;
     };
 
-    template<class I>
-    class implementation: public I
+    constexpr static GUID const iunknown_guid =
+        GUID(0x00000000'0000'0000, 0xC000'000000000046);
+
+    template <class I>
+    constexpr GUID interface_guid();
+
+    template <class T>
+    class implementation : public T
     {
-        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
+        constexpr static GUID const guid = GUID(0, 0);
+        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept override
         {
-            return E_NOINTERFACE;
+            if (riid != iunknown_guid && riid != guid)
+            {
+                return E_NOINTERFACE;
+            }
+            add_ref();
+            *pvObject = this;
+            return S_OK;
         }
+
+        ULONG add_ref() noexcept
+        {
+            return counter.fetch_add(1);
+        }
+
         ULONG COM_STDCALL AddRef() noexcept override
         {
-            return 0;
+            return add_ref() + 1;
         }
+
         ULONG COM_STDCALL Release() noexcept override
         {
-            return 0;
+            auto const c = counter.fetch_sub(1) - 1;
+            if (c == 0)
+            {
+                delete this;
+            }
+            return c;
         }
+
+        std::atomic<ULONG> counter;
     };
 }
