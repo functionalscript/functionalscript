@@ -111,10 +111,6 @@ namespace com
     private:
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const pvObject) noexcept override
         {
-            std::cout << "riid    :" << riid << std::endl;
-            std::cout << "iunknown:" << iunknown_guid << std::endl;
-            std::cout << "T       :" << T::guid << std::endl;
-            std::cout << std::endl;
             if (riid != iunknown_guid && riid != T::guid)
             {
                 return E_NOINTERFACE;
