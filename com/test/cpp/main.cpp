@@ -13,7 +13,7 @@ extern "C" int c_get()
     return 43;
 }
 
-class Impl: public com::implementation<My::IMy>
+class Impl: public My::IMy
 {
     My::Slice COM_STDCALL GetSlice() noexcept override
     {
@@ -41,5 +41,5 @@ class Impl: public com::implementation<My::IMy>
 DLL_EXPORT
 extern "C" My::IMy* c_my_create()
 {
-    return new Impl();
+    return new ::com::implementation<Impl>();
 }

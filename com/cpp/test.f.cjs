@@ -19,8 +19,9 @@ const f = () =>
         '    {\n' +
         '        ::com::ref<IMy> M;\n' +
         '    };\n' +
-        '    struct IMy: ::com::IUnknown\n' +
+        '    struct IMy : ::com::IUnknown\n' +
         '    {\n' +
+        '        constexpr static ::com::GUID const guid = ::com::GUID(0xC66FB2702D8049AD, 0xBB6E88C1F90B805D);\n' +
         '        virtual Slice COM_STDCALL GetSlice() noexcept = 0;\n' +
         '        virtual void COM_STDCALL SetSlice(Slice slice) noexcept = 0;\n' +
         '        virtual ::com::BOOL* COM_STDCALL GetUnsafe() noexcept = 0;\n' +
