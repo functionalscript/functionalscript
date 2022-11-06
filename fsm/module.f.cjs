@@ -43,6 +43,16 @@ const stringifyOp = ([sortedSet, max]) => [[stringify(sortedSet), max], stringif
 /** @type {(input: TransitionMap) => rangeMap.RangeMap<string>} */
 const stringifyEntries = input => list.scan(stringifyOp)(input)
 
+/** @type {(rm: rangeMap.RangeMap<string>) => list.List<string>} */
+const fetchStates = rm => todo()
+
+/** @type {(grammar: Grammar) => (dfa: Dfa) => (state: string) => Dfa} */
+const addEntry = grammar => dfa => state => {
+    const tm = toTransitionMap(state)(grammar)
+    const rm = stringifyEntries(tm)
+    return todo()
+}
+
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => todo()
 
