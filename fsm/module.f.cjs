@@ -33,28 +33,24 @@ const foldOp = state => ([ruleIn, bs, ruleOut]) => tm => {
     if (state !== ruleIn) { return tm }
     return rangeMap.merge(mergeOp)(tm)(toRangeMap(bs)(ruleOut))
 }
-
-/** @type {(state: string) => (grammar: Grammar) => TransitionMap} */
-const toTransitionMap = state => grammar => list.fold(foldOp(state))(undefined)(grammar)
-
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
 const stringifyOp = ([sortedSet, max]) => [[stringify(sortedSet), max], stringifyOp]
 
-/** @type {(input: TransitionMap) => rangeMap.RangeMap<string>} */
-const stringifyEntries = input => list.scan(stringifyOp)(input)
+/** @type {operator.Scan<rangeMap.Entry<string>, string>} */
+const fetchOp = ([item, _]) => [item, fetchOp]
 
-/** @type {(rm: rangeMap.RangeMap<string>) => list.List<string>} */
-const fetchStates = rm => todo()
-
-/** @type {(grammar: Grammar) => (dfa: Dfa) => (state: string) => Dfa} */
-const addEntry = grammar => dfa => state => {
-    const tm = toTransitionMap(state)(grammar)
-    const rm = stringifyEntries(tm)
-    return todo()
+/** @type {(grammar: Grammar) => operator.Fold<string, Dfa>} */
+const addEntry = grammar => s => dfa => {
+    if (s in dfa) { return dfa }
+    const tm = list.fold(foldOp(s))(undefined)(grammar)
+    const rm = list.scan(stringifyOp)(tm)
+    const newDfa = { ...dfa, s: rm }
+    const newStates = list.scan(fetchOp)(rm)
+    return list.fold(addEntry(grammar))(newDfa)(newStates)
 }
 
 /** @type {(grammar: Grammar) => Dfa} */
-const dfa = grammar => todo()
+const dfa = grammar => addEntry(grammar)('[]')({})
 
 module.exports = {
     /** @readonly */
