@@ -25,7 +25,7 @@ const typeDef = attributes => type => name => body =>
     ])
 
 const baseTypeMap = {
-    bool: 'bool',
+    bool: 'byte',
     f32: 'float',
     f64: 'double',
     i16: 'short',

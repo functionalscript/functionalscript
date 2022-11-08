@@ -13,6 +13,8 @@
 #define COM_STDCALL __stdcall
 #endif
 
+static_assert(sizeof(bool) == 1);
+
 namespace com
 {
     constexpr uint64_t byteswap(uint64_t v) noexcept
@@ -64,19 +66,19 @@ namespace com
         return os;
     }
 
-    typedef uint32_t HRESULT;
-
-    static HRESULT const E_NOINTERFACE = 0x80004002;
-    static HRESULT const S_OK = 0;
+    enum class HRESULT : uint32_t
+    {
+        S_OK = 0,
+        E_NOINTERFACE = 0x80004002,
+    };
 
     typedef uint32_t ULONG;
 
     typedef int32_t BOOL;
 
-    class IUnknown
-    {
-    public:
-        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
+    class IUnknown{
+        public :
+            virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
         virtual ULONG COM_STDCALL AddRef() noexcept = 0;
         virtual ULONG COM_STDCALL Release() noexcept = 0;
     };
@@ -145,11 +147,11 @@ namespace com
         {
             if (riid != iunknown_guid && riid != T::guid)
             {
-                return E_NOINTERFACE;
+                return HRESULT::E_NOINTERFACE;
             }
             add_ref();
             *ppvObject = this;
-            return S_OK;
+            return HRESULT::S_OK;
         }
 
         ULONG add_ref() noexcept

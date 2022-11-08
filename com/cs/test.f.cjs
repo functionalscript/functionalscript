@@ -28,11 +28,11 @@ const f = () =>
         '        [PreserveSig]\n' +
         '        void SetSlice(Slice slice);\n' +
         '        [PreserveSig]\n' +
-        '        unsafe bool* GetUnsafe();\n' +
+        '        unsafe byte* GetUnsafe();\n' +
         '        [PreserveSig]\n' +
         '        unsafe void SetUnsafe(Slice* p, uint size);\n' +
         '        [PreserveSig]\n' +
-        '        bool Some(IMy p);\n' +
+        '        byte Some(IMy p);\n' +
         '        [PreserveSig]\n' +
         '        IMy GetIMy();\n' +
         '        [PreserveSig]\n' +
