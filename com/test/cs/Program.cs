@@ -21,5 +21,11 @@ Console.WriteLine(c_get());
 var x = rust_my_create();
 x.SetSlice(new Slice { Start = null, Size = (UIntPtr)44 });
 
-var y = c_my_create();
-y.SetSlice(new Slice { Start = null, Size = (UIntPtr)45 });
+{
+    var y = c_my_create();
+    y.SetSlice(new Slice { Start = null, Size = (UIntPtr)45 });
+    var t = y.GetIMy();
+}
+
+GC.Collect();
+Console.WriteLine("ok");
