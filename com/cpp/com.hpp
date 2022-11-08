@@ -74,8 +74,6 @@ namespace com
 
     typedef uint32_t ULONG;
 
-    typedef int32_t BOOL;
-
     class IUnknown{
         public :
             virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;

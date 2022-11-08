@@ -28,13 +28,13 @@ public:
             << slice.Size
             << std::endl;
     }
-    ::com::BOOL *COM_STDCALL GetUnsafe() noexcept override
+    bool *COM_STDCALL GetUnsafe() noexcept override
     {
     }
     void COM_STDCALL SetUnsafe(My::Slice *p, uint32_t size) noexcept override
     {
     }
-    ::com::BOOL COM_STDCALL Some(My::IMy &p) noexcept override
+    bool COM_STDCALL Some(My::IMy &p) noexcept override
     {
     }
     My::IMy* COM_STDCALL GetIMy() noexcept override

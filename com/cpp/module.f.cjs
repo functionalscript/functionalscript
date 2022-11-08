@@ -23,7 +23,7 @@ const baseTypeMap = {
     isize: 'ptrdiff_t',
     f32: 'float',
     f64: 'double',
-    bool: '::com::BOOL',
+    bool: 'bool',
 }
 
 /** @type {(t: types.BaseType) => string} */
