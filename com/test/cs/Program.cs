@@ -22,3 +22,4 @@ var x = rust_my_create();
 x.SetSlice(new Slice { Start = null, Size = (UIntPtr)44 });
 
 var y = c_my_create();
+y.SetSlice(new Slice { Start = null, Size = (UIntPtr)45 });

@@ -20,6 +20,12 @@ class Impl: public My::IMy
     }
     void COM_STDCALL SetSlice(My::Slice slice) noexcept override
     {
+        std::cout
+            << "SetSlice: "
+            << reinterpret_cast<size_t>(slice.Start)
+            << ", "
+            << slice.Size
+            << std::endl;
     }
     ::com::BOOL *COM_STDCALL GetUnsafe() noexcept override
     {
