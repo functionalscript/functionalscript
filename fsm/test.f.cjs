@@ -14,5 +14,21 @@ module.exports = {
         const digit = byteSet.range([toCharCode('0'), toCharCode('9')])
         const idNext = byteSet.union(idBegin)(digit)
         const dot = byteSet.one(toCharCode('.'))
+
+        /** @type {_.Grammar} */
+        const grammar = [
+            ['', digit, 'int'],
+            ['int', digit, 'int'],
+            ['', digit, 'floatBegin'],
+            ['floatBegin', digit, 'floatBegin'],
+            ['floatBegin', dot, 'floatDot'],
+            ['floatDot', digit, 'float'],
+            ['float', digit, 'float'],
+            ['', idBegin, 'id'],
+            ['id', idNext, 'id']
+        ]
+
+       const result = _.dfa(grammar)
+       console.log(result)
     }
 }
