@@ -12,7 +12,7 @@ const f = () =>
         '    struct IMy;\n' +
         '    struct Slice\n' +
         '    {\n' +
-        '        uint8_t* Start;\n' +
+        '        uint8_t const* Start;\n' +
         '        size_t Size;\n' +
         '    };\n' +
         '    struct ManagedStruct\n' +
@@ -22,13 +22,13 @@ const f = () =>
         '    struct IMy : ::com::IUnknown\n' +
         '    {\n' +
         '        constexpr static ::com::GUID const guid = ::com::GUID(0xC66FB2702D8049AD, 0xBB6E88C1F90B805D);\n' +
-        '        virtual Slice COM_STDCALL GetSlice() noexcept = 0;\n' +
-        '        virtual void COM_STDCALL SetSlice(Slice slice) noexcept = 0;\n' +
-        '        virtual ::com::BOOL* COM_STDCALL GetUnsafe() noexcept = 0;\n' +
-        '        virtual void COM_STDCALL SetUnsafe(Slice* p, uint32_t size) noexcept = 0;\n' +
-        '        virtual ::com::BOOL COM_STDCALL Some(IMy& p) noexcept = 0;\n' +
-        '        virtual IMy* COM_STDCALL GetIMy() noexcept = 0;\n' +
-        '        virtual void COM_STDCALL SetManagedStruct(ManagedStruct a) noexcept = 0;\n' +
+        '        virtual Slice COM_STDCALL GetSlice() const noexcept = 0;\n' +
+        '        virtual void COM_STDCALL SetSlice(Slice slice) const noexcept = 0;\n' +
+        '        virtual bool const* COM_STDCALL GetUnsafe() const noexcept = 0;\n' +
+        '        virtual void COM_STDCALL SetUnsafe(Slice const* p, uint32_t size) const noexcept = 0;\n' +
+        '        virtual bool COM_STDCALL Some(IMy const& p) const noexcept = 0;\n' +
+        '        virtual IMy const* COM_STDCALL GetIMy() const noexcept = 0;\n' +
+        '        virtual void COM_STDCALL SetManagedStruct(ManagedStruct a) const noexcept = 0;\n' +
         '    };\n' +
         '}'
     if (cpp !== e) { throw cpp }

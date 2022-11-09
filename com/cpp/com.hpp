@@ -19,8 +19,8 @@ namespace com
 {
     constexpr uint64_t byteswap(uint64_t v) noexcept
     {
-        v = v >>  8 & 0x00FF00FF00FF00FF |
-            v <<  8 & 0xFF00FF00FF00FF00;
+        v = v >> 8 & 0x00FF00FF00FF00FF |
+            v << 8 & 0xFF00FF00FF00FF00;
         v = v >> 16 & 0x0000FFFF0000FFFF |
             v << 16 & 0xFFFF0000FFFF0000;
         return v >> 32 | v << 32;
@@ -74,18 +74,19 @@ namespace com
 
     typedef uint32_t ULONG;
 
-    class IUnknown{
-        public :
-            virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
-        virtual ULONG COM_STDCALL AddRef() noexcept = 0;
-        virtual ULONG COM_STDCALL Release() noexcept = 0;
+    class IUnknown
+    {
+    public:
+        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
+        virtual ULONG COM_STDCALL AddRef() const noexcept = 0;
+        virtual ULONG COM_STDCALL Release() const noexcept = 0;
     };
 
     template <class I>
     class ref
     {
     public:
-        explicit ref(I &other) noexcept : p(other)
+        explicit ref(I const &other) noexcept : p(other)
         {
             p.AddRef();
         }
@@ -97,28 +98,29 @@ namespace com
             p.Release();
         }
 
-        template<class U>
+        template <class U>
         ref<U> upcast() const noexcept
         {
             return ref<U>(p);
         }
 
-        I* operator->() const noexcept
+        I const *operator->() const noexcept
         {
             return &p;
         }
 
-        I* unsafe_result() const noexcept
+        I const *unsafe_result() const noexcept
         {
             p.AddRef();
             return &p;
         }
+
     private:
-        I &p;
+        I const &p;
     };
 
-    template<class I>
-    ref<I> to_ref(I& p) noexcept
+    template <class I>
+    ref<I> to_ref(I const &p) noexcept
     {
         return ref<I>(p);
     }
@@ -130,18 +132,19 @@ namespace com
     class implementation : public T
     {
     public:
-        template<class ...U>
-        static T* create_raw(U... u)
+        template <class... U>
+        static T const *create_raw(U... u)
         {
             return new implementation(u...);
         }
-        template<class ...U>
+        template <class... U>
         static ref<T> create(U... u)
         {
             return to_ref(*create_raw(u...));
         }
+
     private:
-        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
+        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
         {
             if (riid != iunknown_guid && riid != T::guid)
             {
@@ -152,17 +155,17 @@ namespace com
             return HRESULT::S_OK;
         }
 
-        ULONG add_ref() noexcept
+        ULONG add_ref() const noexcept
         {
             return counter.fetch_add(1);
         }
 
-        ULONG COM_STDCALL AddRef() noexcept override
+        ULONG COM_STDCALL AddRef() const noexcept override
         {
             return add_ref() + 1;
         }
 
-        ULONG COM_STDCALL Release() noexcept override
+        ULONG COM_STDCALL Release() const noexcept override
         {
             auto const c = counter.fetch_sub(1) - 1;
             if (c == 0)
@@ -172,9 +175,9 @@ namespace com
             return c;
         }
 
-        template<class ...U>
-        explicit implementation(U... u): T(u...) {}
+        template <class... U>
+        explicit implementation(U... u) : T(u...) {}
 
-        std::atomic<ULONG> counter;
+        mutable std::atomic<ULONG> counter;
     };
 }

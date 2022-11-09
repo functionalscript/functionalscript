@@ -47,7 +47,7 @@ const cpp = name => lib => {
 
     const type = objectType(id => `::com::ref<${id}>`)
 
-    const resultType = objectType(id => `${id}*`)
+    const resultType = objectType(id => `${id} const*`)
 
     /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
@@ -61,13 +61,13 @@ const cpp = name => lib => {
     const cppResult = resultVoid(resultType)
 
     /** @type {(p: types.Field) => string} */
-    const param = ([name, t]) => `${objectType(id => `${id}&`)(t)} ${name}`
+    const param = ([name, t]) => `${objectType(id => `${id} const&`)(t)} ${name}`
 
     const mapParam = map(param)
 
     /** @type {(m: types.Method) => text.Item} */
     const method = ([name, paramArray]) =>
-        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) noexcept = 0;`
+        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) const noexcept = 0;`
 
     const mapMethod = map(method)
 
