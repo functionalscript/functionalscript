@@ -39,7 +39,7 @@ const cpp = name => lib => {
     /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
     const objectType = i => t => {
         if (typeof (t) === 'string') { return baseType(t) }
-        if (t.length === 2) { return `${type(t[1])}*` }
+        if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
         if (lib[id].interface === undefined) { return id }
         return i(id)
