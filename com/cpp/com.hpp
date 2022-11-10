@@ -15,7 +15,7 @@
 
 namespace com
 {
-    constexpr uint64_t byteswap(uint64_t v)
+    constexpr uint64_t byteswap(uint64_t v) noexcept
     {
         v = v >>  8 & 0x00FF00FF00FF00FF |
             v <<  8 & 0xFF00FF00FF00FF00;
@@ -97,19 +97,49 @@ namespace com
             p.Release();
         }
 
+        template<class U>
+        ref<U> upcast() const noexcept
+        {
+            return ref<U>(p);
+        }
+
+        I* operator->() const noexcept
+        {
+            return &p;
+        }
+
+        I* unsafe_result() const noexcept
+        {
+            p.AddRef();
+            return &p;
+        }
     private:
         I &p;
     };
 
+    template<class I>
+    ref<I> to_ref(I& p) noexcept
+    {
+        return ref<I>(p);
+    }
+
     constexpr static GUID const iunknown_guid =
         GUID(0x00000000'0000'0000, 0xC000'000000000046);
-
-    template <class I>
-    constexpr GUID interface_guid();
 
     template <class T>
     class implementation : public T
     {
+    public:
+        template<class ...U>
+        static T* create_raw(U... u)
+        {
+            return new implementation(u...);
+        }
+        template<class ...U>
+        static ref<T> create(U... u)
+        {
+            return to_ref(*create_raw(u...));
+        }
     private:
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
         {
@@ -141,6 +171,9 @@ namespace com
             }
             return c;
         }
+
+        template<class ...U>
+        explicit implementation(U... u): T(u...) {}
 
         std::atomic<ULONG> counter;
     };

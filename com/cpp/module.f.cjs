@@ -47,6 +47,8 @@ const cpp = name => lib => {
 
     const type = objectType(id => `::com::ref<${id}>`)
 
+    const resultType = objectType(id => `${id}*`)
+
     /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
 
@@ -56,7 +58,7 @@ const cpp = name => lib => {
     const defStruct = s => mapField(entries(s.struct))
 
     /** @type {(fa: types.FieldArray) => string} */
-    const cppResult = resultVoid(type)
+    const cppResult = resultVoid(resultType)
 
     /** @type {(p: types.Field) => string} */
     const param = ([name, t]) => `${objectType(id => `${id}&`)(t)} ${name}`

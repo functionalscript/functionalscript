@@ -71,8 +71,8 @@ const cpp = ({dirname, platform}) => ({
         flat([
             ['clang', '-shared', '-o', output(platform)('testc')],
             flags(platform),
-            [`${dirname}/cpp/main.cpp`]]
-        ),
+            [`${dirname}/cpp/main.cpp`],
+        ]),
     ],
 })
 
@@ -85,7 +85,7 @@ const cs = ({dirname, platform}) => ({
     line: [
         platform === 'win32'
             ? ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]
-        // .Net on Linux and Windows doesn't properly support COM object marshalling
+        // .Net on Linux and MacOS doesn't properly support COM object marshalling
             : ['dotnet', 'build', `${dirname}/cs/cs.csproj`]
     ],
 })

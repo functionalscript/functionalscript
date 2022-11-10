@@ -15,11 +15,18 @@ extern "C" int c_get()
 
 class Impl: public My::IMy
 {
+public:
     My::Slice COM_STDCALL GetSlice() noexcept override
     {
     }
     void COM_STDCALL SetSlice(My::Slice slice) noexcept override
     {
+        std::cout
+            << "SetSlice: "
+            << (slice.Start - static_cast<uint8_t*>(nullptr))
+            << ", "
+            << slice.Size
+            << std::endl;
     }
     ::com::BOOL *COM_STDCALL GetUnsafe() noexcept override
     {
@@ -30,16 +37,29 @@ class Impl: public My::IMy
     ::com::BOOL COM_STDCALL Some(My::IMy &p) noexcept override
     {
     }
-    ::com::ref<My::IMy> COM_STDCALL GetIMy() noexcept override
+    My::IMy* COM_STDCALL GetIMy() noexcept override
     {
+        return ::com::to_ref(*this).unsafe_result();
     }
     void COM_STDCALL SetManagedStruct(My::ManagedStruct a) noexcept override
     {
+    }
+    ~Impl()
+    {
+        ::std::cout << "done" << std::endl;
     }
 };
 
 DLL_EXPORT
 extern "C" My::IMy* c_my_create()
 {
-    return new ::com::implementation<Impl>();
+    {
+        auto const x = ::com::implementation<Impl>::create().unsafe_result();
+        x->Release();
+    }
+    {
+        auto const x = ::com::implementation<Impl>::create().upcast<My::IMy>();
+        x->SetSlice(My::Slice());
+    }
+    return ::com::implementation<Impl>::create().unsafe_result();
 }

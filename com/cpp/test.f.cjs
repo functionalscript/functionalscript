@@ -27,7 +27,7 @@ const f = () =>
         '        virtual ::com::BOOL* COM_STDCALL GetUnsafe() noexcept = 0;\n' +
         '        virtual void COM_STDCALL SetUnsafe(Slice* p, uint32_t size) noexcept = 0;\n' +
         '        virtual ::com::BOOL COM_STDCALL Some(IMy& p) noexcept = 0;\n' +
-        '        virtual ::com::ref<IMy> COM_STDCALL GetIMy() noexcept = 0;\n' +
+        '        virtual IMy* COM_STDCALL GetIMy() noexcept = 0;\n' +
         '        virtual void COM_STDCALL SetManagedStruct(ManagedStruct a) noexcept = 0;\n' +
         '    };\n' +
         '}'
