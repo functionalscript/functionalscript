@@ -1,9 +1,11 @@
-const { todo } = require('../dev/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
+const { equal, length, fold, toArray, scan } = list
 const byteSet = require('../types/byte_set/module.f.cjs')
 const { toRangeMap } = byteSet
 const sortedSet = require('../types/sorted_set/module.f.cjs')
+const { intersect, union } = sortedSet
 const rangeMap = require('../types/range_map/module.f.cjs')
+const { merge } = rangeMap
 const { unsafeCmp } = require('../types/function/compare/module.f.cjs')
 const operator = require("../types/function/operator/module.f.cjs")
 const { strictEqual } = operator
@@ -24,14 +26,14 @@ const stringify = a => json.stringify(sort)(a)
  */
 
 /** @type {rangeMap.Operators<sortedSet.SortedSet<string>>} */
-const mergeOp = { union: sortedSet.union(unsafeCmp), equal: list.equal(strictEqual) }
+const mergeOp = { union: union(unsafeCmp), equal: equal(strictEqual) }
 
 /** @type {(s: string) => (set: sortedSet.SortedSet<string>) => boolean} */
-const hasState = s => set => list.length(sortedSet.intersect(unsafeCmp)([s])(set)) !== 0
+const hasState = s => set => length(intersect(unsafeCmp)([s])(set)) !== 0
 
 /** @type {(set: sortedSet.SortedSet<string>) => operator.Fold<Rule, rangeMap.RangeMap<sortedSet.SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
-    if (hasState(ruleIn)(set)) { return rangeMap.merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
+    if (hasState(ruleIn)(set)) { return merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
     return rm
 }
 
@@ -45,11 +47,11 @@ const fetchOp = ([item, _]) => [item, fetchOp]
 const addEntry = grammar => set => dfa => {
     const s = stringify(set)
     if (s in dfa) { return dfa }
-    const setMap = list.fold(foldOp(set))(undefined)(grammar)
-    const stringMap = list.toArray(list.scan(stringifyOp)(setMap))
+    const setMap = fold(foldOp(set))(undefined)(grammar)
+    const stringMap = toArray(scan(stringifyOp)(setMap))
     const newDfa = { ...dfa, [s]: stringMap }
-    const newStates = list.scan(fetchOp)(setMap)
-    return list.fold(addEntry(grammar))(newDfa)(newStates)
+    const newStates = scan(fetchOp)(setMap)
+    return fold(addEntry(grammar))(newDfa)(newStates)
 }
 
 /** @type {(grammar: Grammar) => Dfa} */
