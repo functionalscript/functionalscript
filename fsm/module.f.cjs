@@ -9,8 +9,7 @@ const { merge } = rangeMap
 const { unsafeCmp } = require('../types/function/compare/module.f.cjs')
 const operator = require("../types/function/operator/module.f.cjs")
 const { strictEqual } = operator
-const json = require('../json/module.f.cjs')
-const { stringify } = json
+const { stringify } = require('../json/module.f.cjs')
 const { sort } = require('../types/object/module.f.cjs')
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
