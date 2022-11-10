@@ -72,6 +72,8 @@ module.exports = {
     /** @readonly */
     unset,
     /** @readonly */
+    one,
+    /** @readonly */
     union,
     /** @readonly */
     setRange,

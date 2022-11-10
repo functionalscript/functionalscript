@@ -17,6 +17,11 @@ const operator = require("../function/operator/module.f.cjs")
 
 /**
  * @template T
+ * @typedef {readonly Entry<T>[]} RangeMapArray
+ */
+
+/**
+ * @template T
  * @typedef {{
  *  readonly union: operator.Reduce<T>
  *  readonly equal: operator.Equal<T>
