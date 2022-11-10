@@ -10,7 +10,7 @@ const { unsafeCmp } = require('../types/function/compare/module.f.cjs')
 const operator = require("../types/function/operator/module.f.cjs")
 const { strictEqual } = operator
 const { stringify } = require('../json/module.f.cjs')
-const { sort } = require('../types/object/module.f.cjs')
+const { identity } = require('../types/function/module.f.cjs')
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
@@ -35,14 +35,14 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
 }
 
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
-const stringifyOp = ([sortedSet, max]) => [[stringify(sort)(sortedSet), max], stringifyOp]
+const stringifyOp = ([sortedSet, max]) => [[stringify(identity)(sortedSet), max], stringifyOp]
 
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
 /** @type {(grammar: Grammar) => operator.Fold<sortedSet.SortedSet<string>, Dfa>} */
 const addEntry = grammar => set => dfa => {
-    const s = stringify(sort)(set)
+    const s = stringify(identity)(set)
     if (s in dfa) { return dfa }
     const setMap = fold(foldOp(set))(undefined)(grammar)
     const stringMap = toArray(scan(stringifyOp)(setMap))
