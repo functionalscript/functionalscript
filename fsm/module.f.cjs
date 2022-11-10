@@ -19,7 +19,7 @@ const stringify = a => json.stringify(sort)(a)
 
 /**
  * @typedef {{
- *  readonly[state in string]: rangeMap.RangeMap<string>
+ *  readonly[state in string]: rangeMap.RangeMapArray<string>
  * }} Dfa
  */
 
