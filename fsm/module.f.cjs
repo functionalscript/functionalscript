@@ -1,5 +1,5 @@
 const list = require('../types/list/module.f.cjs')
-const { equal, length, fold, toArray, scan } = list
+const { equal, isEmpty, fold, toArray, scan } = list
 const byteSet = require('../types/byte_set/module.f.cjs')
 const { toRangeMap } = byteSet
 const sortedSet = require('../types/sorted_set/module.f.cjs')
@@ -10,10 +10,8 @@ const { unsafeCmp } = require('../types/function/compare/module.f.cjs')
 const operator = require("../types/function/operator/module.f.cjs")
 const { strictEqual } = operator
 const json = require('../json/module.f.cjs')
+const { stringify } = json
 const { sort } = require('../types/object/module.f.cjs')
-
-/** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
@@ -29,7 +27,7 @@ const stringify = a => json.stringify(sort)(a)
 const mergeOp = { union: union(unsafeCmp), equal: equal(strictEqual) }
 
 /** @type {(s: string) => (set: sortedSet.SortedSet<string>) => boolean} */
-const hasState = s => set => length(intersect(unsafeCmp)([s])(set)) !== 0
+const hasState = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))
 
 /** @type {(set: sortedSet.SortedSet<string>) => operator.Fold<Rule, rangeMap.RangeMap<sortedSet.SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
@@ -38,14 +36,14 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
 }
 
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
-const stringifyOp = ([sortedSet, max]) => [[stringify(sortedSet), max], stringifyOp]
+const stringifyOp = ([sortedSet, max]) => [[stringify(sort)(sortedSet), max], stringifyOp]
 
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
 /** @type {(grammar: Grammar) => operator.Fold<sortedSet.SortedSet<string>, Dfa>} */
 const addEntry = grammar => set => dfa => {
-    const s = stringify(set)
+    const s = stringify(sort)(set)
     if (s in dfa) { return dfa }
     const setMap = fold(foldOp(set))(undefined)(grammar)
     const stringMap = toArray(scan(stringifyOp)(setMap))
