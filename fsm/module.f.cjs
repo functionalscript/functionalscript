@@ -22,6 +22,8 @@ const { identity } = require('../types/function/module.f.cjs')
  * }} Dfa
  */
 
+const stringifyIdentity = stringify(identity)
+
 /** @type {rangeMap.Operators<sortedSet.SortedSet<string>>} */
 const mergeOp = { union: union(unsafeCmp), equal: equal(strictEqual) }
 
@@ -35,19 +37,23 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
 }
 
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
-const stringifyOp = ([sortedSet, max]) => [[stringify(identity)(sortedSet), max], stringifyOp]
+const stringifyOp = ([sortedSet, max]) => [[stringifyIdentity(sortedSet), max], stringifyOp]
+
+const scanStringify = scan(stringifyOp)
 
 /** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
+const scanFetch = scan(fetchOp)
+
 /** @type {(grammar: Grammar) => operator.Fold<sortedSet.SortedSet<string>, Dfa>} */
 const addEntry = grammar => set => dfa => {
-    const s = stringify(identity)(set)
+    const s = stringifyIdentity(set)
     if (s in dfa) { return dfa }
     const setMap = fold(foldOp(set))(undefined)(grammar)
-    const stringMap = toArray(scan(stringifyOp)(setMap))
+    const stringMap = toArray(scanStringify(setMap))
     const newDfa = { ...dfa, [s]: stringMap }
-    const newStates = scan(fetchOp)(setMap)
+    const newStates = scanFetch(setMap)
     return fold(addEntry(grammar))(newDfa)(newStates)
 }
 
