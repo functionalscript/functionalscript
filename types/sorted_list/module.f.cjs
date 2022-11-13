@@ -3,10 +3,16 @@ const list = require('../list/module.f.cjs')
 const option = require('../option/module.f.cjs')
 const { next } = list
 const { identity } = require('../function/module.f.cjs')
+const range = require('../range/module.f.cjs')
 
 /**
  * @template T
  * @typedef {list.List<T>} SortedList
+ */
+
+/**
+ * @template T
+ * @typedef {readonly T[]} SortedArray
  */
 
 /**
@@ -78,9 +84,26 @@ const cmpReduce = cmp => () => a => b => {
 /** @type {() => <T>(tail: list.List<T>) => list.List<T>} */
 const mergeTail = () => identity
 
+/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) => (range: range.Range) => T|undefined} */
+const findInRange = cmp => value =>  array => ([b, e]) =>  {
+    if (e - b < 0) return undefined
+    const mid = b + (e - b >> 1)
+    const sign = cmp(value)(array[mid])
+    switch(sign) {
+        case -1: { return findInRange(cmp)(value)(array)([b, mid - 1]) }
+        case 0: { return value }
+        case 1: { return findInRange(cmp)(value)(array)([mid + 1, e]) }
+    }
+}
+
+/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|undefined} */
+const find = cmp => value => array => findInRange(cmp)(value)(array)([0, array.length - 1])
+
 module.exports = {
     /** @readonly */
     merge,
     /** @readonly */
-    genericMerge
+    genericMerge,
+    /** @readonly */
+    find
 }
