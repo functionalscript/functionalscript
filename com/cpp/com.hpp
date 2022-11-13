@@ -118,17 +118,20 @@ namespace com
             return &p;
         }
 
+        static ref move_to_ref(I const *const p)
+        {
+            return ref(p);
+        }
+
     private:
         I const &p;
-        ref(I const* const p): p(*p) {}
-        template<class I>
-        friend ref<I> move_to_ref(I const* const p);
+        ref(I const *const p) : p(*p) {}
     };
 
     template <class I>
     ref<I> move_to_ref(I const *const p)
     {
-        return ref<I>(p);
+        return ref<I>::move_to_ref(p);
     }
 
     template <class I>
@@ -154,10 +157,10 @@ namespace com
     private:
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
         {
-            //std::cout << "riid:     " << riid << std::endl;
-            //std::cout << "iunknown: " << iunknown_guid << std::endl;
-            //std::cout << "T::guid:  " << T::guid << std::endl;
-            //std::cout << std::endl;
+            // std::cout << "riid:     " << riid << std::endl;
+            // std::cout << "iunknown: " << iunknown_guid << std::endl;
+            // std::cout << "T::guid:  " << T::guid << std::endl;
+            // std::cout << std::endl;
             if (riid != iunknown_guid && riid != T::guid)
             {
                 return HRESULT::E_NOINTERFACE;
