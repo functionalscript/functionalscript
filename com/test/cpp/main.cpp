@@ -13,35 +13,39 @@ extern "C" int c_get()
     return 43;
 }
 
-class Impl: public My::IMy
+class Impl : public My::IMy
 {
 public:
-    My::Slice COM_STDCALL GetSlice() noexcept override
+    My::Slice COM_STDCALL GetSlice() const noexcept override
     {
     }
-    void COM_STDCALL SetSlice(My::Slice slice) noexcept override
+    void COM_STDCALL SetSlice(My::Slice slice) const noexcept override
     {
         std::cout
             << "SetSlice: "
-            << (slice.Start - static_cast<uint8_t*>(nullptr))
+            << (slice.Start - static_cast<uint8_t const *>(nullptr))
             << ", "
             << slice.Size
             << std::endl;
     }
-    ::com::BOOL *COM_STDCALL GetUnsafe() noexcept override
+    bool const *COM_STDCALL GetUnsafe() const noexcept override
     {
     }
-    void COM_STDCALL SetUnsafe(My::Slice *p, uint32_t size) noexcept override
+    void COM_STDCALL SetUnsafe(My::Slice const *p, uint32_t size) const noexcept override
     {
     }
-    ::com::BOOL COM_STDCALL Some(My::IMy &p) noexcept override
+    bool COM_STDCALL Some(My::IMy const &p) const noexcept override
     {
     }
-    My::IMy* COM_STDCALL GetIMy() noexcept override
+    My::IMy const *COM_STDCALL GetIMy_() const noexcept override
     {
-        return ::com::to_ref(*this).unsafe_result();
+        return ::com::to_ref(*this).copy_to_raw();
     }
-    void COM_STDCALL SetManagedStruct(My::ManagedStruct a) noexcept override
+    com::ref<My::IMy> GetIMy() const noexcept
+    {
+        return com::move_to_ref(GetIMy_());
+    }
+    void COM_STDCALL SetManagedStruct(My::ManagedStruct a) const noexcept override
     {
     }
     ~Impl()
@@ -51,15 +55,15 @@ public:
 };
 
 DLL_EXPORT
-extern "C" My::IMy* c_my_create()
+extern "C" My::IMy const *c_my_create()
 {
     {
-        auto const x = ::com::implementation<Impl>::create().unsafe_result();
+        auto const x = ::com::implementation<Impl>::create().copy_to_raw();
         x->Release();
     }
     {
         auto const x = ::com::implementation<Impl>::create().upcast<My::IMy>();
         x->SetSlice(My::Slice());
     }
-    return ::com::implementation<Impl>::create().unsafe_result();
+    return ::com::implementation<Impl>::create().copy_to_raw();
 }

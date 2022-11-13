@@ -13,14 +13,16 @@
 #define COM_STDCALL __stdcall
 #endif
 
+static_assert(sizeof(bool) == 1);
+
 namespace com
 {
     constexpr uint64_t byteswap(uint64_t v) noexcept
     {
-        v = v >>  8 & 0x00FF00FF00FF00FF |
-            v <<  8 & 0xFF00FF00FF00FF00;
-        v = v >> 16 & 0x0000FFFF0000FFFF |
-            v << 16 & 0xFFFF0000FFFF0000;
+        v = v >> 8 & 0x00FF'00FF'00FF'00FF |
+            v << 8 & 0xFF00'FF00'FF00'FF00;
+        v = v >> 16 & 0x0000'FFFF'0000'FFFF |
+            v << 16 & 0xFFFF'0000'FFFF'0000;
         return v >> 32 | v << 32;
     }
 
@@ -46,14 +48,17 @@ namespace com
         }
     };
 
+    constexpr inline char hex_digit(uint64_t const v, int const i) noexcept
+    {
+        char const c = v >> i & 0x0F;
+        return c < 10 ? c + '0' : c + ('A' - 10);
+    }
+
     inline void guid_part(std::ostream &os, uint64_t const v)
     {
-        for (int i = 64; i > 0;)
+        for (int i = 60; i >= 0; i -= 4)
         {
-            i -= 4;
-            char const c = (v >> i) & 0xF;
-            char const x = c < 10 ? c + '0' : c + ('A' - 10);
-            os << x;
+            os << hex_digit(v, i);
         }
     }
 
@@ -64,28 +69,27 @@ namespace com
         return os;
     }
 
-    typedef uint32_t HRESULT;
-
-    static HRESULT const E_NOINTERFACE = 0x80004002;
-    static HRESULT const S_OK = 0;
+    enum class HRESULT : uint32_t
+    {
+        S_OK = 0,
+        E_NOINTERFACE = 0x80004002,
+    };
 
     typedef uint32_t ULONG;
-
-    typedef int32_t BOOL;
 
     class IUnknown
     {
     public:
-        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept = 0;
-        virtual ULONG COM_STDCALL AddRef() noexcept = 0;
-        virtual ULONG COM_STDCALL Release() noexcept = 0;
+        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
+        virtual ULONG COM_STDCALL AddRef() const noexcept = 0;
+        virtual ULONG COM_STDCALL Release() const noexcept = 0;
     };
 
     template <class I>
     class ref
     {
     public:
-        explicit ref(I &other) noexcept : p(other)
+        explicit ref(I const &other) noexcept : p(other)
         {
             p.AddRef();
         }
@@ -97,28 +101,41 @@ namespace com
             p.Release();
         }
 
-        template<class U>
+        template <class U>
         ref<U> upcast() const noexcept
         {
             return ref<U>(p);
         }
 
-        I* operator->() const noexcept
+        I const *operator->() const noexcept
         {
             return &p;
         }
 
-        I* unsafe_result() const noexcept
+        I const *copy_to_raw() const noexcept
         {
             p.AddRef();
             return &p;
         }
+
+        static ref move_to_ref(I const *const p)
+        {
+            return ref(p);
+        }
+
     private:
-        I &p;
+        I const &p;
+        ref(I const *const p) : p(*p) {}
     };
 
-    template<class I>
-    ref<I> to_ref(I& p) noexcept
+    template <class I>
+    ref<I> move_to_ref(I const *const p)
+    {
+        return ref<I>::move_to_ref(p);
+    }
+
+    template <class I>
+    ref<I> to_ref(I const &p) noexcept
     {
         return ref<I>(p);
     }
@@ -130,39 +147,40 @@ namespace com
     class implementation : public T
     {
     public:
-        template<class ...U>
-        static T* create_raw(U... u)
-        {
-            return new implementation(u...);
-        }
-        template<class ...U>
+        template <class... U>
         static ref<T> create(U... u)
         {
-            return to_ref(*create_raw(u...));
+            T const *const p = new implementation(u...);
+            return to_ref(*p);
         }
+
     private:
-        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown **const ppvObject) noexcept override
+        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
         {
+            // std::cout << "riid:     " << riid << std::endl;
+            // std::cout << "iunknown: " << iunknown_guid << std::endl;
+            // std::cout << "T::guid:  " << T::guid << std::endl;
+            // std::cout << std::endl;
             if (riid != iunknown_guid && riid != T::guid)
             {
-                return E_NOINTERFACE;
+                return HRESULT::E_NOINTERFACE;
             }
             add_ref();
             *ppvObject = this;
-            return S_OK;
+            return HRESULT::S_OK;
         }
 
-        ULONG add_ref() noexcept
+        ULONG add_ref() const noexcept
         {
             return counter.fetch_add(1);
         }
 
-        ULONG COM_STDCALL AddRef() noexcept override
+        ULONG COM_STDCALL AddRef() const noexcept override
         {
             return add_ref() + 1;
         }
 
-        ULONG COM_STDCALL Release() noexcept override
+        ULONG COM_STDCALL Release() const noexcept override
         {
             auto const c = counter.fetch_sub(1) - 1;
             if (c == 0)
@@ -172,9 +190,9 @@ namespace com
             return c;
         }
 
-        template<class ...U>
-        explicit implementation(U... u): T(u...) {}
+        template <class... U>
+        explicit implementation(U... u) : T(u...) {}
 
-        std::atomic<ULONG> counter;
+        mutable std::atomic<ULONG> counter;
     };
 }

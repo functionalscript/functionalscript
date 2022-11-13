@@ -23,7 +23,7 @@ const baseTypeMap = {
     isize: 'ptrdiff_t',
     f32: 'float',
     f64: 'double',
-    bool: '::com::BOOL',
+    bool: 'bool',
 }
 
 /** @type {(t: types.BaseType) => string} */
@@ -36,10 +36,13 @@ const namespace = text.curly('namespace')
 /** @type {(name: string) => (lib: types.Library) => text.Block} */
 const cpp = name => lib => {
 
+    /** @type {(t: types.Type) => boolean} */
+    const isInterface = t => t instanceof Array && t.length === 1 && lib[t[0]].interface !== undefined
+
     /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
     const objectType = i => t => {
         if (typeof (t) === 'string') { return baseType(t) }
-        if (t.length === 2) { return `${type(t[1])}*` }
+        if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
         if (lib[id].interface === undefined) { return id }
         return i(id)
@@ -47,7 +50,7 @@ const cpp = name => lib => {
 
     const type = objectType(id => `::com::ref<${id}>`)
 
-    const resultType = objectType(id => `${id}*`)
+    const resultType = objectType(id => `${id} const*`)
 
     /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
@@ -61,13 +64,18 @@ const cpp = name => lib => {
     const cppResult = resultVoid(resultType)
 
     /** @type {(p: types.Field) => string} */
-    const param = ([name, t]) => `${objectType(id => `${id}&`)(t)} ${name}`
+    const param = ([name, t]) => `${objectType(id => `${id} const&`)(t)} ${name}`
 
     const mapParam = map(param)
 
+    /** @type {(m: types.Method) => string} */
+    const virtualName = ([name, paramArray]) => isInterface(paramArray._) ? `${name}_` : name
+
     /** @type {(m: types.Method) => text.Item} */
-    const method = ([name, paramArray]) =>
-        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) noexcept = 0;`
+    const method = m => {
+        const [, paramArray] = m
+        return `virtual ${cppResult(paramArray)} COM_STDCALL ${virtualName(m)}(${join(', ')(mapParam(paramList(paramArray)))}) const noexcept = 0;`
+    }
 
     const mapMethod = map(method)
 
@@ -85,7 +93,7 @@ const cpp = name => lib => {
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => d.interface === undefined
         ? struct(name)(defStruct(d))
-        : struct(`${name} : ::com::IUnknown`)(defInterface(d))
+        : [`class ${name} : public ::com::IUnknown`, '{', 'public:', defInterface(d), '};']
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]
