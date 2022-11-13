@@ -37,9 +37,13 @@ public:
     bool COM_STDCALL Some(My::IMy const &p) const noexcept override
     {
     }
-    My::IMy const *COM_STDCALL GetIMy() const noexcept override
+    My::IMy const *COM_STDCALL GetIMy_() const noexcept override
     {
-        return ::com::to_ref(*this).unsafe_result();
+        return ::com::to_ref(*this).copy_to_raw();
+    }
+    com::ref<My::IMy> GetIMy() const noexcept
+    {
+        return com::move_to_ref(GetIMy_());
     }
     void COM_STDCALL SetManagedStruct(My::ManagedStruct a) const noexcept override
     {
@@ -54,12 +58,12 @@ DLL_EXPORT
 extern "C" My::IMy const *c_my_create()
 {
     {
-        auto const x = ::com::implementation<Impl>::create().unsafe_result();
+        auto const x = ::com::implementation<Impl>::create().copy_to_raw();
         x->Release();
     }
     {
         auto const x = ::com::implementation<Impl>::create().upcast<My::IMy>();
         x->SetSlice(My::Slice());
     }
-    return ::com::implementation<Impl>::create().unsafe_result();
+    return ::com::implementation<Impl>::create().copy_to_raw();
 }

@@ -19,10 +19,10 @@ namespace com
 {
     constexpr uint64_t byteswap(uint64_t v) noexcept
     {
-        v = v >> 8 & 0x00FF00FF00FF00FF |
-            v << 8 & 0xFF00FF00FF00FF00;
-        v = v >> 16 & 0x0000FFFF0000FFFF |
-            v << 16 & 0xFFFF0000FFFF0000;
+        v = v >> 8 & 0x00FF'00FF'00FF'00FF |
+            v << 8 & 0xFF00'FF00'FF00'FF00;
+        v = v >> 16 & 0x0000'FFFF'0000'FFFF |
+            v << 16 & 0xFFFF'0000'FFFF'0000;
         return v >> 32 | v << 32;
     }
 
@@ -48,14 +48,17 @@ namespace com
         }
     };
 
+    constexpr inline char hex_digit(uint64_t const v, int const i) noexcept
+    {
+        char const c = v >> i & 0x0F;
+        return c < 10 ? c + '0' : c + ('A' - 10);
+    }
+
     inline void guid_part(std::ostream &os, uint64_t const v)
     {
-        for (int i = 64; i > 0;)
+        for (int i = 60; i >= 0; i -= 4)
         {
-            i -= 4;
-            char const c = (v >> i) & 0xF;
-            char const x = c < 10 ? c + '0' : c + ('A' - 10);
-            os << x;
+            os << hex_digit(v, i);
         }
     }
 
@@ -109,7 +112,7 @@ namespace com
             return &p;
         }
 
-        I const *unsafe_result() const noexcept
+        I const *copy_to_raw() const noexcept
         {
             p.AddRef();
             return &p;
@@ -117,7 +120,16 @@ namespace com
 
     private:
         I const &p;
+        ref(I const* const p): p(*p) {}
+        template<class I>
+        friend ref<I> move_to_ref(I const* const p);
     };
+
+    template <class I>
+    ref<I> move_to_ref(I const *const p)
+    {
+        return ref<I>(p);
+    }
 
     template <class I>
     ref<I> to_ref(I const &p) noexcept
@@ -133,19 +145,19 @@ namespace com
     {
     public:
         template <class... U>
-        static T const *create_raw(U... u)
-        {
-            return new implementation(u...);
-        }
-        template <class... U>
         static ref<T> create(U... u)
         {
-            return to_ref(*create_raw(u...));
+            T const *const p = new implementation(u...);
+            return to_ref(*p);
         }
 
     private:
         HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
         {
+            //std::cout << "riid:     " << riid << std::endl;
+            //std::cout << "iunknown: " << iunknown_guid << std::endl;
+            //std::cout << "T::guid:  " << T::guid << std::endl;
+            //std::cout << std::endl;
             if (riid != iunknown_guid && riid != T::guid)
             {
                 return HRESULT::E_NOINTERFACE;
