@@ -84,20 +84,27 @@ const cmpReduce = cmp => () => a => b => {
 /** @type {() => <T>(tail: list.List<T>) => list.List<T>} */
 const mergeTail = () => identity
 
-/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) => (range: range.Range) => T|undefined} */
-const findInRange = cmp => value =>  array => ([b, e]) =>  {
-    if (e - b < 0) return undefined
-    const mid = b + (e - b >> 1)
-    const sign = cmp(value)(array[mid])
-    switch(sign) {
-        case -1: { return findInRange(cmp)(value)(array)([b, mid - 1]) }
-        case 0: { return value }
-        case 1: { return findInRange(cmp)(value)(array)([mid + 1, e]) }
+/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|undefined} */
+const find = cmp => value => array => {
+    let b = 0
+    let e = array.length - 1
+    while (true) {
+        if (e - b < 0) return undefined
+        const mid = b + (e - b >> 1)
+        const sign = cmp(value)(array[mid])
+        switch(sign) {
+            case -1: {
+                 e = mid - 1
+                 break
+            }
+            case 0: { return value }
+            case 1: {
+                 b = mid + 1
+                 break
+            }
+        }
     }
 }
-
-/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|undefined} */
-const find = cmp => value => array => findInRange(cmp)(value)(array)([0, array.length - 1])
 
 module.exports = {
     /** @readonly */
