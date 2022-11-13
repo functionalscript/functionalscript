@@ -40,5 +40,23 @@ module.exports = {
             const result = stringify(toArray(_.intersect(unsafeCmp)([1, 2, 3])([])))
             if (result !== '[]') { throw result }
         }
+    ],
+    has: [
+        () => {
+            const result = _.has(unsafeCmp)(0)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            if (!result) { throw result }
+        },
+        () => {
+            const result = _.has(unsafeCmp)(3)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            if (result) { throw result }
+        },
+        () => {
+            const result = _.has(unsafeCmp)(77)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            if (result) { throw result }
+        },
+        () => {
+            const result = _.has(unsafeCmp)(80)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            if (!result) { throw result }
+        }
     ]
 }
