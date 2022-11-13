@@ -1,6 +1,7 @@
 const sortedList = require("../sorted_list/module.f.cjs")
 const { genericMerge } = sortedList
 const list = require("../list/module.f.cjs")
+const { next } = list
 const option = require("../option/module.f.cjs")
 const { cmp } = require('../number/module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
@@ -50,7 +51,7 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax])  
 /** @type {<T>(equal: operator.Equal<T>) => sortedList.TailReduce<Entry<T>, RangeState<T>>} */
 const tailReduce = equal => state => tail => {
   if (state === undefined) { return tail }
-  const tailResult = list.next(tail)
+  const tailResult = next(tail)
   if (tailResult === undefined) { return [state] }
   if (equal(state[0])(tailResult.first[0])) { return tailResult }
   return { first: state, tail: tailResult }

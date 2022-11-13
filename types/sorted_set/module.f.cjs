@@ -1,9 +1,7 @@
 const compare = require("../function/compare/module.f.cjs")
 const { toArray } = require("../list/module.f.cjs")
 const sortedList = require("../sorted_list/module.f.cjs")
-const { merge, genericMerge } = sortedList
-const list = require("../list/module.f.cjs")
-const option = require("../option/module.f.cjs")
+const { merge, genericMerge, find } = sortedList
 
 /**
  * @template T
@@ -34,9 +32,14 @@ const intersectReduce = cmp => state => a => b => {
 
 const intersectTail = () => () => undefined
 
+/** @type {<T>(cmp: Cmp<T>) => (value: T) => (set: SortedSet<T>) => boolean} */
+const has = cmp => value => set => find(cmp)(value)(set) === value
+
 module.exports = {
     /** @readonly */
     union,
     /** @readonly */
-    intersect
+    intersect,
+    /** @readonly */
+    has
 }
