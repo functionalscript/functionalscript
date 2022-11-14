@@ -17,23 +17,23 @@ const f = () =>
         '    };\n' +
         '    struct ManagedStruct\n' +
         '    {\n' +
-        '        ::com::ref<IMy> M;\n' +
+        '        ::nanocom::ref<IMy> M;\n' +
         '    };\n' +
-        '    class IMy : public ::com::IUnknown\n' +
+        '    class IMy : public ::nanocom::IUnknown\n' +
         '    {\n' +
         '    public:\n' +
-        '        constexpr static ::com::GUID const guid = ::com::GUID(0xC66FB2702D8049AD, 0xBB6E88C1F90B805D);\n' +
-        '        virtual Slice COM_STDCALL GetSlice() const noexcept = 0;\n' +
-        '        virtual void COM_STDCALL SetSlice(Slice slice) const noexcept = 0;\n' +
-        '        virtual bool const* COM_STDCALL GetUnsafe() const noexcept = 0;\n' +
-        '        virtual void COM_STDCALL SetUnsafe(Slice const* p, uint32_t size) const noexcept = 0;\n' +
-        '        virtual bool COM_STDCALL Some(IMy const& p) const noexcept = 0;\n' +
-        '        virtual IMy const* COM_STDCALL GetIMy_(uint16_t a, int16_t b) const noexcept = 0;\n' +
-        '        ::com::ref<IMy> GetIMy(uint16_t a, int16_t b) const noexcept\n' +
+        '        constexpr static ::nanocom::GUID const guid = ::nanocom::GUID(0xC66FB2702D8049AD, 0xBB6E88C1F90B805D);\n' +
+        '        virtual Slice GetSlice() const noexcept = 0;\n' +
+        '        virtual void SetSlice(Slice slice) const noexcept = 0;\n' +
+        '        virtual bool const* GetUnsafe() const noexcept = 0;\n' +
+        '        virtual void SetUnsafe(Slice const* p, uint32_t size) const noexcept = 0;\n' +
+        '        virtual bool Some(IMy const& p) const noexcept = 0;\n' +
+        '        virtual IMy const* GetIMy_(uint16_t a, int16_t b) const noexcept = 0;\n' +
+        '        ::nanocom::ref<IMy> GetIMy(uint16_t a, int16_t b) const noexcept\n' +
         '        {\n' +
-        '            return ::com::move_to_ref(GetIMy_(a, b));\n' +
+        '            return ::nanocom::move_to_ref(GetIMy_(a, b));\n' +
         '        }\n' +
-        '        virtual void COM_STDCALL SetManagedStruct(ManagedStruct a) const noexcept = 0;\n' +
+        '        virtual void SetManagedStruct(ManagedStruct a) const noexcept = 0;\n' +
         '    };\n' +
         '}'
     if (cpp !== e) { throw cpp }
