@@ -129,7 +129,13 @@ const cpp = name => lib => {
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => d.interface === undefined
         ? struct(name)(defStruct(d))
-        : [`class ${name} : public ::nanocom::IUnknown`, '{', 'public:', defInterface(d), '};']
+        : [
+            `class ${name} : public ::nanocom::IUnknown`,
+            '{',
+            'public:',
+            defInterface(d),
+            '};'
+        ]
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]
