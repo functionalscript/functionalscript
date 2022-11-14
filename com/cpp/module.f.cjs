@@ -36,6 +36,19 @@ const namespace = text.curly('namespace')
 /** @type {(id: string) => string} */
 const comRef = id => `::com::ref<${id}>`
 
+/** @type {(id: string) => string} */
+const ptr = id => `${id} const*`
+
+/** @type {(id: string) => string} */
+const ref = id => `${id} const&`
+
+/** @type {(p: types.Field) => string} */
+const paramName = ([name]) => name
+
+const mapParamName = map(paramName)
+
+const joinComma = join(', ')
+
 /** @type {(name: string) => (lib: types.Library) => text.Block} */
 const cpp = name => lib => {
 
@@ -59,7 +72,7 @@ const cpp = name => lib => {
 
     const type = objectType(comRef)
 
-    const resultType = objectType(id => `${id} const*`)
+    const resultType = objectType(ptr)
 
     /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
@@ -73,7 +86,7 @@ const cpp = name => lib => {
     const cppResult = resultVoid(resultType)
 
     /** @type {(p: types.Field) => string} */
-    const param = ([name, t]) => `${objectType(id => `${id} const&`)(t)} ${name}`
+    const param = ([name, t]) => `${objectType(ref)(t)} ${name}`
 
     const mapParam = map(param)
 
@@ -84,7 +97,8 @@ const cpp = name => lib => {
     /** @type {(m: types.Method) => readonly text.Item[]} */
     const method = ([name, paramArray]) => {
         const result = cppResult(paramArray)
-        const paramArrayStr = `(${join(', ')(mapParam(paramList(paramArray)))})`
+        const paramL = paramList(paramArray)
+        const paramArrayStr = `(${joinComma(mapParam(paramL))})`
         const m = methodHeader(result)(paramArrayStr)
         const resultName = interface_(paramArray._)
         if (resultName === undefined) {
@@ -94,7 +108,7 @@ const cpp = name => lib => {
             m(`${name}_`),
             `${comRef(resultName)} ${name}${paramArrayStr} const noexcept`,
             '{',
-            [`return ::com::move_to_ref(${name}_());`],
+            [`return ::com::move_to_ref(${name}_(${joinComma(mapParamName(paramL))}));`],
             '}',
         ]
     }

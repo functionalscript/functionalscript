@@ -24,7 +24,7 @@ x.SetSlice(new Slice { Start = null, Size = (UIntPtr)44 });
 {
     var y = c_my_create();
     y.SetSlice(new Slice { Start = null, Size = (UIntPtr)45 });
-    var t = y.GetIMy();
+    var t = y.GetIMy(1, 2);
 }
 
 GC.Collect();

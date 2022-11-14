@@ -34,7 +34,7 @@ const f = () =>
         '        [PreserveSig]\n' +
         '        byte Some(IMy p);\n' +
         '        [PreserveSig]\n' +
-        '        IMy GetIMy();\n' +
+        '        IMy GetIMy(ushort a, short b);\n' +
         '        [PreserveSig]\n' +
         '        void SetManagedStruct(ManagedStruct a);\n' +
         '    }\n' +

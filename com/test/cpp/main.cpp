@@ -37,7 +37,7 @@ public:
     bool COM_STDCALL Some(My::IMy const &p) const noexcept override
     {
     }
-    My::IMy const *COM_STDCALL GetIMy_() const noexcept override
+    My::IMy const *COM_STDCALL GetIMy_(uint16_t a, int16_t b) const noexcept override
     {
         return ::com::to_ref(*this).copy_to_raw();
     }

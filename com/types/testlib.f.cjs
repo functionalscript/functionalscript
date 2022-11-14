@@ -24,7 +24,7 @@ module.exports = {
                 size: 'u32'
             },
             Some: { p: ['IMy'], _: 'bool' },
-            GetIMy: { _: ['IMy'] },
+            GetIMy: { a: 'u16', b: 'i16', _: ['IMy'] },
             SetManagedStruct: { a: ['ManagedStruct'] },
         },
     }
