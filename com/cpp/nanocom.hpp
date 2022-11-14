@@ -6,16 +6,16 @@
 #include <iostream>
 
 #if defined(__aarch64__) || defined(__amd64__)
-#define COM_STDCALL
+#define NANOCOM_STDCALL
 #elif defined(__clang__)
-#define COM_STDCALL __attribute__((stdcall))
+#define NANOCOM_STDCALL __attribute__((stdcall))
 #else
-#define COM_STDCALL __stdcall
+#define NANOCOM_STDCALL __stdcall
 #endif
 
 static_assert(sizeof(bool) == 1);
 
-namespace com
+namespace nanocom
 {
     constexpr uint64_t byteswap(uint64_t v) noexcept
     {
@@ -80,9 +80,9 @@ namespace com
     class IUnknown
     {
     public:
-        virtual HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
-        virtual ULONG COM_STDCALL AddRef() const noexcept = 0;
-        virtual ULONG COM_STDCALL Release() const noexcept = 0;
+        virtual HRESULT NANOCOM_STDCALL QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
+        virtual ULONG NANOCOM_STDCALL AddRef() const noexcept = 0;
+        virtual ULONG NANOCOM_STDCALL Release() const noexcept = 0;
     };
 
     template <class I>
@@ -155,7 +155,7 @@ namespace com
         }
 
     private:
-        HRESULT COM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
+        HRESULT NANOCOM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
         {
             // std::cout << "riid:     " << riid << std::endl;
             // std::cout << "iunknown: " << iunknown_guid << std::endl;
@@ -175,12 +175,12 @@ namespace com
             return counter.fetch_add(1);
         }
 
-        ULONG COM_STDCALL AddRef() const noexcept override
+        ULONG NANOCOM_STDCALL AddRef() const noexcept override
         {
             return add_ref() + 1;
         }
 
-        ULONG COM_STDCALL Release() const noexcept override
+        ULONG NANOCOM_STDCALL Release() const noexcept override
         {
             auto const c = counter.fetch_sub(1) - 1;
             if (c == 0)

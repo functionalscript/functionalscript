@@ -1,4 +1,4 @@
-#include "../../cpp/com.hpp"
+#include "../../cpp/nanocom.hpp"
 #include "_result.hpp"
 
 #ifdef _WIN32
@@ -16,10 +16,10 @@ extern "C" int c_get()
 class Impl : public My::IMy
 {
 public:
-    My::Slice COM_STDCALL GetSlice() const noexcept override
+    My::Slice NANOCOM_STDCALL GetSlice() const noexcept override
     {
     }
-    void COM_STDCALL SetSlice(My::Slice slice) const noexcept override
+    void NANOCOM_STDCALL SetSlice(My::Slice slice) const noexcept override
     {
         std::cout
             << "SetSlice: "
@@ -28,20 +28,20 @@ public:
             << slice.Size
             << std::endl;
     }
-    bool const *COM_STDCALL GetUnsafe() const noexcept override
+    bool const *NANOCOM_STDCALL GetUnsafe() const noexcept override
     {
     }
-    void COM_STDCALL SetUnsafe(My::Slice const *p, uint32_t size) const noexcept override
+    void NANOCOM_STDCALL SetUnsafe(My::Slice const *p, uint32_t size) const noexcept override
     {
     }
-    bool COM_STDCALL Some(My::IMy const &p) const noexcept override
+    bool NANOCOM_STDCALL Some(My::IMy const &p) const noexcept override
     {
     }
-    My::IMy const *COM_STDCALL GetIMy_(uint16_t a, int16_t b) const noexcept override
+    My::IMy const *NANOCOM_STDCALL GetIMy_(uint16_t a, int16_t b) const noexcept override
     {
-        return ::com::to_ref(*this).copy_to_raw();
+        return ::nanocom::to_ref(*this).copy_to_raw();
     }
-    void COM_STDCALL SetManagedStruct(My::ManagedStruct a) const noexcept override
+    void NANOCOM_STDCALL SetManagedStruct(My::ManagedStruct a) const noexcept override
     {
     }
     ~Impl()
@@ -54,12 +54,12 @@ DLL_EXPORT
 extern "C" My::IMy const *c_my_create()
 {
     {
-        auto const x = ::com::implementation<Impl>::create().copy_to_raw();
+        auto const x = ::nanocom::implementation<Impl>::create().copy_to_raw();
         x->Release();
     }
     {
-        auto const x = ::com::implementation<Impl>::create().upcast<My::IMy>();
+        auto const x = ::nanocom::implementation<Impl>::create().upcast<My::IMy>();
         x->SetSlice(My::Slice());
     }
-    return ::com::implementation<Impl>::create().copy_to_raw();
+    return ::nanocom::implementation<Impl>::create().copy_to_raw();
 }
