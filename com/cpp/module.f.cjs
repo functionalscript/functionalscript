@@ -76,12 +76,13 @@ const cpp = name => lib => {
     const method = ([name, paramArray]) => {
         const result = cppResult(paramArray)
         const paramArrayStr = `(${join(', ')(mapParam(paramList(paramArray)))})`
+        const m = methodHeader(result)(paramArrayStr)
         if (isInterface(paramArray._)) {
             return [
-                methodHeader(result)(paramArrayStr)(`${name}_`)
+                m(`${name}_`)
             ]
         } else {
-            return [methodHeader(result)(paramArrayStr)(name)]
+            return [m(name)]
         }
     }
 
