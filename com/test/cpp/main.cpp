@@ -41,10 +41,6 @@ public:
     {
         return ::com::to_ref(*this).copy_to_raw();
     }
-    com::ref<My::IMy> GetIMy() const noexcept
-    {
-        return com::move_to_ref(GetIMy_());
-    }
     void COM_STDCALL SetManagedStruct(My::ManagedStruct a) const noexcept override
     {
     }

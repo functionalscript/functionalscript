@@ -92,7 +92,10 @@ const cpp = name => lib => {
         }
         return [
             m(`${name}_`),
-            // `${comRef(resultName)} ${name}${paramArrayStr} const noexcept`
+            `${comRef(resultName)} ${name}${paramArrayStr} const noexcept`,
+            '{',
+            [`return ::com::move_to_ref(${name}_());`],
+            '}',
         ]
     }
 
