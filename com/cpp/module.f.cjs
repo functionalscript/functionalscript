@@ -68,20 +68,20 @@ const cpp = name => lib => {
 
     const mapParam = map(param)
 
-    /** @type {(m: types.Method) => text.Item} */
-    const methodHeader = ([name, paramArray]) =>
-        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) const noexcept = 0;`
-
-    // /** @type {(m: types.Method) => string} */
-    // const virtualName = ([name, paramArray]) => isInterface(paramArray._) ? `${name}_` : name
+    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => text.Item} */
+    const methodHeader = result => paramArrayStr => name =>
+        `virtual ${result} COM_STDCALL ${name}${paramArrayStr} const noexcept = 0;`
 
     /** @type {(m: types.Method) => readonly text.Item[]} */
-    const method = m => {
-        const [name, paramArray] = m
+    const method = ([name, paramArray]) => {
+        const result = cppResult(paramArray)
+        const paramArrayStr = `(${join(', ')(mapParam(paramList(paramArray)))})`
         if (isInterface(paramArray._)) {
-            return [methodHeader([`${name}_`, paramArray])]
+            return [
+                methodHeader(result)(paramArrayStr)(`${name}_`)
+            ]
         } else {
-            return [methodHeader([name, paramArray])]
+            return [methodHeader(result)(paramArrayStr)(name)]
         }
     }
 
