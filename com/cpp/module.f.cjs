@@ -33,11 +33,20 @@ const resultVoid = types.result('void')
 
 const namespace = text.curly('namespace')
 
+/** @type {(id: string) => string} */
+const comRef = id => `::com::ref<${id}>`
+
 /** @type {(name: string) => (lib: types.Library) => text.Block} */
 const cpp = name => lib => {
 
-    /** @type {(t: types.Type) => boolean} */
-    const isInterface = t => t instanceof Array && t.length === 1 && lib[t[0]].interface !== undefined
+    /** @type {(t: types.Type) => string|undefined} */
+    const interface_ = t => {
+        if (!(t instanceof Array) || t.length !== 1) {
+            return undefined
+        }
+        const [name] = t
+        return lib[name].interface !== undefined ? name : undefined
+    }
 
     /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
     const objectType = i => t => {
@@ -48,7 +57,7 @@ const cpp = name => lib => {
         return i(id)
     }
 
-    const type = objectType(id => `::com::ref<${id}>`)
+    const type = objectType(comRef)
 
     const resultType = objectType(id => `${id} const*`)
 
@@ -77,13 +86,14 @@ const cpp = name => lib => {
         const result = cppResult(paramArray)
         const paramArrayStr = `(${join(', ')(mapParam(paramList(paramArray)))})`
         const m = methodHeader(result)(paramArrayStr)
-        if (isInterface(paramArray._)) {
-            return [
-                m(`${name}_`)
-            ]
-        } else {
+        const resultName = interface_(paramArray._)
+        if (resultName === undefined) {
             return [m(name)]
         }
+        return [
+            m(`${name}_`),
+            // `${comRef(resultName)} ${name}${paramArrayStr} const noexcept`
+        ]
     }
 
     const mapMethod = flatMap(method)
