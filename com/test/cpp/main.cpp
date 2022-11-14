@@ -16,10 +16,10 @@ extern "C" int c_get()
 class Impl : public My::IMy
 {
 public:
-    My::Slice NANOCOM_STDCALL GetSlice() const noexcept override
+    My::Slice GetSlice() const noexcept override
     {
     }
-    void NANOCOM_STDCALL SetSlice(My::Slice slice) const noexcept override
+    void SetSlice(My::Slice slice) const noexcept override
     {
         std::cout
             << "SetSlice: "
@@ -28,20 +28,20 @@ public:
             << slice.Size
             << std::endl;
     }
-    bool const *NANOCOM_STDCALL GetUnsafe() const noexcept override
+    bool const *GetUnsafe() const noexcept override
     {
     }
-    void NANOCOM_STDCALL SetUnsafe(My::Slice const *p, uint32_t size) const noexcept override
+    void SetUnsafe(My::Slice const *p, uint32_t size) const noexcept override
     {
     }
-    bool NANOCOM_STDCALL Some(My::IMy const &p) const noexcept override
+    bool Some(My::IMy const &p) const noexcept override
     {
     }
-    My::IMy const *NANOCOM_STDCALL GetIMy_(uint16_t a, int16_t b) const noexcept override
+    My::IMy const *GetIMy_(uint16_t a, int16_t b) const noexcept override
     {
         return ::nanocom::to_ref(*this).copy_to_raw();
     }
-    void NANOCOM_STDCALL SetManagedStruct(My::ManagedStruct a) const noexcept override
+    void SetManagedStruct(My::ManagedStruct a) const noexcept override
     {
     }
     ~Impl()

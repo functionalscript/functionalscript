@@ -92,7 +92,7 @@ const cpp = name => lib => {
 
     /** @type {(result: string) => (paramArrayStr: string) => (name: string) => text.Item} */
     const methodHeader = result => paramArrayStr => name =>
-        `virtual ${result} NANOCOM_STDCALL ${name}${paramArrayStr} const noexcept = 0;`
+        `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
     /** @type {(m: types.Method) => readonly text.Item[]} */
     const method = ([name, paramArray]) => {

@@ -5,14 +5,6 @@
 #include <atomic>
 #include <iostream>
 
-#if defined(__aarch64__) || defined(__amd64__)
-#define NANOCOM_STDCALL
-#elif defined(__clang__)
-#define NANOCOM_STDCALL __attribute__((stdcall))
-#else
-#define NANOCOM_STDCALL __stdcall
-#endif
-
 static_assert(sizeof(bool) == 1);
 
 namespace nanocom
@@ -80,9 +72,9 @@ namespace nanocom
     class IUnknown
     {
     public:
-        virtual HRESULT NANOCOM_STDCALL QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
-        virtual ULONG NANOCOM_STDCALL AddRef() const noexcept = 0;
-        virtual ULONG NANOCOM_STDCALL Release() const noexcept = 0;
+        virtual HRESULT QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
+        virtual ULONG AddRef() const noexcept = 0;
+        virtual ULONG Release() const noexcept = 0;
     };
 
     template <class I>
@@ -155,7 +147,7 @@ namespace nanocom
         }
 
     private:
-        HRESULT NANOCOM_STDCALL QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
+        HRESULT QueryInterface(GUID const &riid, IUnknown const **const ppvObject) const noexcept override
         {
             // std::cout << "riid:     " << riid << std::endl;
             // std::cout << "iunknown: " << iunknown_guid << std::endl;
@@ -175,12 +167,12 @@ namespace nanocom
             return counter.fetch_add(1);
         }
 
-        ULONG NANOCOM_STDCALL AddRef() const noexcept override
+        ULONG AddRef() const noexcept override
         {
             return add_ref() + 1;
         }
 
-        ULONG NANOCOM_STDCALL Release() const noexcept override
+        ULONG Release() const noexcept override
         {
             auto const c = counter.fetch_sub(1) - 1;
             if (c == 0)
