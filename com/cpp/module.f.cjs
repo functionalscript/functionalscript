@@ -68,16 +68,24 @@ const cpp = name => lib => {
 
     const mapParam = map(param)
 
-    /** @type {(m: types.Method) => string} */
-    const virtualName = ([name, paramArray]) => isInterface(paramArray._) ? `${name}_` : name
-
     /** @type {(m: types.Method) => text.Item} */
+    const methodHeader = ([name, paramArray]) =>
+        `virtual ${cppResult(paramArray)} COM_STDCALL ${name}(${join(', ')(mapParam(paramList(paramArray)))}) const noexcept = 0;`
+
+    // /** @type {(m: types.Method) => string} */
+    // const virtualName = ([name, paramArray]) => isInterface(paramArray._) ? `${name}_` : name
+
+    /** @type {(m: types.Method) => readonly text.Item[]} */
     const method = m => {
-        const [, paramArray] = m
-        return `virtual ${cppResult(paramArray)} COM_STDCALL ${virtualName(m)}(${join(', ')(mapParam(paramList(paramArray)))}) const noexcept = 0;`
+        const [name, paramArray] = m
+        if (isInterface(paramArray._)) {
+            return [methodHeader([`${name}_`, paramArray])]
+        } else {
+            return [methodHeader([name, paramArray])]
+        }
     }
 
-    const mapMethod = map(method)
+    const mapMethod = flatMap(method)
 
     /** @type {(i: types.Interface) => text.Block} */
     const defInterface = ({ guid, interface: i }) => {
