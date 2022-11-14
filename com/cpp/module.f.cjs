@@ -34,7 +34,7 @@ const resultVoid = types.result('void')
 const namespace = text.curly('namespace')
 
 /** @type {(id: string) => string} */
-const comRef = id => `::com::ref<${id}>`
+const comRef = id => `::nanocom::ref<${id}>`
 
 /** @type {(id: string) => string} */
 const ptr = id => `${id} const*`
@@ -92,7 +92,7 @@ const cpp = name => lib => {
 
     /** @type {(result: string) => (paramArrayStr: string) => (name: string) => text.Item} */
     const methodHeader = result => paramArrayStr => name =>
-        `virtual ${result} COM_STDCALL ${name}${paramArrayStr} const noexcept = 0;`
+        `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
     /** @type {(m: types.Method) => readonly text.Item[]} */
     const method = ([name, paramArray]) => {
@@ -108,7 +108,7 @@ const cpp = name => lib => {
             m(`${name}_`),
             `${comRef(resultName)} ${name}${paramArrayStr} const noexcept`,
             '{',
-            [`return ::com::move_to_ref(${name}_(${joinComma(mapParamName(paramL))}));`],
+            [`return ::nanocom::move_to_ref(${name}_(${joinComma(mapParamName(paramL))}));`],
             '}',
         ]
     }
@@ -121,7 +121,7 @@ const cpp = name => lib => {
         const lo = g.substring(0, 16);
         const hi = g.substring(16);
         return flat([
-            [`constexpr static ::com::GUID const guid = ::com::GUID(0x${lo}, 0x${hi});`],
+            [`constexpr static ::nanocom::GUID const guid = ::nanocom::GUID(0x${lo}, 0x${hi});`],
             mapMethod(entries(i))
         ])
     }
@@ -129,7 +129,13 @@ const cpp = name => lib => {
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => d.interface === undefined
         ? struct(name)(defStruct(d))
-        : [`class ${name} : public ::com::IUnknown`, '{', 'public:', defInterface(d), '};']
+        : [
+            `class ${name} : public ::nanocom::IUnknown`,
+            '{',
+            'public:',
+            defInterface(d),
+            '};'
+        ]
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]
