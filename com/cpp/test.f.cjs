@@ -28,7 +28,11 @@ const f = () =>
         '        virtual bool const* COM_STDCALL GetUnsafe() const noexcept = 0;\n' +
         '        virtual void COM_STDCALL SetUnsafe(Slice const* p, uint32_t size) const noexcept = 0;\n' +
         '        virtual bool COM_STDCALL Some(IMy const& p) const noexcept = 0;\n' +
-        '        virtual IMy const* COM_STDCALL GetIMy_() const noexcept = 0;\n' +
+        '        virtual IMy const* COM_STDCALL GetIMy_(uint16_t a, int16_t b) const noexcept = 0;\n' +
+        '        ::com::ref<IMy> GetIMy(uint16_t a, int16_t b) const noexcept\n' +
+        '        {\n' +
+        '            return ::com::move_to_ref(GetIMy_(a, b));\n' +
+        '        }\n' +
         '        virtual void COM_STDCALL SetManagedStruct(ManagedStruct a) const noexcept = 0;\n' +
         '    };\n' +
         '}'

@@ -23,7 +23,7 @@ module.exports = () => {
         '        pub GetUnsafe: unsafe extern "system" fn(this: &Object) -> *const bool,\n' +
         '        pub SetUnsafe: unsafe extern "system" fn(this: &Object, p: *const super::Slice, size: u32),\n' +
         '        pub Some: unsafe extern "system" fn(this: &Object, p: &super::IMy::Object) -> bool,\n' +
-        '        pub GetIMy: unsafe extern "system" fn(this: &Object) -> super::IMy::Ref,\n' +
+        '        pub GetIMy: unsafe extern "system" fn(this: &Object, a: u16, b: i16) -> super::IMy::Ref,\n' +
         '        pub SetManagedStruct: unsafe extern "system" fn(this: &Object, a: super::ManagedStruct),\n' +
         '    }\n' +
         '    impl nanocom::Interface for Interface {\n' +
@@ -35,7 +35,7 @@ module.exports = () => {
         '        fn GetUnsafe(&self) -> *const bool;\n' +
         '        fn SetUnsafe(&self, p: *const super::Slice, size: u32);\n' +
         '        fn Some(&self, p: &super::IMy::Object) -> bool;\n' +
-        '        fn GetIMy(&self) -> super::IMy::Ref;\n' +
+        '        fn GetIMy(&self, a: u16, b: i16) -> super::IMy::Ref;\n' +
         '        fn SetManagedStruct(&self, a: super::ManagedStruct);\n' +
         '    }\n' +
         '    impl Ex for Object {\n' +
@@ -54,8 +54,8 @@ module.exports = () => {
         '        fn Some(&self, p: &super::IMy::Object) -> bool {\n' +
         '            unsafe { (self.interface().Some)(self, p) }\n' +
         '        }\n' +
-        '        fn GetIMy(&self) -> super::IMy::Ref {\n' +
-        '            unsafe { (self.interface().GetIMy)(self) }\n' +
+        '        fn GetIMy(&self, a: u16, b: i16) -> super::IMy::Ref {\n' +
+        '            unsafe { (self.interface().GetIMy)(self, a, b) }\n' +
         '        }\n' +
         '        fn SetManagedStruct(&self, a: super::ManagedStruct) {\n' +
         '            unsafe { (self.interface().SetManagedStruct)(self, a) }\n' +
@@ -105,8 +105,8 @@ module.exports = () => {
         '        extern "system" fn Some(this: &Object, p: &super::IMy::Object) -> bool {\n' +
         '            unsafe { nanocom::CObject::from_object_unchecked(this) }.Some(p)\n' +
         '        }\n' +
-        '        extern "system" fn GetIMy(this: &Object) -> super::IMy::Ref {\n' +
-        '            unsafe { nanocom::CObject::from_object_unchecked(this) }.GetIMy()\n' +
+        '        extern "system" fn GetIMy(this: &Object, a: u16, b: i16) -> super::IMy::Ref {\n' +
+        '            unsafe { nanocom::CObject::from_object_unchecked(this) }.GetIMy(a, b)\n' +
         '        }\n' +
         '        extern "system" fn SetManagedStruct(this: &Object, a: super::ManagedStruct) {\n' +
         '            unsafe { nanocom::CObject::from_object_unchecked(this) }.SetManagedStruct(a)\n' +

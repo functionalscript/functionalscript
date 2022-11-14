@@ -36,7 +36,7 @@ impl _result::IMy::Ex for nanocom::CObject<My> {
         todo!()
     }
 
-    fn GetIMy(&self) -> _result::IMy::Ref {
+    fn GetIMy(&self, a: u16, b: i16) -> _result::IMy::Ref {
         todo!()
     }
 
