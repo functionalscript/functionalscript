@@ -60,7 +60,32 @@ const tailReduce = equal => state => tail => {
  /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
 const merge = ({union, equal}) => genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
 
+/** @type {<T>(value: number) => (rm: RangeMapArray<T>) =>  T|undefined} */
+const get = value => rm => {
+  let b = 0
+  let e = rm.length - 1
+  while (true) {
+    if (b >= rm.length) return undefined
+    if (e - b < 0) return rm[b][0]
+    const mid = b + (e - b >> 1)
+    const sign = cmp(value)(rm[mid][1])
+    switch(sign) {
+      case -1: {
+        e = mid - 1
+        break
+      }
+      case 0: { return rm[mid][0] }
+      case 1: {
+        b = mid + 1
+        break
+      }
+    }
+  }
+}
+
 module.exports = {
     /** @readonly */
-    merge
+    merge,
+    /** @readonly */
+    get
 }

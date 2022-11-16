@@ -77,5 +77,55 @@ module.exports = {
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a"],1],[["a","b"],2],[["a"],5]]') { throw result }
         }
+    ],
+    get: [
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = stringify(_.get(5)(rm))
+            if (result !== '["a"]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = stringify(_.get(10)(rm))
+            if (result !== '["a"]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = stringify(_.get(15)(rm))
+            if (result !== '["b"]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = stringify(_.get(20)(rm))
+            if (result !== '["b"]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = stringify(_.get(25)(rm))
+            if (result !== '["c"]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = stringify(_.get(30)(rm))
+            if (result !== '["c"]') { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = [[['a'], 10], [['b'], 20], [['c'], 30]]
+            const result = _.get(35)(rm)
+            if (result !== undefined) { throw result }
+        },
+        () => {
+            /** @type {_.RangeMapArray<sortedSet.SortedSet<string>>} */
+            const rm = []
+            const result = _.get(10)(rm)
+            if (result !== undefined) { throw result }
+        }
     ]
 }
