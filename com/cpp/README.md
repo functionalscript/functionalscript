@@ -11,8 +11,11 @@ public:
     virtual HRESULT QueryInterface(GUID const &riid, IUnknown const **ppvObject) const noexcept = 0;
     virtual ULONG AddRef() const noexcept = 0;
     virtual ULONG Release() const noexcept = 0;
+protected:
+    IUnknown() {}
 private:
     IUnknown(IUnknown const&);
+    IUnknown& operator=(IUnknown const &);
 };
 
 template<class I>

@@ -54,6 +54,15 @@ DLL_EXPORT
 extern "C" My::IMy const *c_my_create()
 {
     {
+        auto const a = ::nanocom::implementation<Impl>::create().copy_to_raw();
+        // auto const c = *x; // no copy constructor
+        Impl *b;
+        b = const_cast<Impl*>(::nanocom::implementation<Impl>::create().copy_to_raw());
+        // *b = *a; // no assignment operator
+        b->Release();
+        a->Release();
+    }
+    {
         auto const x = ::nanocom::implementation<Impl>::create().copy_to_raw();
         x->Release();
     }
