@@ -1,5 +1,5 @@
 const list = require('../types/list/module.f.cjs')
-const { equal, isEmpty, fold, toArray, scan } = list
+const { equal, isEmpty, fold, toArray, scan, foldScan } = list
 const byteSet = require('../types/byte_set/module.f.cjs')
 const { toRangeMap } = byteSet
 const sortedSet = require('../types/sorted_set/module.f.cjs')
@@ -57,10 +57,22 @@ const addEntry = grammar => set => dfa => {
     return fold(addEntry(grammar))(newDfa)(newStates)
 }
 
+const initialState = ['']
+
+const initialStateStringify = stringifyIdentity(initialState)
+
 /** @type {(grammar: Grammar) => Dfa} */
-const dfa = grammar => addEntry(grammar)([''])({})
+const dfa = grammar => addEntry(grammar)(initialState)({})
+
+/** @type {(dfa: Dfa) => operator.Fold<number, string>} */
+const runOp = dfa => input => s => rangeMap.get(input)(dfa[s])
+
+/** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
+const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
 
 module.exports = {
     /** @readonly */
     dfa,
+    /** @readonly */
+    run
 }
