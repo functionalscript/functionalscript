@@ -11,14 +11,14 @@ const toCharCode = c => c.charCodeAt(0)
 const stringifyIdentity = json.stringify(identity)
 
 const buildDfa = () => {
-    const lowercaseAlpha = byteSet.range([toCharCode('a'), toCharCode('z')])
-    const uppercaseAlpha = byteSet.range([toCharCode('A'), toCharCode('Z')])
+    const lowercaseAlpha = _.toRange('az')
+    const uppercaseAlpha = _.toRange('AZ')
     const alpha = byteSet.union(lowercaseAlpha)(uppercaseAlpha)
-    const idSymbol = byteSet.union(byteSet.one(toCharCode('_')))(byteSet.one(toCharCode('$')))
+    const idSymbol = _.toUnion('_$')
     const idBegin = byteSet.union(alpha)(idSymbol)
-    const digit = byteSet.range([toCharCode('0'), toCharCode('9')])
+    const digit = _.toRange('09')
     const idNext = byteSet.union(idBegin)(digit)
-    const dot = byteSet.one(toCharCode('.'))
+    const dot = _.toUnion('.')
 
     /** @type {_.Grammar} */
     const grammar = [
