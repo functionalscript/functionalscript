@@ -4,9 +4,7 @@ const { sort, fromEntries } = require('../types/object/module.f.cjs')
 const json = require('../json/module.f.cjs')
 const { identity } = require('../types/function/module.f.cjs')
 const { toArray } = require('../types/list/module.f.cjs')
-
-/** @type {(c: string) => number} */
-const toCharCode = c => c.charCodeAt(0)
+const { stringToList } = require('../text/utf16/module.f.cjs')
 
 const stringifyIdentity = json.stringify(identity)
 
@@ -85,7 +83,7 @@ module.exports = {
     run: [
         () => {
             const dfa = buildDfa()
-            const input = [toCharCode('a'), toCharCode('1')]
+            const input = stringToList('a1')
             const result = stringifyIdentity(toArray(_.run(dfa)(input)))
 
             const expectedOutput = [
@@ -97,7 +95,7 @@ module.exports = {
         },
         () => {
             const dfa = buildDfa()
-            const input = [toCharCode('0'), toCharCode('.'), toCharCode('1')]
+            const input = stringToList('0.1')
             const result = stringifyIdentity(toArray(_.run(dfa)(input)))
 
             const expectedOutput = [
