@@ -11,7 +11,6 @@ const operator = require("../types/function/operator/module.f.cjs")
 const { strictEqual } = operator
 const { stringify } = require('../json/module.f.cjs')
 const { identity } = require('../types/function/module.f.cjs')
-const { range } = require('../types/module.f.cjs')
 const { stringToList } = require('../text/utf16/module.f.cjs')
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
@@ -93,7 +92,7 @@ module.exports = {
     /** @readonly */
     run,
     /** @readonly */
-    toRange,   
+    toRange,
     /** @readonly */
     toUnion
 }
