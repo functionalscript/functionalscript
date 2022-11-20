@@ -1,7 +1,7 @@
 const operator = require('../../types/function/operator/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 const range = require('../../types/range/module.f.cjs')
-const { stateScan, flat, concat } = list
+const { stateScan, flat } = list
 const { contains } = range
 const { fromCharCode } = String
 
