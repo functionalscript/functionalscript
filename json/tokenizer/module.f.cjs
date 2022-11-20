@@ -4,6 +4,37 @@ const range = require('../../types/range/module.f.cjs')
 const { stateScan, flat } = list
 const { contains } = range
 const { fromCharCode } = String
+const {
+    //
+    backspace,
+    ht,
+    lf,
+    ff,
+    cr,
+    //
+    space,
+    quotationMark,
+    plusSign,
+    comma,
+    hyphenMinus,
+    fullStop,
+    solidus,
+    //
+    digit,
+    digit0,
+    digit1,
+    digit9,
+    colon,
+    //
+    latinCapitalLetterA,
+    //
+    leftSquareBracket,
+    reverseSolidus,
+    rightSquareBracket,
+    //
+    leftCurlyBracket,
+    rightCurlyBracket
+} = require('../../text/ascii/module.f.cjs')
 
 /**
  * @typedef {{
@@ -32,32 +63,7 @@ const { fromCharCode } = String
  * } JsonToken
  */
 
-const leftBrace = 0x7b
-const rightBrace = 0x7d
-const colon = 0x3a
-const comma = 0x2c
-const leftBracket = 0x5b
-const rightBracket = 0x5d
-
-const quotationMark = 0x22
-const digit0 = 0x30
-const digit1 = 0x31
-const digit9 = 0x39
-const signPlus = 0x2b
-const signMinus = 0x2d
-const decimalPoint = 0x2e
-
-const horizontalTab = 0x09
-const newLine = 0x0a
-const carriageReturn = 0x0d
-const space = 0x20
-
-const backslash = 0x5c
-const slash = 0x2f
-const backspace = 0x08
-const formfeed = 0x0c
-
-const capitalLetterA = 0x41
+// const latinCapitalLetterA = 0x41
 const capitalLetterE = 0x45
 const capitalLetterF = 0x46
 
@@ -71,10 +77,10 @@ const letterT = 0x74
 const letterU = 0x75
 const letterZ = 0x7a
 
-const containsDigit = contains([digit0, digit9])
+const containsDigit = contains(digit)
 const containsDigitOneNine = contains([digit1, digit9])
 const containsSmallAF = contains([letterA, letterF])
-const containsCapitalAF = contains([capitalLetterA, capitalLetterF])
+const containsCapitalAF = contains([latinCapitalLetterA, capitalLetterF])
 const containsSmallLetter = contains([letterA, letterZ])
 
 /**
@@ -141,22 +147,22 @@ const initialStateOp = initialState => input => {
         return [undefined, initialState]
     }
     switch (input) {
-        case leftBrace: return [[{ kind: '{' }], initialState]
-        case rightBrace: return [[{ kind: '}' }], initialState]
+        case leftCurlyBracket: return [[{ kind: '{' }], initialState]
+        case rightCurlyBracket: return [[{ kind: '}' }], initialState]
         case colon: return [[{ kind: ':' }], initialState]
         case comma: return [[{ kind: ',' }], initialState]
-        case leftBracket: return [[{ kind: '[' }], initialState]
-        case rightBracket: return [[{ kind: ']' }], initialState]
+        case leftSquareBracket: return [[{ kind: '[' }], initialState]
+        case rightSquareBracket: return [[{ kind: ']' }], initialState]
         case quotationMark: return [undefined, { kind: 'string', value: '' }]
         case digit0: return [undefined, { kind: 'number', value: fromCharCode(input), numberKind: '0' }]
-        case signMinus: return [undefined, { kind: 'number', value: fromCharCode(input), numberKind: '-' }]
+        case hyphenMinus: return [undefined, { kind: 'number', value: fromCharCode(input), numberKind: '-' }]
         default: return [[{ kind: 'error', message: 'unexpected character' }], initialState]
     }
 }
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseNumberStateOp = state => input => {
-    if (input === decimalPoint) {
+    if (input === fullStop) {
         switch (state.numberKind) {
             case '0':
             case 'int': return [undefined, { kind: 'number', value: appendChar(state.value)(input), numberKind: '.' }]
@@ -193,13 +199,13 @@ const parseNumberStateOp = state => input => {
             default: return tokenizeOp({ kind: 'invalidNumber' })(input)
         }
     }
-    if (input === signMinus) {
+    if (input === hyphenMinus) {
         switch (state.numberKind) {
             case 'e': return [undefined, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e-' }]
             default: return tokenizeOp({ kind: 'invalidNumber' })(input)
         }
     }
-    if (input === signPlus) {
+    if (input === plusSign) {
         switch (state.numberKind) {
             case 'e': return [undefined, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e+' }]
             default: return tokenizeOp({ kind: 'invalidNumber' })(input)
@@ -234,10 +240,10 @@ const isTerminalForNumber = char => {
     switch (char) {
         case quotationMark:
         case comma:
-        case leftBrace:
-        case rightBrace:
-        case leftBracket:
-        case rightBracket:
+        case leftCurlyBracket:
+        case rightCurlyBracket:
+        case leftSquareBracket:
+        case rightSquareBracket:
         case colon: return true
         default: return false
     }
@@ -246,9 +252,9 @@ const isTerminalForNumber = char => {
 /** @type {(char: number) => boolean} */
 const isWhiteSpace = char => {
     switch (char) {
-        case horizontalTab:
-        case newLine:
-        case carriageReturn:
+        case ht:
+        case lf:
+        case cr:
         case space: return true
         default: return false
     }
@@ -267,7 +273,7 @@ const invalidNumberStateOp = state => input => {
 const parseStringStateOp = state => input => {
     switch (input) {
         case quotationMark: return [[{ kind: 'string', value: state.value }], { kind: 'initial' }]
-        case backslash: return [undefined, { kind: 'escapeChar', value: state.value }]
+        case reverseSolidus: return [undefined, { kind: 'escapeChar', value: state.value }]
         default: return [undefined, { kind: 'string', value: appendChar(state.value)(input) }]
     }
 }
@@ -276,13 +282,13 @@ const parseStringStateOp = state => input => {
 const parseEscapeCharStateOp = state => input => {
     switch (input) {
         case quotationMark:
-        case backslash:
-        case slash: return [undefined, { kind: 'string', value: appendChar(state.value)(input) }]
+        case reverseSolidus:
+        case solidus: return [undefined, { kind: 'string', value: appendChar(state.value)(input) }]
         case letterB: return [undefined, { kind: 'string', value: appendChar(state.value)(backspace) }]
-        case letterF: return [undefined, { kind: 'string', value: appendChar(state.value)(formfeed) }]
-        case letterN: return [undefined, { kind: 'string', value: appendChar(state.value)(newLine) }]
-        case letterR: return [undefined, { kind: 'string', value: appendChar(state.value)(carriageReturn) }]
-        case letterT: return [undefined, { kind: 'string', value: appendChar(state.value)(horizontalTab) }]
+        case letterF: return [undefined, { kind: 'string', value: appendChar(state.value)(ff) }]
+        case letterN: return [undefined, { kind: 'string', value: appendChar(state.value)(lf) }]
+        case letterR: return [undefined, { kind: 'string', value: appendChar(state.value)(cr) }]
+        case letterT: return [undefined, { kind: 'string', value: appendChar(state.value)(ht) }]
         case letterU: return [undefined, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]
         default: {
             const next = tokenizeOp({ kind: 'string', value: state.value })(input)
@@ -294,7 +300,7 @@ const parseEscapeCharStateOp = state => input => {
 /** @type {(hex: number) => number|undefined} */
 const hexDigitToNumber = hex => {
     if (containsDigit(hex)) { return hex - digit0 }
-    if (containsCapitalAF(hex)) { return hex - capitalLetterA + 10 }
+    if (containsCapitalAF(hex)) { return hex - latinCapitalLetterA + 10 }
     if (containsSmallAF(hex)) { return hex - letterA + 10 }
 }
 
