@@ -106,5 +106,29 @@ module.exports = {
             const expectedResult = stringifyIdentity(expectedOutput)
             if (result !== expectedResult) { throw result }
         },
+        () => {
+            const dfa = buildDfa()
+            const input = stringToList('//')
+            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+
+            const expectedOutput = [
+                '[]',
+                '[]'
+            ]
+            const expectedResult = stringifyIdentity(expectedOutput)
+            if (result !== expectedResult) { throw result }
+        },
+        () => {
+            const dfa = buildDfa()
+            const input = stringToList('::')
+            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+
+            const expectedOutput = [
+                '[]',
+                '[]'
+            ]
+            const expectedResult = stringifyIdentity(expectedOutput)
+            if (result !== expectedResult) { throw result }
+        }
     ]
 }

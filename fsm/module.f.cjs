@@ -73,6 +73,11 @@ const addEntry = grammar => set => dfa => {
     return fold(addEntry(grammar))(newDfa)(newStates)
 }
 
+/** @type {string[]} */
+const emptyState = []
+
+const emptyStateStringify = stringifyIdentity(emptyState)
+
 const initialState = ['']
 
 const initialStateStringify = stringifyIdentity(initialState)
@@ -81,7 +86,10 @@ const initialStateStringify = stringifyIdentity(initialState)
 const dfa = grammar => addEntry(grammar)(initialState)({})
 
 /** @type {(dfa: Dfa) => operator.Fold<number, string>} */
-const runOp = dfa => input => s => rangeMap.get(input)(dfa[s])
+const runOp = dfa => input => s => {
+    const state = rangeMap.get(input)(dfa[s])
+    return state === undefined ? emptyStateStringify : state
+}
 
 /** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
 const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
