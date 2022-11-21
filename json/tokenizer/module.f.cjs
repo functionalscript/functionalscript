@@ -1,10 +1,10 @@
 const operator = require('../../types/function/operator/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const range = require('../../types/range/module.f.cjs')
+const { contains } = require('../../types/range/module.f.cjs')
 const { stateScan, flat } = list
-const { contains } = range
 const { fromCharCode } = String
 const {
+    range,
     //
     backspace,
     ht,
@@ -20,17 +20,30 @@ const {
     fullStop,
     solidus,
     //
-    digit,
+    digitRange,
     digit0,
     digit1,
     digit9,
     colon,
     //
     latinCapitalLetterA,
+    latinCapitalLetterE,
+    latinCapitalLetterF,
     //
     leftSquareBracket,
     reverseSolidus,
     rightSquareBracket,
+    //
+    latinSmallLetterRange,
+    latinSmallLetterA,
+    latinSmallLetterB,
+    latinSmallLetterE,
+    latinSmallLetterF,
+    latinSmallLetterN,
+    latinSmallLetterR,
+    latinSmallLetterT,
+    latinSmallLetterU,
+    latinSmallLetterZ,
     //
     leftCurlyBracket,
     rightCurlyBracket
@@ -63,25 +76,11 @@ const {
  * } JsonToken
  */
 
-// const latinCapitalLetterA = 0x41
-const capitalLetterE = 0x45
-const capitalLetterF = 0x46
-
-const letterA = 0x61
-const letterB = 0x62
-const letterE = 0x65
-const letterF = 0x66
-const letterN = 0x6e
-const letterR = 0x72
-const letterT = 0x74
-const letterU = 0x75
-const letterZ = 0x7a
-
-const containsDigit = contains(digit)
-const containsDigitOneNine = contains([digit1, digit9])
-const containsSmallAF = contains([letterA, letterF])
-const containsCapitalAF = contains([latinCapitalLetterA, capitalLetterF])
-const containsSmallLetter = contains([letterA, letterZ])
+const containsDigit = contains(digitRange)
+const containsDigitOneNine = contains(range('19'))
+const containsSmallAF = contains(range('af'))
+const containsCapitalAF = contains(range('AF'))
+const containsSmallLetter = contains(latinSmallLetterRange)
 
 /**
  * @typedef {|
@@ -191,7 +190,7 @@ const parseNumberStateOp = state => input => {
             default: return [undefined, { kind: 'number', value: appendChar(state.value)(input), numberKind: state.numberKind }]
         }
     }
-    if (input === letterE || input === capitalLetterE) {
+    if (input === latinSmallLetterE || input === latinCapitalLetterE) {
         switch (state.numberKind) {
             case '0':
             case 'int':
@@ -284,12 +283,12 @@ const parseEscapeCharStateOp = state => input => {
         case quotationMark:
         case reverseSolidus:
         case solidus: return [undefined, { kind: 'string', value: appendChar(state.value)(input) }]
-        case letterB: return [undefined, { kind: 'string', value: appendChar(state.value)(backspace) }]
-        case letterF: return [undefined, { kind: 'string', value: appendChar(state.value)(ff) }]
-        case letterN: return [undefined, { kind: 'string', value: appendChar(state.value)(lf) }]
-        case letterR: return [undefined, { kind: 'string', value: appendChar(state.value)(cr) }]
-        case letterT: return [undefined, { kind: 'string', value: appendChar(state.value)(ht) }]
-        case letterU: return [undefined, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]
+        case latinSmallLetterB: return [undefined, { kind: 'string', value: appendChar(state.value)(backspace) }]
+        case latinSmallLetterF: return [undefined, { kind: 'string', value: appendChar(state.value)(ff) }]
+        case latinSmallLetterN: return [undefined, { kind: 'string', value: appendChar(state.value)(lf) }]
+        case latinSmallLetterR: return [undefined, { kind: 'string', value: appendChar(state.value)(cr) }]
+        case latinSmallLetterT: return [undefined, { kind: 'string', value: appendChar(state.value)(ht) }]
+        case latinSmallLetterU: return [undefined, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]
         default: {
             const next = tokenizeOp({ kind: 'string', value: state.value })(input)
             return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
@@ -301,7 +300,7 @@ const parseEscapeCharStateOp = state => input => {
 const hexDigitToNumber = hex => {
     if (containsDigit(hex)) { return hex - digit0 }
     if (containsCapitalAF(hex)) { return hex - latinCapitalLetterA + 10 }
-    if (containsSmallAF(hex)) { return hex - letterA + 10 }
+    if (containsSmallAF(hex)) { return hex - latinSmallLetterA + 10 }
 }
 
 /** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */

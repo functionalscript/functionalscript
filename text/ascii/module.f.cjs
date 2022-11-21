@@ -91,7 +91,7 @@ module.exports = {
     // 0x30..
 
     /** @readonly 0x30..0x39 */
-    digit: range('09'),
+    digitRange: range('09'),
 
     /** @readonly 0x30 */
     digit0: one('0'),
@@ -125,14 +125,19 @@ module.exports = {
 
     /** @readonly 0x3A */
     colon: one(':'),
+
     /** @readonly 0x3B */
     semicolon: one(';'),
+
     /** @readonly 0x3C */
     lessThanSign: one('<'),
+
     /** @readonly 0x3D */
     equalsSign: one('='),
+
     /** @readonly 0x3E */
     greaterThanSign: one('>'),
+
     /** @readonly 0x3F */
     questionMark: one('?'),
 
@@ -142,19 +147,29 @@ module.exports = {
     commercialAt: one('@'),
 
     /** @readonly 0x41..0x5A */
-    latinCapitalLetter: range('AZ'),
+    latinCapitalLetterRange: range('AZ'),
 
     /** @readonly 0x41 */
     latinCapitalLetterA: one('A'),
 
+    /** @readonly 0x45 */
+    latinCapitalLetterE: one('E'),
+
+    /** @readonly 0x46 */
+    latinCapitalLetterF: one('F'),
+
     /** @readonly 0x5B */
     leftSquareBracket: one('['),
+
     /** @readonly 0x5C */
     reverseSolidus: one('\\'),
+
     /** @readonly 0x5D */
     rightSquareBracket: one(']'),
+
     /** @readonly 0x5E */
     circumflexAccent: one('^'),
+
     /** @readonly 0x5F */
     lowLine: one('_'),
 
@@ -162,14 +177,46 @@ module.exports = {
 
     /** @readonly 0x60 */
     graveAccent: one('`'),
+
     /** @readonly 0x61..0x7A */
-    latinSmallLetter: range('az'),
+    latinSmallLetterRange: range('az'),
+
+    /** @readonly 0x61 */
+    latinSmallLetterA: one('a'),
+
+    /** @readonly 0x62 */
+    latinSmallLetterB: one('b'),
+
+    /** @readonly 0x65 */
+    latinSmallLetterE: one('e'),
+
+    /** @readonly 0x66 */
+    latinSmallLetterF: one('f'),
+
+    /** @readonly 0x6E */
+    latinSmallLetterN: one('n'),
+
+    /** @readonly 0x72 */
+    latinSmallLetterR: one('r'),
+
+    /** @readonly 0x74 */
+    latinSmallLetterT: one('t'),
+
+    /** @readonly 0x75 */
+    latinSmallLetterU: one('u'),
+
+    /** @readonly 0x7A */
+    latinSmallLetterZ: one('z'),
+
     /** @readonly 0x7B */
     leftCurlyBracket: one('{'),
+
     /** @readonly 0x7C */
     verticalLine: one('|'),
+
     /** @readonly 0x7D */
     rightCurlyBracket: one('}'),
+
     /** @readonly 0x7E */
     tilde: one('~'),
 }
