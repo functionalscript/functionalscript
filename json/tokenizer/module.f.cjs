@@ -22,13 +22,10 @@ const {
     //
     digitRange,
     digit0,
-    digit1,
-    digit9,
     colon,
     //
     latinCapitalLetterA,
     latinCapitalLetterE,
-    latinCapitalLetterF,
     //
     leftSquareBracket,
     reverseSolidus,
@@ -43,7 +40,6 @@ const {
     latinSmallLetterR,
     latinSmallLetterT,
     latinSmallLetterU,
-    latinSmallLetterZ,
     //
     leftCurlyBracket,
     rightCurlyBracket
