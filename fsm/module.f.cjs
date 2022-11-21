@@ -64,8 +64,10 @@ const initialStateStringify = stringifyIdentity(initialState)
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => addEntry(grammar)(initialState)({})
 
+const get = rangeMap.get('')
+
 /** @type {(dfa: Dfa) => operator.Fold<number, string>} */
-const runOp = dfa => input => s => rangeMap.get(input)(dfa[s])
+const runOp = dfa => input => s => get(input)(dfa[s])
 
 /** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
 const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
