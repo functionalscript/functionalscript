@@ -256,7 +256,7 @@ const isWhiteSpace = char => {
 }
 
 /** @type {(state: InvalidNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
-const invalidNumberStateOp = state => input => {
+const invalidNumberStateOp = () => input => {
     if (isTerminalForNumber(input)) {
         const next = tokenizeOp({ kind: 'initial' })(input)
         return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
