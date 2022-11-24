@@ -85,13 +85,10 @@ const initialStateStringify = stringifyIdentity(initialState)
 /** @type {(grammar: Grammar) => Dfa} */
 const dfa = grammar => addEntry(grammar)(initialState)({})
 
-const get = rangeMap.get('')
+const get = rangeMap.get(emptyStateStringify)
 
 /** @type {(dfa: Dfa) => operator.Fold<number, string>} */
-const runOp = dfa => input => s => {
-    const state = rangeMap.get(input)(dfa[s])
-    return state === undefined ? emptyStateStringify : state
-}
+const runOp = dfa => input => s => get(input)(dfa[s])
 
 /** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
 const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
