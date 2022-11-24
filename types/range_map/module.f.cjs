@@ -5,6 +5,7 @@ const { next } = list
 const option = require("../option/module.f.cjs")
 const { cmp } = require('../number/module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
+const _range = require('../range/module.f.cjs')
 
 /**
  * @template T
@@ -60,32 +61,31 @@ const tailReduce = equal => state => tail => {
  /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
 const merge = ({union, equal}) => genericMerge({reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal)})(undefined)
 
-/** @type {<T>(value: number) => (rm: RangeMapArray<T>) =>  T|undefined} */
-const get = value => rm => {
+/** @type {<T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T} */
+const get = def => value => rm => {
+  const len = rm.length
   let b = 0
-  let e = rm.length - 1
+  let e = len - 1
   while (true) {
-    if (b >= rm.length) return undefined
-    if (e - b < 0) return rm[b][0]
+    if (b >= len) { return def }
+    if (e - b < 0) { return rm[b][0] }
     const mid = b + (e - b >> 1)
-    const sign = cmp(value)(rm[mid][1])
-    switch(sign) {
-      case -1: {
-        e = mid - 1
-        break
-      }
-      case 0: { return rm[mid][0] }
-      case 1: {
-        b = mid + 1
-        break
-      }
+    if (value <= rm[mid][1]) {
+      e = mid - 1
+    } else {
+      b = mid + 1
     }
   }
 }
+
+/** @type {<T>(def: T) => (r: _range.Range) => (value: T) => RangeMapArray<T>} */
+const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]
 
 module.exports = {
     /** @readonly */
     merge,
     /** @readonly */
-    get
+    get,
+    /** @readonly */
+    fromRange,
 }
