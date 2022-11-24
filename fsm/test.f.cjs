@@ -4,21 +4,19 @@ const { sort, fromEntries } = require('../types/object/module.f.cjs')
 const json = require('../json/module.f.cjs')
 const { identity } = require('../types/function/module.f.cjs')
 const { toArray } = require('../types/list/module.f.cjs')
-
-/** @type {(c: string) => number} */
-const toCharCode = c => c.charCodeAt(0)
+const { stringToList } = require('../text/utf16/module.f.cjs')
 
 const stringifyIdentity = json.stringify(identity)
 
 const buildDfa = () => {
-    const lowercaseAlpha = byteSet.range([toCharCode('a'), toCharCode('z')])
-    const uppercaseAlpha = byteSet.range([toCharCode('A'), toCharCode('Z')])
+    const lowercaseAlpha = _.toRange('az')
+    const uppercaseAlpha = _.toRange('AZ')
     const alpha = byteSet.union(lowercaseAlpha)(uppercaseAlpha)
-    const idSymbol = byteSet.union(byteSet.one(toCharCode('_')))(byteSet.one(toCharCode('$')))
+    const idSymbol = _.toUnion('_$')
     const idBegin = byteSet.union(alpha)(idSymbol)
-    const digit = byteSet.range([toCharCode('0'), toCharCode('9')])
+    const digit = _.toRange('09')
     const idNext = byteSet.union(idBegin)(digit)
-    const dot = byteSet.one(toCharCode('.'))
+    const dot = _.toUnion('.')
 
     /** @type {_.Grammar} */
     const grammar = [
@@ -85,7 +83,7 @@ module.exports = {
     run: [
         () => {
             const dfa = buildDfa()
-            const input = [toCharCode('a'), toCharCode('1')]
+            const input = stringToList('a1')
             const result = stringifyIdentity(toArray(_.run(dfa)(input)))
 
             const expectedOutput = [
@@ -97,7 +95,7 @@ module.exports = {
         },
         () => {
             const dfa = buildDfa()
-            const input = [toCharCode('0'), toCharCode('.'), toCharCode('1')]
+            const input = stringToList('0.1')
             const result = stringifyIdentity(toArray(_.run(dfa)(input)))
 
             const expectedOutput = [
@@ -108,5 +106,29 @@ module.exports = {
             const expectedResult = stringifyIdentity(expectedOutput)
             if (result !== expectedResult) { throw result }
         },
+        () => {
+            const dfa = buildDfa()
+            const input = stringToList('//')
+            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+
+            const expectedOutput = [
+                '[]',
+                '[]'
+            ]
+            const expectedResult = stringifyIdentity(expectedOutput)
+            if (result !== expectedResult) { throw result }
+        },
+        () => {
+            const dfa = buildDfa()
+            const input = stringToList('::')
+            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+
+            const expectedOutput = [
+                '[]',
+                '[]'
+            ]
+            const expectedResult = stringifyIdentity(expectedOutput)
+            if (result !== expectedResult) { throw result }
+        }
     ]
 }
