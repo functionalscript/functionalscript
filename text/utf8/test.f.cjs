@@ -3,8 +3,7 @@ const json = require('../../json/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const { list } = require('../../types/module.f.cjs')
 
-/** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
+const stringify = json.stringify(sort)
 
 module.exports = {
     toCodePoint: [
