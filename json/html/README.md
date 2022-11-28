@@ -32,7 +32,6 @@
         ['span',{class:'symbol'},['[']],
         ['span',{class:'null'},['null']],
         ['span',{class:'symbol'},[']']],
-        ['span',{class:'symbol'},[',']],
         '\n    ',
         ['span',{class:'symbol'},['}']],
         '\n'
