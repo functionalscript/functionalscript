@@ -38,7 +38,7 @@ const codePointRange = fromRange(unknownSymbol)
 
 const range = fn(ascii).then(codePointRange).result
 
-/** @type {(l: list.List<_range.Range>) => (f: NextState) => range_map.RangeMapArray<NextState>} */
+/** @type {(l: readonly _range.Range[]) => (f: NextState) => range_map.RangeMapArray<NextState>} */
 const rangeSet = l => f => {
     /** @type {(r: _range.Range) => range_map.RangeMap<NextState>} */
     const g = r => codePointRange(r)(f)
