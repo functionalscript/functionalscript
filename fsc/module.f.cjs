@@ -1,8 +1,8 @@
 const operator = require('../types/function/operator/module.f.cjs')
 const range_map = require('../types/range_map/module.f.cjs')
-const { merge, fromRange } = range_map
-const { reduce } = require('../types/list/module.f.cjs')
-const { range: ascii } = require('../text/ascii/module.f.cjs')
+const { merge: rangeMapMerge, fromRange } = range_map
+const { reduce: listReduce } = require('../types/list/module.f.cjs')
+const { range: asciiRange } = require('../text/ascii/module.f.cjs')
 const { fromCharCode } = String
 const { fn } = require('../types/function/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
@@ -10,65 +10,52 @@ const _range = require('../types/range/module.f.cjs')
 const { one } = _range
 const { toArray, map } = list
 
-/** @typedef {readonly string[]} State */
+/** @typedef {readonly string[]} Result */
 
-/** @typedef {(a: number) => State} NextState */
+/** @typedef {(a: number) => Result} ToResult */
 
-/** @type {NextState} */
+/** @typedef {range_map.RangeMapArray<ToResult>} State */
+
+/** @type {ToResult} */
 const unknownSymbol = a => [`unknown symbol ${a}`]
 
-/** @type {operator.Reduce<NextState>} */
+/** @type {operator.Reduce<ToResult>} */
 const union = a => b => {
     if (a === unknownSymbol || a === b) { return b }
     if (b === unknownSymbol) { return a }
     throw [a, b]
 }
 
-const mapMerge = merge({
+const merge = rangeMapMerge({
     union,
     equal: operator.strictEqual,
 })
 
-/** @type {range_map.RangeMap<NextState>} */
+/** @type {range_map.RangeMap<ToResult>} */
 const empty = []
 
-const mapReduce = fn(reduce(mapMerge)(empty)).then(toArray).result
+const reduce = fn(listReduce(merge)(empty)).then(toArray).result
 
 const codePointRange = fromRange(unknownSymbol)
 
-const range = fn(ascii).then(codePointRange).result
+const range = fn(asciiRange).then(codePointRange).result
 
-/** @type {(l: readonly _range.Range[]) => (f: NextState) => range_map.RangeMapArray<NextState>} */
+/** @type {(l: readonly string[]) => (f: ToResult) => State} */
 const rangeSet = l => f => {
-    /** @type {(r: _range.Range) => range_map.RangeMap<NextState>} */
-    const g = r => codePointRange(r)(f)
-    return mapReduce(map(g)(l))
+    /** @type {(r: string) => range_map.RangeMap<ToResult>} */
+    const g = r => codePointRange(asciiRange(r))(f)
+    return reduce(map(g)(l))
 }
 
 const terminal = -1
 
-/** @type {NextState} */
-const idBegin = c => [fromCharCode(c)]
-
-const whiteSpace = () =>[' ']
-
-const newLine = () => ['\n']
-
-// proposal # 1
-// - range('az') => [['a', 'z']]
-// - set('ad')   => [['a', 'a'], ['d', 'd']]
-// - union([range('AZ'), set('_$'), range('az')]) => [['_', '_'], ['$', '$'], ['A', 'Z'], ['a', 'z']]
-// proposal # 2
-// - 'A-Z_$a-z' => [['_', '_'], ['$', '$'], ['A', 'Z'], ['a', 'z']]
-// - '\\-'       => [['-', '-']]
-
-const init = mapReduce([
+const init = reduce([
     codePointRange(one(terminal))(() => []),
-    rangeSet([ascii('\t'), ascii(' ')])(whiteSpace),
-    rangeSet([ascii('\n'), ascii('\r')])(newLine),
+    rangeSet(['\t', ' '])(() => [' ']),
+    rangeSet(['\n', '\r'])(() => ['\n']),
     range('!')(() => ['!']),
     range('"')(() => ['"']),
-    rangeSet([ascii('$'), ascii('_'), ascii('AZ'), ascii('az')])(idBegin),
+    rangeSet(['$', '_', 'AZ', 'az'])(c => [fromCharCode(c)]),
     range('%')(() => ['%']),
     range('&')(() => ['&']),
     range("'")(() => ["'"]),
