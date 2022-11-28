@@ -2,7 +2,7 @@ const operator = require('../types/function/operator/module.f.cjs')
 const range_map = require('../types/range_map/module.f.cjs')
 const { merge, fromOne, fromRange } = range_map
 const { reduce } = require('../types/list/module.f.cjs')
-const { one, range } = require('../text/ascii/module.f.cjs')
+const { one: asciiOne, range: asciiRange } = require('../text/ascii/module.f.cjs')
 const { fromCharCode } = String
 const { fn } = require('../types/function/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
@@ -33,18 +33,18 @@ const empty = []
 
 const mapReduce = fn(reduce(mapMerge)(empty)).then(toArray).result
 
-const cp = fromOne(unknownSymbol)
+const codePoint = fromOne(unknownSymbol)
 
-const c = fn(one).then(cp).result
+const one = fn(asciiOne).then(codePoint).result
 
-const cpRange = fromRange(unknownSymbol)
+const codePointRange = fromRange(unknownSymbol)
 
-const cRange = fn(range).then(cpRange).result
+const range = fn(asciiRange).then(codePointRange).result
 
 /** @type {(f: NextState) => (l: list.List<_range.Range>) => range_map.RangeMapArray<NextState>} */
 const rangeReduce = f => l => {
     /** @type {(r: _range.Range) => range_map.RangeMap<NextState>} */
-    const g = r => cpRange(r)(f)
+    const g = r => codePointRange(r)(f)
     return mapReduce(map(g)(l))
 }
 
@@ -66,43 +66,43 @@ const newLine = () => ['\n']
 // - '\\-'       => [['-', '-']]
 
 const init = mapReduce([
-    cp(terminal)(() => []),
-    c('\t')(whiteSpace),
-    c('\n')(newLine),
-    c('\r')(newLine),
-    c(' ')(whiteSpace),
-    c('!')(() => ['!']),
-    c('"')(() => ['"']),
-    c('$')(idBegin),
-    c('%')(() => ['%']),
-    c('&')(() => ['&']),
-    c("'")(() => ["'"]),
-    c('(')(() => ['(']),
-    c(')')(() => [')']),
-    c('*')(() => ['*']),
-    c('+')(() => ['+']),
-    c(',')(() => [',']),
-    c('-')(() => ['-']),
-    c('.')(() => ['.']),
-    c('/')(() => ['/']),
-    cRange('09')(a => [fromCharCode(a)]),
-    c(':')(() => [':']),
-    c(';')(() => [';']),
-    c('<')(() => ['<']),
-    c('=')(() => ['=']),
-    c('>')(() => ['>']),
-    c('?')(() => ['?']),
-    cRange('AZ')(idBegin),
-    c('[')(() => ['[']),
-    c(']')(() => [']']),
-    c('^')(() => ['^']),
-    c('_')(idBegin),
-    c('`')(() => ['`']),
-    cRange('az')(idBegin),
-    c('{')(() => ['{']),
-    c('|')(() => ['|']),
-    c('}')(() => ['}']),
-    c('~')(() => ['~']),
+    codePoint(terminal)(() => []),
+    one('\t')(whiteSpace),
+    one('\n')(newLine),
+    one('\r')(newLine),
+    one(' ')(whiteSpace),
+    one('!')(() => ['!']),
+    one('"')(() => ['"']),
+    one('$')(idBegin),
+    one('%')(() => ['%']),
+    one('&')(() => ['&']),
+    one("'")(() => ["'"]),
+    one('(')(() => ['(']),
+    one(')')(() => [')']),
+    one('*')(() => ['*']),
+    one('+')(() => ['+']),
+    one(',')(() => [',']),
+    one('-')(() => ['-']),
+    one('.')(() => ['.']),
+    one('/')(() => ['/']),
+    range('09')(a => [fromCharCode(a)]),
+    one(':')(() => [':']),
+    one(';')(() => [';']),
+    one('<')(() => ['<']),
+    one('=')(() => ['=']),
+    one('>')(() => ['>']),
+    one('?')(() => ['?']),
+    range('AZ')(idBegin),
+    one('[')(() => ['[']),
+    one(']')(() => [']']),
+    one('^')(() => ['^']),
+    one('_')(idBegin),
+    one('`')(() => ['`']),
+    range('az')(idBegin),
+    one('{')(() => ['{']),
+    one('|')(() => ['|']),
+    one('}')(() => ['}']),
+    one('~')(() => ['~']),
 ])
 
 module.exports = {
