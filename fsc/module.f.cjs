@@ -62,8 +62,8 @@ const newLine = () => ['\n']
 // - set('ad')   => [['a', 'a'], ['d', 'd']]
 // - union([range('AZ'), set('_$'), range('az')]) => [['_', '_'], ['$', '$'], ['A', 'Z'], ['a', 'z']]
 // proposal # 2
-// - 'A-Z_$a-z'
-// - '\-'
+// - 'A-Z_$a-z' => [['_', '_'], ['$', '$'], ['A', 'Z'], ['a', 'z']]
+// - '\\-'       => [['-', '-']]
 
 const init = mapReduce([
     cp(terminal)(() => []),
