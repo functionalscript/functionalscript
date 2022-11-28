@@ -4,7 +4,7 @@
 {
     "a": 34.5,
     "b": true,
-    "c": [null],
+    "c": [null]
 }
 ```
 
@@ -45,6 +45,6 @@
 <span class="symbol">{</span>
     <span class="string">"a"<span><span class="symbol">:</span> <span class="number">34.5</span><span class="symbol">,<span>
     <span class="string">"b"<span><span class="symbol">:</span> <span class="bool">true</span><span class="symbol">,<span>
-    <span class="string">"c"<span><span class="symbol">:</span> <span class="symbol">[</span><span class="null">null</span><span class="symbol">]</span><span class="symbol">,<span>
+    <span class="string">"c"<span><span class="symbol">:</span> <span class="symbol">[</span><span class="null">null</span><span class="symbol">]</span>
 </pre>
 ```
