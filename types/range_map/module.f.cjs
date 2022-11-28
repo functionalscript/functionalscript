@@ -81,6 +81,9 @@ const get = def => value => rm => {
 /** @type {<T>(def: T) => (r: _range.Range) => (value: T) => RangeMapArray<T>} */
 const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]
 
+/** @type {<T>(def: T) => (r: number) => (value: T) => RangeMapArray<T>} */
+const fromOne = def => a => fromRange(def)([a, a])
+
 module.exports = {
     /** @readonly */
     merge,
@@ -88,4 +91,6 @@ module.exports = {
     get,
     /** @readonly */
     fromRange,
+    /** @readonly */
+    fromOne,
 }

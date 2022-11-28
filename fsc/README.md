@@ -41,9 +41,9 @@
   - `<<=` - leftShiftAssignment
   - `<=` - lessEqual
 - `=` - assignment
- - `==` - nonStrictEqual ?
- - `===` - equal
- - `=>` - arrow
+  - `==` - nonStrictEqual ?
+  - `===` - equal
+  - `=>` - arrow
 - `>` - greater
   - `<=` - greaterEqual
   - `>>` - rightShift
