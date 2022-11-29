@@ -157,8 +157,7 @@ const rust = library => {
 
     /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
     const func = first => p => {
-        const result = p._
-        const resultStr = result === undefined ? '' : ` -> ${type(super_)(ref)(result)}`
+        const resultStr = '_' in p ? ` -> ${type(super_)(ref)(p._)}` : ''
         const params = commaJoin(flat([first, mapParam(paramList(p))]))
         return `(${params})${resultStr}`
     }
