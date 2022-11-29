@@ -69,14 +69,14 @@ const parseLocal = local => {
 
 /** @typedef {readonly[string, list.List<string>]} IdPath */
 
-/** @type {(prior: readonly[string|undefined, list.List<string>]) => list.Thunk<IdPath>} */
+/** @type {(prior: readonly[string|null, list.List<string>]) => list.Thunk<IdPath>} */
 const variants = prior => () => {
     const [a, b] = prior
     const r = next(b)
     if (r === undefined) { return undefined }
     const { first, tail } = r
     /** @type {IdPath} */
-    const n = [a === undefined ? first : `${a}/${first}`, tail]
+    const n = [a === null ? first : `${a}/${first}`, tail]
     return { first: n, tail: variants(n) }
 }
 
@@ -104,7 +104,7 @@ const parseGlobal = dependencies =>
 {
     const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
-        const v = variants([undefined, items])
+        const v = variants([null, items])
         const r = firstNull(fMap(v))
         if (r === null) { return undefined }
         return { package: r[0], items: toArray(r[1]), dir }

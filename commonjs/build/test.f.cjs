@@ -13,9 +13,9 @@ const compileMap = {
             let [r, m] = require_('./b')(m0);
             if (r[0] === 'error') { throw JSON.stringify(r) }
             [r, m] = require_('./a/')(m);
-            if (r[0] === 'error') { throw r }
+            if (r[0] === 'error') { throw JSON.stringify(r) }
             [r, m] = require_('x/r')(m);
-            if (r[0] === 'error') { throw r }
+            if (r[0] === 'error') { throw JSON.stringify(r) }
             return [['ok', ':index.js'], m]
         }],
     ':b.js': [
