@@ -58,7 +58,7 @@ const cpp = name => lib => {
             return null
         }
         const [name] = t
-        return lib[name].interface !== undefined ? name : null
+        return 'interface' in lib[name] ? name : null
     }
 
     /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
@@ -66,8 +66,8 @@ const cpp = name => lib => {
         if (typeof (t) === 'string') { return baseType(t) }
         if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
-        if (lib[id].interface === undefined) { return id }
-        return i(id)
+        if ('interface' in lib[id]) { return i(id) }
+        return id
     }
 
     const type = objectType(comRef)
@@ -127,15 +127,15 @@ const cpp = name => lib => {
     }
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
-    const def = ([name, d]) => d.interface === undefined
-        ? struct(name)(defStruct(d))
-        : [
+    const def = ([name, d]) => 'interface' in d
+        ? [
             `class ${name} : public ::nanocom::IUnknown`,
             '{',
             'public:',
             defInterface(d),
             '};'
         ]
+        : struct(name)(defStruct(d))
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]
