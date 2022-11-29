@@ -292,18 +292,18 @@ const parseEscapeCharStateOp = state => input => {
     }
 }
 
-/** @type {(hex: number) => number|undefined} */
+/** @type {(hex: number) => number|null} */
 const hexDigitToNumber = hex => {
     if (containsDigit(hex)) { return hex - digit0 }
     if (containsCapitalAF(hex)) { return hex - latinCapitalLetterA + 10 }
     if (containsSmallAF(hex)) { return hex - latinSmallLetterA + 10 }
-    return undefined
+    return null
 }
 
 /** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const parseUnicodeCharStateOp = state => input => {
     const hexValue = hexDigitToNumber(input)
-    if (hexValue === undefined) {
+    if (hexValue === null) {
         const next = tokenizeOp({ kind: 'string', value: state.value })(input)
         return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
     }
