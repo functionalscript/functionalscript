@@ -71,7 +71,7 @@ const getOrBuild = _.getOrBuild
     (/** @type {module_.MapInterface<map.Map<module_.State>>} */(map))
 
 module.exports = () => {
-    let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
+    let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(map.empty)
     {
         const x = JSON.stringify(r)
         if (x !==

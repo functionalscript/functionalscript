@@ -121,7 +121,7 @@ export const loadModuleMap = async () => {
             const pathStr = path.join('/')
             {
                 const module = d[pathStr]
-                if (module !== undefined) {
+                if (module !== void 0) {
                     return [pathStr, module]
                 }
             }

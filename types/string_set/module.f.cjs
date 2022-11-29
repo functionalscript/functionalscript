@@ -6,6 +6,7 @@ const {
     set: { set: btreeSet },
     /** @type {(s: StringSet) => list.List<string>} */
     values,
+    empty,
 } = btree
 const { cmp } = require("../string/module.f.cjs")
 const list = require('../list/module.f.cjs')
@@ -29,6 +30,8 @@ const fromValues = fold(set)(undefined)
 const remove = compose(cmp)(btreeRemove)
 
 module.exports = {
+    /** @readonly */
+    empty,
     /** @readonly */
     contains,
     /** @readonly */
