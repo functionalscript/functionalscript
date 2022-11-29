@@ -85,7 +85,7 @@ const uncheckTail = a => a.slice(1)
 const uncheckHead = a => a.slice(0, -1)
 
 /** @type {<T>(a: T|undefined) => T|null} */
-const undefinedToNull = a => a === undefined ? null : a
+const undefinedToNull = a => a === void 0 ? null : a
 
 /** @type {<T>(_: readonly T[]) => T|null} */
 const first = a => undefinedToNull(a[0])
