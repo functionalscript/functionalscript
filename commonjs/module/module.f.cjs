@@ -38,10 +38,10 @@ const object = require('../../types/object/module.f.cjs')
  * }} Id
  */
 
-/** @type {(id: Id) => Id | undefined} */
+/** @type {(id: Id) => Id | null} */
 const dir = id => {
     const len = id.path.length
-    if (len < 1) { return undefined }
+    if (len < 1) { return null }
     return {
         package: id.package,
         path: id.path.slice(0, len - 1)
