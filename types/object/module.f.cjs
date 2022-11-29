@@ -16,8 +16,11 @@ const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
  * @typedef {readonly[string, T]} Entry
  */
 
-/** @type {(name: string) => <T>(object: Map<T>) => T|undefined} */
-const at = name => object => getOwnPropertyDescriptor(object, name)?.value
+/** @type {(name: string) => <T>(object: Map<T>) => T|null} */
+const at = name => object => {
+    const r = getOwnPropertyDescriptor(object, name)
+    return r === void 0 ? null : r.value
+}
 
 /** @type {<T>(e: list.List<Entry<T>>) => list.List<Entry<T>>} */
 const sort = e => mapEntries(mapFromEntries(e))
@@ -26,7 +29,7 @@ const sort = e => mapEntries(mapFromEntries(e))
 const fromEntries = e => objectFromEntries(iterable(e))
 
 /** @type {<T>(m: map.Map<T>) => Map<T>} */
-const fromMap =  m => fromEntries(mapEntries(m))
+const fromMap = m => fromEntries(mapEntries(m))
 
 module.exports = {
     /** @readonly */

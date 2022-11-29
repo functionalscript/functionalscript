@@ -4,7 +4,7 @@ module.exports = {
     ctor: () => {
         const a = {}
         const value = _.at('constructor')(a)
-        if (value !== undefined) { throw value }
+        if (value !== null) { throw value }
     },
     property: () => {
         const a = { constructor: 42 }

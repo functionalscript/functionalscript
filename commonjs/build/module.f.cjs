@@ -58,7 +58,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             const error = e => [['error', e], [requireMap, m]]
             if (moduleDir === null) { return error('file not found') }
             const r = parseAndFind(packageGet)(moduleDir)(p)
-            if (r === undefined) { return error('file not found') }
+            if (r === null) { return error('file not found') }
             const rIdStr = idToString(r.id)
             if (setContains(rIdStr)(buildSet1)) { return error('circular reference') }
             const [state, m1] = build(buildSet1)(r.id)(r.source)(m)
