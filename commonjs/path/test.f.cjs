@@ -49,14 +49,14 @@ module.exports = {
         if (stringify(result) !== '{"external":false,"dir":true,"items":[]}') { throw result }
     },
     8: {
-        0: () => { if (_.parseGlobal(() => null)(false)(['a', 'b']) !== undefined) { throw 'error' } },
-        1: () => { if (_.parseGlobal(() => null)(false)(['b']) !== undefined) { throw 'error' } },
-        2: () => { if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' } },
+        0: () => { if (_.parseGlobal(() => null)(false)(['a', 'b']) !== null) { throw 'error' } },
+        1: () => { if (_.parseGlobal(() => null)(false)(['b']) !== null) { throw 'error' } },
+        2: () => { if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== null) { throw 'error' } },
         3: () => {
             const result = stringify(_.parseGlobal(i({ b: 'x' }))(false)(['b']))
             if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
         },
-        4: () => { if (_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' } },
+        4: () => { if (_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b']) !== null) { throw 'error' } },
         5: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b', 'r']))
             if (result !== '{"package":"x","items":[],"dir":false}') { throw result }

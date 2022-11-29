@@ -98,7 +98,7 @@ const mapDependency = d => ([external, internal]) => {
  * @type {(d: (local: string) => string|null) =>
  *  (dir: boolean) =>
  *  (items: list.List<string>) =>
- *  Path|undefined}
+ *  Path|null}
  */
 const parseGlobal = dependencies =>
 {
@@ -106,7 +106,7 @@ const parseGlobal = dependencies =>
     return dir => items => {
         const v = variants([null, items])
         const r = firstNull(fMap(v))
-        if (r === null) { return undefined }
+        if (r === null) { return null }
         return { package: r[0], items: toArray(r[1]), dir }
     }
 }
@@ -116,13 +116,13 @@ const parseGlobal = dependencies =>
  *  (dependencies: (local: string) => string|null) =>
  *  (local: string) =>
  *  (path: string) =>
- *  Path|undefined }
+ *  Path|null }
  */
 const parse = packageId => dependencies => {
     const pg = parseGlobal(dependencies)
     return local => path => {
         const parsed = parseLocal(local)(path)
-        if (parsed === null) { return undefined }
+        if (parsed === null) { return null }
         const {external, dir, items } = parsed
         if (!external) { return { package: packageId, items, dir } }
         return pg(dir)(items)
@@ -149,7 +149,7 @@ const parseAndFind = packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
     if (currentPack === null) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
-    if (p === undefined) { return null }
+    if (p === null) { return null }
     const pack = packageGet(p.package)
     if (pack === null) { return null }
     /** @type {(file: string) => FoundResult | undefined } */
