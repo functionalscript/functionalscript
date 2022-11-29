@@ -17,17 +17,17 @@ const module_ = require("../module/module.f.cjs")
 /** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
-/** @typedef {readonly[list.List<string>] | undefined} OptionList */
+/** @typedef {readonly[list.List<string>] | null} OptionList */
 
 /** @type {(items: string) => (prior: OptionList) => OptionList} */
 const normItemsOp = first => prior => {
-    if (prior === undefined) { return undefined }
+    if (prior === null) { return null }
     const tail = prior[0]
     switch (first) {
         case '': case '.': { return prior }
         case '..': {
             const result = next(tail)
-            if (result === undefined) { return undefined }
+            if (result === undefined) { return null }
             return [result.tail]
         }
         default: {
@@ -39,7 +39,7 @@ const normItemsOp = first => prior => {
 /** @type {(items: list.List<string>) => OptionList} */
 const normItems = items => {
     const result = fold(normItemsOp)([undefined])(items)
-    return result === undefined ? result : [reverse(result[0])]
+    return result === null ? result : [reverse(result[0])]
 }
 
 const firstUndefined = first(undefined)
@@ -60,7 +60,7 @@ const parseLocal = local => {
     const f = path => {
         const [external, dir, items] = fSeq(path)
         const n = normItems(items)
-        if (n === undefined) { return undefined }
+        if (n === null) { return undefined }
         return {
             external,
             dir,
