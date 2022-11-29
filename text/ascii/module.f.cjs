@@ -13,7 +13,9 @@ const one = s => at(s)(0)
 /** @type {(s: string) => _range.Range} */
 const range = s => {
     const f = at(s)
-    return [f(0), f(1)]
+    const f0 = f(0)
+    if (s.length === 1) { return [f0, f0] }
+    return [f0, f(1)]
 }
 
 module.exports = {

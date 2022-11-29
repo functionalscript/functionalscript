@@ -37,7 +37,7 @@ const _range = require('../range/module.f.cjs')
 
 /**
  * @template T
- * @typedef {(a: RangeMap<T>) => (b: RangeMap<T>) => RangeMap<T>} RangeMerge
+ * @typedef {operator.Reduce<RangeMap<T>>} RangeMerge
  */
 
 /** @type {<T>(union: operator.Reduce<T>) => (equal: operator.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
