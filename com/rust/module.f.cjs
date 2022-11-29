@@ -51,22 +51,26 @@ const this_ = ['this: &Object']
 const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
 
 /**
- * @typedef {{
- *  readonly where?: readonly string[]
- *  readonly content: text.Block
- * }} WhereContent
+ * @template T
+ * @typedef {T|{}} OptionalProperty
+ */
+
+/** @typedef {{readonly where: readonly string[]}} Where */
+
+/**
+ * @typedef {OptionalProperty<Where> & {readonly content: text.Block}} WhereContent
  */
 
 /** @type {(h: string) => (wh: WhereContent) => text.Block} */
-const whereContent = h => ({ where, content }) => {
-    const w = isEmpty(where) ? [`${h} {`] : [
+const whereContent = h => wh => {
+    const w = 'where' in wh ? [
         h,
         `where`,
-        mapComma(where),
+        mapComma(wh.where),
         '{'
-    ]
+    ]: [`${h} {`]
     const x = [
-        content,
+        wh.content,
         '}',
     ]
     return flat([w, x])
