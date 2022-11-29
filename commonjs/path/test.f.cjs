@@ -9,11 +9,8 @@ const package_ = require('../package/module.f.cjs')
 /** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
 const i = o => s => at(s)(o)
 
-/** @type {(g: json.Unknown|undefined) => string} */
-const stringify = g => {
-    if (g === undefined) { throw g }
-    return json.stringify(identity)(g)
-}
+/** @type {(g: json.Unknown) => string} */
+const stringify = json.stringify(identity)
 
 module.exports = {
     0: () => {
