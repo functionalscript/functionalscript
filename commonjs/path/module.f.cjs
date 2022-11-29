@@ -42,7 +42,7 @@ const normItems = items => {
     return result === null ? result : [reverse(result[0])]
 }
 
-const firstUndefined = first(undefined)
+// const firstUndefined = first(undefined)
 
 const firstNull = first(null)
 
@@ -107,8 +107,8 @@ const parseGlobal = dependencies =>
     const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
         const v = variants([undefined, items])
-        const r = firstUndefined(fMap(v))
-        if (r === undefined) { return undefined }
+        const r = firstNull(fMap(v))
+        if (r === null) { return undefined }
         return { package: r[0], items: toArray(r[1]), dir }
     }
 }
