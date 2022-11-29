@@ -1,6 +1,5 @@
 const _ = require('./module.f.cjs')
 const { one } = require('../text/ascii/module.f.cjs')
-const { get } = require('../types/range_map/module.f.cjs')
 const { stringify } = require('../json/module.f.cjs')
 const s = stringify(i => i)
 
