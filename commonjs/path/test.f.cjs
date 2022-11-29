@@ -48,27 +48,27 @@ module.exports = {
         const result = _.parseLocal('')('./x/..')
         if (stringify(result) !== '{"external":false,"dir":true,"items":[]}') { throw result }
     },
-    8: () => {
-        if (_.parseGlobal(() => null)(false)(['a', 'b']) !== undefined) { throw 'error' }
-        if (_.parseGlobal(() => null)(false)(['b']) !== undefined) { throw 'error' }
-        if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' }
-        {
+    8: {
+        0: () => { if (_.parseGlobal(() => null)(false)(['a', 'b']) !== undefined) { throw 'error' } },
+        1: () => { if (_.parseGlobal(() => null)(false)(['b']) !== undefined) { throw 'error' } },
+        2: () => { if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' } },
+        3: () => {
             const result = stringify(_.parseGlobal(i({ b: 'x' }))(false)(['b']))
             if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
-        }
-        if (_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' }
-        {
+        },
+        4: () => { if (_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' } },
+        5: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b', 'r']))
             if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
-        }
-        {
+        },
+        6: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b', 'r', 'd', 't']))
             if (result !== '{"package":"x","items":["d","t"],"dir":false}') { throw result }
-        }
-        {
+        },
+        7: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(true)(['b', 'r', 'd', 't']))
             if (result !== '{"package":"x","items":["d","t"],"dir":true}') { throw result }
-        }
+        },
     },
     9: () => {
         /** @type {object.Map<package_.Package>} */
