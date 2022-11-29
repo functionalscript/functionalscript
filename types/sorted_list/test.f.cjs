@@ -37,11 +37,11 @@ module.exports = {
         },
         () => {
             const result = _.find(unsafeCmp)(3)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
-            if (result !== undefined) { throw result }
+            if (result !== null) { throw result }
         },
         () => {
             const result = _.find(unsafeCmp)(77)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
-            if (result !== undefined) { throw result }
+            if (result !== null) { throw result }
         },
         () => {
             const result = _.find(unsafeCmp)(80)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])

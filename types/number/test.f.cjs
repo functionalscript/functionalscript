@@ -8,7 +8,7 @@ module.exports = {
     min: {
         empty: () => {
             const result = min([])
-            if (result !== undefined) { throw result }
+            if (result !== null) { throw result }
         },
         multi: () => {
             const result = min([1, 2, 12, -4, 8])

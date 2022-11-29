@@ -63,32 +63,32 @@ const genericMerge = reduce => {
 
 /**
  * @template T
- * @typedef {ReduceOp<T, undefined>} CmpReduceOp
+ * @typedef {ReduceOp<T, null>} CmpReduceOp
  */
 
 /** @type {<T>(cmp: Cmp<T>) => (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>} */
 const merge = cmp => {
     /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T*/
-    /** @type {TailReduce<T, undefined>} */
+    /** @type {TailReduce<T, null>} */
     const tailReduce = mergeTail
-    return genericMerge({ reduceOp: cmpReduce(cmp), tailReduce })(undefined)
+    return genericMerge({ reduceOp: cmpReduce(cmp), tailReduce })(null)
 }
 
 /** @type {<T>(cmp: Cmp<T>) => CmpReduceOp<T>} */
 const cmpReduce = cmp => () => a => b => {
     const sign = cmp(a)(b)
-    return [sign === 1 ? b : a, sign, undefined]
+    return [sign === 1 ? b : a, sign, null]
 }
 
 /** @type {() => <T>(tail: list.List<T>) => list.List<T>} */
 const mergeTail = () => identity
 
-/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|undefined} */
+/** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|null} */
 const find = cmp => value => array => {
     let b = 0
     let e = array.length - 1
     while (true) {
-        if (e - b < 0) return undefined
+        if (e - b < 0) return null
         const mid = b + (e - b >> 1)
         const sign = cmp(value)(array[mid])
         switch(sign) {
