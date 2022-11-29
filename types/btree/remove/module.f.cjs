@@ -4,7 +4,7 @@ const find = require('../find/module.f.cjs')
 const list = require('../../list/module.f.cjs')
 const { fold, concat, next } = list
 const array = require('../../array/module.f.cjs')
-const { map } = require('../../option/module.f.cjs')
+const { map } = require('../../nullable/module.f.cjs')
 
 /**
  * @template T
