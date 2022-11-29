@@ -39,7 +39,7 @@ const at = name => map => {
 }
 
 /** @type {<T>(reduce: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
-const setReduceEntry = reduce => entry => set(keyCmp(entry[0]))(old => old === undefined ? entry : [old[0], reduce(old[1])(entry[1])])
+const setReduceEntry = reduce => entry => set(keyCmp(entry[0]))(old => old === null ? entry : [old[0], reduce(old[1])(entry[1])])
 
 /** @type {<T>(reduce: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
 const setReduce = reduce => name => value => setReduceEntry(reduce)([name, value])
