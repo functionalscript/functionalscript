@@ -49,7 +49,7 @@ const parseLocal = local => {
     /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
-        const dir = [undefined, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
+        const dir = [null, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
         return /** @type {readonly (string|null)[]} */(['.', '..']).includes(firstNull(pathSeq)) ?
             [false, dir, flat([split(local), pathSeq])] :
             [true, dir, pathSeq]
