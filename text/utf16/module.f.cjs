@@ -82,7 +82,7 @@ const stringToList = s => {
     /** @type {(i: number) => list.Result<number>} */
     const at = i => {
         const first = s.charCodeAt(i)
-        return isNaN(first) ? undefined : { first, tail: () => at(i + 1) }
+        return isNaN(first) ? empty : { first, tail: () => at(i + 1) }
     }
     return at(0)
 }
