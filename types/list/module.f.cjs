@@ -36,7 +36,6 @@ const {
 /**
  * @template T
  * @typedef {{
- *  readonly isConcat?: undefined
  *  readonly first: T
  *  readonly tail: List<T>
  * }} NonEmpty
@@ -45,7 +44,6 @@ const {
 /**
  * @template T
  * @typedef {{
- *  readonly isConcat: true
  *  readonly a: List<T>
  *  readonly b: List<T>
  * }} Concat
@@ -78,7 +76,7 @@ const next = list => {
 
         if (a instanceof Array) {
             a = fromArray(a)
-        } else if (a?.isConcat) {
+        } else if (a !== undefined && 'a' in a) {
             [a, b] = [a.a, concat(a.b)(b)]
             continue
         }
