@@ -3,7 +3,6 @@ const list = require('../list/module.f.cjs')
 const option = require('../nullable/module.f.cjs')
 const { next } = list
 const { identity } = require('../function/module.f.cjs')
-const range = require('../range/module.f.cjs')
 
 /**
  * @template T
