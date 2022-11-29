@@ -29,7 +29,7 @@ const sort = e => mapEntries(mapFromEntries(e))
 const fromEntries = e => objectFromEntries(iterable(e))
 
 /** @type {<T>(m: map.Map<T>) => Map<T>} */
-const fromMap =  m => fromEntries(mapEntries(m))
+const fromMap = m => fromEntries(mapEntries(m))
 
 module.exports = {
     /** @readonly */
