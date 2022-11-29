@@ -6,7 +6,7 @@ const { map, flat, stateScan, reduce, flatMap } = list
 
 /** @typedef {u16|null} WordOrEof */
 
-/** @typedef {undefined|number} Utf16State */
+/** @typedef {number|null} Utf16State */
 
 /** @typedef {number} u16 */
 
@@ -50,23 +50,23 @@ const utf16ByteToCodePointOp = state => word => {
     if (!u16(word)) {
         return [[0xffffffff], state]
     }
-    if (state === undefined) {
-        if (isBmpCodePoint(word)) { return [[word], undefined] }
+    if (state === null) {
+        if (isBmpCodePoint(word)) { return [[word], null] }
         if (isHighSurrogate(word)) { return [[], word] }
-        return [[word | errorMask], undefined]
+        return [[word | errorMask], null]
     }
     if (isLowSurrogate(word)) {
         const high = state - 0xd800
         const low = word - 0xdc00
-        return [[(high << 10) + low + 0x10000], undefined]
+        return [[(high << 10) + low + 0x10000], null]
     }
-    if (isBmpCodePoint(word)) { return [[state | errorMask, word], undefined] }
+    if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
     if (isHighSurrogate(word)) { return [[state | errorMask], word] }
-    return [[state | errorMask, word | errorMask], undefined]
+    return [[state | errorMask, word | errorMask], null]
 }
 
 /** @type {(state: Utf16State) => readonly[list.List<i32>, Utf16State]} */
-const utf16EofToCodePointOp = state => [state === undefined ? undefined : [state | errorMask],  undefined]
+const utf16EofToCodePointOp = state => [state === null ? undefined : [state | errorMask],  null]
 
 /** @type {operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
 const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
@@ -75,7 +75,7 @@ const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofT
 const eofList = [null]
 
 /** @type {(input: list.List<u16>) => list.List<i32>} */
-const toCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(undefined)(flat([input, eofList])))
+const toCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
 /** @type {(s: string) => list.List<u16>} */
 const stringToList = s => {
