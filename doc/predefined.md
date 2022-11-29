@@ -8,7 +8,7 @@ Global objects. Global objects can't be assigned to something `const r = Object`
 
 - [x] `Infinity`
 - [x] `NaN`
-- [x] `undefined`
+- [ ] `undefined`
 - [ ] `globalThis`
 
 ### Function properties
@@ -120,7 +120,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
 - [ ] ! `constructor`. The property can create a new function. For example
   ```js
-  const f = (() => undefined).constructor('a', 'return a * a')
+  const f = (() => null).constructor('a', 'return a * a')
   ```
 - [ ] deprecated `__proto__`
 - [ ] ! deprecated `__defineGetter__`. The property can mutate an object.
