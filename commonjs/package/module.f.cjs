@@ -2,6 +2,7 @@ const json = require('../../json/module.f.cjs')
 const { isObject } = json
 const dependencies = require('./dependencies/module.f.cjs')
 const { isDependenciesJson } = dependencies
+const { at } = require('../../types/object/module.f.cjs')
 
 /**
  * @typedef {{
@@ -16,7 +17,7 @@ const isPackageJson = j => {
     if (!isObject(j)) { return false }
     if (typeof j.name !== 'string') { return false }
     if (typeof j.version !== 'string') { return false }
-    if (!isDependenciesJson(j.dependencies)) { return false }
+    if (!isDependenciesJson(at('dependencies')(j))) { return false }
     return true
 }
 

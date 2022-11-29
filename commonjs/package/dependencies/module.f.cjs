@@ -8,14 +8,14 @@ const { entries } = Object
 
 /** @typedef {{readonly[k in string]: string}} DependencyMapJson */
 
-/** @typedef {DependencyMapJson|undefined} DependenciesJson */
+/** @typedef {DependencyMapJson|null} DependenciesJson */
 
 /** @type {(entry: json.Entry) => boolean} */
 const isDependencyJson = ([, v]) => typeof v === 'string'
 
-/** @type {(j: json.Unknown|undefined) => j is DependenciesJson} */
+/** @type {(j: json.Unknown) => j is DependenciesJson} */
 const isDependenciesJson = j => {
-    if (j === undefined) { return true }
+    if (j === null) { return true }
     if (!isObject(j)) { return false }
     return every(map(isDependencyJson)(entries(j)))
 }
