@@ -2,7 +2,7 @@ const list = require('../../types/list/module.f.cjs')
 const operator = require('../../types/function/operator/module.f.cjs')
 const { contains } = require('../../types/range/module.f.cjs')
 const { fn } = require('../../types/function/module.f.cjs')
-const { map, flat, stateScan, reduce, flatMap } = list
+const { map, flat, stateScan, reduce, flatMap, empty } = list
 
 /** @typedef {u16|null} WordOrEof */
 
@@ -66,7 +66,7 @@ const utf16ByteToCodePointOp = state => word => {
 }
 
 /** @type {(state: Utf16State) => readonly[list.List<i32>, Utf16State]} */
-const utf16EofToCodePointOp = state => [state === null ? undefined : [state | errorMask],  null]
+const utf16EofToCodePointOp = state => [state === null ? empty : [state | errorMask],  null]
 
 /** @type {operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
 const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
