@@ -6,11 +6,8 @@ const object = require('../../types/object/module.f.cjs')
 const { at } = require('../../types/object/module.f.cjs')
 const package_ = require('../package/module.f.cjs')
 
-/** @type {<T>(o: object.Map<T>) => (s: string) => T|undefined} */
-const i = o => s => {
-    const r = at(s)(o)
-    return r === null ? undefined : r
-}
+/** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
+const i = o => s => at(s)(o)
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {
@@ -51,27 +48,27 @@ module.exports = {
         const result = _.parseLocal('')('./x/..')
         if (stringify(result) !== '{"external":false,"dir":true,"items":[]}') { throw result }
     },
-    8: () => {
-        if (_.parseGlobal(() => undefined)(false)(['a', 'b']) !== undefined) { throw 'error' }
-        if (_.parseGlobal(() => undefined)(false)(['b']) !== undefined) { throw 'error' }
-        if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' }
-        {
+    8: {
+        0: () => { if (_.parseGlobal(() => null)(false)(['a', 'b']) !== null) { throw 'error' } },
+        1: () => { if (_.parseGlobal(() => null)(false)(['b']) !== null) { throw 'error' } },
+        2: () => { if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== null) { throw 'error' } },
+        3: () => {
             const result = stringify(_.parseGlobal(i({ b: 'x' }))(false)(['b']))
             if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
-        }
-        if (_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b']) !== undefined) { throw 'error' }
-        {
+        },
+        4: () => { if (_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b']) !== null) { throw 'error' } },
+        5: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b', 'r']))
             if (result !== '{"package":"x","items":[],"dir":false}') { throw result }
-        }
-        {
+        },
+        6: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(false)(['b', 'r', 'd', 't']))
             if (result !== '{"package":"x","items":["d","t"],"dir":false}') { throw result }
-        }
-        {
+        },
+        7: () => {
             const result = stringify(_.parseGlobal(i({ 'b/r': 'x' }))(true)(['b', 'r', 'd', 't']))
             if (result !== '{"package":"x","items":["d","t"],"dir":true}') { throw result }
-        }
+        },
     },
     9: () => {
         /** @type {object.Map<package_.Package>} */
@@ -90,7 +87,7 @@ module.exports = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
-                    return at(path)(packages) !== undefined ? path : undefined
+                    return at(path)(packages) !== null ? path : null
                 },
                 file: i({
                     'index.js': 'return "index.js"',
@@ -140,7 +137,7 @@ module.exports = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
-                    return at(path)(packages) !== null ? path : undefined
+                    return at(path)(packages) !== null ? path : null
                 },
                 file: todo
             },
@@ -167,7 +164,7 @@ module.exports = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
-                    return at(path)(packages) !== null ? path : undefined
+                    return at(path)(packages) !== null ? path : null
                 },
                 file: todo
             },

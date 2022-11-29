@@ -90,10 +90,10 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         }
         // check package
         const p = packageGet(moduleId.package)
-        if (p === undefined) { return notFound(moduleMap) }
+        if (p === null) { return notFound(moduleMap) }
         // check file
         const source = p.file(moduleId.path.join('/'))
-        return (source === undefined ? notFound : build(undefined)(moduleId)(source))(moduleMap)
+        return (source === null ? notFound : build(undefined)(moduleId)(source))(moduleMap)
     }
     return f
 }

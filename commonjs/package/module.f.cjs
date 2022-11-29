@@ -22,14 +22,14 @@ const isPackageJson = j => {
 
 /**
  * @typedef {{
- *  readonly dependency: (localPackageId: string) => string | undefined
- *  readonly file: (localFileId: string) => string | undefined
+ *  readonly dependency: (localPackageId: string) => string | null
+ *  readonly file: (localFileId: string) => string | null
  * }} Package
  */
 
 /**
  * @note Current package has an empty string '' as a packageId.
- * @typedef {(packageId: string) => Package | undefined} Get
+ * @typedef {(packageId: string) => Package | null} Get
  */
 
 module.exports = {
