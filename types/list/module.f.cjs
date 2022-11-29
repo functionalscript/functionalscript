@@ -46,8 +46,8 @@ const {
 /**
  * @template T
  * @typedef {{
- *  readonly a: List<T>
- *  readonly b: List<T>
+ *  readonly left: List<T>
+ *  readonly right: List<T>
  * }} Concat
  */
 
@@ -60,36 +60,35 @@ const fromArray = array => {
 }
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
-const concat = a => b => b === undefined ? a : ({ a, b })
+const concat = left => right => right === undefined ? left : ({ left, right })
 
 /** @type {<T>(list: List<T>) => NotLazy<T> } */
 const trampoline = list => {
-    let i = list
-    while (typeof i === 'function') { i = i() }
-    return i
+    while (typeof list === 'function') { list = list() }
+    return list
 }
 
 /** @type {<T>(list: List<T>) => Result<T>} */
-const next = list => {
-    /** @type {readonly[typeof list, typeof list]} */
-    let [a, b] = [list, undefined]
+const next = left => {
+    /** @type {typeof left} */
+    let right = undefined
     while (true) {
-        a = trampoline(a)
+        left = trampoline(left)
 
-        if (a instanceof Array) {
-            a = fromArray(a)
-        } else if (a !== undefined && 'a' in a) {
-            [a, b] = [a.a, concat(a.b)(b)]
+        if (left instanceof Array) {
+            left = fromArray(left)
+        } else if (left !== undefined && 'left' in left) {
+            [left, right] = [left.left, concat(left.right)(right)]
             continue
         }
 
-        if (a !== undefined) {
-            return { first: a.first, tail: concat(a.tail)(b) }
+        if (left !== undefined) {
+            return { first: left.first, tail: concat(left.tail)(right) }
         }
 
-        if (b === undefined) { return undefined }
+        if (right === undefined) { return undefined }
 
-        [a, b] = [b, undefined]
+        [left, right] = [right, undefined]
     }
 }
 
