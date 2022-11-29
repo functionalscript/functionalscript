@@ -1,6 +1,6 @@
 /**
  * @template T
- * @typedef {T|undefined} Option
+ * @typedef {T|undefined} Nullable
  */
 
 /** @type {<T, R>(f: (value: T) => R) => (value: T|undefined) => R|undefined} */

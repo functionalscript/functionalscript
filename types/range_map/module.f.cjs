@@ -32,7 +32,7 @@ const _range = require('../range/module.f.cjs')
 
 /**
  * @template T
- * @typedef {option.Option<Entry<T>>} RangeState
+ * @typedef {option.Nullable<Entry<T>>} RangeState
  */
 
 /**

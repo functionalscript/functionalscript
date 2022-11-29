@@ -22,7 +22,7 @@ const { identity } = require('../function/module.f.cjs')
 /**
  * @template T
  * @template S
- * @typedef {(state: S) => (a: T) => (b: T) => readonly[option.Option<T>, compare.Sign, S]} ReduceOp
+ * @typedef {(state: S) => (a: T) => (b: T) => readonly[option.Nullable<T>, compare.Sign, S]} ReduceOp
  */
 
 /**
