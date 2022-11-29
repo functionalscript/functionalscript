@@ -3,13 +3,13 @@ const module_ = require('../module/module.f.cjs')
 const { idToString, dir } = module_
 const function_ = require('../module/function/module.f.cjs')
 const map = require('../../types/map/module.f.cjs')
-const { empty, setReplace } = map
+const { empty: mapEmpty, setReplace } = map
 const object = require('../../types/object/module.f.cjs')
 const { fromMap } = object
 const path = require('../path/module.f.cjs')
 const { parseAndFind } = path
 const stringSet = require('../../types/string_set/module.f.cjs')
-const { set: setSet, contains: setContains } = stringSet
+const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 
 /**
  * @template M
@@ -73,7 +73,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             const [kind, result] = compile(source)
             if (kind === 'error') { return error(['compilation error', result])(moduleMap) }
             // build
-            const [[state, value], [requireMap, moduleMap2]] = result(require_)([empty, moduleMap])
+            const [[state, value], [requireMap, moduleMap2]] = result(require_)([mapEmpty, moduleMap])
             const x = state === 'error' ?
                 error(['runtime error', value]) :
                 set(['ok', { exports: value, requireMap: fromMap(requireMap) }])
@@ -93,7 +93,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         if (p === null) { return notFound(moduleMap) }
         // check file
         const source = p.file(moduleId.path.join('/'))
-        return (source === null ? notFound : build(undefined)(moduleId)(source))(moduleMap)
+        return (source === null ? notFound : build(stringSetEmpty)(moduleId)(source))(moduleMap)
     }
     return f
 }
