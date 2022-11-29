@@ -4,7 +4,7 @@
  * @typedef {readonly[
  *  string,
  *  PackageMap,
- *  (fileName: string) => string|undefined
+ *  (fileName: string) => string|null
  * ]} Package
  */
 
