@@ -1,6 +1,6 @@
 const operator = require('../types/function/operator/module.f.cjs')
 const range_map = require('../types/range_map/module.f.cjs')
-const { merge: rangeMapMerge, fromRange } = range_map
+const { merge: rangeMapMerge, fromRange, get } = range_map
 const { reduce: listReduce } = require('../types/list/module.f.cjs')
 const { range: asciiRange } = require('../text/ascii/module.f.cjs')
 const { fromCharCode } = String
@@ -19,79 +19,100 @@ const { toArray, map } = list
  * @typedef {(state: T) => ToResult} CreateToResult
  */
 
-/** @typedef {range_map.RangeMapArray<ToResult>} State */
+/**
+ * @template T
+ * @typedef {range_map.RangeMapArray<CreateToResult<T>>} State
+ */
 
 /** @type {ToResult} */
 const unknownSymbol = a => [[`unknown symbol ${a}`], unknownSymbol]
 
-/** @type {operator.Reduce<ToResult>} */
+/** @type {<T>(a: T) => ToResult} */
+const def = () => unknownSymbol
+
+/** @type {<T>(a: CreateToResult<T>) => (b: CreateToResult<T>) => CreateToResult<T>} */
 const union = a => b => {
-    if (a === unknownSymbol || a === b) { return b }
-    if (b === unknownSymbol) { return a }
+    if (a === def || a === b) { return b }
+    if (b === def) { return a }
     throw [a, b]
 }
 
-const merge = rangeMapMerge({
-    union,
-    equal: operator.strictEqual,
-})
-
-/** @type {State} */
+/** @type {readonly never[]} */
 const empty = []
 
-const reduce = fn(listReduce(merge)(empty)).then(toArray).result
+/** @type {<T>(a: list.List<State<T>>) => State<T>} */
+const reduce = a => {
+    /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
+    /** @type {range_map.RangeMerge<CreateToResult<T>>} */
+    const merge = rangeMapMerge({
+        union,
+        equal: operator.strictEqual,
+    })
+    return toArray(listReduce(merge)(empty)(a))
+}
 
-const codePointRange = fromRange(unknownSymbol)
+
+const codePointRange = fromRange(def)
 
 const range = fn(asciiRange).then(codePointRange).result
 
-/** @type {(l: readonly string[]) => (f: ToResult) => State} */
+/** @type {(l: readonly string[]) => <T>(f: CreateToResult<T>) => State<T>} */
 const rangeSet = l => f => {
-    /** @type {(r: string) => range_map.RangeMap<ToResult>} */
+    /** @typedef {typeof f extends CreateToResult<infer T> ? T : never} T */
+    /** @type {(a: _range.Range) => (f: CreateToResult<T>) => State<T>} */
+    const codePointRange = fromRange(def)
+    /** @type {(r: string) => State<T>} */
     const g = r => codePointRange(asciiRange(r))(f)
     return reduce(map(g)(l))
 }
 
+/** @type {<T>(a: list.List<State<T>>) => CreateToResult<T>} */
+const create = a => {
+    /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
+    const i = reduce(a)
+    /** @type {(v: number) => (i: State<T>) => (v: T) => ToResult} */
+    const x = get(def)
+    return v => c => x(c)(i)(v)(c)
+}
+
 const terminal = -1
 
-const init = reduce([
-    codePointRange(one(terminal))(() => [[], unknownSymbol]),
-    rangeSet(['\t', ' '])(() => [[' '], unknownSymbol]),
-    rangeSet(['\n', '\r'])(() => [['\n'], unknownSymbol]),
-    range('!')(() => [['!'], unknownSymbol]),
-    range('"')(() => [['"'], unknownSymbol]),
-    rangeSet(['$', '_', 'AZ', 'az'])(c => [[fromCharCode(c)], unknownSymbol]),
-    range('%')(() => [['%'], unknownSymbol]),
-    range('&')(() => [['&'], unknownSymbol]),
-    range("'")(() => [["'"], unknownSymbol]),
-    range('(')(() => [['('], unknownSymbol]),
-    range(')')(() => [[')'], unknownSymbol]),
-    range('*')(() => [['*'], unknownSymbol]),
-    range('+')(() => [['+'], unknownSymbol]),
-    range(',')(() => [[','], unknownSymbol]),
-    range('-')(() => [['-'], unknownSymbol]),
-    range('.')(() => [['.'], unknownSymbol]),
-    range('/')(() => [['/'], unknownSymbol]),
-    range('09')(a => [[fromCharCode(a)], unknownSymbol]),
-    range(':')(() => [[':'], unknownSymbol]),
-    range(';')(() => [[';'], unknownSymbol]),
-    range('<')(() => [['<'], unknownSymbol]),
-    range('=')(() => [['='], unknownSymbol]),
-    range('>')(() => [['>'], unknownSymbol]),
-    range('?')(() => [['?'], unknownSymbol]),
-    range('[')(() => [['['], unknownSymbol]),
-    range(']')(() => [[']'], unknownSymbol]),
-    range('^')(() => [['^'], unknownSymbol]),
-    range('`')(() => [['`'], unknownSymbol]),
-    range('{')(() => [['{'], unknownSymbol]),
-    range('|')(() => [['|'], unknownSymbol]),
-    range('}')(() => [['}'], unknownSymbol]),
-    range('~')(() => [['~'], unknownSymbol]),
+const init = create([
+    codePointRange(one(terminal))(() => () => [[], unknownSymbol]),
+    rangeSet(['\t', ' '])(() => () => [[' '], unknownSymbol]),
+    rangeSet(['\n', '\r'])(() => () => [['\n'], unknownSymbol]),
+    range('!')(() => () => [['!'], unknownSymbol]),
+    range('"')(() => () => [['"'], unknownSymbol]),
+    rangeSet(['$', '_', 'AZ', 'az'])(() => c => [[fromCharCode(c)], unknownSymbol]),
+    range('%')(() => () => [['%'], unknownSymbol]),
+    range('&')(() => () => [['&'], unknownSymbol]),
+    range("'")(() => () => [["'"], unknownSymbol]),
+    range('(')(() => () => [['('], unknownSymbol]),
+    range(')')(() => () => [[')'], unknownSymbol]),
+    range('*')(() => () => [['*'], unknownSymbol]),
+    range('+')(() => () => [['+'], unknownSymbol]),
+    range(',')(() => () => [[','], unknownSymbol]),
+    range('-')(() => () => [['-'], unknownSymbol]),
+    range('.')(() => () => [['.'], unknownSymbol]),
+    range('/')(() => () => [['/'], unknownSymbol]),
+    range('09')(() => a => [[fromCharCode(a)], unknownSymbol]),
+    range(':')(() => () => [[':'], unknownSymbol]),
+    range(';')(() => () => [[';'], unknownSymbol]),
+    range('<')(() => () => [['<'], unknownSymbol]),
+    range('=')(() => () => [['='], unknownSymbol]),
+    range('>')(() => () => [['>'], unknownSymbol]),
+    range('?')(() => () => [['?'], unknownSymbol]),
+    range('[')(() => () => [['['], unknownSymbol]),
+    range(']')(() => () => [[']'], unknownSymbol]),
+    range('^')(() => () => [['^'], unknownSymbol]),
+    range('`')(() => () => [['`'], unknownSymbol]),
+    range('{')(() => () => [['{'], unknownSymbol]),
+    range('|')(() => () => [['|'], unknownSymbol]),
+    range('}')(() => () => [['}'], unknownSymbol]),
+    range('~')(() => () => [['~'], unknownSymbol]),
 ])
 
 module.exports = {
-    /** @readonly */
-    unknownSymbol,
     /** @readonly */
     init,
 }

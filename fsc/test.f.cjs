@@ -7,7 +7,7 @@ const s = stringify(i => i)
 /** @type {(v: string) => string} */
 const f = v => {
     const n = one(v)
-    return s(get(_.unknownSymbol)(n)(_.init)(n)[0])
+    return s(_.init(undefined)(n)[0])
 }
 
 module.exports = {
