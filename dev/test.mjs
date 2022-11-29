@@ -4,8 +4,6 @@ import { loadModuleMap } from './module.mjs'
 const main = async() => {
     const moduleMap = await loadModuleMap()
 
-    console.log('loaded')
-
     /** @type {(s: string) => <T>(_: T) => T} */
     const log = s => state => {
         console.log(s)
