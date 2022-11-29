@@ -1,4 +1,4 @@
-/** @typedef {(packageName: string) => PackageMap|Package|undefined} PackageMap */
+/** @typedef {(packageName: string) => PackageMap|Package|null} PackageMap */
 
 /**
  * @typedef {readonly[
