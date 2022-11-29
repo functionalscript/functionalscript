@@ -125,7 +125,7 @@ const containsSmallLetter = contains(latinSmallLetterRange)
 
 /** @typedef {{ readonly kind: 'eof'}} EofState */
 
-/** @typedef {number|undefined} CharCodeOrEof */
+/** @typedef {number|null} CharCodeOrEof */
 
 /** @type {(old: string) => (input: number) => string} */
 const appendChar = old => input => `${old}${fromCharCode(input)}`
@@ -372,14 +372,14 @@ const tokenizeEofOp = state => {
 }
 
 /** @type {operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsonToken>>} */
-const tokenizeOp = state => input => input === undefined ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
+const tokenizeOp = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
 
 const scanTokenize = stateScan(tokenizeOp)
 
 const initial = scanTokenize({ kind: 'initial' })
 
 /** @type {(input: list.List<number>) => list.List<JsonToken>} */
-const tokenize = input => flat(initial(flat([/** @type {list.List<CharCodeOrEof>} */(input), [undefined]])))
+const tokenize = input => flat(initial(flat([/** @type {list.List<CharCodeOrEof>} */(input), [null]])))
 
 module.exports = {
     /** @readonly */

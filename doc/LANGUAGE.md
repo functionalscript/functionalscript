@@ -93,7 +93,7 @@ const functionDouble = a => a * 2
 const structure = { name: "John", surname: "Smith" }
 const array = [1, 2, 3]
 const nestedStructure = {
-   address: undefined,
+   address: null,
    serialNumber: "123-45-78",
    sum: 14 + myConst + functionDouble(4),
    moreInfo: {
