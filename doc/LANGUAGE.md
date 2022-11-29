@@ -226,7 +226,7 @@ const iterable = list => ({
         let i = list
         while (true) {
             const r = next(i)
-            if (r === undefined) { return }
+            if (r === null) { return }
             yield r.first
             i = r.tail
         }

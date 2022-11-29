@@ -1,5 +1,5 @@
 const list = require('../types/list/module.f.cjs')
-const { equal, isEmpty, fold, toArray, scan, foldScan } = list
+const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
 const byteSet = require('../types/byte_set/module.f.cjs')
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
 const sortedSet = require('../types/sorted_set/module.f.cjs')
@@ -66,7 +66,7 @@ const scanFetch = scan(fetchOp)
 const addEntry = grammar => set => dfa => {
     const s = stringifyIdentity(set)
     if (s in dfa) { return dfa }
-    const setMap = fold(foldOp(set))(undefined)(grammar)
+    const setMap = fold(foldOp(set))(emptyList)(grammar)
     const stringMap = toArray(scanStringify(setMap))
     const newDfa = { ...dfa, [s]: stringMap }
     const newStates = scanFetch(setMap)
