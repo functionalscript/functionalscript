@@ -3,7 +3,7 @@ const _range = require('../../types/range/module.f.cjs')
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
     const r = s.codePointAt(i)
-    if (r === undefined) { throw s }
+    if (r === void 0) { throw s }
     return r
 }
 

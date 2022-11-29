@@ -84,35 +84,38 @@ const uncheckTail = a => a.slice(1)
 /** @type {<T>(_: readonly T[]) => readonly T[]} */
 const uncheckHead = a => a.slice(0, -1)
 
-/** @type {<T>(_: readonly T[]) => T|undefined} */
-const first = a => a[0]
+/** @type {<T>(a: T|undefined) => T|null} */
+const undefinedToNull = a => a === undefined ? null : a
 
-/** @type {<T>(_: readonly T[]) => T|undefined} */
-const last = a => a[a.length - 1]
+/** @type {<T>(_: readonly T[]) => T|null} */
+const first = a => undefinedToNull(a[0])
 
-/** @type {<T>(_: readonly T[]) => readonly T[] | undefined} */
-const tail = a => a.length === 0 ? undefined : uncheckTail(a)
+/** @type {<T>(_: readonly T[]) => T|null} */
+const last = a => undefinedToNull(a[a.length - 1])
 
-/** @type {<T>(_: readonly T[]) => readonly[T, readonly T[]]|undefined} */
+/** @type {<T>(_: readonly T[]) => readonly T[] | null} */
+const tail = a => a.length === 0 ? null : uncheckTail(a)
+
+/** @type {<T>(_: readonly T[]) => readonly[T, readonly T[]]|null} */
 const splitFirst = a => {
     /** @typedef {typeof a[0]} T*/
     /** @type {(_: T) => readonly[T, readonly T[]]} */
     const split = first => [first, uncheckTail(a)]
-    return map(split)(a[0])
+    return undefinedToNull(map(split)(a[0]))
 }
 
-/** @type {<T>(_: readonly T[]) => readonly T[]|undefined} */
-const head = a => a.length === 0 ? undefined : uncheckHead(a)
+/** @type {<T>(_: readonly T[]) => readonly T[]|null} */
+const head = a => a.length === 0 ? null : uncheckHead(a)
 
-/** @type {<T>(_: readonly T[]) => readonly[readonly T[], T]|undefined} */
+/** @type {<T>(_: readonly T[]) => readonly[readonly T[], T]|null} */
 const splitLast = a => {
     const lastA = last(a)
-    if (lastA === undefined) { return undefined }
+    if (lastA === null) { return null }
     return [uncheckHead(a), lastA]
 }
 
-/** @type {(index: number) => <T>(a: readonly T[]) => readonly[T]|undefined} */
-const at = index => a => index < a.length ? [a[index]] : undefined
+/** @type {(index: number) => <T>(a: readonly T[]) => readonly[T]|null} */
+const at = index => a => index < a.length ? [a[index]] : null
 
 module.exports = {
     /** @readonly */
