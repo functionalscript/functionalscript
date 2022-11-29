@@ -52,13 +52,13 @@ const joinComma = join(', ')
 /** @type {(name: string) => (lib: types.Library) => text.Block} */
 const cpp = name => lib => {
 
-    /** @type {(t: types.Type) => string|undefined} */
+    /** @type {(t: types.Type) => string|null} */
     const interface_ = t => {
         if (!(t instanceof Array) || t.length !== 1) {
-            return undefined
+            return null
         }
         const [name] = t
-        return lib[name].interface !== undefined ? name : undefined
+        return lib[name].interface !== undefined ? name : null
     }
 
     /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
@@ -101,7 +101,7 @@ const cpp = name => lib => {
         const paramArrayStr = `(${joinComma(mapParam(paramL))})`
         const m = methodHeader(result)(paramArrayStr)
         const resultName = interface_(paramArray._)
-        if (resultName === undefined) {
+        if (resultName === null) {
             return [m(name)]
         }
         return [
