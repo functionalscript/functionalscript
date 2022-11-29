@@ -60,7 +60,7 @@ const fromArray = array => {
 }
 
 /** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
-const concat = a => b => b === undefined ? a : ({ isConcat: true, a, b })
+const concat = a => b => b === undefined ? a : ({ a, b })
 
 /** @type {<T>(list: List<T>) => NotLazy<T> } */
 const trampoline = list => {
