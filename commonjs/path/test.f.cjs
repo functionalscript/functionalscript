@@ -14,7 +14,6 @@ const stringify = g => {
 
 module.exports = [
     () => {
-        const p = { name: '', version: '' }
         const result = _.parseLocal('')('./a')
         if (stringify(result) !== '{"external":false,"dir":false,"items":["a"]}') { throw result }
     },
