@@ -3,7 +3,7 @@ const object = require('../../types/object/module.f.cjs')
 /**
  * @template M
  * @typedef {{
- *  readonly at: (moduleId: string) => (moduleMap: M) => State | undefined
+ *  readonly at: (moduleId: string) => (moduleMap: M) => State | null
  *  readonly setReplace: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
  * }} MapInterface
  */

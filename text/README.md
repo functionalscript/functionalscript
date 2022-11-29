@@ -37,7 +37,7 @@ Total error states:
 ### utf8/module.f.cjs
 
 ```js
-/** @type {(input: List<u8|undefined>) => List<i32>} */
+/** @type {(input: List<u8|null>) => List<i32>} */
 const toCodePointList
 
 /** @type {(input: List<i32>) => List<u8>} */
@@ -72,7 +72,7 @@ Total error states: 11 bit
 ### utf16/module.f.cjs
 
 ```js
-/** @type {(input: List<u16|undefined>) => List<i32>} */
+/** @type {(input: List<u16|null>) => List<i32>} */
 const toCodePointList
 
 /** @type {(input: List<i32>) => List<u16>} */

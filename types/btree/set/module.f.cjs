@@ -36,7 +36,7 @@ const reduceOp = ([i, x]) => a => {
 
 const reduceBranch = fold(reduceOp)
 
-/** @type {<T>(c: cmp.Compare<T>) => (g: (value?: T) => T) => (node: _.Node<T>) => _.Node<T>} */
+/** @type {<T>(c: cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>) => _.Node<T>} */
 const nodeSet = c => g => node => {
     const { first, tail } = find(c)(node)
     const [i, x] = first;
@@ -46,7 +46,7 @@ const nodeSet = c => g => node => {
         switch (i) {
             case 0: {
                 // insert
-                const value = g()
+                const value = g(null)
                 switch (x.length) {
                     case 1: { return [[value, x[0]]] }
                     case 2: { return [[value], x[0], [x[1]]] }
@@ -63,7 +63,7 @@ const nodeSet = c => g => node => {
             }
             case 2: {
                 // insert
-                const value = g()
+                const value = g(null)
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
@@ -79,7 +79,7 @@ const nodeSet = c => g => node => {
             case 4: {
                 // insert
                 const [v0, v1] = x;
-                return [[v0], v1, [g()]]
+                return [[v0], v1, [g(null)]]
             }
         }
     }
@@ -87,8 +87,8 @@ const nodeSet = c => g => node => {
     return r.length === 1 ? r[0] : r
 }
 
-/** @type {<T>(c: cmp.Compare<T>) => (f: (value?: T) => T) => (tree: _.Tree<T>) => _.Node<T>} */
-const set = c => f => tree => tree === undefined ? [f()] : nodeSet(c)(f)(tree)
+/** @type {<T>(c: cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
+const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
 
 module.exports = {
     /** @readonly */

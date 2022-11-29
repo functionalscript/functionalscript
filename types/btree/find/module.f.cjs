@@ -94,7 +94,7 @@ const find = c => {
             }
         }
     }
-    return f(undefined)
+    return f(null)
 }
 
 /** @type {<T>(first: First<T>) => boolean} */
@@ -105,7 +105,7 @@ const isFound = ([i]) => {
     }
 }
 
-/** @type {<T>(first: First<T>) => T | undefined} */
+/** @type {<T>(first: First<T>) => T | null} */
 const value = ([i, r]) => {
     switch (i) {
         case 1: {
@@ -118,7 +118,7 @@ const value = ([i, r]) => {
             return r.length === 2 ? r[1] : r[3]
         }
         default: {
-            return undefined
+            return null
         }
     }
 }

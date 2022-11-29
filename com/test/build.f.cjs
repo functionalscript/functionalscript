@@ -65,7 +65,7 @@ const output = platform => name => {
 const cpp = ({dirname, platform}) => ({
     file: {
         name: `${dirname}/cpp/_result.hpp`,
-        content: cppContent,
+        content: cppContent(),
     },
     line: [
         flat([

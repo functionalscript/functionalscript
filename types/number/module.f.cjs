@@ -5,9 +5,9 @@ const { unsafeCmp } = compare
 
 const sum = reduce(addition)(0)
 
-const min = reduce(minOp)(undefined)
+const min = reduce(minOp)(null)
 
-const max = reduce(maxOp)(undefined)
+const max = reduce(maxOp)(null)
 
 /** @type {(a: number) => (b: number) => compare.Sign} */
 const cmp = unsafeCmp

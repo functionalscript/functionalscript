@@ -1,4 +1,4 @@
-const option = require('../option/module.f.cjs')
+const option = require('../nullable/module.f.cjs')
 const { map } = option
 
 /**
@@ -84,14 +84,17 @@ const uncheckTail = a => a.slice(1)
 /** @type {<T>(_: readonly T[]) => readonly T[]} */
 const uncheckHead = a => a.slice(0, -1)
 
-/** @type {<T>(a: T|undefined) => T|null} */
-const undefinedToNull = a => a === void 0 ? null : a
+/** @type {(index: number) => <T>(a: readonly T[]) => T|null} */
+const unsafeAt = i => a => {
+    const r = a[i]
+    return r === void 0 ? null : r
+}
 
 /** @type {<T>(_: readonly T[]) => T|null} */
-const first = a => undefinedToNull(a[0])
+const first = unsafeAt(0)
 
 /** @type {<T>(_: readonly T[]) => T|null} */
-const last = a => undefinedToNull(a[a.length - 1])
+const last = a => unsafeAt(a.length - 1)(a)
 
 /** @type {<T>(_: readonly T[]) => readonly T[] | null} */
 const tail = a => a.length === 0 ? null : uncheckTail(a)
@@ -101,7 +104,7 @@ const splitFirst = a => {
     /** @typedef {typeof a[0]} T*/
     /** @type {(_: T) => readonly[T, readonly T[]]} */
     const split = first => [first, uncheckTail(a)]
-    return undefinedToNull(map(split)(a[0]))
+    return map(split)(first(a))
 }
 
 /** @type {<T>(_: readonly T[]) => readonly T[]|null} */

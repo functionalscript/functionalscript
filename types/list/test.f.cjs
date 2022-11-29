@@ -29,7 +29,7 @@ const flat = () => {
 const concat = () => {
     const result = _.concat([1])([2])
     const x = _.next(result)
-    if (x === undefined) { throw x }
+    if (x === null) { throw x }
     if (x.first !== 1) { throw x }
 }
 
@@ -55,11 +55,11 @@ const take = [
 
 const find = [
     () => {
-        const result = _.find(undefined)(x => x % 2 === 0)([1, 3, 5, 7])
-        if (result !== undefined) { throw result }
+        const result = _.find(null)(x => x % 2 === 0)([1, 3, 5, 7])
+        if (result !== null) { throw result }
     },
     () => {
-        const result = _.find(undefined)(x => x % 2 === 0)([1, 2, 3, 4])
+        const result = _.find(null)(x => x % 2 === 0)([1, 2, 3, 4])
         if (result !== 2) { throw result }
     }
 ]
@@ -102,12 +102,12 @@ const additionTests = [
         if (result !== '[2,5,9,14]') { throw result }
     },
     () => {
-        const result = _.reduce(addition)(undefined)([2, 3, 4, 5])
+        const result = _.reduce(addition)(null)([2, 3, 4, 5])
         if (result !== 14) { throw result }
     },
     () => {
-        const result = _.reduce(addition)(undefined)([])
-        if (result !== undefined) { throw result }
+        const result = _.reduce(addition)(null)([])
+        if (result !== null) { throw result }
     }
 ]
 
@@ -191,7 +191,7 @@ const stress = () => ({
         const n = 50_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
-        const first = _.first(undefined)(result)
+        const first = _.first(null)(result)
         if (first !== n - 1) { throw first }
     },
     concatBack: () => {
@@ -244,7 +244,7 @@ const stress = () => ({
         const n = 50_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
-        const len = _.length(_.filterMap(() => undefined)(result))
+        const len = _.length(_.filterMap(() => null)(result))
         if (len !== 0) { throw len }
     },
     dropWhile: () => {

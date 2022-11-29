@@ -27,7 +27,7 @@ const normItemsOp = first => prior => {
         case '': case '.': { return prior }
         case '..': {
             const result = next(tail)
-            if (result === list.empty) { return null }
+            if (result === null) { return null }
             return [result.tail]
         }
         default: {
@@ -80,10 +80,10 @@ const variants = prior => () => {
     return { first: n, tail: variants(n) }
 }
 
-/** @type {(d: (local: string) => string|null) => (p: IdPath) => IdPath|undefined} */
+/** @type {(d: (local: string) => string|null) => (p: IdPath) => IdPath|null} */
 const mapDependency = d => ([external, internal]) => {
     const id = d(external)
-    return id === null ? undefined : [id, internal]
+    return id === null ? null : [id, internal]
 }
 
 /**
@@ -152,10 +152,10 @@ const parseAndFind = packageGet => moduleId => path => {
     if (p === null) { return null }
     const pack = packageGet(p.package)
     if (pack === null) { return null }
-    /** @type {(file: string) => FoundResult | undefined } */
+    /** @type {(file: string) => FoundResult | null } */
     const tryFile = file => {
         const source = pack.file(file)
-        return source === null ? undefined : { id: { package: p.package, path: file.split('/') }, source }
+        return source === null ? null : { id: { package: p.package, path: file.split('/') }, source }
     }
     const file = p.items.join('/')
     const indexJs = join('/')(concat(p.items)(['index.js']))

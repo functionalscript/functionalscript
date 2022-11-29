@@ -2,12 +2,12 @@ const _ = require('./module.f.cjs')
 
 module.exports = {
     contains: () => {
-        const r = _.set('hello')(undefined)
+        const r = _.set('hello')(null)
         if (!_.contains('hello')(r)) { throw r }
         if (_.contains('hello1')(r)) { throw r }
     },
     remove: () => {
-        let r = _.set('hello')(undefined)
+        let r = _.set('hello')(null)
         r = _.set('world')(r)
         r = _.set('HELLO')(r)
         r = _.set('WORLD!')(r)
@@ -29,6 +29,6 @@ module.exports = {
         if (_.contains('HELLO')(r)) { throw r }
         if (!_.contains('WORLD!')(r)) { throw r }
         r = _.remove('WORLD!')(r)
-        if (r !== undefined) { throw r }
+        if (r !== null) { throw r }
     }
 }

@@ -17,13 +17,13 @@ const { entries } = Object
 
 /** @typedef {Object|boolean|string|number|null|Array} Unknown */
 
-/** @type {(value: Unknown) => (path: list.List<string>) => (src: Unknown|undefined) => Unknown} */
+/** @type {(value: Unknown) => (path: list.List<string>) => (src: Unknown) => Unknown} */
 const setProperty = value => {
-    /** @type {(path: list.List<string>) => (src: Unknown|undefined) => Unknown} */
+    /** @type {(path: list.List<string>) => (src: Unknown) => Unknown} */
     const f = path => src => {
         const result = next(path)
-        if (result === undefined) { return value }
-        const srcObject = (src === undefined || src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
+        if (result === null) { return value }
+        const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
         const { first, tail } = result
         return { ...srcObject, [first]: f(tail)(at(first)(srcObject)) }
     }

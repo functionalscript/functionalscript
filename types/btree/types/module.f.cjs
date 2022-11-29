@@ -48,7 +48,7 @@
 
 /**
  * @template T
- * @typedef {Node<T> | undefined} Tree
+ * @typedef {Node<T> | null} Tree
  */
 
 /**

@@ -23,7 +23,7 @@ const {
  * } NotLazy
  */
 
-/** @typedef {undefined} Empty */
+/** @typedef {null} Empty */
 
 /**
  * @template T
@@ -46,8 +46,8 @@ const {
 /**
  * @template T
  * @typedef {{
- *  readonly a: List<T>
- *  readonly b: List<T>
+ *  readonly head: List<T>
+ *  readonly tail: List<T>
  * }} Concat
  */
 
@@ -55,41 +55,40 @@ const {
 const fromArray = array => {
     /** @typedef {typeof array extends readonly (infer T)[] ? T : never} T */
     /** @type {(i: number) => Result<T>} */
-    const at = i => i < array.length ? { first: array[i], tail: () => at(i + 1) } : undefined
+    const at = i => i < array.length ? { first: array[i], tail: () => at(i + 1) } : null
     return at(0)
 }
 
-/** @type {<T>(a: List<T>) => (b: List<T>) => List<T>} */
-const concat = a => b => b === undefined ? a : ({ isConcat: true, a, b })
+/** @type {<T>(head: List<T>) => (tail: List<T>) => List<T>} */
+const concat = head => tail => tail === null ? head : ({ head, tail })
 
 /** @type {<T>(list: List<T>) => NotLazy<T> } */
 const trampoline = list => {
-    let i = list
-    while (typeof i === 'function') { i = i() }
-    return i
+    while (typeof list === 'function') { list = list() }
+    return list
 }
 
 /** @type {<T>(list: List<T>) => Result<T>} */
-const next = list => {
-    /** @type {readonly[typeof list, typeof list]} */
-    let [a, b] = [list, undefined]
+const next = head => {
+    /** @type {typeof head} */
+    let tail = null
     while (true) {
-        a = trampoline(a)
+        head = trampoline(head)
 
-        if (a instanceof Array) {
-            a = fromArray(a)
-        } else if (a !== undefined && 'a' in a) {
-            [a, b] = [a.a, concat(a.b)(b)]
+        if (head instanceof Array) {
+            head = fromArray(head)
+        } else if (head !== null && 'head' in head) {
+            [head, tail] = [head.head, concat(head.tail)(tail)]
             continue
         }
 
-        if (a !== undefined) {
-            return { first: a.first, tail: concat(a.tail)(b) }
+        if (head !== null) {
+            return { first: head.first, tail: concat(head.tail)(tail) }
         }
 
-        if (b === undefined) { return undefined }
+        if (tail === null) { return null }
 
-        [a, b] = [b, undefined]
+        [head, tail] = [tail, null]
     }
 }
 
@@ -99,7 +98,7 @@ const iterable = list => ({
         let i = list
         while (true) {
             const r = next(i)
-            if (r === undefined) { return }
+            if (r === null) { return }
             yield r.first
             i = r.tail
         }
@@ -117,7 +116,7 @@ const toArray = list => {
 /** @type {<I, O>(step: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => Thunk<O>} */
 const apply = f => input => () => {
     const n = next(input)
-    if (n === undefined) { return undefined }
+    if (n === null) { return null }
     return f(n)
 }
 
@@ -145,23 +144,23 @@ const filterStep = f => n => {
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
 const filter = f => apply(filterStep(f))
 
-/** @type {<I, O>(f: (value: I) => O|undefined) => (n: NonEmpty<I>) => List<O>} */
+/** @type {<I, O>(f: (value: I) => O|null) => (n: NonEmpty<I>) => List<O>} */
 const filterMapStep = f => n => {
     const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
-    return first === undefined ? tail : { first, tail }
+    return first === null ? tail : { first, tail }
 }
 
-/** @type {<I, O>(f: (value: I) => O|undefined) => (input: List<I>) => Thunk<O>} */
+/** @type {<I, O>(f: (value: I) => O|null) => (input: List<I>) => Thunk<O>} */
 const filterMap = f => apply(filterMapStep(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const takeWhileStep = f => n => f(n.first) ? { first: n.first, tail: takeWhile(f)(n.tail) } : undefined
+const takeWhileStep = f => n => f(n.first) ? { first: n.first, tail: takeWhile(f)(n.tail) } : null
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
 const takeWhile = f => apply(takeWhileStep(f))
 
 /** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
-const takeStep = n => ne => 0 < n ? { first: ne.first, tail: take(n - 1)(ne.tail) } : undefined
+const takeStep = n => ne => 0 < n ? { first: ne.first, tail: take(n - 1)(ne.tail) } : null
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
 const take = n => apply(takeStep(n))
@@ -181,7 +180,7 @@ const drop = n => apply(dropStep(n))
 /** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
 const first = def => input => {
     const result = next(input)
-    return result === undefined ? def : result.first
+    return result === null ? def : result.first
 }
 
 /** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */
@@ -191,7 +190,7 @@ const last = first => tail => {
     let i = { first, tail }
     while (true) {
         const result = next(i.tail)
-        if (result === undefined) {
+        if (result === null) {
             return i.first
         }
         i = result
@@ -224,7 +223,7 @@ const includes = value => input => some(map(strictEqual(value))(input))
 
 /** @type {(count: number) => Thunk<number>} */
 const countdown = count => () => {
-    if (count <= 0) { return undefined }
+    if (count <= 0) { return null }
     const first = count - 1
     return { first, tail: countdown(first) }
 }
@@ -235,7 +234,7 @@ const repeat = v => n => map(() => v)(countdown(n))
 /** @type {<T>(list: List<T>) => List<T>} */
 const cycle = list => () => {
     const i = next(list)
-    return i === undefined ? undefined : { first: i.first, tail: concat(i.tail)(cycle(list)) }
+    return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
 
 /** @type {<I, O>(op: operator.Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
@@ -283,14 +282,14 @@ const entries = input => {
 const reverseOperator = first => tail => ({ first, tail })
 
 /** @type {<T>(input: List<T>) => List<T>} */
-const reverse = fold(reverseOperator)(undefined)
+const reverse = fold(reverseOperator)(null)
 
 /** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<readonly[A, B]>} */
 const zip = a => b => () => {
     const aResult = next(a)
-    if (aResult === undefined) { return undefined }
+    if (aResult === null) { return null }
     const bResult = next(b)
-    if (bResult === undefined) { return undefined }
+    if (bResult === null) { return null }
     return { first: [aResult.first, bResult.first], tail: zip(aResult.tail)(bResult.tail) }
 }
 
@@ -300,8 +299,8 @@ const equal = e => {
     /** @type {(a: List<T>) => (b: List<T>) => List<boolean>} */
     const f = a => b => () => {
         const [aResult, bResult] = [next(a), next(b)]
-        return aResult === undefined || bResult === undefined
-            ? { first: aResult === bResult, tail: undefined }
+        return aResult === null || bResult === null
+            ? { first: aResult === bResult, tail: null }
             : { first: e(aResult.first)(bResult.first), tail: f(aResult.tail)(bResult.tail) }
     }
     return a => b => every(f(a)(b))
@@ -309,7 +308,7 @@ const equal = e => {
 
 module.exports = {
     /** @readonly */
-    empty: undefined,
+    empty: null,
     /** @readonly */
     concat,
     /** @readonly */
