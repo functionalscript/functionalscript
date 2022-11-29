@@ -73,7 +73,7 @@ const parseLocal = local => {
 const variants = prior => () => {
     const [a, b] = prior
     const r = next(b)
-    if (r === undefined) { return undefined }
+    if (r === list.empty) { return list.empty }
     const { first, tail } = r
     /** @type {IdPath} */
     const n = [a === null ? first : `${a}/${first}`, tail]
