@@ -55,7 +55,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         /** @type {function_.Require<readonly[map.Map<string>, M]>} */
         const require_ = p => ([requireMap, m]) => {
             /** @type {(e: unknown) => function_.Result<readonly[map.Map<string>, M]>} */
-            const error = e => [['error', 'file not found'], [requireMap, m]]
+            const error = e => [['error', e], [requireMap, m]]
             if (moduleDir === null) { return error('file not found') }
             const r = parseAndFind(packageGet)(moduleDir)(p)
             if (r === undefined) { return error('file not found') }
