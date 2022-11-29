@@ -11,7 +11,7 @@ const compileMap = {
         'ok',
         require_ => m0 => {
             let [r, m] = require_('./b')(m0);
-            if (r[0] === 'error') { throw r }
+            if (r[0] === 'error') { throw JSON.stringify(r) }
             [r, m] = require_('./a/')(m);
             if (r[0] === 'error') { throw r }
             [r, m] = require_('x/r')(m);
@@ -71,21 +71,30 @@ const getOrBuild = _.getOrBuild
 
 module.exports = () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(undefined)
-    if (JSON.stringify(r) !==
-        '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js","x/r":"/node_modules/x/r.js"}}]'
-    ) {
-        throw r
+    {
+        const x = JSON.stringify(r)
+        if (x !==
+            '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js","x/r":"/node_modules/x/r.js"}}]'
+        ) {
+            throw x
+        }
     }
-    [r, m] = getOrBuild({ package: '', path: ['b.js'] })(m)
-    if (JSON.stringify(r) !==
-        '["ok",{"exports":":b.js","requireMap":{}}]'
-    ) {
-        throw r
+    {
+        [r, m] = getOrBuild({ package: '', path: ['b.js'] })(m)
+        const x = JSON.stringify(r)
+        if (x !==
+            '["ok",{"exports":":b.js","requireMap":{}}]'
+        ) {
+            throw x
+        }
     }
-    [r, m] = getOrBuild({ package: '', path: ['c.js'] })(m)
-    if (JSON.stringify(r) !==
-        '["error",["file not found"]]'
-    ) {
-        throw r
+    {
+        [r, m] = getOrBuild({ package: '', path: ['c.js'] })(m)
+        const x = JSON.stringify(r)
+        if (x !==
+            '["error",["file not found"]]'
+        ) {
+            throw x
+        }
     }
 }

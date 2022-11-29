@@ -44,6 +44,8 @@ const normItems = items => {
 
 const firstUndefined = first(undefined)
 
+const firstNull = first(null)
+
 /** @type {(local: string) => (path: string) => LocalPath|undefined} */
 const parseLocal = local => {
     /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
@@ -134,8 +136,10 @@ const parse = packageId => dependencies => {
  * @typedef {{
  *  readonly id: module_.Id
  *  readonly source: string
- * }| undefined} Result
+ * }} FoundResult
  */
+
+/** @typedef {FoundResult| null} Result */
 
 /**
  * @type {(packageGet: package_.Get) =>
@@ -146,12 +150,12 @@ const parse = packageId => dependencies => {
  */
 const parseAndFind = packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
-    if (currentPack === undefined) { return undefined }
+    if (currentPack === undefined) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
-    if (p === undefined) { return undefined }
+    if (p === undefined) { return null }
     const pack = packageGet(p.package)
-    if (pack === undefined) { return undefined }
-    /** @type {(file: string) => Result } */
+    if (pack === undefined) { return null }
+    /** @type {(file: string) => FoundResult | undefined } */
     const tryFile = file => {
         const source = pack.file(file)
         return source === undefined ? undefined : { id: { package: p.package, path: file.split('/') }, source }
@@ -159,7 +163,7 @@ const parseAndFind = packageGet => moduleId => path => {
     const file = p.items.join('/')
     const indexJs = join('/')(concat(p.items)(['index.js']))
     const fileList = p.dir || isEmpty(p.items) ? [indexJs] : [file, `${file}.js`, indexJs]
-    return firstUndefined(filterMap(tryFile)(fileList))
+    return firstNull(filterMap(tryFile)(fileList))
 }
 
 module.exports = {
