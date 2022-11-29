@@ -21,7 +21,7 @@ module.exports = {
     ctorUndefined: () => {
         /** @type {any} */
         const o = {
-            constructor: undefined
+            constructor: void 0
         }
         const c = o['constructor']
         //console.log(c)
