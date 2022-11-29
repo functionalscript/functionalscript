@@ -73,11 +73,12 @@ const getOrBuild = _.getOrBuild
 module.exports = () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(map.empty)
     {
+        if (r === null) { throw 'r === null' }
         const x = JSON.stringify(r)
         if (x !==
             '["ok",{"exports":":index.js","requireMap":{"./a/":"/a/index.js","./b":"/b.js","x/r":"/node_modules/x/r.js"}}]'
         ) {
-            throw x
+            throw `0:${x}`
         }
     }
     {

@@ -33,7 +33,6 @@ module.exports = {
     intersect: [
         () => {
             const result = stringify(toArray(_.intersect(unsafeCmp)([2, 3, 4])([1, 3, 5])))
-            // console.log(result)
             if (result !== '[3]') { throw result }
         },
         () => {

@@ -18,13 +18,13 @@ const { compose } = require('../function/module.f.cjs')
 /** @type {(value: string) => (set: StringSet) => boolean} */
 const contains = value => {
     const f = find(cmp(value))
-    return s => s !== undefined && isFound(f(s).first)
+    return s => s !== null && isFound(f(s).first)
 }
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
 const set = value => btreeSet(cmp(value))(() => value)
 
-const fromValues = fold(set)(undefined)
+const fromValues = fold(set)(null)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
 const remove = compose(cmp)(btreeRemove)

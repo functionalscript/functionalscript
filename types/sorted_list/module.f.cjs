@@ -49,14 +49,14 @@ const genericMerge = reduce => {
     /** @type {(state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
     const f = state => a => b => () => {
         const aResult = next(a)
-        if (aResult === undefined) { return tailReduce(state)(b) }
+        if (aResult === null) { return tailReduce(state)(b) }
         const bResult = next(b)
-        if (bResult === undefined) { return tailReduce(state)(aResult) }
+        if (bResult === null) { return tailReduce(state)(aResult) }
         const [first, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
         const aNext = sign === 1 ? a : aResult.tail
         const bNext = sign === -1 ? b : bResult.tail
         const tail = f(stateNext)(aNext)(bNext)
-        return first === undefined ? tail : { first, tail }
+        return first === null ? tail : { first, tail }
     }
     return f
 }

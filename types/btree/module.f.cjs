@@ -31,7 +31,7 @@ const values = map(nodeValues)
 
 module.exports = {
     /** @readonly */
-    empty: undefined,
+    empty: null,
     /** @readonly */
     find: require('./find/module.f.cjs'),
     /** @readonly */

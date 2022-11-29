@@ -137,7 +137,9 @@ export const loadModuleMap = async () => {
                     dependencyMap[p] = result
                     return result.exports
                 }
+                console.log(pathStr)
                 map[pathStr](module, newReq)
+                console.log('done')
                 d[pathStr] = module
                 return [pathStr, module]
             }

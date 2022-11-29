@@ -55,7 +55,7 @@ const find = () => {
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = f.value(f.find(cmp('e'))(_map).first)
-    if (result !== undefined) { throw result }
+    if (result !== null) { throw result }
 }
 
 const test = () => {
@@ -70,7 +70,7 @@ const test = () => {
     {
         /** @type {list.Result<string>} */
         let _item = list.next(values(_map))
-        while (_item !== undefined) {
+        while (_item !== null) {
             _item = list.next(_item.tail)
         }
     }

@@ -8,7 +8,7 @@ const { map } = require('../../nullable/module.f.cjs')
 
 /**
  * @template T
- * @typedef {undefined | _.Leaf1<T>} Leaf01
+ * @typedef {null | _.Leaf1<T>} Leaf01
  */
 
 /**
@@ -22,7 +22,7 @@ const { map } = require('../../nullable/module.f.cjs')
 /** @type {<T>(tail: find.Path<T>) => (n: _.Node<T>) => readonly[T, RemovePath<T>]} */
 const path = tail => n => {
     switch (n.length) {
-        case 1: { return [n[0], { first: undefined, tail }] }
+        case 1: { return [n[0], { first: null, tail }] }
         case 2: { return [n[0], { first: [n[1]], tail }] }
         case 3: { return path({ first: [0, n], tail })(n[0]) }
         case 5: { return path({ first: [0, n], tail })(n[0]) }
@@ -65,7 +65,7 @@ const reduceValue2 = a => n => {
 /** @type {<T>(a: Leaf01<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} */
 const initValue0 = a => n => {
     const [, v1, n2] = n
-    if (a === undefined) {
+    if (a === null) {
         switch (n2.length) {
             case 1: { return [[v1, ...n2]] }
             case 2: { return [[v1], n2[0], [n2[1]]] }
@@ -79,7 +79,7 @@ const initValue0 = a => n => {
 /** @type {<T>(a: Leaf01<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} */
 const initValue1 = a => n => {
     const [n0, v1] = n
-    if (a === undefined) {
+    if (a === null) {
         switch (n0.length) {
             case 1: { return [[...n0, v1]] }
             case 2: { return [[n0[0]], n0[1], [v1]] }
@@ -118,19 +118,19 @@ const initReduce = reduceX([initValue0, initValue1])
 /** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
 const nodeRemove = c => node => {
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
-    /** @type  {() => undefined | RemovePath<T>} */
+    /** @type  {() => null | RemovePath<T>} */
     const f = () => {
         const { first, tail } = find.find(c)(node)
         /** @type {(n: _.Node<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>} */
         const branch = n => f => {
-            const [v, p] = path(/** @type {find.Path<T>} */(undefined))(n)
+            const [v, p] = path(/** @type {find.Path<T>} */(null))(n)
             return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
         }
         const [i, n] = first
         switch (i) {
             case 1: {
                 switch (n.length) {
-                    case 1: { return { first: undefined, tail } }
+                    case 1: { return { first: null, tail } }
                     case 2: { return { first: [n[1]], tail } }
                     case 3: { return branch(n[2])(v => [2, [n[0], v, n[2]]]) }
                     case 5: { return branch(n[2])(v => [2, [n[0], v, n[2], n[3], n[4]]]) }
@@ -142,14 +142,14 @@ const nodeRemove = c => node => {
                     case 5: { return branch(n[4])(v => [4, [n[0], n[1], n[2], v, n[4]]]) }
                 }
             }
-            default: { return undefined }
+            default: { return null }
         }
     }
     const r = f()
-    if (r === undefined) { return node }
+    if (r === null) { return node }
     const { first, tail } = r
     const tailR = next(tail)
-    if (tailR === undefined) { return first }
+    if (tailR === null) { return first }
     const { first: tf, tail: tt } = tailR
     const result = reduce(initReduce(tf)(first))(tt)
     return result.length === 1 ? result[0] : result

@@ -29,7 +29,7 @@ const flat = () => {
 const concat = () => {
     const result = _.concat([1])([2])
     const x = _.next(result)
-    if (x === undefined) { throw x }
+    if (x === null) { throw x }
     if (x.first !== 1) { throw x }
 }
 
@@ -55,11 +55,11 @@ const take = [
 
 const find = [
     () => {
-        const result = _.find(undefined)(x => x % 2 === 0)([1, 3, 5, 7])
-        if (result !== undefined) { throw result }
+        const result = _.find(null)(x => x % 2 === 0)([1, 3, 5, 7])
+        if (result !== null) { throw result }
     },
     () => {
-        const result = _.find(undefined)(x => x % 2 === 0)([1, 2, 3, 4])
+        const result = _.find(null)(x => x % 2 === 0)([1, 2, 3, 4])
         if (result !== 2) { throw result }
     }
 ]

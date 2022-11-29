@@ -36,7 +36,7 @@ const f = () =>
         '        virtual void SetManagedStruct(ManagedStruct a) const noexcept = 0;\n' +
         '    };\n' +
         '}'
-    if (cpp !== e) { throw cpp }
+    if (cpp() !== e) { throw cpp }
 }
 
 module.exports = f

@@ -18,14 +18,14 @@ module.exports = {
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const a = [[['a'], 1], [['b'], 2]]
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
-            const b = undefined
+            const b = null
             const merged = _.merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
-            const a = undefined
+            const a = null
             /** @type {_.RangeMap<sortedSet.SortedSet<string>>} */
             const b = [[['a'], 1], [['b'], 2]]
             const merged = _.merge(op)(a)(b)

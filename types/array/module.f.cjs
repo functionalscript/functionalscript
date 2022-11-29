@@ -101,7 +101,7 @@ const splitFirst = a => {
     /** @typedef {typeof a[0]} T*/
     /** @type {(_: T) => readonly[T, readonly T[]]} */
     const split = first => [first, uncheckTail(a)]
-    return undefinedToNull(map(split)(a[0]))
+    return map(split)(undefinedToNull(a[0]))
 }
 
 /** @type {<T>(_: readonly T[]) => readonly T[]|null} */

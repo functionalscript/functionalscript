@@ -86,7 +86,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         // check moduleMap
         {
             const m = moduleMapInterface.at(moduleIdStr)(moduleMap)
-            if (m !== undefined) { return [m, moduleMap] }
+            if (m !== null) { return [m, moduleMap] }
         }
         // check package
         const p = packageGet(moduleId.package)

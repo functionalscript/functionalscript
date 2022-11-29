@@ -53,7 +53,7 @@ const toRangeMapOp = n => s => i =>
 {
     const current = has(i + 1)(n)
     const prev = has(i)(n)
-    if (current === prev) { return undefined }
+    if (current === prev) { return null }
     return [[prev ? [s] : [], i]]
 }
 

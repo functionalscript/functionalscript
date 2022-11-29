@@ -66,8 +66,7 @@ const cpp = name => lib => {
         if (typeof (t) === 'string') { return baseType(t) }
         if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
-        if ('interface' in lib[id]) { return i(id) }
-        return id
+        return 'interface' in lib[id] ? i(id) : id
     }
 
     const type = objectType(comRef)

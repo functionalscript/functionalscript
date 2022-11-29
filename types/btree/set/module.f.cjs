@@ -88,7 +88,7 @@ const nodeSet = c => g => node => {
 }
 
 /** @type {<T>(c: cmp.Compare<T>) => (f: (value?: T) => T) => (tree: _.Tree<T>) => _.Node<T>} */
-const set = c => f => tree => tree === undefined ? [f()] : nodeSet(c)(f)(tree)
+const set = c => f => tree => tree === null ? [f()] : nodeSet(c)(f)(tree)
 
 module.exports = {
     /** @readonly */

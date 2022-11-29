@@ -31,11 +31,11 @@ const operator = require('../function/operator/module.f.cjs')
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
 const keyCmp = a => ([b]) => cmp(a)(b)
 
-/** @type {(name: string) => <T>(map: Map<T>) => T|undefined} */
+/** @type {(name: string) => <T>(map: Map<T>) => T|null} */
 const at = name => map => {
-    if (map === undefined) { return undefined }
+    if (map === null) { return null }
     const result = value(find(keyCmp(name))(map).first)
-    return result === undefined ? undefined : result[1]
+    return result === null ? null : result[1]
 }
 
 /** @type {<T>(reduce: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
@@ -54,14 +54,14 @@ const setReplace = name => value => setReduceEntry(replace)([name, value])
 const entries = values
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = fold(setReduceEntry(replace))(undefined)
+const fromEntries = fold(setReduceEntry(replace))(null)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
 const remove = name => btreeRemove(keyCmp(name))
 
 module.exports = {
     /** @readonly */
-    empty: undefined,
+    empty: null,
     /** @readonly */
     at,
     /** @readonly */

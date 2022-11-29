@@ -6,7 +6,7 @@ const s = stringify(i => i)
 /** @type {(v: string) => string} */
 const f = v => {
     const n = one(v)
-    return s(_.init(undefined)(n)[0])
+    return s(_.init(null)(n)[0])
 }
 
 module.exports = {
