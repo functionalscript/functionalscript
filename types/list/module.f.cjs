@@ -23,9 +23,11 @@ const {
  * } NotLazy
  */
 
+/** @typedef {undefined} Empty */
+
 /**
  * @template T
- * @typedef {undefined | NonEmpty<T>} Result
+ * @typedef {Empty | NonEmpty<T>} Result
  */
 
 /**
