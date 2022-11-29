@@ -62,10 +62,7 @@ const filterParam = filter(isParam)
 const paramList = compose(entries)(filterParam)
 
 /** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */
-const result = v => f => fa => {
-    const type = fa._
-    return type === undefined ? v : f(type)
-}
+const result = v => f => fa => '_' in fa ? f(fa._) : v
 
 module.exports = {
     /** @readonly */
