@@ -27,7 +27,7 @@ const normItemsOp = first => prior => {
         case '': case '.': { return prior }
         case '..': {
             const result = next(tail)
-            if (result === undefined) { return null }
+            if (result === list.empty) { return null }
             return [result.tail]
         }
         default: {
@@ -38,11 +38,9 @@ const normItemsOp = first => prior => {
 
 /** @type {(items: list.List<string>) => OptionList} */
 const normItems = items => {
-    const result = fold(normItemsOp)([undefined])(items)
+    const result = fold(normItemsOp)([list.empty])(items)
     return result === null ? result : [reverse(result[0])]
 }
-
-// const firstUndefined = first(undefined)
 
 const firstNull = first(null)
 
