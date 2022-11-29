@@ -52,7 +52,7 @@ const parseLocal = local => {
     const fSeq = path => {
         const pathSeq = split(path)
         const dir = [undefined, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
-        return /** @type {readonly (string|undefined)[]} */(['.', '..']).includes(firstUndefined(pathSeq)) ?
+        return /** @type {readonly (string|null)[]} */(['.', '..']).includes(firstNull(pathSeq)) ?
             [false, dir, flat([split(local), pathSeq])] :
             [true, dir, pathSeq]
     }
