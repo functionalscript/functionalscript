@@ -17,15 +17,15 @@
 // - `localPackageId` examples:
 //   - `functionalscript`
 
-type PackageGet = (packageId: string) => Package | undefined
+type PackageGet = (packageId: string) => Package | null
 
 // A local file id is
 
 type Package = {
     // returns a global package id.
-    readonly dependency: (localPackageId: string) => string | undefined
+    readonly dependency: (localPackageId: string) => string | null
     // returns source of the file.
-    readonly file: (localFileId: string) => string | undefined
+    readonly file: (localFileId: string) => string | null
 }
 ```
 
@@ -38,7 +38,7 @@ type Package = {
 //
 // A module is a compiled and initialized source file.
 
-type ModuleGet = (moduleId: string) => ModuleState | undefined
+type ModuleGet = (moduleId: string) => ModuleState | null
 
 type ModuleMapInterface<M> = {
     readonly get: (moduleMap: M) => ModuleGet

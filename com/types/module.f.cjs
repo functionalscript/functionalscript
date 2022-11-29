@@ -10,7 +10,6 @@ const { entries } = Object
 
 /**
  * @typedef {{
- *  readonly interface?: undefined
  *  readonly struct: FieldArray
  * }} Struct
  */

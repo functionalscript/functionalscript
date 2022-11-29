@@ -84,7 +84,7 @@ const whereContent = h => ({ where, content }) => {
 
 /** @type {(impl: Impl) => text.Block} */
 const rustImpl = i => {
-    const p = i.param === undefined ? '' : `<${i.param}>`
+    const p = 'param' in i ? `<${i.param}>` : ''
     const header = `impl${p} ${i.trait} for ${i.type}`
     return whereContent(header)(i)
 }
@@ -135,7 +135,7 @@ const rust = library => {
             if (t.length === 2) { return `*const ${f(ref)(t[1])}` }
             const [id] = t
             const fullId = `${p}${id}`
-            return library[id].interface === undefined ? fullId : o(fullId)
+            return 'interface' in library[id] ? o(fullId) : fullId
         }
         return f
     }
@@ -157,8 +157,7 @@ const rust = library => {
 
     /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
     const func = first => p => {
-        const result = p._
-        const resultStr = result === undefined ? '' : ` -> ${type(super_)(ref)(result)}`
+        const resultStr = '_' in p ? ` -> ${type(super_)(ref)(p._)}` : ''
         const params = commaJoin(flat([first, mapParam(paramList(p))]))
         return `(${params})${resultStr}`
     }
@@ -248,7 +247,7 @@ const rust = library => {
     }
 
     /** @type {(type: object.Entry<types.Definition>) => text.Block} */
-    const def = ([name, type]) => (type.interface === undefined ? struct(type.struct) : interface_(type))(name)
+    const def = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
 
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])
 }

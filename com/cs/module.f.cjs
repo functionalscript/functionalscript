@@ -96,14 +96,13 @@ const flatMapMethod = flatMap(method)
 
 /** @type {(e: obj.Entry<types.Definition>) => list.List<text.Item>} */
 const def = ([n, d]) => {
-    const i = d.interface
-    return i === undefined ?
+    return !('interface' in d) ?
         struct(n)(mapField(entries(d.struct))) :
         typeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
-            (flatMapMethod(entries(i)))
+            (flatMapMethod(entries(d.interface)))
 }
 
 const flatMapDef = flatMap(def)

@@ -52,13 +52,13 @@ const joinComma = join(', ')
 /** @type {(name: string) => (lib: types.Library) => text.Block} */
 const cpp = name => lib => {
 
-    /** @type {(t: types.Type) => string|undefined} */
+    /** @type {(t: types.Type) => string|null} */
     const interface_ = t => {
         if (!(t instanceof Array) || t.length !== 1) {
-            return undefined
+            return null
         }
         const [name] = t
-        return lib[name].interface !== undefined ? name : undefined
+        return 'interface' in lib[name] ? name : null
     }
 
     /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
@@ -66,8 +66,8 @@ const cpp = name => lib => {
         if (typeof (t) === 'string') { return baseType(t) }
         if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
-        if (lib[id].interface === undefined) { return id }
-        return i(id)
+        if ('interface' in lib[id]) { return i(id) }
+        return id
     }
 
     const type = objectType(comRef)
@@ -101,7 +101,7 @@ const cpp = name => lib => {
         const paramArrayStr = `(${joinComma(mapParam(paramL))})`
         const m = methodHeader(result)(paramArrayStr)
         const resultName = interface_(paramArray._)
-        if (resultName === undefined) {
+        if (resultName === null) {
             return [m(name)]
         }
         return [
@@ -127,15 +127,15 @@ const cpp = name => lib => {
     }
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
-    const def = ([name, d]) => d.interface === undefined
-        ? struct(name)(defStruct(d))
-        : [
+    const def = ([name, d]) => 'interface' in d
+        ? [
             `class ${name} : public ::nanocom::IUnknown`,
             '{',
             'public:',
             defInterface(d),
             '};'
         ]
+        : struct(name)(defStruct(d))
 
     /** @type {(kv: obj.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]

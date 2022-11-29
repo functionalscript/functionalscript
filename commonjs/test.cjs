@@ -6,7 +6,7 @@ module.exports = {
         const source = 'module.exports = "Hello world!"'
         const m = _.compile(source)
         if (m[0] !== 'ok') { throw m }
-        const [result] = m[1](() => { throw 0 })(undefined)
+        const [result] = m[1](() => { throw 0 })(null)
         if (result[0] !== 'ok') { throw result }
         if (result[1] !== 'Hello world!') { throw result }
     },
@@ -24,7 +24,7 @@ module.exports = {
         const source = 'a = 5'
         const m = _.compile(source)
         if (m[0] !== 'ok') { throw m }
-        const [result] = m[1](() => { throw 0 })(undefined)
+        const [result] = m[1](() => { throw 0 })(null)
         if (result[0] !== 'error') { throw result }
     },
     test: () => {
