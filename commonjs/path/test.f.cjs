@@ -6,11 +6,8 @@ const object = require('../../types/object/module.f.cjs')
 const { at } = require('../../types/object/module.f.cjs')
 const package_ = require('../package/module.f.cjs')
 
-/** @type {<T>(o: object.Map<T>) => (s: string) => T|undefined} */
-const i = o => s => {
-    const r = at(s)(o)
-    return r === null ? undefined : r
-}
+/** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
+const i = o => s => at(s)(o)
 
 /** @type {(g: json.Unknown|undefined) => string} */
 const stringify = g => {
@@ -52,8 +49,8 @@ module.exports = {
         if (stringify(result) !== '{"external":false,"dir":true,"items":[]}') { throw result }
     },
     8: () => {
-        if (_.parseGlobal(() => undefined)(false)(['a', 'b']) !== undefined) { throw 'error' }
-        if (_.parseGlobal(() => undefined)(false)(['b']) !== undefined) { throw 'error' }
+        if (_.parseGlobal(() => null)(false)(['a', 'b']) !== undefined) { throw 'error' }
+        if (_.parseGlobal(() => null)(false)(['b']) !== undefined) { throw 'error' }
         if (_.parseGlobal(i({ b: 'x' }))(false)(['d']) !== undefined) { throw 'error' }
         {
             const result = stringify(_.parseGlobal(i({ b: 'x' }))(false)(['b']))
@@ -90,7 +87,7 @@ module.exports = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
-                    return at(path)(packages) !== undefined ? path : undefined
+                    return at(path)(packages) !== null ? path : null
                 },
                 file: i({
                     'index.js': 'return "index.js"',
@@ -140,7 +137,7 @@ module.exports = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
-                    return at(path)(packages) !== null ? path : undefined
+                    return at(path)(packages) !== null ? path : null
                 },
                 file: todo
             },
@@ -167,7 +164,7 @@ module.exports = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
-                    return at(path)(packages) !== null ? path : undefined
+                    return at(path)(packages) !== null ? path : null
                 },
                 file: todo
             },

@@ -80,10 +80,10 @@ const variants = prior => () => {
     return { first: n, tail: variants(n) }
 }
 
-/** @type {(d: (local: string) => string|undefined) => (p: IdPath) => IdPath|undefined} */
+/** @type {(d: (local: string) => string|null) => (p: IdPath) => IdPath|undefined} */
 const mapDependency = d => ([external, internal]) => {
     const id = d(external)
-    return id === undefined ? undefined : [id, internal]
+    return id === null ? undefined : [id, internal]
 }
 
 /**
@@ -95,7 +95,7 @@ const mapDependency = d => ([external, internal]) => {
  */
 
 /**
- * @type {(d: (local: string) => string|undefined) =>
+ * @type {(d: (local: string) => string|null) =>
  *  (dir: boolean) =>
  *  (items: list.List<string>) =>
  *  Path|undefined}
@@ -113,7 +113,7 @@ const parseGlobal = dependencies =>
 
 /**
  * @type {(packageId: string) =>
- *  (dependencies: (local: string) => string|undefined) =>
+ *  (dependencies: (local: string) => string|null) =>
  *  (local: string) =>
  *  (path: string) =>
  *  Path|undefined }
@@ -147,15 +147,15 @@ const parse = packageId => dependencies => {
  */
 const parseAndFind = packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
-    if (currentPack === undefined) { return null }
+    if (currentPack === null) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
     if (p === undefined) { return null }
     const pack = packageGet(p.package)
-    if (pack === undefined) { return null }
+    if (pack === null) { return null }
     /** @type {(file: string) => FoundResult | undefined } */
     const tryFile = file => {
         const source = pack.file(file)
-        return source === undefined ? undefined : { id: { package: p.package, path: file.split('/') }, source }
+        return source === null ? undefined : { id: { package: p.package, path: file.split('/') }, source }
     }
     const file = p.items.join('/')
     const indexJs = join('/')(concat(p.items)(['index.js']))

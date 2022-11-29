@@ -4,6 +4,7 @@ const module_ = require('../module/module.f.cjs')
 const function_ = require('../module/function/module.f.cjs')
 const result = require('../../types/result/module.f.cjs')
 const package_ = require('../package/module.f.cjs')
+const { at } = require('../../types/object/module.f.cjs')
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {
@@ -32,9 +33,9 @@ const compileMap = {
 /** @type {function_.Compile} */
 const compile = source => compileMap[source] ?? ['error', 'invalid source']
 
-/** @typedef {{ readonly [k in string]?: string }} StringMap */
+/** @typedef {{ readonly [k in string]: string }} StringMap */
 
-/** @type {{ readonly [k in string]?: { readonly dependencies: StringMap, files: StringMap }}} */
+/** @type {{ readonly [k in string]: { readonly dependencies: StringMap, readonly files: StringMap }}} */
 const packageMap = {
     '': {
         dependencies: {
@@ -56,11 +57,11 @@ const packageMap = {
 
 /** @type {package_.Get} */
 const packageGet = packageId => {
-    const p = packageMap[packageId]
-    return p === undefined ? undefined :
+    const p = at(packageId)(packageMap)
+    return p === null ? null :
         {
-            dependency: dependency => p.dependencies[dependency],
-            file: file => p.files[file]
+            dependency: dependency => at(dependency)(p.dependencies),
+            file: file => at(file)(p.files),
         }
 }
 
