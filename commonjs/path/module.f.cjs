@@ -46,7 +46,7 @@ const firstUndefined = first(undefined)
 
 const firstNull = first(null)
 
-/** @type {(local: string) => (path: string) => LocalPath|undefined} */
+/** @type {(local: string) => (path: string) => LocalPath|null} */
 const parseLocal = local => {
     /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
     const fSeq = path => {
@@ -56,18 +56,17 @@ const parseLocal = local => {
             [false, dir, flat([split(local), pathSeq])] :
             [true, dir, pathSeq]
     }
-    /** @type {(path: string) => LocalPath|undefined} */
-    const f = path => {
+    // /** @type {(path: string) => LocalPath|null} */
+    return path => {
         const [external, dir, items] = fSeq(path)
         const n = normItems(items)
-        if (n === null) { return undefined }
+        if (n === null) { return null }
         return {
             external,
             dir,
             items: toArray(n[0])
         }
     }
-    return f
 }
 
 /** @typedef {readonly[string, list.List<string>]} IdPath */
@@ -125,7 +124,7 @@ const parse = packageId => dependencies => {
     const pg = parseGlobal(dependencies)
     return local => path => {
         const parsed = parseLocal(local)(path)
-        if (parsed === undefined) { return undefined }
+        if (parsed === null) { return undefined }
         const {external, dir, items } = parsed
         if (!external) { return { package: packageId, items, dir } }
         return pg(dir)(items)

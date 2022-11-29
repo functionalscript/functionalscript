@@ -24,7 +24,7 @@ module.exports = [
     },
     () => {
         const result = _.parseLocal('')('..')
-        if (result !== undefined) { throw result }
+        if (result !== null) { throw result }
     },
     () => {
         const result = _.parseLocal('a')('')
