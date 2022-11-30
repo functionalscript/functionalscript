@@ -128,7 +128,7 @@ const flatStep = ({ first, tail }) => concat(first)(flat(tail))
 const flat = apply(flatStep)
 
 /** @type {<I, O>(f: (value: I) => O) => (n: NonEmpty<I>) => List<O>} */
-const mapStep = f => n => ({ first: f(n.first), tail: map(f)(n.tail) })
+const mapStep = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
 const map = f => apply(mapStep(f))
@@ -137,9 +137,9 @@ const map = f => apply(mapStep(f))
 const flatMap = f => compose(map(f))(flat)
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const filterStep = f => n => {
-    const tail = filter(f)(n.tail)
-    return f(n.first) ? { first: n.first, tail } : tail
+const filterStep = f => ({ first, tail }) => {
+    const newTail = filter(f)(tail)
+    return f(first) ? { first, tail: newTail } : newTail
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
@@ -155,13 +155,13 @@ const filterMapStep = f => n => {
 const filterMap = f => apply(filterMapStep(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const takeWhileStep = f => n => f(n.first) ? { first: n.first, tail: takeWhile(f)(n.tail) } : null
+const takeWhileStep = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } : null
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
 const takeWhile = f => apply(takeWhileStep(f))
 
 /** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
-const takeStep = n => ne => 0 < n ? { first: ne.first, tail: take(n - 1)(ne.tail) } : null
+const takeStep = n => ({ first, tail }) => 0 < n ? { first: first, tail: take(n - 1)(tail) } : null
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
 const take = n => apply(takeStep(n))
@@ -180,8 +180,8 @@ const drop = n => apply(dropStep(n))
 
 /** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
 const first = def => input => {
-    const result = next(input)
-    return result === null ? def : result.first
+    const ne = next(input)
+    return ne === null ? def : ne.first
 }
 
 /** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */
