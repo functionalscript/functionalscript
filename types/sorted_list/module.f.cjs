@@ -41,9 +41,8 @@ const { identity } = require('../function/module.f.cjs')
  */
 
 /** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
-const genericMerge = reduce => {
-    const { reduceOp, tailReduce } = reduce
-    /** @typedef {typeof reduce extends MergeReduce<infer T, infer S> ? [T, S] : never} TS */
+const genericMerge = ({ reduceOp, tailReduce }) => {
+    /** @typedef {typeof reduceOp extends ReduceOp<infer T, infer S> ? [T, S] : never} TS */
     /** @typedef {TS[0]} T */
     /** @typedef {TS[1]} S */
     /** @type {(state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */

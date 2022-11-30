@@ -12,8 +12,7 @@ module.exports = {
     at: [
         () => {
             const result = _.at(2)([1, 20, 300])
-            if (result === null) { throw result }
-            if (result[0] !== 300) { throw result }
+            if (result !== 300) { throw result }
         },
 
         () => {

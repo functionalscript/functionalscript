@@ -1,4 +1,5 @@
-const { compose, identity } = require('../function/module.f.cjs')
+const function_ = require('../function/module.f.cjs')
+const { identity, fn, compose } = function_
 const operator = require('../function/operator/module.f.cjs')
 const {
     counter,
@@ -121,13 +122,13 @@ const apply = f => input => () => {
 }
 
 /** @type {<T>(n: NonEmpty<List<T>>) => List<T>} */
-const flatStep = n => concat(n.first)(flat(n.tail))
+const flatStep = ({ first, tail }) => concat(first)(flat(tail))
 
 /** @type {<T>(list: List<List<T>>) => Thunk<T>} */
 const flat = apply(flatStep)
 
 /** @type {<I, O>(f: (value: I) => O) => (n: NonEmpty<I>) => List<O>} */
-const mapStep = f => n => ({ first: f(n.first), tail: map(f)(n.tail) })
+const mapStep = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
 const map = f => apply(mapStep(f))
@@ -136,9 +137,9 @@ const map = f => apply(mapStep(f))
 const flatMap = f => compose(map(f))(flat)
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const filterStep = f => n => {
-    const tail = filter(f)(n.tail)
-    return f(n.first) ? { first: n.first, tail } : tail
+const filterStep = f => ({ first, tail }) => {
+    const newTail = filter(f)(tail)
+    return f(first) ? { first, tail: newTail } : newTail
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
@@ -154,13 +155,13 @@ const filterMapStep = f => n => {
 const filterMap = f => apply(filterMapStep(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const takeWhileStep = f => n => f(n.first) ? { first: n.first, tail: takeWhile(f)(n.tail) } : null
+const takeWhileStep = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } : null
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
 const takeWhile = f => apply(takeWhileStep(f))
 
 /** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
-const takeStep = n => ne => 0 < n ? { first: ne.first, tail: take(n - 1)(ne.tail) } : null
+const takeStep = n => ({ first, tail }) => 0 < n ? { first: first, tail: take(n - 1)(tail) } : null
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
 const take = n => apply(takeStep(n))
@@ -179,8 +180,8 @@ const drop = n => apply(dropStep(n))
 
 /** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
 const first = def => input => {
-    const result = next(input)
-    return result === null ? def : result.first
+    const ne = next(input)
+    return ne === null ? def : ne.first
 }
 
 /** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */
@@ -198,28 +199,24 @@ const last = first => tail => {
 }
 
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (input: List<T>) => D|T} */
-const find = def => f => input => first(def)(filter(f)(input))
-
-const findTrue = find(false)
+const find = def => f => compose(filter(f))(first(def))
 
 /** @type {(input: List<boolean>) => boolean} */
-const some = input => findTrue
-    (/** @type {(_: boolean) => boolean} */(identity))
-    (input)
-
-/** @type {<T>(f: List<T>) => Thunk<boolean>} */
-const mapTrue = map(() => true)
+const some = find(false)(identity)
 
 /** @type {<T>(input: List<T>) => boolean} */
-const isEmpty = input => !some(mapTrue(input))
+const isEmpty = fn(map(() => true))
+    .then(some)
+    .then(logicalNot)
+    .result
 
-const mapNot = map(logicalNot)
-
-/** @type {(input: List<boolean>) => boolean} */
-const every = input => !some(mapNot(input))
+const every = fn(map(logicalNot))
+    .then(some)
+    .then(logicalNot)
+    .result
 
 /** @type {<T>(value: T) => (sequence: List<T>) => boolean} */
-const includes = value => input => some(map(strictEqual(value))(input))
+const includes = value => compose(map(strictEqual(value)))(some)
 
 /** @type {(count: number) => Thunk<number>} */
 const countdown = count => () => {
@@ -229,7 +226,7 @@ const countdown = count => () => {
 }
 
 /** @type {<T>(v: T) => (c: number) => Thunk<T>} */
-const repeat = v => n => map(() => v)(countdown(n))
+const repeat = v => compose(countdown)(map(() => v))
 
 /** @type {<T>(list: List<T>) => List<T>} */
 const cycle = list => () => {
@@ -247,17 +244,16 @@ const scanStep = op => ne => {
 const scan = op => apply(scanStep(op))
 
 /** @type {<I, S, O>(op: operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
-const stateScan = op => init => scan(stateScanToScan(op)(init))
+const stateScan = op => compose(stateScanToScan(op))(scan)
 
 /** @type {<I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
-const foldScan = op => init => scan(foldToScan(op)(init))
+const foldScan = op => compose(foldToScan(op))(scan)
 
 /** @type {<I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => O} */
-const fold = op => init => input => last(init)(foldScan(op)(init)(input))
+const fold = op => init => compose(foldScan(op)(init))(last(init))
 
 /** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
-const reduce = op => def => input => last(def)(scan(reduceToScan(op))(input))
-
+const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
 /** @type {<T>(input: List<T>) => number} */
 const length = fold(counter)(0)
