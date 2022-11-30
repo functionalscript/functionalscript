@@ -1,4 +1,4 @@
-const { compose, identity } = require('../function/module.f.cjs')
+const { identity, fn } = require('../function/module.f.cjs')
 const operator = require('../function/operator/module.f.cjs')
 const {
     counter,
@@ -133,7 +133,7 @@ const mapStep = f => n => ({ first: f(n.first), tail: map(f)(n.tail) })
 const map = f => apply(mapStep(f))
 
 /** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
-const flatMap = f => compose(map(f))(flat)
+const flatMap = f => fn(map(f)).then(flat).result
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
 const filterStep = f => n => {
@@ -198,28 +198,28 @@ const last = first => tail => {
 }
 
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (input: List<T>) => D|T} */
-const find = def => f => input => first(def)(filter(f)(input))
-
-const findTrue = find(false)
+const find = def => f => fn(filter(f))
+    .then(first(def))
+    .result
 
 /** @type {(input: List<boolean>) => boolean} */
-const some = input => findTrue
-    (/** @type {(_: boolean) => boolean} */(identity))
-    (input)
-
-/** @type {<T>(f: List<T>) => Thunk<boolean>} */
-const mapTrue = map(() => true)
+const some = find(false)(identity)
 
 /** @type {<T>(input: List<T>) => boolean} */
-const isEmpty = input => !some(mapTrue(input))
+const isEmpty = fn(map(() => true))
+    .then(some)
+    .then(logicalNot)
+    .result
 
-const mapNot = map(logicalNot)
-
-/** @type {(input: List<boolean>) => boolean} */
-const every = input => !some(mapNot(input))
+const every = fn(map(logicalNot))
+    .then(some)
+    .then(logicalNot)
+    .result
 
 /** @type {<T>(value: T) => (sequence: List<T>) => boolean} */
-const includes = value => input => some(map(strictEqual(value))(input))
+const includes = value => fn(map(strictEqual(value)))
+    .then(some)
+    .result
 
 /** @type {(count: number) => Thunk<number>} */
 const countdown = count => () => {
@@ -257,7 +257,6 @@ const fold = op => init => input => last(init)(foldScan(op)(init)(input))
 
 /** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const reduce = op => def => input => last(def)(scan(reduceToScan(op))(input))
-
 
 /** @type {<T>(input: List<T>) => number} */
 const length = fold(counter)(0)
