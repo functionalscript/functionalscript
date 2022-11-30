@@ -1,4 +1,4 @@
-const { fn } = require('../function/module.f.cjs')
+const { fn, compose } = require('../function/module.f.cjs')
 const rangeMap = require('../range_map/module.f.cjs')
 const sortedSet = require('../sorted_set/module.f.cjs')
 const list = require('../list/module.f.cjs')
@@ -31,17 +31,17 @@ const union = a => b => a | b
 /** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
 const intersect = a => b => a & b
 
-/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
-const difference = a => b => intersect(a)(complement(b))
-
 /** @type {(n: ByteSet) => ByteSet} */
 const complement = n => universe ^ n
 
+/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
+const difference = compose(intersect)(compose(complement))
+
 // additional operations
 
-const set = fn(one).then(union).result
+const set = compose(one)(union)
 
-const setRange = fn(range).then(union).result
+const setRange = compose(range)(union)
 
 /** @type {(n: Byte) => (s: ByteSet) => ByteSet} */
 const unset = n => s => difference(s)(one(n))
@@ -49,8 +49,7 @@ const unset = n => s => difference(s)(one(n))
 const counter = reverse(countdown(256))
 
 /** @type {(n: ByteSet) => (s: string) => (i: number) => rangeMap.RangeMap<sortedSet.SortedSet<string>>} */
-const toRangeMapOp = n => s => i =>
-{
+const toRangeMapOp = n => s => i => {
     const current = has(i + 1)(n)
     const prev = has(i)(n)
     if (current === prev) { return null }

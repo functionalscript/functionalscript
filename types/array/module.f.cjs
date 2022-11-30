@@ -85,16 +85,16 @@ const uncheckTail = a => a.slice(1)
 const uncheckHead = a => a.slice(0, -1)
 
 /** @type {(index: number) => <T>(a: readonly T[]) => T|null} */
-const unsafeAt = i => a => {
+const at = i => a => {
     const r = a[i]
     return r === void 0 ? null : r
 }
 
 /** @type {<T>(_: readonly T[]) => T|null} */
-const first = unsafeAt(0)
+const first = at(0)
 
 /** @type {<T>(_: readonly T[]) => T|null} */
-const last = a => unsafeAt(a.length - 1)(a)
+const last = a => at(a.length - 1)(a)
 
 /** @type {<T>(_: readonly T[]) => readonly T[] | null} */
 const tail = a => a.length === 0 ? null : uncheckTail(a)
@@ -116,9 +116,6 @@ const splitLast = a => {
     if (lastA === null) { return null }
     return [uncheckHead(a), lastA]
 }
-
-/** @type {(index: number) => <T>(a: readonly T[]) => readonly[T]|null} */
-const at = index => a => index < a.length ? [a[index]] : null
 
 module.exports = {
     /** @readonly */
