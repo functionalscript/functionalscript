@@ -44,52 +44,66 @@ const { reset, fgGreen } = require('../../text/sgr/module.f.cjs')
 /** @type {(s: string) => boolean} */
 const isTest = s => s.endsWith('test.f.cjs')
 
+/**
+ * @template T
+ * @typedef {readonly[number, T]} State
+ */
+
 /** @type {<T>(input: Input<T>) => T} */
-const main = ({moduleMap, log, performanceNow, state}) => {
-    /** @typedef {log extends Log<infer T> ? T : never} T */
-    /** @type {(i: string) => (v: unknown) => (state: T) => T} */
-    const test = i => v => state => {
+const main = input => {
+    let { moduleMap, log, performanceNow, state } = input
+    /** @typedef {input extends Input<infer T> ? T : never} T */
+    /** @type {(i: string) => (v: unknown) => (state: State<T>) => State<T>} */
+    const test = i => v => ([time, state]) => {
         const next = test(`${i}| `)
         switch (typeof v) {
             case 'function': {
                 if (v.length === 0) {
-                    const [b, stateB] = performanceNow(state)
+                    let b = 0;
+                    [b, state] = performanceNow(state)
                     const r = v()
-                    const [e, stateE] = performanceNow(stateB)
-                    state = stateE
-                    state = log(`${i}() ${fgGreen}ok${reset}, ${e-b} ms`)(state)
-                    state = next(r)(state)
+                    let e = 0;
+                    [e, state] = performanceNow(state)
+                    const delta = e - b
+                    time += delta
+                    state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state);
+                    [time, state] = next(r)([time, state])
                 }
                 break
             }
             case 'object': {
-                /** @type {(k: readonly[string|number, unknown]) => (state: T) => T} */
-                const f = ([k, v]) => state => {
-                    state = log(`${i}${k}:`)(state)
-                    state = next(v)(state)
-                    return state
+                /** @type {(k: readonly[string|number, unknown]) => (state: State<T>) => State<T>} */
+                const f = ([k, v]) => ([time, state]) => {
+                    state = log(`${i}${k}:`)(state);
+                    [time, state] = next(v)([time, state])
+                    return [time, state]
                 }
-                const foldF = fold(f)(state)
+                const foldF = fold(f)([time, state])
                 if (v instanceof Array) {
-                    state = foldF(list.entries(v))
+                    [time, state] = foldF(list.entries(v))
                 } else if (v !== null) {
-                    state = foldF(Object.entries(v))
+                    [time, state] = foldF(Object.entries(v))
                 }
                 break
             }
         }
-        return state
+        return [time, state]
     }
     const next = test('| ')
-    /** @type {(k: readonly[string, Module]) => (state: T) => T} */
-    const f = ([k, v]) => state => {
+    /** @type {(k: readonly[string, Module]) => (fs: State<T>) => State<T>} */
+    const f = ([k, v]) => ([time, state]) => {
         if (isTest(k)) {
-            state = log(`testing ${k}`)(state)
-            state = next(v.exports)(state)
+            state = log(`testing ${k}`)(state);
+            [time, state] = next(v.exports)([time, state])
         }
-        return state
+        return [time, state]
     }
-    return fold(f)(state)(Object.entries(moduleMap))
+    /** @type {State<T>} */
+    const init = [0, state]
+    let time = 0;
+    [time, state] = fold(f)(init)(Object.entries(moduleMap))
+    state = log(`total ${time} ms`)(state);
+    return state
 }
 
 module.exports = main
