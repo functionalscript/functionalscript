@@ -72,17 +72,17 @@ const main = input => {
                 break
             }
             case 'object': {
-                /** @type {(k: readonly[string|number, unknown]) => (state: State<T>) => State<T>} */
-                const f = ([k, v]) => ([time, state]) => {
-                    state = log(`${i}${k}:`)(state);
-                    [time, state] = next(v)([time, state])
-                    return [time, state]
-                }
-                const foldF = fold(f)([time, state])
-                if (v instanceof Array) {
-                    [time, state] = foldF(list.entries(v))
-                } else if (v !== null) {
-                    [time, state] = foldF(Object.entries(v))
+                if (v !== null) {
+                    /** @type {(k: readonly[string|number, unknown]) => (state: State<T>) => State<T>} */
+                    const f = ([k, v]) => ([time, state]) => {
+                        state = log(`${i}${k}:`)(state);
+                        [time, state] = next(v)([time, state])
+                        return [time, state]
+                    }
+                    [time, state] = fold
+                        (f)
+                        ([time, state])
+                        (v instanceof Array ? list.entries(v) : Object.entries(v))
                 }
                 break
             }
