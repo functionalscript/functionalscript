@@ -28,9 +28,15 @@ const { reset, fgGreen } = require('../../text/sgr/module.f.cjs')
 
 /**
  * @template T
+ * @typedef {(state: T) => readonly[number, T]} PerformanceNow
+ */
+
+/**
+ * @template T
  * @typedef {{
  *  readonly moduleMap: ModuleMap,
  *  readonly log: Log<T>,
+ *  readonly performanceNow: PerformanceNow<T>,
  *  readonly state: T,
  * }} Input
  */
@@ -39,7 +45,7 @@ const { reset, fgGreen } = require('../../text/sgr/module.f.cjs')
 const isTest = s => s.endsWith('test.f.cjs')
 
 /** @type {<T>(input: Input<T>) => T} */
-const main = ({moduleMap, log, state}) => {
+const main = ({moduleMap, log, performanceNow, state}) => {
     /** @typedef {log extends Log<infer T> ? T : never} T */
     /** @type {(i: string) => (v: unknown) => (state: T) => T} */
     const test = i => v => state => {
@@ -47,8 +53,11 @@ const main = ({moduleMap, log, state}) => {
         switch (typeof v) {
             case 'function': {
                 if (v.length === 0) {
+                    const [b, stateB] = performanceNow(state)
                     const r = v()
-                    state = log(`${i}() ${fgGreen}ok${reset}`)(state)
+                    const [e, stateE] = performanceNow(stateB)
+                    state = stateE
+                    state = log(`${i}() ${fgGreen}ok${reset}, ${e-b} ms`)(state)
                     state = next(r)(state)
                 }
                 break
