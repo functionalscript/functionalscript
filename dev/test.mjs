@@ -13,8 +13,6 @@ const performanceNow = state => [performance.now(), state]
 const main = async() => {
     const moduleMap = await loadModuleMap()
 
-    // await import(self.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
-
     /** @type {any} */
     const f = moduleMap['./dev/test/module.f.cjs'].exports
     f({
