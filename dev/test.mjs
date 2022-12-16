@@ -1,5 +1,4 @@
 import { loadModuleMap } from './module.mjs'
-import { performance } from 'node:perf_hooks'
 
 /** @type {(s: string) => <T>(_: T) => T} */
 const log = s => state => {
@@ -13,6 +12,8 @@ const performanceNow = state => [performance.now(), state]
 // test runner.
 const main = async() => {
     const moduleMap = await loadModuleMap()
+
+    // await import(self.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
 
     /** @type {any} */
     const f = moduleMap['./dev/test/module.f.cjs'].exports
