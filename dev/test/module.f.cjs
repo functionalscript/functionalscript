@@ -46,14 +46,14 @@ const isTest = s => s.endsWith('test.f.cjs')
 
 /**
  * @template T
- * @typedef {readonly[number, T]} State
+ * @typedef {readonly[number, T]} FullState
  */
 
 /** @type {<T>(input: Input<T>) => T} */
 const main = input => {
     let { moduleMap, log, performanceNow, state } = input
     /** @typedef {input extends Input<infer T> ? T : never} T */
-    /** @type {(i: string) => (v: unknown) => (state: State<T>) => State<T>} */
+    /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
     const test = i => v => ([time, state]) => {
         const next = test(`${i}| `)
         switch (typeof v) {
@@ -73,7 +73,7 @@ const main = input => {
             }
             case 'object': {
                 if (v !== null) {
-                    /** @type {(k: readonly[string|number, unknown]) => (state: State<T>) => State<T>} */
+                    /** @type {(k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>} */
                     const f = ([k, v]) => ([time, state]) => {
                         state = log(`${i}${k}:`)(state);
                         [time, state] = next(v)([time, state])
@@ -90,7 +90,7 @@ const main = input => {
         return [time, state]
     }
     const next = test('| ')
-    /** @type {(k: readonly[string, Module]) => (fs: State<T>) => State<T>} */
+    /** @type {(k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>} */
     const f = ([k, v]) => ([time, state]) => {
         if (isTest(k)) {
             state = log(`testing ${k}`)(state);
@@ -98,10 +98,8 @@ const main = input => {
         }
         return [time, state]
     }
-    /** @type {State<T>} */
-    const init = [0, state]
     let time = 0;
-    [time, state] = fold(f)(init)(Object.entries(moduleMap))
+    [time, state] = fold(f)([time, state])(Object.entries(moduleMap))
     state = log(`total ${time} ms`)(state);
     return state
 }
