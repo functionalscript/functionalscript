@@ -1,6 +1,7 @@
 const list = require('../../types/list/module.f.cjs')
 const { fold } = list
-const { reset, fgGreen } = require('../../text/sgr/module.f.cjs')
+const { reset, fgGreen, fgRed } = require('../../text/sgr/module.f.cjs')
+const result = require('../../types/result/module.f.cjs')
 
 /**
  * @typedef {{
@@ -38,11 +39,14 @@ const { reset, fgGreen } = require('../../text/sgr/module.f.cjs')
  *  readonly log: Log<T>,
  *  readonly performanceNow: PerformanceNow<T>,
  *  readonly state: T,
+ *  readonly tryCatch: <R>(f: () => R) => result.Result<R, unknown>
  * }} Input
  */
 
 /** @type {(s: string) => boolean} */
 const isTest = s => s.endsWith('test.f.cjs')
+
+/** @type {readonly[number, number]} TestState */
 
 /**
  * @template T
@@ -51,7 +55,7 @@ const isTest = s => s.endsWith('test.f.cjs')
 
 /** @type {<T>(input: Input<T>) => T} */
 const main = input => {
-    let { moduleMap, log, performanceNow, state } = input
+    let { moduleMap, log, performanceNow, state, tryCatch } = input
     /** @typedef {input extends Input<infer T> ? T : never} T */
     /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
     const test = i => v => ([time, state]) => {
@@ -61,11 +65,15 @@ const main = input => {
                 if (v.length === 0) {
                     let b = 0;
                     [b, state] = performanceNow(state)
-                    const r = v()
+                    const [s, r] = tryCatch(/** @type {() => unknown} */(v))
                     let e = 0;
                     [e, state] = performanceNow(state)
                     const delta = e - b
                     time += delta
+                    if (s === 'error') {
+                        state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state);
+                        return [time, state]
+                    }
                     state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state);
                     [time, state] = next(r)([time, state])
                 }

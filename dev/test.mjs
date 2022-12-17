@@ -1,9 +1,37 @@
 import { loadModuleMap } from './module.mjs'
 
+const consoleLog = console.log
+
 /** @type {(s: string) => <T>(_: T) => T} */
 const log = s => state => {
-    console.log(s)
+    consoleLog(s)
     return state
+}
+
+/**
+ * @template T
+ * @typedef {readonly['ok', T]} Ok
+ */
+
+/**
+ * @template E
+ * @typedef {readonly['error', E]} Error
+ */
+
+/**
+ * @template T
+ * @template E
+ * @typedef {Ok<T>|Error<E>} Result
+ */
+
+/** @type {<T>(f: () => T) => Result<T, unknown>} */
+const tryCatch = f => {
+    // Side effect: `try catch` is not allowed in FunctionalScript.
+    try {
+        return ['ok', f()]
+    } catch (e) {
+        return ['error', e]
+    }
 }
 
 /** @type {<T>(_: T) => readonly[number, T]} */
@@ -19,6 +47,7 @@ const main = async() => {
         moduleMap,
         log,
         performanceNow,
+        tryCatch,
     })
 }
 

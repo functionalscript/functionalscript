@@ -13,5 +13,7 @@ module.exports = {
     /** @readonly */
     bold: sgr(1),
     /** @readonly */
+    fgRed: sgr(31),
+    /** @readonly */
     fgGreen: sgr(32),
 }
