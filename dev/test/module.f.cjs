@@ -58,7 +58,7 @@ const isTest = s => s.endsWith('test.f.cjs')
 const addPass = delta => ts => ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
 
 /** @type {(time: number) => (testState: TestState) => TestState} */
-const addFail = delta => ts => ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
+const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 1 })
 
 /**
  * @template T
@@ -84,7 +84,7 @@ const main = input => {
                     if (s === 'error') {
                         ts = addFail(delta)(ts)
                         state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
-                        throw r
+                        state = log(`${fgRed}${r}${reset}`)(state)
                     } else {
                         ts = addPass(delta)(ts)
                         state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state)
@@ -123,7 +123,7 @@ const main = input => {
     /** @type {TestState} */
     let ts = { time: 0, pass: 0, fail: 0 };
     [ts, state] = fold(f)([ts, state])(Object.entries(moduleMap))
-    state = log(`${bold}Number of tests: ${ts.pass}${reset}`)(state)
+    state = log(`${bold}Number of tests: pass: ${ts.pass}, fail: ${ts.fail}, total: ${ts.pass + ts.fail}${reset}`)(state)
     state = log(`${bold}Time: ${ts.time} ms${reset}`)(state);
     return [ts.fail !== 0 ? -1 : 0, state]
 }
