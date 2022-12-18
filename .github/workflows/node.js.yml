@@ -10,7 +10,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  node:
 
     runs-on: ubuntu-latest
 
