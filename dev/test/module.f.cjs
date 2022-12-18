@@ -84,6 +84,8 @@ const main = input => {
                         if (s === 'error') {
                             ts = addFail(delta)(ts)
                             if (isGitHub) {
+                                // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+                                // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
                                 state = log(`::error file=${k},line=1,title=[3]['a']()::${r}`)(state)
                             } else {
                                 state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
