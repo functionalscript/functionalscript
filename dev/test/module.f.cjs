@@ -46,17 +46,26 @@ const result = require('../../types/result/module.f.cjs')
 /** @type {(s: string) => boolean} */
 const isTest = s => s.endsWith('test.f.cjs')
 
-/** @typedef {readonly[number, number]} TestState */
+/**
+ * @typedef {{
+ *  readonly time: number,
+ *  readonly pass: number,
+ *  readonly fail: number,
+ * }} TestState
+ */
 
 /** @type {(time: number) => (testState: TestState) => TestState} */
-const addTest = delta => ([time, counter]) => [time + delta, counter + 1]
+const addPass = delta => ts => ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
+
+/** @type {(time: number) => (testState: TestState) => TestState} */
+const addFail = delta => ts => ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
 
 /**
  * @template T
  * @typedef {readonly[TestState, T]} FullState
  */
 
-/** @type {<T>(input: Input<T>) => T} */
+/** @type {<T>(input: Input<T>) => readonly[number, T]} */
 const main = input => {
     let { moduleMap, log, performanceNow, state, tryCatch } = input
     /** @typedef {input extends Input<infer T> ? T : never} T */
@@ -72,12 +81,14 @@ const main = input => {
                     let e = 0;
                     [e, state] = performanceNow(state)
                     const delta = e - b
-                    ts = addTest(delta)(ts)
                     if (s === 'error') {
-                        state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state);
+                        ts = addFail(delta)(ts)
+                        state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
                         throw r
+                    } else {
+                        ts = addPass(delta)(ts)
+                        state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state)
                     }
-                    state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state);
                     [ts, state] = next(r)([ts, state])
                 }
                 break
@@ -110,10 +121,10 @@ const main = input => {
         return [ts, state]
     }
     /** @type {TestState} */
-    let ts = [0, 0];
+    let ts = { time: 0, pass: 0, fail: 0 };
     [ts, state] = fold(f)([ts, state])(Object.entries(moduleMap))
-    state = log(`${bold}Number of tests: ${ts[1]}\nTime: ${ts[0]} ms${reset}`)(state);
-    return state
+    state = log(`${bold}Number of tests: ${ts.pass}\nTime: ${ts.time} ms${reset}`)(state);
+    return [0, state]
 }
 
 module.exports = main

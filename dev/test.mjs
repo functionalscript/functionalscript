@@ -43,12 +43,13 @@ const main = async() => {
 
     /** @type {any} */
     const f = moduleMap['./dev/test/module.f.cjs'].exports
-    f({
+    const r = f({
         moduleMap,
         log,
         performanceNow,
         tryCatch,
     })
+    process.exit(r[0])
 }
 
 main()
