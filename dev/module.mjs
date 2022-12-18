@@ -87,7 +87,7 @@ export const exit = self.Deno ? self.Deno.exit : process.exit
 /** @type {(v: string) => string|undefined} */
 export const env =
     self.Deno ? self.Deno.env.get :
-    self.Bun ? a => self.Bun.env.get(a) :
+    self.Bun ? a => Object.getOwnPropertyDescriptor(self.Bun.env, a)?.get() :
     a => Object.getOwnPropertyDescriptor(process.env, a)?.value
 
 export const loadModuleMap = async () => {
