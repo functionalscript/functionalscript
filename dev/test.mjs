@@ -1,4 +1,4 @@
-import { loadModuleMap } from './module.mjs'
+import { loadModuleMap, exit } from './module.mjs'
 
 const consoleLog = console.log
 
@@ -49,7 +49,7 @@ const main = async() => {
         performanceNow,
         tryCatch,
     })
-    process.exit(r[0])
+    exit(r[0])
 }
 
 main()
