@@ -16,4 +16,4 @@ jobs:
     - uses: denoland/setup-deno@v1
       with:
         deno-version: v1.x
-    - run: deno run --allow-read --allow-env --allow-net --allow-hrtime ./dev/test.mjs
+    - run: deno run --quiet --allow-read --allow-env --allow-net --allow-hrtime ./dev/test.mjs
