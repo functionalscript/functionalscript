@@ -71,51 +71,51 @@ const main = input => {
     let { moduleMap, log, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
     /** @typedef {input extends Input<infer T> ? T : never} T */
-    /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
-    const test = i => v => ([ts, state]) => {
-        const next = test(`${i}| `)
-        switch (typeof v) {
-            case 'function': {
-                if (v.length === 0) {
-                    const [[s, r], delta, state0] = measure(() => tryCatch(/** @type {() => unknown} */(v)))(state)
-                    state = state0
-                    if (s === 'error') {
-                        ts = addFail(delta)(ts)
-                        if (isGitHub) {
-                            state = log(`::error ::${r}`)(state)
-                        } else {
-                            state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
-                            state = log(`${fgRed}${r}${reset}`)(state)
-                        }
-                    } else {
-                        ts = addPass(delta)(ts)
-                        state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state)
-                    }
-                    [ts, state] = next(r)([ts, state])
-                }
-                break
-            }
-            case 'object': {
-                if (v !== null) {
-                    /** @type {(k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>} */
-                    const f = ([k, v]) => ([time, state]) => {
-                        state = log(`${i}${k}:`)(state);
-                        [time, state] = next(v)([time, state])
-                        return [time, state]
-                    }
-                    [ts, state] = fold
-                        (f)
-                        ([ts, state])
-                        (v instanceof Array ? list.entries(v) : Object.entries(v))
-                }
-                break
-            }
-        }
-        return [ts, state]
-    }
-    const next = test('| ')
     /** @type {(k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>} */
     const f = ([k, v]) => ([ts, state]) => {
+        /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
+        const test = i => v => ([ts, state]) => {
+            const next = test(`${i}| `)
+            switch (typeof v) {
+                case 'function': {
+                    if (v.length === 0) {
+                        const [[s, r], delta, state0] = measure(() => tryCatch(/** @type {() => unknown} */(v)))(state)
+                        state = state0
+                        if (s === 'error') {
+                            ts = addFail(delta)(ts)
+                            if (isGitHub) {
+                                state = log(`::error file=${k}::${r}`)(state)
+                            } else {
+                                state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
+                                state = log(`${fgRed}${r}${reset}`)(state)
+                            }
+                        } else {
+                            ts = addPass(delta)(ts)
+                            state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state)
+                        }
+                        [ts, state] = next(r)([ts, state])
+                    }
+                    break
+                }
+                case 'object': {
+                    if (v !== null) {
+                        /** @type {(k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>} */
+                        const f = ([k, v]) => ([time, state]) => {
+                            state = log(`${i}${k}:`)(state);
+                            [time, state] = next(v)([time, state])
+                            return [time, state]
+                        }
+                        [ts, state] = fold
+                            (f)
+                            ([ts, state])
+                            (v instanceof Array ? list.entries(v) : Object.entries(v))
+                    }
+                    break
+                }
+            }
+            return [ts, state]
+        }
+        const next = test('| ')
         if (isTest(k)) {
             state = log(`testing ${k}`)(state);
             [ts, state] = next(v.exports)([ts, state])
