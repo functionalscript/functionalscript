@@ -70,7 +70,6 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
 const main = input => {
     let { moduleMap, log, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
-    state = log(`GitHub: ${isGitHub}`)(state)
     /** @typedef {input extends Input<infer T> ? T : never} T */
     /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
     const test = i => v => ([ts, state]) => {
@@ -82,8 +81,12 @@ const main = input => {
                     state = state0
                     if (s === 'error') {
                         ts = addFail(delta)(ts)
-                        state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
-                        state = log(`${fgRed}${r}${reset}`)(state)
+                        if (isGitHub) {
+                            state = log(`::error ::${r}`)(state)
+                        } else {
+                            state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
+                            state = log(`${fgRed}${r}${reset}`)(state)
+                        }
                     } else {
                         ts = addPass(delta)(ts)
                         state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state)
