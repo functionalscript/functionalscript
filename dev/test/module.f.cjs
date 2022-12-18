@@ -70,7 +70,7 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
 const main = input => {
     let { moduleMap, log, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
-    log(`GitHub: ${isGitHub}`)
+    state = log(`GitHub: ${isGitHub}`)(state)
     /** @typedef {input extends Input<infer T> ? T : never} T */
     /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
     const test = i => v => ([ts, state]) => {
