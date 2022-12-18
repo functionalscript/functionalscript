@@ -37,6 +37,7 @@ const result = require('../../types/result/module.f.cjs')
  * @typedef {{
  *  readonly moduleMap: ModuleMap,
  *  readonly log: Log<T>,
+ *  readonly error: Log<T>,
  *  readonly measure: Measure<T>,
  *  readonly state: T,
  *  readonly tryCatch: <R>(f: () => R) => result.Result<R, unknown>,
@@ -68,7 +69,7 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
 
 /** @type {<T>(input: Input<T>) => readonly[number, T]} */
 const main = input => {
-    let { moduleMap, log, measure, tryCatch, env, state } = input
+    let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
     /** @typedef {input extends Input<infer T> ? T : never} T */
     /** @type {(k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>} */
@@ -86,10 +87,10 @@ const main = input => {
                             if (isGitHub) {
                                 // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
                                 // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                                state = log(`::error file=${k},line=1,title=[3]['a']()::${r}`)(state)
+                                state = error(`::error file=${k},line=1,title=[3]['a']()::${r}`)(state)
                             } else {
-                                state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
-                                state = log(`${fgRed}${r}${reset}`)(state)
+                                state = error(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
+                                state = error(`${fgRed}${r}${reset}`)(state)
                             }
                         } else {
                             ts = addPass(delta)(ts)
