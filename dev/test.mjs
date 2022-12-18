@@ -1,4 +1,4 @@
-import { loadModuleMap, exit } from './module.mjs'
+import { loadModuleMap, exit, env } from './module.mjs'
 
 const consoleLog = console.log
 
@@ -46,7 +46,7 @@ const measure = f => state => {
 const main = async() => {
     const moduleMap = await loadModuleMap()
 
-    console.log(process.env)
+    console.log(env)
 
     /** @type {any} */
     const f = moduleMap['./dev/test/module.f.cjs'].exports
