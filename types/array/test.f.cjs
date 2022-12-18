@@ -7,7 +7,7 @@ const stringify = json.stringify(sort)
 module.exports = {
     stringify: () => {
         const result = stringify([1, 20, 300])
-        if (result !== '[ 1,20,300]') { throw result }
+        if (result !== '[1,20,300]') { throw result }
     },
     at: [
         () => {
