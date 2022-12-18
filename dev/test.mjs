@@ -1,10 +1,8 @@
-import { loadModuleMap, exit } from './module.mjs'
+import { loadModuleMap, exit, env } from './module.mjs'
 
-const consoleLog = console.log
-
-/** @type {(s: string) => <T>(_: T) => T} */
-const log = s => state => {
-    consoleLog(s)
+/** @type {(f: (s: string) => void) => (s: string) => <T>(_: T) => T} */
+const anyLog = f => s => state => {
+    f(s)
     return state
 }
 
@@ -50,9 +48,11 @@ const main = async() => {
     const f = moduleMap['./dev/test/module.f.cjs'].exports
     const r = f({
         moduleMap,
-        log,
+        log: anyLog(console.log),
+        error: anyLog(console.error),
         measure,
         tryCatch,
+        env,
     })
     exit(r[0])
 }

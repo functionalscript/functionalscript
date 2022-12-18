@@ -1,7 +1,7 @@
 # This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
 
-name: node CI
+name: CI
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  node:
 
     runs-on: ubuntu-latest
 
@@ -29,3 +29,23 @@ jobs:
     - run: npm test
     - run: npm run version
     - run: npm pack
+
+  deno:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+    - run: deno run --quiet --allow-read --allow-env --allow-net --allow-hrtime ./dev/test.mjs
+
+  bun:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: curl https://bun.sh/install | bash
+    - run: /home/runner/.bun/bin/bun ./dev/test.mjs
