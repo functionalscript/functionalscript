@@ -87,8 +87,12 @@ export const exit = self.Deno ? self.Deno.exit : process.exit
 /** @type {(v: string) => string|undefined} */
 export const env =
     self.Deno ? self.Deno.env.get :
-    self.Bun ? a => Object.getOwnPropertyDescriptor(self.Bun.env, a)?.get() :
-    a => Object.getOwnPropertyDescriptor(process.env, a)?.value
+    a => {
+        const r = Object.getOwnPropertyDescriptor(process.env, a)
+        return r === void 0 ? void 0 :
+            typeof r.get === 'function' ? r.get() :
+            r.value
+    }
 
 export const loadModuleMap = async () => {
     const { readdir, readFile } = await fs();
