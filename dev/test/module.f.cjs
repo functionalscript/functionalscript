@@ -29,7 +29,7 @@ const result = require('../../types/result/module.f.cjs')
 
 /**
  * @template T
- * @typedef {(state: T) => readonly[number, T]} PerformanceNow
+ * @typedef {<R>(f: () => R) => (state: T) => readonly[R, number, T]} Measure
  */
 
 /**
@@ -37,7 +37,7 @@ const result = require('../../types/result/module.f.cjs')
  * @typedef {{
  *  readonly moduleMap: ModuleMap,
  *  readonly log: Log<T>,
- *  readonly performanceNow: PerformanceNow<T>,
+ *  readonly measure: Measure<T>,
  *  readonly state: T,
  *  readonly tryCatch: <R>(f: () => R) => result.Result<R, unknown>
  * }} Input
@@ -67,7 +67,7 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
 
 /** @type {<T>(input: Input<T>) => readonly[number, T]} */
 const main = input => {
-    let { moduleMap, log, performanceNow, state, tryCatch } = input
+    let { moduleMap, log, measure, tryCatch, state } = input
     /** @typedef {input extends Input<infer T> ? T : never} T */
     /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
     const test = i => v => ([ts, state]) => {
@@ -75,12 +75,8 @@ const main = input => {
         switch (typeof v) {
             case 'function': {
                 if (v.length === 0) {
-                    let b = 0;
-                    [b, state] = performanceNow(state)
-                    const [s, r] = tryCatch(/** @type {() => unknown} */(v))
-                    let e = 0;
-                    [e, state] = performanceNow(state)
-                    const delta = e - b
+                    const [[s, r], delta, state0] = measure(() => tryCatch(/** @type {() => unknown} */(v)))(state)
+                    state = state0
                     if (s === 'error') {
                         ts = addFail(delta)(ts)
                         state = log(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)

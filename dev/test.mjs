@@ -34,8 +34,13 @@ const tryCatch = f => {
     }
 }
 
-/** @type {<T>(_: T) => readonly[number, T]} */
-const performanceNow = state => [performance.now(), state]
+/** @type {<R>(f: () => R) => <T>(state: T) => readonly[R, number, T]} Measure} */
+const measure = f => state => {
+    const b = performance.now()
+    const r = f()
+    const e = performance.now()
+    return [r, e - b, state]
+}
 
 // test runner.
 const main = async() => {
@@ -46,7 +51,7 @@ const main = async() => {
     const r = f({
         moduleMap,
         log,
-        performanceNow,
+        measure,
         tryCatch,
     })
     exit(r[0])
