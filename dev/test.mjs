@@ -46,9 +46,6 @@ const measure = f => state => {
 const main = async() => {
     const moduleMap = await loadModuleMap()
 
-    console.log(env('GITHUB_ACTION'))
-    // console.log(process.env)
-
     /** @type {any} */
     const f = moduleMap['./dev/test/module.f.cjs'].exports
     const r = f({
@@ -56,6 +53,7 @@ const main = async() => {
         log,
         measure,
         tryCatch,
+        env,
     })
     exit(r[0])
 }
