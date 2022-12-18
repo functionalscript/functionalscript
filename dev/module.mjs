@@ -85,7 +85,10 @@ export const fs = () => import(self.Deno ? 'https://deno.land/std/node/fs/promis
 export const exit = self.Deno ? self.Deno.exit : process.exit
 
 /** @type {(v: string) => string|undefined} */
-export const env = self.Deno ? self.Deno.env.get : a => Object.getOwnPropertyDescriptor(process.env, a)
+export const env =
+    self.Deno ? self.Deno.env.get :
+    self.Bun ? a => self.Bun.env.get(a) :
+    a => Object.getOwnPropertyDescriptor(process.env, a)?.value
 
 export const loadModuleMap = async () => {
     const { readdir, readFile } = await fs();
