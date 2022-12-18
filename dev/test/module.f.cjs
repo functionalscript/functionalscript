@@ -125,7 +125,7 @@ const main = input => {
     [ts, state] = fold(f)([ts, state])(Object.entries(moduleMap))
     state = log(`${bold}Number of tests: pass: ${ts.pass}, fail: ${ts.fail}, total: ${ts.pass + ts.fail}${reset}`)(state)
     state = log(`${bold}Time: ${ts.time} ms${reset}`)(state);
-    return [ts.fail !== 0 ? -1 : 0, state]
+    return [ts.fail !== 0 ? 1 : 0, state]
 }
 
 module.exports = main
