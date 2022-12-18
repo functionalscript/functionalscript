@@ -119,7 +119,8 @@ const main = input => {
     /** @type {TestState} */
     let ts = { time: 0, pass: 0, fail: 0 };
     [ts, state] = fold(f)([ts, state])(Object.entries(moduleMap))
-    state = log(`${bold}Number of tests: pass: ${ts.pass}, fail: ${ts.fail}, total: ${ts.pass + ts.fail}${reset}`)(state)
+    const fgFail = ts.fail === 0 ? fgGreen : fgRed
+    state = log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)(state)
     state = log(`${bold}Time: ${ts.time} ms${reset}`)(state);
     return [ts.fail !== 0 ? 1 : 0, state]
 }
