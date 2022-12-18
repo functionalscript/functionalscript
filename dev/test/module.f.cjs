@@ -72,7 +72,7 @@ const main = input => {
     const isGitHub = env('GITHUB_ACTION') !== void 0
     /** @typedef {input extends Input<infer T> ? T : never} T */
     /** @type {(k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>} */
-    const f = ([k, v]) => ([ts, state]) => {
+    const f = ([k, v]) => {
         /** @type {(i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>} */
         const test = i => v => ([ts, state]) => {
             const next = test(`${i}| `)
@@ -115,12 +115,13 @@ const main = input => {
             }
             return [ts, state]
         }
-        const next = test('| ')
-        if (isTest(k)) {
-            state = log(`testing ${k}`)(state);
-            [ts, state] = next(v.exports)([ts, state])
+        return ([ts, state]) => {
+            if (isTest(k)) {
+                state = log(`testing ${k}`)(state);
+                [ts, state] = test('| ')(v.exports)([ts, state])
+            }
+            return [ts, state]
         }
-        return [ts, state]
     }
     /** @type {TestState} */
     let ts = { time: 0, pass: 0, fail: 0 };
