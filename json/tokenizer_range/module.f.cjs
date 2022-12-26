@@ -3,9 +3,8 @@ const range_map = require('../../types/range_map/module.f.cjs')
 const { merge, fromRange, get } = range_map
 const list = require('../../types/list/module.f.cjs')
 const _range = require('../../types/range/module.f.cjs')
-const { contains, one } = _range
+const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
-const { range: asciiRange } = require('../../text/ascii/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -162,7 +161,7 @@ const rangeCapitalAF = range('AF')
 
 /**
  * @template T
- * @typedef {(def:  CreateToToken<T>) => (RangeMapToToken<T>)} RangeFunc<T>
+ * @typedef {(def: CreateToToken<T>) => (RangeMapToToken<T>)} RangeFunc<T>
  */
 
 /**
@@ -180,14 +179,14 @@ const union = def => a => b => {
     throw [a, b]
 }
 
- /** @type {<T>(def:  CreateToToken<T>) => range_map.RangeMerge<CreateToToken<T>>} */
+/** @type {<T>(def:  CreateToToken<T>) => range_map.RangeMerge<CreateToToken<T>>} */
 const rangeMapMerge = def => merge({
     union: union(def),
     equal: operator.strictEqual,
 })
 
 /** @type {<T>(r: _range.Range) => (f: CreateToToken<T>) => RangeFunc<T>} */
-const rangeFunc = r => f =>  def => fromRange(def)(r)(f)
+const rangeFunc = r => f => def => fromRange(def)(r)(f)
 
 /** @type {<T>(def:  CreateToToken<T>) => (operator.Scan<RangeFunc<T>, RangeMapToToken<T>>)} */
 const scanRangeOp = def => f => [f(def), scanRangeOp(def)]
@@ -359,15 +358,13 @@ const parseEscapeCharStateOp = create(parseEscapeDefault)([
 ])
 
 /** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseUnicodeCharDefault = state => input =>
-{
+const parseUnicodeCharDefault = state => input => {
     const next = tokenizeOp({ kind: 'string', value: state.value })(input)
     return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
 }
 
 /** @type {(offser: number) => (state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
-const parseUnicodeCharHex = offset => state => input => 
-{
+const parseUnicodeCharHex = offset => state => input => {
     const hexValue = input - offset
     const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
     return [empty, state.hexIndex === 3 ?
