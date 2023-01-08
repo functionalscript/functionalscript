@@ -12,7 +12,7 @@ const { toArray, map } = list
 
 /** @typedef {readonly[readonly string[], ToResult]} Result */
 
-/** @typedef {(a: number) => Result} ToResult */
+/** @typedef {(codePoint: number) => Result} ToResult */
 
 /**
  * @template T
@@ -25,10 +25,10 @@ const { toArray, map } = list
  */
 
 /** @type {ToResult} */
-const unknownSymbol = a => [[`unknown symbol ${a}`], unknownSymbol]
+const unexpectedSymbol = codePoint => [[`unexpected symbol ${codePoint}`], unexpectedSymbol]
 
-/** @type {<T>(a: T) => ToResult} */
-const def = () => unknownSymbol
+/** @type {<T>(state: T) => ToResult} */
+const def = () => unexpectedSymbol
 
 /** @type {<T>(a: CreateToResult<T>) => (b: CreateToResult<T>) => CreateToResult<T>} */
 const union = a => b => {
@@ -77,40 +77,42 @@ const create = a => {
 
 const terminal = -1
 
+/** @type {() => ToResult} */
+const toInit = () => () => [[], init]
+
 const init = create([
-    codePointRange(one(terminal))(() => () => [[], unknownSymbol]),
-    rangeSet(['\t', ' '])(() => () => [[' '], unknownSymbol]),
-    rangeSet(['\n', '\r'])(() => () => [['\n'], unknownSymbol]),
-    range('!')(() => () => [['!'], unknownSymbol]),
-    range('"')(() => () => [['"'], unknownSymbol]),
-    rangeSet(['$', '_', 'AZ', 'az'])(() => c => [[fromCharCode(c)], unknownSymbol]),
-    range('%')(() => () => [['%'], unknownSymbol]),
-    range('&')(() => () => [['&'], unknownSymbol]),
-    range("'")(() => () => [["'"], unknownSymbol]),
-    range('(')(() => () => [['('], unknownSymbol]),
-    range(')')(() => () => [[')'], unknownSymbol]),
-    range('*')(() => () => [['*'], unknownSymbol]),
-    range('+')(() => () => [['+'], unknownSymbol]),
-    range(',')(() => () => [[','], unknownSymbol]),
-    range('-')(() => () => [['-'], unknownSymbol]),
-    range('.')(() => () => [['.'], unknownSymbol]),
-    range('/')(() => () => [['/'], unknownSymbol]),
-    range('09')(() => a => [[fromCharCode(a)], unknownSymbol]),
-    range(':')(() => () => [[':'], unknownSymbol]),
-    range(';')(() => () => [[';'], unknownSymbol]),
-    range('<')(() => () => [['<'], unknownSymbol]),
-    range('=')(() => () => [['='], unknownSymbol]),
-    range('>')(() => () => [['>'], unknownSymbol]),
-    range('?')(() => () => [['?'], unknownSymbol]),
-    range('[')(() => () => [['['], unknownSymbol]),
-    range(']')(() => () => [[']'], unknownSymbol]),
-    range('^')(() => () => [['^'], unknownSymbol]),
-    range('`')(() => () => [['`'], unknownSymbol]),
-    range('{')(() => () => [['{'], unknownSymbol]),
-    range('|')(() => () => [['|'], unknownSymbol]),
-    range('}')(() => () => [['}'], unknownSymbol]),
-    range('~')(() => () => [['~'], unknownSymbol]),
-])
+    codePointRange(one(terminal))(toInit),
+    rangeSet(['\t', ' ', '\n', '\r'])(toInit),
+    range('!')(() => () => [['!'], unexpectedSymbol]),
+    range('"')(() => () => [['"'], unexpectedSymbol]),
+    rangeSet(['$', '_', 'AZ', 'az'])(() => c => [[fromCharCode(c)], unexpectedSymbol]),
+    range('%')(() => () => [['%'], unexpectedSymbol]),
+    range('&')(() => () => [['&'], unexpectedSymbol]),
+    range("'")(() => () => [["'"], unexpectedSymbol]),
+    range('(')(() => () => [['('], unexpectedSymbol]),
+    range(')')(() => () => [[')'], unexpectedSymbol]),
+    range('*')(() => () => [['*'], unexpectedSymbol]),
+    range('+')(() => () => [['+'], unexpectedSymbol]),
+    range(',')(() => () => [[','], unexpectedSymbol]),
+    range('-')(() => () => [['-'], unexpectedSymbol]),
+    range('.')(() => () => [['.'], unexpectedSymbol]),
+    range('/')(() => () => [['/'], unexpectedSymbol]),
+    range('09')(() => a => [[fromCharCode(a)], unexpectedSymbol]),
+    range(':')(() => () => [[':'], unexpectedSymbol]),
+    range(';')(() => () => [[';'], unexpectedSymbol]),
+    range('<')(() => () => [['<'], unexpectedSymbol]),
+    range('=')(() => () => [['='], unexpectedSymbol]),
+    range('>')(() => () => [['>'], unexpectedSymbol]),
+    range('?')(() => () => [['?'], unexpectedSymbol]),
+    range('[')(() => () => [['['], unexpectedSymbol]),
+    range(']')(() => () => [[']'], unexpectedSymbol]),
+    range('^')(() => () => [['^'], unexpectedSymbol]),
+    range('`')(() => () => [['`'], unexpectedSymbol]),
+    range('{')(() => () => [['{'], unexpectedSymbol]),
+    range('|')(() => () => [['|'], unexpectedSymbol]),
+    range('}')(() => () => [['}'], unexpectedSymbol]),
+    range('~')(() => () => [['~'], unexpectedSymbol]),
+])(void 0)
 
 module.exports = {
     /** @readonly */
