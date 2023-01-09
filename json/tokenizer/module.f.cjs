@@ -134,15 +134,22 @@ const rangeCapitalAF = range('AF')
 
 /** @typedef {{ readonly kind: 'escapeChar', readonly value: string}} ParseEscapeCharState */
 
-/** @typedef {{ readonly kind: 'unicodeChar', readonly value: string, readonly unicode: number, readonly hexIndex: number}} ParseUnicodeCharState */
+/**
+ * @typedef {{
+ *  readonly kind: 'unicodeChar'
+ *  readonly value: string
+ *  readonly unicode: number
+ *  readonly hexIndex: number
+ * }} ParseUnicodeCharState
+ */
 
 /**
- *  @typedef {{
- * readonly kind: 'number',
- * readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
- * readonly value: string
+ * @typedef {{
+ *  readonly kind: 'number',
+ *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
+ *  readonly value: string
  * }} ParseNumberState
- *  */
+ */
 
 /** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
 
