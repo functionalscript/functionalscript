@@ -84,7 +84,7 @@ const rangeSetWhiteSpace = [
     one(space)
 ]
 
-const rangeSetTerminalForNumer = [
+const rangeSetTerminalForNumber = [
     one(ht),
     one(lf),
     one(cr),
@@ -323,12 +323,12 @@ const parseNumberStateOp = create(invalidNumberToToken)([
     rangeSetFunc([one(latinSmallLetterE), one(latinCapitalLetterE)])(expToToken),
     rangeFunc(one(hyphenMinus))(hyphenMinusToToken),
     rangeFunc(one(plusSign))(plusSignToToken),
-    rangeSetFunc(rangeSetTerminalForNumer)(terminalToToken)
+    rangeSetFunc(rangeSetTerminalForNumber)(terminalToToken)
 ])
 
 /** @type {(state: InvalidNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const invalidNumberStateOp = create(() => () => [empty, { kind: 'invalidNumber' }])([
-    rangeSetFunc(rangeSetTerminalForNumer)(() => input => {
+    rangeSetFunc(rangeSetTerminalForNumber)(() => input => {
         const next = tokenizeOp({ kind: 'initial' })(input)
         return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
     })
