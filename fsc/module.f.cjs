@@ -116,5 +116,7 @@ const init = create([
 
 module.exports = {
     /** @readonly */
+    terminal,
+    /** @readonly */
     init,
 }
