@@ -84,7 +84,7 @@ const rangeSetWhiteSpace = [
     one(space)
 ]
 
-const rangeSetTerminalForNumer = [
+const rangeSetTerminalForNumber = [
     one(ht),
     one(lf),
     one(cr),
@@ -134,15 +134,22 @@ const rangeCapitalAF = range('AF')
 
 /** @typedef {{ readonly kind: 'escapeChar', readonly value: string}} ParseEscapeCharState */
 
-/** @typedef {{ readonly kind: 'unicodeChar', readonly value: string, readonly unicode: number, readonly hexIndex: number}} ParseUnicodeCharState */
+/**
+ * @typedef {{
+ *  readonly kind: 'unicodeChar'
+ *  readonly value: string
+ *  readonly unicode: number
+ *  readonly hexIndex: number
+ * }} ParseUnicodeCharState
+ */
 
 /**
- *  @typedef {{
- * readonly kind: 'number',
- * readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
- * readonly value: string
+ * @typedef {{
+ *  readonly kind: 'number',
+ *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
+ *  readonly value: string
  * }} ParseNumberState
- *  */
+ */
 
 /** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
 
@@ -323,12 +330,12 @@ const parseNumberStateOp = create(invalidNumberToToken)([
     rangeSetFunc([one(latinSmallLetterE), one(latinCapitalLetterE)])(expToToken),
     rangeFunc(one(hyphenMinus))(hyphenMinusToToken),
     rangeFunc(one(plusSign))(plusSignToToken),
-    rangeSetFunc(rangeSetTerminalForNumer)(terminalToToken)
+    rangeSetFunc(rangeSetTerminalForNumber)(terminalToToken)
 ])
 
 /** @type {(state: InvalidNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const invalidNumberStateOp = create(() => () => [empty, { kind: 'invalidNumber' }])([
-    rangeSetFunc(rangeSetTerminalForNumer)(() => input => {
+    rangeSetFunc(rangeSetTerminalForNumber)(() => input => {
         const next = tokenizeOp({ kind: 'initial' })(input)
         return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
     })
