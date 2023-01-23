@@ -77,5 +77,29 @@ module.exports = {
             const result = stringify(obj)
             if (result !== '["ok",[0,[1,[2,[]]],3]]') { throw result }
         },
+        () => {
+            const tokenList = tokenizeString('{}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",{}]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[{}]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[{}]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{"a":true,"b":false,"c":null}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",{"a":true,"b":false,"c":null}]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{"a":{"b":{"c":["d"]}}}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",{"a":{"b":{"c":["d"]}}}]') { throw result }
+        },
     ]
 }
