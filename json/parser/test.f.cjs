@@ -13,45 +13,69 @@ const stringify = json.stringify(sort)
 module.exports = {
     testing: [
         () => {
-            const tokens = tokenizeString('')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'error') { throw result }
         },
         () => {
-            const tokens = tokenizeString('null')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('null')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== null) { throw result }
         },
         () => {
-            const tokens = tokenizeString('true')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('true')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== true) { throw result }
         },
         () => {
-            const tokens = tokenizeString('false')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('false')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== false) { throw result }
         },
         () => {
-            const tokens = tokenizeString('0.1')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('0.1')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== 0.1) { throw result }
         },
         () => {
-            const tokens = tokenizeString('1.1e+2')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('1.1e+2')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== 110) { throw result }
         },
         () => {
-            const tokens = tokenizeString('"abc"')
-            const result = parser.parse(tokens)
+            const tokenList = tokenizeString('"abc"')
+            const result = parser.parse(tokenList)
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== 'abc') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[1]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[1]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[[]]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[0,[1,[2,[]]],3]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[0,[1,[2,[]]],3]]') { throw result }
         },
     ]
 }
