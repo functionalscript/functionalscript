@@ -204,9 +204,6 @@ const parseObjectCommaOp = token => state => {
 
 /** @type {operator.Fold<tokenizer.JsonToken, JsonState>} */
 const foldOp = token => state => {
-    console.log(token)
-    console.log(state)
-    console.log('---')
     switch(state.status) {
         case 'result': return { status: 'error', message: 'unexpected token' }
         case 'error': return { status: 'error', message: state.message }
