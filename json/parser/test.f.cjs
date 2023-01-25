@@ -105,6 +105,12 @@ module.exports = {
             if (result !== '["error","unexpected end"]') { throw result }
         },
         () => {
+            const tokenList = tokenizeString('"123')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
             const tokenList = tokenizeString('[,]')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
@@ -153,13 +159,7 @@ module.exports = {
             if (result !== '["error","unexpected token"]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('[{]}')
-            const obj = parser.parse(tokenList)
-            const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
-        },
-        () => {
-            const tokenList = tokenizeString('{[}]')
+            const tokenList = tokenizeString(']')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
@@ -219,7 +219,19 @@ module.exports = {
             if (result !== '["error","unexpected token"]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('"123')
+            const tokenList = tokenizeString('}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[{]}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{[}]')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
