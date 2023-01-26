@@ -68,7 +68,7 @@ const addKeyToObject = obj => key => ({ kind: 'object', values: obj.values, key:
 const addValueToObject = obj => value => ({ kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' })
 
 /** @type {(array: JsonArray) => (value: any) => JsonArray} */
-const addToArray = array => value => {  return { kind: 'array', values: list.concat(array.values)([value]) } }
+const addToArray = array => value => ({ kind: 'array', values: list.concat(array.values)([value]) })
 
 /** @type {(state: StateParse) => (key: string) => JsonState} */
 const pushKey = state => value => {
