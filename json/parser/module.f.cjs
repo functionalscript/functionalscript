@@ -62,7 +62,7 @@ const { entries, setReplace } = map
 */
 
 /** @type {(obj: JsonObject) => (key: string) => JsonObject} */
-const addKeyToObject = obj => key => {  return { kind: 'object', values: obj.values, key: key } }
+const addKeyToObject = obj => key => ({ kind: 'object', values: obj.values, key: key })
 
 /** @type {(obj: JsonObject) => (value: any) => JsonObject} */
 const addValueToObject = obj => value => { return { kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' } }
