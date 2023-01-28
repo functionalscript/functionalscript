@@ -238,7 +238,7 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
     rangeFunc(one(hyphenMinus))(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '-' }])
 ])
 
-/** @type {(state: any) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {() => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const invalidNumberToToken = () => input => tokenizeOp({ kind: 'invalidNumber' })(input)
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */

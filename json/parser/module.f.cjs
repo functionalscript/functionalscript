@@ -11,7 +11,7 @@ const json = require('../module.f.cjs')
 /**
  * @typedef {{
 * readonly kind: 'object'
-* readonly values: map.Map<unknown>
+* readonly values: map.Map<json.Unknown>
 * readonly key: string
 * }} JsonObject
 * */
@@ -19,7 +19,7 @@ const json = require('../module.f.cjs')
 /**
  * @typedef {{
 * readonly kind: 'array'
-* readonly values: list.List<unknown>
+* readonly values: list.List<json.Unknown>
 * }} JsonArray
 * */
 
@@ -43,7 +43,7 @@ const json = require('../module.f.cjs')
 /**
  * @typedef {{
 *  readonly status: 'result'
-*  readonly value: any
+*  readonly value: json.Unknown
 * }} StateResult
 */
 
@@ -65,10 +65,10 @@ const json = require('../module.f.cjs')
 /** @type {(obj: JsonObject) => (key: string) => JsonObject} */
 const addKeyToObject = obj => key => ({ kind: 'object', values: obj.values, key: key })
 
-/** @type {(obj: JsonObject) => (value: unknown) => JsonObject} */
+/** @type {(obj: JsonObject) => (value: json.Unknown) => JsonObject} */
 const addValueToObject = obj => value => ({ kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' })
 
-/** @type {(array: JsonArray) => (value: unknown) => JsonArray} */
+/** @type {(array: JsonArray) => (value: json.Unknown) => JsonArray} */
 const addToArray = array => value => ({ kind: 'array', values: list.concat(array.values)([value]) })
 
 /** @type {(state: StateParse) => (key: string) => JsonState} */
@@ -77,7 +77,7 @@ const pushKey = state => value => {
     return { status: 'error', message: 'error' }
 }
 
-/** @type {(state: StateParse) => (value: unknown) => JsonState} */
+/** @type {(state: StateParse) => (value: json.Unknown) => JsonState} */
 const pushValue = state => value => {
     if (state.top === null) { return { status: 'result', value: value } }
     if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
@@ -107,7 +107,7 @@ const startObject = state => {
 /** @type {operator.Fold<map.Entry<unknown>, {}>} */
 const foldToObjectOp = ([k, v]) => obj => { return { ...obj, [k]: v } }
 
-/** @type {(m: map.Map<unknown>) => unknown} */
+/** @type {(m: map.Map<json.Unknown>) => json.Unknown} */
 const toObject = m => {
     const e = entries(m)
     return fold(foldToObjectOp)({})(e)
@@ -121,7 +121,7 @@ const endObject = state => {
     return pushValue(newState)(obj)
 }
 
-/** @type {(token: tokenizer.JsonToken) => unknown} */
+/** @type {(token: tokenizer.JsonToken) => json.Unknown} */
 const tokenToValue = token => {
     switch (token.kind) {
         case 'null': return null
