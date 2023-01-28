@@ -1,6 +1,6 @@
 const result = require('../../types/result/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
-const { fold, isEmpty, first, drop, toArray } = list
+const { fold, first, drop, toArray } = list
 const operator = require('../../types/function/operator/module.f.cjs')
 const tokenizer = require('../tokenizer/module.f.cjs')
 const map = require('../../types/map/module.f.cjs')
