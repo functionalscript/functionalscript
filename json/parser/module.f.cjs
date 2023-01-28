@@ -4,8 +4,9 @@ const { fold, first, drop, toArray } = list
 const operator = require('../../types/function/operator/module.f.cjs')
 const tokenizer = require('../tokenizer/module.f.cjs')
 const map = require('../../types/map/module.f.cjs')
-const { entries, setReplace } = map
+const { setReplace } = map
 const json = require('../module.f.cjs')
+const { fromMap } = require('../../types/object/module.f.cjs')
 
 
 /**
@@ -104,18 +105,9 @@ const startObject = state => {
     return { status: '{', top: { kind: 'object', values: null, key: '' }, stack: newStack }
 }
 
-/** @type {operator.Fold<map.Entry<unknown>, {}>} */
-const foldToObjectOp = ([k, v]) => obj => { return { ...obj, [k]: v } }
-
-/** @type {(m: map.Map<json.Unknown>) => json.Unknown} */
-const toObject = m => {
-    const e = entries(m)
-    return fold(foldToObjectOp)({})(e)
-}
-
 /** @type {(state: StateParse) => JsonState} */
 const endObject = state => {
-    const obj = state.top?.kind === 'object' ? toObject(state.top.values) : null
+    const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
     /** @type {StateParse} */
     const newState = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
     return pushValue(newState)(obj)
@@ -127,7 +119,7 @@ const tokenToValue = token => {
         case 'null': return null
         case 'false': return false
         case 'true': return true
-        case 'number': return Number(token.value)
+        case 'number': return parseFloat(token.value)
         case 'string': return token.value
         default: return null
     }
