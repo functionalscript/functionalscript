@@ -2,7 +2,7 @@ const function_ = require('../function/module.f.cjs')
 const { identity, fn, compose } = function_
 const operator = require('../function/operator/module.f.cjs')
 const {
-    counter,
+    addition,
     logicalNot,
     strictEqual,
     stateScanToScan,
@@ -255,8 +255,22 @@ const fold = op => init => compose(foldScan(op)(init))(last(init))
 /** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
+/** @type {<T>(list: List<T>) => Thunk<number>} */
+const lengthList = list => () => {
+    const notLazy = trampoline(list)
+    if (notLazy === null) { return null }
+    if (notLazy instanceof Array) { return [notLazy.length] }
+    const tail = lengthList(notLazy.tail)
+    if ("first" in notLazy) {
+        return { first: 1, tail }
+    }
+    return { head: lengthList(notLazy.head), tail }
+}
+
+const sum = reduce(addition)(0)
+
 /** @type {<T>(input: List<T>) => number} */
-const length = fold(counter)(0)
+const length = compose(lengthList)(sum)
 
 /**
  * @template T
@@ -280,7 +294,7 @@ const reverseOperator = first => tail => ({ first, tail })
 /** @type {<T>(input: List<T>) => List<T>} */
 const reverse = fold(reverseOperator)(null)
 
-/** @type {<A>(a: List<A>) => <B>(b: List<B>) => List<readonly[A, B]>} */
+/** @type {<A>(a: List<A>) => <B>(b: List<B>) => Thunk<readonly[A, B]>} */
 const zip = a => b => () => {
     const aResult = next(a)
     if (aResult === null) { return null }
