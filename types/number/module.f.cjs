@@ -31,7 +31,7 @@ const increaseMantissa = value => min => {
     }
     while (true) {
         if (m >= min) {
-            return { mantissa: sign(value.mantissa) * m, exp: e}
+            return { mantissa: BigInt(sign(value.mantissa)) * m, exp: e}
         }
         m = m << 1n
         e--
