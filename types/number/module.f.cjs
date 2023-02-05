@@ -60,8 +60,7 @@ const decToBin = dec => {
         return increaseMantissa(bin)(minSignificand)
     }
     const p = pow5(-dec.exp)
-    const bin = { mantissa: dec.mantissa, exp: dec.exp }
-    const inc = increaseMantissa(bin)(p * minSignificand)
+    const inc = increaseMantissa(dec)(p * minSignificand)
     return { mantissa: inc.mantissa / p, exp: inc.exp }
 }
 
