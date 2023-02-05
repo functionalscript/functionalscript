@@ -8,7 +8,7 @@ const { unsafeCmp } = compare
  * @typedef {{
 *  readonly mantissa: bigint
 *  readonly exp: number
-* }} Float
+* }} BigFloat
 */
 
 const minSignificand = 0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
@@ -22,7 +22,7 @@ const max = reduce(maxOp)(null)
 /** @type {(a: number) => (b: number) => compare.Sign} */
 const cmp = unsafeCmp
 
-/** @type {(decFloat: Float) => (min: bigint) => Float} */
+/** @type {(decFloat: BigFloat) => (min: bigint) => BigFloat} */
 const increaseMantissa = value => min => {
     let m = abs(value.mantissa)
     let e = value.exp
@@ -52,7 +52,7 @@ const pow = base => exp => {
 
 const pow5 = pow(5n)
 
-/** @type {(dec: Float) => Float} */
+/** @type {(dec: BigFloat) => BigFloat} */
 const decToBin = dec => {
     if (dec.mantissa === 0n) {
         return { mantissa: 0n, exp: 0}
