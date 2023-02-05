@@ -1,0 +1,7 @@
+# rust
+target/
+Cargo.toml
+Cargo.lock
+
+# github
+.github
