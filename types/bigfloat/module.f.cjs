@@ -1,25 +1,20 @@
 const compare = require('../function/compare/module.f.cjs')
 const { abs, sign } = require('../bigint/module.f.cjs')
 
-/**
- * @typedef {{
-*  readonly mantissa: bigint
-*  readonly exp: number
-* }} BigFloat
-*/
+/** @typedef {readonly[bigint,number]} BigFloat */
 
 const minSignificand = 0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
-/** @type {(decFloat: BigFloat) => (min: bigint) => BigFloat} */
+/** @type {(value: BigFloat) => (min: bigint) => BigFloat} */
 const increaseMantissa = value => min => {
-    let m = abs(value.mantissa)
-    let e = value.exp
+    let m = abs(value[0])
+    let e = value[1]
     if (m === 0n) {
         return value
     }
     while (true) {
         if (m >= min) {
-            return { mantissa: BigInt(sign(value.mantissa)) * m, exp: e}
+            return [BigInt(sign(value[0])) * m, e]
         }
         m = m << 1n
         e--
@@ -27,31 +22,23 @@ const increaseMantissa = value => min => {
 }
 
 /** @type {(base: bigint) => (exp: number) => bigint} */
-const pow = base => exp => {
-    let r = 1n
-    while (true) {
-        if (exp <= 0) {
-            return r
-        }
-        r *= base
-        exp--
-    }
-}
+const pow = base => exp => base ** BigInt(exp)
 
 const pow5 = pow(5n)
 
 /** @type {(dec: BigFloat) => BigFloat} */
 const decToBin = dec => {
-    if (dec.mantissa === 0n) {
-        return { mantissa: 0n, exp: 0}
+    if (dec[0] === 0n) {
+        return [0n, 0]
     }
-    if (dec.exp >= 0) {
-        const bin = { mantissa: dec.mantissa * pow5(dec.exp), exp: dec.exp }
+    if (dec[1] >= 0) {
+        /** @type {BigFloat} */
+        const bin = [dec[0] * pow5(dec[1]), dec[1]]
         return increaseMantissa(bin)(minSignificand)
     }
-    const p = pow5(-dec.exp)
+    const p = pow5(-dec[1])
     const inc = increaseMantissa(dec)(p * minSignificand)
-    return { mantissa: inc.mantissa / p, exp: inc.exp }
+    return [inc[0] / p, inc[1]]
 }
 
 module.exports = {
