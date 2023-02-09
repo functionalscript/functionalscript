@@ -3,8 +3,6 @@ const { addition, min: minOp, max: maxOp } = require('../function/operator/modul
 const compare = require('../function/compare/module.f.cjs')
 const { unsafeCmp } = compare
 
-const minSignificand = 0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
-
 const sum = reduce(addition)(0)
 
 const min = reduce(minOp)(null)
