@@ -6,15 +6,15 @@ const { abs, sign } = require('../bigint/module.f.cjs')
 const minSignificand = 0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
 /** @type {(value: BigFloat) => (min: bigint) => BigFloat} */
-const increaseMantissa = value => min => {
-    let m = abs(value[0])
-    let e = value[1]
+const increaseMantissa = ([m,e]) => min => {
     if (m === 0n) {
-        return value
+        return [m,e]
     }
+    const s = sign(m)
+    m = abs(m)
     while (true) {
         if (m >= min) {
-            return [BigInt(sign(value[0])) * m, e]
+            return [BigInt(s) * m, e]
         }
         m = m << 1n
         e--
