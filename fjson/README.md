@@ -1,0 +1,3 @@
+# FJSON
+
+- additional types: bigint
