@@ -2,6 +2,6 @@
 
 - additional types: bigint
 
-## Principal
+## Rules
 
-- can serialize without reading source code
+- can serialize/deserialize without reading source code
