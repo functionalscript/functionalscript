@@ -1,6 +1,10 @@
 const { sum, abs } = require('./module.f.cjs')
 
-/** @type {(m: bigint) => (e: number) => bigint} */
+/**
+ * Don't use it. Use `**` instead.
+ *
+ * @type {(m: bigint) => (e: number) => bigint}
+ */
 const pow = m => e => {
     switch (m) {
         case -1n: return e % 2 === 0 ? 1n : -1n
