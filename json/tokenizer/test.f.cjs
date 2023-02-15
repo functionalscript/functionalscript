@@ -148,8 +148,8 @@ module.exports = {
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('1234567890'))
-            if (result !== '[{"bf":[1234567890n,0],"kind":"number","value":"1234567890"}]') { throw result }
+            const result = stringify(tokenizeString('123456789012345678901234567890'))
+            if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{90}'))
