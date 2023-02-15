@@ -5,6 +5,7 @@ const list = require('../../types/list/module.f.cjs')
 const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
+const bigfloat = require('../../types/bigfloat/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -59,8 +60,7 @@ const {
  * @typedef {{
  * readonly kind: 'number'
  * readonly value: string
- * readonly m: number
- * readonly e: number
+ * readonly bf: bigfloat.BigFloat
  * }} NumberToken
  * */
 
@@ -156,8 +156,8 @@ const rangeCapitalAF = range('AF')
 
 /**
  * @typedef {{
-*  readonly s: -1 | 1
-*  readonly m: number
+*  readonly s: -1n | 1n
+*  readonly m: bigint
 *  readonly f: number
 *  readonly es: -1 | 1
 *  readonly e: number
@@ -235,23 +235,26 @@ const create = def => a => {
     return v => c => x(c)(i)(v)(c)
 }
 
+/** @type {(digit: number) => bigint} */
+const digitToBigInt = d => BigInt(d - digit0)
+
 /** @type {(digit: number) => ParseNumberBuffer} */
-const startNumber = digit => ({ s: 1, m: digit - digit0, f: 0, es: 1, e: 0 })
+const startNumber = digit => ({ s: 1n, m: digitToBigInt(digit), f: 0, es: 1, e: 0 })
 
 /** @type {ParseNumberBuffer} */
-const startNegativeNumber = { s: -1, m: 0, f: 0, es: 1, e: 0 }
+const startNegativeNumber = { s: -1n, m: 0n, f: 0, es: 1, e: 0 }
 
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
-const addIntDigit = digit => b => ({ ... b, m: b.m * 10 + digit - digit0})
+const addIntDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit)})
 
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
-const addFracDigit = digit => b => ({ ... b, m: b.m * 10 + digit - digit0, f: b.f - 1})
+const addFracDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit), f: b.f - 1})
 
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
 const addExpDigit = digit => b =>  ({ ... b, e: b.e * 10 + digit - digit0})
 
 /** @type {(s: ParseNumberState) => NumberToken} */
-const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, m: b.s * b.m, e: b.f + b.es * b.e })
+const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] })
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
