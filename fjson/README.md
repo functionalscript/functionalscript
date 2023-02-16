@@ -1,4 +1,4 @@
-# FJSON
+# FJSON, FJS Object Notation
 
 - additional types: bigint
 
