@@ -3,7 +3,7 @@ const { abs, sign } = require('../bigint/module.f.cjs')
 
 /** @typedef {readonly[bigint,number]} BigFloat */
 
-const minSignificand = 0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
+const minSignificand = 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
 /** @type {(value: BigFloat) => (min: bigint) => BigFloat} */
 const increaseMantissa = ([m,e]) => min => {
@@ -38,7 +38,10 @@ const decToBin = dec => {
     }
     const p = pow5(-dec[1])
     const inc = increaseMantissa(dec)(p * minSignificand)
-    return [inc[0] / p, inc[1]]
+    const div = inc[0] / p
+    const r = ((abs(inc[0]) << 1n) / p) & 1n
+    const s = BigInt(sign(inc[0]))
+    return [div + s * r, inc[1]]
 }
 
 module.exports = {
