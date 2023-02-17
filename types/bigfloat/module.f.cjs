@@ -37,11 +37,12 @@ const decToBin = dec => {
         return increaseMantissa(bin)(minSignificand)
     }
     const p = pow5(-dec[1])
-    const inc = increaseMantissa(dec)(p * minSignificand)
-    const div = inc[0] / p
-    const r = ((abs(inc[0]) << 1n) / p) & 1n
-    const s = BigInt(sign(inc[0]))
-    return [div + s * r, inc[1]]
+    const [div, e] = increaseMantissa(dec)(p * minSignificand)
+    const q = div / p
+    const divx2 = abs(div) << 1n
+    const r = (divx2 / p) & 1n
+    const s = BigInt(sign(div))
+    return [q + s * r, e]
 }
 
 module.exports = {
