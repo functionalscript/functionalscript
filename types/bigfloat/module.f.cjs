@@ -5,6 +5,7 @@ const { todo } = require('../../dev/module.f.cjs')
 /** @typedef {readonly[bigint,number]} BigFloat */
 
 const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
+const twoPow54 = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
 /** @type {(value: BigFloat) => (min: bigint) => BigFloat} */
 const increaseMantissa = ([m, e]) => min => {
@@ -47,14 +48,22 @@ const pow5 = pow(5n)
 const divide = ([m, e]) => div => {
     const mabs = abs(m)
     const q = mabs / div
-    const r = q & 1n
     const s = BigInt(sign(m))
-    const q2 = q >> 1n
-    if (r === 1n && mabs === q * div) {
-        const odd = q2 & 1n
-        return [s * (q2 + odd), e + 1]
+    const [q53, e53] = decreaseMantissa([q, e])(twoPow54)
+    const r = q53 & 1n
+    const q52 = q53 >> 1n
+    const e52 = e53 + 1
+    if (r === 1n) {
+        const zeroReminder = mabs === q * div
+        if (zeroReminder) {
+            const noLoss = q === q53 >> BigInt(e - e53)
+            if (noLoss) {
+                const odd = q52 & 1n
+                return [s * (q52 + odd), e52]
+            }
+        }
     }
-    return [s * (q2 + r), e + 1]
+    return [s * (q52 + r), e52]
 }
 
 /** @type {(dec: BigFloat) => BigFloat} */
