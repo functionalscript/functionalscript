@@ -5,6 +5,7 @@ const list = require('../../types/list/module.f.cjs')
 const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
+const bigfloat = require('../../types/bigfloat/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -59,6 +60,7 @@ const {
  * @typedef {{
  * readonly kind: 'number'
  * readonly value: string
+ * readonly bf: bigfloat.BigFloat
  * }} NumberToken
  * */
 
@@ -148,8 +150,19 @@ const rangeCapitalAF = range('AF')
  *  readonly kind: 'number',
  *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
  *  readonly value: string
+ *  readonly b: ParseNumberBuffer
  * }} ParseNumberState
  */
+
+/**
+ * @typedef {{
+*  readonly s: -1n | 1n
+*  readonly m: bigint
+*  readonly f: number
+*  readonly es: -1 | 1
+*  readonly e: number
+* }} ParseNumberBuffer
+*/
 
 /** @typedef {{ readonly kind: 'invalidNumber'}} InvalidNumberState */
 
@@ -222,9 +235,30 @@ const create = def => a => {
     return v => c => x(c)(i)(v)(c)
 }
 
+/** @type {(digit: number) => bigint} */
+const digitToBigInt = d => BigInt(d - digit0)
+
+/** @type {(digit: number) => ParseNumberBuffer} */
+const startNumber = digit => ({ s: 1n, m: digitToBigInt(digit), f: 0, es: 1, e: 0 })
+
+/** @type {ParseNumberBuffer} */
+const startNegativeNumber = { s: -1n, m: 0n, f: 0, es: 1, e: 0 }
+
+/** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
+const addIntDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit)})
+
+/** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
+const addFracDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit), f: b.f - 1})
+
+/** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
+const addExpDigit = digit => b =>  ({ ... b, e: b.e * 10 + digit - digit0})
+
+/** @type {(s: ParseNumberState) => NumberToken} */
+const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] })
+
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
-    rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: 'int' }]),
+    rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
     rangeFunc(latinSmallLetterRange)(() => input => [empty, { kind: 'keyword', value: fromCharCode(input) }]),
     rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
     rangeFunc(one(leftCurlyBracket))(state => () => [[{ kind: '{' }], state]),
@@ -234,8 +268,8 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
     rangeFunc(one(leftSquareBracket))(state => () => [[{ kind: '[' }], state]),
     rangeFunc(one(rightSquareBracket))(state => () => [[{ kind: ']' }], state]),
     rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
-    rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '0' }]),
-    rangeFunc(one(hyphenMinus))(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '-' }])
+    rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
+    rangeFunc(one(hyphenMinus))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNegativeNumber, numberKind: '-' }])
 ])
 
 /** @type {() => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
@@ -245,7 +279,7 @@ const invalidNumberToToken = () => input => tokenizeOp({ kind: 'invalidNumber' }
 const fullStopToToken = state => input => {
     switch (state.numberKind) {
         case '0':
-        case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: '.' }]
+        case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: '.' }]
         default: return tokenizeOp({ kind: 'invalidNumber' })(input)
     }
 }
@@ -254,12 +288,14 @@ const fullStopToToken = state => input => {
 const digit0ToToken = state => input => {
     switch (state.numberKind) {
         case '0': return tokenizeOp({ kind: 'invalidNumber' })(input)
-        case '-': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: '0' }]
-        case '.': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'fractional' }]
+        case '-': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: '0' }]
+        case '.':
+        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
         case 'e':
         case 'e+':
-        case 'e-': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'expDigits' }]
-        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: state.numberKind }]
+        case 'e-':
+        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addExpDigit(input)(state.b), numberKind: 'expDigits' }]
+        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addIntDigit(input)(state.b), numberKind: state.numberKind }]
     }
 }
 
@@ -267,12 +303,13 @@ const digit0ToToken = state => input => {
 const digit19ToToken = state => input => {
     switch (state.numberKind) {
         case '0': return tokenizeOp({ kind: 'invalidNumber' })(input)
-        case '-': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'int' }]
-        case '.': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'fractional' }]
+        case '.':
+        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
         case 'e':
         case 'e+':
-        case 'e-': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'expDigits' }]
-        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: state.numberKind }]
+        case 'e-':
+        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addExpDigit(input)(state.b), numberKind: 'expDigits' }]
+        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addIntDigit(input)(state.b), numberKind: 'int' }]
     }
 }
 
@@ -281,7 +318,7 @@ const expToToken = state => input => {
     switch (state.numberKind) {
         case '0':
         case 'int':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e' }]
+        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e' }]
         default: return tokenizeOp({ kind: 'invalidNumber' })(input)
     }
 }
@@ -289,7 +326,7 @@ const expToToken = state => input => {
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const hyphenMinusToToken = state => input => {
     switch (state.numberKind) {
-        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e-' }]
+        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: { ... state.b, es: -1}, numberKind: 'e-' }]
         default: return tokenizeOp({ kind: 'invalidNumber' })(input)
     }
 }
@@ -297,7 +334,7 @@ const hyphenMinusToToken = state => input => {
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
 const plusSignToToken = state => input => {
     switch (state.numberKind) {
-        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e+' }]
+        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e+' }]
         default: return tokenizeOp({ kind: 'invalidNumber' })(input)
     }
 }
@@ -317,7 +354,7 @@ const terminalToToken = state => input => {
         default:
             {
                 const next = tokenizeOp({ kind: 'initial' })(input)
-                return [{ first: { kind: 'number', value: state.value }, tail: next[0] }, next[1]]
+                return [{ first: bufferToNumberToken(state), tail: next[0] }, next[1]]
             }
     }
 }
@@ -441,7 +478,7 @@ const tokenizeEofOp = state => {
                 case 'e':
                 case 'e+':
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
-                default: return [[{ kind: 'number', value: state.value }], { kind: 'eof' }]
+                default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }

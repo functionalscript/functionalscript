@@ -1,13 +1,13 @@
 const tokenizer = require('./module.f.cjs')
 const { toArray, countdown } = require('../../types/list/module.f.cjs')
-const json = require('../module.f.cjs')
+const fjson = require('../../fjson/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringify = json.stringify(sort)
+const stringify = fjson.stringify(sort)
 
 module.exports = {
     testing: [
@@ -133,11 +133,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('0'))
-            if (result !== '[{"kind":"number","value":"0"}]') { throw result }
+            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('[0]'))
-            if (result !== '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"}]') { throw result }
+            if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('00'))
@@ -148,20 +148,20 @@ module.exports = {
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('1234567890'))
-            if (result !== '[{"kind":"number","value":"1234567890"}]') { throw result }
+            const result = stringify(tokenizeString('123456789012345678901234567890'))
+            if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{90}'))
-            if (result !== '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('1 2'))
-            if (result !== '[{"kind":"number","value":"1"},{"kind":"number","value":"2"}]') { throw result }
+            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0. 2'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"number","value":"2"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('10-0'))
@@ -173,11 +173,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-10'))
-            if (result !== '[{"kind":"number","value":"-10"}]') { throw result }
+            if (result !== '[{"bf":[-10n,0],"kind":"number","value":"-10"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0'))
-            if (result !== '[{"kind":"number","value":"-0"}]') { throw result }
+            if (result !== '[{"bf":[0n,0],"kind":"number","value":"-0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-00'))
@@ -189,11 +189,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('0.01'))
-            if (result !== '[{"kind":"number","value":"0.01"}]') { throw result }
+            if (result !== '[{"bf":[1n,-2],"kind":"number","value":"0.01"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.9'))
-            if (result !== '[{"kind":"number","value":"-0.9"}]') { throw result }
+            if (result !== '[{"bf":[-9n,-1],"kind":"number","value":"-0.9"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.'))
@@ -205,11 +205,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('12.34'))
-            if (result !== '[{"kind":"number","value":"12.34"}]') { throw result }
+            if (result !== '[{"bf":[1234n,-2],"kind":"number","value":"12.34"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.00'))
-            if (result !== '[{"kind":"number","value":"-12.00"}]') { throw result }
+            if (result !== '[{"bf":[-1200n,-2],"kind":"number","value":"-12.00"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.'))
@@ -221,23 +221,27 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('0e1'))
-            if (result !== '[{"kind":"number","value":"0e1"}]') { throw result }
+            if (result !== '[{"bf":[0n,1],"kind":"number","value":"0e1"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e+2'))
-            if (result !== '[{"kind":"number","value":"0e+2"}]') { throw result }
+            if (result !== '[{"bf":[0n,2],"kind":"number","value":"0e+2"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e-0'))
-            if (result !== '[{"kind":"number","value":"0e-0"}]') { throw result }
+            if (result !== '[{"bf":[0n,0],"kind":"number","value":"0e-0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('12e0000'))
-            if (result !== '[{"kind":"number","value":"12e0000"}]') { throw result }
+            if (result !== '[{"bf":[12n,0],"kind":"number","value":"12e0000"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12e-0001'))
-            if (result !== '[{"kind":"number","value":"-12e-0001"}]') { throw result }
+            if (result !== '[{"bf":[-12n,-1],"kind":"number","value":"-12e-0001"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('-12.34e1234'))
+            if (result !== '[{"bf":[-1234n,1232],"kind":"number","value":"-12.34e1234"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e'))
