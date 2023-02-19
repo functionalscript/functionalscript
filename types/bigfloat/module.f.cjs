@@ -1,14 +1,15 @@
 const compare = require('../function/compare/module.f.cjs')
 const { abs, sign } = require('../bigint/module.f.cjs')
+const { todo } = require('../../dev/module.f.cjs')
 
 /** @typedef {readonly[bigint,number]} BigFloat */
 
-const minSignificand = 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
+const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
 /** @type {(value: BigFloat) => (min: bigint) => BigFloat} */
-const increaseMantissa = ([m,e]) => min => {
+const increaseMantissa = ([m, e]) => min => {
     if (m === 0n) {
-        return [m,e]
+        return [m, e]
     }
     const s = sign(m)
     m = abs(m)
@@ -21,10 +22,34 @@ const increaseMantissa = ([m,e]) => min => {
     }
 }
 
+/** @type {(value: BigFloat) => (max: bigint) => BigFloat} */
+const decreaseMantissa = ([m, e]) => max => {
+    if (m === 0n) {
+        return [m, e]
+    }
+    const s = sign(m)
+    m = abs(m)
+    while (true) {
+        if (m < max) {
+            return [BigInt(s) * m, e]
+        }
+        m = m >> 1n
+        e++
+    }
+}
+
 /** @type {(base: bigint) => (exp: number) => bigint} */
 const pow = base => exp => base ** BigInt(exp)
 
 const pow5 = pow(5n)
+
+/** @type {(div: BigFloat) => (p: bigint) => BigFloat} */
+const divide = ([m, e]) => div => {
+    const q = abs(m) / div
+    const r = q & 1n
+    const s = BigInt(sign(m))
+    return [s * ((q >> 1n) + r), e + 1]
+}
 
 /** @type {(dec: BigFloat) => BigFloat} */
 const decToBin = dec => {
@@ -34,15 +59,11 @@ const decToBin = dec => {
     if (dec[1] >= 0) {
         /** @type {BigFloat} */
         const bin = [dec[0] * pow5(dec[1]), dec[1]]
-        return increaseMantissa(bin)(minSignificand)
+        return divide(increaseMantissa(bin)(twoPow53))(1n)
     }
     const p = pow5(-dec[1])
-    const [div, e] = increaseMantissa(dec)(p * minSignificand)
-    const q = div / p
-    const divx2 = abs(div) << 1n
-    const r = (divx2 / p) & 1n
-    const s = BigInt(sign(div))
-    return [q + s * r, e]
+    const [m, e] = increaseMantissa(dec)(p * twoPow53)
+    return divide([m, e])(p)
 }
 
 module.exports = {
