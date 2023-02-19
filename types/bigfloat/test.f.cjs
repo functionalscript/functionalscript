@@ -56,6 +56,17 @@ module.exports = {
             const result = decToBin([-1n, -1])
             if (result[0] !== -0b1_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1001_1010n) { throw result[0].toString(2) } //+1
             if (result[1] !== -56) { throw result[1] }
+        },
+        () => {
+            const result = decToBin([0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001n, 0])
+            if (result[0] !== 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n) { throw result[0].toString(2) } //round to even +0
+            if (result[1] !== 1) { throw result[1] }
+        }
+        ,
+        () => {
+            const result = decToBin([0b10_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0011n, 0])
+            if (result[0] !== 0b1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010n) { throw result[0].toString(2) } //round to even +1
+            if (result[1] !== 1) { throw result[1] }
         }
     ]
 }

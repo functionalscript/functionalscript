@@ -45,10 +45,16 @@ const pow5 = pow(5n)
 
 /** @type {(div: BigFloat) => (p: bigint) => BigFloat} */
 const divide = ([m, e]) => div => {
-    const q = abs(m) / div
+    const mabs = abs(m)
+    const q = mabs / div
     const r = q & 1n
     const s = BigInt(sign(m))
-    return [s * ((q >> 1n) + r), e + 1]
+    const q2 = q >> 1n
+    if (r === 1n && mabs === q * div) {
+        const odd = q2 & 1n
+        return [s * (q2 + odd), e + 1]
+    }
+    return [s * (q2 + r), e + 1]
 }
 
 /** @type {(dec: BigFloat) => BigFloat} */
