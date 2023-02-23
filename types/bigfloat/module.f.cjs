@@ -53,15 +53,9 @@ const divide = ([m, e]) => div => {
     const r = q53 & 1n
     const q52 = q53 >> 1n
     const e52 = e53 + 1
-    if (r === 1n) {
-        const zeroReminder = mabs === q * div
-        if (zeroReminder) {
-            const noLoss = q === q53 >> BigInt(e - e53)
-            if (noLoss) {
-                const odd = q52 & 1n
-                return [s * (q52 + odd), e52]
-            }
-        }
+    if (r === 1n && mabs === q * div && q === q53 >> BigInt(e - e53)) {
+        const odd = q52 & 1n
+        return [s * (q52 + odd), e52]
     }
     return [s * (q52 + r), e52]
 }
