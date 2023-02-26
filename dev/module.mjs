@@ -80,9 +80,6 @@ const remove_tail = v => dif => v.slice(0, v.length - dif)
 /** @type {any} */
 const self = globalThis
 
-/** @type {() => Promise<FsPromises>} */
-
-
 /** @type {(code: number) => never} */
 export const exit = self.Deno ? self.Deno.exit : process.exit
 
