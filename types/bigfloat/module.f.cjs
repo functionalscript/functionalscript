@@ -53,18 +53,18 @@ const multiply = ([m, e]) => mul => [m * mul, e]
 const divide = ([m, e]) => div => [[m / div, e], m % div]
 
 /** @type {(b: BigFloatWithRemainder) => BigFloat} */
-const round52 = ([[m, e], r]) => {
+const round53 = ([[m, e], r]) => {
     const mabs = abs(m)
     const s = BigInt(sign(m))
-    const [m53, e53] = decreaseMantissa([mabs, e])(twoPow54)
-    const o53 = m53 & 1n
-    const m52 = m53 >> 1n
-    const e52 = e53 + 1
-    if (o53 === 1n && r === 0n && mabs === m53 >> BigInt(e - e53)) {
-        const odd = m52 & 1n
-        return multiply([m52 + odd, e52])(s)
+    const [m54, e54] = decreaseMantissa([mabs, e])(twoPow54)
+    const o54 = m54 & 1n
+    const m53 = m54 >> 1n
+    const e53 = e54 + 1
+    if (o54 === 1n && r === 0n && mabs === m54 >> BigInt(e - e54)) {
+        const odd = m53 & 1n
+        return multiply([m53 + odd, e53])(s)
     }
-    return multiply([m52 + o53, e52])(s)
+    return multiply([m53 + o54, e53])(s)
 }
 
 /** @type {(dec: BigFloat) => BigFloat} */
@@ -76,15 +76,15 @@ const decToBin = dec => {
         /** @type {BigFloat} */
         const bin = [dec[0] * pow5(dec[1]), dec[1]]
         const inc = increaseMantissa(bin)(twoPow53)
-        return round52([inc, 0n])
+        return round53([inc, 0n])
     }
     const p = pow5(-dec[1])
     const [m, e] = increaseMantissa(dec)(p * twoPow53)
     const mAbs = abs(m)
     const s = BigInt(sign(m))
     const qr = divide([mAbs, e])(p)
-    const r52 = round52(qr)
-    return multiply(r52)(s)
+    const r53 = round53(qr)
+    return multiply(r53)(s)
 }
 
 module.exports = {
