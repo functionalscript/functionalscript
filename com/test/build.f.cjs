@@ -62,7 +62,7 @@ const output = platform => name => {
 }
 
 /** @type {Func} */
-const cpp = ({dirname, platform}) => ({
+const cpp = ({ dirname, platform }) => ({
     file: {
         name: `${dirname}/cpp/_result.hpp`,
         content: cppContent(),
@@ -77,7 +77,7 @@ const cpp = ({dirname, platform}) => ({
 })
 
 /** @type {Func} */
-const cs = ({dirname, platform}) => ({
+const cs = ({ dirname, platform }) => ({
     file: {
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
@@ -85,18 +85,18 @@ const cs = ({dirname, platform}) => ({
     line: [
         platform === 'win32'
             ? ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]
-        // .Net on Linux and MacOS doesn't properly support COM object marshalling
+            // .Net on Linux and MacOS doesn't properly support COM object marshalling
             : ['dotnet', 'build', `${dirname}/cs/cs.csproj`]
     ],
 })
 
 /** @type {Func} */
-const rust = ({dirname}) => ({
+const rust = ({ dirname }) => ({
     file: {
         name: `${dirname}/rust/src/_result.rs`,
         content: rustContent,
     },
-    line: [['cargo', 'build']]
+    line: [['cargo', 'build' /**, '--locked' */]]
 })
 
 module.exports = {
