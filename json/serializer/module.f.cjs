@@ -85,13 +85,6 @@ const arrayWrap = wrap('[')(']')
  * @typedef {(entries: Entries<T>) => Entries<T>} MapEntries<T>
 */
 
-/**
- * The standard `JSON.stringify` rules determined by
- * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
- *
- * @type {<T>(mapEntries: MapEntries<T>) => (value: Unknown<T>) => string}
- */
-
 module.exports = {
     /** @readonly */
     objectWrap,
