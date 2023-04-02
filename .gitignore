@@ -121,3 +121,6 @@ _result.*
 
 # Rust
 target/
+
+# No locks
+package-lock.json

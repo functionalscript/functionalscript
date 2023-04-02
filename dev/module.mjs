@@ -1,3 +1,5 @@
+import { readdir, readFile } from 'node:fs/promises'
+
 /**
  * @typedef {{
  *  readonly withFileTypes: true
@@ -78,9 +80,6 @@ const remove_tail = v => dif => v.slice(0, v.length - dif)
 /** @type {any} */
 const self = globalThis
 
-/** @type {() => Promise<FsPromises>} */
-export const fs = () => import(self.Deno ? 'https://deno.land/std/node/fs/promises.ts' : 'node:fs/promises')
-
 /** @type {(code: number) => never} */
 export const exit = self.Deno ? self.Deno.exit : process.exit
 
@@ -95,8 +94,6 @@ export const env =
     }
 
 export const loadModuleMap = async () => {
-    const { readdir, readFile } = await fs();
-
     /** @type {() => Promise<FunctionMap>} */
     const load = async () => {
         /** @type {(readonly[string, Function])[]} */
