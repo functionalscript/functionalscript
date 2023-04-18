@@ -41,5 +41,15 @@ module.exports = {
             const result = JSON.stringify(toArray(_.numberSerialize(10e20)))
             if (result !== '["1e+21"]') { throw result }
         }
+    ],
+    boolSerialize: [
+        () => {
+            const result = JSON.stringify(toArray(_.boolSerialize(false)))
+            if (result !== '["false"]') { throw result }
+        },
+        () => {
+            const result = JSON.stringify(toArray(_.boolSerialize(true)))
+            if (result !== '["true"]') { throw result }
+        }
     ]
 }
