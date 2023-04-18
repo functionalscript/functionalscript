@@ -31,5 +31,15 @@ module.exports = {
             const result = JSON.stringify(toArray(_.stringSerialize('123')))
             if (result !== '["\\"123\\""]') { throw result }
         }
+    ],
+    numberSerialize: [
+        () => {
+            const result = JSON.stringify(toArray(_.numberSerialize(123)))
+            if (result !== '["123"]') { throw result }
+        },
+        () => {
+            const result = JSON.stringify(toArray(_.numberSerialize(10e20)))
+            if (result !== '["1e+21"]') { throw result }
+        }
     ]
 }
