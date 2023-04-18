@@ -21,5 +21,15 @@ module.exports = {
             const result = JSON.stringify(toArray(_.objectWrap([['a'],['b']])))
             if (result !== '["{","a",",","b","}"]') { throw result }
         }
+    ],
+    stringSerialize: [
+        () => {
+            const result = JSON.stringify(toArray(_.stringSerialize('abc')))
+            if (result !== '["\\"abc\\""]') { throw result }
+        },
+        () => {
+            const result = JSON.stringify(toArray(_.stringSerialize('123')))
+            if (result !== '["\\"123\\""]') { throw result }
+        }
     ]
 }
