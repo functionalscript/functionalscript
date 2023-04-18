@@ -11,5 +11,15 @@ module.exports = {
             const result = JSON.stringify(toArray(_.arrayWrap([['a'],['b']])))
             if (result !== '["[","a",",","b","]"]') { throw result }
         }
+    ],
+    objectWrap: [
+        () => {
+            const result = JSON.stringify(toArray(_.objectWrap([['a','b']])))
+            if (result !== '["{","a","b","}"]') { throw result }
+        },
+        () => {
+            const result = JSON.stringify(toArray(_.objectWrap([['a'],['b']])))
+            if (result !== '["{","a",",","b","}"]') { throw result }
+        }
     ]
 }
