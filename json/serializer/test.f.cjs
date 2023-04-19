@@ -4,6 +4,10 @@ const { toArray } = require('../../types/list/module.f.cjs')
 module.exports = {
     arrayWrap: [
         () => {
+            const result = JSON.stringify(toArray(_.arrayWrap(null)))
+            if (result !== '["[","]"]') { throw result }
+        },
+        () => {
             const result = JSON.stringify(toArray(_.arrayWrap([['a','b']])))
             if (result !== '["[","a","b","]"]') { throw result }
         },
@@ -13,6 +17,10 @@ module.exports = {
         }
     ],
     objectWrap: [
+        () => {
+            const result = JSON.stringify(toArray(_.objectWrap(null)))
+            if (result !== '["{","}"]') { throw result }
+        },
         () => {
             const result = JSON.stringify(toArray(_.objectWrap([['a','b']])))
             if (result !== '["{","a","b","}"]') { throw result }
