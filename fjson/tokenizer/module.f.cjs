@@ -6,6 +6,7 @@ const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 const bigfloat = require('../../types/bigfloat/module.f.cjs')
+const jsonTokenizer = require('../../json/tokenizer/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -51,31 +52,17 @@ const {
 
 /**
  * @typedef {{
- * readonly kind: 'string'
- * readonly value: string
- * }} StringToken
- * */
-
-/**
- * @typedef {{
- * readonly kind: 'number'
- * readonly value: string
- * readonly bf: bigfloat.BigFloat
- * }} NumberToken
- * */
-
-/** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
-
-/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null'}} SimpleToken */
+* readonly kind: 'id'
+* readonly value: string
+* }} IdToken
+* */
 
 /**
  * @typedef {|
- * SimpleToken |
- * StringToken |
- * NumberToken |
- * ErrorToken
- * } JsonToken
- */
+* jsonTokenizer.JsonToken |
+* IdToken
+* } FjsonToken
+*/
 
 const rangeOneNine = range('19')
 
@@ -170,7 +157,7 @@ const rangeCapitalAF = range('AF')
 
 /** @typedef {number|null} CharCodeOrEof */
 
-/** @typedef {(input: number) => readonly[list.List<JsonToken>, TokenizerState]} ToToken */
+/** @typedef {(input: number) => readonly[list.List<FjsonToken>, TokenizerState]} ToToken */
 
 /**
  * @template T
@@ -253,10 +240,10 @@ const addFracDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit)
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
 const addExpDigit = digit => b =>  ({ ... b, e: b.e * 10 + digit - digit0})
 
-/** @type {(s: ParseNumberState) => NumberToken} */
+/** @type {(s: ParseNumberState) => jsonTokenizer.NumberToken} */
 const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] })
 
-/** @type {(state: InitialState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: InitialState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
     rangeFunc(latinSmallLetterRange)(() => input => [empty, { kind: 'keyword', value: fromCharCode(input) }]),
@@ -272,10 +259,10 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
     rangeFunc(one(hyphenMinus))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNegativeNumber, numberKind: '-' }])
 ])
 
-/** @type {() => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {() => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const invalidNumberToToken = () => input => tokenizeOp({ kind: 'invalidNumber' })(input)
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const fullStopToToken = state => input => {
     switch (state.numberKind) {
         case '0':
@@ -284,7 +271,7 @@ const fullStopToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const digit0ToToken = state => input => {
     switch (state.numberKind) {
         case '0': return tokenizeOp({ kind: 'invalidNumber' })(input)
@@ -299,7 +286,7 @@ const digit0ToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const digit19ToToken = state => input => {
     switch (state.numberKind) {
         case '0': return tokenizeOp({ kind: 'invalidNumber' })(input)
@@ -313,7 +300,7 @@ const digit19ToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const expToToken = state => input => {
     switch (state.numberKind) {
         case '0':
@@ -323,7 +310,7 @@ const expToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const hyphenMinusToToken = state => input => {
     switch (state.numberKind) {
         case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: { ... state.b, es: -1}, numberKind: 'e-' }]
@@ -331,7 +318,7 @@ const hyphenMinusToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const plusSignToToken = state => input => {
     switch (state.numberKind) {
         case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e+' }]
@@ -339,7 +326,7 @@ const plusSignToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const terminalToToken = state => input => {
     switch (state.numberKind) {
         case '-':
@@ -359,7 +346,7 @@ const terminalToToken = state => input => {
     }
 }
 
-/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseNumberStateOp = create(invalidNumberToToken)([
     rangeFunc(one(fullStop))(fullStopToToken),
     rangeFunc(one(digit0))(digit0ToToken),
@@ -370,7 +357,7 @@ const parseNumberStateOp = create(invalidNumberToToken)([
     rangeSetFunc(rangeSetTerminalForNumber)(terminalToToken)
 ])
 
-/** @type {(state: InvalidNumberState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: InvalidNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const invalidNumberStateOp = create(() => () => [empty, { kind: 'invalidNumber' }])([
     rangeSetFunc(rangeSetTerminalForNumber)(() => input => {
         const next = tokenizeOp({ kind: 'initial' })(input)
@@ -378,19 +365,19 @@ const invalidNumberStateOp = create(() => () => [empty, { kind: 'invalidNumber' 
     })
 ])
 
-/** @type {(state: ParseStringState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseStringState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseStringStateOp = create(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])([
     rangeFunc(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }]),
     rangeFunc(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }])
 ])
 
-/** @type {(state: ParseEscapeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseEscapeCharState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseEscapeDefault = state => input => {
     const next = tokenizeOp({ kind: 'string', value: state.value })(input)
     return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
 }
 
-/** @type {(state: ParseEscapeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseEscapeCharState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseEscapeCharStateOp = create(parseEscapeDefault)([
     rangeSetFunc([one(quotationMark), one(reverseSolidus), one(solidus)])(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }]),
     rangeFunc(one(latinSmallLetterB))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace) }]),
@@ -401,13 +388,13 @@ const parseEscapeCharStateOp = create(parseEscapeDefault)([
     rangeFunc(one(latinSmallLetterU))(state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]),
 ])
 
-/** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseUnicodeCharDefault = state => input => {
     const next = tokenizeOp({ kind: 'string', value: state.value })(input)
     return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
 }
 
-/** @type {(offser: number) => (state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(offser: number) => (state: ParseUnicodeCharState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseUnicodeCharHex = offset => state => input => {
     const hexValue = input - offset
     const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
@@ -416,14 +403,14 @@ const parseUnicodeCharHex = offset => state => input => {
         { kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1 }]
 }
 
-/** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseUnicodeCharState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseUnicodeCharStateOp = create(parseUnicodeCharDefault)([
     rangeFunc(digitRange)(parseUnicodeCharHex(digit0)),
     rangeFunc(rangeSmallAF)(parseUnicodeCharHex(latinSmallLetterA - 10)),
     rangeFunc(rangeCapitalAF)(parseUnicodeCharHex(latinCapitalLetterA - 10))
 ])
 
-/** @type {(s: string) => JsonToken} */
+/** @type {(s: string) => FjsonToken} */
 const stringToKeywordToken = s => {
     switch (s) {
         case 'true': return { kind: 'true' }
@@ -433,22 +420,22 @@ const stringToKeywordToken = s => {
     }
 }
 
-/** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseKeyWordDefault = state => input => {
     const keyWordToken = stringToKeywordToken(state.value)
     const next = tokenizeOp({ kind: 'initial' })(input)
     return [{ first: keyWordToken, tail: next[0] }, next[1]]
 }
 
-/** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseKeyWordStateOp = create(parseKeyWordDefault)([
     rangeFunc(latinSmallLetterRange)(state => input => [empty, { kind: 'keyword', value: appendChar(state.value)(input) }])
 ])
 
-/** @type {(state: EofState) => (input: number) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: EofState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const eofStateOp = create(state => () => [[{ kind: 'error', message: 'eof' }], state])([])
 
-/** @type {operator.StateScan<number, TokenizerState, list.List<JsonToken>>} */
+/** @type {operator.StateScan<number, TokenizerState, list.List<FjsonToken>>} */
 const tokenizeCharCodeOp = state => {
     switch (state.kind) {
         case 'initial': return initialStateOp(state)
@@ -462,7 +449,7 @@ const tokenizeCharCodeOp = state => {
     }
 }
 
-/** @type {(state: TokenizerState) => readonly[list.List<JsonToken>, TokenizerState]} */
+/** @type {(state: TokenizerState) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const tokenizeEofOp = state => {
     switch (state.kind) {
         case 'initial': return [empty, { kind: 'eof' }]
@@ -484,14 +471,14 @@ const tokenizeEofOp = state => {
     }
 }
 
-/** @type {operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsonToken>>} */
+/** @type {operator.StateScan<CharCodeOrEof, TokenizerState, list.List<FjsonToken>>} */
 const tokenizeOp = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
 
 const scanTokenize = stateScan(tokenizeOp)
 
 const initial = scanTokenize({ kind: 'initial' })
 
-/** @type {(input: list.List<number>) => list.List<JsonToken>} */
+/** @type {(input: list.List<number>) => list.List<FjsonToken>} */
 const tokenize = input => flat(initial(flat([/** @type {list.List<CharCodeOrEof>} */(input), [null]])))
 
 module.exports = {
