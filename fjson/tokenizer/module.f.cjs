@@ -29,12 +29,14 @@ const {
     digit0,
     colon,
     //
+    latinCapitalLetterRange,
     latinCapitalLetterA,
     latinCapitalLetterE,
     //
     leftSquareBracket,
     reverseSolidus,
     rightSquareBracket,
+    lowLine,
     //
     latinSmallLetterRange,
     latinSmallLetterA,
@@ -47,7 +49,8 @@ const {
     latinSmallLetterU,
     //
     leftCurlyBracket,
-    rightCurlyBracket
+    rightCurlyBracket,
+    dollarSign
 } = require('../../text/ascii/module.f.cjs')
 
 /**
@@ -90,10 +93,22 @@ const rangeSetTerminalForNumber = [
 const rangeSmallAF = range('af')
 const rangeCapitalAF = range('AF')
 
+const rangeIdStart = [
+    latinSmallLetterRange,
+    latinCapitalLetterRange,
+    one(lowLine),
+    one(dollarSign)
+]
+
+const rangeId = [
+    rangeIdStart,
+    digitRange
+]
+
 /**
  * @typedef {|
  * InitialState |
- * ParseKeywordState |
+ * ParseIdState |
  * ParseStringState |
  * ParseEscapeCharState |
  * ParseUnicodeCharState |
@@ -117,7 +132,7 @@ const rangeCapitalAF = range('AF')
 
 /** @typedef {{ readonly kind: 'initial'}} InitialState */
 
-/** @typedef {{ readonly kind: 'keyword', readonly value: string}} ParseKeywordState */
+/** @typedef {{ readonly kind: 'id', readonly value: string}} ParseIdState */
 
 /** @typedef {{ readonly kind: 'string', readonly value: string}} ParseStringState */
 
@@ -246,7 +261,7 @@ const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf:
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
-    rangeFunc(latinSmallLetterRange)(() => input => [empty, { kind: 'keyword', value: fromCharCode(input) }]),
+    rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
     rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
     rangeFunc(one(leftCurlyBracket))(state => () => [[{ kind: '{' }], state]),
     rangeFunc(one(rightCurlyBracket))(state => () => [[{ kind: '}' }], state]),
@@ -420,16 +435,16 @@ const stringToKeywordToken = s => {
     }
 }
 
-/** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
-const parseKeyWordDefault = state => input => {
+/** @type {(state: ParseIdState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
+const parseIdDefault = state => input => {
     const keyWordToken = stringToKeywordToken(state.value)
     const next = tokenizeOp({ kind: 'initial' })(input)
     return [{ first: keyWordToken, tail: next[0] }, next[1]]
 }
 
-/** @type {(state: ParseKeywordState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
-const parseKeyWordStateOp = create(parseKeyWordDefault)([
-    rangeFunc(latinSmallLetterRange)(state => input => [empty, { kind: 'keyword', value: appendChar(state.value)(input) }])
+/** @type {(state: ParseIdState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
+const parseIdStateOp = create(parseIdDefault)([
+    rangeFunc(latinSmallLetterRange)(state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }])
 ])
 
 /** @type {(state: EofState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
@@ -439,7 +454,7 @@ const eofStateOp = create(state => () => [[{ kind: 'error', message: 'eof' }], s
 const tokenizeCharCodeOp = state => {
     switch (state.kind) {
         case 'initial': return initialStateOp(state)
-        case 'keyword': return parseKeyWordStateOp(state)
+        case 'id': return parseIdStateOp(state)
         case 'string': return parseStringStateOp(state)
         case 'escapeChar': return parseEscapeCharStateOp(state)
         case 'unicodeChar': return parseUnicodeCharStateOp(state)
@@ -453,7 +468,7 @@ const tokenizeCharCodeOp = state => {
 const tokenizeEofOp = state => {
     switch (state.kind) {
         case 'initial': return [empty, { kind: 'eof' }]
-        case 'keyword': return [[stringToKeywordToken(state.value)], { kind: 'eof' }]
+        case 'id': return [[stringToKeywordToken(state.value)], { kind: 'eof' }]
         case 'string':
         case 'escapeChar':
         case 'unicodeChar': return [[{ kind: 'error', message: '" are missing' }], { kind: 'eof' }]
