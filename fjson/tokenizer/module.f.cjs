@@ -100,10 +100,7 @@ const rangeIdStart = [
     one(dollarSign)
 ]
 
-const rangeId = [
-    rangeIdStart,
-    digitRange
-]
+const rangeId = [digitRange, ...rangeIdStart]
 
 /**
  * @typedef {|
@@ -426,25 +423,25 @@ const parseUnicodeCharStateOp = create(parseUnicodeCharDefault)([
 ])
 
 /** @type {(s: string) => FjsonToken} */
-const stringToKeywordToken = s => {
+const idToToken = s => {
     switch (s) {
         case 'true': return { kind: 'true' }
         case 'false': return { kind: 'false' }
         case 'null': return { kind: 'null' }
-        default: return { kind: 'error', message: 'invalid keyword' }
+        default: return { kind: 'id', value: s }
     }
 }
 
 /** @type {(state: ParseIdState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseIdDefault = state => input => {
-    const keyWordToken = stringToKeywordToken(state.value)
+    const keyWordToken = idToToken(state.value)
     const next = tokenizeOp({ kind: 'initial' })(input)
     return [{ first: keyWordToken, tail: next[0] }, next[1]]
 }
 
 /** @type {(state: ParseIdState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseIdStateOp = create(parseIdDefault)([
-    rangeFunc(latinSmallLetterRange)(state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }])
+    rangeSetFunc(rangeId)(state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }])
 ])
 
 /** @type {(state: EofState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
@@ -468,7 +465,7 @@ const tokenizeCharCodeOp = state => {
 const tokenizeEofOp = state => {
     switch (state.kind) {
         case 'initial': return [empty, { kind: 'eof' }]
-        case 'id': return [[stringToKeywordToken(state.value)], { kind: 'eof' }]
+        case 'id': return [[idToToken(state.value)], { kind: 'eof' }]
         case 'string':
         case 'escapeChar':
         case 'unicodeChar': return [[{ kind: 'error', message: '" are missing' }], { kind: 'eof' }]
