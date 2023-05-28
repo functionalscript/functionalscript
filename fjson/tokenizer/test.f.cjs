@@ -4,7 +4,7 @@ const fjson = require('../../fjson/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 
-/** @type {(s: string) => readonly tokenizer.JsonToken[]} */
+/** @type {(s: string) => readonly tokenizer.FjsonToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = fjson.stringify(sort)
@@ -45,11 +45,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('err'))
-            if (result !== '[{"kind":"error","message":"invalid keyword"}]') { throw result }
+            if (result !== '[{"kind":"id","value":"err"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{e}'))
-            if (result !== '[{"kind":"{"},{"kind":"error","message":"invalid keyword"},{"kind":"}"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{ \t\n\r}'))
@@ -61,7 +61,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('tru'))
-            if (result !== '[{"kind":"error","message":"invalid keyword"}]') { throw result }
+            if (result !== '[{"kind":"id","value":"tru"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('false'))
@@ -249,6 +249,30 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('0e-'))
+            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('ABCdef1234567890$_'))
+            if (result !== '[{"kind":"id","value":"ABCdef1234567890$_"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('{ABCdef1234567890$_}'))
+            if (result !== '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('123 _123'))
+            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"id","value":"_123"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('123 $123'))
+            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"id","value":"$123"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('123_123'))
+            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+        },
+         () => {
+            const result = stringify(tokenizeString('123$123'))
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
         },
     ]
