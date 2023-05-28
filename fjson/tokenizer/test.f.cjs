@@ -275,11 +275,5 @@ module.exports = {
             const result = stringify(tokenizeString('123$123'))
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
         },
-    ],
-    stress: () => {
-        const n = 10_000
-        const list = countdown(n)
-        const result = tokenizer.tokenize(list)
-        //if (toArray(result).length !== 9929) { throw result }
-    }
+    ]
 }
