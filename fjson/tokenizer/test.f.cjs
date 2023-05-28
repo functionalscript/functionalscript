@@ -272,7 +272,7 @@ module.exports = {
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
         },
          () => {
-            const result = stringify(tokenizeString('123_123'))
+            const result = stringify(tokenizeString('123$123'))
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
         },
     ],
