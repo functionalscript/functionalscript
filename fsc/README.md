@@ -32,6 +32,7 @@
   - `...` - spread
 - `/` - division
   - `/*` - commentBegin
+  - `//` - oneLineComment
   - `/=` - divisionAssignment
 - `0..9` - numberBegin
 - `:` - colon
