@@ -271,9 +271,21 @@ module.exports = {
             const result = stringify(tokenizeString('123_123'))
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
         },
-         () => {
+        () => {
             const result = stringify(tokenizeString('123$123'))
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('1234567890n'))
+            if (result !== '[{"kind":"bigint","value":1234567890n}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('0n'))
+            if (result !== '[{"kind":"bigint","value":0n}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('[-1234567890n]'))
+            if (result !== '[{"kind":"["},{"kind":"bigint","value":-1234567890n},{"kind":"]"}]') { throw result }
         },
     ]
 }
