@@ -176,7 +176,7 @@ const rangeId = [digitRange, ...rangeIdStart]
 /**
  * @typedef {{
  *  readonly kind: 'number',
- *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
+ *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits' | 'bigint'
  *  readonly value: string
  *  readonly b: ParseNumberBuffer
  * }} ParseNumberState
@@ -281,11 +281,13 @@ const addFracDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit)
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
 const addExpDigit = digit => b =>  ({ ... b, e: b.e * 10 + digit - digit0})
 
-/** @type {(s: ParseNumberState) => NumberToken} */
-const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] })
-
-/** @type {(s: ParseNumberState) => BigIntToken} */
-const bufferToBigIntToken = ({value, b}) => ({ kind: 'bigint', value: b.s * b.m })
+/** @type {(s: ParseNumberState) => FjsonToken} */
+const bufferToNumberToken = ({numberKind, value, b}) =>
+{
+    if (numberKind === 'bigint')
+        return { kind: 'bigint', value: b.s * b.m }
+    return { kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] }
+}
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
@@ -304,7 +306,11 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
 ])
 
 /** @type {() => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
-const invalidNumberToToken = () => input => tokenizeOp({ kind: 'invalidNumber' })(input)
+const invalidNumberToToken = () => input =>
+{
+    const next = tokenizeOp({ kind: 'initial' })(input)
+    return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
+}
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const fullStopToToken = state => input => {
@@ -396,7 +402,7 @@ const bigintToToken = state => input => {
         case '0':
         case 'int':
             {
-                return [[bufferToBigIntToken(state)], { kind: 'initial' }]
+                return [empty, { kind: 'number', value: state.value, b: state.b, numberKind: 'bigint' }]
             }
         default:
             {

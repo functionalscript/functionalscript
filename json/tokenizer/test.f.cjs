@@ -145,7 +145,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('0abc,'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"error","message":"invalid token"},{"kind":","}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('123456789012345678901234567890'))
@@ -169,7 +169,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('9a:'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":":"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"error","message":"invalid token"},{"kind":":"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-10'))
