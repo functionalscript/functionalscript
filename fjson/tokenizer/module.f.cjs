@@ -6,7 +6,6 @@ const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 const bigfloat = require('../../types/bigfloat/module.f.cjs')
-const jsonTokenizer = require('../../json/tokenizer/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -55,6 +54,25 @@ const {
 
 /**
  * @typedef {{
+* readonly kind: 'string'
+* readonly value: string
+* }} StringToken
+* */
+
+/**
+* @typedef {{
+* readonly kind: 'number'
+* readonly value: string
+* readonly bf: bigfloat.BigFloat
+* }} NumberToken
+* */
+
+/** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
+
+/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null'}} SimpleToken */
+
+/**
+ * @typedef {{
 * readonly kind: 'id'
 * readonly value: string
 * }} IdToken
@@ -62,7 +80,10 @@ const {
 
 /**
  * @typedef {|
-* jsonTokenizer.JsonToken |
+* SimpleToken |
+* StringToken |
+* NumberToken |
+* ErrorToken |
 * IdToken
 * } FjsonToken
 */
@@ -117,12 +138,12 @@ const rangeId = [digitRange, ...rangeIdStart]
 
 /**
  * @typedef {|
- * 'invalid keyword' |
- * '" are missing' |
+  * '" are missing' |
  * 'unescaped character' |
  * 'invalid hex value' |
  * 'unexpected character' |
  * 'invalid number' |
+ * 'invalid token' |
  * 'eof'
  * } ErrorMessage
  */
@@ -252,7 +273,7 @@ const addFracDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit)
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
 const addExpDigit = digit => b =>  ({ ... b, e: b.e * 10 + digit - digit0})
 
-/** @type {(s: ParseNumberState) => jsonTokenizer.NumberToken} */
+/** @type {(s: ParseNumberState) => NumberToken} */
 const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] })
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
