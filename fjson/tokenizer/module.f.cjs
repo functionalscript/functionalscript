@@ -406,7 +406,6 @@ const bigintToToken = state => input => {
             }
         default:
             {
-
                 const next = tokenizeOp({ kind: 'initial' })(input)
                 return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
             }
