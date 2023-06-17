@@ -45,11 +45,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('err'))
-            if (result !== '[{"kind":"error","message":"invalid keyword"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{e}'))
-            if (result !== '[{"kind":"{"},{"kind":"error","message":"invalid keyword"},{"kind":"}"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"error","message":"invalid token"},{"kind":"}"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('{ \t\n\r}'))
@@ -61,7 +61,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('tru'))
-            if (result !== '[{"kind":"error","message":"invalid keyword"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('false'))
@@ -145,7 +145,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('0abc,'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":","}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"error","message":"invalid token"},{"kind":","}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('123456789012345678901234567890'))
@@ -169,7 +169,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('9a:'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":":"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"error","message":"invalid token"},{"kind":":"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-10'))

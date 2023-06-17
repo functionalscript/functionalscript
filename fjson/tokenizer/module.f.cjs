@@ -6,7 +6,6 @@ const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 const bigfloat = require('../../types/bigfloat/module.f.cjs')
-const jsonTokenizer = require('../../json/tokenizer/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -55,6 +54,32 @@ const {
 
 /**
  * @typedef {{
+* readonly kind: 'string'
+* readonly value: string
+* }} StringToken
+* */
+
+/**
+* @typedef {{
+* readonly kind: 'number'
+* readonly value: string
+* readonly bf: bigfloat.BigFloat
+* }} NumberToken
+* */
+
+/**
+* @typedef {{
+* readonly kind: 'bigint'
+* readonly value: bigint
+* }} BigIntToken
+* */
+
+/** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
+
+/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null'}} SimpleToken */
+
+/**
+ * @typedef {{
 * readonly kind: 'id'
 * readonly value: string
 * }} IdToken
@@ -62,8 +87,12 @@ const {
 
 /**
  * @typedef {|
-* jsonTokenizer.JsonToken |
-* IdToken
+* SimpleToken |
+* StringToken |
+* NumberToken |
+* ErrorToken |
+* IdToken |
+* BigIntToken
 * } FjsonToken
 */
 
@@ -117,12 +146,12 @@ const rangeId = [digitRange, ...rangeIdStart]
 
 /**
  * @typedef {|
- * 'invalid keyword' |
- * '" are missing' |
+  * '" are missing' |
  * 'unescaped character' |
  * 'invalid hex value' |
  * 'unexpected character' |
  * 'invalid number' |
+ * 'invalid token' |
  * 'eof'
  * } ErrorMessage
  */
@@ -147,7 +176,7 @@ const rangeId = [digitRange, ...rangeIdStart]
 /**
  * @typedef {{
  *  readonly kind: 'number',
- *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits'
+ *  readonly numberKind: '0' | '-' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits' | 'bigint'
  *  readonly value: string
  *  readonly b: ParseNumberBuffer
  * }} ParseNumberState
@@ -252,8 +281,13 @@ const addFracDigit = digit => b => ({ ... b, m: b.m * 10n + digitToBigInt(digit)
 /** @type {(digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer} */
 const addExpDigit = digit => b =>  ({ ... b, e: b.e * 10 + digit - digit0})
 
-/** @type {(s: ParseNumberState) => jsonTokenizer.NumberToken} */
-const bufferToNumberToken = ({value, b}) => ({ kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] })
+/** @type {(s: ParseNumberState) => FjsonToken} */
+const bufferToNumberToken = ({numberKind, value, b}) =>
+{
+    if (numberKind === 'bigint')
+        return { kind: 'bigint', value: b.s * b.m }
+    return { kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] }
+}
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
@@ -272,7 +306,11 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
 ])
 
 /** @type {() => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
-const invalidNumberToToken = () => input => tokenizeOp({ kind: 'invalidNumber' })(input)
+const invalidNumberToToken = () => input =>
+{
+    const next = tokenizeOp({ kind: 'initial' })(input)
+    return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
+}
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const fullStopToToken = state => input => {
@@ -359,6 +397,22 @@ const terminalToToken = state => input => {
 }
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
+const bigintToToken = state => input => {
+    switch (state.numberKind) {
+        case '0':
+        case 'int':
+            {
+                return [empty, { kind: 'number', value: state.value, b: state.b, numberKind: 'bigint' }]
+            }
+        default:
+            {
+                const next = tokenizeOp({ kind: 'initial' })(input)
+                return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
+            }
+    }
+}
+
+/** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
 const parseNumberStateOp = create(invalidNumberToToken)([
     rangeFunc(one(fullStop))(fullStopToToken),
     rangeFunc(one(digit0))(digit0ToToken),
@@ -366,7 +420,8 @@ const parseNumberStateOp = create(invalidNumberToToken)([
     rangeSetFunc([one(latinSmallLetterE), one(latinCapitalLetterE)])(expToToken),
     rangeFunc(one(hyphenMinus))(hyphenMinusToToken),
     rangeFunc(one(plusSign))(plusSignToToken),
-    rangeSetFunc(rangeSetTerminalForNumber)(terminalToToken)
+    rangeSetFunc(rangeSetTerminalForNumber)(terminalToToken),
+    rangeFunc(one(latinSmallLetterN))(bigintToToken),
 ])
 
 /** @type {(state: InvalidNumberState) => (input: number) => readonly[list.List<FjsonToken>, TokenizerState]} */
