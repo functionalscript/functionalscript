@@ -1,11 +1,11 @@
-const operator = require('../types/function/operator/module.f.cjs')
-const range_map = require('../types/range_map/module.f.cjs')
+const operator = require('../../types/function/operator/module.f.cjs')
+const range_map = require('../../types/range_map/module.f.cjs')
 const { merge, fromRange, get } = range_map
-const list = require('../types/list/module.f.cjs')
-const _range = require('../types/range/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
+const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
-const bigfloat = require('../types/bigfloat/module.f.cjs')
+const bigfloat = require('../../types/bigfloat/module.f.cjs')
 const { fromCharCode } = String
 const {
     range,
@@ -50,7 +50,7 @@ const {
     leftCurlyBracket,
     rightCurlyBracket,
     dollarSign
-} = require('../text/ascii/module.f.cjs')
+} = require('../../text/ascii/module.f.cjs')
 
 /**
  * @typedef {{

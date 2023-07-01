@@ -1,5 +1,5 @@
 const list = require('../../types/list/module.f.cjs')
-const fjsonTokenizer = require('../../tokenizer/module.f.cjs')
+const fjsonTokenizer = require('../../js/tokenizer/module.f.cjs')
 
 /**
  * @typedef {|
