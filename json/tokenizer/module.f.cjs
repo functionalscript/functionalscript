@@ -1,16 +1,16 @@
 const list = require('../../types/list/module.f.cjs')
-const fjsonTokenizer = require('../../js/tokenizer/module.f.cjs')
+const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 
 /**
  * @typedef {|
-* fjsonTokenizer.SimpleToken |
-* fjsonTokenizer.StringToken |
-* fjsonTokenizer.NumberToken |
-* fjsonTokenizer.ErrorToken
+* jsTokenizer.SimpleToken |
+* jsTokenizer.StringToken |
+* jsTokenizer.NumberToken |
+* jsTokenizer.ErrorToken
 * } JsonToken
 */
 
-/** @type {(input: fjsonTokenizer.FjsonToken) => JsonToken} */
+/** @type {(input: jsTokenizer.JsToken) => JsonToken} */
 const mapToken = input =>
 {
     switch(input.kind)
@@ -32,7 +32,7 @@ const mapToken = input =>
 }
 
 /** @type {(input: list.List<number>) => list.List<JsonToken>} */
-const tokenize = input => list.map(mapToken)(fjsonTokenizer.tokenize(input))
+const tokenize = input => list.map(mapToken)(jsTokenizer.tokenize(input))
 
 module.exports = {
     /** @readonly */

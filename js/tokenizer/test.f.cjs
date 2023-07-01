@@ -4,7 +4,7 @@ const fjson = require('../../fjson/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 
-/** @type {(s: string) => readonly tokenizer.FjsonToken[]} */
+/** @type {(s: string) => readonly tokenizer.JsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = fjson.stringify(sort)
