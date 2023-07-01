@@ -10,7 +10,7 @@ const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s))
 const stringify = fjson.stringify(sort)
 
 module.exports = {
-    testing: [
+    fjson: [
         () => {
             const result = tokenizeString('')
             if (result.length !== 0) { throw result }
