@@ -87,12 +87,26 @@ const {
 
 /**
  * @typedef {|
+* {readonly kind: '==' | '!=' | '===' | '!==' | '>' | '>=' | '<' | '<=' } |
+* {readonly kind: '+' | '-' | '*' | '/' | '%' | '++' | '--' | '**' } |
+* {readonly kind: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
+* {readonly kind: '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>' } |
+* {readonly kind: '&=' | '|=' | '^=' | '<<=' | '>>=' | '>>>='} |
+* {readonly kind: '&&' | '||' | '!' } |
+* {readonly kind: '&&=' | '||=' | '??=' } |
+* {readonly kind: '?' | '?.' | '.' | '=>'}
+* } OperatorToken
+*/
+
+/**
+ * @typedef {|
 * SimpleToken |
 * StringToken |
 * NumberToken |
 * ErrorToken |
 * IdToken |
-* BigIntToken
+* BigIntToken |
+* OperatorToken
 * } JsToken
 */
 
