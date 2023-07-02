@@ -16,6 +16,18 @@ const {
     ff,
     cr,
     //
+    exclamationMark,
+    percentSign,
+    ampersand,
+    asterisk,
+    lessThanSign,
+    equalsSign,
+    greaterThanSign,
+    questionMark,
+    circumflexAccent,
+    verticalLine,
+    tilde,
+    //
     space,
     quotationMark,
     plusSign,
@@ -51,6 +63,7 @@ const {
     rightCurlyBracket,
     dollarSign
 } = require('../../text/ascii/module.f.cjs')
+const { todo } = require('../../dev/module.f.cjs')
 
 /**
  * @typedef {{
@@ -143,6 +156,23 @@ const rangeIdStart = [
     one(dollarSign)
 ]
 
+const opStart = [
+    one(exclamationMark),
+    one(percentSign),
+    one(ampersand),
+    one(asterisk),
+    one(lessThanSign),
+    one(equalsSign),
+    one(greaterThanSign),
+    one(questionMark),
+    one(circumflexAccent),
+    one(verticalLine),
+    one(tilde),
+    one(plusSign),
+    one(fullStop),
+    one(solidus)
+]
+
 const rangeId = [digitRange, ...rangeIdStart]
 
 /**
@@ -154,6 +184,7 @@ const rangeId = [digitRange, ...rangeIdStart]
  * ParseUnicodeCharState |
  * ParseNumberState |
  * InvalidNumberState |
+ * ParseOperatorState |
  * EofState
  * } TokenizerState
  */
@@ -177,6 +208,8 @@ const rangeId = [digitRange, ...rangeIdStart]
 /** @typedef {{ readonly kind: 'string', readonly value: string}} ParseStringState */
 
 /** @typedef {{ readonly kind: 'escapeChar', readonly value: string}} ParseEscapeCharState */
+
+/** @typedef {{ readonly kind: 'op', readonly value: string}} ParseOperatorState */
 
 /**
  * @typedef {{
@@ -526,6 +559,7 @@ const tokenizeCharCodeOp = state => {
         case 'unicodeChar': return parseUnicodeCharStateOp(state)
         case 'invalidNumber': return invalidNumberStateOp(state)
         case 'number': return parseNumberStateOp(state)
+        case 'op': return todo()
         case 'eof': return eofStateOp(state)
     }
 }
@@ -548,6 +582,7 @@ const tokenizeEofOp = state => {
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
                 default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
+        case 'op': return todo()
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }
 }
