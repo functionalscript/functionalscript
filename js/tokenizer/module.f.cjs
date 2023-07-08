@@ -63,7 +63,6 @@ const {
     rightCurlyBracket,
     dollarSign
 } = require('../../text/ascii/module.f.cjs')
-const { todo } = require('../../dev/module.f.cjs')
 
 /**
  * @typedef {{
@@ -336,6 +335,24 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
     return { kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] }
 }
 
+/**
+ * @typedef {{
+*  readonly map: OperatorTransitionMap,
+*  readonly def: JsToken
+* }} OperatorTransition
+*/
+
+/** @typedef {{ readonly[input in number]: readonly[list.List<JsToken>, TokenizerState] }} OperatorTransitionMap */
+
+/**
+ * @typedef {{
+*  readonly[state in string]: OperatorTransition
+* }} OperatorDfa
+*/
+
+/** @type {OperatorDfa} */
+const operatorDfa = {}
+
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
@@ -546,6 +563,16 @@ const parseIdStateOp = create(parseIdDefault)([
     rangeSetFunc(rangeId)(state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }])
 ])
 
+/** @type {(state: ParseOperatorState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseOperatorStateOp = state => input => {
+    const t = operatorDfa[state.value]
+    const m = t.map[input]
+    if (m !== undefined)
+        return m
+    const next = tokenizeOp({ kind: 'initial' })(input)
+    return [{ first: t.def, tail: next[0] }, next[1]]
+}
+
 /** @type {(state: EofState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const eofStateOp = create(state => () => [[{ kind: 'error', message: 'eof' }], state])([])
 
@@ -559,7 +586,7 @@ const tokenizeCharCodeOp = state => {
         case 'unicodeChar': return parseUnicodeCharStateOp(state)
         case 'invalidNumber': return invalidNumberStateOp(state)
         case 'number': return parseNumberStateOp(state)
-        case 'op': return todo()
+        case 'op': return parseOperatorStateOp(state)
         case 'eof': return eofStateOp(state)
     }
 }
@@ -582,7 +609,7 @@ const tokenizeEofOp = state => {
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
                 default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
-        case 'op': return todo()
+        case 'op': return [[operatorDfa[state.value].def], { kind: 'eof' }]
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }
 }
