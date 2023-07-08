@@ -2,6 +2,8 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const range_map = require('../../types/range_map/module.f.cjs')
 const { merge, fromRange, get } = range_map
 const list = require('../../types/list/module.f.cjs')
+const sorted_list = require('../../types/sorted_list/module.f.cjs')
+const { unsafeCmp } = require('../../types/function/compare/module.f.cjs')
 const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
@@ -155,7 +157,7 @@ const rangeIdStart = [
     one(dollarSign)
 ]
 
-const opStart = [
+const rangeOpStart = [
     one(exclamationMark),
     one(percentSign),
     one(ampersand),
@@ -337,12 +339,10 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
 
 /**
  * @typedef {{
-*  readonly map: OperatorTransitionMap,
-*  readonly def: JsToken
+*  readonly transitions: sorted_list.SortedArray<number>,
+*  readonly token: JsToken
 * }} OperatorTransition
 */
-
-/** @typedef {{ readonly[input in number]: readonly[list.List<JsToken>, TokenizerState] }} OperatorTransitionMap */
 
 /**
  * @typedef {{
@@ -351,7 +351,10 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
 */
 
 /** @type {OperatorDfa} */
-const operatorDfa = {}
+const operatorDfa = {
+    '=' : { token: { kind: '=' }, transitions: [equalsSign, greaterThanSign]},
+    '==' : { token: { kind: '==' }, transitions: [equalsSign]}
+}
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
@@ -366,7 +369,8 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
     rangeFunc(one(rightSquareBracket))(state => () => [[{ kind: ']' }], state]),
     rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
     rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
-    rangeFunc(one(hyphenMinus))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNegativeNumber, numberKind: '-' }])
+    rangeFunc(one(hyphenMinus))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNegativeNumber, numberKind: '-' }]),
+    rangeSetFunc(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
 ])
 
 /** @type {() => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
@@ -565,12 +569,12 @@ const parseIdStateOp = create(parseIdDefault)([
 
 /** @type {(state: ParseOperatorState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseOperatorStateOp = state => input => {
-    const t = operatorDfa[state.value]
-    const m = t.map[input]
-    if (m !== undefined)
-        return m
+    const r = operatorDfa[state.value]
+    const t = sorted_list.find(unsafeCmp)(input)(r.transitions)
+    if (t !==  null)
+        return [empty, { kind: 'op', value: appendChar(state.value)(input) }]
     const next = tokenizeOp({ kind: 'initial' })(input)
-    return [{ first: t.def, tail: next[0] }, next[1]]
+    return [{ first: r.token, tail: next[0] }, next[1]]
 }
 
 /** @type {(state: EofState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
@@ -609,7 +613,7 @@ const tokenizeEofOp = state => {
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
                 default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
-        case 'op': return [[operatorDfa[state.value].def], { kind: 'eof' }]
+        case 'op': return [[operatorDfa[state.value].token], { kind: 'eof' }]
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }
 }

@@ -303,5 +303,24 @@ module.exports = {
             const result = stringify(tokenizeString('1234567890nn'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"}]') { throw result }
         },
+    ],
+    operators:
+    [
+        () => {
+            const result = stringify(tokenizeString('='))
+            if (result !== '[{"kind":"="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('=a'))
+            if (result !== '[{"kind":"="},{"kind":"id","value":"a"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('=='))
+            if (result !== '[{"kind":"=="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('==a'))
+            if (result !== '[{"kind":"=="},{"kind":"id","value":"a"}]') { throw result }
+        },
     ]
 }
