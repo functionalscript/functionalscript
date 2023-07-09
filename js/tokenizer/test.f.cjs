@@ -4,7 +4,7 @@ const fjson = require('../../fjson/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 
-/** @type {(s: string) => readonly tokenizer.FjsonToken[]} */
+/** @type {(s: string) => readonly tokenizer.JsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = fjson.stringify(sort)
@@ -302,6 +302,53 @@ module.exports = {
         () => {
             const result = stringify(tokenizeString('1234567890nn'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"}]') { throw result }
+        },
+    ],
+    operators:
+    [
+        () => {
+            const result = stringify(tokenizeString('='))
+            if (result !== '[{"kind":"="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('=a'))
+            if (result !== '[{"kind":"="},{"kind":"id","value":"a"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('-'))
+            if (result !== '[{"kind":"-"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('== != === !== > >= < <='))
+            if (result !== '[{"kind":"=="},{"kind":"!="},{"kind":"==="},{"kind":"!=="},{"kind":">"},{"kind":">="},{"kind":"<"},{"kind":"<="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('+ - * / % ++ -- **'))
+            if (result !== '[{"kind":"+"},{"kind":"-"},{"kind":"*"},{"kind":"/"},{"kind":"%"},{"kind":"++"},{"kind":"--"},{"kind":"**"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('= += -= *= /= %= **='))
+            if (result !== '[{"kind":"="},{"kind":"+="},{"kind":"-="},{"kind":"*="},{"kind":"/="},{"kind":"%="},{"kind":"**="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('& | ^ ~ << >> >>>'))
+            if (result !== '[{"kind":"&"},{"kind":"|"},{"kind":"^"},{"kind":"~"},{"kind":"<<"},{"kind":">>"},{"kind":">>>"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('&= |= ^= <<= >>= >>>='))
+            if (result !== '[{"kind":"&="},{"kind":"|="},{"kind":"^="},{"kind":"<<="},{"kind":">>="},{"kind":">>>="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('&& || !'))
+            if (result !== '[{"kind":"&&"},{"kind":"||"},{"kind":"!"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('&&= ||= ?? ??='))
+            if (result !== '[{"kind":"&&="},{"kind":"||="},{"kind":"error","message":"invalid token"},{"kind":"??="}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('? ?. . =>'))
+            if (result !== '[{"kind":"?"},{"kind":"?."},{"kind":"."},{"kind":"=>"}]') { throw result }
         },
     ]
 }
