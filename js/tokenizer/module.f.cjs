@@ -106,7 +106,7 @@ const {
 * {readonly kind: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
 * {readonly kind: '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>' } |
 * {readonly kind: '&=' | '|=' | '^=' | '<<=' | '>>=' | '>>>='} |
-* {readonly kind: '&&' | '||' | '!' } |
+* {readonly kind: '&&' | '||' | '!' | '??' } |
 * {readonly kind: '&&=' | '||=' | '??=' } |
 * {readonly kind: '?' | '?.' | '.' | '=>'}
 * } OperatorToken
@@ -393,7 +393,7 @@ const operatorDfa = {
     '>>>=': {token: {kind: '>>>='}, transitions: []},
     '?' : { token: { kind: '?' }, transitions: [fullStop, questionMark]},
     '?.' : { token: { kind: '?.' }, transitions: []},
-    '??' : { token: { kind: 'error', message: 'invalid token' }, transitions: [equalsSign]},
+    '??' : { token: { kind: '??' }, transitions: [equalsSign]},
     '??=' : { token: { kind: '??=' }, transitions: []},
     '^' : { token: { kind: '^' }, transitions: [equalsSign]},
     '^=' : { token: { kind: '^=' }, transitions: []},
