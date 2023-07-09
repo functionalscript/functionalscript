@@ -339,12 +339,12 @@ module.exports = {
             if (result !== '[{"kind":"&="},{"kind":"|="},{"kind":"^="},{"kind":"<<="},{"kind":">>="},{"kind":">>>="}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('&& || !'))
-            if (result !== '[{"kind":"&&"},{"kind":"||"},{"kind":"!"}]') { throw result }
+            const result = stringify(tokenizeString('&& || ! ??'))
+            if (result !== '[{"kind":"&&"},{"kind":"||"},{"kind":"!"},{"kind":"??"}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('&&= ||= ?? ??='))
-            if (result !== '[{"kind":"&&="},{"kind":"||="},{"kind":"error","message":"invalid token"},{"kind":"??="}]') { throw result }
+            const result = stringify(tokenizeString('&&= ||= ??='))
+            if (result !== '[{"kind":"&&="},{"kind":"||="},{"kind":"??="}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('? ?. . =>'))
