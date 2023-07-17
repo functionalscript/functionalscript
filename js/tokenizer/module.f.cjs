@@ -90,7 +90,7 @@ const {
 
 /** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
 
-/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null' | 'ws'}} SimpleToken */
+/** @typedef {{readonly kind: 'true' | 'false' | 'null' | 'ws'}} SimpleToken */
 
 /**
  * @typedef {{
@@ -101,6 +101,7 @@ const {
 
 /**
  * @typedef {|
+* {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
 * {readonly kind: '==' | '!=' | '===' | '!==' | '>' | '>=' | '<' | '<=' } |
 * {readonly kind: '+' | '-' | '*' | '/' | '%' | '++' | '--' | '**' } |
 * {readonly kind: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
@@ -162,16 +163,22 @@ const rangeOpStart = [
     one(percentSign),
     one(ampersand),
     one(asterisk),
+    one(plusSign),
+    one(comma),
+    one(fullStop),
+    one(solidus),
+    one(colon),
     one(lessThanSign),
     one(equalsSign),
     one(greaterThanSign),
     one(questionMark),
     one(circumflexAccent),
+    one(leftSquareBracket),
+    one(rightSquareBracket),
+    one(leftCurlyBracket),
     one(verticalLine),
-    one(tilde),
-    one(plusSign),
-    one(fullStop),
-    one(solidus)
+    one(rightCurlyBracket),
+    one(tilde)
 ]
 
 const rangeId = [digitRange, ...rangeIdStart]
@@ -361,12 +368,14 @@ const operatorEntries = [
     ['+', { kind: '+'}],
     ['++', { kind: '++'}],
     ['+=', { kind: '+='}],
+    [',', { kind: ','}],
     ['-', { kind: '-'}],
     ['--', { kind: '--'}],
     ['-=', { kind: '-='}],
     ['.', { kind: '.'}],
     ['/', { kind: '/'}],
     ['/=', { kind: '/='}],
+    [':', { kind: ':'}],
     ['<', { kind: '<'}],
     ['<<', { kind: '<<'}],
     ['<<=', { kind: '<<='}],
@@ -387,10 +396,14 @@ const operatorEntries = [
     ['??=', { kind: '??='}],
     ['^', { kind: '^'}],
     ['^=', { kind: '^='}],
+    ['[', { kind: '['}],
+    [']', { kind: ']'}],
+    ['{', { kind: '{'}],
     ['|', { kind: '|'}],
     ['|=', { kind: '|='}],
     ['||', { kind: '||'}],
     ['||=', { kind: '||='}],
+    ['}', { kind: '}'}],
     ['~', { kind: '~' }]
 ]
 
@@ -407,12 +420,6 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
     rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
     rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, { kind: 'ws' }]),
-    rangeFunc(one(leftCurlyBracket))(state => () => [[{ kind: '{' }], state]),
-    rangeFunc(one(rightCurlyBracket))(state => () => [[{ kind: '}' }], state]),
-    rangeFunc(one(colon))(state => () => [[{ kind: ':' }], state]),
-    rangeFunc(one(comma))(state => () => [[{ kind: ',' }], state]),
-    rangeFunc(one(leftSquareBracket))(state => () => [[{ kind: '[' }], state]),
-    rangeFunc(one(rightSquareBracket))(state => () => [[{ kind: ']' }], state]),
     rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
     rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
     rangeFunc(one(hyphenMinus))(() => () => [empty, { kind: '-'}]),
