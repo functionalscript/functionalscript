@@ -92,7 +92,9 @@ const {
 
 /** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
 
-/** @typedef {{readonly kind: 'true' | 'false' | 'null' | 'ws'}} SimpleToken */
+/** @typedef {{readonly kind: 'ws'}} WhitespaceToken */
+
+/** @typedef {{readonly kind: 'true' | 'false' | 'null'}} KeywordToken */
 
 /**
  * @typedef {{
@@ -118,7 +120,8 @@ const {
 
 /**
  * @typedef {|
-* SimpleToken |
+* KeywordToken |
+* WhitespaceToken|
 * StringToken |
 * NumberToken |
 * ErrorToken |

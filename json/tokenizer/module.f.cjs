@@ -4,7 +4,7 @@ const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 
 /**
  * @typedef {|
-* jsTokenizer.SimpleToken |
+* {readonly kind: 'true' | 'false' | 'null'} |
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
 * jsTokenizer.StringToken |
 * jsTokenizer.NumberToken |
