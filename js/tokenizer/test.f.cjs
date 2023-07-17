@@ -323,6 +323,10 @@ module.exports = {
             if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"*"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
         },
         () => {
+            const result = stringify(tokenizeString('( )'))
+            if (result !== '[{"kind":"("},{"kind":"ws"},{"kind":")"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('== != === !== > >= < <='))
             if (result !== '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="}]') { throw result }
         },

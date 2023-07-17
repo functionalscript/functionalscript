@@ -32,6 +32,8 @@ const {
     //
     space,
     quotationMark,
+    leftParenthesis,
+    rightParenthesis,
     plusSign,
     comma,
     hyphenMinus,
@@ -102,6 +104,7 @@ const {
 /**
  * @typedef {|
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+* {readonly kind: '(' | ')' } |
 * {readonly kind: '==' | '!=' | '===' | '!==' | '>' | '>=' | '<' | '<=' } |
 * {readonly kind: '+' | '-' | '*' | '/' | '%' | '++' | '--' | '**' } |
 * {readonly kind: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
@@ -139,6 +142,8 @@ const rangeSetTerminalForNumber = [
     one(exclamationMark),
     one(percentSign),
     one(ampersand),
+    one(leftParenthesis),
+    one(rightParenthesis),
     one(asterisk),
     one(comma),
     one(solidus),
@@ -170,6 +175,8 @@ const rangeOpStart = [
     one(exclamationMark),
     one(percentSign),
     one(ampersand),
+    one(leftParenthesis),
+    one(rightParenthesis),
     one(asterisk),
     one(plusSign),
     one(comma),
@@ -369,6 +376,8 @@ const operatorEntries = [
     ['&&', { kind: '&&'}],
     ['&&=', { kind: '&&='}],
     ['&=', { kind: '&='}],
+    ['(', { kind: '('}],
+    [')', { kind: ')'}],
     ['*', { kind: '*'}],
     ['**', { kind: '**'}],
     ['**=', { kind: '**='}],
