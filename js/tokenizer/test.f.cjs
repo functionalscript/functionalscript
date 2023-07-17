@@ -53,7 +53,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('{ \t\n\r}'))
-            if (result !== '[{"kind":"{"},{"kind":"}"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"ws"},{"kind":"}"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('true'))
@@ -89,7 +89,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('"value1" "value2"'))
-            if (result !== '[{"kind":"string","value":"value1"},{"kind":"string","value":"value2"}]') { throw result }
+            if (result !== '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"'))
@@ -157,11 +157,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('1 2'))
-            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
+            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0. 2'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('10-0'))
@@ -261,11 +261,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('123 _123'))
-            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"id","value":"_123"}]') { throw result }
+            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('123 $123'))
-            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"id","value":"$123"}]') { throw result }
+            if (result !== '[{"bf":[123n,0],"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('123_123'))
@@ -320,35 +320,57 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('== != === !== > >= < <='))
-            if (result !== '[{"kind":"=="},{"kind":"!="},{"kind":"==="},{"kind":"!=="},{"kind":">"},{"kind":">="},{"kind":"<"},{"kind":"<="}]') { throw result }
+            if (result !== '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('+ - * / % ++ -- **'))
-            if (result !== '[{"kind":"+"},{"kind":"-"},{"kind":"*"},{"kind":"/"},{"kind":"%"},{"kind":"++"},{"kind":"--"},{"kind":"**"}]') { throw result }
+            if (result !== '[{"kind":"+"},{"kind":"ws"},{"kind":"-"},{"kind":"ws"},{"kind":"*"},{"kind":"ws"},{"kind":"/"},{"kind":"ws"},{"kind":"%"},{"kind":"ws"},{"kind":"++"},{"kind":"ws"},{"kind":"--"},{"kind":"ws"},{"kind":"**"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('= += -= *= /= %= **='))
-            if (result !== '[{"kind":"="},{"kind":"+="},{"kind":"-="},{"kind":"*="},{"kind":"/="},{"kind":"%="},{"kind":"**="}]') { throw result }
+            if (result !== '[{"kind":"="},{"kind":"ws"},{"kind":"+="},{"kind":"ws"},{"kind":"-="},{"kind":"ws"},{"kind":"*="},{"kind":"ws"},{"kind":"/="},{"kind":"ws"},{"kind":"%="},{"kind":"ws"},{"kind":"**="}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('& | ^ ~ << >> >>>'))
-            if (result !== '[{"kind":"&"},{"kind":"|"},{"kind":"^"},{"kind":"~"},{"kind":"<<"},{"kind":">>"},{"kind":">>>"}]') { throw result }
+            if (result !== '[{"kind":"&"},{"kind":"ws"},{"kind":"|"},{"kind":"ws"},{"kind":"^"},{"kind":"ws"},{"kind":"~"},{"kind":"ws"},{"kind":"<<"},{"kind":"ws"},{"kind":">>"},{"kind":"ws"},{"kind":">>>"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('&= |= ^= <<= >>= >>>='))
-            if (result !== '[{"kind":"&="},{"kind":"|="},{"kind":"^="},{"kind":"<<="},{"kind":">>="},{"kind":">>>="}]') { throw result }
+            if (result !== '[{"kind":"&="},{"kind":"ws"},{"kind":"|="},{"kind":"ws"},{"kind":"^="},{"kind":"ws"},{"kind":"<<="},{"kind":"ws"},{"kind":">>="},{"kind":"ws"},{"kind":">>>="}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('&& || ! ??'))
-            if (result !== '[{"kind":"&&"},{"kind":"||"},{"kind":"!"},{"kind":"??"}]') { throw result }
+            if (result !== '[{"kind":"&&"},{"kind":"ws"},{"kind":"||"},{"kind":"ws"},{"kind":"!"},{"kind":"ws"},{"kind":"??"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('&&= ||= ??='))
-            if (result !== '[{"kind":"&&="},{"kind":"||="},{"kind":"??="}]') { throw result }
+            if (result !== '[{"kind":"&&="},{"kind":"ws"},{"kind":"||="},{"kind":"ws"},{"kind":"??="}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('? ?. . =>'))
-            if (result !== '[{"kind":"?"},{"kind":"?."},{"kind":"."},{"kind":"=>"}]') { throw result }
+            if (result !== '[{"kind":"?"},{"kind":"ws"},{"kind":"?."},{"kind":"ws"},{"kind":"."},{"kind":"ws"},{"kind":"=>"}]') { throw result }
+        },
+    ],
+    ws: [
+        () => {
+            const result = stringify(tokenizeString(' '))
+            if (result !== '[{"kind":"ws"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('\t'))
+            if (result !== '[{"kind":"ws"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('\n'))
+            if (result !== '[{"kind":"ws"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('\r'))
+            if (result !== '[{"kind":"ws"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString(' \t\n\r'))
+            if (result !== '[{"kind":"ws"}]') { throw result }
         },
     ]
 }

@@ -1,4 +1,5 @@
 const list = require('../../types/list/module.f.cjs')
+const { empty, flat, map } = list
 const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 
 /**
@@ -12,31 +13,32 @@ const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 * } FjsonToken
 */
 
-/** @type {(input: jsTokenizer.JsToken) => FjsonToken} */
+/** @type {(input: jsTokenizer.JsToken) => list.List<FjsonToken>} */
 const mapToken = input =>
 {
     switch(input.kind)
     {
-        case "id":
-        case "bigint":
-        case "{":
-        case "}":
-        case ":":
-        case ",":
-        case "[":
-        case "]":
-        case "true":
-        case "false":
-        case "null":
-        case "string":
-        case "number":
-        case "error": return input
-        default: return { kind: "error", message: "invalid token" }
+        case 'id':
+        case 'bigint':
+        case '{':
+        case '}':
+        case ':':
+        case ',':
+        case '[':
+        case ']':
+        case 'true':
+        case 'false':
+        case 'null':
+        case 'string':
+        case 'number':
+        case 'error': return [input]
+        case 'ws': return empty
+        default: return [{ kind: 'error', message: 'invalid token' }]
     }
 }
 
 /** @type {(input: list.List<number>) => list.List<FjsonToken>} */
-const tokenize = input => list.map(mapToken)(jsTokenizer.tokenize(input))
+const tokenize = input => flat(map(mapToken)(jsTokenizer.tokenize(input)))
 
 module.exports = {
     /** @readonly */

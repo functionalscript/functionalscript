@@ -90,7 +90,7 @@ const {
 
 /** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
 
-/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null'}} SimpleToken */
+/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null' | 'ws'}} SimpleToken */
 
 /**
  * @typedef {{
@@ -187,6 +187,7 @@ const rangeId = [digitRange, ...rangeIdStart]
  * InvalidNumberState |
  * ParseOperatorState |
  * ParseMinusState |
+ * ParseWhitespaceState |
  * EofState
  * } TokenizerState
  */
@@ -206,6 +207,8 @@ const rangeId = [digitRange, ...rangeIdStart]
 /** @typedef {{ readonly kind: 'initial'}} InitialState */
 
 /** @typedef {{ readonly kind: 'id', readonly value: string}} ParseIdState */
+
+/** @typedef {{ readonly kind: 'ws'}} ParseWhitespaceState */
 
 /** @typedef {{ readonly kind: 'string', readonly value: string}} ParseStringState */
 
@@ -403,7 +406,7 @@ const hasOperatorToken = op => at(op)(operatorMap) !== null
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
     rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
-    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
+    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, { kind: 'ws' }]),
     rangeFunc(one(leftCurlyBracket))(state => () => [[{ kind: '{' }], state]),
     rangeFunc(one(rightCurlyBracket))(state => () => [[{ kind: '}' }], state]),
     rangeFunc(one(colon))(state => () => [[{ kind: ':' }], state]),
@@ -624,6 +627,17 @@ const parseOperatorStateOp = state => input => {
     return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
 }
 
+/** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseWhitespaceDefault = state => input => {
+    const next = tokenizeOp({ kind: 'initial' })(input)
+    return [{ first: { kind: 'ws' }, tail: next[0] }, next[1]]
+}
+
+/** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
+    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state])
+])
+
 /** @type {(state: EofState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const eofStateOp = create(state => () => [[{ kind: 'error', message: 'eof' }], state])([])
 
@@ -639,6 +653,7 @@ const tokenizeCharCodeOp = state => {
         case 'number': return parseNumberStateOp(state)
         case 'op': return parseOperatorStateOp(state)
         case '-': return parseMinusStateOp(state)
+        case 'ws': return parseWhitespaceStateOp(state)
         case 'eof': return eofStateOp(state)
     }
 }
@@ -662,6 +677,7 @@ const tokenizeEofOp = state => {
             }
         case 'op': return [[getOperatorToken(state.value)], { kind: 'eof' }]
         case '-': return [[{kind: '-'}], { kind: 'eof' }]
+        case 'ws': return [[{kind: 'ws'}], { kind: 'eof' }]
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }
 }
