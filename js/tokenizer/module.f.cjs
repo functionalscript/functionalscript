@@ -2,8 +2,8 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const range_map = require('../../types/range_map/module.f.cjs')
 const { merge, fromRange, get } = range_map
 const list = require('../../types/list/module.f.cjs')
-const sorted_list = require('../../types/sorted_list/module.f.cjs')
-const { unsafeCmp } = require('../../types/function/compare/module.f.cjs')
+const map = require('../../types/map/module.f.cjs')
+const { at } = map
 const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
@@ -340,69 +340,64 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
     return { kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] }
 }
 
-/**
- * @typedef {{
-*  readonly transitions: sorted_list.SortedArray<number>,
-*  readonly token: JsToken
-* }} OperatorTransition
-*/
+/** @type {list.List<map.Entry<JsToken>>} */
+const operatorEntries = [
+    ['!', { kind: '!'}],
+    ['!=', { kind: '!='}],
+    ['!==', { kind: '!=='}],
+    ['%', { kind: '%'}],
+    ['%=', { kind: '%='}],
+    ['&', { kind: '&'}],
+    ['&&', { kind: '&&'}],
+    ['&&=', { kind: '&&='}],
+    ['&=', { kind: '&='}],
+    ['*', { kind: '*'}],
+    ['**', { kind: '**'}],
+    ['**=', { kind: '**='}],
+    ['*=', { kind: '*='}],
+    ['+', { kind: '+'}],
+    ['++', { kind: '++'}],
+    ['+=', { kind: '+='}],
+    ['-', { kind: '-'}],
+    ['--', { kind: '--'}],
+    ['-=', { kind: '-='}],
+    ['.', { kind: '.'}],
+    ['/', { kind: '/'}],
+    ['/=', { kind: '/='}],
+    ['<', { kind: '<'}],
+    ['<<', { kind: '<<'}],
+    ['<<=', { kind: '<<='}],
+    ['<=', {kind: '<='}],
+    ['=', { kind: '='}],
+    ['==', { kind: '=='}],
+    ['===', { kind: '==='}],
+    ['=>', {kind: '=>'}],
+    ['>', { kind: '>'}],
+    ['>=', { kind: '>='}],
+    ['>>', { kind: '>>'}],
+    ['>>=', {kind: '>>='}],
+    ['>>>', {kind: '>>>'}],
+    ['>>>=', {kind: '>>>='}],
+    ['?', { kind: '?'}],
+    ['?.', { kind: '?.'}],
+    ['??', { kind: '??'}],
+    ['??=', { kind: '??='}],
+    ['^', { kind: '^'}],
+    ['^=', { kind: '^='}],
+    ['|', { kind: '|'}],
+    ['|=', { kind: '|='}],
+    ['||', { kind: '||'}],
+    ['||=', { kind: '||='}],
+    ['~', { kind: '~' }]
+]
 
-/**
- * @typedef {{
-*  readonly[state in string]: OperatorTransition
-* }} OperatorDfa
-*/
+const operatorMap = map.fromEntries(operatorEntries)
 
-/** @type {OperatorDfa} */
-const operatorDfa = {
-    '!' : { token: { kind: '!' }, transitions: [equalsSign]},
-    '!=' : { token: { kind: '!=' }, transitions: [equalsSign]},
-    '!==': { token: { kind: '!=='}, transitions: []},
-    '%' : { token: { kind: '%' }, transitions: [equalsSign]},
-    '%=' : { token: { kind: '%=' }, transitions: []},
-    '&' : { token: { kind: '&' }, transitions: [ampersand, equalsSign]},
-    '&&' : { token: { kind: '&&' }, transitions: [equalsSign]},
-    '&&=' : { token: { kind: '&&=' }, transitions: []},
-    '&=' : { token: { kind: '&=' }, transitions: []},
-    '*' : { token: { kind: '*' }, transitions: [asterisk, equalsSign]},
-    '**' : { token: { kind: '**' }, transitions: [equalsSign]},
-    '**=' : { token: { kind: '**=' }, transitions: []},
-    '*=' : { token: { kind: '*=' }, transitions: []},
-    '+' : { token: { kind: '+' }, transitions: [plusSign, equalsSign]},
-    '++' : { token: { kind: '++' }, transitions: []},
-    '+=' : { token: { kind: '+=' }, transitions: []},
-    '-' : { token: { kind: '-' }, transitions: [hyphenMinus, equalsSign]},
-    '--' : { token: { kind: '--' }, transitions: []},
-    '-=' : { token: { kind: '-=' }, transitions: []},
-    '.' : { token: { kind: '.' }, transitions: []},
-    '/' : { token: { kind: '/' }, transitions: [equalsSign]},
-    '/=' : { token: { kind: '/=' }, transitions: []},
-    '<' : { token: { kind: '<' }, transitions: [lessThanSign, equalsSign]},
-    '<<' : { token: { kind: '<<' }, transitions: [equalsSign]},
-    '<<=': { token: { kind: '<<='}, transitions: []},
-    '<=': {token: {kind: '<='}, transitions: []},
-    '=' : { token: { kind: '=' }, transitions: [equalsSign, greaterThanSign]},
-    '==' : { token: { kind: '==' }, transitions: [equalsSign]},
-    '===': { token: { kind: '==='}, transitions: []},
-    '=>': {token: {kind: '=>'}, transitions: []},
-    '>' : { token: { kind: '>' }, transitions: [equalsSign, greaterThanSign]},
-    '>=' : { token: { kind: '>=' }, transitions: []},
-    '>>': { token: { kind: '>>'}, transitions: [equalsSign, greaterThanSign]},
-    '>>=': {token: {kind: '>>='}, transitions: []},
-    '>>>': {token: {kind: '>>>'}, transitions: [equalsSign]},
-    '>>>=': {token: {kind: '>>>='}, transitions: []},
-    '?' : { token: { kind: '?' }, transitions: [fullStop, questionMark]},
-    '?.' : { token: { kind: '?.' }, transitions: []},
-    '??' : { token: { kind: '??' }, transitions: [equalsSign]},
-    '??=' : { token: { kind: '??=' }, transitions: []},
-    '^' : { token: { kind: '^' }, transitions: [equalsSign]},
-    '^=' : { token: { kind: '^=' }, transitions: []},
-    '|' : { token: { kind: '|' }, transitions: [equalsSign, verticalLine]},
-    '|=' : { token: { kind: '|=' }, transitions: []},
-    '||' : { token: { kind: '||' }, transitions: [equalsSign]},
-    '||=' : { token: { kind: '||=' }, transitions: []},
-    '~' : { token: { kind: '~' }, transitions: []}
-}
+/** @type {(op: string) => JsToken} */
+const getOperatorToken = op => at(op)(operatorMap) ?? { kind: 'error', message: 'invalid token' }
+
+/** @type {(op: string) => Boolean} */
+const hasOperatorToken = op => at(op)(operatorMap) !== null
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
@@ -622,12 +617,11 @@ const parseIdStateOp = create(parseIdDefault)([
 
 /** @type {(state: ParseOperatorState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseOperatorStateOp = state => input => {
-    const r = operatorDfa[state.value]
-    const t = sorted_list.find(unsafeCmp)(input)(r.transitions)
-    if (t !==  null)
-        return [empty, { kind: 'op', value: appendChar(state.value)(input) }]
+    const nextStateValue = appendChar(state.value)(input)
+    if (hasOperatorToken(nextStateValue))
+        return [empty, { kind: 'op', value: nextStateValue }]
     const next = tokenizeOp({ kind: 'initial' })(input)
-    return [{ first: r.token, tail: next[0] }, next[1]]
+    return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
 }
 
 /** @type {(state: EofState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
@@ -666,7 +660,7 @@ const tokenizeEofOp = state => {
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
                 default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
-        case 'op': return [[operatorDfa[state.value].token], { kind: 'eof' }]
+        case 'op': return [[getOperatorToken(state.value)], { kind: 'eof' }]
         case '-': return [[{kind: '-'}], { kind: 'eof' }]
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }
