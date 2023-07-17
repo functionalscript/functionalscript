@@ -135,17 +135,25 @@ const rangeSetWhiteSpace = [
 ]
 
 const rangeSetTerminalForNumber = [
-    one(ht),
-    one(lf),
-    one(cr),
-    one(space),
-    one(quotationMark),
+    ...rangeSetWhiteSpace,
+    one(exclamationMark),
+    one(percentSign),
+    one(ampersand),
+    one(asterisk),
     one(comma),
-    one(leftCurlyBracket),
-    one(rightCurlyBracket),
+    one(solidus),
+    one(colon),
+    one(lessThanSign),
+    one(equalsSign),
+    one(greaterThanSign),
+    one(questionMark),
+    one(circumflexAccent),
     one(leftSquareBracket),
     one(rightSquareBracket),
-    one(colon)
+    one(leftCurlyBracket),
+    one(verticalLine),
+    one(rightCurlyBracket),
+    one(tilde),
 ]
 
 const rangeSmallAF = range('af')

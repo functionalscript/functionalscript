@@ -319,6 +319,10 @@ module.exports = {
             if (result !== '[{"kind":"-"}]') { throw result }
         },
         () => {
+            const result = stringify(tokenizeString('1*2'))
+            if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"*"},{"bf":[2n,0],"kind":"number","value":"2"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('== != === !== > >= < <='))
             if (result !== '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="}]') { throw result }
         },
@@ -372,5 +376,5 @@ module.exports = {
             const result = stringify(tokenizeString(' \t\n\r'))
             if (result !== '[{"kind":"ws"}]') { throw result }
         },
-    ]
+    ],
 }
