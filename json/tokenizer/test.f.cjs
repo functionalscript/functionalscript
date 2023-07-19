@@ -263,5 +263,17 @@ module.exports = {
             const result = stringify(tokenizeString('0e-'))
             if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
         },
+        () => {
+            const result = stringify(tokenizeString('1234567890n'))
+            if (result !== '[{"kind":"error","message":"invalid token"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('0n'))
+            if (result !== '[{"kind":"error","message":"invalid token"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('[-1234567890n]'))
+            if (result !== '[{"kind":"["},{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid token"},{"kind":"]"}]') { throw result }
+        },
     ]
 }
