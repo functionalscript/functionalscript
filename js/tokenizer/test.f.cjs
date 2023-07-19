@@ -165,7 +165,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('10-0'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"bf":[10n,0],"kind":"number","value":"10"},{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('9a:'))
@@ -173,19 +173,19 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-10'))
-            if (result !== '[{"bf":[-10n,0],"kind":"number","value":"-10"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"bf":[10n,0],"kind":"number","value":"10"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0'))
-            if (result !== '[{"bf":[0n,0],"kind":"number","value":"-0"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"bf":[0n,0],"kind":"number","value":"0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-00'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-.123'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"."},{"bf":[123n,0],"kind":"number","value":"123"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0.01'))
@@ -193,15 +193,15 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-0.9'))
-            if (result !== '[{"bf":[-9n,-1],"kind":"number","value":"-0.9"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"bf":[9n,-1],"kind":"number","value":"0.9"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.]'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"]"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"},{"kind":"]"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('12.34'))
@@ -209,11 +209,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-12.00'))
-            if (result !== '[{"bf":[-1200n,-2],"kind":"number","value":"-12.00"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"bf":[1200n,-2],"kind":"number","value":"12.00"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('12.]'))
@@ -237,11 +237,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-12e-0001'))
-            if (result !== '[{"bf":[-12n,-1],"kind":"number","value":"-12e-0001"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"bf":[12n,-1],"kind":"number","value":"12e-0001"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-12.34e1234'))
-            if (result !== '[{"bf":[-1234n,1232],"kind":"number","value":"-12.34e1234"}]') { throw result }
+            if (result !== '[{"kind":"-"},{"bf":[1234n,1232],"kind":"number","value":"12.34e1234"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0e'))
@@ -285,7 +285,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('[-1234567890n]'))
-            if (result !== '[{"kind":"["},{"kind":"bigint","value":-1234567890n},{"kind":"]"}]') { throw result }
+            if (result !== '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('123.456n'))

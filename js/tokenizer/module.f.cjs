@@ -183,6 +183,7 @@ const rangeOpStart = [
     one(asterisk),
     one(plusSign),
     one(comma),
+    one(hyphenMinus),
     one(fullStop),
     one(solidus),
     one(colon),
@@ -442,7 +443,6 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
     rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, { kind: 'ws' }]),
     rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
     rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
-    rangeFunc(one(hyphenMinus))(() => () => [empty, { kind: '-'}]),
     rangeSetFunc(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
 ])
 
@@ -504,7 +504,7 @@ const expToToken = state => input => {
 const hyphenMinusToToken = state => input => {
     switch (state.numberKind) {
         case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: { ... state.b, es: -1}, numberKind: 'e-' }]
-        default: return tokenizeOp({ kind: 'invalidNumber' })(input)
+        default: return terminalToToken(state)(input)
     }
 }
 

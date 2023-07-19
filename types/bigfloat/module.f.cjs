@@ -90,4 +90,6 @@ const decToBin = dec => {
 module.exports = {
     /** @readonly */
     decToBin,
+    /** @readonly */
+    multiply
 }

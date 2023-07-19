@@ -165,7 +165,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('10-0'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"bf":[10n,0],"kind":"number","value":"10"},{"bf":[0n,0],"kind":"number","value":"-0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('9a:'))
@@ -176,16 +176,28 @@ module.exports = {
             if (result !== '[{"bf":[-10n,0],"kind":"number","value":"-10"}]') { throw result }
         },
         () => {
+            const result = stringify(tokenizeString('-'))
+            if (result !== '[{"kind":"error","message":"invalid token"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('--'))
+            if (result !== '[{"kind":"error","message":"invalid token"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('---'))
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid token"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('-0'))
             if (result !== '[{"bf":[0n,0],"kind":"number","value":"-0"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-00'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid number"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-.123'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid token"},{"bf":[123n,0],"kind":"number","value":"123"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0.01'))
@@ -197,11 +209,11 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-0.'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid number"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('-0.]'))
-            if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"]"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid number"},{"kind":"]"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('12.34'))
@@ -213,7 +225,7 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('-12.'))
-            if (result !== '[{"kind":"error","message":"invalid number"}]') { throw result }
+            if (result !== '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid number"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('12.]'))
