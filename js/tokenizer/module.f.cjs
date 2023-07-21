@@ -94,7 +94,29 @@ const {
 
 /** @typedef {{readonly kind: 'ws'}} WhitespaceToken */
 
-/** @typedef {{readonly kind: 'true' | 'false' | 'null'}} KeywordToken */
+/** @typedef {{readonly kind: 'true'}} TrueToken */
+
+/** @typedef {{readonly kind: 'false'}} FalseToken */
+
+/** @typedef {{readonly kind: 'null'}} NullToken */
+
+/**
+ * @typedef {|
+ * 'arguments' | 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' |
+ * 'debugger' | 'default' | 'delete' | 'do' | 'else' | 'enum' | 'eval' | 'export' |
+ * 'extends' | 'finally' | 'for' | 'function' | 'if' | 'implements' | 'import' | 'in' |
+ * 'instanceof' | 'interface' | 'let' | 'new' | 'package' | 'private' | 'protected' | 'public' |
+ * 'return' | 'static' | 'super' | 'switch' | 'this' | 'throw' | 'try' | 'typeof' |
+ * 'var' | 'void' | 'while' | 'with'  | 'yield'
+ * } Keyword
+ */
+
+/**
+ * @typedef {{
+* readonly kind: 'kw'
+* readonly name: Keyword
+* }} KeywordToken
+* */
 
 /**
  * @typedef {{
@@ -121,7 +143,10 @@ const {
 /**
  * @typedef {|
 * KeywordToken |
-* WhitespaceToken|
+* TrueToken |
+* FalseToken |
+* NullToken |
+* WhitespaceToken |
 * StringToken |
 * NumberToken |
 * ErrorToken |
@@ -370,6 +395,60 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
 }
 
 /** @type {list.List<map.Entry<JsToken>>} */
+const keywordEntries = [
+    ['arguments', { kind: 'kw', name: 'arguments'}],
+    ['await', { kind: 'kw', name: 'await'}],
+    ['break', { kind: 'kw', name: 'break'}],
+    ['case', { kind: 'kw', name: 'case'}],
+    ['catch', { kind: 'kw', name: 'catch'}],
+    ['class', { kind: 'kw', name: 'class'}],
+    ['const', { kind: 'kw', name: 'const'}],
+    ['continue', { kind: 'kw', name: 'continue'}],
+    ['debugger', { kind: 'kw', name: 'debugger'}],
+    ['default', { kind: 'kw', name: 'default'}],
+    ['delete', { kind: 'kw', name: 'delete'}],
+    ['do', { kind: 'kw', name: 'do'}],
+    ['else', { kind: 'kw', name: 'else'}],
+    ['enum', { kind: 'kw', name: 'enum'}],
+    ['eval', { kind: 'kw', name: 'eval'}],
+    ['export', { kind: 'kw', name: 'export'}],
+    ['extends', { kind: 'kw', name: 'extends'}],
+    ['false', { kind: 'false'}],
+    ['finally', { kind: 'kw', name: 'finally'}],
+    ['for', { kind: 'kw', name: 'for'}],
+    ['function', { kind: 'kw', name: 'function'}],
+    ['if', { kind: 'kw', name: 'if'}],
+    ['implements', { kind: 'kw', name: 'implements'}],
+    ['import', { kind: 'kw', name: 'import'}],
+    ['in', { kind: 'kw', name: 'in'}],
+    ['instanceof', { kind: 'kw', name: 'instanceof'}],
+    ['interface', { kind: 'kw', name: 'interface'}],
+    ['let', { kind: 'kw', name: 'let'}],
+    ['new', { kind: 'kw', name: 'new'}],
+    ['null', { kind: 'null'}],
+    ['package', { kind: 'kw', name: 'package'}],
+    ['private', { kind: 'kw', name: 'private'}],
+    ['protected', { kind: 'kw', name: 'protected'}],
+    ['public', { kind: 'kw', name: 'public'}],
+    ['return', { kind: 'kw', name: 'return'}],
+    ['static', { kind: 'kw', name: 'static'}],
+    ['super', { kind: 'kw', name: 'super'}],
+    ['switch', { kind: 'kw', name: 'switch'}],
+    ['this', { kind: 'kw', name: 'this'}],
+    ['throw', { kind: 'kw', name: 'throw'}],
+    ['true', { kind: 'true'}],
+    ['try', { kind: 'kw', name: 'try'}],
+    ['typeof', { kind: 'kw', name: 'typeof'}],
+    ['var', { kind: 'kw', name: 'var'}],
+    ['void', { kind: 'kw', name: 'void'}],
+    ['while', { kind: 'kw', name: 'while'}],
+    ['with', { kind: 'kw', name: 'with'}],
+    ['yield', { kind: 'kw', name: 'yield'}],
+]
+
+const keywordMap = map.fromEntries(keywordEntries)
+
+/** @type {list.List<map.Entry<JsToken>>} */
 const operatorEntries = [
     ['!', { kind: '!'}],
     ['!=', { kind: '!='}],
@@ -447,7 +526,7 @@ const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpe
 ])
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const invalidNumberToToken = state => input =>
+const invalidNumberToToken = () => input =>
 {
     const next = tokenizeOp({ kind: 'initial' })(input)
     return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
@@ -624,14 +703,7 @@ const parseUnicodeCharStateOp = create(parseUnicodeCharDefault)([
 ])
 
 /** @type {(s: string) => JsToken} */
-const idToToken = s => {
-    switch (s) {
-        case 'true': return { kind: 'true' }
-        case 'false': return { kind: 'false' }
-        case 'null': return { kind: 'null' }
-        default: return { kind: 'id', value: s }
-    }
-}
+const idToToken = s => at(s)(keywordMap) ?? { kind: 'id', value: s }
 
 /** @type {(state: ParseIdState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseIdDefault = state => input => {

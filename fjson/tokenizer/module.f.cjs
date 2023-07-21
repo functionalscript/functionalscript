@@ -48,6 +48,7 @@ const mapToken = input =>
         case 'number':
         case 'error': return [input]
         case 'ws': return empty
+        case 'kw': return [{ kind: 'id', value: input.name }]
         default: return [{ kind: 'error', message: 'invalid token' }]
     }
 }

@@ -44,36 +44,8 @@ module.exports = {
             if (result !== '[{"kind":"error","message":"unexpected character"}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('err'))
-            if (result !== '[{"kind":"id","value":"err"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('{e}'))
-            if (result !== '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"}]') { throw result }
-        },
-        () => {
             const result = stringify(tokenizeString('{ \t\n\r}'))
             if (result !== '[{"kind":"{"},{"kind":"}"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('true'))
-            if (result !== '[{"kind":"true"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('tru'))
-            if (result !== '[{"kind":"id","value":"tru"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('false'))
-            if (result !== '[{"kind":"false"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('null'))
-            if (result !== '[{"kind":"null"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('[null]'))
-            if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('""'))
@@ -314,6 +286,42 @@ module.exports = {
         () => {
             const result = stringify(tokenizeString('1234567890nn'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"}]') { throw result }
+        },
+    ],
+    id: [
+        () => {
+            const result = stringify(tokenizeString('err'))
+            if (result !== '[{"kind":"id","value":"err"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('{e}'))
+            if (result !== '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('tru'))
+            if (result !== '[{"kind":"id","value":"tru"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('break'))
+            if (result !== '[{"kind":"id","value":"break"}]') { throw result }
+        },
+    ],
+    keywords: [
+        () => {
+            const result = stringify(tokenizeString('true'))
+            if (result !== '[{"kind":"true"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('false'))
+            if (result !== '[{"kind":"false"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('null'))
+            if (result !== '[{"kind":"null"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('[null]'))
+            if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"}]') { throw result }
         },
     ]
 }
