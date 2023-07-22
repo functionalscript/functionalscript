@@ -102,21 +102,14 @@ const {
 
 /**
  * @typedef {|
- * 'arguments' | 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' |
- * 'debugger' | 'default' | 'delete' | 'do' | 'else' | 'enum' | 'eval' | 'export' |
- * 'extends' | 'finally' | 'for' | 'function' | 'if' | 'implements' | 'import' | 'in' |
- * 'instanceof' | 'interface' | 'let' | 'new' | 'package' | 'private' | 'protected' | 'public' |
- * 'return' | 'static' | 'super' | 'switch' | 'this' | 'throw' | 'try' | 'typeof' |
- * 'var' | 'void' | 'while' | 'with'  | 'yield'
- * } Keyword
+ * {readonly kind: 'arguments' | 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' } |
+ * {readonly kind: 'debugger' | 'default' | 'delete' | 'do' | 'else' | 'enum' | 'eval' | 'export' } |
+ * {readonly kind: 'extends' | 'finally' | 'for' | 'function' | 'if' | 'implements' | 'import' | 'in' } |
+ * {readonly kind: 'instanceof' | 'interface' | 'let' | 'new' | 'package' | 'private' | 'protected' | 'public' } |
+ * {readonly kind: 'return' | 'static' | 'super' | 'switch' | 'this' | 'throw' | 'try' | 'typeof' } |
+ * {readonly kind: 'var' | 'void' | 'while' | 'with'  | 'yield' }
+ * } KeywordToken
  */
-
-/**
- * @typedef {{
-* readonly kind: 'kw'
-* readonly name: Keyword
-* }} KeywordToken
-* */
 
 /**
  * @typedef {{
@@ -396,57 +389,60 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
 
 /** @type {list.List<map.Entry<JsToken>>} */
 const keywordEntries = [
-    ['arguments', { kind: 'kw', name: 'arguments'}],
-    ['await', { kind: 'kw', name: 'await'}],
-    ['break', { kind: 'kw', name: 'break'}],
-    ['case', { kind: 'kw', name: 'case'}],
-    ['catch', { kind: 'kw', name: 'catch'}],
-    ['class', { kind: 'kw', name: 'class'}],
-    ['const', { kind: 'kw', name: 'const'}],
-    ['continue', { kind: 'kw', name: 'continue'}],
-    ['debugger', { kind: 'kw', name: 'debugger'}],
-    ['default', { kind: 'kw', name: 'default'}],
-    ['delete', { kind: 'kw', name: 'delete'}],
-    ['do', { kind: 'kw', name: 'do'}],
-    ['else', { kind: 'kw', name: 'else'}],
-    ['enum', { kind: 'kw', name: 'enum'}],
-    ['eval', { kind: 'kw', name: 'eval'}],
-    ['export', { kind: 'kw', name: 'export'}],
-    ['extends', { kind: 'kw', name: 'extends'}],
+    ['arguments', { kind: 'arguments'}],
+    ['await', { kind: 'await'}],
+    ['break', { kind: 'break'}],
+    ['case', { kind: 'case'}],
+    ['catch', { kind: 'catch'}],
+    ['class', { kind: 'class'}],
+    ['const', { kind: 'const'}],
+    ['continue', { kind: 'continue'}],
+    ['debugger', { kind: 'debugger'}],
+    ['default', { kind: 'default'}],
+    ['delete', { kind: 'delete'}],
+    ['do', { kind: 'do'}],
+    ['else', { kind: 'else'}],
+    ['enum', { kind: 'enum'}],
+    ['eval', { kind: 'eval'}],
+    ['export', { kind: 'export'}],
+    ['extends', { kind: 'extends'}],
     ['false', { kind: 'false'}],
-    ['finally', { kind: 'kw', name: 'finally'}],
-    ['for', { kind: 'kw', name: 'for'}],
-    ['function', { kind: 'kw', name: 'function'}],
-    ['if', { kind: 'kw', name: 'if'}],
-    ['implements', { kind: 'kw', name: 'implements'}],
-    ['import', { kind: 'kw', name: 'import'}],
-    ['in', { kind: 'kw', name: 'in'}],
-    ['instanceof', { kind: 'kw', name: 'instanceof'}],
-    ['interface', { kind: 'kw', name: 'interface'}],
-    ['let', { kind: 'kw', name: 'let'}],
-    ['new', { kind: 'kw', name: 'new'}],
+    ['finally', { kind: 'finally'}],
+    ['for', { kind: 'for'}],
+    ['function', { kind: 'function'}],
+    ['if', { kind: 'if'}],
+    ['implements', { kind: 'implements'}],
+    ['import', { kind: 'import'}],
+    ['in', { kind: 'in'}],
+    ['instanceof', { kind: 'instanceof'}],
+    ['interface', { kind: 'interface'}],
+    ['let', { kind: 'let'}],
+    ['new', { kind: 'new'}],
     ['null', { kind: 'null'}],
-    ['package', { kind: 'kw', name: 'package'}],
-    ['private', { kind: 'kw', name: 'private'}],
-    ['protected', { kind: 'kw', name: 'protected'}],
-    ['public', { kind: 'kw', name: 'public'}],
-    ['return', { kind: 'kw', name: 'return'}],
-    ['static', { kind: 'kw', name: 'static'}],
-    ['super', { kind: 'kw', name: 'super'}],
-    ['switch', { kind: 'kw', name: 'switch'}],
-    ['this', { kind: 'kw', name: 'this'}],
-    ['throw', { kind: 'kw', name: 'throw'}],
+    ['package', { kind: 'package'}],
+    ['private', { kind: 'private'}],
+    ['protected', { kind: 'protected'}],
+    ['public', { kind: 'public'}],
+    ['return', { kind: 'return'}],
+    ['static', { kind: 'static'}],
+    ['super', { kind: 'super'}],
+    ['switch', { kind: 'switch'}],
+    ['this', { kind: 'this'}],
+    ['throw', { kind: 'throw'}],
     ['true', { kind: 'true'}],
-    ['try', { kind: 'kw', name: 'try'}],
-    ['typeof', { kind: 'kw', name: 'typeof'}],
-    ['var', { kind: 'kw', name: 'var'}],
-    ['void', { kind: 'kw', name: 'void'}],
-    ['while', { kind: 'kw', name: 'while'}],
-    ['with', { kind: 'kw', name: 'with'}],
-    ['yield', { kind: 'kw', name: 'yield'}],
+    ['try', { kind: 'try'}],
+    ['typeof', { kind: 'typeof'}],
+    ['var', { kind: 'var'}],
+    ['void', { kind: 'void'}],
+    ['while', { kind: 'while'}],
+    ['with', { kind: 'with'}],
+    ['yield', { kind: 'yield'}],
 ]
 
 const keywordMap = map.fromEntries(keywordEntries)
+
+/** @type {(token: JsToken) => Boolean} */
+const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
 /** @type {list.List<map.Entry<JsToken>>} */
 const operatorEntries = [
@@ -793,5 +789,7 @@ const tokenize = input => flat(initial(flat([/** @type {list.List<CharCodeOrEof>
 
 module.exports = {
     /** @readonly */
-    tokenize
+    tokenize,
+    /** @readonly */
+    isKeywordToken
 }

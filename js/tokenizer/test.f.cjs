@@ -387,183 +387,183 @@ module.exports = {
         },
         () => {
             const result = stringify(tokenizeString('arguments'))
-            if (result !== '[{"kind":"kw","name":"arguments"}]') { throw result }
+            if (result !== '[{"kind":"arguments"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('await'))
-            if (result !== '[{"kind":"kw","name":"await"}]') { throw result }
+            if (result !== '[{"kind":"await"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('break'))
-            if (result !== '[{"kind":"kw","name":"break"}]') { throw result }
+            if (result !== '[{"kind":"break"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('case'))
-            if (result !== '[{"kind":"kw","name":"case"}]') { throw result }
+            if (result !== '[{"kind":"case"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('catch'))
-            if (result !== '[{"kind":"kw","name":"catch"}]') { throw result }
+            if (result !== '[{"kind":"catch"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('class'))
-            if (result !== '[{"kind":"kw","name":"class"}]') { throw result }
+            if (result !== '[{"kind":"class"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('const'))
-            if (result !== '[{"kind":"kw","name":"const"}]') { throw result }
+            if (result !== '[{"kind":"const"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('continue'))
-            if (result !== '[{"kind":"kw","name":"continue"}]') { throw result }
+            if (result !== '[{"kind":"continue"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('debugger'))
-            if (result !== '[{"kind":"kw","name":"debugger"}]') { throw result }
+            if (result !== '[{"kind":"debugger"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('default'))
-            if (result !== '[{"kind":"kw","name":"default"}]') { throw result }
+            if (result !== '[{"kind":"default"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('delete'))
-            if (result !== '[{"kind":"kw","name":"delete"}]') { throw result }
+            if (result !== '[{"kind":"delete"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('do'))
-            if (result !== '[{"kind":"kw","name":"do"}]') { throw result }
+            if (result !== '[{"kind":"do"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('else'))
-            if (result !== '[{"kind":"kw","name":"else"}]') { throw result }
+            if (result !== '[{"kind":"else"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('enum'))
-            if (result !== '[{"kind":"kw","name":"enum"}]') { throw result }
+            if (result !== '[{"kind":"enum"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('eval'))
-            if (result !== '[{"kind":"kw","name":"eval"}]') { throw result }
+            if (result !== '[{"kind":"eval"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('export'))
-            if (result !== '[{"kind":"kw","name":"export"}]') { throw result }
+            if (result !== '[{"kind":"export"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('extends'))
-            if (result !== '[{"kind":"kw","name":"extends"}]') { throw result }
+            if (result !== '[{"kind":"extends"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('finally'))
-            if (result !== '[{"kind":"kw","name":"finally"}]') { throw result }
+            if (result !== '[{"kind":"finally"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('for'))
-            if (result !== '[{"kind":"kw","name":"for"}]') { throw result }
+            if (result !== '[{"kind":"for"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('function'))
-            if (result !== '[{"kind":"kw","name":"function"}]') { throw result }
+            if (result !== '[{"kind":"function"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('if'))
-            if (result !== '[{"kind":"kw","name":"if"}]') { throw result }
+            if (result !== '[{"kind":"if"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('implements'))
-            if (result !== '[{"kind":"kw","name":"implements"}]') { throw result }
+            if (result !== '[{"kind":"implements"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('import'))
-            if (result !== '[{"kind":"kw","name":"import"}]') { throw result }
+            if (result !== '[{"kind":"import"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('in'))
-            if (result !== '[{"kind":"kw","name":"in"}]') { throw result }
+            if (result !== '[{"kind":"in"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('instanceof'))
-            if (result !== '[{"kind":"kw","name":"instanceof"}]') { throw result }
+            if (result !== '[{"kind":"instanceof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('interface'))
-            if (result !== '[{"kind":"kw","name":"interface"}]') { throw result }
+            if (result !== '[{"kind":"interface"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('let'))
-            if (result !== '[{"kind":"kw","name":"let"}]') { throw result }
+            if (result !== '[{"kind":"let"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('new'))
-            if (result !== '[{"kind":"kw","name":"new"}]') { throw result }
+            if (result !== '[{"kind":"new"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('package'))
-            if (result !== '[{"kind":"kw","name":"package"}]') { throw result }
+            if (result !== '[{"kind":"package"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('private'))
-            if (result !== '[{"kind":"kw","name":"private"}]') { throw result }
+            if (result !== '[{"kind":"private"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('protected'))
-            if (result !== '[{"kind":"kw","name":"protected"}]') { throw result }
+            if (result !== '[{"kind":"protected"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('public'))
-            if (result !== '[{"kind":"kw","name":"public"}]') { throw result }
+            if (result !== '[{"kind":"public"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('return'))
-            if (result !== '[{"kind":"kw","name":"return"}]') { throw result }
+            if (result !== '[{"kind":"return"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('static'))
-            if (result !== '[{"kind":"kw","name":"static"}]') { throw result }
+            if (result !== '[{"kind":"static"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('super'))
-            if (result !== '[{"kind":"kw","name":"super"}]') { throw result }
+            if (result !== '[{"kind":"super"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('switch'))
-            if (result !== '[{"kind":"kw","name":"switch"}]') { throw result }
+            if (result !== '[{"kind":"switch"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('this'))
-            if (result !== '[{"kind":"kw","name":"this"}]') { throw result }
+            if (result !== '[{"kind":"this"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('throw'))
-            if (result !== '[{"kind":"kw","name":"throw"}]') { throw result }
+            if (result !== '[{"kind":"throw"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('try'))
-            if (result !== '[{"kind":"kw","name":"try"}]') { throw result }
+            if (result !== '[{"kind":"try"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('typeof'))
-            if (result !== '[{"kind":"kw","name":"typeof"}]') { throw result }
+            if (result !== '[{"kind":"typeof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('var'))
-            if (result !== '[{"kind":"kw","name":"var"}]') { throw result }
+            if (result !== '[{"kind":"var"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('void'))
-            if (result !== '[{"kind":"kw","name":"void"}]') { throw result }
+            if (result !== '[{"kind":"void"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('while'))
-            if (result !== '[{"kind":"kw","name":"while"}]') { throw result }
+            if (result !== '[{"kind":"while"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('with'))
-            if (result !== '[{"kind":"kw","name":"with"}]') { throw result }
+            if (result !== '[{"kind":"with"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('yield'))
-            if (result !== '[{"kind":"kw","name":"yield"}]') { throw result }
+            if (result !== '[{"kind":"yield"}]') { throw result }
         },
     ]
 }
