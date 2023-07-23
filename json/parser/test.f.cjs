@@ -95,7 +95,7 @@ module.exports = {
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",{"a":{"b":{"c":["d"]}}}]') { throw result }
-        },
+        }
     ],
     invalid: [
         () => {
@@ -232,6 +232,12 @@ module.exports = {
         },
         () => {
             const tokenList = tokenizeString('{[}]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('10-5')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
