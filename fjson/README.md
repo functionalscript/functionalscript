@@ -11,7 +11,7 @@
 
 - [x] identifiers
 - [ ] `module.exports = ...` 
-- [ ] comments
+- [ ] comments. Ignore them. Not an error.
 - [ ] constants `const a = [3];module.exports = { a: a, b: a }`. Serialization `const _0=[3];module.exports={a:_0,b:_0}`
 - [ ] import `const a = require('c.fon.js');module.exports = { a: a, b: a}`
 
