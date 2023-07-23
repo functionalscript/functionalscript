@@ -10,6 +10,7 @@
 ## Next steps
 
 - [x] identifiers
+- [x] big int
 - [ ] `module.exports = ...` 
 - [ ] comments. Ignore them. Not an error.
 - [ ] constants `const a = [3];module.exports = { a: a, b: a }`. Serialization `const _0=[3];module.exports={a:_0,b:_0}`
