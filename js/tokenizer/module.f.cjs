@@ -2,8 +2,8 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const range_map = require('../../types/range_map/module.f.cjs')
 const { merge, fromRange, get } = range_map
 const list = require('../../types/list/module.f.cjs')
-const sorted_list = require('../../types/sorted_list/module.f.cjs')
-const { unsafeCmp } = require('../../types/function/compare/module.f.cjs')
+const map = require('../../types/map/module.f.cjs')
+const { at } = map
 const _range = require('../../types/range/module.f.cjs')
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
@@ -32,6 +32,8 @@ const {
     //
     space,
     quotationMark,
+    leftParenthesis,
+    rightParenthesis,
     plusSign,
     comma,
     hyphenMinus,
@@ -90,7 +92,24 @@ const {
 
 /** @typedef {{readonly kind: 'error', message: ErrorMessage}} ErrorToken */
 
-/** @typedef {{readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | 'true' | 'false' | 'null'}} SimpleToken */
+/** @typedef {{readonly kind: 'ws'}} WhitespaceToken */
+
+/** @typedef {{readonly kind: 'true'}} TrueToken */
+
+/** @typedef {{readonly kind: 'false'}} FalseToken */
+
+/** @typedef {{readonly kind: 'null'}} NullToken */
+
+/**
+ * @typedef {|
+ * {readonly kind: 'arguments' | 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' } |
+ * {readonly kind: 'debugger' | 'default' | 'delete' | 'do' | 'else' | 'enum' | 'eval' | 'export' } |
+ * {readonly kind: 'extends' | 'finally' | 'for' | 'function' | 'if' | 'implements' | 'import' | 'in' } |
+ * {readonly kind: 'instanceof' | 'interface' | 'let' | 'new' | 'package' | 'private' | 'protected' | 'public' } |
+ * {readonly kind: 'return' | 'static' | 'super' | 'switch' | 'this' | 'throw' | 'try' | 'typeof' } |
+ * {readonly kind: 'var' | 'void' | 'while' | 'with'  | 'yield' }
+ * } KeywordToken
+ */
 
 /**
  * @typedef {{
@@ -101,6 +120,8 @@ const {
 
 /**
  * @typedef {|
+* {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+* {readonly kind: '(' | ')' } |
 * {readonly kind: '==' | '!=' | '===' | '!==' | '>' | '>=' | '<' | '<=' } |
 * {readonly kind: '+' | '-' | '*' | '/' | '%' | '++' | '--' | '**' } |
 * {readonly kind: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
@@ -114,7 +135,11 @@ const {
 
 /**
  * @typedef {|
-* SimpleToken |
+* KeywordToken |
+* TrueToken |
+* FalseToken |
+* NullToken |
+* WhitespaceToken |
 * StringToken |
 * NumberToken |
 * ErrorToken |
@@ -134,17 +159,27 @@ const rangeSetWhiteSpace = [
 ]
 
 const rangeSetTerminalForNumber = [
-    one(ht),
-    one(lf),
-    one(cr),
-    one(space),
-    one(quotationMark),
+    ...rangeSetWhiteSpace,
+    one(exclamationMark),
+    one(percentSign),
+    one(ampersand),
+    one(leftParenthesis),
+    one(rightParenthesis),
+    one(asterisk),
     one(comma),
-    one(leftCurlyBracket),
-    one(rightCurlyBracket),
+    one(solidus),
+    one(colon),
+    one(lessThanSign),
+    one(equalsSign),
+    one(greaterThanSign),
+    one(questionMark),
+    one(circumflexAccent),
     one(leftSquareBracket),
     one(rightSquareBracket),
-    one(colon)
+    one(leftCurlyBracket),
+    one(verticalLine),
+    one(rightCurlyBracket),
+    one(tilde),
 ]
 
 const rangeSmallAF = range('af')
@@ -161,17 +196,26 @@ const rangeOpStart = [
     one(exclamationMark),
     one(percentSign),
     one(ampersand),
+    one(leftParenthesis),
+    one(rightParenthesis),
     one(asterisk),
+    one(plusSign),
+    one(comma),
+    one(hyphenMinus),
+    one(fullStop),
+    one(solidus),
+    one(colon),
     one(lessThanSign),
     one(equalsSign),
     one(greaterThanSign),
     one(questionMark),
     one(circumflexAccent),
+    one(leftSquareBracket),
+    one(rightSquareBracket),
+    one(leftCurlyBracket),
     one(verticalLine),
-    one(tilde),
-    one(plusSign),
-    one(fullStop),
-    one(solidus)
+    one(rightCurlyBracket),
+    one(tilde)
 ]
 
 const rangeId = [digitRange, ...rangeIdStart]
@@ -187,6 +231,7 @@ const rangeId = [digitRange, ...rangeIdStart]
  * InvalidNumberState |
  * ParseOperatorState |
  * ParseMinusState |
+ * ParseWhitespaceState |
  * EofState
  * } TokenizerState
  */
@@ -206,6 +251,8 @@ const rangeId = [digitRange, ...rangeIdStart]
 /** @typedef {{ readonly kind: 'initial'}} InitialState */
 
 /** @typedef {{ readonly kind: 'id', readonly value: string}} ParseIdState */
+
+/** @typedef {{ readonly kind: 'ws'}} ParseWhitespaceState */
 
 /** @typedef {{ readonly kind: 'string', readonly value: string}} ParseStringState */
 
@@ -341,88 +388,147 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
 }
 
 /**
- * @typedef {{
-*  readonly transitions: sorted_list.SortedArray<number>,
-*  readonly token: JsToken
-* }} OperatorTransition
-*/
+ * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
+ * @type {list.List<map.Entry<JsToken>>}
+ */
+const keywordEntries = [
+    ['arguments', { kind: 'arguments'}],
+    ['await', { kind: 'await'}],
+    ['break', { kind: 'break'}],
+    ['case', { kind: 'case'}],
+    ['catch', { kind: 'catch'}],
+    ['class', { kind: 'class'}],
+    ['const', { kind: 'const'}],
+    ['continue', { kind: 'continue'}],
+    ['debugger', { kind: 'debugger'}],
+    ['default', { kind: 'default'}],
+    ['delete', { kind: 'delete'}],
+    ['do', { kind: 'do'}],
+    ['else', { kind: 'else'}],
+    ['enum', { kind: 'enum'}],
+    ['eval', { kind: 'eval'}],
+    ['export', { kind: 'export'}],
+    ['extends', { kind: 'extends'}],
+    ['false', { kind: 'false'}],
+    ['finally', { kind: 'finally'}],
+    ['for', { kind: 'for'}],
+    ['function', { kind: 'function'}],
+    ['if', { kind: 'if'}],
+    ['implements', { kind: 'implements'}],
+    ['import', { kind: 'import'}],
+    ['in', { kind: 'in'}],
+    ['instanceof', { kind: 'instanceof'}],
+    ['interface', { kind: 'interface'}],
+    ['let', { kind: 'let'}],
+    ['new', { kind: 'new'}],
+    ['null', { kind: 'null'}],
+    ['package', { kind: 'package'}],
+    ['private', { kind: 'private'}],
+    ['protected', { kind: 'protected'}],
+    ['public', { kind: 'public'}],
+    ['return', { kind: 'return'}],
+    ['static', { kind: 'static'}],
+    ['super', { kind: 'super'}],
+    ['switch', { kind: 'switch'}],
+    ['this', { kind: 'this'}],
+    ['throw', { kind: 'throw'}],
+    ['true', { kind: 'true'}],
+    ['try', { kind: 'try'}],
+    ['typeof', { kind: 'typeof'}],
+    ['var', { kind: 'var'}],
+    ['void', { kind: 'void'}],
+    ['while', { kind: 'while'}],
+    ['with', { kind: 'with'}],
+    ['yield', { kind: 'yield'}],
+]
+
+const keywordMap = map.fromEntries(keywordEntries)
+
+/** @type {(token: JsToken) => Boolean} */
+const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
 /**
- * @typedef {{
-*  readonly[state in string]: OperatorTransition
-* }} OperatorDfa
-*/
+ * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
+ * @type {list.List<map.Entry<JsToken>>}
+ */
+const operatorEntries = [
+    ['!', { kind: '!'}],
+    ['!=', { kind: '!='}],
+    ['!==', { kind: '!=='}],
+    ['%', { kind: '%'}],
+    ['%=', { kind: '%='}],
+    ['&', { kind: '&'}],
+    ['&&', { kind: '&&'}],
+    ['&&=', { kind: '&&='}],
+    ['&=', { kind: '&='}],
+    ['(', { kind: '('}],
+    [')', { kind: ')'}],
+    ['*', { kind: '*'}],
+    ['**', { kind: '**'}],
+    ['**=', { kind: '**='}],
+    ['*=', { kind: '*='}],
+    ['+', { kind: '+'}],
+    ['++', { kind: '++'}],
+    ['+=', { kind: '+='}],
+    [',', { kind: ','}],
+    ['-', { kind: '-'}],
+    ['--', { kind: '--'}],
+    ['-=', { kind: '-='}],
+    ['.', { kind: '.'}],
+    ['/', { kind: '/'}],
+    ['/=', { kind: '/='}],
+    [':', { kind: ':'}],
+    ['<', { kind: '<'}],
+    ['<<', { kind: '<<'}],
+    ['<<=', { kind: '<<='}],
+    ['<=', {kind: '<='}],
+    ['=', { kind: '='}],
+    ['==', { kind: '=='}],
+    ['===', { kind: '==='}],
+    ['=>', {kind: '=>'}],
+    ['>', { kind: '>'}],
+    ['>=', { kind: '>='}],
+    ['>>', { kind: '>>'}],
+    ['>>=', {kind: '>>='}],
+    ['>>>', {kind: '>>>'}],
+    ['>>>=', {kind: '>>>='}],
+    ['?', { kind: '?'}],
+    ['?.', { kind: '?.'}],
+    ['??', { kind: '??'}],
+    ['??=', { kind: '??='}],
+    ['^', { kind: '^'}],
+    ['^=', { kind: '^='}],
+    ['[', { kind: '['}],
+    [']', { kind: ']'}],
+    ['{', { kind: '{'}],
+    ['|', { kind: '|'}],
+    ['|=', { kind: '|='}],
+    ['||', { kind: '||'}],
+    ['||=', { kind: '||='}],
+    ['}', { kind: '}'}],
+    ['~', { kind: '~' }]
+]
 
-/** @type {OperatorDfa} */
-const operatorDfa = {
-    '!' : { token: { kind: '!' }, transitions: [equalsSign]},
-    '!=' : { token: { kind: '!=' }, transitions: [equalsSign]},
-    '!==': { token: { kind: '!=='}, transitions: []},
-    '%' : { token: { kind: '%' }, transitions: [equalsSign]},
-    '%=' : { token: { kind: '%=' }, transitions: []},
-    '&' : { token: { kind: '&' }, transitions: [ampersand, equalsSign]},
-    '&&' : { token: { kind: '&&' }, transitions: [equalsSign]},
-    '&&=' : { token: { kind: '&&=' }, transitions: []},
-    '&=' : { token: { kind: '&=' }, transitions: []},
-    '*' : { token: { kind: '*' }, transitions: [asterisk, equalsSign]},
-    '**' : { token: { kind: '**' }, transitions: [equalsSign]},
-    '**=' : { token: { kind: '**=' }, transitions: []},
-    '*=' : { token: { kind: '*=' }, transitions: []},
-    '+' : { token: { kind: '+' }, transitions: [plusSign, equalsSign]},
-    '++' : { token: { kind: '++' }, transitions: []},
-    '+=' : { token: { kind: '+=' }, transitions: []},
-    '-' : { token: { kind: '-' }, transitions: [hyphenMinus, equalsSign]},
-    '--' : { token: { kind: '--' }, transitions: []},
-    '-=' : { token: { kind: '-=' }, transitions: []},
-    '.' : { token: { kind: '.' }, transitions: []},
-    '/' : { token: { kind: '/' }, transitions: [equalsSign]},
-    '/=' : { token: { kind: '/=' }, transitions: []},
-    '<' : { token: { kind: '<' }, transitions: [lessThanSign, equalsSign]},
-    '<<' : { token: { kind: '<<' }, transitions: [equalsSign]},
-    '<<=': { token: { kind: '<<='}, transitions: []},
-    '<=': {token: {kind: '<='}, transitions: []},
-    '=' : { token: { kind: '=' }, transitions: [equalsSign, greaterThanSign]},
-    '==' : { token: { kind: '==' }, transitions: [equalsSign]},
-    '===': { token: { kind: '==='}, transitions: []},
-    '=>': {token: {kind: '=>'}, transitions: []},
-    '>' : { token: { kind: '>' }, transitions: [equalsSign, greaterThanSign]},
-    '>=' : { token: { kind: '>=' }, transitions: []},
-    '>>': { token: { kind: '>>'}, transitions: [equalsSign, greaterThanSign]},
-    '>>=': {token: {kind: '>>='}, transitions: []},
-    '>>>': {token: {kind: '>>>'}, transitions: [equalsSign]},
-    '>>>=': {token: {kind: '>>>='}, transitions: []},
-    '?' : { token: { kind: '?' }, transitions: [fullStop, questionMark]},
-    '?.' : { token: { kind: '?.' }, transitions: []},
-    '??' : { token: { kind: '??' }, transitions: [equalsSign]},
-    '??=' : { token: { kind: '??=' }, transitions: []},
-    '^' : { token: { kind: '^' }, transitions: [equalsSign]},
-    '^=' : { token: { kind: '^=' }, transitions: []},
-    '|' : { token: { kind: '|' }, transitions: [equalsSign, verticalLine]},
-    '|=' : { token: { kind: '|=' }, transitions: []},
-    '||' : { token: { kind: '||' }, transitions: [equalsSign]},
-    '||=' : { token: { kind: '||=' }, transitions: []},
-    '~' : { token: { kind: '~' }, transitions: []}
-}
+const operatorMap = map.fromEntries(operatorEntries)
+
+/** @type {(op: string) => JsToken} */
+const getOperatorToken = op => at(op)(operatorMap) ?? { kind: 'error', message: 'invalid token' }
+
+/** @type {(op: string) => Boolean} */
+const hasOperatorToken = op => at(op)(operatorMap) !== null
 
 /** @type {(state: InitialState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
     rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
-    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
-    rangeFunc(one(leftCurlyBracket))(state => () => [[{ kind: '{' }], state]),
-    rangeFunc(one(rightCurlyBracket))(state => () => [[{ kind: '}' }], state]),
-    rangeFunc(one(colon))(state => () => [[{ kind: ':' }], state]),
-    rangeFunc(one(comma))(state => () => [[{ kind: ',' }], state]),
-    rangeFunc(one(leftSquareBracket))(state => () => [[{ kind: '[' }], state]),
-    rangeFunc(one(rightSquareBracket))(state => () => [[{ kind: ']' }], state]),
+    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, { kind: 'ws' }]),
     rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
     rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
-    rangeFunc(one(hyphenMinus))(() => () => [empty, { kind: '-'}]),
     rangeSetFunc(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
 ])
 
 /** @type {(state: ParseNumberState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const invalidNumberToToken = state => input =>
+const invalidNumberToToken = () => input =>
 {
     const next = tokenizeOp({ kind: 'initial' })(input)
     return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
@@ -479,7 +585,7 @@ const expToToken = state => input => {
 const hyphenMinusToToken = state => input => {
     switch (state.numberKind) {
         case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: { ... state.b, es: -1}, numberKind: 'e-' }]
-        default: return tokenizeOp({ kind: 'invalidNumber' })(input)
+        default: return terminalToToken(state)(input)
     }
 }
 
@@ -599,14 +705,7 @@ const parseUnicodeCharStateOp = create(parseUnicodeCharDefault)([
 ])
 
 /** @type {(s: string) => JsToken} */
-const idToToken = s => {
-    switch (s) {
-        case 'true': return { kind: 'true' }
-        case 'false': return { kind: 'false' }
-        case 'null': return { kind: 'null' }
-        default: return { kind: 'id', value: s }
-    }
-}
+const idToToken = s => at(s)(keywordMap) ?? { kind: 'id', value: s }
 
 /** @type {(state: ParseIdState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseIdDefault = state => input => {
@@ -622,13 +721,23 @@ const parseIdStateOp = create(parseIdDefault)([
 
 /** @type {(state: ParseOperatorState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseOperatorStateOp = state => input => {
-    const r = operatorDfa[state.value]
-    const t = sorted_list.find(unsafeCmp)(input)(r.transitions)
-    if (t !==  null)
-        return [empty, { kind: 'op', value: appendChar(state.value)(input) }]
+    const nextStateValue = appendChar(state.value)(input)
+    if (hasOperatorToken(nextStateValue))
+        return [empty, { kind: 'op', value: nextStateValue }]
     const next = tokenizeOp({ kind: 'initial' })(input)
-    return [{ first: r.token, tail: next[0] }, next[1]]
+    return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
 }
+
+/** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseWhitespaceDefault = state => input => {
+    const next = tokenizeOp({ kind: 'initial' })(input)
+    return [{ first: { kind: 'ws' }, tail: next[0] }, next[1]]
+}
+
+/** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
+    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state])
+])
 
 /** @type {(state: EofState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const eofStateOp = create(state => () => [[{ kind: 'error', message: 'eof' }], state])([])
@@ -645,6 +754,7 @@ const tokenizeCharCodeOp = state => {
         case 'number': return parseNumberStateOp(state)
         case 'op': return parseOperatorStateOp(state)
         case '-': return parseMinusStateOp(state)
+        case 'ws': return parseWhitespaceStateOp(state)
         case 'eof': return eofStateOp(state)
     }
 }
@@ -666,8 +776,9 @@ const tokenizeEofOp = state => {
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
                 default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
-        case 'op': return [[operatorDfa[state.value].token], { kind: 'eof' }]
+        case 'op': return [[getOperatorToken(state.value)], { kind: 'eof' }]
         case '-': return [[{kind: '-'}], { kind: 'eof' }]
+        case 'ws': return [[{kind: 'ws'}], { kind: 'eof' }]
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
     }
 }
@@ -684,5 +795,7 @@ const tokenize = input => flat(initial(flat([/** @type {list.List<CharCodeOrEof>
 
 module.exports = {
     /** @readonly */
-    tokenize
+    tokenize,
+    /** @readonly */
+    isKeywordToken
 }
