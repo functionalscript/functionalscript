@@ -15,7 +15,7 @@
 - [ ] constants `const a = [3];module.exports = { a: a, b: a }`
 - [ ] import `const a = require('c.fon.js');module.exports = { a: a, b: a}`
 
-## ???
+## Decidable Language
   
 - [ ] expressions `const a = 2+2+Math.abs(5); module.exports = { a: a };`
 - [ ] decidable functions `const f = a => b => a + b; module.exports = f(1)(2)`?
