@@ -387,8 +387,10 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
     return { kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] }
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
-/** @type {list.List<map.Entry<JsToken>>} */
+/**
+ * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
+ * @type {list.List<map.Entry<JsToken>>}
+ */
 const keywordEntries = [
     ['arguments', { kind: 'arguments'}],
     ['await', { kind: 'await'}],
@@ -445,8 +447,10 @@ const keywordMap = map.fromEntries(keywordEntries)
 /** @type {(token: JsToken) => Boolean} */
 const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
-/** @type {list.List<map.Entry<JsToken>>} */
+/**
+ * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
+ * @type {list.List<map.Entry<JsToken>>}
+ */
 const operatorEntries = [
     ['!', { kind: '!'}],
     ['!=', { kind: '!='}],
