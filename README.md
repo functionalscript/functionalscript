@@ -33,3 +33,8 @@ FunctionalScript code can be used
 - in any JavaScript/TypeScript application,
 - as a JSON with expressions,
 - as a query language.
+
+## Sponsors
+
+- [KirillOsenkov](https://github.com/KirillOsenkov)
+- [antkmsft](https://github.com/antkmsft)
