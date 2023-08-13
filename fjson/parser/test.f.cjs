@@ -1,14 +1,14 @@
 const parser = require('./module.f.cjs')
 const tokenizer = require('../tokenizer/module.f.cjs')
 const { toArray } = require('../../types/list/module.f.cjs')
-const json = require('../module.f.cjs')
+const fjson = require('../module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 
 /** @type {(s: string) => readonly tokenizer.FjsonToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringify = json.stringify(sort)
+const stringify = fjson.stringify(sort)
 
 module.exports = {
     valid: [
@@ -95,6 +95,18 @@ module.exports = {
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",{"a":{"b":{"c":["d"]}}}]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('1234567890n')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",1234567890n]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[1234567890n]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[1234567890n]]') { throw result }
         }
     ],
     invalid: [

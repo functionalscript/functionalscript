@@ -5,13 +5,13 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const tokenizer = require('../tokenizer/module.f.cjs')
 const map = require('../../types/map/module.f.cjs')
 const { setReplace } = map
-const json = require('../module.f.cjs')
+const fjson = require('../module.f.cjs')
 const { fromMap } = require('../../types/object/module.f.cjs')
 
 /**
  * @typedef {{
 * readonly kind: 'object'
-* readonly values: map.Map<json.Unknown>
+* readonly values: map.Map<fjson.Unknown>
 * readonly key: string
 * }} JsonObject
 * */
@@ -19,7 +19,7 @@ const { fromMap } = require('../../types/object/module.f.cjs')
 /**
  * @typedef {{
 * readonly kind: 'array'
-* readonly values: list.List<json.Unknown>
+* readonly values: list.List<fjson.Unknown>
 * }} JsonArray
 * */
 
@@ -43,7 +43,7 @@ const { fromMap } = require('../../types/object/module.f.cjs')
 /**
  * @typedef {{
 *  readonly status: 'result'
-*  readonly value: json.Unknown
+*  readonly value: fjson.Unknown
 * }} StateResult
 */
 
@@ -65,10 +65,10 @@ const { fromMap } = require('../../types/object/module.f.cjs')
 /** @type {(obj: JsonObject) => (key: string) => JsonObject} */
 const addKeyToObject = obj => key => ({ kind: 'object', values: obj.values, key: key })
 
-/** @type {(obj: JsonObject) => (value: json.Unknown) => JsonObject} */
+/** @type {(obj: JsonObject) => (value: fjson.Unknown) => JsonObject} */
 const addValueToObject = obj => value => ({ kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' })
 
-/** @type {(array: JsonArray) => (value: json.Unknown) => JsonArray} */
+/** @type {(array: JsonArray) => (value: fjson.Unknown) => JsonArray} */
 const addToArray = array => value => ({ kind: 'array', values: list.concat(array.values)([value]) })
 
 /** @type {(state: StateParse) => (key: string) => FjsonState} */
@@ -77,7 +77,7 @@ const pushKey = state => value => {
     return { status: 'error', message: 'error' }
 }
 
-/** @type {(state: StateParse) => (value: json.Unknown) => FjsonState} */
+/** @type {(state: StateParse) => (value: fjson.Unknown) => FjsonState} */
 const pushValue = state => value => {
     if (state.top === null) { return { status: 'result', value: value } }
     if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
@@ -112,7 +112,7 @@ const endObject = state => {
     return pushValue(newState)(obj)
 }
 
-/** @type {(token: tokenizer.FjsonToken) => json.Unknown} */
+/** @type {(token: tokenizer.FjsonToken) => fjson.Unknown} */
 const tokenToValue = token => {
     switch (token.kind) {
         case 'null': return null
@@ -120,6 +120,7 @@ const tokenToValue = token => {
         case 'true': return true
         case 'number': return parseFloat(token.value)
         case 'string': return token.value
+        case 'bigint': return token.value
         default: return null
     }
 }
@@ -131,7 +132,8 @@ const isValueToken = token => {
         case 'false':
         case 'true':
         case 'number':
-        case 'string': return true
+        case 'string':
+        case 'bigint': return true
         default: return false
     }
 }
@@ -211,7 +213,7 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: list.List<tokenizer.FjsonToken>) => result.Result<json.Unknown, string>} */
+/** @type {(tokenList: list.List<tokenizer.FjsonToken>) => result.Result<fjson.Unknown, string>} */
 const parse = tokenList => {
     const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
     switch (state.status) {
