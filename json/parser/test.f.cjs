@@ -11,7 +11,7 @@ const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s))
 const stringify = json.stringify(sort)
 
 module.exports = {
-    valud: [
+    valid: [
         () => {
             const tokenList = tokenizeString('null')
             const obj = parser.parse(tokenList)
