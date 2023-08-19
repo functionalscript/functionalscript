@@ -9,7 +9,8 @@
 
 ## Next steps
 
-- [ ] use JS tokenizer 
+- [ ] rename FJSON to `djs` (data javascript). File extensions: `.d.cjs`, `.d.mjs`, `.d.js`.
+- [x] use JS tokenizer 
 - [x] identifiers `{a:5}`
 - [x] big int
 - [ ] `module.exports = ...`
