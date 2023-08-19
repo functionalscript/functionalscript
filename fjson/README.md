@@ -9,7 +9,7 @@
 
 ## Next steps
 
-- [x] identifiers
+- [x] identifiers `{a:5}`
 - [x] big int
 - [ ] `module.exports = ...`
 - [ ] constants `const a = [3];module.exports = { a: a, b: a }`. Serialization `const _0=[3];module.exports={a:_0,b:_0}`
