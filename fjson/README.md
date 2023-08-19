@@ -9,6 +9,7 @@
 
 ## Next steps
 
+- [ ] rename `fjson` to `djs` (data javascript), File extensions: `.d.cjs`, `.d.mjs`, `.d.js`.
 - [ ] use JS tokenizer 
 - [x] identifiers `{a:5}`
 - [x] big int
