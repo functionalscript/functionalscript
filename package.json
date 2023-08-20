@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^20.1.0",
-    "typescript": "^5.0.2"
+    "@types/node": "^20.5.1",
+    "typescript": "^5.1.6"
   }
 }
