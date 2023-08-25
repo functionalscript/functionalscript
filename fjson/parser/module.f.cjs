@@ -34,6 +34,13 @@ const { fromMap } = require('../../types/object/module.f.cjs')
 
 /**
  * @typedef {{
+*  readonly status: 'module'
+*  readonly stage: 'module' | '.' | 'exports' | '='
+* }} StateModule
+*/
+
+/**
+ * @typedef {{
 *  readonly status: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
 *  readonly top: JsonStackElement | null
 *  readonly stack: JsonStack
@@ -56,11 +63,40 @@ const { fromMap } = require('../../types/object/module.f.cjs')
 
 /**
  * @typedef {|
+* StateModule |
 * StateParse |
 * StateResult |
 * StateError
 * } FjsonState
 */
+
+/** @type {(token: tokenizer.FjsonToken) => (state: StateModule) => FjsonState}} */
+const parseModuleOp = token => state => {
+    switch(state.stage)
+    {
+        case 'module':
+        {
+            if (token.kind === 'id' && token.value === 'module') return { status: 'module', stage: '.' }
+            break;
+        }
+        case '.':
+        {
+            if (token.kind === '.') return { status: 'module', stage: 'exports' }
+            break;
+        }
+        case 'exports':
+        {
+            if (token.kind === 'id' && token.value === 'exports') return { status: 'module', stage: '=' }
+            break;
+        }
+        case '=':
+        {
+            if (token.kind === '=') return { status: '', top: null, stack: null }
+            if (token.kind === 'ws') return state
+        }
+    }
+    return { status: 'error', message: 'unexpected token' }
+}
 
 /** @type {(obj: JsonObject) => (key: string) => JsonObject} */
 const addKeyToObject = obj => key => ({ kind: 'object', values: obj.values, key: key })
@@ -143,6 +179,7 @@ const parseValueOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
@@ -152,6 +189,7 @@ const parseArrayStartOp = token => state => {
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === '{') { return startObject(state) }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
@@ -159,6 +197,7 @@ const parseArrayStartOp = token => state => {
 const parseArrayValueOp = token => state => {
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
@@ -166,12 +205,14 @@ const parseArrayValueOp = token => state => {
 const parseObjectStartOp = token => state => {
     if (token.kind === 'string') { return pushKey(state)(token.value) }
     if (token.kind === '}') { return endObject(state) }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizer.FjsonToken) => (state: StateParse) => FjsonState}} */
 const parseObjectKeyOp = token => state => {
     if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
@@ -180,6 +221,7 @@ const parseObjectColonOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
@@ -187,18 +229,21 @@ const parseObjectColonOp = token => state => {
 const parseObjectNextOp = token => state => {
     if (token.kind === '}') { return endObject(state) }
     if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizer.FjsonToken) => (state: StateParse) => FjsonState}} */
 const parseObjectCommaOp = token => state => {
     if (token.kind === 'string') { return pushKey(state)(token.value) }
+    if (token.kind === 'ws') { return state }
     return { status: 'error', message: 'unexpected token' }
 }
 
 /** @type {operator.Fold<tokenizer.FjsonToken, FjsonState>} */
 const foldOp = token => state => {
     switch (state.status) {
+        case 'module': return parseModuleOp(token)(state)
         case 'result': return { status: 'error', message: 'unexpected token' }
         case 'error': return { status: 'error', message: state.message }
         case '': return parseValueOp(token)(state)
@@ -215,7 +260,7 @@ const foldOp = token => state => {
 
 /** @type {(tokenList: list.List<tokenizer.FjsonToken>) => result.Result<fjson.Unknown, string>} */
 const parse = tokenList => {
-    const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
+    const state = fold(foldOp)({ status: 'module', stage: 'module' })(tokenList)
     switch (state.status) {
         case 'result': return result.ok(state.value)
         case 'error': return result.error(state.message)
