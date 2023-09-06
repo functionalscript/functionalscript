@@ -121,15 +121,16 @@ const {
 /**
  * @typedef {|
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+* {readonly kind: '.' | '=' } |
 * {readonly kind: '(' | ')' } |
 * {readonly kind: '==' | '!=' | '===' | '!==' | '>' | '>=' | '<' | '<=' } |
 * {readonly kind: '+' | '-' | '*' | '/' | '%' | '++' | '--' | '**' } |
-* {readonly kind: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
+* {readonly kind: '+=' | '-=' | '*=' | '/=' | '%=' | '**='} |
 * {readonly kind: '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>' } |
 * {readonly kind: '&=' | '|=' | '^=' | '<<=' | '>>=' | '>>>='} |
 * {readonly kind: '&&' | '||' | '!' | '??' } |
 * {readonly kind: '&&=' | '||=' | '??=' } |
-* {readonly kind: '?' | '?.' | '.' | '=>'}
+* {readonly kind: '?' | '?.' | '=>'}
 * } OperatorToken
 */
 

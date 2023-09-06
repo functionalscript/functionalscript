@@ -7,12 +7,13 @@ const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 /**
  * @typedef {|
 * {readonly kind: 'true' | 'false' | 'null'} |
-* {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+* {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' } |
 * jsTokenizer.StringToken |
 * jsTokenizer.NumberToken |
 * jsTokenizer.ErrorToken |
 * jsTokenizer.IdToken |
-* jsTokenizer.BigIntToken
+* jsTokenizer.BigIntToken |
+* jsTokenizer.WhitespaceToken
 * } FjsonToken
 */
 
@@ -41,13 +42,15 @@ const mapToken = input =>
         case ',':
         case '[':
         case ']':
+        case '.':
+        case '=':
         case 'true':
         case 'false':
         case 'null':
         case 'string':
         case 'number':
+        case 'ws':
         case 'error': return [input]
-        case 'ws': return empty
         default: return jsTokenizer.isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
     }
 }
