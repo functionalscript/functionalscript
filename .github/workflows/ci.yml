@@ -80,6 +80,8 @@ jobs:
         node-version: 20
     - name: Install LLVM and Clang
       uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: latest
     - uses: actions/download-artifact@v3
       with:
         name: package-lock.json
