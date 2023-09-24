@@ -14,7 +14,7 @@ const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 * jsTokenizer.IdToken |
 * jsTokenizer.BigIntToken |
 * jsTokenizer.WhitespaceToken
-* } FjsonToken
+* } DjsToken
 */
 
 /**
@@ -29,7 +29,7 @@ const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 * } ScanInput
 */
 
-/** @type {(input: jsTokenizer.JsToken) => list.List<FjsonToken>} */
+/** @type {(input: jsTokenizer.JsToken) => list.List<DjsToken>} */
 const mapToken = input =>
 {
     switch(input.kind)
@@ -55,7 +55,7 @@ const mapToken = input =>
     }
 }
 
-/** @type {(input: ScanInput) => readonly [list.List<FjsonToken>, ScanState]} */
+/** @type {(input: ScanInput) => readonly [list.List<DjsToken>, ScanState]} */
 const parseDefaultState = input =>
 {
     if (input === null) return [empty, { kind: 'def'}]
@@ -66,7 +66,7 @@ const parseDefaultState = input =>
     }
 }
 
-/** @type {(input: ScanInput) => readonly [list.List<FjsonToken>, ScanState]} */
+/** @type {(input: ScanInput) => readonly [list.List<DjsToken>, ScanState]} */
 const parseMinusState = input =>
 {
     if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def'}]
@@ -79,7 +79,7 @@ const parseMinusState = input =>
     }
 }
 
-/** @type {operator.StateScan<ScanInput, ScanState, list.List<FjsonToken>>} */
+/** @type {operator.StateScan<ScanInput, ScanState, list.List<DjsToken>>} */
 const scanToken = state => input => {
     switch(state.kind)
     {
@@ -88,7 +88,7 @@ const scanToken = state => input => {
     }
 }
 
-/** @type {(input: list.List<number>) => list.List<FjsonToken>} */
+/** @type {(input: list.List<number>) => list.List<DjsToken>} */
 const tokenize = input =>
 {
     /** @type {list.List<ScanInput>} */
