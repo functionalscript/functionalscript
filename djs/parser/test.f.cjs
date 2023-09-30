@@ -1,14 +1,14 @@
 const parser = require('./module.f.cjs')
 const tokenizer = require('../tokenizer/module.f.cjs')
 const { toArray } = require('../../types/list/module.f.cjs')
-const fjson = require('../module.f.cjs')
+const djs = require('../module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 
-/** @type {(s: string) => readonly tokenizer.FjsonToken[]} */
+/** @type {(s: string) => readonly tokenizer.DjsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringify = fjson.stringify(sort)
+const stringify = djs.stringify(sort)
 
 module.exports = {
     valid: [
