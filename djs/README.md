@@ -1,4 +1,4 @@
-# FJSON, FJS Object Notation
+# DJS, Data JS or DataScript
 
 - additional types: bigint
 
