@@ -129,7 +129,8 @@ const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
     let g = g0
     let h = h0
 
-    for (let i = 0; i < 4; ++i) {
+    let i = 0;
+    while (true) {
         const ki = k[i]
         for (let j = 0; j < 16; ++j) {
             const t1 = h + bigSigma1(e) + ch(e)(f)(g) + ki[j] + w[j]
@@ -143,6 +144,8 @@ const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
             b = a
             a = (t1 + t2) | 0
         }
+        if (i === 3) { break }
+        ++i;
         w = nextW(w)
     }
 
