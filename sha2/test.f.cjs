@@ -45,6 +45,13 @@ module.exports = {
             if (result !== '["d14a028c","2a3a2bc9","476102bb","288234c4","15a2b01f","828ea62a","c5b3e42f","bdd387cb"]') { throw result }
         }
     },
+    sha224compress: [
+        () => {
+            const hash = _.compress224([0x8000_0000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            const result = stringify(hash.map(toHexString))
+            if (result !== '["d14a028c","2a3a2bc9","476102bb","288234c4","15a2b01f","828ea62a","c5b3e42f","bdd387cb"]') { throw result }
+        }
+    ],
     sha256: [
         () => {
             //[0x68656C6C, 0x6F20776F, 0x726C6400] represents phrase 'hello world'
