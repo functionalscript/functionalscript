@@ -1,6 +1,5 @@
 const compare = require('../function/compare/module.f.cjs')
 const { abs, sign } = require('../bigint/module.f.cjs')
-const { todo } = require('../../dev/module.f.cjs')
 
 /** @typedef {readonly[bigint,number]} BigFloat */
 
