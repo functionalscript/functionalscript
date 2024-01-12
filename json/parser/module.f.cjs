@@ -175,14 +175,6 @@ const parseObjectKeyOp = token => state => {
 }
 
 /** @type {(token: tokenizer.JsonToken) => (state: StateParse) => JsonState}} */
-const parseObjectColonOp = token => state => {
-    if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === '[') { return startArray(state) }
-    if (token.kind === '{') { return startObject(state) }
-    return { status: 'error', message: 'unexpected token' }
-}
-
-/** @type {(token: tokenizer.JsonToken) => (state: StateParse) => JsonState}} */
 const parseObjectNextOp = token => state => {
     if (token.kind === '}') { return endObject(state) }
     if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
@@ -206,7 +198,7 @@ const foldOp = token => state => {
         case '[,': return parseValueOp(token)(state)
         case '{': return parseObjectStartOp(token)(state)
         case '{k': return parseObjectKeyOp(token)(state)
-        case '{:': return parseObjectColonOp(token)(state)
+        case '{:': return parseValueOp(token)(state)
         case '{v': return parseObjectNextOp(token)(state)
         case '{,': return parseObjectCommaOp(token)(state)
     }
