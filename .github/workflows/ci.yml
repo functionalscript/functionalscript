@@ -69,7 +69,7 @@ jobs:
     needs: locks
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'windows-latest', 'macos-12']
+        os: ['ubuntu-latest', 'windows-latest', 'macos-14']
 
     runs-on: ${{ matrix.os }}
 
