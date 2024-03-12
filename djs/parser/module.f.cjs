@@ -115,9 +115,11 @@ const pushKey = state => value => {
 
 /** @type {(state: StateParse) => (value: djs.Unknown) => DjsState} */
 const pushValue = state => value => {
-    if (state.top === null) { return { status: 'result', value: value } }
-    if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
-    return { status: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
+    switch (true) {
+        case state.top === null: return { status: 'result', value: value }
+        case state.top.kind === 'array': return { status: '[v', top: addToArray(state.top)(value), stack: state.stack }
+        default: return { status: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
+    }
 }
 
 /** @type {(state: StateParse) => DjsState} */
