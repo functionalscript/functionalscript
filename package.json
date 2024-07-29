@@ -14,7 +14,7 @@
     "type": "git",
     "url": "git+https://github.com/functionalscript/functionalscript.git"
   },
-  "author": "NatFoam",
+  "author": "Sergey Shandar",
   "license": "MIT",
   "keywords": [
     "lambda",
@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^20.5.1",
-    "typescript": "^5.1.6"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.4"
   }
 }
