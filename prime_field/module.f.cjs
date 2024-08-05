@@ -32,6 +32,21 @@ const op = require('../types/function/operator/module.f.cjs')
  * }} PrimeField
  */
 
+/** @type {<T>(zero: T, add: op.Reduce<T>) => (a: T) => (n: bigint) => T} */
+const generic_mul = (zero, add) => a => n => {
+    let result = zero
+    while (true) {
+        if ((n & 1n) === 1n) {
+            result = add(result)(a)
+        }
+        n >>= 1n
+        if (n === 0n) {
+            return result
+        }
+        a = add(a)(a)
+    }
+}
+
 /** @type {(p: bigint) => PrimeField} */
 const prime_field = p => {
     /** @type {Reduce} */
@@ -65,19 +80,7 @@ const prime_field = p => {
     /** @type {Unary} */
     const pow2 = a => mul(a)(a)
     /** @type {Reduce} */
-    const pow = a => n => {
-        let result = 1n
-        while (true) {
-            if ((n & 1n) === 1n) {
-                result = mul(result)(a)
-            }
-            n >>= 1n
-            if (n === 0n) {
-                return result
-            }
-            a = pow2(a)
-        }
-    }
+    const pow = generic_mul(1n, mul)
     return {
         middle,
         max: p - 1n,
@@ -102,5 +105,6 @@ const prime_field = p => {
 }
 
 module.exports = {
+    generic_mul,
     prime_field
 }
