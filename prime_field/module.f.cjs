@@ -1,3 +1,9 @@
+const op = require('../types/function/operator/module.f.cjs')
+
+/** @typedef {op.Reduce<bigint>} Reduce */
+
+/** @typedef {op.Unary<bigint, bigint>} Unary*/
+
 /**
  * @typedef {{
  *  readonly p: bigint
@@ -12,28 +18,30 @@
  * @typedef {{
  *  readonly middle: bigint
  *  readonly max: bigint
- *  readonly neg: (a: bigint) => bigint
- *  readonly sub: (a: bigint) => (b: bigint) => bigint
- *  readonly add: (a: bigint) => (b: bigint) => bigint
- *  readonly abs: (a: bigint) => bigint
- *  readonly mul: (a: bigint) => (b: bigint) => bigint
- *  readonly reciprocal: (a: bigint) => bigint
- *  readonly div: (a: bigint) => (b: bigint) => bigint
- *  readonly pow: (a: bigint) => (b: bigint) => bigint
+ *  readonly neg: Unary
+ *  readonly sub: Reduce
+ *  readonly add: Reduce
+ *  readonly abs: Unary
+ *  readonly mul: Reduce
+ *  readonly reciprocal: Unary
+ *  readonly div: Reduce
+ *  readonly pow: Reduce
  *  readonly sqrt: (a: bigint) => bigint|null
+ *  readonly pow2: Unary
+ *  readonly pow3: Unary
  * }} PrimeField
  */
 
 /** @type {(p: bigint) => PrimeField} */
 const prime_field = p => {
-    /** @type {(a: bigint) => (b: bigint) => bigint} */
+    /** @type {Reduce} */
     const sub = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
     }
-    /** @type {(a: bigint) => (b: bigint) => bigint} */
+    /** @type {Reduce} */
     const mul = a => b => a * b % p
-    /** @type {(a: bigint) => bigint} */
+    /** @type {Unary} */
     const reciprocal = a => {
         if (a === 0n) { throw '1/0' }
         let a1 = a
@@ -54,7 +62,9 @@ const prime_field = p => {
     const middle = p >> 1n
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
-    /** @type {(a: bigint) => (n: bigint) => bigint} */
+    /** @type {Unary} */
+    const pow2 = a => mul(a)(a)
+    /** @type {Reduce} */
     const pow = a => n => {
         let result = 1n
         while (true) {
@@ -65,7 +75,7 @@ const prime_field = p => {
             if (n === 0n) {
                 return result
             }
-            a = mul(a)(a)
+            a = pow2(a)
         }
     }
     return {
@@ -85,7 +95,9 @@ const prime_field = p => {
         sqrt: a => {
             const result = pow(a)(sqrt_k)
             return mul(result)(result) === a ? result : null
-        }
+        },
+        pow2,
+        pow3: a => mul(a)(pow2(a))
     }
 }
 

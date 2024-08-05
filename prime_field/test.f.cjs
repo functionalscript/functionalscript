@@ -41,7 +41,7 @@ module.exports = {
                     // a^(p-1) % p = 1
                     if (f.abs(f.pow(a)(f.middle)) !== 1n) { throw '**middle' }
                     if (f.pow(a)(f.sub(f.max)(1n)) !== f.reciprocal(a)) { throw '**(max-1)' }
-                    if (f.pow(a)(f.max) !== 1n) { throw '**max-1' }
+                    if (f.pow(a)(f.max) !== 1n) { throw '**max' }
                 }
                 // 0
                 if (f.pow(0n)(0n) !== 1n) { throw '0**0'}
