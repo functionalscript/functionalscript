@@ -1,39 +1,54 @@
+const op = require('../types/function/operator/module.f.cjs')
+
+/** @typedef {op.Reduce<bigint>} Reduce */
+
+/** @typedef {op.Unary<bigint, bigint>} Unary*/
+
 /**
  * @typedef {{
  *  readonly p: bigint
- *  readonly a: bigint
- *  readonly b: bigint
- *  readonly g: readonly[bigint, bigint]
- *  readonly n: bigint
- * }} Curve
- */
-
-/**
- * @typedef {{
  *  readonly middle: bigint
  *  readonly max: bigint
- *  readonly neg: (a: bigint) => bigint
- *  readonly sub: (a: bigint) => (b: bigint) => bigint
- *  readonly add: (a: bigint) => (b: bigint) => bigint
- *  readonly abs: (a: bigint) => bigint
- *  readonly mul: (a: bigint) => (b: bigint) => bigint
- *  readonly reciprocal: (a: bigint) => bigint
- *  readonly div: (a: bigint) => (b: bigint) => bigint
- *  readonly pow: (a: bigint) => (b: bigint) => bigint
- *  readonly sqrt: (a: bigint) => bigint|null
+ *  readonly neg: Unary
+ *  readonly sub: Reduce
+ *  readonly add: Reduce
+ *  readonly abs: Unary
+ *  readonly mul: Reduce
+ *  readonly reciprocal: Unary
+ *  readonly div: Reduce
+ *  readonly pow: Reduce
+ *  readonly pow2: Unary
+ *  readonly pow3: Unary
  * }} PrimeField
  */
 
+/** @type {<T>(zero: T, add: op.Reduce<T>) => (a: T) => (n: bigint) => T} */
+const scalar_mul = (zero, add) => a => n => {
+    let ai = a
+    let ni = n
+    let result = zero
+    while (true) {
+        if ((ni & 1n) === 1n) {
+            result = add(result)(ai)
+        }
+        ni >>= 1n
+        if (ni === 0n) {
+            return result
+        }
+        ai = add(ai)(ai)
+    }
+}
+
 /** @type {(p: bigint) => PrimeField} */
 const prime_field = p => {
-    /** @type {(a: bigint) => (b: bigint) => bigint} */
+    /** @type {Reduce} */
     const sub = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
     }
-    /** @type {(a: bigint) => (b: bigint) => bigint} */
+    /** @type {Reduce} */
     const mul = a => b => a * b % p
-    /** @type {(a: bigint) => bigint} */
+    /** @type {Unary} */
     const reciprocal = a => {
         if (a === 0n) { throw '1/0' }
         let a1 = a
@@ -52,23 +67,12 @@ const prime_field = p => {
         return f1
     }
     const middle = p >> 1n
-    if ((p & 3n) !== 3n) { throw 'sqrt' }
-    const sqrt_k = (p + 1n) >> 2n
-    /** @type {(a: bigint) => (n: bigint) => bigint} */
-    const pow = a => n => {
-        let result = 1n
-        while (true) {
-            if ((n & 1n) === 1n) {
-                result = mul(result)(a)
-            }
-            n >>= 1n
-            if (n === 0n) {
-                return result
-            }
-            a = mul(a)(a)
-        }
-    }
+    /** @type {Unary} */
+    const pow2 = a => mul(a)(a)
+    /** @type {Reduce} */
+    const pow = scalar_mul(1n, mul)
     return {
+        p,
         middle,
         max: p - 1n,
         neg: a => a === 0n ? 0n : p - a,
@@ -82,13 +86,21 @@ const prime_field = p => {
         reciprocal,
         div: a => b => mul(a)(reciprocal(b)),
         pow,
-        sqrt: a => {
-            const result = pow(a)(sqrt_k)
-            return mul(result)(result) === a ? result : null
-        }
+        pow2,
+        pow3: a => mul(a)(pow2(a))
     }
 }
 
 module.exports = {
-    prime_field
+    scalar_mul,
+    prime_field,
+    /** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
+    sqrt: ({p, mul, pow }) => {
+        if ((p & 3n) !== 3n) { throw 'sqrt' }
+        const sqrt_k = (p + 1n) >> 2n
+        return a => {
+            const result = pow(a)(sqrt_k)
+            return mul(result)(result) === a ? result : null
+        }
+    }
 }
