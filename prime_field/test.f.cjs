@@ -1,9 +1,10 @@
-const { prime_field } = require('./module.f.cjs')
+const { prime_field, sqrt } = require('./module.f.cjs')
 
 module.exports = {
     prime_field_test: () => {
         const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
         const f = prime_field(p)
+        const sqrt_f = sqrt(f)
         return {
             neg: () => {
                 if (f.neg(0n) !== 0n) { throw '-0' }
@@ -70,7 +71,7 @@ module.exports = {
                 /** @type {(a: bigint) => void} */
                 const test = a => {
                     const a2 = f.mul(a)(a)
-                    const s = f.sqrt(a2)
+                    const s = sqrt_f(a2)
                     if (s !== null && f.abs(s) !== f.abs(a)) { throw 'sqrt' }
                 }
                 let i = 1n

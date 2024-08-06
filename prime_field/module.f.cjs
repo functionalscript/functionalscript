@@ -7,15 +7,6 @@ const op = require('../types/function/operator/module.f.cjs')
 /**
  * @typedef {{
  *  readonly p: bigint
- *  readonly a: bigint
- *  readonly b: bigint
- *  readonly g: readonly[bigint, bigint]
- *  readonly n: bigint
- * }} Curve
- */
-
-/**
- * @typedef {{
  *  readonly middle: bigint
  *  readonly max: bigint
  *  readonly neg: Unary
@@ -26,24 +17,25 @@ const op = require('../types/function/operator/module.f.cjs')
  *  readonly reciprocal: Unary
  *  readonly div: Reduce
  *  readonly pow: Reduce
- *  readonly sqrt: (a: bigint) => bigint|null
  *  readonly pow2: Unary
  *  readonly pow3: Unary
  * }} PrimeField
  */
 
 /** @type {<T>(zero: T, add: op.Reduce<T>) => (a: T) => (n: bigint) => T} */
-const generic_mul = (zero, add) => a => n => {
+const scalar_mul = (zero, add) => a => n => {
+    let ai = a
+    let ni = n
     let result = zero
     while (true) {
-        if ((n & 1n) === 1n) {
-            result = add(result)(a)
+        if ((ni & 1n) === 1n) {
+            result = add(result)(ai)
         }
-        n >>= 1n
-        if (n === 0n) {
+        ni >>= 1n
+        if (ni === 0n) {
             return result
         }
-        a = add(a)(a)
+        ai = add(ai)(ai)
     }
 }
 
@@ -75,13 +67,12 @@ const prime_field = p => {
         return f1
     }
     const middle = p >> 1n
-    if ((p & 3n) !== 3n) { throw 'sqrt' }
-    const sqrt_k = (p + 1n) >> 2n
     /** @type {Unary} */
     const pow2 = a => mul(a)(a)
     /** @type {Reduce} */
-    const pow = generic_mul(1n, mul)
+    const pow = scalar_mul(1n, mul)
     return {
+        p,
         middle,
         max: p - 1n,
         neg: a => a === 0n ? 0n : p - a,
@@ -95,16 +86,21 @@ const prime_field = p => {
         reciprocal,
         div: a => b => mul(a)(reciprocal(b)),
         pow,
-        sqrt: a => {
-            const result = pow(a)(sqrt_k)
-            return mul(result)(result) === a ? result : null
-        },
         pow2,
         pow3: a => mul(a)(pow2(a))
     }
 }
 
 module.exports = {
-    generic_mul,
-    prime_field
+    scalar_mul,
+    prime_field,
+    /** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
+    sqrt: ({p, mul, pow }) => {
+        if ((p & 3n) !== 3n) { throw 'sqrt' }
+        const sqrt_k = (p + 1n) >> 2n
+        return a => {
+            const result = pow(a)(sqrt_k)
+            return mul(result)(result) === a ? result : null
+        }
+    }
 }
