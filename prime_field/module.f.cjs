@@ -1,4 +1,5 @@
 const op = require('../types/function/operator/module.f.cjs')
+const { scalar_mul } = require('../types/bigint/module.f.cjs')
 
 /** @typedef {op.Reduce<bigint>} Reduce */
 
@@ -21,23 +22,6 @@ const op = require('../types/function/operator/module.f.cjs')
  *  readonly pow3: Unary
  * }} PrimeField
  */
-
-/** @type {<T>(zero: T, add: op.Reduce<T>) => (a: T) => (n: bigint) => T} */
-const scalar_mul = (zero, add) => a => n => {
-    let ai = a
-    let ni = n
-    let result = zero
-    while (true) {
-        if ((ni & 1n) === 1n) {
-            result = add(result)(ai)
-        }
-        ni >>= 1n
-        if (ni === 0n) {
-            return result
-        }
-        ai = add(ai)(ai)
-    }
-}
 
 /** @type {(p: bigint) => PrimeField} */
 const prime_field = p => {
@@ -70,7 +54,7 @@ const prime_field = p => {
     /** @type {Unary} */
     const pow2 = a => mul(a)(a)
     /** @type {Reduce} */
-    const pow = scalar_mul(1n, mul)
+    const pow = scalar_mul({ 0: 1n, add: mul })
     return {
         p,
         middle,
@@ -92,7 +76,6 @@ const prime_field = p => {
 }
 
 module.exports = {
-    scalar_mul,
     prime_field,
     /** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
     sqrt: ({p, mul, pow }) => {

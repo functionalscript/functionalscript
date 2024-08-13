@@ -1,6 +1,7 @@
 const op = require('../types/function/operator/module.f.cjs')
 const pf = require('../prime_field/module.f.cjs')
-const { scalar_mul, prime_field, sqrt } = pf
+const { scalar_mul } = require('../types/bigint/module.f.cjs')
+const { prime_field, sqrt } = pf
 
 /** @typedef {readonly[bigint, bigint]} Point2D */
 
@@ -78,7 +79,7 @@ const curve = ({ p, a: [a0, a1], n }) => {
             return [x, neg(y)]
         },
         add: addPoint,
-        mul: scalar_mul(null, addPoint)
+        mul: scalar_mul({ 0: null, add: addPoint })
     }
 }
 
