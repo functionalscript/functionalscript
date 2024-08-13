@@ -55,6 +55,6 @@ module.exports = {
     sign,
     /** @readonly */
     serialize,
-    /** @reqdonly */
+    /** @readonly */
     scalar_mul,
 }
