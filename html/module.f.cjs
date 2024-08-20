@@ -35,23 +35,35 @@ const { entries } = Object
  */
 
 /**
- * @typedef {|
- *  'img' |
- *  'input' |
- *  'link' |
- *  'meta'
- * } ShortTag
+ * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
+ *
+ * @typedef {
+ *  | 'area'
+ *  | 'base'
+ *  | 'br'
+ *  | 'col'
+ *  | 'embed'
+ *  | 'hr'
+ *  | 'img'
+ *  | 'input'
+ *  | 'link'
+ *  | 'meta'
+ *  | 'param'
+ *  | 'source'
+ *  | 'track'
+ *  | 'wbr'
+ * } VoidTag
  */
 
-/** @typedef {readonly[ShortTag]} ShortElement1*/
+/** @typedef {readonly[VoidTag]} VoidElement1*/
 
-/** @typedef {readonly[ShortTag, Attributes]} ShortElement2 */
+/** @typedef {readonly[VoidTag, Attributes]} VoidElement2 */
 
 /** @typedef {readonly[Tag, readonly Node[]]} Element2 */
 
 /** @typedef {readonly[Tag, Attributes, Nodes]} Element3*/
 
-/** @typedef {ShortElement1 | ShortElement2 | Element2 | Element3} Element */
+/** @typedef {VoidElement1 | VoidElement2 | Element2 | Element3} Element */
 
 /**
  * @typedef {{
