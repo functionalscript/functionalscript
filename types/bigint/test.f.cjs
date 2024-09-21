@@ -60,6 +60,10 @@ module.exports = {
         },
         () => {
             const result = log2x(15n)
+            if (result !== 4n) { throw result }
+        },
+        () => {
+            const result = log2x(16n)
             if (result !== 5n) { throw result }
         }
     ]
