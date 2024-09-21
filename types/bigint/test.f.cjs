@@ -31,6 +31,10 @@ module.exports = {
     ],
     log2: [
         () => {
+            const result = log2(-3n)
+            if (result !== -1n) { throw result }
+        },
+        () => {
             const result = log2(0n)
             if (result !== -1n) { throw result }
         },
