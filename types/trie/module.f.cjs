@@ -9,7 +9,7 @@
 /** @type {(root: Trie) => (v: bigint) => Node} */
 const add = root => v => {
     if (root === null) { return v }
-    if (typeof root === 'bigint') 
+    throw 'todo'
 }
 
 module.exports = {
