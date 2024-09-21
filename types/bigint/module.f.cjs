@@ -45,9 +45,9 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
 }
 
 /** @type {(a: bigint) => bigint} */
-const log2x = a => {
-    let i = 0n
-    while (a !== 0n) {
+const log2 = a => {
+    let i = -1n
+    while (a > 0n) {
         ++i
         a >>= 1n
     }
@@ -68,5 +68,5 @@ module.exports = {
     /** @readonly */
     scalar_mul,
     /** @readonly */
-    log2x,
+    log2,
 }

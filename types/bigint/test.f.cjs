@@ -1,4 +1,4 @@
-const { sum, abs, serialize, log2x } = require('./module.f.cjs')
+const { sum, abs, serialize, log2 } = require('./module.f.cjs')
 
 module.exports = {
     sum: () => {
@@ -29,42 +29,42 @@ module.exports = {
             if (result !== '-55555n') { throw result }
         },
     ],
-    log2x: [
+    log2: [
         () => {
-            const result = log2x(0n)
+            const result = log2(0n)
+            if (result !== -1n) { throw result }
+        },
+        () => {
+            const result = log2(1n)
             if (result !== 0n) { throw result }
         },
         () => {
-            const result = log2x(1n)
+            const result = log2(2n)
             if (result !== 1n) { throw result }
         },
         () => {
-            const result = log2x(2n)
+            const result = log2(3n)
+            if (result !== 1n) { throw result }
+        },
+        () => {
+            const result = log2(4n)
             if (result !== 2n) { throw result }
         },
         () => {
-            const result = log2x(3n)
+            const result = log2(7n)
             if (result !== 2n) { throw result }
         },
         () => {
-            const result = log2x(4n)
+            const result = log2(8n)
             if (result !== 3n) { throw result }
         },
         () => {
-            const result = log2x(7n)
+            const result = log2(15n)
             if (result !== 3n) { throw result }
         },
         () => {
-            const result = log2x(8n)
+            const result = log2(16n)
             if (result !== 4n) { throw result }
-        },
-        () => {
-            const result = log2x(15n)
-            if (result !== 4n) { throw result }
-        },
-        () => {
-            const result = log2x(16n)
-            if (result !== 5n) { throw result }
         }
     ]
 }
