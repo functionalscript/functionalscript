@@ -46,6 +46,7 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
 
 /** @type {(a: bigint) => bigint} */
 const log2 = a => {
+    // Possible optimization: use a binary search in 32 bit value
     let i = -1n
     while (a > 0n) {
         ++i
