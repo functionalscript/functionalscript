@@ -1,6 +1,31 @@
 const { log2 } = require("../bigint/module.f.cjs")
 
+/*
+ * a < b < c
+ * 0   0   1
+ * 0   1   0
+ *   1  11
+ *
+ * [[a,b], c]
+ *
+ * 0   1   1
+ * 0   0   1
+ *   10  1
+ * [a, [b,c]]
+ */
+
 /** @typedef {bigint} Leaf1 */
+
+/**
+ * `x[0] < x[1]`
+ * Conclusion: `log2(x[0]) <= log2(x[1])`
+ *
+ * `x[1] < x[2]`
+ * `H = log2(x[1]) = log2(x[2])`
+ * Conclusion: `log2(x[1] ^ x[2]) < H`
+ *
+ * @typedef {readonly[XNode, bigint, XNode]} XNode
+ */
 
 /** @typedef {readonly[bigint, bigint]} Leaf2 */
 
