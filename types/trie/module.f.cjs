@@ -1,65 +1,44 @@
 const { log2 } = require("../bigint/module.f.cjs")
 
-/** @typedef {bigint} Leaf */
+/** @typedef {bigint} Leaf1 */
 
-/** @typedef {readonly[TNode, bigint, bigint, TNode]} Branch */
+/** @typedef {readonly[bigint, bigint]} Leaf2 */
 
-/** @typedef {Branch|Leaf} TNode */
+/** @typedef {readonly[Node1, bigint, Node1]} Node3 */
 
-/** @typedef {TNode|null} Root */
+/** @typedef {Node3|Leaf2|Leaf1} Node1 */
 
-/** @type {(root: TNode) => (v: bigint) => TNode} */
-const addNode = root => v => {
+/** @typedef {Node1|null} Root */
+
+/** @type {(a: bigint) => (b: bigint) => bigint} */
+const height = a => b => log2(a ^ b) + 1n
+
+/** @type {(node: Node1) => (v: bigint) => bigint} */
+const node1Height = node => v => {
+    if (typeof node === 'bigint') { height(node)(v) }
+    throw 'todo'
+}
+
+/** @type {(root: Root) => (v: bigint) => Root} */
+const add = root => v => {
+    if (root === null) { return v }
     if (typeof root === 'bigint') {
         if (root === v) { return root }
         const [a, b] = root < v ? [root, v] : [v, root]
-        if (b < 0n) {
-            // a and b are negative.
-            throw 'todo'
-        }
-        if (a < 0n) {
-            // a is negative, b is not negative.
-            return [a, 0n, 0n, b]
-        }
-        // `a^b !== 0n` so `h >= 1n`
-        const h = log2(a ^ b) + 1n
-        return [a, h, b >> h, b]
+        return [a, b]
     }
-    const [a, h, p, b] = root
-    /** @type {(f: (x: TNode) => TNode) => (x: TNode) => TNode} */
-    const addX = f => x => {
-        const xN = addNode(x)(v)
-        return xN === x ? root : f(x)
+    if (root.length === 2) {
+        const [a, b] = root
+        if (a === v || b === v) { return root }
+        return a < v ? v < b ? [a, v, b] : [a, b, v] : [v, a, b]
     }
-    const addA = () => addX(x => [x, h, p, b])(a)
-    const addB = () => addX(x => [a, h, p, x])(b)
-    if (h === 0n) {
-        return v < 0n ? addA() : addB()
+    const [a, b, c] = root
+    if (v === b) { return root }
+    const h = height(b)(v)
+    if (b < v) {
     }
-    if (v < 0n) {
-        // `v` is negative
-        throw 'todo'
-    }
-    if (p < 0n) {
-        // `p` is negative
-        throw 'todo'
-    }
-    // h > 0n
-    const vp = v >> h
-    if (vp === p) {
-        const x = 1n << (h - 1n)
-        const m = (x << 1n) - 1n
-        const mv = v & m
-        return mv < x ? addA() : addB()
-    }
-    // `a^b !== 0n` so `h >= 1n`
-    const h2 = log2(vp ^ p) + 1n
-    const hN = h2 + h
-    return vp < p ? [v, hN, p >> h2, root] : [root, hN, vp >> h2, v]
+    throw 'todo'
 }
-
-/** @type {(root: Root) => (v: bigint) => TNode} */
-const add = root => v => root === null ? v : addNode(root)(v)
 
 module.exports = {
     /** @readonly */
