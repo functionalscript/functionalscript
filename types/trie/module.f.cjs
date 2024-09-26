@@ -1,68 +1,49 @@
-const { log2 } = require("../bigint/module.f.cjs")
-
 /*
- * a < b < c
- * 0   0   1
- * 0   1   0
- *   1  11
+ * [a, b, c]
  *
- * [[a,b], c]
+ * middle(a) < b < middle(c)
  *
- * 0   1   1
- * 0   0   1
- *   10  1
- * [a, [b,c]]
+ * a ^ b > b ^ c
  */
 
 /** @typedef {bigint} Leaf1 */
 
-/**
- * `x[0] < x[1]`
- * Conclusion: `log2(x[0]) <= log2(x[1])`
- *
- * `x[1] < x[2]`
- * `H = log2(x[1]) = log2(x[2])`
- * Conclusion: `log2(x[1] ^ x[2]) < H`
- *
- * @typedef {readonly[XNode, bigint, XNode]} XNode
- */
-
-/** @typedef {readonly[bigint, bigint]} Leaf2 */
-
 /** @typedef {readonly[Node1, bigint, Node1]} Node3 */
 
-/** @typedef {Node3|Leaf2|Leaf1} Node1 */
+/** @typedef {readonly[Node1, bigint]} Node2 */
+
+/** @typedef {Leaf1|Node2|Node3} Node1 */
 
 /** @typedef {Node1|null} Root */
 
-/** @type {(a: bigint) => (b: bigint) => bigint} */
-const height = a => b => log2(a ^ b) + 1n
+/** @type {(n: Node1) => bigint} */
+const middle = n => typeof n === 'bigint' ? n : n[1]
 
-/** @type {(node: Node1) => (v: bigint) => bigint} */
-const node1Height = node => v => {
-    if (typeof node === 'bigint') { height(node)(v) }
-    throw 'todo'
-}
+/** @type {(a: bigint) => (b: bigint) => readonly[bigint, bigint]} */
+const sort = a => b => a < b ? [a, b] : [b, a]
 
-/** @type {(root: Root) => (v: bigint) => Root} */
+/** @type {(a: Node1) => (b: bigint) => (c: Root) => Node2|Node3} */
+const node = a => b => c => c === null ? [a, b] : [a, b, c]
+
+/** @type {(root: Root) => (v: bigint) => Node1 } */
 const add = root => v => {
     if (root === null) { return v }
     if (typeof root === 'bigint') {
-        if (root === v) { return root }
-        const [a, b] = root < v ? [root, v] : [v, root]
-        return [a, b]
+        return root === v ? root : sort(root)(v)
     }
-    if (root.length === 2) {
-        const [a, b] = root
-        if (a === v || b === v) { return root }
-        return a < v ? v < b ? [a, v, b] : [a, b, v] : [v, a, b]
+    const [a, b] = root
+    if (b === v) { return root }
+    // a = aa, b = b3
+    const c = root.length === 3 ? root[2] : null
+    // b0 = 91 b1 = b3
+    const [b0, b1] = sort(b)(v)
+    // ! 3b < 22
+    if ((middle(a) ^ b0) < (b0 ^ b1)) {
+        const ab0 = add(a)(b0)
+        return ab0 === a ? root : node(ab0)(b1)(c)
     }
-    const [a, b, c] = root
-    if (v === b) { return root }
-    const h = height(b)(v)
-    if (b < v) {
-    }
-    throw 'todo'
+    const b1c = add(c)(b1)
+    return b1c === c ? root : [a, b0, b1c]
 }
 
 module.exports = {

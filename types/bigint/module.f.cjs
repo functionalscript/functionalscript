@@ -16,6 +16,9 @@ const abs = a => a >= 0 ? a : -a
 /** @type {(a: bigint) => compare.Sign} */
 const sign = a => unsafeCmp(a)(0n)
 
+/** @type {(a: bigint) => (b: bigint) => compare.Sign} */
+const cmp = unsafeCmp
+
 /** @type {(a: bigint) => string} */
 const serialize = a => `${a}n`
 
@@ -62,6 +65,8 @@ module.exports = {
     sum,
     /** @readonly */
     abs,
+    /** @readonly */
+    cmp,
     /** @readonly */
     sign,
     /** @readonly */
