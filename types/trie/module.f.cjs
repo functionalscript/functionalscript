@@ -1,7 +1,7 @@
 /*
  * [a, b, c]
  *
- * middle(a) < b < middle(c)
+ * (any of a) < b < (any of c)
  *
  * a ^ b > b ^ c
  */
