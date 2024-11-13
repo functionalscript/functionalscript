@@ -49,11 +49,15 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        deno-version: [1.x, 2.x]
+
     steps:
     - uses: actions/checkout@v2
     - uses: denoland/setup-deno@v1
       with:
-        deno-version: v1.x
+        deno-version: ${{ matrix.deno-version }}
     - run: deno run --quiet --allow-read --allow-env --allow-net --allow-hrtime ./dev/test.mjs
 
   bun:
