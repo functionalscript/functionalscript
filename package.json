@@ -15,7 +15,7 @@
     "url": "git+https://github.com/functionalscript/functionalscript.git"
   },
   "author": "Sergey Shandar",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "keywords": [
     "lambda",
     "functional-programming",
