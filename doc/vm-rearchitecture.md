@@ -68,7 +68,9 @@ flowchart TB
   app --> fspbc[(Functional Script Parser Byte Code)]
 ```
 
-The application will be able to convert FunctionalScript code into byte code and execute it.
+The application can do two things:
+1. Convert FunctionalScript code into byte code using the parser source code and the VM.
+2. Execute byte code using the VM.
 
 ## Byte code
 
