@@ -16,7 +16,7 @@ flowchart TB
   app[Application] --> parser[Parser] --> js[VM] --> mem[Memory Manager]
 ```
 
-The parser is written in Rust using VM types, such as `JsString` and `JsBigInt`.
+The parser is written in Rust using VM types, such as `JsString` and `JsBigInt`. The application can parse JSON and DJS files and output in any of these formats as a standalone module.
 
 ## Stage 1: Using a Third-Party JS Engine for Parsing
 
