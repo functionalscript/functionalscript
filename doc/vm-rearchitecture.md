@@ -12,7 +12,7 @@ About a year ago (Nov 2023), the FunctionalScript team started a new project tha
   - [array](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_array.rs),
   - [object](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_object.rs),
   - [any](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/any.rs).
-- And, of course, we've implemented a parser for JSON and DJS. And it works very well. See [the article about DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b) for more information.
+- And, of course, we've implemented a parser for JSON and DJS, which works well. See [the article about DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b) for more information.
 
 All of this code is written in Rust. However, here’s the problem: Rust is an excellent system-level programming language, but developers often struggle when working with high-level and business logic. While Rust excels at runtime performance, developing components like parsers in Rust can be slow and complex due to its verbose syntax and strict type system. It’s very good for implementing a memory manager, a VM, or a big integer, but less suited for tasks like implementing a parser efficiently (and yes, we are aware of third-party parser generators). That’s why we want to use high-level language for that. Of course, we don't need to search for one because we already have FunctionalScript and JavaScript as glue. Also, because of our minimal resources, we would like to use only a few repositories. So, we plan to merge NaNVM code into the [FunctionalScript](https://github.com/functionalscript/functionalscript) repo.
 
