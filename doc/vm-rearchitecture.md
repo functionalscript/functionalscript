@@ -27,7 +27,7 @@ flowchart TB
 
 ## Stage 1: Using a third-party JS engine for parsing
 
-Because FunctionalScript is a subset of JavaScript, we can use third-party JavaScript engines to bootstrap our parser, which is written on FunctionalScript, without circular dependencies. In Rust, we only need to implement a generic byte code deserializer that reads byte code and invokes VM API functions. 
+Because FunctionalScript is a subset of JavaScript, we can use third-party JavaScript engines to bootstrap our parser, which is written on FunctionalScript, without circular dependencies. In Rust, we only need to implement a generic byte code deserializer that reads byte code and invokes VM API functions. We've decided to use [Deno](https://deno.com/) and its [deno_core](https://crates.io/crates/deno_core/) package as a third-party JS engine because it's also written on Rust, has a crate and it's easy to integrate with our project.
 
 ```mermaid
 flowchart TB
