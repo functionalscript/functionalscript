@@ -6,7 +6,7 @@ About a year ago (Nov 2023), the FunctionalScript team started a new project tha
   - a [local](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/local.rs) manager with a reference counter,
   - a simple [arena](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/arena.rs) implementation.
 - [BigInt](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/big_numbers/big_int.rs),
-- [All JS/FS data types](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/js) in the VM:
+- [All FS data types](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/js) in the VM:
   - [string](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_string.rs),
   - [bigint](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_bigint.rs),
   - [array](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_array.rs),
