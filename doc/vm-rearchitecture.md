@@ -106,7 +106,7 @@ type Tag = u8
 type Code = Array<u8>;
 ```
 
-A list of tags:
+A list of tags/commands for JSON and DJS.
 
 |format|any           |Tag|                       |
 |------|--------------|---|-----------------------|
@@ -120,3 +120,5 @@ A list of tags:
 |DJS   |reference     | 07|u32                    |
 |      |bigint+       | 08|BigUInt                |
 |      |bigint-       | 09|BigUInt                |
+
+We will add new tags for FunctionalScript byte code in the future because we don't need to design them for Stage 1.
