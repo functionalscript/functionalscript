@@ -22,9 +22,19 @@ The parser is written in Rust using VM types, such as `JsString` and `JsBigInt`.
 
 Because FunctionalScript is a subset of JavaScript, we can use third-party JavaScript engines to bootstrap our parser, written on FunctionalScript, without circular dependencies. In Rust, we only need to implement a generic byte code deserializer that reads byte code and invokes VM API functions. We've decided to use [Deno](https://deno.com/) and its [deno_core](https://crates.io/crates/deno_core/) package as a third-party JS engine because it's also written in Rust, has a crate and it's easy to integrate with our project.
 
-### Challenges 
-1. To restore previous functionality, we still need to have a parser that can convert FunctionalScript or DJS into byte code,
+```mermaid
+flowchart TB
+  app[Application] --> deno(deno_core)
+  app --> bcd[Byte Code Deserializer] --> js[VM] --> mem[Memory Manager]
+```
+
+### Requirements 
+1. To restore previous functionality, we still need a parser that can convert FunctionalScript or DJS into byte code,
 2. We have to design byte code for FunctionalScript and implement its deserializer in Rust.
+
+### Build Process
+
+To satisfy the first requirement we need a parser written in FunctionalScript. Then build process should take the parser source code and embed it into the application. See [include_str](https://doc.rust-lang.org/std/macro.include_str.html) for more details.
 
 ```mermaid
 flowchart TB
@@ -33,13 +43,9 @@ flowchart TB
   app --> fsp[(Functional Script Parser Source Code)]
 ```
 
-### Build Process
-
-The project build process should take the FunctionalScript parse source code from `.f.cjs` files and embed it into the application. See [include_str](https://doc.rust-lang.org/std/macro.include_str.html) for more details.
-
 ### Run-Time Process
 
-1. The application loads a FunctionalScript parser source code from memory into the Deno engine.
+1. The application loads the parser source code from memory into the Deno engine.
 2. The application executes the parser in the JS engine with the command-line parameters provided by the user.
 3. After the parser generates the byte code, the application sends this byte code to the VM.
 
