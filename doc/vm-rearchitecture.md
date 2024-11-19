@@ -78,11 +78,7 @@ The byte code format is designed for fast and straightforward deserialization an
 
 ### Requirements
 
-- **Simple deserialization**:
-    - `string`: UTF16
-    - `number`: in a binary format
-    - `bigint`: in a binary format
-    - `usize`: u32
+- **Simple deserialization**: `string` is UTF16, `number` and `bigint` in a binary format, `usize` is 32 bits.
 - **No imports**: byte code describes a standalone module without dependencies. A parser should resolve all imports.
 - **No syntax sugar**: a parser should convert all syntax sugar operations into basic commands.
 - **One unit is one byte**: Byte code can be serialized into a byte array or a file.
