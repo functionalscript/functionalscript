@@ -1,6 +1,6 @@
 # FunctionalScript NaNVM Re-Architecture
 
-About a year ago (Nov 2023), the FunctionalScript team started a new project called [NaNVM](https://github.com/functionalscript/nanvm). We have limited resources (⌛💰) for the projects, so progress has been slow. If you'd like to speed it up, please consider [sponsoring the project ❤️](https://opencollective.com/functionalscript). Since then, we’ve implemented several components from scratch in Rust:
+About a year ago (Nov 2023), the FunctionalScript team started a new project called [NaNVM](https://github.com/functionalscript/nanvm). We have limited resources (⌛💰) for the projects, so progress has been slow. Since then, we’ve implemented several components from scratch in Rust:
 - An interface and multiple implementations for [Memory Management](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/mem), such as a [global](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/global.rs) memory manager using standard `alloc/dealloc`, a [local](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/local.rs) manager with a reference counter, and a simple [arena](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/arena.rs) implementation.
 - [All FS data types](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/js) in the VM, such as [string](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_string.rs), [bigint](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_bigint.rs), [array](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_array.rs), [object](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_object.rs), and [any](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/any.rs).
 - And, of course, we've implemented a parser for JSON and DJS in Rust, which works well. See [this article about DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b) for more information.
@@ -53,7 +53,7 @@ This stage provides an interim solution to parse FunctionalScript using Deno whi
 
 ## Stage 2: Moving the Deno into `dev-dependencies`
 
-Once our parser can parse itself and convert it into byte code, we can move the `deno_core` to development dependencies. This means that we need it only for build time. This transition allows us to eliminate the runtime dependency on Deno, streamlining the deployment and reducing overhead in production environments.
+Once our parser can parse itself and convert it into byte code, we can move the `deno_core` to development dependencies. This means that we need it only for build time. This transition eliminates the runtime dependency on Deno, streamlining deployment and reducing overhead in production environments.
 
 ### Build Process
 
@@ -74,7 +74,7 @@ The application can do two things:
 
 ## Byte code
 
-The byte code format is designed for fast and straightforward deserialization and doesn't depend on a particular VM implementation.
+The byte code format is designed for fast and straightforward deserialization and doesn't depend on a particular VM implementation. This design ensures that the byte code remains portable and does not rely on a specific VM implementation, allowing flexibility in integrating with other environments, including content-addressable implementation of FunctionalScript.
 
 ### Requirements
 
@@ -128,4 +128,6 @@ type Code = Array<u8>;
 
 We will add new tags for FunctionalScript byte code in the future as they are not needed for Stage 1. 
 
-This design ensures that the byte code remains portable and does not rely on a specific VM implementation, allowing flexibility in integrating with other environments, including content-addressable implementation of FunctionalScript.
+## Summary
+
+If you think the architecture looks promising and want to see a standalone implementation of FunctionalScript VM sooner, please consider [sponsoring the project ❤️](https://opencollective.com/functionalscript).
