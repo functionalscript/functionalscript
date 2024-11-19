@@ -56,3 +56,4 @@ struct Module {
 |      |negative_bigint| 09|BigUInt                |
 |FJS   |function       | 0A|Function               |
 |      |arg_ref        | 0B|u32                    |
+|      |undefined      | 0C|                       |
