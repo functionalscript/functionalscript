@@ -5,7 +5,7 @@ About a year ago (Nov 2023), the FunctionalScript team started a new project cal
 - [All FS data types](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/js) in the VM, such as [string](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_string.rs), [bigint](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_bigint.rs), [array](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_array.rs), [object](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_object.rs), and [any](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/any.rs).
 - And, of course, we've implemented a parser for JSON and DJS in Rust, which works well. See [this article about DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b) for more information.
 
-All of this code is written in Rust. However, here’s the problem: Rust is an excellent system-level programming language, but developers often struggle when working with high-level and business logic. While Rust excels at runtime performance, developing components like parsers in Rust can be slow and complex due to its verbose syntax and strict type system. It’s great for implementing a memory manager, a VM, or a big integer but less suited for tasks like implementing a parser efficiently (and yes, we are aware of third-party parser generators). That’s why we want to use a high-level language for this purpose. Of course, we don't need to search for one because we already have FunctionalScript and JavaScript as glue. Additionally, because of our limited resources, we aim to use only a few repositories. As a result, we plan to merge the NaNVM code into the [FunctionalScript](https://github.com/functionalscript/functionalscript) repo.
+All of this code is written in Rust. Rust excels at runtime performance and system-level programming. However, developers often struggle when working with high-level and business logic. Its verbosity and various memory management models make developing components like parsers in Rust slow and complex. It’s great for implementing a memory manager, a VM, or a big integer but less suited for tasks like implementing a parser efficiently (and yes, we are aware of third-party parser generators). That’s why we want to use a high-level language for this purpose. Of course, we don't need to search for one because we already have FunctionalScript and JavaScript as glue. Additionally, because of our limited resources, we aim to use only a few repositories. As a result, we plan to merge the NaNVM code into the [FunctionalScript repo](https://github.com/functionalscript/functionalscript).
 
 ## Stage 0: Current State
 
@@ -20,7 +20,7 @@ The parser is written in Rust using VM types, such as `JsString` and `JsBigInt`.
 
 ## Stage 1: Using a Third-Party JS Engine for Parsing
 
-Because FunctionalScript is a subset of JavaScript, we can use third-party JavaScript engines to bootstrap our parser, written on FunctionalScript, without circular dependencies. In Rust, we only need to implement a generic byte code deserializer that reads byte code and invokes VM API functions. We've decided to use [Deno](https://deno.com/) and its [deno_core](https://crates.io/crates/deno_core/) package as a third-party JS engine because it's also written in Rust, has a crate and it's easy to integrate with our project.
+Because FunctionalScript is a subset of JavaScript, we can use third-party JavaScript engines to bootstrap our parser, written on FunctionalScript, without circular dependencies. In Rust, we only need to implement a generic byte code deserializer that reads byte code and invokes VM API functions. We selected [Deno](https://deno.com/) and its [deno_core](https://crates.io/crates/deno_core/) package as a third-party JS engine because it's also written in Rust, has a crate and it's easy to integrate with our project.
 
 ```mermaid
 flowchart TB
@@ -130,4 +130,4 @@ We will add new tags for FunctionalScript byte code in the future as they are no
 
 ## Summary
 
-If you think the architecture looks promising and want to see a standalone implementation of FunctionalScript VM sooner, please consider [sponsoring the project ❤️](https://opencollective.com/functionalscript).
+If you find this architecture promising and want to support the development of a standalone FunctionalScript VM, please consider [sponsoring the project ❤️](https://opencollective.com/functionalscript). Additionally, we welcome contributions and feedback from the open-source community to accelerate this initiative.
