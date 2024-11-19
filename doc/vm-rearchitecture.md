@@ -1,4 +1,4 @@
-# FunctionalScript NaNVM Re-Architecture
+# NaNVM Re-Architecture
 
 About a year ago (Nov 2023), the FunctionalScript team started a new project called [NaNVM](https://github.com/functionalscript/nanvm). We have limited resources (⌛💰) for the projects, so progress has been slow. Since then, we’ve implemented several components from scratch in Rust:
 - An interface and multiple implementations for [Memory Management](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/mem), such as a [global](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/global.rs) memory manager using standard `alloc/dealloc`, a [local](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/local.rs) manager with a reference counter, and a simple [arena](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/arena.rs) implementation.
