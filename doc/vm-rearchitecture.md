@@ -2,7 +2,7 @@
 
 About a year ago (Nov 2023), the FunctionalScript team started a new project called [NaNVM](https://github.com/functionalscript/nanvm). We have limited resources (⌛💰) for the projects, so progress has been slow. If you'd like to speed it up, please consider [sponsoring the project ❤️](https://opencollective.com/functionalscript). Since then, we’ve implemented several components from scratch in Rust:
 - An interface and multiple implementations for [Memory Management](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/mem), such as a [global](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/global.rs) memory manager using standard `alloc/dealloc`, a [local](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/local.rs) manager with a reference counter, and a simple [arena](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/mem/arena.rs) implementation.
-- [All FS data types](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/js) in the VM, sich as [string](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_string.rs), [bigint](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_bigint.rs), [array](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_array.rs), [object](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_object.rs), and [any](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/any.rs).
+- [All FS data types](https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/js) in the VM, such as [string](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_string.rs), [bigint](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_bigint.rs), [array](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_array.rs), [object](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/js_object.rs), and [any](https://github.com/functionalscript/nanvm/blob/main/nanvm-lib/src/js/any.rs).
 - And, of course, we've implemented a parser for JSON and DJS in Rust, which works well. See [this article about DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b) for more information.
 
 All of this code is written in Rust. However, here’s the problem: Rust is an excellent system-level programming language, but developers often struggle when working with high-level and business logic. While Rust excels at runtime performance, developing components like parsers in Rust can be slow and complex due to its verbose syntax and strict type system. It’s great for implementing a memory manager, a VM, or a big integer but less suited for tasks like implementing a parser efficiently (and yes, we are aware of third-party parser generators). That’s why we want to use a high-level language for this purpose. Of course, we don't need to search for one because we already have FunctionalScript and JavaScript as glue. Additionally, because of our limited resources, we aim to use only a few repositories. As a result, we plan to merge the NaNVM code into the [FunctionalScript](https://github.com/functionalscript/functionalscript) repo.
@@ -34,7 +34,7 @@ flowchart TB
 
 ### Build Process
 
-To satisfy the first requirement we need a parser written in FunctionalScript. Then build process should take the parser source code and embed it into the application. See [include_str](https://doc.rust-lang.org/std/macro.include_str.html) for more details.
+To satisfy the first requirement, we need a parser written in FunctionalScript. The build process should then take the parser source code and embed it into the application. See [include_str](https://doc.rust-lang.org/std/macro.include_str.html) for more details.
 
 ```mermaid
 flowchart TB
@@ -49,11 +49,11 @@ flowchart TB
 2. The application executes the parser in the JS engine with the command-line parameters provided by the user.
 3. After the parser generates the byte code, the application sends this byte code to the VM.
 
-This stage should be temporary until our parser can parse itself.
+This stage provides an interim solution to parse FunctionalScript using Deno while we develop the self-hosted parser.
 
 ## Stage 2: Moving the Deno into `dev-dependencies`
 
-Once our parser can parse itself and convert it into byte code, we can move the `deno_core` to development dependencies. This means that we need it only for build time.
+Once our parser can parse itself and convert it into byte code, we can move the `deno_core` to development dependencies. This means that we need it only for build time. This transition allows us to eliminate the runtime dependency on Deno, streamlining the deployment and reducing overhead in production environments.
 
 ### Build Process
 
@@ -78,7 +78,7 @@ The byte code format is designed for fast and straightforward deserialization an
 
 ### Requirements
 
-- **Simple deserializion**:
+- **Simple deserialization**:
     - `string`: UTF16
     - `number`: in a binary format
     - `bigint`: in a binary format
@@ -126,4 +126,6 @@ type Code = Array<u8>;
 |      |bigint+       | 08|BigUInt                |
 |      |bigint-       | 09|BigUInt                |
 
-We will add new tags for FunctionalScript byte code in the future as they are not needed for Stage 1.
+We will add new tags for FunctionalScript byte code in the future as they are not needed for Stage 1. 
+
+This design ensures that the byte code remains portable and does not rely on a specific VM implementation, allowing flexibility in integrating with other environments, including content-addressable implementation of FunctionalScript.
