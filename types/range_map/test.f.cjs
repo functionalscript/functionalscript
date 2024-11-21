@@ -7,7 +7,7 @@ const { list } = require('../module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
 
 /** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
+const stringify = json.stringify(sort)
 
 /** @type {_.Operators<sortedSet.SortedSet<string>>} */
 const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
