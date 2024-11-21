@@ -1,6 +1,7 @@
 # Documentation
 
-FunctionalScript files have `.f.cjs` file extensions because it's using a `Common.JS` module system. See
+FunctionalScript files have `.f.cjs` file extensions because it's using a `Common.JS` module system. We plan to add 
+ESM support when we have the first parser working. See
 [ESM. Resolver Algorithm Specification](https://nodejs.org/api/esm.html#resolver-algorithm-specification)
 and [ESM. Enabling](https://nodejs.org/docs/latest-v13.x/api/esm.html#esm_enabling).
 
