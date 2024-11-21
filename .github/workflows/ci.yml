@@ -87,6 +87,6 @@ jobs:
         name: package-lock.json
     - uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 8
+        dotnet-version: 9
     - run: npm ci
     - run: npm run comtest
