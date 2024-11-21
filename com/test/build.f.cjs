@@ -86,8 +86,7 @@ const cs = ({ dirname, platform }) => ({
         platform === 'win32'
             ? ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]
             // .Net on Linux and MacOS doesn't properly support COM object marshalling
-            : // ['dotnet', 'build', `${dirname}/cs/cs.csproj`]
-            ['dotnet', 'run', '--project', `${dirname}/cs/cs.csproj`]
+            : ['dotnet', 'build', `${dirname}/cs/cs.csproj`]
     ],
 })
 
