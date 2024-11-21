@@ -42,19 +42,18 @@ struct Module {
 }
 ```
 
-|type|any           |tag|                       |                             |
-|----|--------------|---|-----------------------|-----------------------------|
-|JSON|null          | 00|                       |                             |
-|    |number        | 01|u64                    |                             |
-|    |false         | 02|                       |                             |
-|    |true          | 03|                       |                             |
-|    |string        | 04|String                 |                             |
-|    |object        | 05|Object                 |                             |
-|    |array         | 06|Array<Any>             |                             |
-|DJS |bigint+       | 07|BigUInt                |                             |
-|    |bigint-       | 08|BigUInt                |                             |
-|    |local_ref     | 09|u32                    |consts[i]                    |
-|FJS |arg_ref       | 0A|u32                    |args[i]                      |
-|    |undefined     | 0B|                       |                             |
-|    |function      | 0C|Function               |the last constant is a return|
-|    |...           |   |                       |                             |
+|format|any            |Tag|                       |
+|------|---------------|---|-----------------------|
+|JSON  |null           | 00|                       |
+|      |number         | 01|u64                    |
+|      |false          | 02|                       |
+|      |true           | 03|                       |
+|      |string         | 04|String                 |
+|      |object         | 05|Object                 |
+|      |array          | 06|Array<Any>             |
+|DJS   |ref            | 07|u32                    |
+|      |positive_bigint| 08|BigUInt                |
+|      |negative_bigint| 09|BigUInt                |
+|FJS   |function       | 0A|Function               |
+|      |arg_ref        | 0B|u32                    |
+|      |undefined      | 0C|                       |
