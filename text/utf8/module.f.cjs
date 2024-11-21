@@ -38,19 +38,19 @@ const utf8StateToError = state => {
     switch (state.length) {
         case 1: {
             [x] = state
-            break;
+            break
         }
         case 2: {
             const [s0, s1] = state
             x = s0 < 0b1111_0000
                 ? ((s0 & 0b0000_1111) << 6) + (s1 & 0b0011_1111) + 0b0000_0100_0000_0000
                 : ((s0 & 0b0000_0111) << 6) + (s1 & 0b0011_1111) + 0b0000_0010_0000_0000
-            break;
+            break
         }
         case 3: {
             const [s0, s1, s2] = state
             x = ((s0 & 0b0000_0111) << 12) + ((s1 & 0b0011_1111) << 6) + (s2 & 0b0011_1111) + 0b1000_0000_0000_0000
-            break;
+            break
         }
         default:
             throw 'invalid state'
