@@ -34,15 +34,28 @@ const fromCodePointList = flatMap(codePointToUtf8)
 
 /** @type {(state: Utf8NonEmptyState) => i32}*/
 const utf8StateToError = state => {
+    let x
     switch (state.length) {
-        case 1:
-            return state[0] | errorMask
-        case 2:
-            if (state[0] < 0b1111_0000) return (((state[0] & 0b0000_1111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0100_0000_0000) | errorMask
-            return (((state[0] & 0b0000_0111) << 6) + (state[1] & 0b0011_1111) + 0b0000_0010_0000_0000) | errorMask
-        case 3:
-            return (((state[0] & 0b0000_0111) << 12) + ((state[1] & 0b0011_1111) << 6) + (state[2] & 0b0011_1111) + 0b1000_0000_0000_0000) | errorMask
+        case 1: {
+            [x] = state
+            break;
+        }
+        case 2: {
+            const [s0, s1] = state
+            x = s0 < 0b1111_0000
+                ? ((s0 & 0b0000_1111) << 6) + (s1 & 0b0011_1111) + 0b0000_0100_0000_0000
+                : ((s0 & 0b0000_0111) << 6) + (s1 & 0b0011_1111) + 0b0000_0010_0000_0000
+            break;
+        }
+        case 3: {
+            const [s0, s1, s2] = state
+            x = ((s0 & 0b0000_0111) << 12) + ((s1 & 0b0011_1111) << 6) + (s2 & 0b0011_1111) + 0b1000_0000_0000_0000
+            break;
+        }
+        default:
+            throw 'invalid state'
     }
+    return x | errorMask
 }
 
 /** @type {operator.StateScan<number, Utf8State, list.List<i32>>} */
@@ -57,16 +70,22 @@ const utf8ByteToCodePointOp = state => byte => {
     }
     if (byte >= 0b1000_0000 && byte < 0b1100_0000) {
         switch (state.length) {
-            case 1:
-                if (state[0] < 0b1110_0000) { return [[((state[0] & 0b0001_1111) << 6) + (byte & 0b0011_1111)], null] }
-                if (state[0] < 0b1111_1000) { return [[], [state[0], byte]] }
+            case 1: {
+                const [s0] = state
+                if (s0 < 0b1110_0000) { return [[((s0 & 0b0001_1111) << 6) + (byte & 0b0011_1111)], null] }
+                if (s0 < 0b1111_1000) { return [[], [s0, byte]] }
                 break
-            case 2:
-                if (state[0] < 0b1111_0000) { return [[((state[0] & 0b0000_1111) << 12) + ((state[1] & 0b0011_1111) << 6) + (byte & 0b0011_1111)], null] }
-                if (state[0] < 0b1111_1000) { return [[], [state[0], state[1], byte]] }
+            }
+            case 2: {
+                const [s0, s1] = state
+                if (s0 < 0b1111_0000) { return [[((s0 & 0b0000_1111) << 12) + ((s1 & 0b0011_1111) << 6) + (byte & 0b0011_1111)], null] }
+                if (s0 < 0b1111_1000) { return [[], [s0, s1, byte]] }
                 break
-            case 3:
-                return [[((state[0] & 0b0000_0111) << 18) + ((state[1] & 0b0011_1111) << 12) + ((state[2] & 0b0011_1111) << 6) + (byte & 0b0011_1111)], null]
+            }
+            case 3: {
+                const [s0, s1, s2] = state
+                return [[((s0 & 0b0000_0111) << 18) + ((s1 & 0b0011_1111) << 12) + ((s2 & 0b0011_1111) << 6) + (byte & 0b0011_1111)], null]
+            }
         }
     }
     const error = utf8StateToError(state)
@@ -76,10 +95,8 @@ const utf8ByteToCodePointOp = state => byte => {
 }
 
 /** @type {(state: Utf8State) => readonly[list.List<i32>, Utf8State]} */
-const utf8EofToCodePointOp = state => {
-    if (state === null) { return [null, null] }
-    return [[utf8StateToError(state)], null]
-}
+const utf8EofToCodePointOp = state =>
+    [state === null ? null : [utf8StateToError(state)], null]
 
 /** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<i32>>} */
 const utf8ByteOrEofToCodePointOp = state => input => input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
