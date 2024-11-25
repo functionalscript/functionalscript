@@ -44,7 +44,7 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
     }
 }
 
-const bit_len = (/** @type {bigint} */v) => {
+const bitLen = (/** @type {bigint} */v) => {
     if (v < 0n) { v = -v }
     if (v === 0n) { return 0n }
     let result = 1n
@@ -69,7 +69,7 @@ const bit_len = (/** @type {bigint} */v) => {
     return result
 }
 
-const log2 = (/** @type {bigint} */v) => v <= 0n ? -1n : bit_len(v) - 1n
+const log2 = (/** @type {bigint} */v) => v <= 0n ? -1n : bitLen(v) - 1n
 
 module.exports = {
     /** @readonly */
@@ -87,5 +87,5 @@ module.exports = {
     /** @readonly */
     log2,
     /** @readonly */
-    bit_len,
+    bitLen,
 }
