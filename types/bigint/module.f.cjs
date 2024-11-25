@@ -48,27 +48,27 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
  * Calculates the bit length of a given BigInt.
  *
  * The bit length of a number is the number of bits required to represent it in binary,
- * excluding leading zeros/ones. For example:
- * - `0n` has a bit length of 0.
- * - `1n` has a bit length of 1.
+ * excluding leading zeros. For example:
+ * - `0n` (binary `...0`) has a bit length of 0.
+ * - `1n` (binary `...0_1`) has a bit length of 1.
  * - `255n` (binary `...0_11111111`) has a bit length of 8.
- * - `-1n` (binary `...1`) has a bit length of 0.
+ *
+ * Negative inputs are converted to their absolute values before calculation. For example:
+ * - `-255n` has a bit length of 8.
+ * - `-1n` has a bit length of 1.
  *
  * @param {bigint} v - The input BigInt. It can be positive, negative, or zero.
  * @returns {bigint} The bit length of the input BigInt.
  *
  * @remarks
- * This function works in two phases:
- * 1. A fast doubling phase that quickly identifies the range of the most significant bit.
- * 2. A binary search phase that refines the result to count all bits precisely.
+ * This function determines the bit length in two phases:
+ * 1. **Fast Doubling Phase:** Quickly identifies the range of the most significant bit using exponential steps.
+ * 2. **Binary Search Phase:** Refines the result to precisely count all significant bits.
  *
- * Negative inputs are converted to their positive counterparts because the bit length
- * is independent of the sign.
- *
- * The algorithm operates efficiently even for very large BigInts due to its logarithmic behavior.
+ * The algorithm operates with logarithmic complexity, making it efficient for very large BigInts.
  */
 const bitLen = v => {
-    if (v < 0n) { v = ~v }
+    if (v < 0n) { v = -v }
     if (v === 0n) { return 0n }
     let result = 1n
     let i = 1n
