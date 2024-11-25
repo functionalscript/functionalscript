@@ -83,6 +83,22 @@ module.exports = {
         const result = (1n << v).toString(2).length - 1
         if (result !== 1_048_575) { throw result }
     },
+    minus: () => {
+        let i = 0n
+        while (i < 1_048_575n) {
+            const s = -i
+            if (i !== -s) { throw [i, s] }
+            i += 1n
+        }
+    },
+    not: () => {
+        let i = 0n
+        while (i < 1_048_575n) {
+            const s = ~i
+            if (i !== ~s) { throw [i, s] }
+            i += 1n
+        }
+    },
     bitLen: {
         0: () => {
             const s = bitLen(0n)
@@ -102,19 +118,19 @@ module.exports = {
         },
         neg: [
             () => {
-                const s = bitLen(-1n)
+                const s = bitLen(~1n)
                 if (s !== 1n) { throw s }
             },
             () => {
-                const s = bitLen(-2n)
+                const s = bitLen(~2n)
                 if (s !== 2n) { throw s }
             },
             () => {
-                const s = bitLen(-3n)
+                const s = bitLen(~3n)
                 if (s !== 2n) { throw s }
             },
             () => {
-                const s = bitLen(-4n)
+                const s = bitLen(~4n)
                 if (s !== 3n) { throw s }
             },
         ]
