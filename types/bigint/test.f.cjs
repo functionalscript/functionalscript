@@ -71,7 +71,7 @@ module.exports = {
             if (result !== 4n) { throw result }
         },
         () => {
-            // max for Bun:
+            // max for Bun (131_072 Bytes)
             const v = 1_048_575n
             const result = log2(1n << v)
             if (result !== v) { throw result }
