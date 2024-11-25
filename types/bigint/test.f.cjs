@@ -1,4 +1,4 @@
-const { sum, abs, serialize, log2 } = require('./module.f.cjs')
+const { sum, abs, serialize, log2, bit_len } = require('./module.f.cjs')
 
 module.exports = {
     sum: () => {
@@ -71,10 +71,46 @@ module.exports = {
             if (result !== 4n) { throw result }
         },
         () => {
-            // [1_048_550n, 1_048_576n)
+            // max for Bun:
             const v = 1_048_575n
             const result = log2(1n << v)
             if (result !== v) { throw result }
         }
-    ]
+    ],
+    bit_len: {
+        0: () => {
+            const s = bit_len(0n)
+            if (s !== 0n) { throw s }
+        },
+        m: () => {
+            let i = 0n
+            while (i < 10_000n) {
+                const s = bit_len(1n << i)
+                if (s !== i + 1n) { throw [s, i] }
+                i += 1n
+            }
+        },
+        big: () => {
+            const s = bit_len(1n << 1_000_000n)
+            if (s !== 1_000_001n) { throw s }
+        },
+        neg: [
+            () => {
+                const s = bit_len(-1n)
+                if (s !== 1n) { throw s }
+            },
+            () => {
+                const s = bit_len(-2n)
+                if (s !== 2n) { throw s }
+            },
+            () => {
+                const s = bit_len(-3n)
+                if (s !== 2n) { throw s }
+            },
+            () => {
+                const s = bit_len(-4n)
+                if (s !== 3n) { throw s }
+            },
+        ]
+    }
 }

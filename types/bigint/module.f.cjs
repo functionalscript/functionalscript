@@ -44,9 +44,10 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
     }
 }
 
-const log2 = (/** @type {bigint} */v) => {
-    if (v <= 0n) { return -1n }
-    let result = 0n
+const bit_len = (/** @type {bigint} */v) => {
+    if (v < 0n) { v = -v }
+    if (v === 0n) { return 0n }
+    let result = 1n
     let i = 1n
     while (true) {
         const n = v >> i
@@ -68,6 +69,8 @@ const log2 = (/** @type {bigint} */v) => {
     return result
 }
 
+const log2 = (/** @type {bigint} */v) => v <= 0n ? -1n : bit_len(v) - 1n
+
 module.exports = {
     /** @readonly */
     addition,
@@ -83,4 +86,6 @@ module.exports = {
     scalar_mul,
     /** @readonly */
     log2,
+    /** @readonly */
+    bit_len,
 }
