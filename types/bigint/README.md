@@ -4,22 +4,22 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ## Benchmarks
 
-### bitLen vs toString(2).length (2024/11/25)
+### bitLenght versus toString (2024/11/25)
 
-|Framework|bitLen            |toString(2).length|
-|---------|------------------|------------------|
-|Bun      |1.781681          |2.079615          |
-|Deno 1   |0.710344          |1.917003          |
-|Deno 2   |0.986602          |2.286932          |
-|Node 16  |1.521150          |2.330505          |
-|Node 18  |1.393006          |2.312573          |
-|Node 20  |1.055315          |2.320039          |
-|Node 22  |0.983075          |2.336697          |
-|Node 23  |0.699960          |1.872965          |
+|Framework|bitLength(x)      |x.toString(2).length|
+|---------|------------------|--------------------|
+|Bun      |1.781681          |2.079615            |
+|Deno 1   |0.710344          |1.917003            |
+|Deno 2   |0.986602          |2.286932            |
+|Node 16  |1.521150          |2.330505            |
+|Node 18  |1.393006          |2.312573            |
+|Node 20  |1.055315          |2.320039            |
+|Node 22  |0.983075          |2.336697            |
+|Node 23  |0.699960          |1.872965            |
 
-`bitLen` wins.
+`bitLength` wins.
 
-### Minus vs Not
+### Minus versus Not
 
 |Framework|minus `-`         |not `~`           |
 |---------|------------------|------------------|
