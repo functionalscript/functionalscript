@@ -44,21 +44,49 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
     }
 }
 
-const bit_len = (/** @type {bigint} */v) => {
-    if (v < 0n) { v = -v }
-    if (v === 0n) { return 0n }
+/**
+ * Calculates the bit length of a given BigInt.
+ *
+ * The bit length of a number is the number of bits required to represent it in binary,
+ * excluding leading zeros. For example:
+ * - `0n` (binary `...0`) has a bit length of 0.
+ * - `1n` (binary `...0_1`) has a bit length of 1.
+ * - `255n` (binary `...0_11111111`) has a bit length of 8.
+ *
+ * Negative inputs are converted to their absolute values before calculation. For example:
+ * - `-255n` has a bit length of 8.
+ * - `-1n` has a bit length of 1.
+ *
+ * @param {bigint} v - The input BigInt. It can be positive, negative, or zero.
+ * @returns {bigint} The bit length of the input BigInt.
+ *
+ * @remarks
+ * This function determines the bit length in two phases:
+ * 1. **Fast Doubling Phase:** Quickly identifies the range of the most significant bit using exponential steps.
+ * 2. **Binary Search Phase:** Refines the result to precisely count all significant bits.
+ *
+ * The algorithm operates with logarithmic complexity, making it efficient for very large BigInts.
+ */
+const bitLen = v => {
+    if (v <= 0n) {
+        if (v === 0n) { return 0n }
+        v = -v
+    }
     let result = 1n
     let i = 1n
     while (true) {
         const n = v >> i
         if (n === 0n) {
+            // overshot
             break
         }
         v = n
         result += i
         i <<= 1n
     }
-    while (i !== 0n) {
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 1 before we divide it by 2.
+    while (i !== 1n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -69,7 +97,7 @@ const bit_len = (/** @type {bigint} */v) => {
     return result
 }
 
-const log2 = (/** @type {bigint} */v) => v <= 0n ? -1n : bit_len(v) - 1n
+const log2 = (/** @type {bigint} */v) => v <= 0n ? -1n : bitLen(v) - 1n
 
 module.exports = {
     /** @readonly */
@@ -87,5 +115,5 @@ module.exports = {
     /** @readonly */
     log2,
     /** @readonly */
-    bit_len,
+    bitLen,
 }
