@@ -6,6 +6,8 @@ Currently, we read files as strings and then parse them as functions. See [dev/t
 
 We can fix the issue by changing our test runner. The test runner will scan all directories and find all `test.f.cjs` files and then load them using `require`.
 
+**Note:** we will drop support for Deno v1.
+
 ## Creating `./_module.f.cjs`
 
 We can write a script which will generate `./_module.f.cjs` before packaging. Note: the script should be added into [prepack](https://docs.npmjs.com/cli/v8/using-npm/scripts#pre--post-scripts). The module should never be used by other internal modules. It's only for internal consumptions. The structure will be like this
