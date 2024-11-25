@@ -8,4 +8,21 @@ We can fix the issue by changing our test runner. The test runner will scan all 
 
 ## Creating `./_module.f.cjs`
 
-We can write a script which will generate `./_module.f.cjs` before packaging. Note: the script should be added into [prepack](https://docs.npmjs.com/cli/v8/using-npm/scripts#pre--post-scripts).
+We can write a script which will generate `./_module.f.cjs` before packaging. Note: the script should be added into [prepack](https://docs.npmjs.com/cli/v8/using-npm/scripts#pre--post-scripts). The module should never be used by other internal modules. It's only for internal consumptions. The structure will be like this
+
+```js
+module.exports = {
+    types: {
+        list: require('./types/list/module.f.cjs'),
+        // ...
+    },
+    // ...
+}
+```
+
+Then, users can use it like this:
+
+```js
+const { types: { list } } = require('functionalscript)
+//...
+```
