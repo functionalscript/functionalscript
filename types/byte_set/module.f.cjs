@@ -52,8 +52,7 @@ const counter = reverse(countdown(256))
 const toRangeMapOp = n => s => i => {
     const current = has(i + 1)(n)
     const prev = has(i)(n)
-    if (current === prev) { return null }
-    return [[prev ? [s] : [], i]]
+    return current === prev ? null : [[prev ? [s] : [], i]]
 }
 
 /** @type {(n: ByteSet) => (s: string) => rangeMap.RangeMap<sortedSet.SortedSet<string>>} */

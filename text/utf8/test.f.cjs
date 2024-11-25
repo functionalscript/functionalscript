@@ -1,7 +1,7 @@
 const encoding = require('./module.f.cjs')
 const json = require('../../json/module.f.cjs')
 const { sort } = require('../../types/object/module.f.cjs')
-const { list } = require('../../types/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
 
 const stringify = json.stringify(sort)
 
