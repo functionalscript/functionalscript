@@ -75,8 +75,14 @@ module.exports = {
             const v = 1_048_575n
             const result = log2(1n << v)
             if (result !== v) { throw result }
-        }
+        },
     ],
+    toString2: () => {
+        // max for Bun (131_072 Bytes)
+        const v = 1_048_575n
+        const result = (1n << v).toString(2).length - 1
+        if (result !== 1_048_575) { throw result }
+    },
     bit_len: {
         0: () => {
             const s = bit_len(0n)

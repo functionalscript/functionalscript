@@ -58,14 +58,14 @@ const bit_len = (/** @type {bigint} */v) => {
         result += i
         i <<= 1n
     }
-    while (i !== 0n) {
+    do {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
             result += i
             v = n
         }
-    }
+    } while (i !== 0n)
     return result
 }
 
