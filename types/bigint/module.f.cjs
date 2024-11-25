@@ -133,5 +133,5 @@ module.exports = {
     /** @readonly */
     log2,
     /** @readonly */
-    bitLen: bitLength,
+    bitLength,
 }
