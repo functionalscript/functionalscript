@@ -44,6 +44,30 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
     }
 }
 
+const size = (/** @type {bigint} */v) => {
+    if (v <= 0n) { return -1n }
+    let result = 0n
+    let i = 1n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n
+    }
+    while (i !== 0n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+    return result
+}
+
 /** @type {(a: bigint) => bigint} */
 const log2 = a => {
     // Possible optimization: use a binary search in 32 bit value

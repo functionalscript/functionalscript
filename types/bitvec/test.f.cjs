@@ -13,6 +13,10 @@ module.exports = {
             i += 1n
         }
     },
+    big: () => {
+        const s = size(1n << 1000_000n)
+        if (s !== 1000_001n) { throw s }
+    },
     neg: [
         () => {
             const s = size(-1n)

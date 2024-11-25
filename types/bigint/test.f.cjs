@@ -69,6 +69,10 @@ module.exports = {
         () => {
             const result = log2(16n)
             if (result !== 4n) { throw result }
+        },
+        () => {
+            const result = log2(1n << 1000_000n)
+            if (result !== 1000_000n) { throw result }
         }
     ]
 }
