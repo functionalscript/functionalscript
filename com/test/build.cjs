@@ -6,7 +6,7 @@ const { cpp, cs, rust } = build
 const { join } = require('../../types/string/module.f.cjs')
 const { log, error } = console
 const { bold, reset } = require('../../text/sgr/module.f.cjs')
-const { list } = require('../../types/module.f.cjs')
+const list = require('../../types/list/module.f.cjs')
 
 const nodeJs = {
     dirname: __dirname,
