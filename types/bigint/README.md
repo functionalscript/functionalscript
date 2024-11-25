@@ -1,5 +1,7 @@
 # BigInt
 
+Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_072` Bytes.
+
 ## Benchmarks
 
 ### bitLen vs toString(2).length (2024/11/25)
