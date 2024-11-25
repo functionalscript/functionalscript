@@ -1,5 +1,5 @@
 const _ = require('./module.f.cjs')
-const { string: { join } } = require('../types/module.f.cjs')
+const { join } = require('../types/string/module.f.cjs')
 
 module.exports = () => {
     /** @type {_.Block} */
