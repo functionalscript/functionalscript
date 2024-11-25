@@ -68,8 +68,10 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
  * The algorithm operates with logarithmic complexity, making it efficient for very large BigInts.
  */
 const bitLen = v => {
-    if (v < 0n) { v = -v }
-    if (v === 0n) { return 0n }
+    if (v <= 0n) {
+        if (v === 0n) { return 0n }
+        v = -v
+    }
     let result = 1n
     let i = 1n
     while (true) {
