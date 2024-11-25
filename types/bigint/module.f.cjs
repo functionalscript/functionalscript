@@ -44,16 +44,32 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
     }
 }
 
-/** @type {(a: bigint) => bigint} */
-const log2 = a => {
-    // Possible optimization: use a binary search in 32 bit value
-    let i = -1n
-    while (a > 0n) {
-        ++i
-        a >>= 1n
+const bit_len = (/** @type {bigint} */v) => {
+    if (v < 0n) { v = -v }
+    if (v === 0n) { return 0n }
+    let result = 1n
+    let i = 1n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n
     }
-    return i
+    while (i !== 0n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+    return result
 }
+
+const log2 = (/** @type {bigint} */v) => v <= 0n ? -1n : bit_len(v) - 1n
 
 module.exports = {
     /** @readonly */
@@ -70,4 +86,6 @@ module.exports = {
     scalar_mul,
     /** @readonly */
     log2,
+    /** @readonly */
+    bit_len,
 }
