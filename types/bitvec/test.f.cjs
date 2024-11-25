@@ -14,8 +14,8 @@ module.exports = {
         }
     },
     big: () => {
-        const s = size(1n << 1000_000n)
-        if (s !== 1000_001n) { throw s }
+        const s = size(1n << 10_000_000n)
+        if (s !== 10_000_001n) { throw s }
     },
     neg: [
         () => {

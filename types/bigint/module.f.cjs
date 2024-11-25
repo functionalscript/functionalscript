@@ -44,7 +44,7 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
     }
 }
 
-const size = (/** @type {bigint} */v) => {
+const log2 = (/** @type {bigint} */v) => {
     if (v <= 0n) { return -1n }
     let result = 0n
     let i = 1n
@@ -66,17 +66,6 @@ const size = (/** @type {bigint} */v) => {
         }
     }
     return result
-}
-
-/** @type {(a: bigint) => bigint} */
-const log2 = a => {
-    // Possible optimization: use a binary search in 32 bit value
-    let i = -1n
-    while (a > 0n) {
-        ++i
-        a >>= 1n
-    }
-    return i
 }
 
 module.exports = {
