@@ -45,26 +45,22 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
 }
 
 /**
- * Calculates the base-2 logarithm (floor) of a given positive BigInt.
+ * Calculates the base-2 logarithm (floor).
  *
- * The base-2 logarithm of a number is the power to which 2 must be raised to
- * produce a value less than or equal to the number. This function returns the
- * integer part of the logarithm (i.e., the floor of log2). For example:
- * - `log2(1n)` returns `0n` (2^0 = 1).
- * - `log2(2n)` returns `1n` (2^1 = 2).
- * - `log2(15n)` returns `3n` (2^3 = 8, and 2^4 = 16 is greater than 15).
+ * This function returns the integer part of the logarithm. For example:
+ * - `log2(1n)` returns `0n`,
+ * - `log2(2n)` returns `1n`,
+ * - `log2(15n)` returns `3n`.
  *
- * @param {bigint} v - The input BigInt. It must be positive.
+ * @param {bigint} v - The input BigInt.
  * @returns {bigint} The base-2 logarithm (floor) of the input BigInt, or `-1n` if the input is less than or equal to 0.
  *
  * @remarks
  * The function operates in two phases:
  * 1. ** Fast Doubling Phase:** Uses exponential steps to quickly narrow down the range
- *    of the most significant bit(similar to finding the integer part of log2).
+ *    of the most significant bit.
  * 2. ** Binary Search Phase:** Refines the result by halving the step size and incrementally
- *      determining the exact value of the logarithm.
- *
- * The algorithm is efficient with logarithmic complexity, making it suitable for very large BigInts.
+ *    determining the exact value of the logarithm.
  */
 const log2 = v => {
     if (v <= 0n) { return -1n }
@@ -106,7 +102,7 @@ const log2 = v => {
  * The function handles both positive and negative numbers. For negative inputs, the bit length is calculated
  * based on the absolute value of the number. Zero has a bit length of 0.
  *
- * @param {bigint} v - The input BigInt. It can be positive, negative, or zero.
+ * @param {bigint} v - The input BigInt.
  * @returns {bigint} The bit length of the input BigInt.
  *
  * @remark
