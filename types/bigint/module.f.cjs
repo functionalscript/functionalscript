@@ -57,9 +57,9 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
  *
  * @remarks
  * The function operates in two phases:
- * 1. ** Fast Doubling Phase:** Uses exponential steps to quickly narrow down the range
+ * 1. **Fast Doubling Phase:** Uses exponential steps to quickly narrow down the range
  *    of the most significant bit.
- * 2. ** Binary Search Phase:** Refines the result by halving the step size and incrementally
+ * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
  *    determining the exact value of the logarithm.
  */
 const log2 = v => {
