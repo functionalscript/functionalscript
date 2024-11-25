@@ -118,19 +118,19 @@ module.exports = {
         },
         neg: [
             () => {
-                const s = bitLen(~1n)
+                const s = bitLen(-1n)
                 if (s !== 1n) { throw s }
             },
             () => {
-                const s = bitLen(~2n)
+                const s = bitLen(-2n)
                 if (s !== 2n) { throw s }
             },
             () => {
-                const s = bitLen(~3n)
+                const s = bitLen(-3n)
                 if (s !== 2n) { throw s }
             },
             () => {
-                const s = bitLen(~4n)
+                const s = bitLen(-4n)
                 if (s !== 3n) { throw s }
             },
         ]
