@@ -4,9 +4,9 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ## Benchmarks
 
-### bitLenght versus toString (2024/11/25)
+### log2 versus toString (2024/11/25)
 
-|Framework|bitLength(x)      |x.toString(2).length|
+|Framework|log2(x)           |x.toString(2).length|
 |---------|------------------|--------------------|
 |Bun      |1.781681          |2.079615            |
 |Deno 1   |0.710344          |1.917003            |
@@ -17,7 +17,7 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 |Node 22  |0.983075          |2.336697            |
 |Node 23  |0.699960          |1.872965            |
 
-`bitLength` wins.
+`log2` wins.
 
 ### Minus versus Not
 
