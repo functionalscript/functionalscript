@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
@@ -164,4 +164,60 @@ export const loadModuleMap = async () => {
     }
 
     return build()
+}
+
+/**
+ * @typedef {{
+ *  readonly[k in string]: string | FolderMap
+ * }} FolderMap
+ */
+
+/** @type {(m: FolderMap) => (s: readonly string[]) => FolderMap } */
+const folderMapAdd = m => s => {
+    const [first, ...rest] = s
+    const firstResult = m[first]
+    return typeof firstResult === 'string'
+        ? m
+        : {
+            ...m,
+            [first]: rest.length === 1
+                ? rest[0]
+                : folderMapAdd(firstResult === undefined ? {} : firstResult)(rest)
+        }
+}
+
+const indent = '  '
+
+/** @type {(i: string) => (p: string) => (m: FolderMap) => string} */
+const codeAdd = i => p => m => {
+    let result = ''
+    for (const [k, v] of Object.entries(m)) {
+        const np = `${p}${k}/`
+        if (typeof v === 'string') {
+            result += `${i}${k}: require("${np}${v}"),\n`
+        } else {
+            result += `${i}${k}: \{\n`
+            result += codeAdd(i + indent)(np)(v)
+            result += `${i}\},\n`
+        }
+    }
+    return result
+}
+
+export const index = async() => {
+    /** @type {FolderMap} */
+    let m = {}
+    for (const k in await loadModuleMap()) {
+        const [, ...s] = k.split('/')
+        if (s[s.length - 1] === 'module.f.cjs') {
+            m = folderMapAdd(m)(s)
+        }
+    }
+    console.log(m)
+    let s =
+        '// Generated file.\n' +
+        'module.exports = {\n'
+    s += codeAdd(indent)('./')(m)
+    s += '}\n'
+    await writeFile('index.f.cjs', s)
 }
