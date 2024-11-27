@@ -2,7 +2,7 @@
   "name": "functionalscript",
   "version": "0.0.0",
   "description": "FunctionalScript is a functional subset of JavaScript",
-  "main": "_index.f.cjs",
+  "main": "index.f.cjs",
   "scripts": {
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
