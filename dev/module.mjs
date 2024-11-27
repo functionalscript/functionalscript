@@ -214,8 +214,10 @@ export const index = async() => {
         }
     }
     console.log(m)
-    let s = 'module.exports = {\n'
+    let s =
+        '// Generated file.\n' +
+        'module.exports = {\n'
     s += codeAdd(indent)('./')(m)
     s += '}\n'
-    await writeFile('_index.f.cjs', s)
+    await writeFile('index.f.cjs', s)
 }

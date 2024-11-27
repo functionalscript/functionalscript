@@ -1,5 +1,5 @@
 {
-    "name": "@functionalscript/functionalscript",
-    "version": "0.0.0",
-    "exports": "./index.f.cjs"
+  "name": "@functionalscript/functionalscript",
+  "version": "0.0.574",
+  "exports": "./index.f.cjs"
 }

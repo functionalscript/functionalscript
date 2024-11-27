@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.0.0",
+  "version": "0.0.574",
   "description": "FunctionalScript is a functional subset of JavaScript",
   "main": "index.f.cjs",
   "scripts": {

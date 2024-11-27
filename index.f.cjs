@@ -1,3 +1,4 @@
+// Generated file.
 module.exports = {
   types: {
     nullable: require("./types/nullable/module.f.cjs"),
