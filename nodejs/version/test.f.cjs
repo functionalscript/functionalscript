@@ -86,6 +86,6 @@ module.exports = () => {
             writeFileSync: (_, content) => content
         }
     }
-    const v = _.version(node)
-    if (v !== e) { throw [v, e] }
+    const [n, d] = _.version(node)
+    if (n !== e) { throw [n, e] }
 }

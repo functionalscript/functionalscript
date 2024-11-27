@@ -20,11 +20,18 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: 2
       # - run: npm ci
       - run: npm run version
+      - run: npm run index
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      - run: deno publish
+
+
 
   # publish-gpr:
   #   runs-on: ubuntu-latest
