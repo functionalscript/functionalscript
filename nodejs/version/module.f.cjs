@@ -24,12 +24,12 @@
 
 const { stringify, parse } = JSON
 
-/** @type {<T>(node: Node<T>) => void} */
+/** @type {<T>(node: Node<T>) => readonly[T, T]} */
 const version = ({ child_process, fs }) => {
     const version = `0.0.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}`
     const f = (/** @type {string} */jsonFile) => {
         const file = `${jsonFile}.json`
-        fs.writeFileSync(
+        return fs.writeFileSync(
             file,
             stringify(
                 {
@@ -39,8 +39,10 @@ const version = ({ child_process, fs }) => {
                 null,
                 2))
     }
-    f('package')
-    f('jsr')
+    return [
+        f('package'),
+        f('jsr')
+    ]
 }
 
 module.exports = {
