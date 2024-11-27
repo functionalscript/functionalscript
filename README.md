@@ -1,5 +1,7 @@
 # FunctionalScript
 
+![NPM Version](https://img.shields.io/npm/v/functionalscript)
+
 FunctionalScript is a purely functional programming language and a strict subset of
 [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by
 
@@ -13,7 +15,7 @@ FunctionalScript is a purely functional programming language and a strict subset
 
 Create a new FunctionalScript repository on GitHub [here](https://github.com/functionalscript/template/generate).
 
-Learn more about 
+Learn more about
 - [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
 - [FunctionalScript](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
 
