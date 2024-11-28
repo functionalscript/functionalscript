@@ -20,13 +20,15 @@ Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` du
 
 ## Publishing
 
-Before publishing, we have to be sure that 
+Before publishing, we have to be sure that
 1. [index.f.cjs](./index.f.cjs) is up to date
 2. `version` is updated in [jsr.json](./jsr.json) and [package.json](./package.json).
 
 ## Switching to ESM
 
-Currently, the biggest obstacle to using ESM is that we cannot make bundles on ESM modules without an FS parser. 
+Currently, the biggest obstacle to using ESM is that we cannot make bundles on ESM modules without an FS parser.
 The solution is to deploy ESM modules to HTTPS.
 
 ## Can we get rid of `jsr.json` and use only `package.json`?
+
+No.
