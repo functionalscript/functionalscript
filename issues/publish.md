@@ -12,6 +12,7 @@ We are targeting the following systems:
 ## Creating `./index.f.cjs`
 
 Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` during CD (publishing). However, we don't check in CI if it was regenerated. The idea is that CI should check if all generated files in Git are updated:
+
 - [package.json](./package.json) `version` property
 - [jsr.json](./jsr.json), `version` property
 - [index.f.cjs](./index.f.cjs)
@@ -41,4 +42,4 @@ Errors:
 
 Warnings (not blocking CI):
 
-- out of date lock files, such as `package-lock.json`, `Cargo.lock`.
+- out of date lock files, such as `package-lock.json` and `Cargo.lock`.
