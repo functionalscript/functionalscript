@@ -31,6 +31,7 @@ In FunctionalScript:
 ## Applications
 
 FunctionalScript code can be used:
+
 - in any JavaScript/TypeScript application,
 - as a JSON with expressions,
 - as a query language.
