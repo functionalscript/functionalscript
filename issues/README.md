@@ -15,8 +15,9 @@ Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` du
 - [jsr.json](./jsr.json), `version` property
 - [index.f.cjs](./index.f.cjs)
 
-`version` property should be
-- `version` calculated on a `main` branch.
+`version` property should be `version` calculated on a `main` branch.
+
+We may abound the idea to publish on every commit on `main`. Instead, we will publish only we when we update a version in the `main` branch.
 
 ## Publishing
 
