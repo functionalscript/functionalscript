@@ -2,29 +2,19 @@
 
 ## Allow Debugging During Test Run
 
-Currently, we read files as strings and then parse them as functions. See [dev/test.mjs](dev/test.mjs). In this case, debugger doesn't know about source code and can't debug the functions. The main reason for loading modules as functions was that Deno v1 didn't support `.cjs` files. However, Deno v2 support them.
+Currently, we read files as strings and then parse them as functions. See [dev/test.mjs](dev/test.mjs). In this case, the debugger doesn't know about the source code and can't debug the functions. The main reason for loading modules as functions was that Deno v1 didn't support `.cjs` files. However, Deno v2 supports them.
 
-We can fix the issue by changing our test runner. The test runner will scan all directories and find all `test.f.cjs` files and then load them using `require`.
+We can fix the issue by changing our test runner. The test runner will scan all directories, find all `test.f.cjs` files, and then load them using `require`.
 
-**Note:** we will drop support for Deno v1.
+**Note:** in this case, we will drop support for Deno v1.
 
-## Creating `./_module.f.cjs`
+## Creating `./index.f.cjs`
 
-We can write a script which will generate `./_module.f.cjs` before packaging. Note: the script should be added into [prepack](https://docs.npmjs.com/cli/v8/using-npm/scripts#pre--post-scripts). The module should never be used by other internal modules. It's only for internal consumptions. The structure will be like this
+Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` during CD (publishing). However, we don't check in CI if it was regenerated. The idea is that CI should check if all generated files in Git are updated:
+- [package.json](./package.json) `version` property
+- [jsr.json](./jsr.json), `version` property
+- [index.f.cjs](./index.f.cjs)
 
-```js
-module.exports = {
-    types: {
-        list: require('./types/list/module.f.cjs'),
-        // ...
-    },
-    // ...
-}
-```
-
-Then, users can use it like this:
-
-```js
-const { types: { list } } = require('functionalscript)
-//...
-```
+`version` property should be
+- `version` calculated on a `main` branch.
+ 
