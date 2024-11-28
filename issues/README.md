@@ -17,4 +17,7 @@ Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` du
 
 `version` property should be
 - `version` calculated on a `main` branch.
- 
+
+## Switching to ESM
+
+Currently, the biggest obstacle that prevents us from using ESM is that we can make bundles on ESM modules without FS parser.
