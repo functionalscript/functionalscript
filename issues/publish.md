@@ -26,3 +26,19 @@ Before publishing, we have to be sure that
 
 1. [index.f.cjs](./index.f.cjs) is up to date
 2. `version` is updated in [jsr.json](./jsr.json) and [package.json](./package.json).
+
+## CI Jobs
+
+### 1. Publishing (merge to `main`)
+
+Check if the version is new, then publish.
+
+### 2. CI
+
+Errors:
+
+- correct `index.f.mjs` is merged.
+
+Warnings (not blocking CI):
+
+- out of date lock files, such as `package-lock.json`, `Cargo.lock`.
