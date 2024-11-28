@@ -28,3 +28,5 @@ Before publishing, we have to be sure that
 
 Currently, the biggest obstacle to using ESM is that we cannot make bundles on ESM modules without an FS parser. 
 The solution is to deploy ESM modules to HTTPS.
+
+## Can we get rid of `jsr.json` and use only `package.json`?
