@@ -10,21 +10,7 @@ on:
   pull_request:
 
 jobs:
-  locks:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v2
-      with:
-        node-version: 22
-    - run: npm install
-    - uses: actions/upload-artifact@v4
-      with:
-        name: package-lock.json
-        path: package-lock.json
-
   node:
-    needs: locks
     runs-on: ubuntu-latest
 
     strategy:
@@ -37,9 +23,6 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
-    - uses: actions/download-artifact@v4
-      with:
-        name: package-lock.json
     - run: npm ci
     - run: npm test
     - run: npm run version
@@ -70,7 +53,6 @@ jobs:
     - run: /home/runner/.bun/bin/bun ./dev/test.mjs
 
   COM:
-    needs: locks
     strategy:
       matrix:
         os: ['ubuntu-latest', 'windows-latest', 'macos-14']
@@ -82,9 +64,6 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: 22
-    - uses: actions/download-artifact@v4
-      with:
-        name: package-lock.json
     - uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 9
