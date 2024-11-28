@@ -20,4 +20,5 @@ Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` du
 
 ## Switching to ESM
 
-Currently, the biggest obstacle that prevents us from using ESM is that we can make bundles on ESM modules without FS parser.
+Currently, the biggest obstacle that prevents us from using ESM is that we can make bundles on ESM modules without FS parser. 
+The solution is to deploy ESM modules to HTTPS.
