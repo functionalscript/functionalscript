@@ -17,7 +17,7 @@ Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` du
 
 `version` property should be `version` calculated on a `main` branch.
 
-We may abound the idea to publish on every commit on `main`. Instead, we will publish only we when we update a version in the `main` branch.
+We may abound the idea to publish on every commit on `main`. Instead, we will publish only we when we update a version in the `main` branch. This strategy can also work for Rust packages.
 
 ## Publishing
 
