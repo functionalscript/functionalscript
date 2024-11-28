@@ -1,6 +1,6 @@
 # Allow Debugging During Test Run
 
-Currently, we read files as strings and then parse them as functions. See [dev/test.mjs](dev/test.mjs). In this case, the
+Currently, we read files as strings and then parse them as functions. See [dev/test.mjs](../dev/test.mjs). In this case, the
 debugger doesn't know about the source code and can't debug the functions. The main reason for loading modules as functions was
 that Deno v1 didn't support `.cjs` files. However, Deno v2 supports them.
 
