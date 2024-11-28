@@ -6,7 +6,7 @@ Currently, we read files as strings and then parse them as functions. See [dev/t
 
 We can fix the issue by changing our test runner. The test runner will scan all directories, find all `test.f.cjs` files, and then load them using `require`.
 
-**Note:** in this case, we will drop support for Deno v1.
+**Note:** In this case, we will drop support for Deno v1.
 
 ## Creating `./index.f.cjs`
 
@@ -18,7 +18,13 @@ Currently, we regenerate [./index.f.cjs](./index.f.cjs) using `npm run index` du
 `version` property should be
 - `version` calculated on a `main` branch.
 
+## Publishing
+
+Before publishing, we have to be sure that 
+1. [index.f.cjs](./index.f.cjs) is up to date
+2. `version` is updated in [jsr.json](./jsr.json) and [package.json](./package.json).
+
 ## Switching to ESM
 
-Currently, the biggest obstacle that prevents us from using ESM is that we can make bundles on ESM modules without FS parser. 
+Currently, the biggest obstacle to using ESM is that we cannot make bundles on ESM modules without an FS parser. 
 The solution is to deploy ESM modules to HTTPS.
