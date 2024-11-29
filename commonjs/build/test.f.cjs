@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const map = require('../../types/map/module.f.cjs')
 const module_ = require('../module/module.f.cjs')
 const function_ = require('../module/function/module.f.cjs')

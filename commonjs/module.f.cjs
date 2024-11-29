@@ -10,7 +10,7 @@
 
 module.exports = {
     /** @readonly */
-    build: require('./build/module.f.cjs'),
+    build: require('./build/module.f.mjs'),
     /** @readonly */
     module: require('./module/module.f.cjs'),
     /** @readonly */

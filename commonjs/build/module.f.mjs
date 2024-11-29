@@ -1,14 +1,14 @@
-const package_ = require('../package/module.f.cjs')
-const module_ = require('../module/module.f.cjs')
+import package_ from '../package/module.f.cjs'
+import module_ from '../module/module.f.cjs'
 const { idToString, dir } = module_
-const function_ = require('../module/function/module.f.cjs')
-const map = require('../../types/map/module.f.cjs')
+import function_ from '../module/function/module.f.cjs'
+import map from '../../types/map/module.f.cjs'
 const { empty: mapEmpty, setReplace } = map
-const object = require('../../types/object/module.f.cjs')
+import object from '../../types/object/module.f.cjs'
 const { fromMap } = object
-const path = require('../path/module.f.cjs')
+import path from '../path/module.f.cjs'
 const { parseAndFind } = path
-const stringSet = require('../../types/string_set/module.f.cjs')
+import stringSet from '../../types/string_set/module.f.cjs'
 const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 
 /**
@@ -98,7 +98,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     return f
 }
 
-module.exports = {
+export default {
     /** @readonly */
     getOrBuild,
 }
