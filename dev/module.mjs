@@ -22,28 +22,14 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
- *  [k in string]?: MutableModule
- * }} MutableDependencyMap
- */
-
-/**
- * @typedef {{
- *  dependencyMap: MutableDependencyMap
  *  exports?: unknown
  * }} MutableModule
  */
 
 /**
  * @typedef {{
- *  readonly dependencyMap: DependencyMap
  *  readonly exports?: unknown
  * }} Module
- */
-
-/**
- * @typedef {{
- *   readonly[k in string]?: Module
- * }} DependencyMap
  */
 
 /** @typedef {(name: string) => unknown} Require */
@@ -138,15 +124,12 @@ export const loadModuleMap = async () => {
                 }
             }
             {
-                /** @type {MutableDependencyMap} */
-                const dependencyMap = {}
                 /** @type {MutableModule} */
-                const module = { dependencyMap }
+                const module = { }
                 const get = getModule(remove_tail(path)(1))
                 /** @type {(s: string) => unknown} */
                 const newReq = s => {
-                    const [p, result] = get(s)
-                    dependencyMap[p] = result
+                    const [_, result] = get(s)
                     return result.exports
                 }
                 map[pathStr](module, newReq)
