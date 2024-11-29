@@ -1,6 +1,6 @@
 import list from '../../types/list/module.f.cjs'
 const { fold } = list
-import sgr from '../../text/sgr/module.f.cjs'
+import sgr from '../../text/sgr/module.f.mjs'
 const { reset, fgGreen, fgRed, bold } = sgr
 import result from '../../types/result/module.f.cjs'
 

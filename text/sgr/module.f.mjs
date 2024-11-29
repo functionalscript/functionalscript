@@ -5,7 +5,7 @@
  */
 const sgr = c => `\x1b[${c.toString()}m`
 
-module.exports = {
+export default {
     /** @readonly */
     sgr,
     /** @readonly */

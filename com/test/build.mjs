@@ -5,7 +5,7 @@ import build, * as buildT from './build.f.mjs'
 const { cpp, cs, rust } = build
 import { join } from '../../types/string/module.f.cjs'
 const { log, error } = console
-import sgr from '../../text/sgr/module.f.cjs'
+import sgr from '../../text/sgr/module.f.mjs'
 const { bold, reset } = sgr
 import list from '../../types/list/module.f.cjs'
 
