@@ -68,7 +68,9 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
 
 /** @type {(a: number) => string} */
 const timeFormat = a => {
-    const x = Math.round(a * 10_000).toString()
+    const y = Math.round(a * 10_000).toString()
+    const yl = 5 - y.length
+    const x = '0'.repeat(yl > 0 ? yl : 0)
     const s = x.length - 4
     const b = x.substring(0, s)
     const e = x.substring(s)

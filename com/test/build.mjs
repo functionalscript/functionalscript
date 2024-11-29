@@ -9,10 +9,14 @@ import sgr from '../../text/sgr/module.f.cjs'
 const { bold, reset } = sgr
 import list from '../../types/list/module.f.cjs'
 
-import path from "node:path"
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename)
 
 const nodeJs = {
-    dirname: path.resolve(),
+    dirname: __dirname,
     platform,
 }
 
