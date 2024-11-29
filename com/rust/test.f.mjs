@@ -1,6 +1,6 @@
-const rust = require('./testlib.f.cjs')
+import rust from './testlib.f.mjs'
 
-module.exports = () => {
+export default () => {
     const e =
         '#![allow(non_snake_case)]\n' +
         '#[repr(C)]\n' +
