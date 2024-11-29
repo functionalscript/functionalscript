@@ -2,15 +2,16 @@ const operator = require('../../types/function/operator/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 const { empty, flat, stateScan } = list
 const { multiply } = require('../../types/bigfloat/module.f.cjs')
-const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
+const jsTokenizerT = require('../../js/tokenizer/module.f.mjs')
+const jsTokenizer = jsTokenizerT.default
 
 /**
  * @typedef {|
 * {readonly kind: 'true' | 'false' | 'null' } |
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
-* jsTokenizer.StringToken |
-* jsTokenizer.NumberToken |
-* jsTokenizer.ErrorToken
+* jsTokenizerT.StringToken |
+* jsTokenizerT.NumberToken |
+* jsTokenizerT.ErrorToken
 * } JsonToken
 */
 
@@ -22,11 +23,11 @@ const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
 
 /**
  * @typedef {|
-* jsTokenizer.JsToken | null
+* jsTokenizerT.JsToken | null
 * } ScanInput
 */
 
-/** @type {(input: jsTokenizer.JsToken) => list.List<JsonToken>} */
+/** @type {(input: jsTokenizerT.JsToken) => list.List<JsonToken>} */
 const mapToken = input =>
 {
     switch(input.kind)

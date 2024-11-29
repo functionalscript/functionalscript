@@ -1,14 +1,15 @@
-const operator = require('../../types/function/operator/module.f.cjs')
-const range_map = require('../../types/range_map/module.f.cjs')
+import operator from '../../types/function/operator/module.f.cjs'
+import range_map from '../../types/range_map/module.f.cjs'
 const { merge, fromRange, get } = range_map
-const list = require('../../types/list/module.f.cjs')
-const map = require('../../types/map/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
+import map from '../../types/map/module.f.cjs'
 const { at } = map
-const _range = require('../../types/range/module.f.cjs')
+import _range from '../../types/range/module.f.cjs'
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
-const bigfloat = require('../../types/bigfloat/module.f.cjs')
+import bigfloat from '../../types/bigfloat/module.f.cjs'
 const { fromCharCode } = String
+import ascii from '../../text/ascii/module.f.cjs'
 const {
     range,
     //
@@ -66,7 +67,7 @@ const {
     leftCurlyBracket,
     rightCurlyBracket,
     dollarSign
-} = require('../../text/ascii/module.f.cjs')
+} = ascii
 
 /**
  * @typedef {{
@@ -794,7 +795,7 @@ const initial = scanTokenize({ kind: 'initial' })
 /** @type {(input: list.List<number>) => list.List<JsToken>} */
 const tokenize = input => flat(initial(flat([/** @type {list.List<CharCodeOrEof>} */(input), [null]])))
 
-module.exports = {
+export default {
     /** @readonly */
     tokenize,
     /** @readonly */
