@@ -1,4 +1,4 @@
-const { unsafeCmp } = require('./module.f.cjs')
+const { unsafeCmp } = require('./module.f.mjs').default
 
 module.exports = () => {
     const result = unsafeCmp(true)(false)

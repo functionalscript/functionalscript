@@ -1,4 +1,4 @@
-const array = require('../../array/module.f.mjs')
+import * as array from '../../array/module.f.mjs'
 
 /** @typedef {array.Index3} Index3 */
 /** @typedef {array.Index5} Index5 */
@@ -27,7 +27,7 @@ const index5 = cmp => ([v0, v1]) => {
 /** @type {<T>(a: T) => (b: T) => Sign} */
 const unsafeCmp = a => b => a < b ? -1 : a > b ? 1 : 0
 
-module.exports = {
+export default {
     /** @readonly */
     unsafeCmp,
     /** @readonly */

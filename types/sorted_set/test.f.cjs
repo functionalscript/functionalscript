@@ -1,5 +1,5 @@
 const _ = require('./module.f.cjs')
-const { unsafeCmp } = require('../function/compare/module.f.cjs')
+const { unsafeCmp } = require('../function/compare/module.f.mjs').default
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default
 const { sort } = require('../../types/object/module.f.cjs')

@@ -1,10 +1,11 @@
 import * as _ from '../types/module.f.mjs'
-import cmp from '../../function/compare/module.f.cjs'
+import cmp, * as cmpT from '../../function/compare/module.f.mjs'
 import find, * as findT from '../find/module.f.mjs'
 import list from '../../list/module.f.cjs'
 const { fold, concat, next } = list
 import array, * as arrayT from '../../array/module.f.mjs'
-import { map } from '../../nullable/module.f.cjs'
+import n from '../../nullable/module.f.mjs'
+const { map } = n
 
 /**
  * @template T
@@ -115,9 +116,9 @@ const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 
 const initReduce = reduceX([initValue0, initValue1])
 
-/** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
+/** @type {<T>(c: cmpT.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
 const nodeRemove = c => node => {
-    /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
+    /** @typedef {typeof c extends cmpT.Compare<infer T> ? T : never} T */
     /** @type  {() => null | RemovePath<T>} */
     const f = () => {
         const { first, tail } = find.find(c)(node)
@@ -155,7 +156,7 @@ const nodeRemove = c => node => {
     return result.length === 1 ? result[0] : result
 }
 
-/** @type {<T>(c: cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
+/** @type {<T>(c: cmpT.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
 const remove =  c => map(nodeRemove(c))
 
 export default {

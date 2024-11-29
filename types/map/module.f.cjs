@@ -5,7 +5,7 @@ const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default
 const {
     values,
 } = require("../btree/module.f.mjs").default
-const compare = require('../function/compare/module.f.cjs')
+const compare = require('../function/compare/module.f.mjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const { fold } = list

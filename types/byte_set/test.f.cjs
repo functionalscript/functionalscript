@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const { every, countdown, map } = require('../list/module.f.cjs')
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default

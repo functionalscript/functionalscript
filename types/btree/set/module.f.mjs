@@ -1,7 +1,7 @@
 import * as _ from '../types/module.f.mjs'
 import btreeFind, * as btreeFindT from '../find/module.f.mjs'
 const { find } = btreeFind
-import cmp from '../../function/compare/module.f.cjs'
+import cmp, * as cmpT from '../../function/compare/module.f.mjs'
 import list from '../../list/module.f.cjs'
 const { fold } = list
 
@@ -36,11 +36,11 @@ const reduceOp = ([i, x]) => a => {
 
 const reduceBranch = fold(reduceOp)
 
-/** @type {<T>(c: cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>) => _.Node<T>} */
+/** @type {<T>(c: cmpT.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>) => _.Node<T>} */
 const nodeSet = c => g => node => {
     const { first, tail } = find(c)(node)
     const [i, x] = first;
-    /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
+    /** @typedef {typeof c extends cmpT.Compare<infer T> ? T : never} T */
     /** @type {() => Branch1To3<T>} */
     const f = () => {
         switch (i) {
@@ -87,7 +87,7 @@ const nodeSet = c => g => node => {
     return r.length === 1 ? r[0] : r
 }
 
-/** @type {<T>(c: cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
+/** @type {<T>(c: cmpT.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
 const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
 
 export default {

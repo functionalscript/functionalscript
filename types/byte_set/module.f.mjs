@@ -1,7 +1,8 @@
-const { fn, compose } = require('../function/module.f.cjs')
-const rangeMap = require('../range_map/module.f.cjs')
-const sortedSet = require('../sorted_set/module.f.cjs')
-const list = require('../list/module.f.cjs')
+import f from '../function/module.f.cjs'
+const { fn, compose } = f
+import rangeMap from '../range_map/module.f.cjs'
+import sortedSet from '../sorted_set/module.f.cjs'
+import list from '../list/module.f.cjs'
 const { reverse, countdown, flat, map } = list
 
 /** @typedef {bigint} ByteSet */
@@ -58,7 +59,7 @@ const toRangeMapOp = n => s => i => {
 /** @type {(n: ByteSet) => (s: string) => rangeMap.RangeMap<sortedSet.SortedSet<string>>} */
 const toRangeMap = n => s => flat(map(toRangeMapOp(n)(s))(counter))
 
-module.exports = {
+export default {
     /** @readonly */
     empty,
     /** @readonly */

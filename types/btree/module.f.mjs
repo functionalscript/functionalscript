@@ -1,6 +1,7 @@
 import list from '../list/module.f.cjs'
 const { flat } = list
-import { map } from '../nullable/module.f.cjs'
+import n from '../nullable/module.f.mjs'
+const { map } = n
 import * as _ from './types/module.f.mjs'
 
 /** @type {<T>(node: _.Node<T>) => list.Thunk<T>} */

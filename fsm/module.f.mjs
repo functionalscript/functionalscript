@@ -1,12 +1,13 @@
 import list from '../types/list/module.f.cjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
-import byteSet from '../types/byte_set/module.f.cjs'
+import byteSet, * as byteSetT from '../types/byte_set/module.f.mjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
 import sortedSet from '../types/sorted_set/module.f.cjs'
 const { intersect, union: sortedSetUnion } = sortedSet
 import rangeMap from '../types/range_map/module.f.cjs'
 const { merge } = rangeMap
-import { unsafeCmp } from '../types/function/compare/module.f.cjs'
+import cmp from '../types/function/compare/module.f.mjs'
+const { unsafeCmp } = cmp
 import operator from '../types/function/operator/module.f.cjs'
 const { strictEqual } = operator
 import j from '../json/module.f.mjs'
@@ -16,7 +17,7 @@ const { identity } = f
 import utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 
-/** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
+/** @typedef {readonly[string, byteSetT.ByteSet, string]} Rule */
 
 /** @typedef {list.List<Rule>} Grammar */
 
@@ -28,16 +29,16 @@ const { stringToList } = utf16
 
 const stringifyIdentity = stringify(identity)
 
-/** @type {(s: string) => byteSet.ByteSet} */
+/** @type {(s: string) => byteSetT.ByteSet} */
 const toRange = s => {
     const [b, e] = toArray(stringToList(s))
     return byteSet.range([b, e])
 }
 
-/** @type {operator.Fold<number, byteSet.ByteSet>} */
+/** @type {operator.Fold<number, byteSetT.ByteSet>} */
 const toUnionOp = i => bs => byteSetUnion(bs)(one(i))
 
-/** @type {(s: string) => byteSet.ByteSet} */
+/** @type {(s: string) => byteSetT.ByteSet} */
 const toUnion = s => {
     const codePoints = stringToList(s)
     return fold(toUnionOp)(empty)(codePoints)

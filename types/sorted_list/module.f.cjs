@@ -1,6 +1,6 @@
-const compare = require('../function/compare/module.f.cjs')
+const compare = require('../function/compare/module.f.mjs')
 const list = require('../list/module.f.cjs')
-const option = require('../nullable/module.f.cjs')
+const option = require('../nullable/module.f.mjs')
 const { next } = list
 const { identity } = require('../function/module.f.cjs')
 

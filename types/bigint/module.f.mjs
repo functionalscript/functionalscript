@@ -1,4 +1,4 @@
-import compare from '../function/compare/module.f.cjs'
+import compare, * as compareT from '../function/compare/module.f.mjs'
 import op from '../function/operator/module.f.cjs'
 const { unsafeCmp } = compare
 import { reduce } from '../list/module.f.cjs'
@@ -13,7 +13,7 @@ const sum = reduce(addition)(0n)
 /** @type {(a: bigint) => bigint} */
 const abs = a => a >= 0 ? a : -a
 
-/** @type {(a: bigint) => compare.Sign} */
+/** @type {(a: bigint) => compareT.Sign} */
 const sign = a => unsafeCmp(a)(0n)
 
 /** @type {(a: bigint) => string} */

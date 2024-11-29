@@ -1,4 +1,4 @@
-import option from '../nullable/module.f.cjs'
+import option from '../nullable/module.f.mjs'
 const { map } = option
 
 /**

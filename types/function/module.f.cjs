@@ -33,9 +33,9 @@ const fn = result => ({
 
 module.exports = {
     /** @readonly */
-    compare: require('./compare/module.f.cjs'),
+    // compare: require('./compare/module.f.cjs'),
     /** @readonly */
-    operator: require('./operator/module.f.cjs'),
+    // operator: require('./operator/module.f.cjs'),
     /** @readonly */
     identity,
     /** @readonly */
