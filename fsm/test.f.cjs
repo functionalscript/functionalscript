@@ -1,4 +1,5 @@
-const _ = require('./module.f.cjs')
+const T = require('./module.f.mjs')
+const _ = T.default
 const byteSet = require('../types/byte_set/module.f.cjs')
 const { sort, fromEntries } = require('../types/object/module.f.cjs')
 const json = require('../json/module.f.cjs')
@@ -18,7 +19,7 @@ const buildDfa = () => {
     const idNext = byteSet.union(idBegin)(digit)
     const dot = _.toUnion('.')
 
-    /** @type {_.Grammar} */
+    /** @type {T.Grammar} */
     const grammar = [
         ['', digit, 'int'],
         ['int', digit, 'int'],

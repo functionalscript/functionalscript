@@ -1,17 +1,19 @@
-const list = require('../types/list/module.f.cjs')
+import list from '../types/list/module.f.cjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
-const byteSet = require('../types/byte_set/module.f.cjs')
+import byteSet from '../types/byte_set/module.f.cjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
-const sortedSet = require('../types/sorted_set/module.f.cjs')
+import sortedSet from '../types/sorted_set/module.f.cjs'
 const { intersect, union: sortedSetUnion } = sortedSet
-const rangeMap = require('../types/range_map/module.f.cjs')
+import rangeMap from '../types/range_map/module.f.cjs'
 const { merge } = rangeMap
-const { unsafeCmp } = require('../types/function/compare/module.f.cjs')
-const operator = require("../types/function/operator/module.f.cjs")
+import { unsafeCmp } from '../types/function/compare/module.f.cjs'
+import operator from '../types/function/operator/module.f.cjs'
 const { strictEqual } = operator
-const { stringify } = require('../json/module.f.cjs')
-const { identity } = require('../types/function/module.f.cjs')
-const { stringToList } = require('../text/utf16/module.f.cjs')
+import j from '../json/module.f.cjs'
+const { stringify } = j
+import f from '../types/function/module.f.cjs'
+const { identity } = f
+import { stringToList } from '../text/utf16/module.f.cjs'
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
@@ -93,7 +95,7 @@ const runOp = dfa => input => s => get(input)(dfa[s])
 /** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
 const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
 
-module.exports = {
+export default {
     /** @readonly */
     dfa,
     /** @readonly */
