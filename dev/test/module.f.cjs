@@ -70,7 +70,7 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
 const timeFormat = a => {
     const y = Math.round(a * 10_000).toString()
     const yl = 5 - y.length
-    const x = '0'.repeat(yl > 0 ? yl : 0)
+    const x = '0'.repeat(yl > 0 ? yl : 0) + y
     const s = x.length - 4
     const b = x.substring(0, s)
     const e = x.substring(s)
