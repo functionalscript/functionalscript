@@ -66,6 +66,15 @@ const addFail = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 
  * @typedef {readonly[TestState, T]} FullState
  */
 
+/** @type {(a: number) => string} */
+const timeFormat = a => {
+    const x = Math.round(a * 10_000).toString()
+    const s = x.length - 4
+    const b = x.substring(0, s)
+    const e = x.substring(s)
+    return `${b}.${e} ms`
+}
+
 /** @type {<T>(input: Input<T>) => readonly[number, T]} */
 const main = input => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
@@ -88,12 +97,12 @@ const main = input => {
                                 // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
                                 state = error(`::error file=${k},line=1,title=[3]['a']()::${r}`)(state)
                             } else {
-                                state = error(`${i}() ${fgRed}error${reset}, ${delta} ms`)(state)
+                                state = error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)(state)
                                 state = error(`${fgRed}${r}${reset}`)(state)
                             }
                         } else {
                             ts = addPass(delta)(ts)
-                            state = log(`${i}() ${fgGreen}ok${reset}, ${delta} ms`)(state)
+                            state = log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`)(state)
                         }
                         [ts, state] = next(r)([ts, state])
                     }
@@ -130,7 +139,7 @@ const main = input => {
     [ts, state] = fold(f)([ts, state])(Object.entries(moduleMap))
     const fgFail = ts.fail === 0 ? fgGreen : fgRed
     state = log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)(state)
-    state = log(`${bold}Time: ${ts.time} ms${reset}`)(state);
+    state = log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)(state);
     return [ts.fail !== 0 ? 1 : 0, state]
 }
 
