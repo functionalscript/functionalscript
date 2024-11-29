@@ -4,7 +4,7 @@ const { set } = require('../btree/set/module.f.mjs').default
 const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default
 const {
     values,
-} = require("../btree/module.f.cjs")
+} = require("../btree/module.f.mjs").default
 const compare = require('../function/compare/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')

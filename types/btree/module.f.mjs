@@ -1,7 +1,7 @@
-const list = require('../list/module.f.cjs')
+import list from '../list/module.f.cjs'
 const { flat } = list
-const { map } = require('../nullable/module.f.cjs')
-const _ = require('./types/module.f.mjs')
+import { map } from '../nullable/module.f.cjs'
+import * as _ from './types/module.f.mjs'
 
 /** @type {<T>(node: _.Node<T>) => list.Thunk<T>} */
 const nodeValues = node => () => {
@@ -29,7 +29,7 @@ const nodeValues = node => () => {
 /** @type {<T>(tree: _.Tree<T>) => list.List<T>} */
 const values = map(nodeValues)
 
-module.exports = {
+export default {
     /** @readonly */
     empty: null,
     /** @readonly */

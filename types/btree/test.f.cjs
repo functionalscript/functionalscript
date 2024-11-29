@@ -1,5 +1,5 @@
 const btree = require('./types/module.f.mjs')
-const { values } = require('./module.f.cjs')
+const { values } = require('./module.f.mjs').default
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default
 const { sort } = require('../object/module.f.cjs')

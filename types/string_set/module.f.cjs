@@ -1,5 +1,5 @@
 const btTypes = require('../btree/types/module.f.mjs')
-const btree = require('../btree/module.f.cjs')
+const btree = require('../btree/module.f.mjs').default
 const { find, isFound } = require('../btree/find/module.f.mjs').default
 const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default
 const { set: btreeSet } = require('../btree/set/module.f.mjs').default
