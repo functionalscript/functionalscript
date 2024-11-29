@@ -1,6 +1,6 @@
-const _ = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
-module.exports = () => {
+export default () => {
     if (!_.isDependenciesJson(null)) { throw 'error' }
     if (!_.isDependenciesJson({})) { throw 'error' }
     if (!_.isDependenciesJson({'a':'b'})) { throw 'error' }
