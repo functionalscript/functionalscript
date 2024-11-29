@@ -1,6 +1,7 @@
-const { unsafeCmp } = require('./module.f.mjs').default
+import _ from './module.f.mjs'
+const { unsafeCmp } = _
 
-module.exports = () => {
+export default () => {
     const result = unsafeCmp(true)(false)
     if (result !== 1) { throw result }
 }
