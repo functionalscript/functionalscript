@@ -1,4 +1,4 @@
-import cs from './testlib.f.cjs'
+import cs from './testlib.f.mjs'
 
 const f = () =>
 {
