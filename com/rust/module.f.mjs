@@ -1,4 +1,4 @@
-import types from '../types/module.f.cjs'
+import types, * as typesT from '../types/module.f.mjs'
 const { paramList } = types
 import text from '../../text/module.f.cjs'
 import object from '../../types/object/module.f.cjs'
@@ -27,21 +27,21 @@ const obj = name => `&${name}::Object`
 
 const self = ['&self']
 
-/** @type {(p: types.Field) => string} */
+/** @type {(p: typesT.Field) => string} */
 const paramName = ([n]) => n
 
-/** @type {(p: types.FieldArray) => list.Thunk<string>} */
+/** @type {(p: typesT.FieldArray) => list.Thunk<string>} */
 const callList = p => map(paramName)(paramList(p))
 
-/** @type {(p: types.FieldArray) => string} */
+/** @type {(p: typesT.FieldArray) => string} */
 const call = p => commaJoin(callList(p))
 
-/** @type {(p: types.FieldArray) => string} */
+/** @type {(p: typesT.FieldArray) => string} */
 const virtualCall = p => commaJoin(flat([['self'], callList(p)]))
 
 const super_ = 'super::'
 
-/** @type {(m: types.Method) => string} */
+/** @type {(m: typesT.Method) => string} */
 const assign = ([n]) => `${n}: Self::${n},`
 
 const mapAssign = map(assign)
@@ -129,12 +129,12 @@ const traitImpl = t => {
 
 const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex']
 
-/** @type {(library: types.Library) => text.Block} */
+/** @type {(library: typesT.Library) => text.Block} */
 const rust = library => {
 
-    /** @type {(p: string) => (o: (_: string) => string) => (t: types.Type) => string} */
+    /** @type {(p: string) => (o: (_: string) => string) => (t: typesT.Type) => string} */
     const type = p => {
-        /** @type {(o: (_: string) => string) => (t: types.Type) => string} */
+        /** @type {(o: (_: string) => string) => (t: typesT.Type) => string} */
         const f = o => t => {
             if (typeof t === 'string') { return t }
             if (t.length === 2) { return `*const ${f(ref)(t[1])}` }
@@ -145,7 +145,7 @@ const rust = library => {
         return f
     }
 
-    /** @type {(p: string) => (o: (_: string) => string) => (f: types.Field) => string} */
+    /** @type {(p: string) => (o: (_: string) => string) => (f: typesT.Field) => string} */
     const pf = p => o => ([name, t]) => `${name}: ${type(p)(o)(t)}`
 
     const param = pf(super_)(obj)
@@ -154,36 +154,36 @@ const rust = library => {
 
     const mapField = map(pf('')(ref))
 
-    /** @type {(fa: types.FieldArray) => (name: string) => text.Block} */
+    /** @type {(fa: typesT.FieldArray) => (name: string) => text.Block} */
     const struct = fn(entries)
         .then(mapField)
         .then(rustStruct)
         .result
 
-    /** @type {(first: readonly string[]) => (p: types.FieldArray) => string} */
+    /** @type {(first: readonly string[]) => (p: typesT.FieldArray) => string} */
     const func = first => p => {
         const resultStr = '_' in p ? ` -> ${type(super_)(ref)(p._)}` : ''
         const params = commaJoin(flat([first, mapParam(paramList(p))]))
         return `(${params})${resultStr}`
     }
 
-    /** @type {(n: string) => (p: types.FieldArray) => string} */
+    /** @type {(n: string) => (p: typesT.FieldArray) => string} */
     const virtualFnType = n => p => `extern "system" fn${n}${func(this_)(p)}`
 
-    /** @type {(m: types.Method) => string} */
+    /** @type {(m: typesT.Method) => string} */
     const virtualFn = ([n, p]) => `${n}: unsafe ${virtualFnType('')(p)}`
 
     const mapVirtualFn = map(virtualFn)
 
-    /** @type {(m: types.Method) => string} */
+    /** @type {(m: typesT.Method) => string} */
     const headerFn = ([n, p]) => `fn ${n}${func(self)(p)}`
 
-    /** @type {(m: types.Method) => string} */
+    /** @type {(m: typesT.Method) => string} */
     const traitFn = m => `${headerFn(m)};`
 
     const mapTraitFn = map(traitFn)
 
-    /** @type {(m: types.Method) => text.Block} */
+    /** @type {(m: typesT.Method) => text.Block} */
     const implFn = m => {
         const [n, p] = m
         return [
@@ -195,7 +195,7 @@ const rust = library => {
 
     const flatMapImplFn = flatMap(implFn)
 
-    /** @type {(m: types.Method) => text.Block} */
+    /** @type {(m: typesT.Method) => text.Block} */
     const impl = ([n, p]) => {
         const type = virtualFnType(` ${n}`)(p)
         return [
@@ -207,7 +207,7 @@ const rust = library => {
 
     const flatMapImpl = flatMap(impl)
 
-    /** @type {(i: types.Interface) => (name: string) => text.Block} */
+    /** @type {(i: typesT.Interface) => (name: string) => text.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
 
         const e = entries(i)
@@ -251,7 +251,7 @@ const rust = library => {
         ]
     }
 
-    /** @type {(type: object.Entry<types.Definition>) => text.Block} */
+    /** @type {(type: object.Entry<typesT.Definition>) => text.Block} */
     const def = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
 
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])

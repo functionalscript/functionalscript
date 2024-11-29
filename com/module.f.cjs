@@ -1,4 +1,4 @@
-const types = require('./types/module.f.cjs');
+const types = require('./types/module.f.mjs');
 
 module.exports = {
     /** @readonly */

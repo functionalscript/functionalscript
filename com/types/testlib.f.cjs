@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs')
 
 /** @type {_.Library} */
 module.exports = {

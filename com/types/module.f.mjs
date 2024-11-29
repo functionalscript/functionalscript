@@ -1,6 +1,7 @@
-const obj = require('../../types/object/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
-const { compose } = require('../../types/function/module.f.cjs')
+import obj from '../../types/object/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
+import f from '../../types/function/module.f.cjs'
+const { compose } = f
 const { filter } = list
 const { entries } = Object
 
@@ -64,7 +65,7 @@ const paramList = compose(entries)(filterParam)
 /** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */
 const result = v => f => fa => '_' in fa ? f(fa._) : v
 
-module.exports = {
+export default {
     /** @readonly */
     paramList,
     /** @readonly */
