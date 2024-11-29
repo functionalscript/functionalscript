@@ -1,7 +1,7 @@
 const list = require('../list/module.f.cjs')
 const { flat } = list
 const { map } = require('../nullable/module.f.cjs')
-const _ = require('./types/module.f.cjs')
+const _ = require('./types/module.f.mjs')
 
 /** @type {<T>(node: _.Node<T>) => list.Thunk<T>} */
 const nodeValues = node => () => {

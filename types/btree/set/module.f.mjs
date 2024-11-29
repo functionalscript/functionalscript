@@ -1,4 +1,4 @@
-import _ from '../types/module.f.cjs'
+import * as _ from '../types/module.f.mjs'
 import btreeFind, * as btreeFindT from '../find/module.f.mjs'
 const { find } = btreeFind
 import cmp from '../../function/compare/module.f.cjs'

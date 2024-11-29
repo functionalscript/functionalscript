@@ -1,4 +1,4 @@
-const btTypes = require('../btree/types/module.f.cjs')
+const btTypes = require('../btree/types/module.f.mjs')
 const btree = require('../btree/module.f.cjs')
 const { find, isFound } = require('../btree/find/module.f.mjs').default
 const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default

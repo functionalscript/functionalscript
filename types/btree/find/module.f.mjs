@@ -1,4 +1,4 @@
-import _ from '../types/module.f.cjs'
+import * as _ from '../types/module.f.mjs'
 import list from '../../list/module.f.cjs'
 import cmp from '../../function/compare/module.f.cjs'
 const { index3, index5 } = cmp

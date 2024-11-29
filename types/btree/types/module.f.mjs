@@ -61,4 +61,4 @@
  * @typedef { readonly[...Branch5<T>, T, Node<T>] } Branch7
  */
 
-module.exports = {}
+export default {}

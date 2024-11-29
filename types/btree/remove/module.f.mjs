@@ -1,4 +1,4 @@
-import _ from '../types/module.f.cjs'
+import * as _ from '../types/module.f.mjs'
 import cmp from '../../function/compare/module.f.cjs'
 import find, * as findT from '../find/module.f.mjs'
 import list from '../../list/module.f.cjs'
