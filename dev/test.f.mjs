@@ -4,7 +4,7 @@ const assert = () => { throw 'assert' }
 /** @type {(_: boolean) => void} */
 const assert_if = c => { if (c) { throw 'assert_if' } }
 
-module.exports = {
+export default {
     ctor: () => {
         const c = (() => { })['constructor']
         const f = c('return 5')
