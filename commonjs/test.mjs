@@ -1,7 +1,7 @@
-const _ = require('./module.mjs').default
-const run = require('./module/function/module.f.mjs')
+import _ from './module.mjs'
+import run, * as runT from './module/function/module.f.mjs'
 
-module.exports = {
+export default {
     ok: () => {
         const source = 'module.exports = "Hello world!"'
         const m = _.compile(source)
@@ -32,7 +32,7 @@ module.exports = {
         const d = _.compile(depSource)
         if (d[0] !== 'ok') { throw d }
 
-        /** @type {run.Require<number>} */
+        /** @type {runT.Require<number>} */
         const req = path => prior => {
             if (path !== 'm') { throw path }
             return d[1](req)(prior + 1)
