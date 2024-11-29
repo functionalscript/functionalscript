@@ -1,4 +1,5 @@
-const _ = require('./module.f.cjs')
+const T = require('./module.f.mjs')
+const _ = T.default
 const { toArray } = require('../../types/list/module.f.cjs')
 
 module.exports = {

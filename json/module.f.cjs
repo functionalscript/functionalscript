@@ -5,7 +5,7 @@ const object = require('../types/object/module.f.cjs')
 const { at } = object
 const { compose, fn } = require('../types/function/module.f.cjs')
 const { entries } = Object
-const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = require('./serializer/module.f.cjs')
+const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = require('./serializer/module.f.mjs').default
 
 /**
  * @typedef {{

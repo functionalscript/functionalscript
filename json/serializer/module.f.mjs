@@ -1,7 +1,7 @@
-const list = require('../../types/list/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
 const { flat, reduce, empty } = list
-const object = require('../../types/object/module.f.cjs')
-const operator = require('../../types/function/operator/module.f.cjs')
+import object from '../../types/object/module.f.cjs'
+import operator from '../../types/function/operator/module.f.cjs'
 
 /**
  * @template T
@@ -85,7 +85,7 @@ const arrayWrap = wrap('[')(']')
  * @typedef {(entries: Entries<T>) => Entries<T>} MapEntries<T>
 */
 
-module.exports = {
+export default {
     /** @readonly */
     objectWrap,
     /** @readonly */
