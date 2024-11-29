@@ -45,7 +45,7 @@ const version = ({ child_process, fs }) => {
     ]
 }
 
-module.exports = {
+export default {
     /** @readonly */
     version,
 }

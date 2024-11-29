@@ -1,5 +1,5 @@
-import { version } from './module.f.cjs'
+import _ from './module.f.mjs'
 import child_process from 'node:child_process'
 import fs from 'node:fs'
 
-version({ child_process, fs })
+_.version({ child_process, fs })

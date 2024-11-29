@@ -1,4 +1,5 @@
-const _ = require('./module.f.cjs')
+const T = require('./module.f.mjs')
+const _ = T.default
 
 const x = {
     "name": "functionalscript",
@@ -72,13 +73,13 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-/** @type {(s: string) => _.Buffer} */
+/** @type {(s: string) => T.Buffer} */
 const buffer = s => ({
     toString: () => s
 })
 
 module.exports = () => {
-    /** @type {_.Node<string>} */
+    /** @type {T.Node<string>} */
     const node = {
         child_process: { execSync: () => buffer("123\n456\n") },
         fs: {

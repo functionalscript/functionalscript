@@ -1,4 +1,4 @@
 module.exports = {
     /** @readonly */
-    version: require('./version/module.f.cjs')
+    version: require('./version/module.f.mjs')
 }
