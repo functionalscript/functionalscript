@@ -1,9 +1,10 @@
-const json = require('../json/module.f.cjs')
-const { sort } = require('../types/object/module.f.cjs')
-const { identity } = require('../types/function/module.f.cjs')
-const djs = require('./module.f.mjs').default
+import json from '../json/module.f.cjs'
+import { sort } from '../types/object/module.f.cjs'
+import f from '../types/function/module.f.cjs'
+const { identity } = f
+import djs from './module.f.mjs'
 
-module.exports = {
+export default {
     stringify: [
         {
             sort: () => {
