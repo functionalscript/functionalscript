@@ -24,7 +24,7 @@ const anyLog = f => s => state => {
 
 /** @type {<T>(f: () => T) => Result<T, unknown>} */
 const tryCatch = f => {
-    // Side effect: `try catch` is not allowed in FunctionalScript.
+    // `try catch` is not allowed in FunctionalScript.
     try {
         return ['ok', f()]
     } catch (e) {
@@ -45,7 +45,7 @@ const main = async() => {
     const moduleMap = await loadModuleMap()
 
     /** @type {any} */
-    const f = moduleMap['./dev/test/module.f.cjs'].exports
+    const f = moduleMap['./dev/test/module.f.cjs'].default
     const r = f({
         moduleMap,
         log: anyLog(console.log),

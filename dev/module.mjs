@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { readdir, writeFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
@@ -22,36 +22,16 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
- *  [k in string]?: MutableModule
- * }} MutableDependencyMap
- */
-
-/**
- * @typedef {{
- *  dependencyMap: MutableDependencyMap
- *  exports?: unknown
- * }} MutableModule
- */
-
-/**
- * @typedef {{
- *  readonly dependencyMap: DependencyMap
- *  readonly exports?: unknown
+ *  readonly default?: unknown
  * }} Module
- */
-
-/**
- * @typedef {{
- *   readonly[k in string]?: Module
- * }} DependencyMap
  */
 
 /** @typedef {(name: string) => unknown} Require */
 
 /**
  * @typedef {{
- *  readonly[k in string]: Function
- * }} FunctionMap
+ *  readonly[k in string]: unknown
+ * }} UnknownMap
  */
 
 /**
@@ -59,12 +39,12 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
  * @typedef {readonly[string, T]} Entry
  */
 
-/** @type {(a: Entry<Function>, b: Entry<Function>) => number} */
+/** @type {(a: Entry<unknown>, b: Entry<unknown>) => number} */
 const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
 
 /**
  * @typedef {{
- *  [k in string]: MutableModule
+ *  [k in string]: Module
  * }} MutableModuleMap
  */
 
@@ -94,9 +74,9 @@ export const env =
     }
 
 export const loadModuleMap = async () => {
-    /** @type {() => Promise<FunctionMap>} */
+    /** @type {() => Promise<UnknownMap>} */
     const load = async () => {
-        /** @type {(readonly[string, Function])[]} */
+        /** @type {(readonly[string, unknown])[]} */
         const map = []
         /** @type {(path: string) => Promise<void>} */
         const f = async p => {
@@ -107,8 +87,8 @@ export const loadModuleMap = async () => {
                     if (i.isDirectory()) {
                         await f(file)
                     } else if (name.endsWith('.f.cjs')) {
-                        const source = await readFile(file, 'utf8')
-                        map.push([file, Function('module', 'require', `"use strict";${source}`)])
+                        const source = await import(`../${file}`)
+                        map.push([file, source.default])
                     }
                 }
             }
@@ -124,7 +104,7 @@ export const loadModuleMap = async () => {
     const build = () => {
         /** @type {MutableModuleMap} */
         const d = {}
-        /** @type {(base: readonly string[]) => (k: string) => readonly[string, MutableModule]} */
+        /** @type {(base: readonly string[]) => (k: string) => readonly[string, Module]} */
         const getModule = base => k => {
             const relativePath = k.split('/')
             const dif = relativePath.filter(v => v === '..').length
@@ -138,18 +118,8 @@ export const loadModuleMap = async () => {
                 }
             }
             {
-                /** @type {MutableDependencyMap} */
-                const dependencyMap = {}
-                /** @type {MutableModule} */
-                const module = { dependencyMap }
-                const get = getModule(remove_tail(path)(1))
-                /** @type {(s: string) => unknown} */
-                const newReq = s => {
-                    const [p, result] = get(s)
-                    dependencyMap[p] = result
-                    return result.exports
-                }
-                map[pathStr](module, newReq)
+                /** @type {Module} */
+                const module = { default: map[pathStr] }
                 d[pathStr] = module
                 return [pathStr, module]
             }
