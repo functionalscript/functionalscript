@@ -1,4 +1,4 @@
-import cpp from './testlib.f.cjs'
+import cpp from './testlib.f.mjs'
 
 const f = () =>
 {
