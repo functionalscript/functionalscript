@@ -1,7 +1,8 @@
-const { at, setReplace, setReduce, empty, entries, remove } = require('./module.f.mjs').default
-const seq = require('../list/module.f.mjs').default
+import _ from './module.f.mjs'
+const { at, setReplace, setReduce, empty, entries, remove } = _
+import seq from '../list/module.f.mjs'
 
-module.exports = {
+export default {
     main: [
         () => {
             let m = setReplace('a')(1)(null)
