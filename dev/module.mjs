@@ -188,7 +188,6 @@ export const index = async() => {
         }
     }
     const [e, i] = codeAdd(indent)('')(m)
-    console.log([e, i])
     let s =
         '// Generated file.\n' +
         i +
