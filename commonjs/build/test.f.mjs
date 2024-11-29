@@ -1,7 +1,7 @@
 import _ from './module.f.mjs'
 import map from '../../types/map/module.f.cjs'
 import module_ from '../module/module.f.cjs'
-import function_ from '../module/function/module.f.cjs'
+import * as function_ from '../module/function/module.f.mjs'
 import result from '../../types/result/module.f.cjs'
 import package_ from '../package/module.f.cjs'
 import { at } from '../../types/object/module.f.cjs'

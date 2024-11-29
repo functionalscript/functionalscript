@@ -2,7 +2,7 @@
  * An IO interface for creating and running module functions.
  */
 
-const result = require('../../../types/result/module.f.cjs')
+import result from '../../../types/result/module.f.cjs'
 
 /** @typedef {<M>(require: Require<M>) => (prior: M) => Result<M>} Function_ */
 
@@ -18,4 +18,4 @@ const result = require('../../../types/result/module.f.cjs')
 
 /** @typedef {(source: string) => result.Result<Function_, unknown>} Compile */
 
-module.exports = {}
+export default {}

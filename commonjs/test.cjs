@@ -1,5 +1,5 @@
 const _ = require('./module.cjs')
-const run = require('./module/function/module.f.cjs')
+const run = require('./module/function/module.f.mjs')
 
 module.exports = {
     ok: () => {

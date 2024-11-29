@@ -1,7 +1,7 @@
 import package_ from '../package/module.f.cjs'
 import module_ from '../module/module.f.cjs'
 const { idToString, dir } = module_
-import function_ from '../module/function/module.f.cjs'
+import * as function_ from '../module/function/module.f.mjs'
 import map from '../../types/map/module.f.cjs'
 const { empty: mapEmpty, setReplace } = map
 import object from '../../types/object/module.f.cjs'

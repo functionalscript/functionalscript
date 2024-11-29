@@ -53,8 +53,6 @@ const idToString = id => `${id.package}/${id.path.join('/')}`
 
 module.exports = {
     /** @readonly */
-    function: require('./function/module.f.cjs'),
-    /** @readonly */
     dir,
     /** @readonly */
     idToString,
