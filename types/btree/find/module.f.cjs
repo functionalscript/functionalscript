@@ -2,7 +2,7 @@ const _ = require('../types/module.f.cjs')
 const list = require('../../list/module.f.cjs')
 const cmp = require('../../function/compare/module.f.cjs')
 const { index3, index5 } = cmp
-const array = require('../../array/module.f.cjs')
+const array = require('../../array/module.f.mjs')
 
 /**
  * @template T

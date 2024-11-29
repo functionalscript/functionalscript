@@ -1,4 +1,4 @@
-const array = require('../../array/module.f.cjs')
+const array = require('../../array/module.f.mjs')
 
 /** @typedef {array.Index3} Index3 */
 /** @typedef {array.Index5} Index5 */

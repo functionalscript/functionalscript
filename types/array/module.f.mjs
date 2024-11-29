@@ -1,4 +1,4 @@
-const option = require('../nullable/module.f.cjs')
+import option from '../nullable/module.f.cjs'
 const { map } = option
 
 /**
@@ -117,7 +117,7 @@ const splitLast = a => {
     return [uncheckHead(a), lastA]
 }
 
-module.exports = {
+export default {
     /** @readonly */
     at,
     /** @readnly */

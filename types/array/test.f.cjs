@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const json = require('../../json/module.f.mjs').default
 const { sort } = require('../object/module.f.cjs')
 
