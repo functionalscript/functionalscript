@@ -11,7 +11,6 @@ const result = require('../../types/result/module.f.cjs')
 
 /**
  * @typedef {{
- *  readonly dependencyMap: DependencyMap
  *  readonly exports?: unknown
  * }} Module
  */
