@@ -1,10 +1,10 @@
-const _ = require('./module.f.mjs').default
-const map = require('../../types/map/module.f.cjs')
-const module_ = require('../module/module.f.cjs')
-const function_ = require('../module/function/module.f.cjs')
-const result = require('../../types/result/module.f.cjs')
-const package_ = require('../package/module.f.cjs')
-const { at } = require('../../types/object/module.f.cjs')
+import _ from './module.f.mjs'
+import map from '../../types/map/module.f.cjs'
+import module_ from '../module/module.f.cjs'
+import function_ from '../module/function/module.f.cjs'
+import result from '../../types/result/module.f.cjs'
+import package_ from '../package/module.f.cjs'
+import { at } from '../../types/object/module.f.cjs'
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {
@@ -70,7 +70,7 @@ const getOrBuild = _.getOrBuild
     (packageGet)
     (/** @type {module_.MapInterface<map.Map<module_.State>>} */(map))
 
-module.exports = () => {
+export default () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(map.empty)
     {
         if (r === null) { throw 'r === null' }
