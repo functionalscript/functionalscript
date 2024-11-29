@@ -1,4 +1,4 @@
-const { decToBin } = require('./module.f.cjs')
+const { decToBin } = require('./module.f.mjs')
 
 module.exports = {
     decToBin: [

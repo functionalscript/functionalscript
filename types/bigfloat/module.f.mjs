@@ -1,5 +1,5 @@
-const compare = require('../function/compare/module.f.cjs')
-const { abs, sign } = require('../bigint/module.f.cjs')
+import compare from '../function/compare/module.f.cjs'
+import { abs, sign } from '../bigint/module.f.cjs'
 
 /** @typedef {readonly[bigint,number]} BigFloat */
 
@@ -86,7 +86,7 @@ const decToBin = dec => {
     return multiply(r53)(s)
 }
 
-module.exports = {
+export default {
     /** @readonly */
     decToBin,
     /** @readonly */

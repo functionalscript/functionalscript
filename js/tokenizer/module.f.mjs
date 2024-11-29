@@ -7,7 +7,7 @@ const { at } = map
 import _range from '../../types/range/module.f.cjs'
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
-import bigfloat from '../../types/bigfloat/module.f.cjs'
+import bigfloat from '../../types/bigfloat/module.f.mjs'
 const { fromCharCode } = String
 import ascii from '../../text/ascii/module.f.mjs'
 const {

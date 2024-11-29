@@ -1,7 +1,7 @@
 import operator from '../../types/function/operator/module.f.cjs'
 import list from '../../types/list/module.f.cjs'
 const { empty, flat, stateScan } = list
-import { multiply } from '../../types/bigfloat/module.f.cjs'
+import { multiply } from '../../types/bigfloat/module.f.mjs'
 import jsTokenizer, * as jsTokenizerT from '../../js/tokenizer/module.f.mjs'
 
 /**
