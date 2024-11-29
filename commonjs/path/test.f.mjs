@@ -1,10 +1,12 @@
-const _ = require('./module.f.mjs').default
-const { todo } = require('../../dev/module.f.cjs')
-const json = require('../../json/module.f.cjs')
-const { identity } = require('../../types/function/module.f.cjs')
-const object = require('../../types/object/module.f.cjs')
-const { at } = require('../../types/object/module.f.cjs')
-const package_ = require('../package/module.f.mjs')
+import _ from './module.f.mjs'
+import dev from '../../dev/module.f.cjs'
+const { todo } = dev
+import json from '../../json/module.f.cjs'
+import f from '../../types/function/module.f.cjs'
+const { identity } = f
+import object from '../../types/object/module.f.cjs'
+import { at } from '../../types/object/module.f.cjs'
+import package_, * as packageT from '../package/module.f.mjs'
 
 /** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
 const i = o => s => at(s)(o)
@@ -12,7 +14,7 @@ const i = o => s => at(s)(o)
 /** @type {(g: json.Unknown) => string} */
 const stringify = json.stringify(identity)
 
-module.exports = {
+export default {
     0: () => {
         const result = _.parseLocal('')('./a')
         if (stringify(result) !== '{"external":false,"dir":false,"items":["a"]}') { throw result }
@@ -68,7 +70,7 @@ module.exports = {
         },
     },
     9: () => {
-        /** @type {object.Map<package_.Package>} */
+        /** @type {object.Map<packageT.Package>} */
         const packages = {
             '': {
                 dependency: () => todo(),
@@ -79,7 +81,7 @@ module.exports = {
         if (result !== '{"id":{"package":"","path":["a","c"]},"source":"return \\"a/c\\""}') { throw result }
     },
     10: () => {
-        /** @type {object.Map<package_.Package>} */
+        /** @type {object.Map<packageT.Package>} */
         const packages = {
             '': {
                 dependency: x => {
@@ -129,7 +131,7 @@ module.exports = {
         }
     },
     11: () => {
-        /** @type {object.Map<package_.Package>} */
+        /** @type {object.Map<packageT.Package>} */
         const packages = {
             '': {
                 dependency: x => {
@@ -156,7 +158,7 @@ module.exports = {
         }
     },
     12: () => {
-        /** @type {object.Map<package_.Package>} */
+        /** @type {object.Map<packageT.Package>} */
         const packages = {
             '': {
                 dependency: x => {
