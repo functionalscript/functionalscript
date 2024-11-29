@@ -1,14 +1,13 @@
-const _ = require('./module.f.mjs').default
-const { every, countdown, map } = require('../list/module.f.cjs')
-const jsonT = require('../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../object/module.f.cjs')
-const { toArray } = require('../list/module.f.cjs')
+import _ from './module.f.mjs'
+import { every, countdown, map } from '../list/module.f.cjs'
+import json, * as jsonT from '../../json/module.f.mjs'
+import { sort } from '../object/module.f.cjs'
+import { toArray } from '../list/module.f.cjs'
 
 /** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
-module.exports = {
+export default {
     has: [
         () => {
             if (_.has(0)(_.empty)) { throw _.empty }
