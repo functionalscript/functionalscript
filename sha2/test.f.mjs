@@ -1,8 +1,7 @@
-const _ = require('./module.f.mjs').default
-const jsonT = require('../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../types/object/module.f.cjs')
-const list = require('../types/list/module.f.cjs')
+import _ from './module.f.mjs'
+import json, * as jsonT from '../json/module.f.mjs'
+import { sort } from '../types/object/module.f.cjs'
+import list from '../types/list/module.f.cjs'
 
 /** @type {(a: number) => number} */
 const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000
@@ -33,7 +32,7 @@ const stringify = a => json.stringify(sort)(a)
 //     console.log(result.map(toHexString))
 // }
 
-module.exports = {
+export default {
     empty: {
         sha256: () => {
             const hash = _.computeSha256([])(0)
