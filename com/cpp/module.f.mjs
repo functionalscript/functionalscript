@@ -1,10 +1,10 @@
-const types = require('../types/module.f.cjs')
+import types from '../types/module.f.cjs'
+import text from '../../text/module.f.cjs'
+import obj from '../../types/object/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
+import { join } from '../../types/string/module.f.cjs'
 const { paramList } = types
-const text = require('../../text/module.f.cjs')
-const obj = require('../../types/object/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
 const { map, flatMap, flat } = list
-const { join } = require('../../types/string/module.f.cjs')
 const { entries } = Object
 
 /** @type {(name: string) => (body: text.Block) => text.Block} */
@@ -147,7 +147,7 @@ const cpp = name => lib => {
     ])
 }
 
-module.exports = {
+export default {
     /** @readonly */
     cpp,
 }

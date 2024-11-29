@@ -183,8 +183,10 @@ export const index = async() => {
     let m = {}
     for (const k in await loadModuleMap()) {
         const [, ...s] = k.split('/')
-        if (s[s.length - 1] === 'module.f.cjs') {
-            m = folderMapAdd(m)(s)
+        switch (s[s.length - 1]) {
+            case 'module.f.cjs': case 'module.f.mjs':
+                m = folderMapAdd(m)(s)
+                break
         }
     }
     const [e, i] = codeAdd(indent)('')(m)
