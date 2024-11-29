@@ -1,7 +1,7 @@
 const json = require('../json/module.f.cjs')
 const { sort } = require('../types/object/module.f.cjs')
 const { identity } = require('../types/function/module.f.cjs')
-const djs= require('./module.f.mjs')
+const djs = require('./module.f.mjs').default
 
 module.exports = {
     stringify: [

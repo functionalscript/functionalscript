@@ -1,8 +1,9 @@
 import list from '../types/list/module.f.cjs'
-const { flat, map, empty } = list
+const { flat, map } = list
 import { concat } from '../types/string/module.f.cjs'
 import object from '../types/object/module.f.cjs'
-import { compose, fn } from '../types/function/module.f.cjs'
+import f from '../types/function/module.f.cjs'
+const { compose, fn } = f
 const { entries } = Object
 import bi from '../types/bigint/module.f.cjs'
 const { serialize: bigintSerialize } = bi
@@ -68,7 +69,6 @@ const serialize = sort => {
 const stringify = sort => compose(serialize(sort))(concat)
 
 export default {
-
     /** @readonly */
     stringify,
     /** @readonly */
