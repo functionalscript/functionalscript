@@ -1,13 +1,13 @@
-const m = require('./module.f.cjs')
-const { curve, secp256k1, secp192r1, eq } = m
+const mT = require('./module.f.mjs')
+const { curve, secp256k1, secp192r1, eq } = mT.default
 
 module.exports = {
     test: () => {
-        /** @type {(c: m.Init) => void} */
+        /** @type {(c: mT.Init) => void} */
         const test_curve = c => {
             const { g } = c
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
-            /** @type {(p: m.Point) => void} */
+            /** @type {(p: mT.Point) => void} */
             const point_check = p => {
                 if (p === null) { throw 'null' }
                 const [x, y] = p
@@ -17,7 +17,7 @@ module.exports = {
             }
             point_check(g)
             point_check(neg(g))
-            /** @type {(p: m.Point) => void} */
+            /** @type {(p: mT.Point) => void} */
             const test_mul = p => {
                 if (mul(p)(0n) !== null) { throw 'O' }
                 if (mul(p)(1n) !== p) { throw 'p' }

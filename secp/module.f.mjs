@@ -1,7 +1,7 @@
-const op = require('../types/function/operator/module.f.cjs')
-const pfT = require('../prime_field/module.f.mjs')
-const { scalar_mul } = require('../types/bigint/module.f.cjs')
-const { prime_field, sqrt } = pfT.default
+import op from '../types/function/operator/module.f.cjs'
+import pf, * as pfT from '../prime_field/module.f.mjs'
+import { scalar_mul } from '../types/bigint/module.f.cjs'
+const { prime_field, sqrt } = pf
 
 /** @typedef {readonly[bigint, bigint]} Point2D */
 
@@ -83,7 +83,7 @@ const curve = ({ p, a: [a0, a1], n }) => {
     }
 }
 
-module.exports = {
+export default {
     curve,
     /** @type {(a: Point) => (b: Point) => boolean} */
     eq: a => b => {
