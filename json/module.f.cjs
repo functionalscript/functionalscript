@@ -86,7 +86,7 @@ const isObject = value => typeof value === 'object' && value !== null && !(value
 
 module.exports = {
     /** @readonly */
-    tokenizer: require('./tokenizer/module.f.cjs'),
+    tokenizer: require('./tokenizer/module.f.mjs'),
     /** @readonly */
     setProperty,
     /** @readonly */

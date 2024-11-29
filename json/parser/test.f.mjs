@@ -1,11 +1,11 @@
 import parser from './module.f.mjs'
-import tokenizer from '../tokenizer/module.f.cjs'
+import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.cjs'
 import json from '../module.f.cjs'
 import { sort } from '../../types/object/module.f.cjs'
 import encoding from '../../text/utf16/module.f.cjs'
 
-/** @type {(s: string) => readonly tokenizer.JsonToken[]} */
+/** @type {(s: string) => readonly tokenizerT.JsonToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = json.stringify(sort)
