@@ -1,4 +1,4 @@
-const cpp = require('./testlib.f.cjs')
+import cpp from './testlib.f.cjs'
 
 const f = () =>
 {
@@ -39,4 +39,4 @@ const f = () =>
     if (cpp() !== e) { throw cpp }
 }
 
-module.exports = f
+export default f

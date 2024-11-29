@@ -45,7 +45,7 @@ const result = require('../../types/result/module.f.cjs')
  */
 
 /** @type {(s: string) => boolean} */
-const isTest = s => s.endsWith('test.f.cjs')
+const isTest = s => s.endsWith('test.f.cjs') || s.endsWith('test.f.mjs')
 
 /**
  * @typedef {{
