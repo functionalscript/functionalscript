@@ -6,7 +6,7 @@ import f from '../../types/function/module.f.cjs'
 const { identity } = f
 import object from '../../types/object/module.f.cjs'
 import { at } from '../../types/object/module.f.cjs'
-import package_, * as packageT from '../package/module.f.mjs'
+import * as packageT from '../package/module.f.mjs'
 
 /** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
 const i = o => s => at(s)(o)

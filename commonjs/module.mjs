@@ -1,8 +1,8 @@
-const { tryCatch } = require('../types/result/module.cjs')
-const { unwrap } = require('../types/result/module.f.cjs')
-const moduleFunction = require('./module/function/module.f.mjs')
+import { tryCatch } from '../types/result/module.cjs'
+import { unwrap } from '../types/result/module.f.cjs'
+import moduleFunction, * as moduleFunctionT from './module/function/module.f.mjs'
 
-/** @type {(f: Function) => moduleFunction.Function_} */
+/** @type {(f: Function) => moduleFunctionT.Function_} */
 const build = f => immutableRequire => mutableData => {
     /** @type {(path: string) => unknown} */
     const mutableRequire = path => {
@@ -20,12 +20,12 @@ const build = f => immutableRequire => mutableData => {
     return [result, mutableData]
 }
 
-/** @type {moduleFunction.Compile} */
+/** @type {moduleFunctionT.Compile} */
 const compile = source =>
     // Side effect: a `Function` constructor is not allowed in FunctionalScript.
     tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
 
-module.exports = {
+export default {
     /** @readonly */
     compile,
 }

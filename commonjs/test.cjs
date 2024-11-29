@@ -1,4 +1,4 @@
-const _ = require('./module.cjs')
+const _ = require('./module.mjs').default
 const run = require('./module/function/module.f.mjs')
 
 module.exports = {
