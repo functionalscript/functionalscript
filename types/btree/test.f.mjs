@@ -4,7 +4,8 @@ const { values } = _
 import json, * as jsonT from '../../json/module.f.mjs'
 import o from '../object/module.f.mjs'
 const { sort } = o
-import { cmp } from '../string/module.f.cjs'
+import str from '../string/module.f.mjs'
+const { cmp } = str
 import list, * as List from '../list/module.f.mjs'
 import s from './set/module.f.mjs'
 import f from './find/module.f.mjs'

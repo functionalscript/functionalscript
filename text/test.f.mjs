@@ -1,5 +1,6 @@
 import _, * as T from './module.f.mjs'
-import { join } from '../types/string/module.f.cjs'
+import string from '../types/string/module.f.mjs'
+const { join } = string
 
 export default () => {
     /** @type {T.Block} */

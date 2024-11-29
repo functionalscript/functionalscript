@@ -8,7 +8,7 @@ const { remove: btreeRemove } = btr
 import bt from '../btree/module.f.mjs'
 const { values } = bt
 import compare, * as Compare from '../function/compare/module.f.mjs'
-import s from '../string/module.f.cjs'
+import s from '../string/module.f.mjs'
 const { cmp } = s
 import list, * as List from '../list/module.f.mjs'
 const { fold } = list

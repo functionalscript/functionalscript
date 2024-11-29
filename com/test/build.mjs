@@ -3,7 +3,8 @@ import { execSync } from 'node:child_process'
 import { platform, exit } from 'node:process'
 import build, * as buildT from './build.f.mjs'
 const { cpp, cs, rust } = build
-import { join } from '../../types/string/module.f.cjs'
+import string from '../../types/string/module.f.mjs'
+const { join } = string
 const { log, error } = console
 import sgr from '../../text/sgr/module.f.mjs'
 const { bold, reset } = sgr

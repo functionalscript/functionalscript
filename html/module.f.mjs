@@ -1,6 +1,6 @@
 import list, * as List from '../types/list/module.f.mjs'
 const { map, flatMap, flat, concat: listConcat } = list
-import s from '../types/string/module.f.cjs'
+import s from '../types/string/module.f.mjs'
 const { concat: stringConcat } = s
 import object, * as O from '../types/object/module.f.mjs'
 import f from '../types/function/module.f.mjs'

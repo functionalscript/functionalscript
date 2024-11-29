@@ -8,7 +8,7 @@ const {
     values,
     empty,
 } = btree
-const { cmp } = require("../string/module.f.cjs")
+const { cmp } = require("../string/module.f.mjs").default
 const list = require('../list/module.f.mjs')
 const { fold } = list.default
 const { compose } = require('../function/module.f.mjs').default

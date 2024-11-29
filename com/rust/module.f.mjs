@@ -7,7 +7,8 @@ const { flat, map, flatMap } = list
 const { entries } = Object
 import func from '../../types/function/module.f.mjs'
 const { fn } = func
-import { join } from '../../types/string/module.f.cjs'
+import string from '../../types/string/module.f.mjs'
+const { join } = string
 
 /** @type {(field: string) => string} */
 const rustField = field => `pub ${field},`

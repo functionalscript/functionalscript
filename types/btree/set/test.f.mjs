@@ -1,6 +1,7 @@
 import _ from './module.f.mjs'
 import * as btree from '../types/module.f.mjs'
-import { cmp } from '../../string/module.f.cjs'
+import s from '../../string/module.f.mjs'
+const { cmp } = s
 import json, * as jsonT from '../../../json/module.f.mjs'
 import o from '../../object/module.f.mjs'
 const { sort } = o

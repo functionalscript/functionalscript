@@ -2,7 +2,8 @@ import types, * as typesT from '../types/module.f.mjs'
 import text, * as textT from '../../text/module.f.mjs'
 import obj, * as O from '../../types/object/module.f.mjs'
 import list from '../../types/list/module.f.mjs'
-import { join } from '../../types/string/module.f.cjs'
+import string from '../../types/string/module.f.mjs'
+const { join } = string
 const { paramList } = types
 const { map, flatMap, flat } = list
 const { entries } = Object

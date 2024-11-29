@@ -4,7 +4,8 @@ import json, * as jsonT from '../../../json/module.f.mjs'
 import o from '../../object/module.f.mjs'
 const { sort } = o
 import * as btree from '../types/module.f.mjs'
-import { cmp } from '../../string/module.f.cjs'
+import string from '../../string/module.f.mjs'
+const { cmp } = string
 import s from '../set/module.f.mjs'
 
 const jsonStr = json.stringify(sort)

@@ -1,4 +1,4 @@
-const { join, concat, repeat, cmp } = require('./module.f.cjs')
+const { join, concat, repeat, cmp } = require('./module.f.mjs').default
 const { repeat: repeatList } = require('../list/module.f.mjs').default
 
 module.exports = {
