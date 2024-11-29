@@ -1,6 +1,6 @@
 import _ from './module.f.mjs'
 import btree from '../types/module.f.cjs'
-import s from '../set/module.f.cjs'
+import s from '../set/module.f.mjs'
 import { cmp } from '../../string/module.f.cjs'
 import json from '../../../json/module.f.mjs'
 import { sort } from '../../object/module.f.cjs'

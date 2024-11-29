@@ -1,8 +1,8 @@
-const _ = require('../types/module.f.cjs')
-const btreeFind = require('../find/module.f.mjs')
-const { find } = btreeFind.default
-const cmp = require('../../function/compare/module.f.cjs')
-const list = require('../../list/module.f.cjs')
+import _ from '../types/module.f.cjs'
+import btreeFind, * as btreeFindT from '../find/module.f.mjs'
+const { find } = btreeFind
+import cmp from '../../function/compare/module.f.cjs'
+import list from '../../list/module.f.cjs'
 const { fold } = list
 
 /**
@@ -13,7 +13,7 @@ const { fold } = list
 /** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(i: btreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
+/** @type {<T>(i: btreeFindT.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
 const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: {
@@ -90,7 +90,7 @@ const nodeSet = c => g => node => {
 /** @type {<T>(c: cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
 const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
 
-module.exports = {
+export default {
     /** @readonly */
     set,
 }

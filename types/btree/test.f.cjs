@@ -5,7 +5,7 @@ const json = jsonT.default
 const { sort } = require('../object/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
-const s = require('./set/module.f.cjs')
+const s = require('./set/module.f.mjs').default
 const f = require('./find/module.f.mjs').default
 
 require('./find/test.f.mjs')
