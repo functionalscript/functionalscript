@@ -158,20 +158,24 @@ const folderMapAdd = m => s => {
 
 const indent = '  '
 
-/** @type {(i: string) => (p: string) => (m: FolderMap) => string} */
+/** @type {(i: string) => (p: string) => (m: FolderMap) => readonly[string,string]} */
 const codeAdd = i => p => m => {
     let result = ''
+    let im = ''
     for (const [k, v] of Object.entries(m)) {
-        const np = `${p}${k}/`
+        const np = `${p}${k}`
         if (typeof v === 'string') {
-            result += `${i}${k}: require("${np}${v}"),\n`
+            result += `${i}${k}: ${np},\n`
+            im += `import ${np} from './${np.replaceAll('$', '/')}/${v}'\n`
         } else {
+            const [r, x] = codeAdd(i + indent)(`${np}\$`)(v)
             result += `${i}${k}: \{\n`
-            result += codeAdd(i + indent)(np)(v)
+            result += r
             result += `${i}\},\n`
+            im += x
         }
     }
-    return result
+    return [result, im]
 }
 
 export const index = async() => {
@@ -183,11 +187,12 @@ export const index = async() => {
             m = folderMapAdd(m)(s)
         }
     }
-    console.log(m)
+    const [e, i] = codeAdd(indent)('')(m)
     let s =
         '// Generated file.\n' +
-        'module.exports = {\n'
-    s += codeAdd(indent)('./')(m)
-    s += '}\n'
-    await writeFile('index.f.cjs', s)
+        i +
+        'export default {\n' +
+        e +
+        '}\n'
+    await writeFile('index.f.mjs', s)
 }
