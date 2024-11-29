@@ -1,4 +1,4 @@
-const array = require('../types/array/module.f.cjs')
+import array from '../types/array/module.f.cjs'
 
 /**
  * @typedef {{
@@ -194,7 +194,7 @@ const compress256 = compress(init256)
 
 const compress224 = compress(init224)
 
-module.exports = {
+export default {
     /** @readonly */
     padding,
     /** @readonly */
