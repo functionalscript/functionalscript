@@ -126,13 +126,7 @@ export const loadModuleMap = async () => {
             {
                 /** @type {MutableModule} */
                 const module = { }
-                const get = getModule(remove_tail(path)(1))
-                /** @type {(s: string) => unknown} */
-                const newReq = s => {
-                    const [_, result] = get(s)
-                    return result.exports
-                }
-                map[pathStr](module, newReq)
+                map[pathStr](module)
                 d[pathStr] = module
                 return [pathStr, module]
             }
