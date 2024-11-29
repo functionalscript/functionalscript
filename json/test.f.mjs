@@ -1,8 +1,9 @@
-const json = require('./module.f.mjs').default
-const { sort } = require('../types/object/module.f.cjs')
-const { identity } = require('../types/function/module.f.cjs')
+import json from './module.f.mjs'
+import { sort } from '../types/object/module.f.cjs'
+import f from '../types/function/module.f.cjs'
+const { identity } = f
 
-module.exports = {
+export default {
     setProperty: () => {
         if (json.setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
     },
