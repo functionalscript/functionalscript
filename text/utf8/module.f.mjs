@@ -1,6 +1,6 @@
-const list = require('../../types/list/module.f.cjs')
-const operator = require('../../types/function/operator/module.f.cjs')
-const array = require('../../types/array/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
+import operator from '../../types/function/operator/module.f.cjs'
+import array from '../../types/array/module.f.cjs'
 const { flatMap, flat, stateScan } = list
 
 /** @typedef {u8|null} ByteOrEof */
@@ -107,7 +107,7 @@ const eofList = [null]
 /** @type {(input: list.List<u8>) => list.List<i32>} */
 const toCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
-module.exports = {
+export default {
     /** @readonly */
     fromCodePointList,
     /** @readonly */
