@@ -4,7 +4,7 @@ const json = require('../../json/module.f.cjs')
 const { identity } = require('../../types/function/module.f.cjs')
 const object = require('../../types/object/module.f.cjs')
 const { at } = require('../../types/object/module.f.cjs')
-const package_ = require('../package/module.f.cjs')
+const package_ = require('../package/module.f.mjs')
 
 /** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
 const i = o => s => at(s)(o)

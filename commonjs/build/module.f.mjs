@@ -1,4 +1,4 @@
-import package_ from '../package/module.f.cjs'
+import package_, * as packageT from '../package/module.f.mjs'
 import module_, * as moduleT from '../module/module.f.mjs'
 const { idToString, dir } = module_
 import * as function_ from '../module/function/module.f.mjs'
@@ -14,7 +14,7 @@ const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 /**
  * @template M
  * @typedef {{
- *  readonly packageGet: package_.Get
+ *  readonly packageGet: packageT.Get
  *  readonly moduleMapInterface: moduleT.MapInterface<M>
  *  readonly moduleId: moduleT.Id
  *  readonly moduleMap: M
@@ -31,7 +31,7 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
 
 /**
  * @type {(compile: function_.Compile) =>
- *  (packageGet: package_.Get) =>
+ *  (packageGet: packageT.Get) =>
  *  <M>(moduleMapInterface: moduleT.MapInterface<M>) =>
  *  (moduleId: moduleT.Id) =>
  *  (moduleMap: M) =>

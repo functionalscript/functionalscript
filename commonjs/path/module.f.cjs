@@ -1,7 +1,7 @@
 const list = require("../../types/list/module.f.cjs")
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
 const { join } = require('../../types/string/module.f.cjs')
-const package_ = require("../package/module.f.cjs")
+const package_ = require("../package/module.f.mjs")
 const module_ = require("../module/module.f.mjs")
 
 /** @typedef {readonly string[]} Items */

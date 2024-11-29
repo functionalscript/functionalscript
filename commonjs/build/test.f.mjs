@@ -3,7 +3,7 @@ import map from '../../types/map/module.f.cjs'
 import module_, * as moduleT from '../module/module.f.mjs'
 import * as function_ from '../module/function/module.f.mjs'
 import result from '../../types/result/module.f.cjs'
-import package_ from '../package/module.f.cjs'
+import package_, * as packageT from '../package/module.f.mjs'
 import { at } from '../../types/object/module.f.cjs'
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
@@ -55,7 +55,7 @@ const packageMap = {
     },
 }
 
-/** @type {package_.Get} */
+/** @type {packageT.Get} */
 const packageGet = packageId => {
     const p = at(packageId)(packageMap)
     return p === null ? null :

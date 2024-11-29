@@ -1,14 +1,14 @@
-const json = require('../../json/module.f.cjs')
+import json from '../../json/module.f.cjs'
 const { isObject } = json
-const dependencies = require('./dependencies/module.f.mjs')
-const { isDependenciesJson } = dependencies.default
-const { at } = require('../../types/object/module.f.cjs')
+import dependencies, * as dependenciesT from './dependencies/module.f.mjs'
+const { isDependenciesJson } = dependencies
+import { at } from '../../types/object/module.f.cjs'
 
 /**
  * @typedef {{
  *  readonly name: string
  *  readonly version: string
- *  readonly dependencies?: dependencies.DependenciesJson
+ *  readonly dependencies?: dependenciesT.DependenciesJson
  * }} PackageJson
  */
 
@@ -33,7 +33,7 @@ const isPackageJson = j => {
  * @typedef {(packageId: string) => Package | null} Get
  */
 
-module.exports = {
+export default {
     /** @readonly */
     dependencies,
     /** @readonly */

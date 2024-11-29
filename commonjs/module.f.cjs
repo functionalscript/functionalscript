@@ -14,7 +14,7 @@ module.exports = {
     /** @readonly */
     module: require('./module/module.f.mjs'),
     /** @readonly */
-    package: require('./package/module.f.cjs'),
+    package: require('./package/module.f.mjs'),
     /** @readonly */
     path: require('./path/module.f.cjs'),
 }
