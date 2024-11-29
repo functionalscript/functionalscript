@@ -1,4 +1,4 @@
-const object = require('../../types/object/module.f.cjs')
+import object from '../../types/object/module.f.cjs'
 
 /**
  * @template M
@@ -51,7 +51,7 @@ const dir = id => {
 /** @type {(id: Id) => string} */
 const idToString = id => `${id.package}/${id.path.join('/')}`
 
-module.exports = {
+export default {
     /** @readonly */
     dir,
     /** @readonly */

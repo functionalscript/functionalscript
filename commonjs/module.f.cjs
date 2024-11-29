@@ -12,7 +12,7 @@ module.exports = {
     /** @readonly */
     build: require('./build/module.f.mjs'),
     /** @readonly */
-    module: require('./module/module.f.cjs'),
+    module: require('./module/module.f.mjs'),
     /** @readonly */
     package: require('./package/module.f.cjs'),
     /** @readonly */
