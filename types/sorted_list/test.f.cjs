@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const { unsafeCmp } = require('../function/compare/module.f.mjs').default
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default

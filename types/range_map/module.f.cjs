@@ -1,5 +1,5 @@
-const sortedList = require("../sorted_list/module.f.cjs")
-const { genericMerge } = sortedList
+const sortedList = require("../sorted_list/module.f.mjs")
+const { genericMerge } = sortedList.default
 const list = require("../list/module.f.cjs")
 const { next } = list
 const option = require("../nullable/module.f.mjs")

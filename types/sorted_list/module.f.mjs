@@ -1,8 +1,8 @@
-const compare = require('../function/compare/module.f.mjs')
-const list = require('../list/module.f.cjs')
-const option = require('../nullable/module.f.mjs')
+import * as compare from '../function/compare/module.f.mjs'
+import list from '../list/module.f.cjs'
+import * as option from '../nullable/module.f.mjs'
 const { next } = list
-const { identity } = require('../function/module.f.cjs')
+import { identity } from '../function/module.f.cjs'
 
 /**
  * @template T
@@ -104,7 +104,7 @@ const find = cmp => value => array => {
     }
 }
 
-module.exports = {
+export default {
     /** @readonly */
     merge,
     /** @readonly */
