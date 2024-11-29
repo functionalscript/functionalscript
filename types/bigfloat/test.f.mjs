@@ -1,6 +1,7 @@
-const { decToBin } = require('./module.f.mjs').default
+import _ from './module.f.mjs'
+const { decToBin } = _
 
-module.exports = {
+export default {
     decToBin: [
         () => {
             const result = decToBin([0n, 0])
