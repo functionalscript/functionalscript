@@ -1,8 +1,9 @@
-const _ = require('./module.f.cjs')
+const T = require('./module.f.mjs')
+const _ = T.default
 const { join } = require('../types/string/module.f.cjs')
 
 module.exports = () => {
-    /** @type {_.Block} */
+    /** @type {T.Block} */
     const text = [
         'a',
         'b',

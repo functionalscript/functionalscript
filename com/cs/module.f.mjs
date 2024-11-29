@@ -1,6 +1,6 @@
 import types, * as typesT from '../types/module.f.mjs'
 const { result, paramList } = types
-import text from '../../text/module.f.cjs'
+import text, * as textT from '../../text/module.f.mjs'
 const { curly } = text
 import list from '../../types/list/module.f.cjs'
 const { flat, map, some, flatMap } = list
@@ -15,8 +15,8 @@ const using = v => `using ${v};`
  * @type {(attributes: list.List<string>) =>
  *  (type: string) =>
  *  (name: string) =>
- *  (body: text.Block) =>
- *  list.List<text.Item>}
+ *  (body: textT.Block) =>
+ *  list.List<textT.Item>}
  */
 const typeDef = attributes => type => name => body =>
     flat([
@@ -94,7 +94,7 @@ const mapField = map(field)
 
 const flatMapMethod = flatMap(method)
 
-/** @type {(e: obj.Entry<typesT.Definition>) => list.List<text.Item>} */
+/** @type {(e: obj.Entry<typesT.Definition>) => list.List<textT.Item>} */
 const def = ([n, d]) => {
     return !('interface' in d) ?
         struct(n)(mapField(entries(d.struct))) :
@@ -109,14 +109,14 @@ const flatMapDef = flatMap(def)
 
 const namespace = curly('namespace')
 
-/** @type {text.Block} */
+/** @type {textT.Block} */
 const header = [
     using('System'),
     using('System.Runtime.InteropServices'),
     ''
 ]
 
-/** @type {(name: string) => (library: typesT.Library) => text.Block} */
+/** @type {(name: string) => (library: typesT.Library) => textT.Block} */
 const cs = name => library => {
     const v = flatMapDef(entries(library))
     const ns = namespace(name)(v)

@@ -1,4 +1,4 @@
-const list = require('../types/list/module.f.cjs')
+import list from '../types/list/module.f.cjs'
 const { flatMap } = list
 
 /** @typedef {ItemThunk|ItemArray} Block */
@@ -25,7 +25,7 @@ const flat = indent => {
 /** @type {(type: string) => (name: string) => (body: Block) => Block} */
 const curly = type => name => body => [`${type} ${name}`, '{', body, '}']
 
-module.exports = {
+export default {
     /** @readonly */
     flat,
     /** @readonly */

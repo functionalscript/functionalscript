@@ -1,4 +1,5 @@
-import { flat } from '../../text/module.f.cjs'
+import text from '../../text/module.f.mjs'
+const { flat } = text
 import { join } from '../../types/string/module.f.cjs'
 import x from './module.f.mjs'
 import library from '../types/testlib.f.mjs'

@@ -1,6 +1,6 @@
 import types, * as typesT from '../types/module.f.mjs'
 const { paramList } = types
-import text from '../../text/module.f.cjs'
+import text, * as textT from '../../text/module.f.mjs'
 import object from '../../types/object/module.f.cjs'
 import list from '../../types/list/module.f.cjs'
 const { flat, map, flatMap } = list
@@ -14,7 +14,7 @@ const rustField = field => `pub ${field},`
 
 const mapRustField = map(rustField)
 
-/** @type {(b: list.Thunk<string>) => (name: string) => text.Block} */
+/** @type {(b: list.Thunk<string>) => (name: string) => textT.Block} */
 const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, mapRustField(b), `}`]
 
 const commaJoin = join(', ')
@@ -59,10 +59,10 @@ const rustType = n => `pub type ${n} = nanocom::${n}<Interface>;`
 /** @typedef {{readonly where: readonly string[]}} Where */
 
 /**
- * @typedef {OptionalProperty<Where> & {readonly content: text.Block}} WhereContent
+ * @typedef {OptionalProperty<Where> & {readonly content: textT.Block}} WhereContent
  */
 
-/** @type {(h: string) => (wh: WhereContent) => text.Block} */
+/** @type {(h: string) => (wh: WhereContent) => textT.Block} */
 const whereContent = h => wh => {
     const w = 'where' in wh ? [
         h,
@@ -83,11 +83,11 @@ const whereContent = h => wh => {
  *  readonly trait: string
  *  readonly type: string
  *  readonly where?: readonly string[]
- *  readonly content: text.Block
+ *  readonly content: textT.Block
  * }} Impl
  */
 
-/** @type {(impl: Impl) => text.Block} */
+/** @type {(impl: Impl) => textT.Block} */
 const rustImpl = i => {
     const p = 'param' in i ? `<${i.param}>` : ''
     const header = `impl${p} ${i.trait} for ${i.type}`
@@ -99,7 +99,7 @@ const rustImpl = i => {
  *  readonly pub?: true
  *  readonly type: string
  *  readonly where?: readonly string[]
- *  readonly content: text.Block
+ *  readonly content: textT.Block
  * }} Trait
  */
 
@@ -108,14 +108,14 @@ const comma = s => `${s},`
 
 const mapComma = map(comma)
 
-/** @type {(t: Trait) => text.Block} */
+/** @type {(t: Trait) => textT.Block} */
 const trait = t => {
     const p = t.pub === true ? 'pub ' : ''
     const h = `${p}trait ${t.type}`
     return whereContent(h)(t)
 }
 
-/** @type {(t: Trait) => text.Block} */
+/** @type {(t: Trait) => textT.Block} */
 const traitImpl = t => {
     const i = rustImpl({
         param: 'T',
@@ -129,7 +129,7 @@ const traitImpl = t => {
 
 const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex']
 
-/** @type {(library: typesT.Library) => text.Block} */
+/** @type {(library: typesT.Library) => textT.Block} */
 const rust = library => {
 
     /** @type {(p: string) => (o: (_: string) => string) => (t: typesT.Type) => string} */
@@ -154,7 +154,7 @@ const rust = library => {
 
     const mapField = map(pf('')(ref))
 
-    /** @type {(fa: typesT.FieldArray) => (name: string) => text.Block} */
+    /** @type {(fa: typesT.FieldArray) => (name: string) => textT.Block} */
     const struct = fn(entries)
         .then(mapField)
         .then(rustStruct)
@@ -183,7 +183,7 @@ const rust = library => {
 
     const mapTraitFn = map(traitFn)
 
-    /** @type {(m: typesT.Method) => text.Block} */
+    /** @type {(m: typesT.Method) => textT.Block} */
     const implFn = m => {
         const [n, p] = m
         return [
@@ -195,7 +195,7 @@ const rust = library => {
 
     const flatMapImplFn = flatMap(implFn)
 
-    /** @type {(m: typesT.Method) => text.Block} */
+    /** @type {(m: typesT.Method) => textT.Block} */
     const impl = ([n, p]) => {
         const type = virtualFnType(` ${n}`)(p)
         return [
@@ -207,7 +207,7 @@ const rust = library => {
 
     const flatMapImpl = flatMap(impl)
 
-    /** @type {(i: typesT.Interface) => (name: string) => text.Block} */
+    /** @type {(i: typesT.Interface) => (name: string) => textT.Block} */
     const interface_ = ({ interface: i, guid }) => name => {
 
         const e = entries(i)
@@ -251,7 +251,7 @@ const rust = library => {
         ]
     }
 
-    /** @type {(type: object.Entry<typesT.Definition>) => text.Block} */
+    /** @type {(type: object.Entry<typesT.Definition>) => textT.Block} */
     const def = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
 
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])

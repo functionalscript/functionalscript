@@ -1,5 +1,5 @@
 import types, * as typesT from '../types/module.f.mjs'
-import text from '../../text/module.f.cjs'
+import text, * as textT from '../../text/module.f.mjs'
 import obj from '../../types/object/module.f.cjs'
 import list from '../../types/list/module.f.cjs'
 import { join } from '../../types/string/module.f.cjs'
@@ -7,7 +7,7 @@ const { paramList } = types
 const { map, flatMap, flat } = list
 const { entries } = Object
 
-/** @type {(name: string) => (body: text.Block) => text.Block} */
+/** @type {(name: string) => (body: textT.Block) => textT.Block} */
 const struct = name => body => [`struct ${name}`, '{', body, '};']
 
 const baseTypeMap = {
@@ -49,7 +49,7 @@ const mapParamName = map(paramName)
 
 const joinComma = join(', ')
 
-/** @type {(name: string) => (lib: typesT.Library) => text.Block} */
+/** @type {(name: string) => (lib: typesT.Library) => textT.Block} */
 const cpp = name => lib => {
 
     /** @type {(t: typesT.Type) => string|null} */
@@ -73,12 +73,12 @@ const cpp = name => lib => {
 
     const resultType = objectType(ptr)
 
-    /** @type {(s: typesT.Field) => text.Item} */
+    /** @type {(s: typesT.Field) => textT.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
 
     const mapField = map(field)
 
-    /** @type {(s: typesT.Struct) => text.Block} */
+    /** @type {(s: typesT.Struct) => textT.Block} */
     const defStruct = s => mapField(entries(s.struct))
 
     /** @type {(fa: typesT.FieldArray) => string} */
@@ -89,11 +89,11 @@ const cpp = name => lib => {
 
     const mapParam = map(param)
 
-    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => text.Item} */
+    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => textT.Item} */
     const methodHeader = result => paramArrayStr => name =>
         `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
-    /** @type {(m: typesT.Method) => readonly text.Item[]} */
+    /** @type {(m: typesT.Method) => readonly textT.Item[]} */
     const method = ([name, paramArray]) => {
         const result = cppResult(paramArray)
         const paramL = paramList(paramArray)
@@ -114,7 +114,7 @@ const cpp = name => lib => {
 
     const mapMethod = flatMap(method)
 
-    /** @type {(i: typesT.Interface) => text.Block} */
+    /** @type {(i: typesT.Interface) => textT.Block} */
     const defInterface = ({ guid, interface: i }) => {
         const g = guid.replaceAll('-', '');
         const lo = g.substring(0, 16);
@@ -125,7 +125,7 @@ const cpp = name => lib => {
         ])
     }
 
-    /** @type {(kv: obj.Entry<typesT.Definition>) => text.Block} */
+    /** @type {(kv: obj.Entry<typesT.Definition>) => textT.Block} */
     const def = ([name, d]) => 'interface' in d
         ? [
             `class ${name} : public ::nanocom::IUnknown`,
@@ -136,7 +136,7 @@ const cpp = name => lib => {
         ]
         : struct(name)(defStruct(d))
 
-    /** @type {(kv: obj.Entry<typesT.Definition>) => text.Block} */
+    /** @type {(kv: obj.Entry<typesT.Definition>) => textT.Block} */
     const forward = ([name]) => [`struct ${name};`]
 
     const e = entries(lib)
