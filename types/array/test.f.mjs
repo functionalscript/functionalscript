@@ -1,10 +1,10 @@
-const _ = require('./module.f.mjs').default
-const json = require('../../json/module.f.mjs').default
-const { sort } = require('../object/module.f.cjs')
+import _ from './module.f.mjs'
+import json from '../../json/module.f.mjs'
+import { sort } from '../object/module.f.cjs'
 
 const stringify = json.stringify(sort)
 
-module.exports = {
+export default {
     stringify: () => {
         const result = stringify([1, 20, 300])
         if (result !== '[1,20,300]') { throw result }
