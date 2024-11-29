@@ -1,4 +1,4 @@
-const { decToBin } = require('./module.f.mjs')
+const { decToBin } = require('./module.f.mjs').default
 
 module.exports = {
     decToBin: [

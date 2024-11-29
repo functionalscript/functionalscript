@@ -7,7 +7,7 @@ const { at } = map
 import _range from '../../types/range/module.f.cjs'
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
-import bigfloat from '../../types/bigfloat/module.f.mjs'
+import bigfloat, * as bigfloatT from '../../types/bigfloat/module.f.mjs'
 const { fromCharCode } = String
 import ascii from '../../text/ascii/module.f.mjs'
 const {
@@ -80,7 +80,7 @@ const {
 * @typedef {{
 * readonly kind: 'number'
 * readonly value: string
-* readonly bf: bigfloat.BigFloat
+* readonly bf: bigfloatT.BigFloat
 * }} NumberToken
 * */
 
