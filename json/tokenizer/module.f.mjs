@@ -1,4 +1,4 @@
-import operator from '../../types/function/operator/module.f.cjs'
+import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import list from '../../types/list/module.f.cjs'
 const { empty, flat, stateScan } = list
 import bf from '../../types/bigfloat/module.f.mjs'
@@ -72,7 +72,7 @@ const parseMinusState = input =>
     }
 }
 
-/** @type {operator.StateScan<ScanInput, ScanState, list.List<JsonToken>>} */
+/** @type {Operator.StateScan<ScanInput, ScanState, list.List<JsonToken>>} */
 const scanToken = state => input => {
     switch(state.kind)
     {

@@ -1,4 +1,4 @@
-import op from '../types/function/operator/module.f.cjs'
+import * as op from '../types/function/operator/module.f.mjs'
 import pf, * as pfT from '../prime_field/module.f.mjs'
 import bi from '../types/bigint/module.f.mjs'
 const { scalar_mul } = bi

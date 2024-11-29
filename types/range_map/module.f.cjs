@@ -4,7 +4,7 @@ const list = require("../list/module.f.cjs")
 const { next } = list
 const option = require("../nullable/module.f.mjs")
 const { cmp } = require('../number/module.f.cjs')
-const operator = require("../function/operator/module.f.cjs")
+const operator = require("../function/operator/module.f.mjs")
 const _range = require('../range/module.f.cjs')
 
 /**

@@ -8,7 +8,7 @@ import rangeMap from '../types/range_map/module.f.cjs'
 const { merge } = rangeMap
 import cmp from '../types/function/compare/module.f.mjs'
 const { unsafeCmp } = cmp
-import operator from '../types/function/operator/module.f.cjs'
+import operator, * as Operator from '../types/function/operator/module.f.mjs'
 const { strictEqual } = operator
 import j from '../json/module.f.mjs'
 const { stringify } = j
@@ -35,7 +35,7 @@ const toRange = s => {
     return byteSet.range([b, e])
 }
 
-/** @type {operator.Fold<number, byteSetT.ByteSet>} */
+/** @type {Operator.Fold<number, byteSetT.ByteSet>} */
 const toUnionOp = i => bs => byteSetUnion(bs)(one(i))
 
 /** @type {(s: string) => byteSetT.ByteSet} */
@@ -50,23 +50,23 @@ const mergeOp = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual) }
 /** @type {(s: string) => (set: sortedSet.SortedSet<string>) => boolean} */
 const hasState = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))
 
-/** @type {(set: sortedSet.SortedSet<string>) => operator.Fold<Rule, rangeMap.RangeMap<sortedSet.SortedSet<string>>>} */
+/** @type {(set: sortedSet.SortedSet<string>) => Operator.Fold<Rule, rangeMap.RangeMap<sortedSet.SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
     if (hasState(ruleIn)(set)) { return merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
     return rm
 }
 
-/** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
+/** @type {Operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
 const stringifyOp = ([sortedSet, max]) => [[stringifyIdentity(sortedSet), max], stringifyOp]
 
 const scanStringify = scan(stringifyOp)
 
-/** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
+/** @type {Operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
 const scanFetch = scan(fetchOp)
 
-/** @type {(grammar: Grammar) => operator.Fold<sortedSet.SortedSet<string>, Dfa>} */
+/** @type {(grammar: Grammar) => Operator.Fold<sortedSet.SortedSet<string>, Dfa>} */
 const addEntry = grammar => set => dfa => {
     const s = stringifyIdentity(set)
     if (s in dfa) { return dfa }
@@ -91,7 +91,7 @@ const dfa = grammar => addEntry(grammar)(initialState)({})
 
 const get = rangeMap.get(emptyStateStringify)
 
-/** @type {(dfa: Dfa) => operator.Fold<number, string>} */
+/** @type {(dfa: Dfa) => Operator.Fold<number, string>} */
 const runOp = dfa => input => s => get(input)(dfa[s])
 
 /** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */

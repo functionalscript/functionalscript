@@ -1,6 +1,6 @@
 const function_ = require('../function/module.f.cjs')
 const { identity, fn, compose } = function_
-const operator = require('../function/operator/module.f.cjs')
+const operator = require('../function/operator/module.f.mjs')
 const {
     addition,
     logicalNot,
@@ -8,7 +8,7 @@ const {
     stateScanToScan,
     foldToScan,
     reduceToScan
-} = operator
+} = operator.default
 
 /**
  * @template T

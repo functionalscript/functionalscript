@@ -3,8 +3,8 @@ const { reduce: listReduce, repeat: listRepeat } = list
 const { compose } = require('../function/module.f.cjs')
 const compare = require('../function/compare/module.f.mjs')
 const { unsafeCmp } = compare.default
-const op = require('../function/operator/module.f.cjs')
-const { join: joinOp, concat: concatOp } = op
+const op = require('../function/operator/module.f.mjs')
+const { join: joinOp, concat: concatOp } = op.default
 
 /** @type {(o: op.Reduce<string>) => (input: list.List<string>) => string} */
 const reduce = o => listReduce(o)('')

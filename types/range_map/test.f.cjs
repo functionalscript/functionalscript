@@ -5,7 +5,7 @@ const json = jsonT.default
 const { sort } = require('../../types/object/module.f.cjs')
 const sortedSet = require('../sorted_set/module.f.cjs')
 const list = require('../list/module.f.cjs')
-const operator = require("../function/operator/module.f.cjs")
+const operator = require("../function/operator/module.f.mjs").default
 
 /** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = json.stringify(sort)

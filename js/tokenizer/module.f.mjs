@@ -1,4 +1,4 @@
-import operator from '../../types/function/operator/module.f.cjs'
+import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import range_map from '../../types/range_map/module.f.cjs'
 const { merge, fromRange, get } = range_map
 import list from '../../types/list/module.f.cjs'
@@ -336,7 +336,7 @@ const rangeMapMerge = def => merge({
 /** @type {<T>(r: _range.Range) => (f: CreateToToken<T>) => RangeFunc<T>} */
 const rangeFunc = r => f => def => fromRange(def)(r)(f)
 
-/** @type {<T>(def:  CreateToToken<T>) => (operator.Scan<RangeFunc<T>, RangeMapToToken<T>>)} */
+/** @type {<T>(def:  CreateToToken<T>) => (Operator.Scan<RangeFunc<T>, RangeMapToToken<T>>)} */
 const scanRangeOp = def => f => [f(def), scanRangeOp(def)]
 
 /** @type {<T>(def: CreateToToken<T>) => (a: list.List<RangeFunc<T>>) => RangeMapToToken<T>} */
@@ -345,7 +345,7 @@ const reduceRangeMap = def => a => {
     return toArray(listReduce(rangeMapMerge(def))(empty)(rm))
 }
 
-/** @type {<T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (operator.Scan<_range.Range, RangeMapToToken<T>>)} */
+/** @type {<T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (Operator.Scan<_range.Range, RangeMapToToken<T>>)} */
 const scanRangeSetOp = def => f => r => [fromRange(def)(r)(f), scanRangeSetOp(def)(f)]
 
 /** @type {<T>(rs: list.List<_range.Range>) => (f: CreateToToken<T>) => RangeFunc<T>} */
@@ -744,7 +744,7 @@ const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
 /** @type {(state: EofState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const eofStateOp = create(state => () => [[{ kind: 'error', message: 'eof' }], state])([])
 
-/** @type {operator.StateScan<number, TokenizerState, list.List<JsToken>>} */
+/** @type {Operator.StateScan<number, TokenizerState, list.List<JsToken>>} */
 const tokenizeCharCodeOp = state => {
     switch (state.kind) {
         case 'initial': return initialStateOp(state)
@@ -785,7 +785,7 @@ const tokenizeEofOp = state => {
     }
 }
 
-/** @type {operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsToken>>} */
+/** @type {Operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsToken>>} */
 const tokenizeOp = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
 
 const scanTokenize = stateScan(tokenizeOp)

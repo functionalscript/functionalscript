@@ -9,7 +9,7 @@ const compare = require('../function/compare/module.f.mjs')
 const { cmp } = require('../string/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const { fold } = list
-const operator = require('../function/operator/module.f.cjs')
+const operator = require('../function/operator/module.f.mjs')
 
 /** @typedef {compare.Sign} Sign */
 

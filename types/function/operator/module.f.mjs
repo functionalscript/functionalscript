@@ -76,7 +76,7 @@ const increment = addition(1)
 
 const counter = () => increment
 
-module.exports = {
+export default {
     /** @readonly */
     join,
     /** @readonly */

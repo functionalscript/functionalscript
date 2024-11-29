@@ -1,10 +1,10 @@
-import op from '../types/function/operator/module.f.cjs'
+import * as Operator from '../types/function/operator/module.f.mjs'
 import bi from '../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 
-/** @typedef {op.Reduce<bigint>} Reduce */
+/** @typedef {Operator.Reduce<bigint>} Reduce */
 
-/** @typedef {op.Unary<bigint, bigint>} Unary*/
+/** @typedef {Operator.Unary<bigint, bigint>} Unary*/
 
 /**
  * @typedef {{

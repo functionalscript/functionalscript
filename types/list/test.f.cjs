@@ -2,7 +2,7 @@ const _ = require('./module.f.cjs')
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default
 const { sort } = require('../object/module.f.cjs')
-const { addition, strictEqual, reduceToScan } = require('../function/operator/module.f.cjs')
+const { addition, strictEqual, reduceToScan } = require('../function/operator/module.f.mjs').default
 
 /** @type {(sequence: _.List<jsonT.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))

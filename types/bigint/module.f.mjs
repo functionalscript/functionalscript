@@ -1,9 +1,9 @@
 import compare, * as compareT from '../function/compare/module.f.mjs'
-import op from '../function/operator/module.f.cjs'
+import op, * as Op from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
 import { reduce } from '../list/module.f.cjs'
 
-/** @typedef {op.Unary<bigint, bigint>} Unary*/
+/** @typedef {Op.Unary<bigint, bigint>} Unary*/
 
 /** @type {(a: bigint) => (b: bigint) => bigint} */
 const addition = a => b => a + b
@@ -23,7 +23,7 @@ const serialize = a => `${a}n`
  * @template T
  * @typedef {{
  *  readonly 0: T
- *  readonly add: op.Reduce<T>
+ *  readonly add: Op.Reduce<T>
  * }} Additive
  */
 

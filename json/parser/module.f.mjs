@@ -1,7 +1,7 @@
 import result from '../../types/result/module.f.cjs'
 import list from '../../types/list/module.f.cjs'
 const { fold, first, drop, toArray } = list
-import operator from '../../types/function/operator/module.f.cjs'
+import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import map from '../../types/map/module.f.cjs'
 const { setReplace } = map
@@ -187,7 +187,7 @@ const parseObjectCommaOp = token => state => {
     return { status: 'error', message: 'unexpected token' }
 }
 
-/** @type {operator.Fold<tokenizerT.JsonToken, JsonState>} */
+/** @type {Operator.Fold<tokenizerT.JsonToken, JsonState>} */
 const foldOp = token => state => {
     switch (state.status) {
         case 'result': return { status: 'error', message: 'unexpected token' }

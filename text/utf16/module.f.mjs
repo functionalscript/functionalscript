@@ -1,5 +1,5 @@
 import list from '../../types/list/module.f.cjs'
-import operator from '../../types/function/operator/module.f.cjs'
+import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import { contains } from '../../types/range/module.f.cjs'
 import f from '../../types/function/module.f.cjs'
 const { fn } = f
@@ -46,7 +46,7 @@ const fromCodePointList = flatMap(codePointToUtf16)
 
 const u16 = contains([0x0000, 0xFFFF])
 
-/** @type {operator.StateScan<u16, Utf16State, list.List<i32>>} */
+/** @type {Operator.StateScan<u16, Utf16State, list.List<i32>>} */
 const utf16ByteToCodePointOp = state => word => {
     if (!u16(word)) {
         return [[0xffffffff], state]
@@ -69,7 +69,7 @@ const utf16ByteToCodePointOp = state => word => {
 /** @type {(state: Utf16State) => readonly[list.List<i32>, Utf16State]} */
 const utf16EofToCodePointOp = state => [state === null ? empty : [state | errorMask],  null]
 
-/** @type {operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
+/** @type {Operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
 const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 /** @type {list.List<WordOrEof>} */

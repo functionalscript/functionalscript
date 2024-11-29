@@ -1,4 +1,4 @@
-import operator from '../types/function/operator/module.f.cjs'
+import operator from '../types/function/operator/module.f.mjs'
 import range_map from '../types/range_map/module.f.cjs'
 const { merge: rangeMapMerge, fromRange, get } = range_map
 import list from '../types/list/module.f.cjs'

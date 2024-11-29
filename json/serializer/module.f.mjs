@@ -1,7 +1,7 @@
 import list from '../../types/list/module.f.cjs'
 const { flat, reduce, empty } = list
 import object from '../../types/object/module.f.cjs'
-import operator from '../../types/function/operator/module.f.cjs'
+import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 
 /**
  * @template T
@@ -53,7 +53,7 @@ const boolSerialize = value => value ? trueSerialize : falseSerialize
 
 const comma = [',']
 
-/** @type {operator.Reduce<list.List<string>>} */
+/** @type {Operator.Reduce<list.List<string>>} */
 const joinOp = b => prior => flat([prior, comma, b])
 
 /** @type {(input: list.List<list.List<string>>) => list.List<string>} */
