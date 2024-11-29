@@ -1,27 +1,27 @@
-const btree = require('./types/module.f.mjs')
-const { values } = require('./module.f.mjs').default
-const jsonT = require('../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../object/module.f.cjs')
-const { cmp } = require('../string/module.f.cjs')
-const list = require('../list/module.f.cjs')
-const s = require('./set/module.f.mjs').default
-const f = require('./find/module.f.mjs').default
+import btree, * as btreeT from './types/module.f.mjs'
+import _ from './module.f.mjs'
+const { values } = _
+import json, * as jsonT from '../../json/module.f.mjs'
+import { sort } from '../object/module.f.cjs'
+import { cmp } from '../string/module.f.cjs'
+import list from '../list/module.f.cjs'
+import s from './set/module.f.mjs'
+import f from './find/module.f.mjs'
 
-require('./find/test.f.mjs')
-require('./set/test.f.mjs')
-require('./remove/test.f.mjs')
+// require('./find/test.f.mjs')
+// require('./set/test.f.mjs')
+// require('./remove/test.f.mjs')
 
 const jsonStr = json.stringify(sort)
 
 /** @type {(sequence: list.List<jsonT.Unknown>) => string} */
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
-/** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
+/** @type {(node: btreeT.Node<string>) => (value: string) => btreeT.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)
 
 const valueTest1 = () => {
-    /** @type {btree.Node<string>} */
+    /** @type {btreeT.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -33,7 +33,7 @@ const valueTest1 = () => {
 }
 
 const valuesTest2 = () => {
-    /** @type {btree.Node<string>} */
+    /** @type {btreeT.Node<string>} */
     let _map = ['1']
     for(let i = 2; i <= 10; i++)
         _map = set(_map)((i*i).toString())
@@ -42,7 +42,7 @@ const valuesTest2 = () => {
 }
 
 const findTrue = () => {
-    /** @type {btree.Node<string>} */
+    /** @type {btreeT.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -51,7 +51,7 @@ const findTrue = () => {
 }
 
 const find = () => {
-    /** @type {btree.Node<string>} */
+    /** @type {btreeT.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -60,7 +60,7 @@ const find = () => {
 }
 
 const test = () => {
-    /** @type {btree.Node<string>} */
+    /** @type {btreeT.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -77,7 +77,7 @@ const test = () => {
     }
 }
 
-module.exports = {
+export default {
     valueTest1,
     valuesTest2,
     findTrue,
