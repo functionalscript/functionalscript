@@ -1,7 +1,7 @@
-const _ = require('./module.f.mjs')
+import * as _ from './module.f.mjs'
 
 /** @type {_.Library} */
-module.exports = {
+export default {
     Slice: {
         struct: {
             Start: ['*', 'u8'],
