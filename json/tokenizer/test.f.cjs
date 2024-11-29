@@ -1,6 +1,6 @@
 const tokenizer = require('./module.f.cjs')
 const { toArray, countdown } = require('../../types/list/module.f.cjs')
-const djs = require('../../djs/module.f.cjs')
+const djs = require('../../djs/module.f.mjs')
 const { sort } = require('../../types/object/module.f.cjs')
 const encoding = require('../../text/utf16/module.f.cjs');
 

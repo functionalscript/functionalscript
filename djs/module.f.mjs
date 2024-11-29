@@ -1,11 +1,12 @@
-const list = require('../types/list/module.f.cjs')
+import list from '../types/list/module.f.cjs'
 const { flat, map, empty } = list
-const { concat } = require('../types/string/module.f.cjs')
-const object = require('../types/object/module.f.cjs')
-const { compose, fn } = require('../types/function/module.f.cjs')
+import { concat } from '../types/string/module.f.cjs'
+import object from '../types/object/module.f.cjs'
+import { compose, fn } from '../types/function/module.f.cjs'
 const { entries } = Object
-const { serialize: bigintSerialize } = require('../types/bigint/module.f.cjs')
-const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = require('../json/serializer/module.f.cjs')
+import bi from '../types/bigint/module.f.cjs'
+const { serialize: bigintSerialize } = bi
+import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../json/serializer/module.f.cjs'
 
 /**
  * @typedef {{
@@ -66,7 +67,7 @@ const serialize = sort => {
  */
 const stringify = sort => compose(serialize(sort))(concat)
 
-module.exports = {
+export default {
 
     /** @readonly */
     stringify,
