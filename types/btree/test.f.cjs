@@ -8,7 +8,7 @@ const list = require('../list/module.f.cjs')
 const s = require('./set/module.f.cjs')
 const f = require('./find/module.f.mjs').default
 
-require('./find/test.f.cjs')
+require('./find/test.f.mjs')
 require('./set/test.f.cjs')
 require('./remove/test.f.cjs')
 

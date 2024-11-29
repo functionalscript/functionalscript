@@ -1,12 +1,10 @@
-const T = require('./module.f.mjs')
-const _ = T.default
-const list = require('../../list/module.f.cjs')
-const jsonT = require('../../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../../object/module.f.cjs')
-const btree = require('../types/module.f.cjs')
-const { cmp } = require('../../string/module.f.cjs')
-const s = require('../set/module.f.cjs')
+import _, * as T from './module.f.mjs'
+import list from '../../list/module.f.cjs'
+import json, * as jsonT from '../../../json/module.f.mjs'
+import { sort } from '../../object/module.f.cjs'
+import btree from '../types/module.f.cjs'
+import { cmp } from '../../string/module.f.cjs'
+import s from '../set/module.f.cjs'
 
 const jsonStr = json.stringify(sort)
 
@@ -115,4 +113,4 @@ const test = () => {
     }
 }
 
-module.exports = test
+export default test
