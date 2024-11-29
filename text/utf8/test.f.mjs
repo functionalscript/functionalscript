@@ -1,11 +1,11 @@
-const encoding = require('./module.f.mjs').default
-const json = require('../../json/module.f.mjs').default
-const { sort } = require('../../types/object/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
+import encoding from './module.f.mjs'
+import json from '../../json/module.f.mjs'
+import { sort } from '../../types/object/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
 
 const stringify = json.stringify(sort)
 
-module.exports = {
+export default {
     toCodePoint: [
         () => {
             const result = stringify(list.toArray(encoding.toCodePointList([-1, 256])))
