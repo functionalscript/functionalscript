@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { platform, exit } from 'node:process'
-import build from './build.f.cjs'
+import build, * as buildT from './build.f.mjs'
 const { cpp, cs, rust } = build
 import { join } from '../../types/string/module.f.cjs'
 const { log, error } = console
@@ -20,7 +20,7 @@ const nodeJs = {
     platform,
 }
 
-/** @type {(f: build.Func) => void} */
+/** @type {(f: buildT.Func) => void} */
 const run = f => {
     const { file: { name, content }, line } = f(nodeJs)
     log(`${bold}writing: ${name}${reset}`)

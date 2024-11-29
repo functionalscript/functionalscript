@@ -1,9 +1,9 @@
-const list = require('../../types/list/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
 const { flat } = list
 
-const cppContent = require('../cpp/testlib.f.mjs').default
-const csContent = require('../cs/testlib.f.mjs').default
-const rustContent = require("../rust/testlib.f.mjs").default
+import cppContent from '../cpp/testlib.f.mjs'
+import csContent from '../cs/testlib.f.mjs'
+import rustContent from '../rust/testlib.f.mjs'
 
 /**
  * @typedef {|
@@ -99,7 +99,7 @@ const rust = ({ dirname }) => ({
     line: [['cargo', 'build' /**, '--locked' */]]
 })
 
-module.exports = {
+export default {
     /** @readonly */
     cpp,
     /** @readonly */
