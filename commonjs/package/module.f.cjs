@@ -1,7 +1,7 @@
 const json = require('../../json/module.f.cjs')
 const { isObject } = json
-const dependencies = require('./dependencies/module.f.cjs')
-const { isDependenciesJson } = dependencies
+const dependencies = require('./dependencies/module.f.mjs')
+const { isDependenciesJson } = dependencies.default
 const { at } = require('../../types/object/module.f.cjs')
 
 /**

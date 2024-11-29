@@ -1,6 +1,6 @@
-const json = require('../../../json/module.f.cjs')
+import json from '../../../json/module.f.cjs'
 const { isObject } = json
-const list = require('../../../types/list/module.f.cjs')
+import list from '../../../types/list/module.f.cjs'
 const { map, every } = list
 const { entries } = Object
 
@@ -20,7 +20,7 @@ const isDependenciesJson = j => {
     return every(map(isDependencyJson)(entries(j)))
 }
 
-module.exports = {
+export default {
     /** @readonly */
     isDependenciesJson,
 }

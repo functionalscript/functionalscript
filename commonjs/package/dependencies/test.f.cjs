@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 
 module.exports = () => {
     if (!_.isDependenciesJson(null)) { throw 'error' }
