@@ -1,12 +1,12 @@
-const result = require('../../types/result/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
+import result from '../../types/result/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
 const { fold, first, drop, toArray } = list
-const operator = require('../../types/function/operator/module.f.cjs')
-const tokenizer = require('../tokenizer/module.f.cjs')
-const map = require('../../types/map/module.f.cjs')
+import operator from '../../types/function/operator/module.f.cjs'
+import tokenizer from '../tokenizer/module.f.cjs'
+import map from '../../types/map/module.f.cjs'
 const { setReplace } = map
-const json = require('../module.f.cjs')
-const { fromMap } = require('../../types/object/module.f.cjs')
+import json from '../module.f.cjs'
+import { fromMap } from '../../types/object/module.f.cjs'
 
 
 /**
@@ -214,7 +214,7 @@ const parse = tokenList => {
     }
 }
 
-module.exports = {
+export default {
     /** @readonly */
     parse
 }

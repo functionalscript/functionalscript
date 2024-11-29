@@ -1,4 +1,4 @@
-const parser = require('./module.f.cjs')
+const parser = require('./module.f.mjs').default
 const tokenizer = require('../tokenizer/module.f.cjs')
 const { toArray } = require('../../types/list/module.f.cjs')
 const json = require('../module.f.cjs')
