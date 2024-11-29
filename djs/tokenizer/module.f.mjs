@@ -1,8 +1,8 @@
-const operator = require('../../types/function/operator/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
+import operator from '../../types/function/operator/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
 const { empty, flat, stateScan } = list
-const { multiply } = require('../../types/bigfloat/module.f.cjs')
-const jsTokenizer = require('../../js/tokenizer/module.f.cjs')
+import { multiply } from '../../types/bigfloat/module.f.cjs'
+import jsTokenizer from '../../js/tokenizer/module.f.cjs'
 
 /**
  * @typedef {|
@@ -96,7 +96,7 @@ const tokenize = input =>
     return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
 }
 
-module.exports = {
+export default {
     /** @readonly */
     tokenize
 }

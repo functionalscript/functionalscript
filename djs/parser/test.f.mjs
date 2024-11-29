@@ -1,11 +1,11 @@
 import parser from './module.f.mjs'
-import tokenizer from '../tokenizer/module.f.cjs'
+import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.cjs'
 import djs from '../module.f.cjs'
 import { sort } from '../../types/object/module.f.cjs'
 import encoding from '../../text/utf16/module.f.cjs'
 
-/** @type {(s: string) => readonly tokenizer.DjsToken[]} */
+/** @type {(s: string) => readonly tokenizerT.DjsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = djs.stringify(sort)
