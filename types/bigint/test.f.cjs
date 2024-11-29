@@ -1,4 +1,4 @@
-const { sum, abs, serialize, log2, bitLength } = require('./module.f.cjs')
+const { sum, abs, serialize, log2, bitLength } = require('./module.f.mjs').default
 
 module.exports = {
     sum: () => {

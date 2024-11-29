@@ -1,5 +1,5 @@
-import compare from '../function/compare/module.f.cjs'
-import { abs, sign } from '../bigint/module.f.cjs'
+import bi from '../bigint/module.f.mjs'
+const { abs, sign } = bi
 
 /** @typedef {readonly[bigint,number]} BigFloat */
 

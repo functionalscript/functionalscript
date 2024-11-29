@@ -1,5 +1,6 @@
 import op from '../types/function/operator/module.f.cjs'
-import { scalar_mul } from '../types/bigint/module.f.cjs'
+import bi from '../types/bigint/module.f.mjs'
+const { scalar_mul } = bi
 
 /** @typedef {op.Reduce<bigint>} Reduce */
 

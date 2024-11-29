@@ -1,7 +1,7 @@
-const compare = require('../function/compare/module.f.cjs')
-const op = require('../function/operator/module.f.cjs')
+import compare from '../function/compare/module.f.cjs'
+import op from '../function/operator/module.f.cjs'
 const { unsafeCmp } = compare
-const { reduce } = require('../list/module.f.cjs')
+import { reduce } from '../list/module.f.cjs'
 
 /** @typedef {op.Unary<bigint, bigint>} Unary*/
 
@@ -117,7 +117,7 @@ const bitLength = v => {
     return log2(v) + 1n
 }
 
-module.exports = {
+export default {
     /** @readonly */
     addition,
     /** @readonly */

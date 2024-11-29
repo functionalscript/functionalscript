@@ -1,6 +1,7 @@
 import op from '../types/function/operator/module.f.cjs'
 import pf, * as pfT from '../prime_field/module.f.mjs'
-import { scalar_mul } from '../types/bigint/module.f.cjs'
+import bi from '../types/bigint/module.f.mjs'
+const { scalar_mul } = bi
 const { prime_field, sqrt } = pf
 
 /** @typedef {readonly[bigint, bigint]} Point2D */
