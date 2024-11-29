@@ -1,16 +1,16 @@
-const parser = require('./module.f.mjs').default
-const tokenizer = require('../tokenizer/module.f.cjs')
-const { toArray } = require('../../types/list/module.f.cjs')
-const json = require('../module.f.cjs')
-const { sort } = require('../../types/object/module.f.cjs')
-const encoding = require('../../text/utf16/module.f.cjs');
+import parser from './module.f.mjs'
+import tokenizer from '../tokenizer/module.f.cjs'
+import { toArray } from '../../types/list/module.f.cjs'
+import json from '../module.f.cjs'
+import { sort } from '../../types/object/module.f.cjs'
+import encoding from '../../text/utf16/module.f.cjs'
 
 /** @type {(s: string) => readonly tokenizer.JsonToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = json.stringify(sort)
 
-module.exports = {
+export default {
     valid: [
         () => {
             const tokenList = tokenizeString('null')
