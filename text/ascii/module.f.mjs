@@ -1,4 +1,4 @@
-const _range = require('../../types/range/module.f.cjs')
+import _range from '../../types/range/module.f.cjs'
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
@@ -18,7 +18,7 @@ const range = s => {
     return [f0, f(1)]
 }
 
-module.exports = {
+export default {
     /** @readonly */
     one,
     /** @readonly */

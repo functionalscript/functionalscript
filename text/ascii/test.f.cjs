@@ -1,4 +1,4 @@
-const { range } = require('./module.f.cjs')
+const { range } = require('./module.f.mjs').default
 const json = require('../../json/module.f.mjs').default
 const { sort } = require('../../types/object/module.f.cjs')
 

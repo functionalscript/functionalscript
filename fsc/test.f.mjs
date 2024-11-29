@@ -1,5 +1,6 @@
 import _ from './module.f.mjs'
-import { one } from '../text/ascii/module.f.cjs'
+import ascii from '../text/ascii/module.f.mjs'
+const { one } = ascii
 import j from '../json/module.f.mjs'
 const { stringify } = j
 const s = stringify(i => i)

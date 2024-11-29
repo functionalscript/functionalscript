@@ -3,7 +3,7 @@ import range_map from '../types/range_map/module.f.cjs'
 const { merge: rangeMapMerge, fromRange, get } = range_map
 import list from '../types/list/module.f.cjs'
 const { reduce: listReduce } = list
-import ascii from '../text/ascii/module.f.cjs'
+import ascii from '../text/ascii/module.f.mjs'
 const { range: asciiRange } = ascii
 const { fromCharCode } = String
 import f from '../types/function/module.f.cjs'
