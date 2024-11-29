@@ -1,6 +1,7 @@
-const { prime_field, sqrt } = require('./module.f.mjs').default
+import _ from './module.f.mjs'
+const { prime_field, sqrt } = _
 
-module.exports = {
+export default {
     prime_field_test: () => {
         const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
         const f = prime_field(p)
