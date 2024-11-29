@@ -1,9 +1,11 @@
-const list = require('../types/list/module.f.cjs')
+import list from '../types/list/module.f.cjs'
 const { map, flatMap, flat, concat: listConcat } = list
-const { concat: stringConcat } = require('../types/string/module.f.cjs')
-const object = require('../types/object/module.f.cjs')
-const { compose } = require('../types/function/module.f.cjs')
-const { stringToList } = require('../text/utf16/module.f.cjs')
+import s from '../types/string/module.f.cjs'
+const { concat: stringConcat } = s
+import object from '../types/object/module.f.cjs'
+import f from '../types/function/module.f.cjs'
+const { compose } = f
+import { stringToList } from '../text/utf16/module.f.cjs'
 const { fromCharCode } = String
 const { entries } = Object
 
@@ -112,7 +114,7 @@ const html = compose(element)(listConcat(['<!DOCTYPE html>']))
 
 const htmlToString = compose(html)(stringConcat)
 
-module.exports = {
+export default {
     /** @readonly */
     element,
     /** @readonly */
