@@ -1,11 +1,11 @@
-const T = require('./module.f.mjs')
-const _ = T.default
-const byteSet = require('../types/byte_set/module.f.cjs')
-const { sort, fromEntries } = require('../types/object/module.f.cjs')
-const json = require('../json/module.f.cjs')
-const { identity } = require('../types/function/module.f.cjs')
-const { toArray } = require('../types/list/module.f.cjs')
-const { stringToList } = require('../text/utf16/module.f.cjs')
+import _, * as T from './module.f.mjs'
+import byteSet from '../types/byte_set/module.f.cjs'
+import { sort, fromEntries } from '../types/object/module.f.cjs'
+import json from '../json/module.f.cjs'
+import f from '../types/function/module.f.cjs'
+const { identity } = f
+import { toArray } from '../types/list/module.f.cjs'
+import { stringToList } from '../text/utf16/module.f.cjs'
 
 const stringifyIdentity = json.stringify(identity)
 
@@ -34,7 +34,7 @@ const buildDfa = () => {
     return _.dfa(grammar)
 }
 
-module.exports = {
+export default {
     dfa: () => {
         const dfa = buildDfa()
         const entries = Object.entries(dfa)
