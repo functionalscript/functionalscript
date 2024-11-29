@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const { one } = require('../text/ascii/module.f.cjs')
 const { stringify } = require('../json/module.f.cjs')
 const s = stringify(i => i)

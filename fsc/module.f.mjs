@@ -1,12 +1,14 @@
-const operator = require('../types/function/operator/module.f.cjs')
-const range_map = require('../types/range_map/module.f.cjs')
+import operator from '../types/function/operator/module.f.cjs'
+import range_map from '../types/range_map/module.f.cjs'
 const { merge: rangeMapMerge, fromRange, get } = range_map
-const { reduce: listReduce } = require('../types/list/module.f.cjs')
-const { range: asciiRange } = require('../text/ascii/module.f.cjs')
+import list from '../types/list/module.f.cjs'
+const { reduce: listReduce } = list
+import ascii from '../text/ascii/module.f.cjs'
+const { range: asciiRange } = ascii
 const { fromCharCode } = String
-const { fn } = require('../types/function/module.f.cjs')
-const list = require('../types/list/module.f.cjs')
-const _range = require('../types/range/module.f.cjs')
+import f from '../types/function/module.f.cjs'
+const { fn } = f
+import _range from '../types/range/module.f.cjs'
 const { one } = _range
 const { toArray, map } = list
 
@@ -114,7 +116,7 @@ const init = create([
     range('~')(() => () => [['~'], unexpectedSymbol]),
 ])(void 0)
 
-module.exports = {
+export default {
     /** @readonly */
     terminal,
     /** @readonly */
