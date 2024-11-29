@@ -1,11 +1,11 @@
-const types = require('../types/module.f.cjs')
+import types from '../types/module.f.cjs'
 const { result, paramList } = types
-const text = require('../../text/module.f.cjs')
+import text from '../../text/module.f.cjs'
 const { curly } = text
-const list = require('../../types/list/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
 const { flat, map, some, flatMap } = list
-const { join } = require('../../types/string/module.f.cjs')
-const obj = require('../../types/object/module.f.cjs')
+import { join } from '../../types/string/module.f.cjs'
+import obj from '../../types/object/module.f.cjs'
 const { entries } = Object
 
 /** @type {(v: string) => string} */
@@ -123,7 +123,7 @@ const cs = name => library => {
     return flat([header, ns])
 }
 
-module.exports = {
+export default {
     /** @readonly */
     cs,
 }
