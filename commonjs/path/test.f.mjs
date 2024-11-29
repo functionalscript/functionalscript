@@ -1,5 +1,5 @@
 import _ from './module.f.mjs'
-import dev from '../../dev/module.f.cjs'
+import dev from '../../dev/module.f.mjs'
 const { todo } = dev
 import json from '../../json/module.f.cjs'
 import f from '../../types/function/module.f.cjs'
