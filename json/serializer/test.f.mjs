@@ -1,8 +1,7 @@
-const T = require('./module.f.mjs')
-const _ = T.default
-const { toArray } = require('../../types/list/module.f.cjs')
+import _, * as T from './module.f.mjs'
+import { toArray } from '../../types/list/module.f.cjs'
 
-module.exports = {
+export default {
     arrayWrap: [
         () => {
             const result = JSON.stringify(toArray(_.arrayWrap(null)))
