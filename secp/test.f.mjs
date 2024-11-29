@@ -1,7 +1,7 @@
-const mT = require('./module.f.mjs')
-const { curve, secp256k1, secp192r1, eq } = mT.default
+import mt, * as mT from './module.f.mjs'
+const { curve, secp256k1, secp192r1, eq } = mt
 
-module.exports = {
+export default {
     test: () => {
         /** @type {(c: mT.Init) => void} */
         const test_curve = c => {
