@@ -1,4 +1,5 @@
-const _ = require('./module.f.cjs')
+const T = require('./module.f.mjs')
+const _ = T.default
 const list = require('../../list/module.f.cjs')
 const jsonT = require('../../../json/module.f.mjs')
 const json = jsonT.default
@@ -12,7 +13,7 @@ const jsonStr = json.stringify(sort)
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)
 
-/** @type {(r: _.Result<jsonT.Unknown>) => string} */
+/** @type {(r: T.Result<jsonT.Unknown>) => string} */
 const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
 
 /** @type {(i: string) => (m: btree.Node<string>) => string} */

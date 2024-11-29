@@ -1,6 +1,7 @@
 const _ = require('../types/module.f.cjs')
 const cmp = require('../../function/compare/module.f.cjs')
-const find = require('../find/module.f.cjs')
+const findT = require('../find/module.f.mjs')
+const find = findT.default
 const list = require('../../list/module.f.cjs')
 const { fold, concat, next } = list
 const array = require('../../array/module.f.mjs')
@@ -15,11 +16,11 @@ const { map } = require('../../nullable/module.f.cjs')
  * @template T
  * @typedef {{
  *  readonly first: Leaf01<T>,
- *  readonly tail: find.Path<T>
+ *  readonly tail: findT.Path<T>
  * }} RemovePath
  */
 
-/** @type {<T>(tail: find.Path<T>) => (n: _.Node<T>) => readonly[T, RemovePath<T>]} */
+/** @type {<T>(tail: findT.Path<T>) => (n: _.Node<T>) => readonly[T, RemovePath<T>]} */
 const path = tail => n => {
     switch (n.length) {
         case 1: { return [n[0], { first: null, tail }] }
@@ -93,7 +94,7 @@ const initValue1 = a => n => {
  * @typedef {(a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} Merge
  */
 
-/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (i: find.PathItem<T>) => (a: A) => Branch<T>} */
+/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (i: findT.PathItem<T>) => (a: A) => Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms
     /** @typedef {typeof ms extends array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
@@ -121,9 +122,9 @@ const nodeRemove = c => node => {
     /** @type  {() => null | RemovePath<T>} */
     const f = () => {
         const { first, tail } = find.find(c)(node)
-        /** @type {(n: _.Node<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>} */
+        /** @type {(n: _.Node<T>) => (f: (v: T) => findT.PathItem<T>) => RemovePath<T>} */
         const branch = n => f => {
-            const [v, p] = path(/** @type {find.Path<T>} */(null))(n)
+            const [v, p] = path(/** @type {findT.Path<T>} */(null))(n)
             return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
         }
         const [i, n] = first

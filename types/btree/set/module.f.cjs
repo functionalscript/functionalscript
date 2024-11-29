@@ -1,6 +1,6 @@
 const _ = require('../types/module.f.cjs')
-const btreeFind = require('../find/module.f.cjs')
-const { find } = btreeFind
+const btreeFind = require('../find/module.f.mjs')
+const { find } = btreeFind.default
 const cmp = require('../../function/compare/module.f.cjs')
 const list = require('../../list/module.f.cjs')
 const { fold } = list

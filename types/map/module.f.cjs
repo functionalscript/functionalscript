@@ -1,9 +1,9 @@
 const btreeTypes = require('../btree/types/module.f.cjs')
+const { value, find } = require('../btree/find/module.f.mjs').default
+const { set } = require('../btree/set/module.f.cjs')
+const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
 const {
     values,
-    find: { value, find },
-    set: { set },
-    remove: { remove: btreeRemove }
 } = require("../btree/module.f.cjs")
 const compare = require('../function/compare/module.f.cjs')
 const { cmp } = require('../string/module.f.cjs')

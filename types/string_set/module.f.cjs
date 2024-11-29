@@ -1,9 +1,12 @@
 const btTypes = require('../btree/types/module.f.cjs')
 const btree = require('../btree/module.f.cjs')
+const { find, isFound } = require('../btree/find/module.f.mjs').default
+const { remove: btreeRemove } = require('../btree/remove/module.f.cjs')
+const { set: btreeSet } = require('../btree/set/module.f.cjs')
 const {
-    find: { find, isFound },
-    remove: { remove: btreeRemove },
-    set: { set: btreeSet },
+    // find: { find, isFound },
+    // remove: { remove: btreeRemove },
+    // set: { set: btreeSet },
     /** @type {(s: StringSet) => list.List<string>} */
     values,
     empty,

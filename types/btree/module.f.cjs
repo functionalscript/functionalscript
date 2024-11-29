@@ -33,11 +33,5 @@ module.exports = {
     /** @readonly */
     empty: null,
     /** @readonly */
-    find: require('./find/module.f.cjs'),
-    /** @readonly */
-    remove: require('./remove/module.f.cjs'),
-    /** @readonly */
-    set: require('./set/module.f.cjs'),
-    /** @readonly */
     values,
 }

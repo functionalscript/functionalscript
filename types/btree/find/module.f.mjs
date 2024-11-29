@@ -1,8 +1,8 @@
-const _ = require('../types/module.f.cjs')
-const list = require('../../list/module.f.cjs')
-const cmp = require('../../function/compare/module.f.cjs')
+import _ from '../types/module.f.cjs'
+import list from '../../list/module.f.cjs'
+import cmp from '../../function/compare/module.f.cjs'
 const { index3, index5 } = cmp
-const array = require('../../array/module.f.mjs')
+import array, * as arrayT from '../../array/module.f.mjs'
 
 /**
  * @template T
@@ -68,12 +68,12 @@ const find = c => {
     /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     /** @type {(prior: Path<T>) => (node: _.Node<T>) => Result<T>} */
     const f = tail => node => {
-        /** @type {(index: array.KeyOf<typeof node>) => Result<T>} */
+        /** @type {(index: arrayT.KeyOf<typeof node>) => Result<T>} */
         const append = index => {
             const first = /** @type {PathItem<T>} */([index, node])
             return f({ first, tail })(child(first))
         }
-        /** @type {(index: array.KeyOf<typeof node>) => Result<T>} */
+        /** @type {(index: arrayT.KeyOf<typeof node>) => Result<T>} */
         const done = index => ({ first: /** @type {First<T>} */([index, node]), tail })
         switch (node.length) {
             case 1: { return done(i3(node[0])) }
@@ -123,7 +123,7 @@ const value = ([i, r]) => {
     }
 }
 
-module.exports = {
+export default {
     /** @readonly */
     find,
     /** @readonly */
