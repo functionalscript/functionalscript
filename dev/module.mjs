@@ -166,7 +166,7 @@ const codeAdd = i => p => m => {
         const np = `${p}${k}`
         if (typeof v === 'string') {
             result += `${i}${k}: ${np},\n`
-            im += `import ${np} from './${np.replaceAll('$', '/')}${v}'\n`
+            im += `import ${np} from './${np.replaceAll('$', '/')}/${v}'\n`
         } else {
             const [r, x] = codeAdd(i + indent)(`${np}\$`)(v)
             result += `${i}${k}: \{\n`
