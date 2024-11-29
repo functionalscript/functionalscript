@@ -11,7 +11,7 @@ const result = require('../../types/result/module.f.cjs')
 
 /**
  * @typedef {{
- *  readonly exports?: unknown
+ *  readonly default?: unknown
  * }} Module
  */
 
@@ -120,7 +120,7 @@ const main = input => {
         return ([ts, state]) => {
             if (isTest(k)) {
                 state = log(`testing ${k}`)(state);
-                [ts, state] = test('| ')(v.exports)([ts, state])
+                [ts, state] = test('| ')(v.default)([ts, state])
             }
             return [ts, state]
         }

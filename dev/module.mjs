@@ -22,13 +22,7 @@ import { readdir, writeFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
- *  exports?: unknown
- * }} MutableModule
- */
-
-/**
- * @typedef {{
- *  readonly exports?: unknown
+ *  readonly default?: unknown
  * }} Module
  */
 
@@ -50,7 +44,7 @@ const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
 
 /**
  * @typedef {{
- *  [k in string]: MutableModule
+ *  [k in string]: Module
  * }} MutableModuleMap
  */
 
@@ -110,7 +104,7 @@ export const loadModuleMap = async () => {
     const build = () => {
         /** @type {MutableModuleMap} */
         const d = {}
-        /** @type {(base: readonly string[]) => (k: string) => readonly[string, MutableModule]} */
+        /** @type {(base: readonly string[]) => (k: string) => readonly[string, Module]} */
         const getModule = base => k => {
             const relativePath = k.split('/')
             const dif = relativePath.filter(v => v === '..').length
@@ -124,8 +118,8 @@ export const loadModuleMap = async () => {
                 }
             }
             {
-                /** @type {MutableModule} */
-                const module = { exports: map[pathStr] }
+                /** @type {Module} */
+                const module = { default: map[pathStr] }
                 d[pathStr] = module
                 return [pathStr, module]
             }

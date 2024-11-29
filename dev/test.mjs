@@ -45,8 +45,7 @@ const main = async() => {
     const moduleMap = await loadModuleMap()
 
     /** @type {any} */
-    const f = moduleMap['./dev/test/module.f.cjs'].exports
-    console.log(typeof f === 'function')
+    const f = moduleMap['./dev/test/module.f.cjs'].default
     const r = f({
         moduleMap,
         log: anyLog(console.log),
