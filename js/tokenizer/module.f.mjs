@@ -2,7 +2,7 @@ import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import range_map, * as RangeMap from '../../types/range_map/module.f.mjs'
 const { merge, fromRange, get } = range_map
 import list, * as List from '../../types/list/module.f.mjs'
-import map from '../../types/map/module.f.cjs'
+import map, * as Map from '../../types/map/module.f.mjs'
 const { at } = map
 import _range from '../../types/range/module.f.cjs'
 const { one } = _range
@@ -391,7 +391,7 @@ const bufferToNumberToken = ({numberKind, value, b}) =>
 
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
- * @type {List.List<map.Entry<JsToken>>}
+ * @type {List.List<Map.Entry<JsToken>>}
  */
 const keywordEntries = [
     ['arguments', { kind: 'arguments'}],
@@ -451,7 +451,7 @@ const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
- * @type {List.List<map.Entry<JsToken>>}
+ * @type {List.List<Map.Entry<JsToken>>}
  */
 const operatorEntries = [
     ['!', { kind: '!'}],

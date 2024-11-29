@@ -1,4 +1,4 @@
-const { at, setReplace, setReduce, empty, entries, remove } = require('./module.f.cjs')
+const { at, setReplace, setReduce, empty, entries, remove } = require('./module.f.mjs').default
 const seq = require('../list/module.f.mjs').default
 
 module.exports = {
@@ -57,7 +57,7 @@ module.exports = {
         },
     ],
     stress: () => {
-        /** @type {import('./module.f.cjs').Map<number>} */
+        /** @type {import('./module.f.mjs').Map<number>} */
         let m = empty
         for (let i = 0; i < 100_000; ++i) {
             m = setReplace((i * i).toString())(i)(m)

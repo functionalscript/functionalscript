@@ -1,21 +1,24 @@
-const btreeTypes = require('../btree/types/module.f.mjs')
-const { value, find } = require('../btree/find/module.f.mjs').default
-const { set } = require('../btree/set/module.f.mjs').default
-const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default
-const {
-    values,
-} = require("../btree/module.f.mjs").default
-const compare = require('../function/compare/module.f.mjs')
-const { cmp } = require('../string/module.f.cjs')
-const list = require('../list/module.f.mjs')
-const { fold } = list.default
-const operator = require('../function/operator/module.f.mjs')
+import * as btreeTypes from '../btree/types/module.f.mjs'
+import btf from '../btree/find/module.f.mjs'
+const { value, find } = btf
+import bts from '../btree/set/module.f.mjs'
+const { set } = bts
+import btr from '../btree/remove/module.f.mjs'
+const { remove: btreeRemove } = btr
+import bt from '../btree/module.f.mjs'
+const { values } = bt
+import compare, * as Compare from '../function/compare/module.f.mjs'
+import s from '../string/module.f.cjs'
+const { cmp } = s
+import list, * as List from '../list/module.f.mjs'
+const { fold } = list
+import operator, * as Operator from '../function/operator/module.f.mjs'
 
-/** @typedef {compare.Sign} Sign */
+/** @typedef {Compare.Sign} Sign */
 
 /**
  * @template T
- * @typedef {compare.Compare<T>} Cmp
+ * @typedef {Compare.Compare<T>} Cmp
  */
 
 /**
@@ -38,11 +41,11 @@ const at = name => map => {
     return result === null ? null : result[1]
 }
 
-/** @type {<T>(reduce: operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
+/** @type {<T>(reduce: Operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>} */
 const setReduceEntry = reduce => entry =>
     set(keyCmp(entry[0]))(old => old === null ? entry : [old[0], reduce(old[1])(entry[1])])
 
-/** @type {<T>(reduce: operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
+/** @type {<T>(reduce: Operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
 const setReduce = reduce => name => value => setReduceEntry(reduce)([name, value])
 
 /** @type {<T>(a: T) => (b: T) => T} */
@@ -51,16 +54,16 @@ const replace = () => b => b
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
 const setReplace = name => value => setReduceEntry(replace)([name, value])
 
-/** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
+/** @type {<T>(map: Map<T>) => List.List<Entry<T>>} */
 const entries = values
 
-/** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
+/** @type {<T>(entries: List.List<Entry<T>>) => Map<T>} */
 const fromEntries = fold(setReduceEntry(replace))(null)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
 const remove = name => btreeRemove(keyCmp(name))
 
-module.exports = {
+export default {
     /** @readonly */
     empty: null,
     /** @readonly */

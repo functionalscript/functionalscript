@@ -4,7 +4,7 @@ const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default
 const { sort } = require('../object/module.f.mjs').default
 const { toArray, countdown, length } = require('../list/module.f.mjs').default
-const map = require('../map/module.f.cjs')
+const map = require('../map/module.f.mjs')
 const { flip } = require('../function/module.f.mjs').default
 
 /** @type {(a: readonly jsonT.Unknown[]) => string} */

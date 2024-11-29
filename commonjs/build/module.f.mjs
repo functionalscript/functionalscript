@@ -2,7 +2,7 @@ import package_, * as packageT from '../package/module.f.mjs'
 import module_, * as moduleT from '../module/module.f.mjs'
 const { idToString, dir } = module_
 import * as function_ from '../module/function/module.f.mjs'
-import map from '../../types/map/module.f.cjs'
+import map, * as Map from '../../types/map/module.f.mjs'
 const { empty: mapEmpty, setReplace } = map
 import object from '../../types/object/module.f.mjs'
 const { fromMap } = object
@@ -52,9 +52,9 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         const moduleIdStr = idToString(moduleId)
         const buildSet1 = setSet(moduleIdStr)(buildSet)
         const moduleDir = dir(moduleId)
-        /** @type {function_.Require<readonly[map.Map<string>, M]>} */
+        /** @type {function_.Require<readonly[Map.Map<string>, M]>} */
         const require_ = p => ([requireMap, m]) => {
-            /** @type {(e: unknown) => function_.Result<readonly[map.Map<string>, M]>} */
+            /** @type {(e: unknown) => function_.Result<readonly[Map.Map<string>, M]>} */
             const error = e => [['error', e], [requireMap, m]]
             if (moduleDir === null) { return error('file not found') }
             const r = parseAndFind(packageGet)(moduleDir)(p)

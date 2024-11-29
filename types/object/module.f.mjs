@@ -1,6 +1,6 @@
 import list, * as List from '../list/module.f.mjs'
 const { iterable } = list
-import map from '../map/module.f.cjs'
+import map, * as Map from '../map/module.f.mjs'
 const { entries: mapEntries, fromEntries: mapFromEntries } = map
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
@@ -28,7 +28,7 @@ const sort = e => mapEntries(mapFromEntries(e))
 /** @type {<T>(e: List.List<Entry<T>>) => Map<T>} */
 const fromEntries = e => objectFromEntries(iterable(e))
 
-/** @type {<T>(m: map.Map<T>) => Map<T>} */
+/** @type {<T>(m: Map.Map<T>) => Map<T>} */
 const fromMap = m => fromEntries(mapEntries(m))
 
 export default {
