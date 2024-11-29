@@ -36,8 +36,8 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
- *  readonly[k in string]: Function
- * }} FunctionMap
+ *  readonly[k in string]: unknown
+ * }} UnknownMap
  */
 
 /**
@@ -45,7 +45,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
  * @typedef {readonly[string, T]} Entry
  */
 
-/** @type {(a: Entry<Function>, b: Entry<Function>) => number} */
+/** @type {(a: Entry<unknown>, b: Entry<unknown>) => number} */
 const cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
 
 /**
@@ -80,9 +80,9 @@ export const env =
     }
 
 export const loadModuleMap = async () => {
-    /** @type {() => Promise<FunctionMap>} */
+    /** @type {() => Promise<UnknownMap>} */
     const load = async () => {
-        /** @type {(readonly[string, Function])[]} */
+        /** @type {(readonly[string, unknown])[]} */
         const map = []
         /** @type {(path: string) => Promise<void>} */
         const f = async p => {
@@ -94,7 +94,7 @@ export const loadModuleMap = async () => {
                         await f(file)
                     } else if (name.endsWith('.f.cjs')) {
                         const source = await import(`../${file}`)
-                        map.push([file, (/** @type {MutableModule} */module) => module.exports = source.default])
+                        map.push([file, source.default])
                     }
                 }
             }
@@ -125,8 +125,7 @@ export const loadModuleMap = async () => {
             }
             {
                 /** @type {MutableModule} */
-                const module = { }
-                map[pathStr](module)
+                const module = { exports: map[pathStr] }
                 d[pathStr] = module
                 return [pathStr, module]
             }
