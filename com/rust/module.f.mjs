@@ -1,12 +1,13 @@
-const types = require('../types/module.f.cjs')
+import types from '../types/module.f.cjs'
 const { paramList } = types
-const text = require('../../text/module.f.cjs')
-const object = require('../../types/object/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
-const { flat, map, flatMap, isEmpty } = list
+import text from '../../text/module.f.cjs'
+import object from '../../types/object/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
+const { flat, map, flatMap } = list
 const { entries } = Object
-const { fn } = require('../../types/function/module.f.cjs')
-const { join } = require('../../types/string/module.f.cjs')
+import func from '../../types/function/module.f.cjs'
+const { fn } = func
+import { join } from '../../types/string/module.f.cjs'
 
 /** @type {(field: string) => string} */
 const rustField = field => `pub ${field},`
@@ -256,7 +257,7 @@ const rust = library => {
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])
 }
 
-module.exports = {
+export default {
     /** @readonly */
     rust,
 }
