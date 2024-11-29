@@ -1,7 +1,8 @@
-const list = require('../../types/list/module.f.cjs')
-const operator = require('../../types/function/operator/module.f.cjs')
-const { contains } = require('../../types/range/module.f.cjs')
-const { fn } = require('../../types/function/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
+import operator from '../../types/function/operator/module.f.cjs'
+import { contains } from '../../types/range/module.f.cjs'
+import f from '../../types/function/module.f.cjs'
+const { fn } = f
 const { map, flat, stateScan, reduce, flatMap, empty } = list
 
 /** @typedef {u16|null} WordOrEof */
@@ -92,7 +93,7 @@ const listToString = fn(map(String.fromCharCode))
     .then(reduce(operator.concat)(''))
     .result
 
-module.exports = {
+export default {
     /** @readonly */
     fromCodePointList,
     /** @readonly */

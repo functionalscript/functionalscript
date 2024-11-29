@@ -2,7 +2,7 @@ import tokenizer, * as tokenizerT from './module.f.mjs'
 import { toArray, countdown } from '../../types/list/module.f.cjs'
 import djs from '../module.f.mjs'
 import { sort } from '../../types/object/module.f.cjs'
-import encoding from '../../text/utf16/module.f.cjs'
+import encoding from '../../text/utf16/module.f.mjs'
 
 /** @type {(s: string) => readonly tokenizerT.DjsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))

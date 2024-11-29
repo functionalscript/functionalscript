@@ -5,7 +5,8 @@ const { concat: stringConcat } = s
 import object from '../types/object/module.f.cjs'
 import f from '../types/function/module.f.cjs'
 const { compose } = f
-import { stringToList } from '../text/utf16/module.f.cjs'
+import utf16 from '../text/utf16/module.f.mjs'
+const { stringToList } = utf16
 const { fromCharCode } = String
 const { entries } = Object
 

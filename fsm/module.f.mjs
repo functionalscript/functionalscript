@@ -13,7 +13,8 @@ import j from '../json/module.f.mjs'
 const { stringify } = j
 import f from '../types/function/module.f.cjs'
 const { identity } = f
-import { stringToList } from '../text/utf16/module.f.cjs'
+import utf16 from '../text/utf16/module.f.mjs'
+const { stringToList } = utf16
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
