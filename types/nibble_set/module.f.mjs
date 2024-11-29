@@ -26,7 +26,7 @@ const range = ([a, b]) => one(b - a + 1) - 1 << a
 /** @type {(r: readonly[number, number]) => (s: NibbleSet) => NibbleSet} */
 const setRange = r => s => s | range(r)
 
-module.exports = {
+export default {
     /** @readonly */
     empty,
     /** @readonly */

@@ -1,5 +1,5 @@
 const { every, map, countdown } = require('../list/module.f.mjs').default
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 
 module.exports = {
     has: () => {
