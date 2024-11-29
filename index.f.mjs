@@ -11,7 +11,7 @@ import fsm from './fsm/module.f.mjs'
 import html from './html/module.f.mjs'
 import js$tokenizer from './js/tokenizer/module.f.mjs'
 import json from './json/module.f.mjs'
-import nodejs from './nodejs/module.f.cjs'
+import nodejs$version from './nodejs/version/module.f.mjs'
 import prime_field from './prime_field/module.f.cjs'
 import secp from './secp/module.f.cjs'
 import sha2 from './sha2/module.f.cjs'
@@ -52,7 +52,9 @@ export default {
     tokenizer: js$tokenizer,
   },
   json: json,
-  nodejs: nodejs,
+  nodejs: {
+    version: nodejs$version,
+  },
   prime_field: prime_field,
   secp: secp,
   sha2: sha2,
