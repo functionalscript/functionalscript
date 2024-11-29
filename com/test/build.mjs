@@ -1,12 +1,12 @@
-const { writeFileSync } = require('node:fs')
-const { execSync } = require('node:child_process')
-const { platform, exit } = require('node:process')
-const build = require('./build.f.cjs')
+import { writeFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
+import { platform, exit } from 'node:process'
+import build from './build.f.cjs'
 const { cpp, cs, rust } = build
-const { join } = require('../../types/string/module.f.cjs')
+import { join } from '../../types/string/module.f.cjs'
 const { log, error } = console
-const { bold, reset } = require('../../text/sgr/module.f.cjs')
-const list = require('../../types/list/module.f.cjs')
+import { bold, reset } from '../../text/sgr/module.f.cjs'
+import list from '../../types/list/module.f.cjs'
 
 const nodeJs = {
     dirname: __dirname,

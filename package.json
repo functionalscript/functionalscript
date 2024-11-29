@@ -9,7 +9,7 @@
     "index": "node ./dev/index.mjs",
     "version": "node ./nodejs/version/main.cjs",
     "test-only": "node --trace-uncaught ./dev/test.mjs",
-    "comtest": "node ./com/test/build.cjs"
+    "comtest": "node ./com/test/build.mjs"
   },
   "repository": {
     "type": "git",
