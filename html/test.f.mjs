@@ -1,7 +1,6 @@
-const T = require('./module.f.mjs')
-const _ = T.default
+import _, * as T from './module.f.mjs'
 
-module.exports = {
+export default {
     empty: () => {
         const r = _.htmlToString(['html', []])
         if (r !== '<!DOCTYPE html><html></html>') { throw r }
