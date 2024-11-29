@@ -9,7 +9,7 @@ const s = require('./set/module.f.mjs').default
 const f = require('./find/module.f.mjs').default
 
 require('./find/test.f.mjs')
-require('./set/test.f.cjs')
+require('./set/test.f.mjs')
 require('./remove/test.f.mjs')
 
 const jsonStr = json.stringify(sort)

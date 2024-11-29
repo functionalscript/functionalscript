@@ -1,9 +1,8 @@
-const _ = require('./module.f.mjs').default
-const btree = require('../types/module.f.cjs')
-const { cmp } = require('../../string/module.f.cjs')
-const jsonT = require('../../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../../object/module.f.cjs')
+import _ from './module.f.mjs'
+import btree from '../types/module.f.cjs'
+import { cmp } from '../../string/module.f.cjs'
+import json, * as jsonT from '../../../json/module.f.mjs'
+import { sort } from '../../object/module.f.cjs'
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => _.set(cmp(value))(() => value)(node)
@@ -381,4 +380,4 @@ const test = [
     }
 ]
 
-module.exports = test
+export default test

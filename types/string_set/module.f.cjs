@@ -4,9 +4,6 @@ const { find, isFound } = require('../btree/find/module.f.mjs').default
 const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default
 const { set: btreeSet } = require('../btree/set/module.f.mjs').default
 const {
-    // find: { find, isFound },
-    // remove: { remove: btreeRemove },
-    // set: { set: btreeSet },
     /** @type {(s: StringSet) => list.List<string>} */
     values,
     empty,
