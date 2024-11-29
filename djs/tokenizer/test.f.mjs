@@ -1,16 +1,15 @@
-const tokenizerT = require('./module.f.mjs')
-const tokenizer = tokenizerT.default
-const { toArray, countdown } = require('../../types/list/module.f.cjs')
-const djs = require('../../djs/module.f.cjs')
-const { sort } = require('../../types/object/module.f.cjs')
-const encoding = require('../../text/utf16/module.f.cjs');
+import tokenizer, * as tokenizerT from './module.f.mjs'
+import { toArray, countdown } from '../../types/list/module.f.cjs'
+import djs from '../module.f.cjs'
+import { sort } from '../../types/object/module.f.cjs'
+import encoding from '../../text/utf16/module.f.cjs'
 
 /** @type {(s: string) => readonly tokenizerT.DjsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = djs.stringify(sort)
 
-module.exports = {
+export default {
     djs: [
         () => {
             const result = tokenizeString('')
