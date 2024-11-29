@@ -1,7 +1,8 @@
-const list = require('../../types/list/module.f.cjs')
+import list from '../../types/list/module.f.cjs'
 const { fold } = list
-const { reset, fgGreen, fgRed, bold } = require('../../text/sgr/module.f.cjs')
-const result = require('../../types/result/module.f.cjs')
+import sgr from '../../text/sgr/module.f.cjs'
+const { reset, fgGreen, fgRed, bold } = sgr
+import result from '../../types/result/module.f.cjs'
 
 /**
  * @typedef {{
@@ -145,4 +146,4 @@ const main = input => {
     return [ts.fail !== 0 ? 1 : 0, state]
 }
 
-module.exports = main
+export default main
