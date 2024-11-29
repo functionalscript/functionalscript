@@ -1,6 +1,6 @@
-const _ = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
-module.exports = () => {
+export default () => {
     if (_.isPackageJson(null)) { throw 'error' }
     if (_.isPackageJson({})) { throw 'error' }
     if (_.isPackageJson({name:'x',version:12})) { throw 'error' }
