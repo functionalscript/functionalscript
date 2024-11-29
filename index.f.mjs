@@ -1,5 +1,8 @@
 // Generated file.
-import com from './com/module.f.cjs'
+import com$cpp from './com/cpp/module.f.mjs'
+import com$cs from './com/cs/module.f.mjs'
+import com$rust from './com/rust/module.f.mjs'
+import com$types from './com/types/module.f.mjs'
 import commonjs from './commonjs/module.f.cjs'
 import dev from './dev/module.f.cjs'
 import djs from './djs/module.f.cjs'
@@ -33,7 +36,12 @@ import types$sorted_set from './types/sorted_set/module.f.cjs'
 import types$string from './types/string/module.f.cjs'
 import types$string_set from './types/string_set/module.f.cjs'
 export default {
-  com: com,
+  com: {
+    cpp: com$cpp,
+    cs: com$cs,
+    rust: com$rust,
+    types: com$types,
+  },
   commonjs: commonjs,
   dev: dev,
   djs: djs,
