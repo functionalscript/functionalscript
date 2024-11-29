@@ -1,4 +1,4 @@
-const { prime_field, sqrt } = require('./module.f.cjs')
+const { prime_field, sqrt } = require('./module.f.mjs').default
 
 module.exports = {
     prime_field_test: () => {

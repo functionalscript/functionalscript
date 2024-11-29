@@ -1,7 +1,7 @@
 const op = require('../types/function/operator/module.f.cjs')
-const pf = require('../prime_field/module.f.cjs')
+const pfT = require('../prime_field/module.f.mjs')
 const { scalar_mul } = require('../types/bigint/module.f.cjs')
-const { prime_field, sqrt } = pf
+const { prime_field, sqrt } = pfT.default
 
 /** @typedef {readonly[bigint, bigint]} Point2D */
 
@@ -18,8 +18,8 @@ const { prime_field, sqrt } = pf
 
 /**
  * @typedef {{
- *  readonly pf: pf.PrimeField
- *  readonly nf: pf.PrimeField
+ *  readonly pf: pfT.PrimeField
+ *  readonly nf: pfT.PrimeField
  *  readonly y2: (x: bigint) => bigint
  *  readonly y: (x: bigint) => bigint|null
  *  readonly neg: (a: Point) => Point

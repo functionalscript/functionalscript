@@ -1,5 +1,5 @@
-const op = require('../types/function/operator/module.f.cjs')
-const { scalar_mul } = require('../types/bigint/module.f.cjs')
+import op from '../types/function/operator/module.f.cjs'
+import { scalar_mul } from '../types/bigint/module.f.cjs'
 
 /** @typedef {op.Reduce<bigint>} Reduce */
 
@@ -75,7 +75,7 @@ const prime_field = p => {
     }
 }
 
-module.exports = {
+export default {
     prime_field,
     /** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
     sqrt: ({p, mul, pow }) => {
