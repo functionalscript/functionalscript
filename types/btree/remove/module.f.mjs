@@ -1,11 +1,10 @@
-const _ = require('../types/module.f.cjs')
-const cmp = require('../../function/compare/module.f.cjs')
-const findT = require('../find/module.f.mjs')
-const find = findT.default
-const list = require('../../list/module.f.cjs')
+import _ from '../types/module.f.cjs'
+import cmp from '../../function/compare/module.f.cjs'
+import find, * as findT from '../find/module.f.mjs'
+import list from '../../list/module.f.cjs'
 const { fold, concat, next } = list
-const array = require('../../array/module.f.mjs')
-const { map } = require('../../nullable/module.f.cjs')
+import array, * as arrayT from '../../array/module.f.mjs'
+import { map } from '../../nullable/module.f.cjs'
 
 /**
  * @template T
@@ -94,10 +93,10 @@ const initValue1 = a => n => {
  * @typedef {(a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} Merge
  */
 
-/** @type {<A, T>(ms: array.Array2<Merge<A, T>>) => (i: findT.PathItem<T>) => (a: A) => Branch<T>} */
+/** @type {<A, T>(ms: arrayT.Array2<Merge<A, T>>) => (i: findT.PathItem<T>) => (a: A) => Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms
-    /** @typedef {typeof ms extends array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
+    /** @typedef {typeof ms extends arrayT.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
     /** @typedef {AT[0]} A */
     /** @typedef {AT[1]} T */
     /** @type {(m: Merge<A, T>) => Branch<T>} */
@@ -159,7 +158,7 @@ const nodeRemove = c => node => {
 /** @type {<T>(c: cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
 const remove =  c => map(nodeRemove(c))
 
-module.exports = {
+export default {
     /** @readonly */
     nodeRemove,
     /** @readonly */

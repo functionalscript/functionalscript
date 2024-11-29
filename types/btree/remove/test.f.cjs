@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const btree = require('../types/module.f.cjs')
 const s = require('../set/module.f.cjs')
 const { cmp } = require('../../string/module.f.cjs')
