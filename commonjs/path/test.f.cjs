@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 const { todo } = require('../../dev/module.f.cjs')
 const json = require('../../json/module.f.cjs')
 const { identity } = require('../../types/function/module.f.cjs')

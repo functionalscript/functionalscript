@@ -6,7 +6,7 @@ import map from '../../types/map/module.f.cjs'
 const { empty: mapEmpty, setReplace } = map
 import object from '../../types/object/module.f.cjs'
 const { fromMap } = object
-import path from '../path/module.f.cjs'
+import path from '../path/module.f.mjs'
 const { parseAndFind } = path
 import stringSet from '../../types/string_set/module.f.cjs'
 const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet

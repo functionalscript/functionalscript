@@ -1,8 +1,8 @@
-const list = require("../../types/list/module.f.cjs")
+import list from '../../types/list/module.f.cjs'
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
-const { join } = require('../../types/string/module.f.cjs')
-const package_ = require("../package/module.f.mjs")
-const module_ = require("../module/module.f.mjs")
+import { join } from '../../types/string/module.f.cjs'
+import package_, * as packageT from '../package/module.f.mjs'
+import module_, * as moduleT from '../module/module.f.mjs'
 
 /** @typedef {readonly string[]} Items */
 
@@ -131,7 +131,7 @@ const parse = packageId => dependencies => {
 
 /**
  * @typedef {{
- *  readonly id: module_.Id
+ *  readonly id: moduleT.Id
  *  readonly source: string
  * }} FoundResult
  */
@@ -139,8 +139,8 @@ const parse = packageId => dependencies => {
 /** @typedef {FoundResult| null} Result */
 
 /**
- * @type {(packageGet: package_.Get) =>
- *  (moduleId: module_.Id) =>
+ * @type {(packageGet: packageT.Get) =>
+ *  (moduleId: moduleT.Id) =>
  *  (path: string) =>
  *  Result
  * }
@@ -163,7 +163,7 @@ const parseAndFind = packageGet => moduleId => path => {
     return firstNull(filterMap(tryFile)(fileList))
 }
 
-module.exports = {
+export default {
     /** @readonly */
     parseLocal,
     /** @readonly */
