@@ -24,7 +24,7 @@ const anyLog = f => s => state => {
 
 /** @type {<T>(f: () => T) => Result<T, unknown>} */
 const tryCatch = f => {
-    // Side effect: `try catch` is not allowed in FunctionalScript.
+    // `try catch` is not allowed in FunctionalScript.
     try {
         return ['ok', f()]
     } catch (e) {
