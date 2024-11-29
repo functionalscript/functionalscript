@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [16.x, 18.x, 20.x, 22.x, 23.x]
+        node-version: [16, 18, 20, 22, 23]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
@@ -34,7 +34,7 @@ jobs:
 
     strategy:
       matrix:
-        deno-version: [1.x, 2.x]
+        deno-version: [2]
 
     steps:
     - uses: actions/checkout@v2
@@ -55,7 +55,8 @@ jobs:
   COM:
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'windows-latest', 'macos-14']
+        # https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job#choosing-github-hosted-runners
+        os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
 
     runs-on: ${{ matrix.os }}
 
