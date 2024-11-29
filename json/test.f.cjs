@@ -1,4 +1,4 @@
-const json = require('./module.f.cjs')
+const json = require('./module.f.mjs').default
 const { sort } = require('../types/object/module.f.cjs')
 const { identity } = require('../types/function/module.f.cjs')
 

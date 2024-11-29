@@ -1,5 +1,5 @@
 const encoding = require('./module.f.cjs')
-const json = require('../../json/module.f.cjs')
+const json = require('../../json/module.f.mjs').default
 const { sort } = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 

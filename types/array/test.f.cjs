@@ -1,5 +1,5 @@
 const _ = require('./module.f.cjs')
-const json = require('../../json/module.f.cjs')
+const json = require('../../json/module.f.mjs').default
 const { sort } = require('../object/module.f.cjs')
 
 const stringify = json.stringify(sort)

@@ -1,10 +1,11 @@
 const _ = require('./module.f.cjs')
 const { every, countdown, map } = require('../list/module.f.cjs')
-const json = require('../../json/module.f.cjs')
+const jsonT = require('../../json/module.f.mjs')
+const json = jsonT.default
 const { sort } = require('../object/module.f.cjs')
 const { toArray } = require('../list/module.f.cjs')
 
-/** @type {(a: readonly json.Unknown[]) => string} */
+/** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 module.exports = {

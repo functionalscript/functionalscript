@@ -1,9 +1,10 @@
 const encoding = require('./module.f.cjs')
-const json = require('../../json/module.f.cjs')
+const jsonT = require('../../json/module.f.mjs')
+const json = jsonT.default
 const { sort } = require('../../types/object/module.f.cjs')
 const list = require('../../types/list/module.f.cjs')
 
-/** @type {(a: readonly json.Unknown[]) => string} */
+/** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 module.exports = {

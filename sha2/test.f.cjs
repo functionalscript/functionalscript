@@ -1,5 +1,6 @@
 const _ = require('./module.f.cjs')
-const json = require('../json/module.f.cjs')
+const jsonT = require('../json/module.f.mjs')
+const json = jsonT.default
 const { sort } = require('../types/object/module.f.cjs')
 const list = require('../types/list/module.f.cjs')
 
@@ -9,7 +10,7 @@ const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000
 /** @type {(a: number) => string} */
 const toHexString = x => toU32(x).toString(16).padStart(8, '0')
 
-/** @type {(a: readonly json.Unknown[]) => string} */
+/** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 // {

@@ -1,7 +1,7 @@
 import parser from './module.f.mjs'
 import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.cjs'
-import json from '../module.f.cjs'
+import json from '../module.f.mjs'
 import { sort } from '../../types/object/module.f.cjs'
 import encoding from '../../text/utf16/module.f.cjs'
 

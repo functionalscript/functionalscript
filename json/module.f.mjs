@@ -1,11 +1,13 @@
-const list = require('../types/list/module.f.cjs')
+import list from '../types/list/module.f.cjs'
 const { next, flat, map } = list
-const { concat } = require('../types/string/module.f.cjs')
-const object = require('../types/object/module.f.cjs')
+import { concat } from '../types/string/module.f.cjs'
+import object from '../types/object/module.f.cjs'
 const { at } = object
-const { compose, fn } = require('../types/function/module.f.cjs')
+import f from '../types/function/module.f.cjs'
+const { compose, fn } = f
 const { entries } = Object
-const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = require('./serializer/module.f.mjs').default
+import s from './serializer/module.f.mjs'
+const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = s
 
 /**
  * @typedef {{
@@ -84,9 +86,7 @@ const parse = JSON.parse
 /** @type {(value: Unknown) => value is Object} */
 const isObject = value => typeof value === 'object' && value !== null && !(value instanceof Array)
 
-module.exports = {
-    /** @readonly */
-    tokenizer: require('./tokenizer/module.f.mjs'),
+export default {
     /** @readonly */
     setProperty,
     /** @readonly */

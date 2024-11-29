@@ -1,12 +1,13 @@
 const _ = require('./module.f.cjs')
 const { unsafeCmp } = require('../function/compare/module.f.cjs')
-const json = require('../../json/module.f.cjs')
+const jsonT = require('../../json/module.f.mjs')
+const json = jsonT.default
 const { sort } = require('../../types/object/module.f.cjs')
 const sortedSet = require('../sorted_set/module.f.cjs')
 const list = require('../list/module.f.cjs')
 const operator = require("../function/operator/module.f.cjs")
 
-/** @type {(a: readonly json.Unknown[]) => string} */
+/** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = json.stringify(sort)
 
 /** @type {_.Operators<sortedSet.SortedSet<string>>} */

@@ -9,7 +9,7 @@ const { merge } = rangeMap
 import { unsafeCmp } from '../types/function/compare/module.f.cjs'
 import operator from '../types/function/operator/module.f.cjs'
 const { strictEqual } = operator
-import j from '../json/module.f.cjs'
+import j from '../json/module.f.mjs'
 const { stringify } = j
 import f from '../types/function/module.f.cjs'
 const { identity } = f

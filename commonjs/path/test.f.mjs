@@ -1,7 +1,7 @@
 import _ from './module.f.mjs'
 import dev from '../../dev/module.f.mjs'
 const { todo } = dev
-import json from '../../json/module.f.cjs'
+import json, * as jsonT from '../../json/module.f.mjs'
 import f from '../../types/function/module.f.cjs'
 const { identity } = f
 import object from '../../types/object/module.f.cjs'
@@ -11,7 +11,7 @@ import * as packageT from '../package/module.f.mjs'
 /** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
 const i = o => s => at(s)(o)
 
-/** @type {(g: json.Unknown) => string} */
+/** @type {(g: jsonT.Unknown) => string} */
 const stringify = json.stringify(identity)
 
 export default {

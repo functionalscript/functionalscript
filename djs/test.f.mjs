@@ -1,4 +1,4 @@
-import json from '../json/module.f.cjs'
+import json from '../json/module.f.mjs'
 import { sort } from '../types/object/module.f.cjs'
 import f from '../types/function/module.f.cjs'
 const { identity } = f

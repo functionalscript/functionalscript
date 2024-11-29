@@ -1,5 +1,5 @@
 const { range } = require('./module.f.cjs')
-const json = require('../../json/module.f.cjs')
+const json = require('../../json/module.f.mjs').default
 const { sort } = require('../../types/object/module.f.cjs')
 
 const stringify = json.stringify(sort)
