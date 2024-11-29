@@ -93,8 +93,8 @@ export const loadModuleMap = async () => {
                     if (i.isDirectory()) {
                         await f(file)
                     } else if (name.endsWith('.f.cjs')) {
-                        const source = await readFile(file, 'utf8')
-                        map.push([file, Function('module', 'require', `"use strict";${source}`)])
+                        const source = await import(`../${file}`)
+                        map.push([file, (/** @type {MutableModule} */module) => module.exports = source.default])
                     }
                 }
             }

@@ -43,6 +43,7 @@ const measure = f => state => {
 // test runner.
 const main = async() => {
     const moduleMap = await loadModuleMap()
+    console.log(moduleMap)
 
     /** @type {any} */
     const f = moduleMap['./dev/test/module.f.cjs'].exports
