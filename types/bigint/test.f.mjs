@@ -1,6 +1,7 @@
-const { sum, abs, serialize, log2, bitLength } = require('./module.f.mjs').default
+import _ from './module.f.mjs'
+const { sum, abs, serialize, log2, bitLength } = _
 
-module.exports = {
+export default {
     sum: () => {
         const result = sum([2n, 3n, 4n, 5n])
         if (result !== 14n) { throw result }
