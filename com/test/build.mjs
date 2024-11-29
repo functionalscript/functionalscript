@@ -5,7 +5,8 @@ import build from './build.f.cjs'
 const { cpp, cs, rust } = build
 import { join } from '../../types/string/module.f.cjs'
 const { log, error } = console
-import { bold, reset } from '../../text/sgr/module.f.cjs'
+import sgr from '../../text/sgr/module.f.cjs'
+const { bold, reset } = sgr
 import list from '../../types/list/module.f.cjs'
 
 const nodeJs = {
