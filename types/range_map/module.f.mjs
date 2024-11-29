@@ -1,11 +1,11 @@
-const sortedList = require("../sorted_list/module.f.mjs")
-const { genericMerge } = sortedList.default
-const list = require("../list/module.f.cjs")
+import sortedList, * as SL from '../sorted_list/module.f.mjs'
+const { genericMerge } = sortedList
+import list from '../list/module.f.mjs'
 const { next } = list
-const option = require("../nullable/module.f.mjs")
-const { cmp } = require('../number/module.f.cjs')
-const operator = require("../function/operator/module.f.mjs")
-const _range = require('../range/module.f.cjs')
+import option, * as Option from '../nullable/module.f.mjs'
+import { cmp } from '../number/module.f.cjs'
+import operator, * as O from '../function/operator/module.f.mjs'
+import _range from '../range/module.f.cjs'
 
 /**
  * @template T
@@ -14,7 +14,7 @@ const _range = require('../range/module.f.cjs')
 
 /**
  * @template T
- * @typedef {sortedList.SortedList<Entry<T>>} RangeMap
+ * @typedef {SL.SortedList<Entry<T>>} RangeMap
  */
 
 /**
@@ -25,22 +25,22 @@ const _range = require('../range/module.f.cjs')
 /**
  * @template T
  * @typedef {{
- *  readonly union: operator.Reduce<T>
- *  readonly equal: operator.Equal<T>
+ *  readonly union: O.Reduce<T>
+ *  readonly equal: O.Equal<T>
  * }} Operators
  */
 
 /**
  * @template T
- * @typedef {option.Nullable<Entry<T>>} RangeState
+ * @typedef {Option.Nullable<Entry<T>>} RangeState
  */
 
 /**
  * @template T
- * @typedef {operator.Reduce<RangeMap<T>>} RangeMerge
+ * @typedef {O.Reduce<RangeMap<T>>} RangeMerge
  */
 
-/** @type {<T>(union: operator.Reduce<T>) => (equal: operator.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
+/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => SL.ReduceOp<Entry<T>, RangeState<T>>} */
 const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) => {
     const sign = cmp(aMax)(bMax)
     const min = sign === 1 ? bMax : aMax
@@ -49,7 +49,7 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) =
     return [newState, sign, [u, min]]
 }
 
-/** @type {<T>(equal: operator.Equal<T>) => sortedList.TailReduce<Entry<T>, RangeState<T>>} */
+/** @type {<T>(equal: O.Equal<T>) => SL.TailReduce<Entry<T>, RangeState<T>>} */
 const tailReduce = equal => state => tail => {
     if (state === null) { return tail }
     const tailResult = next(tail)
@@ -81,7 +81,7 @@ const get = def => value => rm => {
 /** @type {<T>(def: T) => (r: _range.Range) => (value: T) => RangeMapArray<T>} */
 const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]
 
-module.exports = {
+export default {
     /** @readonly */
     merge,
     /** @readonly */

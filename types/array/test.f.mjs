@@ -1,6 +1,7 @@
 import _ from './module.f.mjs'
 import json from '../../json/module.f.mjs'
-import { sort } from '../object/module.f.cjs'
+import o from '../object/module.f.mjs'
+const { sort } = o
 
 const stringify = json.stringify(sort)
 

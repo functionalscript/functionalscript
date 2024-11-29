@@ -1,7 +1,7 @@
-import list from '../../types/list/module.f.cjs'
+import list, * as List from '../../types/list/module.f.mjs'
 import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import { contains } from '../../types/range/module.f.cjs'
-import f from '../../types/function/module.f.cjs'
+import f from '../../types/function/module.f.mjs'
 const { fn } = f
 const { map, flat, stateScan, reduce, flatMap, empty } = list
 
@@ -30,7 +30,7 @@ const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 /** @type {(a: i32) => boolean} */
 const isSupplementaryPlane = contains([0x01_0000, 0x10_ffff])
 
-/** @type {(input: i32) => list.List<u16>} */
+/** @type {(input: i32) => List.List<u16>} */
 const codePointToUtf16 = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
     if (isSupplementaryPlane(codePoint)) {
@@ -46,7 +46,7 @@ const fromCodePointList = flatMap(codePointToUtf16)
 
 const u16 = contains([0x0000, 0xFFFF])
 
-/** @type {Operator.StateScan<u16, Utf16State, list.List<i32>>} */
+/** @type {Operator.StateScan<u16, Utf16State, List.List<i32>>} */
 const utf16ByteToCodePointOp = state => word => {
     if (!u16(word)) {
         return [[0xffffffff], state]
@@ -66,21 +66,21 @@ const utf16ByteToCodePointOp = state => word => {
     return [[state | errorMask, word | errorMask], null]
 }
 
-/** @type {(state: Utf16State) => readonly[list.List<i32>, Utf16State]} */
+/** @type {(state: Utf16State) => readonly[List.List<i32>, Utf16State]} */
 const utf16EofToCodePointOp = state => [state === null ? empty : [state | errorMask],  null]
 
-/** @type {Operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
+/** @type {Operator.StateScan<WordOrEof, Utf16State, List.List<i32>>} */
 const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
-/** @type {list.List<WordOrEof>} */
+/** @type {List.List<WordOrEof>} */
 const eofList = [null]
 
-/** @type {(input: list.List<u16>) => list.List<i32>} */
+/** @type {(input: List.List<u16>) => List.List<i32>} */
 const toCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
-/** @type {(s: string) => list.List<u16>} */
+/** @type {(s: string) => List.List<u16>} */
 const stringToList = s => {
-    /** @type {(i: number) => list.Result<number>} */
+    /** @type {(i: number) => List.Result<number>} */
     const at = i => {
         const first = s.charCodeAt(i)
         return isNaN(first) ? empty : { first, tail: () => at(i + 1) }
@@ -88,7 +88,7 @@ const stringToList = s => {
     return at(0)
 }
 
-/** @type {(input: list.List<u16>) => string} */
+/** @type {(input: List.List<u16>) => string} */
 const listToString = fn(map(String.fromCharCode))
     .then(reduce(operator.concat)(''))
     .result

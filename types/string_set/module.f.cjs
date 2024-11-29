@@ -9,9 +9,9 @@ const {
     empty,
 } = btree
 const { cmp } = require("../string/module.f.cjs")
-const list = require('../list/module.f.cjs')
-const { fold } = list
-const { compose } = require('../function/module.f.cjs')
+const list = require('../list/module.f.mjs')
+const { fold } = list.default
+const { compose } = require('../function/module.f.mjs').default
 
 /** @typedef {btTypes.Tree<string>} StringSet */
 

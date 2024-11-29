@@ -1,20 +1,20 @@
-import list from '../types/list/module.f.cjs'
+import list, * as List from '../types/list/module.f.mjs'
 const { flatMap } = list
 
 /** @typedef {ItemThunk|ItemArray} Block */
 
 /** @typedef {readonly Item[]} ItemArray */
 
-/** @typedef {() => list.List<Item>} ItemThunk */
+/** @typedef {() => List.List<Item>} ItemThunk */
 
 /** @typedef {string|ItemArray|ItemThunk} Item */
 
-/** @type {(indent: string) => (text: Block) => list.List<string>} */
+/** @type {(indent: string) => (text: Block) => List.List<string>} */
 const flat = indent => {
 
-    /** @type {(prefix: string) => (text: Block) => list.List<string>} */
+    /** @type {(prefix: string) => (text: Block) => List.List<string>} */
     const f = prefix => {
-        /** @type {(item: Item) => list.List<string>} */
+        /** @type {(item: Item) => List.List<string>} */
         const g = item => typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
         return flatMap(g)
     }

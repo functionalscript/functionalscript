@@ -7,7 +7,7 @@ import { join } from '../../types/string/module.f.cjs'
 const { log, error } = console
 import sgr from '../../text/sgr/module.f.mjs'
 const { bold, reset } = sgr
-import list from '../../types/list/module.f.cjs'
+import list from '../../types/list/module.f.mjs'
 
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'

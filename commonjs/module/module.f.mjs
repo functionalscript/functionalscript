@@ -1,4 +1,4 @@
-import object from '../../types/object/module.f.cjs'
+import object, * as O from '../../types/object/module.f.mjs'
 
 /**
  * @template M
@@ -18,7 +18,7 @@ import object from '../../types/object/module.f.cjs'
 /**
  * @typedef {{
  *  readonly exports: unknown
- *  readonly requireMap: object.Map<string>
+ *  readonly requireMap: O.Map<string>
  * }} Module
  */
 

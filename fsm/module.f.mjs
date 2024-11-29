@@ -1,10 +1,10 @@
-import list from '../types/list/module.f.cjs'
+import list, * as List from '../types/list/module.f.mjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
 import byteSet, * as byteSetT from '../types/byte_set/module.f.mjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
 import sortedSet from '../types/sorted_set/module.f.cjs'
 const { intersect, union: sortedSetUnion } = sortedSet
-import rangeMap from '../types/range_map/module.f.cjs'
+import rangeMap, * as RM from '../types/range_map/module.f.mjs'
 const { merge } = rangeMap
 import cmp from '../types/function/compare/module.f.mjs'
 const { unsafeCmp } = cmp
@@ -12,18 +12,18 @@ import operator, * as Operator from '../types/function/operator/module.f.mjs'
 const { strictEqual } = operator
 import j from '../json/module.f.mjs'
 const { stringify } = j
-import f from '../types/function/module.f.cjs'
+import f from '../types/function/module.f.mjs'
 const { identity } = f
 import utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 
 /** @typedef {readonly[string, byteSetT.ByteSet, string]} Rule */
 
-/** @typedef {list.List<Rule>} Grammar */
+/** @typedef {List.List<Rule>} Grammar */
 
 /**
  * @typedef {{
- *  readonly[state in string]: rangeMap.RangeMapArray<string>
+ *  readonly[state in string]: RM.RangeMapArray<string>
  * }} Dfa
  */
 
@@ -44,24 +44,24 @@ const toUnion = s => {
     return fold(toUnionOp)(empty)(codePoints)
 }
 
-/** @type {rangeMap.Operators<sortedSet.SortedSet<string>>} */
+/** @type {RM.Operators<sortedSet.SortedSet<string>>} */
 const mergeOp = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual) }
 
 /** @type {(s: string) => (set: sortedSet.SortedSet<string>) => boolean} */
 const hasState = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))
 
-/** @type {(set: sortedSet.SortedSet<string>) => Operator.Fold<Rule, rangeMap.RangeMap<sortedSet.SortedSet<string>>>} */
+/** @type {(set: sortedSet.SortedSet<string>) => Operator.Fold<Rule, RM.RangeMap<sortedSet.SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
     if (hasState(ruleIn)(set)) { return merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
     return rm
 }
 
-/** @type {Operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
+/** @type {Operator.Scan<RM.Entry<sortedSet.SortedSet<string>>, RM.Entry<string>>} */
 const stringifyOp = ([sortedSet, max]) => [[stringifyIdentity(sortedSet), max], stringifyOp]
 
 const scanStringify = scan(stringifyOp)
 
-/** @type {Operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
+/** @type {Operator.Scan<RM.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
 const scanFetch = scan(fetchOp)
@@ -94,7 +94,7 @@ const get = rangeMap.get(emptyStateStringify)
 /** @type {(dfa: Dfa) => Operator.Fold<number, string>} */
 const runOp = dfa => input => s => get(input)(dfa[s])
 
-/** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
+/** @type {(dfa: Dfa) => (input: List.List<number>) => List.List<string>} */
 const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
 
 export default {

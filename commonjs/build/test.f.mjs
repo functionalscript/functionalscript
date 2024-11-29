@@ -4,7 +4,8 @@ import module_, * as moduleT from '../module/module.f.mjs'
 import * as function_ from '../module/function/module.f.mjs'
 import result from '../../types/result/module.f.cjs'
 import package_, * as packageT from '../package/module.f.mjs'
-import { at } from '../../types/object/module.f.cjs'
+import o from '../../types/object/module.f.mjs'
+const { at } = o
 
 /** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
 const compileMap = {

@@ -1,12 +1,13 @@
 import result from '../../types/result/module.f.cjs'
-import list from '../../types/list/module.f.cjs'
+import list, * as List from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list
 import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import map from '../../types/map/module.f.cjs'
 const { setReplace } = map
 import djs, * as djsT from '../module.f.mjs'
-import { fromMap } from '../../types/object/module.f.cjs'
+import o from '../../types/object/module.f.mjs'
+const { fromMap } = o
 
 /**
  * @typedef {{
@@ -19,7 +20,7 @@ import { fromMap } from '../../types/object/module.f.cjs'
 /**
  * @typedef {{
 * readonly kind: 'array'
-* readonly values: list.List<djsT.Unknown>
+* readonly values: List.List<djsT.Unknown>
 * }} JsonArray
 * */
 
@@ -30,7 +31,7 @@ import { fromMap } from '../../types/object/module.f.cjs'
 * } JsonStackElement
 */
 
-/** @typedef {list.List<JsonStackElement>} JsonStack */
+/** @typedef {List.List<JsonStackElement>} JsonStack */
 
 /**
  * @typedef {{
@@ -258,7 +259,7 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: list.List<tokenizerT.DjsToken>) => result.Result<djsT.Unknown, string>} */
+/** @type {(tokenList: List.List<tokenizerT.DjsToken>) => result.Result<djsT.Unknown, string>} */
 const parse = tokenList => {
     const state = fold(foldOp)({ status: 'module', stage: 'module' })(tokenList)
     switch (state.status) {

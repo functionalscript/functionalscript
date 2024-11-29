@@ -1,6 +1,6 @@
-import list from '../../types/list/module.f.cjs'
+import list, * as List from '../../types/list/module.f.mjs'
 const { flat, reduce, empty } = list
-import object from '../../types/object/module.f.cjs'
+import object, * as O from '../../types/object/module.f.mjs'
 import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 
 /**
@@ -36,10 +36,10 @@ import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 
-/** @type {(_: string) => list.List<string>} */
+/** @type {(_: string) => List.List<string>} */
 const stringSerialize = input => [jsonStringify(input)]
 
-/** @type {(_: number) => list.List<string>} */
+/** @type {(_: number) => List.List<string>} */
 const numberSerialize = input => [jsonStringify(input)]
 
 const nullSerialize = ['null']
@@ -48,18 +48,18 @@ const trueSerialize = ['true']
 
 const falseSerialize = ['false']
 
-/** @type {(_: boolean) => list.List<string>} */
+/** @type {(_: boolean) => List.List<string>} */
 const boolSerialize = value => value ? trueSerialize : falseSerialize
 
 const comma = [',']
 
-/** @type {Operator.Reduce<list.List<string>>} */
+/** @type {Operator.Reduce<List.List<string>>} */
 const joinOp = b => prior => flat([prior, comma, b])
 
-/** @type {(input: list.List<list.List<string>>) => list.List<string>} */
+/** @type {(input: List.List<List.List<string>>) => List.List<string>} */
 const join = reduce(joinOp)(empty)
 
-/** @type {(open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>} */
+/** @type {(open: string) => (close: string) => (input: List.List<List.List<string>>) => List.List<string>} */
 const wrap = open => close => {
     const seqOpen = [open]
     const seqClose = [close]
@@ -72,12 +72,12 @@ const arrayWrap = wrap('[')(']')
 
 /**
  * @template T
- * @typedef {object.Entry<Unknown<T>>} Entry<T>
+ * @typedef {O.Entry<Unknown<T>>} Entry<T>
 */
 
 /**
  * @template T
- *  @typedef {(list.List<Entry<T>>)} Entries<T>
+ *  @typedef {(List.List<Entry<T>>)} Entries<T>
 */
 
 /**

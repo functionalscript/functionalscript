@@ -1,7 +1,8 @@
 import encoding from './module.f.mjs'
 import json from '../../json/module.f.mjs'
-import { sort } from '../../types/object/module.f.cjs'
-import list from '../../types/list/module.f.cjs'
+import o from '../../types/object/module.f.mjs'
+const { sort } = o
+import list from '../../types/list/module.f.mjs'
 
 const stringify = json.stringify(sort)
 

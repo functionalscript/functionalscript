@@ -2,21 +2,21 @@ import types, * as typesT from '../types/module.f.mjs'
 const { result, paramList } = types
 import text, * as textT from '../../text/module.f.mjs'
 const { curly } = text
-import list from '../../types/list/module.f.cjs'
+import list, * as List from '../../types/list/module.f.mjs'
 const { flat, map, some, flatMap } = list
 import { join } from '../../types/string/module.f.cjs'
-import obj from '../../types/object/module.f.cjs'
+import obj, * as O from '../../types/object/module.f.mjs'
 const { entries } = Object
 
 /** @type {(v: string) => string} */
 const using = v => `using ${v};`
 
 /**
- * @type {(attributes: list.List<string>) =>
+ * @type {(attributes: List.List<string>) =>
  *  (type: string) =>
  *  (name: string) =>
  *  (body: textT.Block) =>
- *  list.List<textT.Item>}
+ *  List.List<textT.Item>}
  */
 const typeDef = attributes => type => name => body =>
     flat([
@@ -75,7 +75,7 @@ const resultVoid = result('void')
 
 const joinComma = join(', ')
 
-/** @type {(e: obj.Entry<typesT.FieldArray>) => readonly string[]} */
+/** @type {(e: O.Entry<typesT.FieldArray>) => readonly string[]} */
 const method = ([name, m]) => {
     const paramAndResultList = entries(m)
     const pl = paramList(m)
@@ -94,7 +94,7 @@ const mapField = map(field)
 
 const flatMapMethod = flatMap(method)
 
-/** @type {(e: obj.Entry<typesT.Definition>) => list.List<textT.Item>} */
+/** @type {(e: O.Entry<typesT.Definition>) => List.List<textT.Item>} */
 const def = ([n, d]) => {
     return !('interface' in d) ?
         struct(n)(mapField(entries(d.struct))) :

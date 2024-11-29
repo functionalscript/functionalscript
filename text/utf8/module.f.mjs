@@ -1,4 +1,4 @@
-import list from '../../types/list/module.f.cjs'
+import list, * as List from '../../types/list/module.f.mjs'
 import * as operator from '../../types/function/operator/module.f.mjs'
 import * as arrayT from '../../types/array/module.f.mjs'
 const { flatMap, flat, stateScan } = list
@@ -15,7 +15,7 @@ const { flatMap, flat, stateScan } = list
 
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
-/** @type {(input:number) => list.List<u8>} */
+/** @type {(input:number) => List.List<u8>} */
 const codePointToUtf8 = input => {
     if (input >= 0x0000 && input <= 0x007f) { return [input & 0b01111_1111] }
     if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000] }
@@ -58,7 +58,7 @@ const utf8StateToError = state => {
     return x | errorMask
 }
 
-/** @type {operator.StateScan<number, Utf8State, list.List<i32>>} */
+/** @type {operator.StateScan<number, Utf8State, List.List<i32>>} */
 const utf8ByteToCodePointOp = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
@@ -94,17 +94,17 @@ const utf8ByteToCodePointOp = state => byte => {
     return [[error, byte | errorMask], null]
 }
 
-/** @type {(state: Utf8State) => readonly[list.List<i32>, Utf8State]} */
+/** @type {(state: Utf8State) => readonly[List.List<i32>, Utf8State]} */
 const utf8EofToCodePointOp = state =>
     [state === null ? null : [utf8StateToError(state)], null]
 
-/** @type {operator.StateScan<ByteOrEof, Utf8State, list.List<i32>>} */
+/** @type {operator.StateScan<ByteOrEof, Utf8State, List.List<i32>>} */
 const utf8ByteOrEofToCodePointOp = state => input => input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
-/** @type {list.List<ByteOrEof>} */
+/** @type {List.List<ByteOrEof>} */
 const eofList = [null]
 
-/** @type {(input: list.List<u8>) => list.List<i32>} */
+/** @type {(input: List.List<u8>) => List.List<i32>} */
 const toCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
 export default {

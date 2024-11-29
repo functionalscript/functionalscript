@@ -1,7 +1,8 @@
 import _ from './module.f.mjs'
 import json, * as jsonT from '../json/module.f.mjs'
-import { sort } from '../types/object/module.f.cjs'
-import list from '../types/list/module.f.cjs'
+import o from '../types/object/module.f.mjs'
+const { sort } = o
+import list from '../types/list/module.f.mjs'
 
 /** @type {(a: number) => number} */
 const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000

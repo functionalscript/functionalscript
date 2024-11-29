@@ -1,11 +1,11 @@
 import types, * as typesT from '../types/module.f.mjs'
 const { paramList } = types
 import text, * as textT from '../../text/module.f.mjs'
-import object from '../../types/object/module.f.cjs'
-import list from '../../types/list/module.f.cjs'
+import object, * as O from '../../types/object/module.f.mjs'
+import list, * as List from '../../types/list/module.f.mjs'
 const { flat, map, flatMap } = list
 const { entries } = Object
-import func from '../../types/function/module.f.cjs'
+import func from '../../types/function/module.f.mjs'
 const { fn } = func
 import { join } from '../../types/string/module.f.cjs'
 
@@ -14,7 +14,7 @@ const rustField = field => `pub ${field},`
 
 const mapRustField = map(rustField)
 
-/** @type {(b: list.Thunk<string>) => (name: string) => textT.Block} */
+/** @type {(b: List.Thunk<string>) => (name: string) => textT.Block} */
 const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, mapRustField(b), `}`]
 
 const commaJoin = join(', ')
@@ -30,7 +30,7 @@ const self = ['&self']
 /** @type {(p: typesT.Field) => string} */
 const paramName = ([n]) => n
 
-/** @type {(p: typesT.FieldArray) => list.Thunk<string>} */
+/** @type {(p: typesT.FieldArray) => List.Thunk<string>} */
 const callList = p => map(paramName)(paramList(p))
 
 /** @type {(p: typesT.FieldArray) => string} */
@@ -251,7 +251,7 @@ const rust = library => {
         ]
     }
 
-    /** @type {(type: object.Entry<typesT.Definition>) => textT.Block} */
+    /** @type {(type: O.Entry<typesT.Definition>) => textT.Block} */
     const def = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
 
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])

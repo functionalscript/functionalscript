@@ -3,7 +3,8 @@ import * as btree from '../types/module.f.mjs'
 import s from '../set/module.f.mjs'
 import { cmp } from '../../string/module.f.cjs'
 import json from '../../../json/module.f.mjs'
-import { sort } from '../../object/module.f.cjs'
+import o from '../../object/module.f.mjs'
+const { sort } = o
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)

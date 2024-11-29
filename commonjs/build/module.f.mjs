@@ -4,7 +4,7 @@ const { idToString, dir } = module_
 import * as function_ from '../module/function/module.f.mjs'
 import map from '../../types/map/module.f.cjs'
 const { empty: mapEmpty, setReplace } = map
-import object from '../../types/object/module.f.cjs'
+import object from '../../types/object/module.f.mjs'
 const { fromMap } = object
 import path from '../path/module.f.mjs'
 const { parseAndFind } = path

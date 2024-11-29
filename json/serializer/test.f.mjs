@@ -1,5 +1,6 @@
 import _, * as T from './module.f.mjs'
-import { toArray } from '../../types/list/module.f.cjs'
+import list from '../../types/list/module.f.mjs'
+const { toArray } = list
 
 export default {
     arrayWrap: [

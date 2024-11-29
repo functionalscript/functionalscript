@@ -1,4 +1,4 @@
-const { every, map, countdown } = require('../list/module.f.cjs')
+const { every, map, countdown } = require('../list/module.f.mjs').default
 const _ = require('./module.f.cjs')
 
 module.exports = {

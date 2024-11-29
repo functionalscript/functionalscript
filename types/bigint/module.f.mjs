@@ -1,7 +1,8 @@
 import compare, * as compareT from '../function/compare/module.f.mjs'
 import op, * as Op from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
-import { reduce } from '../list/module.f.cjs'
+import list from '../list/module.f.mjs'
+const { reduce } = list
 
 /** @typedef {Op.Unary<bigint, bigint>} Unary*/
 

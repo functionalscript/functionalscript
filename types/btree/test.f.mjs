@@ -1,10 +1,11 @@
-import btree, * as btreeT from './types/module.f.mjs'
+import * as btreeT from './types/module.f.mjs'
 import _ from './module.f.mjs'
 const { values } = _
 import json, * as jsonT from '../../json/module.f.mjs'
-import { sort } from '../object/module.f.cjs'
+import o from '../object/module.f.mjs'
+const { sort } = o
 import { cmp } from '../string/module.f.cjs'
-import list from '../list/module.f.cjs'
+import list, * as List from '../list/module.f.mjs'
 import s from './set/module.f.mjs'
 import f from './find/module.f.mjs'
 
@@ -14,7 +15,7 @@ import f from './find/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 
-/** @type {(sequence: list.List<jsonT.Unknown>) => string} */
+/** @type {(sequence: List.List<jsonT.Unknown>) => string} */
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: btreeT.Node<string>) => (value: string) => btreeT.Node<string>} */
@@ -69,7 +70,7 @@ const test = () => {
     _map = set(_map)('f')
     //
     {
-        /** @type {list.Result<string>} */
+        /** @type {List.Result<string>} */
         let _item = list.next(values(_map))
         while (_item !== null) {
             _item = list.next(_item.tail)

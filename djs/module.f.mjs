@@ -1,8 +1,8 @@
-import list from '../types/list/module.f.cjs'
+import list, * as List from '../types/list/module.f.mjs'
 const { flat, map } = list
 import { concat } from '../types/string/module.f.cjs'
-import object from '../types/object/module.f.cjs'
-import f from '../types/function/module.f.cjs'
+import object, * as O from '../types/object/module.f.mjs'
+import f from '../types/function/module.f.mjs'
 const { compose, fn } = f
 const { entries } = Object
 import bi from '../types/bigint/module.f.mjs'
@@ -22,28 +22,28 @@ const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, 
 
 const colon = [':']
 
-/** @typedef {object.Entry<Unknown>} Entry*/
+/** @typedef {O.Entry<Unknown>} Entry*/
 
-/** @typedef {(list.List<Entry>)} Entries */
+/** @typedef {(List.List<Entry>)} Entries */
 
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
-/** @type {(mapEntries: MapEntries) => (value: Unknown) => list.List<string>} */
+/** @type {(mapEntries: MapEntries) => (value: Unknown) => List.List<string>} */
 const serialize = sort => {
-    /** @type {(kv: readonly[string, Unknown]) => list.List<string>} */
+    /** @type {(kv: readonly[string, Unknown]) => List.List<string>} */
     const propertySerialize = ([k, v]) => flat([
         stringSerialize(k),
         colon,
         f(v)
     ])
     const mapPropertySerialize = map(propertySerialize)
-    /** @type {(object: Object) => list.List<string>} */
+    /** @type {(object: Object) => List.List<string>} */
     const objectSerialize = fn(entries)
         .then(sort)
         .then(mapPropertySerialize)
         .then(objectWrap)
         .result
-    /** @type {(value: Unknown) => list.List<string>} */
+    /** @type {(value: Unknown) => List.List<string>} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }

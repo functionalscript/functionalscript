@@ -1,10 +1,11 @@
-const _ = require('./module.f.cjs')
+const T = require('./module.f.mjs')
+const _ = T.default
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default
-const { sort } = require('../object/module.f.cjs')
+const { sort } = require('../object/module.f.mjs').default
 const { addition, strictEqual, reduceToScan } = require('../function/operator/module.f.mjs').default
 
-/** @type {(sequence: _.List<jsonT.Unknown>) => string} */
+/** @type {(sequence: T.List<jsonT.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 const stringifyTest = () => {
@@ -196,7 +197,7 @@ const stress = () => ({
         if (first !== n - 1) { throw first }
     },
     concatBack: () => {
-        /** @type {_.List<number>} */
+        /** @type {T.List<number>} */
         let sequence = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
@@ -205,7 +206,7 @@ const stress = () => ({
         const r = _.toArray(sequence)
     },
     flatToArray: () => {
-        /** @type {_.List<number>} */
+        /** @type {T.List<number>} */
         let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
@@ -214,7 +215,7 @@ const stress = () => ({
         const r = _.toArray(sequence)
     },
     flatNext: () => {
-        /** @type {_.List<number>} */
+        /** @type {T.List<number>} */
         let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
@@ -223,7 +224,7 @@ const stress = () => ({
         const a = _.next(sequence)
     },
     concatFront: () => {
-        /** @type {_.List<number>} */
+        /** @type {T.List<number>} */
         let sequence = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
@@ -232,7 +233,7 @@ const stress = () => ({
         const a = _.next(sequence)
     },
     flatFront: () => {
-        /** @type {_.List<number>} */
+        /** @type {T.List<number>} */
         let sequence = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {

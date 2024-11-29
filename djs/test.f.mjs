@@ -1,6 +1,7 @@
 import json from '../json/module.f.mjs'
-import { sort } from '../types/object/module.f.cjs'
-import f from '../types/function/module.f.cjs'
+import list from '../types/object/module.f.mjs'
+const { sort } = list
+import f from '../types/function/module.f.mjs'
 const { identity } = f
 import djs from './module.f.mjs'
 

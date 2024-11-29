@@ -1,5 +1,5 @@
 const { at, setReplace, setReduce, empty, entries, remove } = require('./module.f.cjs')
-const seq = require('../list/module.f.cjs')
+const seq = require('../list/module.f.mjs').default
 
 module.exports = {
     main: [

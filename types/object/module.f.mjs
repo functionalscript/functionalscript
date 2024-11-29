@@ -1,6 +1,6 @@
-const list = require('../list/module.f.cjs')
+import list, * as List from '../list/module.f.mjs'
 const { iterable } = list
-const map = require('../map/module.f.cjs')
+import map from '../map/module.f.cjs'
 const { entries: mapEntries, fromEntries: mapFromEntries } = map
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
@@ -22,16 +22,16 @@ const at = name => object => {
     return r === void 0 ? null : r.value
 }
 
-/** @type {<T>(e: list.List<Entry<T>>) => list.List<Entry<T>>} */
+/** @type {<T>(e: List.List<Entry<T>>) => List.List<Entry<T>>} */
 const sort = e => mapEntries(mapFromEntries(e))
 
-/** @type {<T>(e: list.List<Entry<T>>) => Map<T>} */
+/** @type {<T>(e: List.List<Entry<T>>) => Map<T>} */
 const fromEntries = e => objectFromEntries(iterable(e))
 
 /** @type {<T>(m: map.Map<T>) => Map<T>} */
 const fromMap = m => fromEntries(mapEntries(m))
 
-module.exports = {
+export default {
     /** @readonly */
     at,
     /** @readonly */

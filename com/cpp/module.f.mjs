@@ -1,7 +1,7 @@
 import types, * as typesT from '../types/module.f.mjs'
 import text, * as textT from '../../text/module.f.mjs'
-import obj from '../../types/object/module.f.cjs'
-import list from '../../types/list/module.f.cjs'
+import obj, * as O from '../../types/object/module.f.mjs'
+import list from '../../types/list/module.f.mjs'
 import { join } from '../../types/string/module.f.cjs'
 const { paramList } = types
 const { map, flatMap, flat } = list
@@ -125,7 +125,7 @@ const cpp = name => lib => {
         ])
     }
 
-    /** @type {(kv: obj.Entry<typesT.Definition>) => textT.Block} */
+    /** @type {(kv: O.Entry<typesT.Definition>) => textT.Block} */
     const def = ([name, d]) => 'interface' in d
         ? [
             `class ${name} : public ::nanocom::IUnknown`,
@@ -136,7 +136,7 @@ const cpp = name => lib => {
         ]
         : struct(name)(defStruct(d))
 
-    /** @type {(kv: obj.Entry<typesT.Definition>) => textT.Block} */
+    /** @type {(kv: O.Entry<typesT.Definition>) => textT.Block} */
     const forward = ([name]) => [`struct ${name};`]
 
     const e = entries(lib)

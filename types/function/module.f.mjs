@@ -31,7 +31,7 @@ const fn = result => ({
     then: g => fn(compose(result)(g))
 })
 
-module.exports = {
+export default {
     /** @readonly */
     // compare: require('./compare/module.f.cjs'),
     /** @readonly */

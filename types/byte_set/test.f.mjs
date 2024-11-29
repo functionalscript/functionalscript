@@ -1,8 +1,9 @@
 import _ from './module.f.mjs'
-import { every, countdown, map } from '../list/module.f.cjs'
+import list from '../list/module.f.mjs'
+const { every, countdown, map, toArray } = list
 import json, * as jsonT from '../../json/module.f.mjs'
-import { sort } from '../object/module.f.cjs'
-import { toArray } from '../list/module.f.cjs'
+import o from '../object/module.f.mjs'
+const { sort } = o
 
 /** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)

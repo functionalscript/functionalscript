@@ -1,6 +1,6 @@
 import json, * as jsonT from '../../../json/module.f.mjs'
 const { isObject } = json
-import list from '../../../types/list/module.f.cjs'
+import list from '../../../types/list/module.f.mjs'
 const { map, every } = list
 const { entries } = Object
 

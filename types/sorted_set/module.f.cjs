@@ -1,5 +1,5 @@
 const compare = require("../function/compare/module.f.mjs")
-const { toArray } = require("../list/module.f.cjs")
+const { toArray } = require("../list/module.f.mjs").default
 const sortedList = require("../sorted_list/module.f.mjs")
 const { merge, genericMerge, find } = sortedList.default
 

@@ -1,7 +1,7 @@
 import * as _ from '../types/module.f.mjs'
 import cmp, * as cmpT from '../../function/compare/module.f.mjs'
 import find, * as findT from '../find/module.f.mjs'
-import list from '../../list/module.f.cjs'
+import list from '../../list/module.f.mjs'
 const { fold, concat, next } = list
 import array, * as arrayT from '../../array/module.f.mjs'
 import n from '../../nullable/module.f.mjs'

@@ -7,8 +7,8 @@ const {
 } = require("../btree/module.f.mjs").default
 const compare = require('../function/compare/module.f.mjs')
 const { cmp } = require('../string/module.f.cjs')
-const list = require('../list/module.f.cjs')
-const { fold } = list
+const list = require('../list/module.f.mjs')
+const { fold } = list.default
 const operator = require('../function/operator/module.f.mjs')
 
 /** @typedef {compare.Sign} Sign */

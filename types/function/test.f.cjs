@@ -1,4 +1,4 @@
-const { fn } = require('./module.f.cjs')
+const { fn } = require('./module.f.mjs').default
 
 module.exports = () => {
     /** @type {(x: string) => readonly[string]} */

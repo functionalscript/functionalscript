@@ -1,10 +1,12 @@
 import _, * as T from './module.f.mjs'
 import byteSet from '../types/byte_set/module.f.mjs'
-import { sort, fromEntries } from '../types/object/module.f.cjs'
+import o from '../types/object/module.f.mjs'
+const { sort, fromEntries } = o
 import json from '../json/module.f.mjs'
-import f from '../types/function/module.f.cjs'
+import f from '../types/function/module.f.mjs'
 const { identity } = f
-import { toArray } from '../types/list/module.f.cjs'
+import list from '../types/list/module.f.mjs'
+const { toArray } = list
 import utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 

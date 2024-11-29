@@ -2,10 +2,10 @@ const _ = require('./module.f.mjs').default
 const { unsafeCmp } = require('../function/compare/module.f.mjs').default
 const jsonT = require('../../json/module.f.mjs')
 const json = jsonT.default
-const { sort } = require('../../types/object/module.f.cjs')
-const { toArray, countdown, length } = require('../list/module.f.cjs')
+const { sort } = require('../object/module.f.mjs').default
+const { toArray, countdown, length } = require('../list/module.f.mjs').default
 const map = require('../map/module.f.cjs')
-const { flip } = require('../function/module.f.cjs')
+const { flip } = require('../function/module.f.mjs').default
 
 /** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)

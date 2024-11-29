@@ -1,6 +1,6 @@
-const list = require('../list/module.f.cjs')
-const { reduce: listReduce, repeat: listRepeat } = list
-const { compose } = require('../function/module.f.cjs')
+const list = require('../list/module.f.mjs')
+const { reduce: listReduce, repeat: listRepeat } = list.default
+const { compose } = require('../function/module.f.mjs').default
 const compare = require('../function/compare/module.f.mjs')
 const { unsafeCmp } = compare.default
 const op = require('../function/operator/module.f.mjs')

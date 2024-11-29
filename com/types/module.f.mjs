@@ -1,6 +1,6 @@
-import obj from '../../types/object/module.f.cjs'
-import list from '../../types/list/module.f.cjs'
-import f from '../../types/function/module.f.cjs'
+import obj, * as O from '../../types/object/module.f.mjs'
+import list, * as List from '../../types/list/module.f.mjs'
+import f from '../../types/function/module.f.mjs'
 const { compose } = f
 const { filter } = list
 const { entries } = Object
@@ -17,7 +17,7 @@ const { entries } = Object
 
 /** @typedef {{readonly[k in string]: Type}} FieldArray */
 
-/** @typedef {obj.Entry<Type>} Field */
+/** @typedef {O.Entry<Type>} Field */
 
 /**
  * @typedef {{
@@ -28,7 +28,7 @@ const { entries } = Object
 
 /** @typedef {{readonly[k in string]: FieldArray}} MethodArray */
 
-/** @typedef {obj.Entry<FieldArray>} Method */
+/** @typedef {O.Entry<FieldArray>} Method */
 
 /** @typedef {BaseType|Id|Pointer} Type */
 
@@ -54,12 +54,12 @@ const { entries } = Object
 
 /** @typedef {readonly['*', Type]} Pointer */
 
-/** @type {(kv: obj.Entry<Type>) => boolean} */
+/** @type {(kv: O.Entry<Type>) => boolean} */
 const isParam = ([name]) => name !== '_'
 
 const filterParam = filter(isParam)
 
-/** @type {(fa: FieldArray) => list.List<Field> } */
+/** @type {(fa: FieldArray) => List.List<Field> } */
 const paramList = compose(entries)(filterParam)
 
 /** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */

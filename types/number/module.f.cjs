@@ -1,4 +1,4 @@
-const { reduce } = require('../list/module.f.cjs')
+const { reduce } = require('../list/module.f.mjs').default
 const { addition, min: minOp, max: maxOp } = require('../function/operator/module.f.mjs').default
 const compare = require('../function/compare/module.f.mjs')
 const { unsafeCmp } = compare.default

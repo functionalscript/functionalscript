@@ -2,7 +2,8 @@ import json, * as jsonT from '../../json/module.f.mjs'
 const { isObject } = json
 import dependencies, * as dependenciesT from './dependencies/module.f.mjs'
 const { isDependenciesJson } = dependencies
-import { at } from '../../types/object/module.f.cjs'
+import o from '../../types/object/module.f.mjs'
+const { at } = o
 
 /**
  * @typedef {{

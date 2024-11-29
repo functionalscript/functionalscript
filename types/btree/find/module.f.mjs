@@ -1,5 +1,5 @@
 import * as _ from '../types/module.f.mjs'
-import list from '../../list/module.f.cjs'
+import list, * as List from '../../list/module.f.mjs'
 import cmp, * as cmpT from '../../function/compare/module.f.mjs'
 const { index3, index5 } = cmp
 import array, * as arrayT from '../../array/module.f.mjs'
@@ -50,7 +50,7 @@ const child = item =>
 
 /**
  * @template T
- * @typedef {list.List<PathItem<T>>} Path
+ * @typedef {List.List<PathItem<T>>} Path
  */
 
 /**
