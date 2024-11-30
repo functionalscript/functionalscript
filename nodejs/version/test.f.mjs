@@ -1,4 +1,5 @@
 import _, * as T from './module.f.mjs'
+import p from '../../package.d.mjs'
 
 const x = {
     "name": "functionalscript",
@@ -38,7 +39,7 @@ const x = {
 
 const e = '{\n' +
     '  "name": "functionalscript",\n' +
-    `  "version": "${_.version}",\n` +
+    `  "version": "${p.version}",\n` +
     '  "description": "FunctionalScript is a functional subset of JavaScript",\n' +
     '  "main": "module.f.cjs",\n' +
     '  "scripts": {\n' +

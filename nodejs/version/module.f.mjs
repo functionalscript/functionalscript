@@ -1,3 +1,6 @@
+import p from '../../package.d.mjs'
+const { version } = p
+
 /** @typedef {{}} Buffer */
 
 /**
@@ -15,19 +18,19 @@
  * }} Node
  */
 
-const version = `0.1.600`
-
 const { stringify, parse } = JSON
 
 /** @type {<T>(node: Node<T>) => readonly[T, T]} */
 const updateVersion = ({ fs }) => {
-    const f = (/** @type {string} */jsonFile) => {
+    const jsonFile = (/** @type {string} */jsonFile) => `${jsonFile}.json`
+    const readJson = (/** @type {string} */name) => parse(fs.readFileSync(jsonFile(name)).toString())
+    const f = (/** @type {string} */name) => {
         const file = `${jsonFile}.json`
         return fs.writeFileSync(
-            file,
+            jsonFile(name),
             stringify(
                 {
-                    ...parse(fs.readFileSync(file).toString()),
+                    ...readJson(name),
                     version
                 },
                 null,
@@ -40,6 +43,6 @@ const updateVersion = ({ fs }) => {
 }
 
 export default {
-    version,
+
     updateVersion,
 }
