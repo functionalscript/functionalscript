@@ -1,7 +1,8 @@
-const { every, map, countdown } = require('../list/module.f.mjs').default
+import list from '../list/module.f.mjs'
+const { every, map, countdown } = list
 const _ = require('./module.f.mjs').default
 
-module.exports = {
+export default {
     has: () => {
         if (_.has(0)(_.empty)) { throw _.empty }
         if (_.has(1)(_.empty)) { throw _.empty }
