@@ -29,9 +29,11 @@ jobs:
       - run: npm run index
       - run: npm run tscp
       - run: npm publish
+        continue-on-error: true
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
       - run: deno publish --allow-dirty
+        continue-on-error: true
 
 
 
