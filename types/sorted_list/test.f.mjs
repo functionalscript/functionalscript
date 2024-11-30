@@ -1,19 +1,22 @@
-const _ = require('./module.f.mjs').default
-const { unsafeCmp } = require('../function/compare/module.f.mjs').default
-const jsonT = require('../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../object/module.f.mjs').default
-const { toArray, countdown, length } = require('../list/module.f.mjs').default
-const map = require('../map/module.f.mjs')
-const { flip } = require('../function/module.f.mjs').default
+import _ from './module.f.mjs'
+import compare from '../function/compare/module.f.mjs'
+const { unsafeCmp } = compare
+import json, * as Json from '../../json/module.f.mjs'
+import object from '../object/module.f.mjs'
+const { sort } = object
+import list from '../list/module.f.mjs'
+const { toArray, countdown, length } = list
+import map, * as Map from '../map/module.f.mjs'
+import f from '../function/module.f.mjs'
+const { flip } = f
 
-/** @type {(a: readonly jsonT.Unknown[]) => string} */
+/** @type {(a: readonly Json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
-/** @type {<T>(a: T) => (b: T) => map.Sign} */
+/** @type {<T>(a: T) => (b: T) => Map.Sign} */
 const reverseCmp = flip(unsafeCmp)
 
-module.exports = {
+export default {
     sortedMergre: [
         () => {
             const result = stringify(toArray(_.merge(unsafeCmp)([2, 3, 4])([1, 3, 5])))
