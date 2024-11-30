@@ -316,5 +316,5 @@ export default {
         if (_.length(null) !== 0) { throw 0 }
         if (_.length(_.flat([[1, 3], null, () => [3], _.concat([12])([4, 89])])) !== 6) { throw 6 }
     },
-    //stress
+    stress
 }
