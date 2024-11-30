@@ -1,4 +1,4 @@
-import _range from '../../types/range/module.f.cjs'
+import _range, * as Range from '../../types/range/module.f.mjs'
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
@@ -10,7 +10,7 @@ const at = s => i => {
 /** @type {(s: string) => number} */
 const one = s => at(s)(0)
 
-/** @type {(s: string) => _range.Range} */
+/** @type {(s: string) => Range.Range} */
 const range = s => {
     const f = at(s)
     const f0 = f(0)

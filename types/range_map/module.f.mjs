@@ -6,7 +6,7 @@ import * as Option from '../nullable/module.f.mjs'
 import number from '../number/module.f.mjs'
 const { cmp } = number
 import * as O from '../function/operator/module.f.mjs'
-import _range from '../range/module.f.cjs'
+import _range, * as Range from '../range/module.f.mjs'
 
 /**
  * @template T
@@ -79,7 +79,7 @@ const get = def => value => rm => {
     }
 }
 
-/** @type {<T>(def: T) => (r: _range.Range) => (value: T) => RangeMapArray<T>} */
+/** @type {<T>(def: T) => (r: Range.Range) => (value: T) => RangeMapArray<T>} */
 const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]
 
 export default {

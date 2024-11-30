@@ -6,7 +6,7 @@ const contains = ([b, e]) => i => b <= i && i <= e
 /** @type {(i: number) => Range} */
 const one = a => [a, a]
 
-module.exports = {
+export default {
     /** @readonly */
     contains,
     /** @readonly */

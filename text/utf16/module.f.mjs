@@ -1,6 +1,7 @@
 import list, * as List from '../../types/list/module.f.mjs'
 import operator, * as Operator from '../../types/function/operator/module.f.mjs'
-import { contains } from '../../types/range/module.f.cjs'
+import range from '../../types/range/module.f.mjs'
+const { contains } = range
 import f from '../../types/function/module.f.mjs'
 const { fn } = f
 const { map, flat, stateScan, reduce, flatMap, empty } = list

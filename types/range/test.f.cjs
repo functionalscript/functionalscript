@@ -1,4 +1,4 @@
-const _ = require('./module.f.cjs')
+const _ = require('./module.f.mjs').default
 
 module.exports = () => {
     if (!_.contains([0, 5])(1)) { throw 1 }
