@@ -40,6 +40,10 @@ In FunctionalScript:
 - A module can depend only on another FunctionalScript module.
 - It also has no standard library. Only a safe subset of standard JavaScript API can be used without referencing other modules.
 
+## Our Next Step
+
+[Re-architecture of NaNVM](https://medium.com/@sergeyshandar/nanvm-re-architecture-8097f766ec1c?sk=d14ec1daf73ac5442f12ce20b2bc037a].
+
 ## Sponsors
 
 - [KirillOsenkov](https://github.com/KirillOsenkov),
