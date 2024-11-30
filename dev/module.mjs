@@ -86,7 +86,7 @@ export const loadModuleMap = async () => {
                     const file = `${p}/${name}`
                     if (i.isDirectory()) {
                         await f(file)
-                    } else if (name.endsWith('.f.cjs') || name.endsWith('.f.mjs')) {
+                    } else if (name.endsWith('.f.cjs') || name.endsWith('.f.mjs') || name.endsWith('.f.js')) {
                         const source = await import(`../${file}`)
                         map.push([file, source.default])
                     }
@@ -184,7 +184,7 @@ export const index = async() => {
     for (const k in await loadModuleMap()) {
         const [, ...s] = k.split('/')
         switch (s[s.length - 1]) {
-            case 'module.f.cjs': case 'module.f.mjs':
+            case 'module.f.cjs': case 'module.f.mjs': case 'module.f.js':
                 m = folderMapAdd(m)(s)
                 break
         }
