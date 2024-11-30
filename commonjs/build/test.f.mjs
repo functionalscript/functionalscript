@@ -1,13 +1,13 @@
 import _ from './module.f.mjs'
 import map, * as Map from '../../types/map/module.f.mjs'
-import module_, * as moduleT from '../module/module.f.mjs'
-import * as function_ from '../module/function/module.f.mjs'
-import result from '../../types/result/module.f.cjs'
-import package_, * as packageT from '../package/module.f.mjs'
+import * as Module from '../module/module.f.mjs'
+import * as ModuleFunction from '../module/function/module.f.mjs'
+import * as Result from '../../types/result/module.f.mjs'
+import * as Package from '../package/module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { at } = o
 
-/** @type {{ readonly [k in string]?: result.Result<function_.Function_, unknown> }} */
+/** @type {{ readonly [k in string]?: Result.Result<ModuleFunction.Function_, unknown> }} */
 const compileMap = {
     ':index.js': [
         'ok',
@@ -31,7 +31,7 @@ const compileMap = {
         () => m0 => [['ok', 'x:r.js'], m0]],
 }
 
-/** @type {function_.Compile} */
+/** @type {ModuleFunction.Compile} */
 const compile = source => compileMap[source] ?? ['error', 'invalid source']
 
 /** @typedef {{ readonly [k in string]: string }} StringMap */
@@ -56,7 +56,7 @@ const packageMap = {
     },
 }
 
-/** @type {packageT.Get} */
+/** @type {Package.Get} */
 const packageGet = packageId => {
     const p = at(packageId)(packageMap)
     return p === null ? null :
@@ -69,7 +69,7 @@ const packageGet = packageId => {
 const getOrBuild = _.getOrBuild
     (compile)
     (packageGet)
-    (/** @type {moduleT.MapInterface<Map.Map<moduleT.State>>} */(map))
+    (/** @type {Module.MapInterface<Map.Map<Module.State>>} */(map))
 
 export default () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(map.empty)

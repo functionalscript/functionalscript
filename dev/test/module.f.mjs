@@ -2,7 +2,7 @@ import list from '../../types/list/module.f.mjs'
 const { fold } = list
 import sgr from '../../text/sgr/module.f.mjs'
 const { reset, fgGreen, fgRed, bold } = sgr
-import result from '../../types/result/module.f.cjs'
+import * as Result from '../../types/result/module.f.mjs'
 
 /**
  * @typedef {{
@@ -40,7 +40,7 @@ import result from '../../types/result/module.f.cjs'
  *  readonly error: Log<T>,
  *  readonly measure: Measure<T>,
  *  readonly state: T,
- *  readonly tryCatch: <R>(f: () => R) => result.Result<R, unknown>,
+ *  readonly tryCatch: <R>(f: () => R) => Result.Result<R, unknown>,
  *  readonly env: (n: string) => string|undefined
  * }} Input
  */

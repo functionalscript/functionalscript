@@ -1,5 +1,5 @@
-const result = require('./module.f.cjs')
-const { ok, error } = result
+const result = require('./module.f.mjs')
+const { ok, error } = result.default
 
 /** @type {<T>(f: () => T) => result.Result<T, unknown>} */
 const tryCatch = f => {

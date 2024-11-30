@@ -26,7 +26,7 @@ const unwrap = ([kind, v]) => {
     return v
 }
 
-module.exports = {
+export default {
     /** @readonly */
     ok,
     /** @readonly */
