@@ -1,7 +1,7 @@
-const result = require('./module.f.mjs')
-const { ok, error } = result.default
+import result, * as Result from './module.f.mjs'
+const { ok, error } = result
 
-/** @type {<T>(f: () => T) => result.Result<T, unknown>} */
+/** @type {<T>(f: () => T) => Result.Result<T, unknown>} */
 const tryCatch = f => {
     // Side effect: `try catch` is not allowed in FunctionalScript.
     try {
@@ -11,7 +11,7 @@ const tryCatch = f => {
     }
 }
 
-module.exports = {
+export default {
     /** @readonly */
     tryCatch,
 }
