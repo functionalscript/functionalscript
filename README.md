@@ -20,7 +20,7 @@ Learn more about
 
 ## Vision
 
-We aims to create a safe, cross-platform programming language that can also work in content-addressable infrastructure.
+We aim to create a safe, cross-platform programming language that can work in any JS platform and as a programming language for the content-addressable internet without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Actually, we do the opposite; we remove everything that makes the most popular and cross-platform language unsafe, insecure, and less portable.
 
 ## Applications
 
@@ -28,7 +28,8 @@ FunctionalScript code can be used:
 
 - safely in any JavaScript/TypeScript application or library;
 - as a JSON with expressions, see [DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b);
-- as a query language, including as a smart-contract programming language in DeFi.
+- as a query language,
+- as a smart contract programming language in DeFi.
 
 ## Design Principles
 
