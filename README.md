@@ -18,6 +18,18 @@ Learn more about
 - [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
 - [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
 
+## Vision
+
+We aims to create a safe, cross-platform programming language that can also work in content-addressable infrastructure.
+
+## Applications
+
+FunctionalScript code can be used:
+
+- safely in any JavaScript/TypeScript application or library;
+- as a JSON with expressions, see [DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b);
+- as a query language, including as a smart-contract programming language in DeFi.
+
 ## Design Principles
 
 In FunctionalScript:
@@ -26,14 +38,6 @@ In FunctionalScript:
 - Code should not have [side-effects](https://en.wikipedia.org/wiki/Side_effect_(computer_science)). Any JavaScript statement, expression, or function that has a side effect is not allowed in FunctionalScript. There are no exceptions to this rule, such as `unsafe` code, which can be found in Rust, C#, and other languages.
 - A module can depend only on another FunctionalScript module.
 - It also has no standard library. Only a safe subset of standard JavaScript API can be used without referencing other modules.
-
-## Applications
-
-FunctionalScript code can be used:
-
-- in any JavaScript/TypeScript application,
-- as a JSON with expressions,
-- as a query language.
 
 ## Sponsors
 
