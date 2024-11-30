@@ -20,7 +20,7 @@ Learn more about
 
 ## Vision
 
-We aims to create a safe, cross-platform programming language that can also work in content-addressable infrastructure.
+We aims to create a safe, cross-platform programming language that can work in any JS platform and also as a programming language for the content-addressable internet.
 
 ## Applications
 
