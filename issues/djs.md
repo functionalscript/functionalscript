@@ -2,7 +2,7 @@
 
 Parse this code
 
-```
+```js
 import a from 'c.d.mjs'
 const c = [12, 'x']
 export default { a: a, b: a, c: c}
