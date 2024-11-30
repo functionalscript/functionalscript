@@ -1,6 +1,7 @@
-const { sum, min, max, cmp } = require('./module.f.mjs').default
+import _ from './module.f.mjs'
+const { sum, min, max, cmp } = _
 
-module.exports = {
+export default {
     sum: () => {
         const result = sum([2, 3, 4, 5])
         if (result !== 14) { throw result }
