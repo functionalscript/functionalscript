@@ -27,7 +27,7 @@
 - [ ] import
   ```js
   import a from 'c.d.mjs'
-  exports default { a: a, b: a}
+  export default { a: a, b: a}
   ```
 - [ ] short form
   ```js
