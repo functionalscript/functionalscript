@@ -1,6 +1,8 @@
-const { fn } = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
-module.exports = () => {
+const { fn } = _
+
+export default () => {
     /** @type {(x: string) => readonly[string]} */
     const f = x => [x]
     /** @type {(x: readonly[string]) => readonly[number]} */
