@@ -21,7 +21,7 @@ type Func = Const[]
 
 type Const = Primitive | CObject | CArray |CRef | ARef 
 
-type Primitive = number|string|bool|null
+type Primitive = number|string|boolean|null|bigint
 
 type CRef = ['cref', number]
 
