@@ -1,19 +1,19 @@
 import _ from './module.f.mjs'
-import * as btree from '../types/module.f.mjs'
+import * as BTree from '../types/module.f.mjs'
 import s from '../../string/module.f.mjs'
 const { cmp } = s
-import json, * as jsonT from '../../../json/module.f.mjs'
+import json from '../../../json/module.f.mjs'
 import o from '../../object/module.f.mjs'
 const { sort } = o
 
-/** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
+/** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */
 const set = node => value => _.set(cmp(value))(() => value)(node)
 
 const jsonStr = json.stringify(sort)
 
 const test = [
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 10; i++)
             _map = set(_map)((i * i).toString())
@@ -22,7 +22,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 11; i++)
             _map = set(_map)((i * i).toString())
@@ -31,7 +31,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 12; i++)
             _map = set(_map)((i * i).toString())
@@ -40,7 +40,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 13; i++)
             _map = set(_map)((i * i).toString())
@@ -49,7 +49,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 14; i++)
             _map = set(_map)((i * i).toString())
@@ -58,7 +58,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 15; i++)
             _map = set(_map)((i * i).toString())
@@ -67,7 +67,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 16; i++)
             _map = set(_map)((i * i).toString())
@@ -76,7 +76,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 17; i++)
             _map = set(_map)((i * i).toString())
@@ -85,7 +85,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 18; i++)
             _map = set(_map)((i * i).toString())
@@ -96,7 +96,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 19; i++)
             _map = set(_map)((i * i).toString())
@@ -107,7 +107,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 20; i++)
             _map = set(_map)((i * i).toString())
@@ -120,7 +120,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 21; i++)
             _map = set(_map)((i * i).toString())
@@ -133,7 +133,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 22; i++)
             _map = set(_map)((i * i).toString())
@@ -146,7 +146,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 23; i++)
             _map = set(_map)((i * i).toString())
@@ -159,7 +159,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 24; i++)
             _map = set(_map)((i * i).toString())
@@ -172,7 +172,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 25; i++)
             _map = set(_map)((i * i).toString())
@@ -185,7 +185,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 26; i++)
             _map = set(_map)((i * i).toString())
@@ -200,7 +200,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 27; i++)
             _map = set(_map)((i * i).toString())
@@ -215,7 +215,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 28; i++)
             _map = set(_map)((i * i).toString())
@@ -230,7 +230,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 29; i++)
             _map = set(_map)((i * i).toString())
@@ -245,7 +245,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 30; i++)
             _map = set(_map)((i * i).toString())
@@ -260,7 +260,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 31; i++)
             _map = set(_map)((i * i).toString())
@@ -275,7 +275,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 32; i++)
             _map = set(_map)((i * i).toString())
@@ -290,7 +290,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 33; i++)
             _map = set(_map)((i * i).toString())
@@ -305,7 +305,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 34; i++)
             _map = set(_map)((i * i).toString())
@@ -320,7 +320,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 35; i++)
             _map = set(_map)((i * i).toString())
@@ -335,7 +335,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 36; i++)
             _map = set(_map)((i * i).toString())
@@ -350,7 +350,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 37; i++)
             _map = set(_map)((i * i).toString())
@@ -365,7 +365,7 @@ const test = [
     },
 
     () => {
-        /** @type {btree.Node<string>} */
+        /** @type {BTree.Node<string>} */
         let _map = ['1']
         for (let i = 2; i <= 38; i++)
             _map = set(_map)((i * i).toString())

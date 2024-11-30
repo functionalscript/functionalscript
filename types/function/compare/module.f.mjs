@@ -1,11 +1,11 @@
-import * as array from '../../array/module.f.mjs'
+import * as Array from '../../array/module.f.mjs'
 
-/** @typedef {array.Index3} Index3 */
-/** @typedef {array.Index5} Index5 */
+/** @typedef {Array.Index3} Index3 */
+/** @typedef {Array.Index5} Index5 */
 
 /**
  * @template T
- * @typedef {array.Array2<T>} Array2
+ * @typedef {Array.Array2<T>} Array2
  */
 
 /** @typedef {-1|0|1} Sign */

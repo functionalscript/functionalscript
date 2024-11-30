@@ -1,8 +1,8 @@
 import * as _ from '../types/module.f.mjs'
-import list, * as List from '../../list/module.f.mjs'
+import * as List from '../../list/module.f.mjs'
 import cmp, * as cmpT from '../../function/compare/module.f.mjs'
 const { index3, index5 } = cmp
-import array, * as arrayT from '../../array/module.f.mjs'
+import * as Array from '../../array/module.f.mjs'
 
 /**
  * @template T
@@ -68,12 +68,12 @@ const find = c => {
     /** @typedef {typeof c extends cmpT.Compare<infer T> ? T : never} T */
     /** @type {(prior: Path<T>) => (node: _.Node<T>) => Result<T>} */
     const f = tail => node => {
-        /** @type {(index: arrayT.KeyOf<typeof node>) => Result<T>} */
+        /** @type {(index: Array.KeyOf<typeof node>) => Result<T>} */
         const append = index => {
             const first = /** @type {PathItem<T>} */([index, node])
             return f({ first, tail })(child(first))
         }
-        /** @type {(index: arrayT.KeyOf<typeof node>) => Result<T>} */
+        /** @type {(index: Array.KeyOf<typeof node>) => Result<T>} */
         const done = index => ({ first: /** @type {First<T>} */([index, node]), tail })
         switch (node.length) {
             case 1: { return done(i3(node[0])) }

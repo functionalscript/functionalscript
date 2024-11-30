@@ -1,7 +1,7 @@
 import list, * as List from '../../types/list/module.f.mjs'
 const { flat, reduce, empty } = list
-import object, * as O from '../../types/object/module.f.mjs'
-import operator, * as Operator from '../../types/function/operator/module.f.mjs'
+import * as O from '../../types/object/module.f.mjs'
+import * as Operator from '../../types/function/operator/module.f.mjs'
 
 /**
  * @template T

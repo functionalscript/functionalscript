@@ -1,10 +1,10 @@
 import encoding from './module.f.mjs'
-import json, * as jsonT from '../../json/module.f.mjs'
+import json, * as Json from '../../json/module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { sort } = o
 import list from '../../types/list/module.f.mjs'
 
-/** @type {(a: readonly jsonT.Unknown[]) => string} */
+/** @type {(a: readonly Json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 export default {

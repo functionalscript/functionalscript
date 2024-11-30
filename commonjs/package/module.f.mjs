@@ -1,6 +1,6 @@
-import json, * as jsonT from '../../json/module.f.mjs'
+import json, * as Json from '../../json/module.f.mjs'
 const { isObject } = json
-import dependencies, * as dependenciesT from './dependencies/module.f.mjs'
+import dependencies, * as Dependencies from './dependencies/module.f.mjs'
 const { isDependenciesJson } = dependencies
 import o from '../../types/object/module.f.mjs'
 const { at } = o
@@ -9,11 +9,11 @@ const { at } = o
  * @typedef {{
  *  readonly name: string
  *  readonly version: string
- *  readonly dependencies?: dependenciesT.DependenciesJson
+ *  readonly dependencies?: Dependencies.DependenciesJson
  * }} PackageJson
  */
 
-/** @type {(j: jsonT.Unknown) => j is PackageJson} */
+/** @type {(j: Json.Unknown) => j is PackageJson} */
 const isPackageJson = j => {
     if (!isObject(j)) { return false }
     if (typeof j.name !== 'string') { return false }

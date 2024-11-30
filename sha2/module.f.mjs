@@ -1,4 +1,4 @@
-import array, * as arrayT from '../types/array/module.f.mjs'
+import * as arrayT from '../types/array/module.f.mjs'
 
 /**
  * @typedef {{

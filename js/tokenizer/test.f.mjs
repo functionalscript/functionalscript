@@ -1,12 +1,12 @@
-import tokenizer, * as tokenizerT from './module.f.mjs'
+import tokenizer, * as Tokenizer from './module.f.mjs'
 import list from '../../types/list/module.f.mjs'
-const { toArray, countdown } = list
+const { toArray } = list
 import djs from '../../djs/module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { sort } = o
 import encoding from '../../text/utf16/module.f.mjs'
 
-/** @type {(s: string) => readonly tokenizerT.JsToken[]} */
+/** @type {(s: string) => readonly Tokenizer.JsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = djs.stringify(sort)

@@ -6,7 +6,7 @@ import object from '../object/module.f.mjs'
 const { sort } = object
 import list from '../list/module.f.mjs'
 const { toArray, countdown, length } = list
-import map, * as Map from '../map/module.f.mjs'
+import * as Map from '../map/module.f.mjs'
 import f from '../function/module.f.mjs'
 const { flip } = f
 

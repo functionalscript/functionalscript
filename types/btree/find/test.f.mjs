@@ -1,6 +1,6 @@
 import _, * as T from './module.f.mjs'
 import list from '../../list/module.f.mjs'
-import json, * as jsonT from '../../../json/module.f.mjs'
+import json, * as Json from '../../../json/module.f.mjs'
 import o from '../../object/module.f.mjs'
 const { sort } = o
 import * as btree from '../types/module.f.mjs'
@@ -13,7 +13,7 @@ const jsonStr = json.stringify(sort)
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)
 
-/** @type {(r: T.Result<jsonT.Unknown>) => string} */
+/** @type {(r: T.Result<Json.Unknown>) => string} */
 const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
 
 /** @type {(i: string) => (m: btree.Node<string>) => string} */

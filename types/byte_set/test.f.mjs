@@ -1,12 +1,12 @@
 import _ from './module.f.mjs'
 import list from '../list/module.f.mjs'
 const { every, countdown, map, toArray } = list
-import json, * as jsonT from '../../json/module.f.mjs'
+import json, * as Json from '../../json/module.f.mjs'
 import o from '../object/module.f.mjs'
 const { sort } = o
 
-/** @type {(a: readonly jsonT.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
+/** @type {(a: readonly Json.Unknown[]) => string} */
+const stringify = json.stringify(sort)
 
 export default {
     has: [

@@ -1,4 +1,4 @@
-import * as btreeT from './types/module.f.mjs'
+import * as BTree from './types/module.f.mjs'
 import _ from './module.f.mjs'
 const { values } = _
 import json, * as jsonT from '../../json/module.f.mjs'
@@ -10,20 +10,16 @@ import list, * as List from '../list/module.f.mjs'
 import s from './set/module.f.mjs'
 import f from './find/module.f.mjs'
 
-// require('./find/test.f.mjs')
-// require('./set/test.f.mjs')
-// require('./remove/test.f.mjs')
-
 const jsonStr = json.stringify(sort)
 
 /** @type {(sequence: List.List<jsonT.Unknown>) => string} */
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
-/** @type {(node: btreeT.Node<string>) => (value: string) => btreeT.Node<string>} */
+/** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)
 
 const valueTest1 = () => {
-    /** @type {btreeT.Node<string>} */
+    /** @type {BTree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -35,7 +31,7 @@ const valueTest1 = () => {
 }
 
 const valuesTest2 = () => {
-    /** @type {btreeT.Node<string>} */
+    /** @type {BTree.Node<string>} */
     let _map = ['1']
     for(let i = 2; i <= 10; i++)
         _map = set(_map)((i*i).toString())
@@ -44,7 +40,7 @@ const valuesTest2 = () => {
 }
 
 const findTrue = () => {
-    /** @type {btreeT.Node<string>} */
+    /** @type {BTree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -53,7 +49,7 @@ const findTrue = () => {
 }
 
 const find = () => {
-    /** @type {btreeT.Node<string>} */
+    /** @type {BTree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -62,7 +58,7 @@ const find = () => {
 }
 
 const test = () => {
-    /** @type {btreeT.Node<string>} */
+    /** @type {BTree.Node<string>} */
     let _map = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')

@@ -1,5 +1,5 @@
-import * as op from '../types/function/operator/module.f.mjs'
-import pf, * as pfT from '../prime_field/module.f.mjs'
+import * as Operator from '../types/function/operator/module.f.mjs'
+import pf, * as Pf from '../prime_field/module.f.mjs'
 import bi from '../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 const { prime_field, sqrt } = pf
@@ -19,12 +19,12 @@ const { prime_field, sqrt } = pf
 
 /**
  * @typedef {{
- *  readonly pf: pfT.PrimeField
- *  readonly nf: pfT.PrimeField
+ *  readonly pf: Pf.PrimeField
+ *  readonly nf: Pf.PrimeField
  *  readonly y2: (x: bigint) => bigint
  *  readonly y: (x: bigint) => bigint|null
  *  readonly neg: (a: Point) => Point
- *  readonly add: op.Reduce<Point>
+ *  readonly add: Operator.Reduce<Point>
  *  readonly mul: (a: Point) => (n: bigint) => Point
  * }} Curve
  */
@@ -41,7 +41,7 @@ const curve = ({ p, a: [a0, a1], n }) => {
     // y**2 = a1*x**3 + a0
     /** @type {(x: bigint) => bigint} */
     const y2 = x => addA0(add(pow3(x))(mulA1(x)))
-    /** @type {op.Reduce<Point>} */
+    /** @type {Operator.Reduce<Point>} */
     const addPoint = p => q => {
         if (p === null) {
             return q
