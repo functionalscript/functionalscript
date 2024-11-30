@@ -1,11 +1,11 @@
-const T = require('./module.f.mjs')
-const _ = T.default
-const jsonT = require('../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../object/module.f.mjs').default
-const { addition, strictEqual, reduceToScan } = require('../function/operator/module.f.mjs').default
+import _,  * as T from './module.f.mjs'
+import json, * as Json from '../../json/module.f.mjs'
+import o  from '../object/module.f.mjs'
+const { sort } = o
+import operator from '../function/operator/module.f.mjs'
+const { addition, strictEqual, reduceToScan } = operator
 
-/** @type {(sequence: T.List<jsonT.Unknown>) => string} */
+/** @type {(sequence: T.List<Json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 const stringifyTest = () => {
@@ -266,7 +266,7 @@ const stress = () => ({
 
 })
 
-module.exports = {
+export default {
     stringifyTest,
     cycle,
     countdown,
