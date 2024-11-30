@@ -32,7 +32,7 @@ import types$range from './types/range/module.f.mjs'
 import types$range_map from './types/range_map/module.f.mjs'
 import types$result from './types/result/module.f.mjs'
 import types$sorted_list from './types/sorted_list/module.f.mjs'
-import types$sorted_set from './types/sorted_set/module.f.cjs'
+import types$sorted_set from './types/sorted_set/module.f.mjs'
 import types$string from './types/string/module.f.mjs'
 import types$string_set from './types/string_set/module.f.cjs'
 export default {

@@ -1,7 +1,7 @@
 import f from '../function/module.f.mjs'
 const { fn, compose } = f
-import rangeMap, * as RangeMap from '../range_map/module.f.mjs'
-import sortedSet from '../sorted_set/module.f.cjs'
+import * as RangeMap from '../range_map/module.f.mjs'
+import sortedSet, * as SortedSet from '../sorted_set/module.f.mjs'
 import list from '../list/module.f.mjs'
 const { reverse, countdown, flat, map } = list
 
@@ -49,14 +49,14 @@ const unset = n => s => difference(s)(one(n))
 
 const counter = reverse(countdown(256))
 
-/** @type {(n: ByteSet) => (s: string) => (i: number) => RangeMap.RangeMap<sortedSet.SortedSet<string>>} */
+/** @type {(n: ByteSet) => (s: string) => (i: number) => RangeMap.RangeMap<SortedSet.SortedSet<string>>} */
 const toRangeMapOp = n => s => i => {
     const current = has(i + 1)(n)
     const prev = has(i)(n)
     return current === prev ? null : [[prev ? [s] : [], i]]
 }
 
-/** @type {(n: ByteSet) => (s: string) => RangeMap.RangeMap<sortedSet.SortedSet<string>>} */
+/** @type {(n: ByteSet) => (s: string) => RangeMap.RangeMap<SortedSet.SortedSet<string>>} */
 const toRangeMap = n => s => flat(map(toRangeMapOp(n)(s))(counter))
 
 export default {
