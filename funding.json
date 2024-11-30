@@ -29,8 +29,9 @@
                 "web-development",
                 "software-engineering",
                 "developer-tools",
-                "programming language",
-                "cryptography"
+                "programming-language",
+                "cryptography",
+                "smart-contract"
             ]
         }
     ],
@@ -38,13 +39,13 @@
         "channels": [
             {
                 "guid": "github",
-                "type": "GitHub",
+                "type": "other",
                 "address": "https://github.com/sponsors/sergey-shandar"
             }
         ],
         "plans": [
             {
-                "guid": "vm",
+                "guid": "nanvm",
                 "status": "active",
                 "name": "NaNVM",
                 "description": "NaNVM is a virtual machine for the FunctionalScript",
