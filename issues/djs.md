@@ -13,7 +13,7 @@ Into this structure:
 ```ts
 type Module = {
   modules: string[]
-  bytecode: bigint
+  func: Func
 }
 ```
 
