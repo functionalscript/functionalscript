@@ -1,39 +1,47 @@
 // Generated file.
-import com from './com/module.f.cjs'
-import commonjs from './commonjs/module.f.cjs'
-import dev from './dev/module.f.cjs'
-import djs from './djs/module.f.cjs'
-import fsc from './fsc/module.f.cjs'
-import fsm from './fsm/module.f.cjs'
-import html from './html/module.f.cjs'
-import js$tokenizer from './js/tokenizer/module.f.cjs'
-import json from './json/module.f.cjs'
-import nodejs from './nodejs/module.f.cjs'
-import prime_field from './prime_field/module.f.cjs'
-import secp from './secp/module.f.cjs'
-import sha2 from './sha2/module.f.cjs'
-import text from './text/module.f.cjs'
-import types$array from './types/array/module.f.cjs'
-import types$bigfloat from './types/bigfloat/module.f.cjs'
-import types$bigint from './types/bigint/module.f.cjs'
-import types$btree from './types/btree/module.f.cjs'
-import types$byte_set from './types/byte_set/module.f.cjs'
-import types$function from './types/function/module.f.cjs'
-import types$list from './types/list/module.f.cjs'
-import types$map from './types/map/module.f.cjs'
-import types$nibble_set from './types/nibble_set/module.f.cjs'
-import types$nullable from './types/nullable/module.f.cjs'
-import types$number from './types/number/module.f.cjs'
-import types$object from './types/object/module.f.cjs'
-import types$range from './types/range/module.f.cjs'
-import types$range_map from './types/range_map/module.f.cjs'
-import types$result from './types/result/module.f.cjs'
-import types$sorted_list from './types/sorted_list/module.f.cjs'
-import types$sorted_set from './types/sorted_set/module.f.cjs'
-import types$string from './types/string/module.f.cjs'
-import types$string_set from './types/string_set/module.f.cjs'
+import com$cpp from './com/cpp/module.f.mjs'
+import com$cs from './com/cs/module.f.mjs'
+import com$rust from './com/rust/module.f.mjs'
+import com$types from './com/types/module.f.mjs'
+import commonjs from './commonjs/module.f.mjs'
+import dev from './dev/module.f.mjs'
+import djs from './djs/module.f.mjs'
+import fsc from './fsc/module.f.mjs'
+import fsm from './fsm/module.f.mjs'
+import html from './html/module.f.mjs'
+import js$tokenizer from './js/tokenizer/module.f.mjs'
+import json from './json/module.f.mjs'
+import nodejs$version from './nodejs/version/module.f.mjs'
+import prime_field from './prime_field/module.f.mjs'
+import secp from './secp/module.f.mjs'
+import sha2 from './sha2/module.f.mjs'
+import text from './text/module.f.mjs'
+import types$array from './types/array/module.f.mjs'
+import types$bigfloat from './types/bigfloat/module.f.mjs'
+import types$bigint from './types/bigint/module.f.mjs'
+import types$btree from './types/btree/module.f.mjs'
+import types$byte_set from './types/byte_set/module.f.mjs'
+import types$function from './types/function/module.f.mjs'
+import types$list from './types/list/module.f.mjs'
+import types$map from './types/map/module.f.mjs'
+import types$nibble_set from './types/nibble_set/module.f.mjs'
+import types$nullable from './types/nullable/module.f.mjs'
+import types$number from './types/number/module.f.mjs'
+import types$object from './types/object/module.f.mjs'
+import types$range from './types/range/module.f.mjs'
+import types$range_map from './types/range_map/module.f.mjs'
+import types$result from './types/result/module.f.mjs'
+import types$sorted_list from './types/sorted_list/module.f.mjs'
+import types$sorted_set from './types/sorted_set/module.f.mjs'
+import types$string from './types/string/module.f.mjs'
+import types$string_set from './types/string_set/module.f.mjs'
 export default {
-  com: com,
+  com: {
+    cpp: com$cpp,
+    cs: com$cs,
+    rust: com$rust,
+    types: com$types,
+  },
   commonjs: commonjs,
   dev: dev,
   djs: djs,
@@ -44,7 +52,9 @@ export default {
     tokenizer: js$tokenizer,
   },
   json: json,
-  nodejs: nodejs,
+  nodejs: {
+    version: nodejs$version,
+  },
   prime_field: prime_field,
   secp: secp,
   sha2: sha2,

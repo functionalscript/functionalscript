@@ -1,15 +1,15 @@
 {
   "name": "functionalscript",
-  "version": "0.0.574",
+  "version": "0.1.0",
   "description": "FunctionalScript is a functional subset of JavaScript",
   "main": "index.f.mjs",
   "scripts": {
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
     "index": "node ./dev/index.mjs",
-    "version": "node ./nodejs/version/main.cjs",
+    "version": "node ./nodejs/version/main.mjs",
     "test-only": "node --trace-uncaught ./dev/test.mjs",
-    "comtest": "node ./com/test/build.cjs"
+    "comtest": "node ./com/test/build.mjs"
   },
   "repository": {
     "type": "git",
