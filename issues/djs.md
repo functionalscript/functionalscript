@@ -1,0 +1,27 @@
+# DJS
+
+Parse this code
+
+```
+import a from 'c.d.mjs'
+const c = [12, 'x']
+export default { a: a, b: a, c: c}
+```
+
+Into this structure:
+
+```ts
+type Module = {
+  modules: string[]
+  bytecode: bigint
+}
+```
+
+Where bytecode is a byte code of the function:
+
+```js
+(...args) => {
+  const const0 = [12, 'x']
+  return { a: args[0], b: args[0], c: const0}
+}
+```
