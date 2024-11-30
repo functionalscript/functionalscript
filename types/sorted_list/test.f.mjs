@@ -6,12 +6,12 @@ import object from '../object/module.f.mjs'
 const { sort } = object
 import list from '../list/module.f.mjs'
 const { toArray, countdown, length } = list
-import map, * as Map from '../map/module.f.mjs'
+import * as Map from '../map/module.f.mjs'
 import f from '../function/module.f.mjs'
 const { flip } = f
 
 /** @type {(a: readonly Json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
+const stringify = json.stringify(sort)
 
 /** @type {<T>(a: T) => (b: T) => Map.Sign} */
 const reverseCmp = flip(unsafeCmp)

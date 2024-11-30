@@ -1,4 +1,4 @@
-import sortedList, * as SL from '../sorted_list/module.f.mjs'
+import sortedList, * as SortedList from '../sorted_list/module.f.mjs'
 const { genericMerge } = sortedList
 import list from '../list/module.f.mjs'
 const { next } = list
@@ -6,7 +6,7 @@ import * as Option from '../nullable/module.f.mjs'
 import number from '../number/module.f.mjs'
 const { cmp } = number
 import * as O from '../function/operator/module.f.mjs'
-import _range, * as Range from '../range/module.f.mjs'
+import * as Range from '../range/module.f.mjs'
 
 /**
  * @template T
@@ -15,7 +15,7 @@ import _range, * as Range from '../range/module.f.mjs'
 
 /**
  * @template T
- * @typedef {SL.SortedList<Entry<T>>} RangeMap
+ * @typedef {SortedList.SortedList<Entry<T>>} RangeMap
  */
 
 /**
@@ -41,7 +41,7 @@ import _range, * as Range from '../range/module.f.mjs'
  * @typedef {O.Reduce<RangeMap<T>>} RangeMerge
  */
 
-/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => SL.ReduceOp<Entry<T>, RangeState<T>>} */
+/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => SortedList.ReduceOp<Entry<T>, RangeState<T>>} */
 const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) => {
     const sign = cmp(aMax)(bMax)
     const min = sign === 1 ? bMax : aMax
@@ -50,7 +50,7 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) =
     return [newState, sign, [u, min]]
 }
 
-/** @type {<T>(equal: O.Equal<T>) => SL.TailReduce<Entry<T>, RangeState<T>>} */
+/** @type {<T>(equal: O.Equal<T>) => SortedList.TailReduce<Entry<T>, RangeState<T>>} */
 const tailReduce = equal => state => tail => {
     if (state === null) { return tail }
     const tailResult = next(tail)

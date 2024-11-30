@@ -1,10 +1,10 @@
-import compare, * as compareT from '../function/compare/module.f.mjs'
-import op, * as Op from '../function/operator/module.f.mjs'
+import compare, * as Compare from '../function/compare/module.f.mjs'
+import * as Operator from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
 import list from '../list/module.f.mjs'
 const { reduce } = list
 
-/** @typedef {Op.Unary<bigint, bigint>} Unary*/
+/** @typedef {Operator.Unary<bigint, bigint>} Unary*/
 
 /** @type {(a: bigint) => (b: bigint) => bigint} */
 const addition = a => b => a + b
@@ -14,7 +14,7 @@ const sum = reduce(addition)(0n)
 /** @type {(a: bigint) => bigint} */
 const abs = a => a >= 0 ? a : -a
 
-/** @type {(a: bigint) => compareT.Sign} */
+/** @type {(a: bigint) => Compare.Sign} */
 const sign = a => unsafeCmp(a)(0n)
 
 /** @type {(a: bigint) => string} */
@@ -24,7 +24,7 @@ const serialize = a => `${a}n`
  * @template T
  * @typedef {{
  *  readonly 0: T
- *  readonly add: Op.Reduce<T>
+ *  readonly add: Operator.Reduce<T>
  * }} Additive
  */
 

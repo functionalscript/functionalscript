@@ -1,4 +1,4 @@
-import json, * as jsonT from '../../../json/module.f.mjs'
+import json, * as Json from '../../../json/module.f.mjs'
 const { isObject } = json
 import list from '../../../types/list/module.f.mjs'
 const { map, every } = list
@@ -10,10 +10,10 @@ const { entries } = Object
 
 /** @typedef {DependencyMapJson|null} DependenciesJson */
 
-/** @type {(entry: jsonT.Entry) => boolean} */
+/** @type {(entry: Json.Entry) => boolean} */
 const isDependencyJson = ([, v]) => typeof v === 'string'
 
-/** @type {(j: jsonT.Unknown) => j is DependenciesJson} */
+/** @type {(j: Json.Unknown) => j is DependenciesJson} */
 const isDependenciesJson = j => {
     if (j === null) { return true }
     if (!isObject(j)) { return false }

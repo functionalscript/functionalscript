@@ -1,4 +1,4 @@
-import object, * as O from '../../types/object/module.f.mjs'
+import * as O from '../../types/object/module.f.mjs'
 
 /**
  * @template M

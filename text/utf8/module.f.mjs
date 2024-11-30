@@ -1,11 +1,11 @@
 import list, * as List from '../../types/list/module.f.mjs'
 import * as operator from '../../types/function/operator/module.f.mjs'
-import * as arrayT from '../../types/array/module.f.mjs'
+import * as Array from '../../types/array/module.f.mjs'
 const { flatMap, flat, stateScan } = list
 
 /** @typedef {u8|null} ByteOrEof */
 
-/** @typedef {arrayT.Array1<number>|arrayT.Array2<number>|arrayT.Array3<number>} Utf8NonEmptyState */
+/** @typedef {Array.Array1<number>|Array.Array2<number>|Array.Array3<number>} Utf8NonEmptyState */
 
 /** @typedef {null|Utf8NonEmptyState} Utf8State */
 

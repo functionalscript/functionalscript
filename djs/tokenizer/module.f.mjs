@@ -1,4 +1,4 @@
-import operator, * as Operator from '../../types/function/operator/module.f.mjs'
+import * as Operator from '../../types/function/operator/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
 import bf from '../../types/bigfloat/module.f.mjs'

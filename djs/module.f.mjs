@@ -2,7 +2,7 @@ import list, * as List from '../types/list/module.f.mjs'
 const { flat, map } = list
 import string from '../types/string/module.f.mjs'
 const { concat } = string
-import object, * as O from '../types/object/module.f.mjs'
+import * as O from '../types/object/module.f.mjs'
 import f from '../types/function/module.f.mjs'
 const { compose, fn } = f
 const { entries } = Object

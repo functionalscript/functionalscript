@@ -1,6 +1,6 @@
 import tokenizer, * as tokenizerT from './module.f.mjs'
 import list from '../../types/list/module.f.mjs'
-const { toArray, countdown } = list
+const { toArray } = list
 import djs from '../module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { sort } = o

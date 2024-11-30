@@ -1,7 +1,7 @@
 import * as _ from '../types/module.f.mjs'
-import btreeFind, * as btreeFindT from '../find/module.f.mjs'
+import btreeFind, * as BtreeFind from '../find/module.f.mjs'
 const { find } = btreeFind
-import cmp, * as cmpT from '../../function/compare/module.f.mjs'
+import * as Cmp from '../../function/compare/module.f.mjs'
 import list from '../../list/module.f.mjs'
 const { fold } = list
 
@@ -13,7 +13,7 @@ const { fold } = list
 /** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(i: btreeFindT.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
+/** @type {<T>(i: BtreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
 const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: {
@@ -36,11 +36,11 @@ const reduceOp = ([i, x]) => a => {
 
 const reduceBranch = fold(reduceOp)
 
-/** @type {<T>(c: cmpT.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>) => _.Node<T>} */
+/** @type {<T>(c: Cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>) => _.Node<T>} */
 const nodeSet = c => g => node => {
     const { first, tail } = find(c)(node)
     const [i, x] = first;
-    /** @typedef {typeof c extends cmpT.Compare<infer T> ? T : never} T */
+    /** @typedef {typeof c extends Cmp.Compare<infer T> ? T : never} T */
     /** @type {() => Branch1To3<T>} */
     const f = () => {
         switch (i) {
@@ -87,7 +87,7 @@ const nodeSet = c => g => node => {
     return r.length === 1 ? r[0] : r
 }
 
-/** @type {<T>(c: cmpT.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
+/** @type {<T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
 const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
 
 export default {

@@ -2,8 +2,8 @@ import list, * as List from '../../types/list/module.f.mjs'
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
 import string from '../../types/string/module.f.mjs'
 const { join } = string
-import package_, * as packageT from '../package/module.f.mjs'
-import module_, * as moduleT from '../module/module.f.mjs'
+import * as Package from '../package/module.f.mjs'
+import * as Module from '../module/module.f.mjs'
 
 /** @typedef {readonly string[]} Items */
 
@@ -132,7 +132,7 @@ const parse = packageId => dependencies => {
 
 /**
  * @typedef {{
- *  readonly id: moduleT.Id
+ *  readonly id: Module.Id
  *  readonly source: string
  * }} FoundResult
  */
@@ -140,8 +140,8 @@ const parse = packageId => dependencies => {
 /** @typedef {FoundResult| null} Result */
 
 /**
- * @type {(packageGet: packageT.Get) =>
- *  (moduleId: moduleT.Id) =>
+ * @type {(packageGet: Package.Get) =>
+ *  (moduleId: Module.Id) =>
  *  (path: string) =>
  *  Result
  * }

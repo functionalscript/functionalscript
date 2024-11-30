@@ -6,7 +6,7 @@ import list, * as List from '../../types/list/module.f.mjs'
 const { flat, map, some, flatMap } = list
 import string from '../../types/string/module.f.mjs'
 const { join } = string
-import obj, * as O from '../../types/object/module.f.mjs'
+import * as O from '../../types/object/module.f.mjs'
 const { entries } = Object
 
 /** @type {(v: string) => string} */

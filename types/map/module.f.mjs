@@ -1,4 +1,4 @@
-import * as btreeTypes from '../btree/types/module.f.mjs'
+import * as BtreeTypes from '../btree/types/module.f.mjs'
 import btf from '../btree/find/module.f.mjs'
 const { value, find } = btf
 import bts from '../btree/set/module.f.mjs'
@@ -7,12 +7,12 @@ import btr from '../btree/remove/module.f.mjs'
 const { remove: btreeRemove } = btr
 import bt from '../btree/module.f.mjs'
 const { values } = bt
-import compare, * as Compare from '../function/compare/module.f.mjs'
+import * as Compare from '../function/compare/module.f.mjs'
 import s from '../string/module.f.mjs'
 const { cmp } = s
 import list, * as List from '../list/module.f.mjs'
 const { fold } = list
-import operator, * as Operator from '../function/operator/module.f.mjs'
+import * as Operator from '../function/operator/module.f.mjs'
 
 /** @typedef {Compare.Sign} Sign */
 
@@ -28,7 +28,7 @@ import operator, * as Operator from '../function/operator/module.f.mjs'
 
 /**
  * @template T
- * @typedef {btreeTypes.Tree<Entry<T>>} Map
+ * @typedef {BtreeTypes.Tree<Entry<T>>} Map
  */
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */

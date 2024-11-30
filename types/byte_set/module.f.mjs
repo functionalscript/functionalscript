@@ -1,7 +1,7 @@
 import f from '../function/module.f.mjs'
-const { fn, compose } = f
+const { compose } = f
 import * as RangeMap from '../range_map/module.f.mjs'
-import sortedSet, * as SortedSet from '../sorted_set/module.f.mjs'
+import * as SortedSet from '../sorted_set/module.f.mjs'
 import list from '../list/module.f.mjs'
 const { reverse, countdown, flat, map } = list
 
