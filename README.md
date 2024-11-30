@@ -18,7 +18,7 @@ Learn more about
 - [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
 - [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
 
-FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license.
+FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](functionalscript.snuff158@passinbox.com).
 
 ## Vision
 
