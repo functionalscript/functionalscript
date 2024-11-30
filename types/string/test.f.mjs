@@ -1,7 +1,9 @@
-const { join, concat, repeat, cmp } = require('./module.f.mjs').default
-const { repeat: repeatList } = require('../list/module.f.mjs').default
+import _ from './module.f.mjs'
+const { join, concat, repeat, cmp } = _
+import list from '../list/module.f.mjs'
+const { repeat: repeatList } = list
 
-module.exports = {
+export default {
     join: {
         0: () => {
             const result = join('/')([])
