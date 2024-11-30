@@ -1,6 +1,6 @@
-const _ = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
-module.exports = {
+export default {
     ctor: () => {
         const a = {}
         const value = _.at('constructor')(a)
