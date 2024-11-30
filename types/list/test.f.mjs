@@ -201,7 +201,7 @@ const stress = () => ({
         let sequence = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
-        for (let i = 0; i < 10_000_000; ++i) {
+        for (let i = 0; i < 5_000_000; ++i) {
             sequence = _.concat(sequence)([i])
         }
         const r = _.toArray(sequence)
