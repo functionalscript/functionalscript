@@ -46,5 +46,12 @@ Where `func` is a description of the function:
 ## Parsed Example
 
 ```js
-
+export default
+// array of constants
+[
+  // const const0
+  ['array', [12, 'x']],
+  // return
+  ['object', { 'a': ['aref', 0], 'b': ['aref', 0], c: ['cref', 0] }]
+]
 ```
