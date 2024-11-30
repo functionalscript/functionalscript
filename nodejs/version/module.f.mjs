@@ -1,9 +1,3 @@
-/**
- * @typedef {{
- *  readonly execSync: (cmd: string) => Buffer
- * }} ChildProcess
- */
-
 /** @typedef {{}} Buffer */
 
 /**
@@ -17,24 +11,29 @@
 /**
  * @template T
  * @typedef {{
- *  readonly child_process: ChildProcess
  *  readonly fs: Fs<T>
  * }} Node
  */
 
 const { stringify, parse } = JSON
 
+/** @type {<T>(fs: Fs<T>) => string} */
+const getVersion = fs => readJson(fs)('package').version
+
+const jsonFile = (/** @type {string} */jsonFile) => `${jsonFile}.json`
+
+/** @type {<T>(node: Fs<T>) => (name: string) => any} */
+const readJson = fs => name => parse(fs.readFileSync(jsonFile(name)).toString())
+
 /** @type {<T>(node: Node<T>) => readonly[T, T]} */
-const version = ({ child_process, fs }) => {
-    const version = `0.1.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}`
-    const f = (/** @type {string} */jsonFile) => {
-        const file = `${jsonFile}.json`
+const updateVersion = ({ fs }) => {
+    const f = (/** @type {string} */name) => {
         return fs.writeFileSync(
-            file,
+            jsonFile(name),
             stringify(
                 {
-                    ...parse(fs.readFileSync(file).toString()),
-                    version
+                    ...readJson(fs)(name),
+                    version: getVersion(fs)
                 },
                 null,
                 2))
@@ -46,6 +45,6 @@ const version = ({ child_process, fs }) => {
 }
 
 export default {
-    /** @readonly */
-    version,
+    getVersion,
+    updateVersion,
 }

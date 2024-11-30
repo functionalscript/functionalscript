@@ -200,7 +200,8 @@ const stress = () => ({
         /** @type {T.List<number>} */
         let sequence = []
         // 20_000_000 is too much
-        for (let i = 0; i < 10_000_000; ++i) {
+        // 10_000_000 is too much for Deno 1
+        for (let i = 0; i < 5_000_000; ++i) {
             sequence = _.concat(sequence)([i])
         }
         const r = _.toArray(sequence)
@@ -316,5 +317,5 @@ export default {
         if (_.length(null) !== 0) { throw 0 }
         if (_.length(_.flat([[1, 3], null, () => [3], _.concat([12])([4, 89])])) !== 6) { throw 6 }
     },
-    //stress
+    // stress
 }
