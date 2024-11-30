@@ -11,7 +11,8 @@
     // list is for objects.
     // List is for types and should be ignored by FJS or errored if used in code.
     ```
-7. Two sets of property filters:
+7. Move logic from `.mjs` files to `.f.mjs` files.
+8. Two sets of property filters:
    - usage `.b`:
      - `constructor`
      - ...
