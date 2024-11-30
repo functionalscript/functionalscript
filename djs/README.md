@@ -9,15 +9,31 @@
 
 ## Next steps
 
-- [ ] rename `fjson` to `djs` (data javascript), File extensions: `.d.cjs`, `.d.mjs`, `.d.js`.
+- [ ] rename `fjson` to `djs` (data javascript), File extensions: `.d.mjs`, `.d.js`.
 - [x] use JS tokenizer 
 - [x] identifiers `{a:5}`
 - [x] big int
-- [ ] `module.exports = ...`
-- [ ] constants `const a = [3];module.exports = { a: a, b: a }`. Serialization `const _0=[3];module.exports={a:_0,b:_0}`
-- [ ] import `const a = require('c.d.cjs');module.exports = { a: a, b: a}`
-- [ ] ES6 import `import a from 'c.d.mjs';export default { a: a, b: a}`
-- [ ] short form `const a = 5;module.exports = { a }`
+- [ ] `export default ...`
+- [ ] constants
+      ```js
+      const a = [3]
+      export default = { a: a, b: a }
+      ```
+      Serialization
+      ```js
+      const _0=[3]
+      export default {a:_0,b:_0}
+      ```
+- [ ] import
+      ```js
+      import a from 'c.d.cjs'
+      exports default { a: a, b: a}
+      ```
+- [ ] short form
+      ```
+      const a = 5;
+      export default { a }
+      ```
 
 Optional, for fun, syntax sugar:
 
@@ -26,5 +42,13 @@ Optional, for fun, syntax sugar:
 
 ## Decidable Language
   
-- [ ] using operator and functions `const a = 2+2+Math.abs(5); module.exports = { a: a };`
-- [ ] decidable functions `const f = a => b => a + b; module.exports = f(1)(2)`?
+- [ ] using operator and functions
+      ```js
+      const a = 2+2+Math.abs(5)
+      export default { a: a }
+      ```
+- [ ] decidable functions
+      ```
+      const f = a => b => a + b
+      export default f(1)(2)
+      ```?
