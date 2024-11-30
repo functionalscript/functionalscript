@@ -38,7 +38,7 @@ const x = {
 
 const e = '{\n' +
     '  "name": "functionalscript",\n' +
-    '  "version": "0.1.2",\n' +
+    '  "version": "0.1.600",\n' +
     '  "description": "FunctionalScript is a functional subset of JavaScript",\n' +
     '  "main": "module.f.cjs",\n' +
     '  "scripts": {\n' +
@@ -80,12 +80,11 @@ const buffer = s => ({
 export default () => {
     /** @type {T.Node<string>} */
     const node = {
-        child_process: { execSync: () => buffer("123\n456\n") },
         fs: {
             readFileSync: () => buffer(JSON.stringify(x)),
             writeFileSync: (_, content) => content
         }
     }
-    const [n, d] = _.version(node)
+    const [n, d] = _.updateVersion(node)
     if (n !== e) { throw [n, e] }
 }
