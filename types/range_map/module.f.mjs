@@ -2,9 +2,10 @@ import sortedList, * as SL from '../sorted_list/module.f.mjs'
 const { genericMerge } = sortedList
 import list from '../list/module.f.mjs'
 const { next } = list
-import option, * as Option from '../nullable/module.f.mjs'
-import { cmp } from '../number/module.f.cjs'
-import operator, * as O from '../function/operator/module.f.mjs'
+import * as Option from '../nullable/module.f.mjs'
+import number from '../number/module.f.mjs'
+const { cmp } = number
+import * as O from '../function/operator/module.f.mjs'
 import _range from '../range/module.f.cjs'
 
 /**

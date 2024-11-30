@@ -1,6 +1,6 @@
-const _ = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
-module.exports = () => {
+export default () => {
     const optionSq = _.map(v => v * v)
     const sq3 = optionSq(3)
     if (sq3 !== 9) { throw sq3 }

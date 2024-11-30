@@ -1,4 +1,4 @@
-const { sum, min, max, cmp } = require('./module.f.cjs')
+const { sum, min, max, cmp } = require('./module.f.mjs').default
 
 module.exports = {
     sum: () => {
