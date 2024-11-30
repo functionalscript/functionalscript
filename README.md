@@ -18,6 +18,8 @@ Learn more about
 - [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
 - [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
 
+FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license.
+
 ## Vision
 
 We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Actually, we do the opposite; we remove everything that makes the most popular and cross-platform language unsafe, insecure, and less portable.
