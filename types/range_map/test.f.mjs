@@ -1,13 +1,12 @@
-const T = require('./module.f.mjs')
-const _ = T.default
-const { unsafeCmp } = require('../function/compare/module.f.mjs').default
-const jsonT = require('../../json/module.f.mjs')
-const json = jsonT.default
-const { sort } = require('../object/module.f.mjs').default
-const SortedSet = require('../sorted_set/module.f.mjs')
-const sortedSet = SortedSet.default
-const list = require('../list/module.f.mjs').default
-const operator = require("../function/operator/module.f.mjs").default
+import _, * as T from './module.f.mjs'
+import compare from '../function/compare/module.f.mjs'
+const { unsafeCmp } = compare
+import json, * as jsonT from '../../json/module.f.mjs'
+import object from '../object/module.f.mjs'
+const { sort } = object
+import sortedSet, * as SortedSet from '../sorted_set/module.f.mjs'
+import list from '../list/module.f.mjs'
+import operator from '../function/operator/module.f.mjs'
 
 /** @type {(a: readonly jsonT.Unknown[]) => string} */
 const stringify = json.stringify(sort)
@@ -15,7 +14,7 @@ const stringify = json.stringify(sort)
 /** @type {T.Operators<SortedSet.SortedSet<string>>} */
 const op = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
 
-module.exports = {
+export default {
     merge: [
         () => {
             /** @type {T.RangeMap<SortedSet.SortedSet<string>>} */
