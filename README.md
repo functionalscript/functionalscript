@@ -16,7 +16,7 @@ FunctionalScript is a purely functional programming language and a strict subset
 
 Learn more about
 - [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
-- [FunctionalScript](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
+- [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
 
 ## Design Principles
 
