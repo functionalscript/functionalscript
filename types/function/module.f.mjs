@@ -33,10 +33,6 @@ const fn = result => ({
 
 export default {
     /** @readonly */
-    // compare: require('./compare/module.f.cjs'),
-    /** @readonly */
-    // operator: require('./operator/module.f.cjs'),
-    /** @readonly */
     identity,
     /** @readonly */
     compose,

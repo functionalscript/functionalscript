@@ -26,7 +26,7 @@ const { stringify, parse } = JSON
 
 /** @type {<T>(node: Node<T>) => readonly[T, T]} */
 const version = ({ child_process, fs }) => {
-    const version = `0.0.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}`
+    const version = `0.1.${child_process.execSync('git log --oneline').toString().split('\n').length - 1}`
     const f = (/** @type {string} */jsonFile) => {
         const file = `${jsonFile}.json`
         return fs.writeFileSync(
