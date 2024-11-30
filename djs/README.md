@@ -30,7 +30,7 @@
   exports default { a: a, b: a}
   ```
 - [ ] short form
-  ```
+  ```js
   const a = 5;
   export default { a }
   ```
