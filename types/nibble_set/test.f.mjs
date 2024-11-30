@@ -1,6 +1,6 @@
 import list from '../list/module.f.mjs'
 const { every, map, countdown } = list
-const _ = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
 export default {
     has: () => {
