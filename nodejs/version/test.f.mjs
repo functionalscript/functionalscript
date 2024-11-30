@@ -1,45 +1,54 @@
 import _, * as T from './module.f.mjs'
-import p from '../../package.d.mjs'
 
+const version = '0.3.0'
+
+/**
+ * @type {{
+ *  readonly[k in string]: unknown
+ * }}
+ */
 const x = {
-    "name": "functionalscript",
-    "version": "0.1.0",
-    "description": "FunctionalScript is a functional subset of JavaScript",
-    "main": "module.f.cjs",
-    "scripts": {
-        "tsc": "tsc",
-        "test": "tsc && npm run test-only",
-        "version": "node ./nodejs/version/main.cjs",
-        "test-only": "node --trace-uncaught ./test.f.cjs"
+    'package.json': {
+        "name": "functionalscript",
+        version,
+        "description": "FunctionalScript is a functional subset of JavaScript",
+        "main": "module.f.cjs",
+        "scripts": {
+            "tsc": "tsc",
+            "test": "tsc && npm run test-only",
+            "version": "node ./nodejs/version/main.cjs",
+            "test-only": "node --trace-uncaught ./test.f.cjs"
+        },
+        "repository": {
+            "type": "git",
+            "url": "git+https://github.com/functionalscript/functionalscript.git"
+        },
+        "author": "NatFoam",
+        "license": "MIT",
+        "keywords": [
+            "lambda",
+            "functional-programming",
+            "closure",
+            "pure-functional",
+            "typescript",
+            "programming-language",
+            "lazy-evaluation"
+        ],
+        "bugs": {
+            "url": "https://github.com/functionalscript/functionalscript/issues"
+        },
+        "homepage": "https://github.com/functionalscript/functionalscript#readme",
+        "devDependencies": {
+            "@types/node": "^18.6.2",
+            "typescript": "^4.7.4"
+        }
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/functionalscript/functionalscript.git"
-    },
-    "author": "NatFoam",
-    "license": "MIT",
-    "keywords": [
-        "lambda",
-        "functional-programming",
-        "closure",
-        "pure-functional",
-        "typescript",
-        "programming-language",
-        "lazy-evaluation"
-    ],
-    "bugs": {
-        "url": "https://github.com/functionalscript/functionalscript/issues"
-    },
-    "homepage": "https://github.com/functionalscript/functionalscript#readme",
-    "devDependencies": {
-        "@types/node": "^18.6.2",
-        "typescript": "^4.7.4"
-    }
+    "jsr.json": {}
 }
 
 const e = '{\n' +
     '  "name": "functionalscript",\n' +
-    `  "version": "${p.version}",\n` +
+    `  "version": "${version}",\n` +
     '  "description": "FunctionalScript is a functional subset of JavaScript",\n' +
     '  "main": "module.f.cjs",\n' +
     '  "scripts": {\n' +
@@ -82,7 +91,7 @@ export default () => {
     /** @type {T.Node<string>} */
     const node = {
         fs: {
-            readFileSync: () => buffer(JSON.stringify(x)),
+            readFileSync: n => buffer(JSON.stringify(x[n])),
             writeFileSync: (_, content) => content
         }
     }
