@@ -15,25 +15,25 @@
 - [x] big int
 - [ ] `export default ...`
 - [ ] constants
-      ```js
-      const a = [3]
-      export default = { a: a, b: a }
-      ```
-      Serialization
-      ```js
-      const _0=[3]
-      export default {a:_0,b:_0}
-      ```
+  ```js
+  const a = [3]
+  export default = { a: a, b: a }
+  ```
+  Serialization
+  ```js
+  const _0=[3]
+  export default {a:_0,b:_0}
+  ```
 - [ ] import
-      ```js
-      import a from 'c.d.cjs'
-      exports default { a: a, b: a}
-      ```
+  ```js
+  import a from 'c.d.cjs'
+  exports default { a: a, b: a}
+  ```
 - [ ] short form
-      ```
-      const a = 5;
-      export default { a }
-      ```
+  ```
+  const a = 5;
+  export default { a }
+  ```
 
 Optional, for fun, syntax sugar:
 
@@ -43,12 +43,12 @@ Optional, for fun, syntax sugar:
 ## Decidable Language
   
 - [ ] using operator and functions
-      ```js
-      const a = 2+2+Math.abs(5)
-      export default { a: a }
-      ```
-- [ ] decidable functions
-      ```
-      const f = a => b => a + b
-      export default f(1)(2)
-      ```?
+  ```js
+  const a = 2+2+Math.abs(5)
+  export default { a: a }
+  ```
+- [ ] decidable functions?
+  ```js
+  const f = a => b => a + b
+  export default f(1)(2)
+  ```
