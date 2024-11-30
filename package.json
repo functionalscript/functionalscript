@@ -4,6 +4,7 @@
   "description": "FunctionalScript is a functional subset of JavaScript",
   "main": "index.f.mjs",
   "scripts": {
+    "tscp": "tsc --declaration --emitDeclarationOnly --noEmit false",
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
     "index": "node ./dev/index.mjs",
