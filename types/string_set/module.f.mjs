@@ -1,19 +1,24 @@
-const btTypes = require('../btree/types/module.f.mjs')
-const btree = require('../btree/module.f.mjs').default
-const { find, isFound } = require('../btree/find/module.f.mjs').default
-const { remove: btreeRemove } = require('../btree/remove/module.f.mjs').default
-const { set: btreeSet } = require('../btree/set/module.f.mjs').default
+import * as BtreeTypes from '../btree/types/module.f.mjs'
+import btree from '../btree/module.f.mjs'
+import btf from '../btree/find/module.f.mjs'
+const { find, isFound } = btf
+import btr from '../btree/remove/module.f.mjs'
+const { remove: btreeRemove } = btr
+import bts from '../btree/set/module.f.mjs'
+const { set: btreeSet } = bts
 const {
     /** @type {(s: StringSet) => list.List<string>} */
     values,
     empty,
 } = btree
-const { cmp } = require("../string/module.f.mjs").default
-const list = require('../list/module.f.mjs')
-const { fold } = list.default
-const { compose } = require('../function/module.f.mjs').default
+import string from "../string/module.f.mjs"
+const { cmp } = string
+import list from '../list/module.f.mjs'
+const { fold } = list
+import f from '../function/module.f.mjs'
+const { compose } = f
 
-/** @typedef {btTypes.Tree<string>} StringSet */
+/** @typedef {BtreeTypes.Tree<string>} StringSet */
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
 const contains = value => {
@@ -29,7 +34,7 @@ const fromValues = fold(set)(null)
 /** @type {(value: string) => (s: StringSet) => StringSet} */
 const remove = compose(cmp)(btreeRemove)
 
-module.exports = {
+export default {
     /** @readonly */
     empty,
     /** @readonly */

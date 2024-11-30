@@ -8,7 +8,7 @@ import object from '../../types/object/module.f.mjs'
 const { fromMap } = object
 import path from '../path/module.f.mjs'
 const { parseAndFind } = path
-import stringSet from '../../types/string_set/module.f.cjs'
+import stringSet, * as StringSet from '../../types/string_set/module.f.mjs'
 const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 
 /**
@@ -42,7 +42,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
     /** @typedef {typeof moduleMapInterface extends moduleT.MapInterface<infer M> ? M : never} M */
 
     /**
-     * @type {(buildSet: stringSet.StringSet) =>
+     * @type {(buildSet: StringSet.StringSet) =>
      *  (moduleId: moduleT.Id) =>
      *  (source: string) =>
      *  (moduleMap: M) =>
