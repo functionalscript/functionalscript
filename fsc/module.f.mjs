@@ -53,7 +53,6 @@ const reduce = a => {
     return toArray(listReduce(merge)(empty)(a))
 }
 
-
 const codePointRange = fromRange(def)
 
 const range = fn(asciiRange).then(codePointRange).result
