@@ -10,8 +10,7 @@
     // list is for objects.
     // List is for types and should be ignored by FJS or errored if used in code.
     ```
-6. [X] PoC: Replace `while` with recursive generators. **Result:** doesn't work.
-7. Two sets of property filters:
+6. Two sets of property filters:
    - usage `.b`:
      - `constructor`
      - ...
