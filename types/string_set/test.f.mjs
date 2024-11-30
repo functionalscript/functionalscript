@@ -1,6 +1,6 @@
-const _ = require('./module.f.mjs').default
+import _ from './module.f.mjs'
 
-module.exports = {
+export default {
     contains: () => {
         const r = _.set('hello')(null)
         if (!_.contains('hello')(r)) { throw r }
