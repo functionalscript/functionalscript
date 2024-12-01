@@ -35,10 +35,10 @@ We need it to use JSDoc and TypeScript.
 
 ### 2.3. Priority 2
 
-Additional types.
-
 1. [ ] [undefined](./231-undefined.md)
 2. [ ] [bigint](./232-bigint.md)
+3. [ ] [grouping](./233-grouping.md)
+4. [ ] [operators](./234-operatos.md)
 
 ### 2.4. Syntax Sugar
 

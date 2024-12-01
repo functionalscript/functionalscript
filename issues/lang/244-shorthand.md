@@ -2,10 +2,7 @@
 
 ```js
 const a = [null]
-export default {
-    a,
-    "b": [-42.5, false, "hello"]
-}
+export default { a }
 ```
 
 Depends on [identifier-property](./241-identifier-property.md).

@@ -1,11 +1,8 @@
 # Trailing Comma
 
 ```js
-export default
-    "a": null,
+export default {
     "b": [
-        -42.5,
-        false,
         "hello",
     ],
 }

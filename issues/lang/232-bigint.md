@@ -1,10 +1,7 @@
 # Undefined Type
 
 ```js
-export default {
-    "a": 34n,
-    "b": [-42.5, false, "hello"]
-}
+export default 34n
 ```
 
 Depend on [default-export](./211-default-export.md).

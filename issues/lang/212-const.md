@@ -3,10 +3,9 @@
 This is enough to provide basic DJS graph and serialization.
 
 ```js
-const a = [null]
+const a = null
 export default {
     "a": a,
-    "b": [-42.5, false, "hello"]
 }
 ```
 

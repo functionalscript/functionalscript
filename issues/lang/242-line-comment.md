@@ -1,11 +1,8 @@
 # Line Comment
 
-```json
-{
-    // this is `a`
-    "a": null,
-    "b": [-42.5, false, "hello"]
-}
+```js
+// this is an object
+export default { "a": null }
 ```
 
 Depends on [export-default](./211-default-export.md).

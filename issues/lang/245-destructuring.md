@@ -3,8 +3,7 @@
 ```js
 const { "a": a, "%": [c, d] } } = { "a": null, "%": [true, false] }
 export default {
-    "a": a,
-    "b": [-42.5, false, "hello"]
+    "a": [a, c, d],
 }
 ```
 

@@ -3,11 +3,8 @@
 We need it to declare JSDoc/TypeScript types.
 
 ```js
-export default {
-    /** @type {null} */
-    "a": null,
-    "b": [-42.5, false, "hello"]
-}
+/** @type {number} */
+export default -42.5
 ```
 
 Depends on [default-export](./211-default-export.md).

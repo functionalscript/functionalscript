@@ -3,10 +3,7 @@
 Parse a function that has no parameters and returns a constant.
 
 ```js
-export default {
-    "a": () => { return 6 },
-    "b": [-42.5, false, "hello"]
-}
+export default () => { return 6 }
 ```
 
 Depends on [default export](./211-default-export.md).

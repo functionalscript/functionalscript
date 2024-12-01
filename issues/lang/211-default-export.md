@@ -3,10 +3,7 @@
 Parse `export default` and then JSON. This's enough to have the same functionality as JSON.
 
 ```js
-export default {
-    "a": null,
-    "b": [-42.5, false, "hello"]
-}
+export default 5
 ```
 
 Depends on [JSON](./111-json.md)

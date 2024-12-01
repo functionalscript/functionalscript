@@ -2,10 +2,7 @@
 
 ```js
 import a from './a.d.mjs'
-export default {
-    "a": a,
-    "b": [-42.5, false, "hello"]
-}
+export default [a]
 ```
 
 Depends on [default-export](./211-default-export.md).

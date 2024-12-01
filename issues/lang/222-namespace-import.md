@@ -4,11 +4,8 @@ We need it to import types from other modules.
 
 ```js
 import * as A from './a.d.mjs'
-export default {
-    /** @type {A.Type} */
-    "a": [5],
-    "b": [-42.5, false, "hello"]
-}
+/** @type {A.Type} */
+export default [5]
 ```
 
 FunctionalScript should use it only to reference type definitions.
