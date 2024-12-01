@@ -1,5 +1,7 @@
 # FunctionalScript Language
 
+When we implement features of FunctionalScript, the first priority is simplification of VM.
+
 File Types:
 
 |File Type|Extension        |Notes       |
