@@ -6,7 +6,7 @@ Operators `a.b()`, `a?.b()`.
 const x = a.b(5)
 ```
 
-Not allowed (additional to `constructor` and `__proto__`, see [property-accessor](./235-property-accessor.md)):
+Not allowed (additional to `constructor` and `__proto__`, see [property-accessor](./2351-property-accessor.md)):
 
 - `__defineGetter__`
 - `__defineSetter__`

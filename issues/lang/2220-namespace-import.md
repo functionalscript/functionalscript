@@ -10,6 +10,6 @@ export default [5]
 
 FunctionalScript should use it only to reference type definitions.
 
-Depends on [default-import](./211-default-export.md).
+Depends on [default-import](./2110-default-export.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#namespace_import

@@ -12,7 +12,7 @@
 
 ## 1. JSON
 
-- [ ] [JSON](./111-json.md).
+- [ ] [JSON](./1000-json.md).
 
 ## 2. DJS
 

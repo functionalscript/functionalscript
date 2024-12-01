@@ -6,4 +6,4 @@ Parse a function that has no parameters and returns a constant.
 export default (a, b) => { return [a, b] }
 ```
 
-Depends on [function](./311-function.md).
+Depends on [function](./3110-function.md).

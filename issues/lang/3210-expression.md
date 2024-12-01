@@ -9,4 +9,4 @@ export default {
 }
 ```
 
-Depends on [function](./311-function.md) and [grouping](233-grouping.md)
+Depends on [function](./3110-function.md) and [grouping](2330-grouping.md)

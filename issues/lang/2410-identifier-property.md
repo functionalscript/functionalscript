@@ -6,4 +6,4 @@ export default {
 }
 ```
 
-Depends on [default-import](./213-default-import.md).
+Depends on [default-import](./2130-default-import.md).

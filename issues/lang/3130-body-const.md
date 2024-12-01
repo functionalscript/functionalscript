@@ -9,4 +9,4 @@ export default () => {
 }
 ```
 
-Depends on [function](./311-function.md) and [const](./212-const.md).
+Depends on [function](./3110-function.md) and [const](./2120-const.md).

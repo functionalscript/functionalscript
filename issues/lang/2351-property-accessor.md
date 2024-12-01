@@ -27,6 +27,6 @@ const a = { x: 3}
 export default a.x
 ```
 
-Depends on [const](./212-const.md) and [default-import](./213-default-import.md).
+Depends on [const](./212-const.md), [default-import](./213-default-import.md) and [undefined](./2310-undefined.md).
 
 See <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors>.

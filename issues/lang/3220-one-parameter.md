@@ -7,4 +7,4 @@ export default {
 }
 ```
 
-Depends on [parameters](./312-parameters.md).
+Depends on [parameters](./3120-parameters.md).

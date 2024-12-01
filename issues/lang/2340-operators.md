@@ -63,6 +63,6 @@ export default {
 }
 ```
 
-Depends on [default-export](./211-default-export.md).
+Depends on [default-export](./2110-default-export.md) and [undefined](./2310-undefined.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Expressions_and_operators
