@@ -1,0 +1,14 @@
+# Default Export
+
+Parse `export default` and then JSON. This's enough to have the same functionality as JSON.
+
+```js
+export default {
+    "a": null,
+    "b": [-42.5, false, "hello"]
+}
+```
+
+Depends on [JSON](./111-json.md)
+
+See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#using_the_default_export.

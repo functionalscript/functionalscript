@@ -8,4 +8,4 @@ export default {
 }
 ```
 
-Depends on [identifier-property](identifier-property.md).
+Depends on [identifier-property](./241-identifier-property.md).
