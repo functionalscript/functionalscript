@@ -30,12 +30,39 @@ export default a.x
 
 Depends on [const](./212-const.md) and [default-import](./213-default-import.md).
 
-## Function Call With `this`
+See <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors>.
 
-Operators `a.b()`, `a?.b()`
+## Function Call With Property Accessor
+
+Operators `a.b()`, `a?.b()`.
 
 ```js
-const a.b(5)
+const x = a.b(5)
 ```
 
-See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors.
+Not allowed (additional to `constructor` and `__proto__`):
+
+- `__defineGetter__`
+- `__defineSetter__`
+- `__lookupGetter__`
+- `__lookupSetter__`
+- `toLocaleString` because it depends on locale, which is a side-affect.
+
+Also, from a function:
+
+- `apply`
+- `bind`
+- `call`
+
+Also, from an array:
+
+- `copyWithin`
+- `entries` - returns an iterator. An iterator can be mutate by `.next()` or `for()`.
+- `values` - returns an iterator.
+- `keys` - returns an iterator.
+- `pop`
+- `push`
+- `shift`
+- `unshift`
+- `sort`
+- `reverse`
