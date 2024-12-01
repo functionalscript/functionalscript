@@ -9,8 +9,6 @@ export default {
 }
 ```
 
-File type: DJS (`.d.mjs`, `.d.js`), FJS (`.f.mjs`, `.f.js`).
-
 Depends on [json](json.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
