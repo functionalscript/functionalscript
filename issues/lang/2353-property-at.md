@@ -12,6 +12,6 @@ export default {
 }
 ```
 
-In `a[i]`, `i` has to be a `number` or known `string`, which is not equal to prohibited words, see [property-accessor](./235-property-accessor.md). If we don't know what is `i`, `+` requires before `i`.
+In `a[i]`, `i` has to be a `number` or known `string`, which is not equal to prohibited words, see [property-accessor](./2351-property-accessor.md). If we don't know what is `i`, `+` requires before `i`.
 
-Depends on [property-accessor](./2350-property-accessor.md).
+Depends on [property-accessor](./2351-property-accessor.md).
