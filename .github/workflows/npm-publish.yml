@@ -10,6 +10,9 @@ on:
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # This is required for requesting the JWT
     steps:
       - uses: actions/checkout@v2
         with:
@@ -18,11 +21,21 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
-      # - run: npm ci
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: 2
+      - run: npm ci
       - run: npm run version
+      - run: npm run index
+      - run: npm run tscp
       - run: npm publish
+        continue-on-error: true
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      - run: deno publish --allow-dirty
+        continue-on-error: true
+
+
 
   # publish-gpr:
   #   runs-on: ubuntu-latest

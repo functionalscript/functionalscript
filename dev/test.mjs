@@ -1,4 +1,5 @@
 import { loadModuleMap, exit, env } from './module.mjs'
+import test from './test/module.f.mjs'
 
 /** @type {(f: (s: string) => void) => (s: string) => <T>(_: T) => T} */
 const anyLog = f => s => state => {
@@ -24,7 +25,7 @@ const anyLog = f => s => state => {
 
 /** @type {<T>(f: () => T) => Result<T, unknown>} */
 const tryCatch = f => {
-    // Side effect: `try catch` is not allowed in FunctionalScript.
+    // `try catch` is not allowed in FunctionalScript.
     try {
         return ['ok', f()]
     } catch (e) {
@@ -44,15 +45,14 @@ const measure = f => state => {
 const main = async() => {
     const moduleMap = await loadModuleMap()
 
-    /** @type {any} */
-    const f = moduleMap['./dev/test/module.f.cjs'].exports
-    const r = f({
+    const r = test({
         moduleMap,
         log: anyLog(console.log),
         error: anyLog(console.error),
         measure,
         tryCatch,
         env,
+        state: void 0,
     })
     exit(r[0])
 }

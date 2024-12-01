@@ -1,0 +1,88 @@
+import _ from './module.f.mjs'
+const { prime_field, sqrt } = _
+
+export default {
+    prime_field_test: () => {
+        const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
+        const f = prime_field(p)
+        const sqrt_f = sqrt(f)
+        return {
+            neg: () => {
+                if (f.neg(0n) !== 0n) { throw '-0' }
+                if (f.neg(1n) !== p - 1n) { throw '-1' }
+            },
+            sub: () => {
+                if (f.sub(10n)(4n) !== 6n) { throw '10 - 4'}
+                if (f.sub(11n)(14n) !== p - 3n) { throw '11 - 14' }
+            },
+            add: () => {
+                if (f.add(13n)(24n) !== 37n) { throw '13 + 24' }
+                if (f.add(77n)(f.neg(12n)) !== 65n) { throw '77 + (-12)' }
+            },
+            mul: () => {
+                if (f.mul(100n)(0n) !== 0n) { throw '100 * 0' }
+                if (f.mul(101n)(205n) !== 20_705n) { throw '101 * 205' }
+                if (f.mul(304n)(f.neg(1n)) !== f.neg(304n)) { throw '304 * -1' }
+                if (f.mul(f.neg(507n))(609n) !== f.neg(308_763n)) { throw '-507 * 609' }
+                if (f.mul(f.neg(713n))(f.neg(825n)) !== 588_225n) { throw '-713 * -825' }
+            },
+            reciprocal: () => {
+                let i = 1n
+                while (i < 10_000n) {
+                    const x = f.reciprocal(i)
+                    if (f.mul(x)(i) !== 1n) { throw i }
+                    ++i
+                }
+            },
+            pow: () => {
+                /** @type {(a: bigint) => void} */
+                const test = a => {
+                    if (f.pow(a)(0n) !== 1n) { throw '**0'}
+                    if (f.pow(a)(1n) !== a) { throw '**1' }
+                    // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
+                    // a^(p-1) % p = 1
+                    if (f.abs(f.pow(a)(f.middle)) !== 1n) { throw '**middle' }
+                    if (f.pow(a)(f.sub(f.max)(1n)) !== f.reciprocal(a)) { throw '**(max-1)' }
+                    if (f.pow(a)(f.max) !== 1n) { throw '**max' }
+                }
+                // 0
+                if (f.pow(0n)(0n) !== 1n) { throw '0**0'}
+                if (f.pow(0n)(f.max) !== 0n) { throw '0**max' }
+                // 1
+                test(1n)
+                // 2
+                test(2n)
+                if (f.pow(2n)(2n) !== 4n) { throw '2**2' }
+                if (f.pow(2n)(3n) !== 8n) { throw '2**3' }
+                if (f.pow(2n)(128n) !== 1n << 128n) { throw '2**128' }
+                // 3
+                test(3n)
+                if (f.pow(3n)(2n) !== 9n) { throw '3**2' }
+                if (f.pow(3n)(3n) !== 27n) { throw '3**3' }
+                if (f.pow(3n)(100n) !== 3n ** 100n) { throw '3**100' }
+                if (f.pow(3n)(110n) !== 3n ** 110n) { throw '3**110' }
+                if (f.pow(3n)(120n) !== 3n ** 120n) { throw '3**120' }
+                if (f.pow(3n)(121n) !== 3n ** 121n) { throw '3**121' }
+                //
+                test(f.middle)
+                test(f.max - 1n)
+                test(f.max)
+            },
+            sqrt: () => {
+                /** @type {(a: bigint) => void} */
+                const test = a => {
+                    const a2 = f.mul(a)(a)
+                    const s = sqrt_f(a2)
+                    if (s !== null && f.abs(s) !== f.abs(a)) { throw 'sqrt' }
+                }
+                let i = 1n
+                while (i < 1000n) {
+                    test(i)
+                    ++i;
+                }
+                test(f.middle);
+                test(f.max);
+            }
+        }
+    }
+}
