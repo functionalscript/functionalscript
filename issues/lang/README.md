@@ -42,6 +42,7 @@ We need it to use JSDoc and TypeScript.
 5. [ ] [property-accessor](./235-property-accessor.md)
 6. [ ] [property-call](./236-property-call.md)
 7. [ ] [at](./237-at.md)
+8. [ ] [global]
 
 ### 2.4. Syntax Sugar
 
