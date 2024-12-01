@@ -39,6 +39,8 @@ We need it to use JSDoc and TypeScript.
 2. [ ] [bigint](./232-bigint.md)
 3. [ ] [grouping](./233-grouping.md)
 4. [ ] [operators](./234-operatos.md)
+5. [ ] [property-accessor](./235-property-accessor.md)
+6. [ ] [property-call](./236-property-call.md)
 
 ### 2.4. Syntax Sugar
 
