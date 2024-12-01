@@ -1,6 +1,6 @@
 # FunctionalScript Language
 
-## File Types
+File Types:
 
 |File Type|Extension        |Notes       |
 |---------|-----------------|------------|
