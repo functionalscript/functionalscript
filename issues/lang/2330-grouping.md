@@ -1,6 +1,6 @@
-# Function Body
+# Grouping
 
-Parse a function with one expression.
+Group parts of an expression.
 
 ```js
 export default (5)
