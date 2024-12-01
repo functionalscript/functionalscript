@@ -23,7 +23,7 @@ Also, from a function:
 Also, from an array:
 
 - `copyWithin`
-- `entries` - returns an iterator. An iterator can be mutate by `.next()` or `for()`.
+- `entries` - returns an iterator. An iterator can be mutated by `.next()` or `for()`.
 - `values` - returns an iterator.
 - `keys` - returns an iterator.
 - `pop`
