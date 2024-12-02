@@ -14,7 +14,8 @@ Not allowed (additional to `constructor` and `__proto__`, see [property-accessor
 - `__defineSetter__`
 - `__lookupGetter__`
 - `__lookupSetter__`
-- `toLocaleString` because it depends on the locale, which is a side affect.
+- `isPrototypeOf` FS has no prototype concept because it has no inheritance.
+- `toLocaleString` because it depends on the locale, which is a side-effect.
 
 Also, from a function:
 
