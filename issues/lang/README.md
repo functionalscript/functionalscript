@@ -16,9 +16,9 @@ File Types:
 
 - [ ] [JSON](./1000-json.md).
 
-**VM**
+**VM**:
 
-We are introducing new commands
+We are introducing new commands in the order that they every new command depends only on previous commands.
 
 |format|any           |Tag|                       |
 |------|--------------|---|-----------------------|
@@ -36,14 +36,15 @@ The DJS form a graph of values. It can be serialized without additional run-time
 
 File extensions: `.d.js` and `.d.mjs`.
 
-|format|any              |Tag|                       |Notes                          |
-|------|-----------------|---|-----------------------|-------------------------------|
-|DJS   |const_ref        | 07|u32                    |[const](./2120-const.md)       |
-|      |biging+          | 08|Array<u64>             |[bigint](./232-bigint.md)      |
-|      |bigint-          | 09|Array<u64>             |                               |
-|      |undefined        | 0A|                       |[undefined](./231-undefined.md)|
-|      |operators        |   |                       |[operators](./234-operators.md)|
-|      |property-accessor|   |                       |                               |
+|format|any               |Tag|                       |Notes                           |
+|------|------------------|---|-----------------------|--------------------------------|
+|DJS   |const_ref         | 07|u32                    |[const](./2120-const.md)        |
+|      |biging+           | 08|Array<u64>             |[bigint](./232-bigint.md)       |
+|      |bigint-           | 09|Array<u64>             |                                |
+|      |undefined         | 0A|                       |[undefined](./231-undefined.md) |
+|      |operators         |   |                       |[operators](./234-operators.md) |
+|      |property-accessors|   |                       |                                |
+|      |global functions  |   |                       |[ ] [global](./2360-built-in.md)|
 
 ### 2.1. Required
 
@@ -83,6 +84,10 @@ We need it to use JSDoc and TypeScript.
 The FJS can have functions. The format requires additional run-time information for serialization.
 
 File extensions: `.f.js` and `.f.mjs`.
+
+|format|any               |Tag|                       |Notes                           |
+|------|------------------|---|-----------------------|--------------------------------|
+|FJS   |function          |   |Func                   |[function](./3110-function.md)  |
 
 ### 3.1. Required
 
