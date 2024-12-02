@@ -14,4 +14,6 @@ export default {
 
 In `a[i]`, `i` has to be a `number` or known `string`, which is not equal to prohibited words, see [property-accessor](./2351-property-accessor.md). If we don't know what is `i`, `+` requires before `i`.
 
+It means that the byte code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings). If it references an object, FS gives up. In the future, FS may try deeper analyses and type inference can help a lot.
+
 Depends on [property-accessor](./2351-property-accessor.md).
