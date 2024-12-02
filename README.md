@@ -12,7 +12,9 @@ FunctionalScript is a purely functional programming language and a strict subset
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-[A brief description of FunctionalScript Programming Language](./doc/LANGUAGE.md).
+About the language:
+- [A brief description of FunctionalScript Programming Language (outdated)](./doc/LANGUAGE.md).
+- [A working draft of the specification](./issues/lang/README.md).
 
 Learn more about
 - [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
