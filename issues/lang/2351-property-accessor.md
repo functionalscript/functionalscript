@@ -15,7 +15,10 @@ According to FunctionScript principles, an FS compiler should reject such code d
 
 If an object has its own properties with such names (e.g. `constructor`) then we can access it using the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptor) function instead. The function doesn't return inherited properties.
 
-```
+```js
+const f = (() => {}).constructor
+const g = Object.getOwnPropertyDescriptor(f, 'constructor') // g === undefined
+
 const myObject = { constructor: 42 }
 const c = Object.getOwnPropertyDescriptor(myObject, 'constructor').value // c === 42
 ```
