@@ -1,6 +1,6 @@
 # Body Constants
 
-Parse a function that has no parameters and returns a constant.
+Parse a const definition in a function body; a const can be used within that body after it is defined.
 
 ```js
 export default () => {
