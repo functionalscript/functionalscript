@@ -1,6 +1,8 @@
-# Global Objects
+# Built-in Objects and Functions
 
-The global object are special, we can get a function, like `Object.getOwnPropertyDescriptor` but not the `Object` itself.
+The built-in objects are special. We can get a function, like `Object.getOwnPropertyDescriptor`, but not the `Object` itself.
+
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
 ## Object
 
