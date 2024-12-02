@@ -6,13 +6,15 @@ Operators `a.b()`, `a?.b()`.
 const x = a.b(5)
 ```
 
+For `null?.b(x())`. We follow the same behavior as JS, so the `x` function will not be called.
+
 Not allowed (additional to `constructor` and `__proto__`, see [property-accessor](./2351-property-accessor.md)):
 
 - `__defineGetter__`
 - `__defineSetter__`
 - `__lookupGetter__`
 - `__lookupSetter__`
-- `toLocaleString` because it depends on locale, which is a side-affect.
+- `toLocaleString` because it depends on the locale, which is a side affect.
 
 Also, from a function:
 
