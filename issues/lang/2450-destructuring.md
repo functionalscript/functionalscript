@@ -1,7 +1,7 @@
 # Destructuring Assignment
 
 ```js
-const { "a": a, "%": [c, d] } } = { "a": null, "%": [true, false] }
+const { "a": a, "%": [c, d] } = { "a": null, "%": [true, false] }
 export default {
     "a": [a, c, d],
 }
