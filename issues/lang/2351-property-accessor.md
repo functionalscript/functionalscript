@@ -13,7 +13,7 @@ g() // we received direct access to I/O
 
 According to FunctionScript principles, an FS compiler should reject such code during compilation. So, the compiler will prohibit the use of `construct` and `__proto__` after `.` and `?.`.
 
-If an object has its own properties with such names (e.g. `constructor`) then we can access it using [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptor) function instead. The functions don't return inherited properties.
+If an object has its own properties with such names (e.g. `constructor`) then we can access it using the [Object.getOwnPropertyDescriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptor) function instead. The function doesn't return inherited properties.
 
 ```
 const myObject = { constructor: 42 }
