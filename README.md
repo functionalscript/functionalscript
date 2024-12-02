@@ -22,7 +22,7 @@ FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/ag
 
 ## Vision
 
-We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Actually, we do the opposite; we remove everything that makes the most popular and cross-platform language unsafe, insecure, and less portable.
+We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Instead, we take the opposite approach: we remove everything that makes the most popular and cross-platform language unsafe, insecure, or less portable.
 
 ## Applications
 
