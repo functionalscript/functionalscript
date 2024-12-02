@@ -21,3 +21,4 @@
      - `push`
      - ...
 10. [ ] Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
+11. [ ] [fs-load](./fs-load.md)
