@@ -8,7 +8,17 @@ import * as A from './a.d.mjs'
 export default [5]
 ```
 
-FunctionalScript should use it only to reference type definitions.
+Where `./a.d.mjs` may look like this:
+
+```js
+// this type can be used in other modules
+/** @typedef {readonly [number]} Type */
+
+// export nothing
+export default null
+```
+
+FunctionalScript should use namespace import only as a mechanism to reference type definitions. Since, VM doesn't analyze types, namespace import can be ignored be VM. However different linters, such as TypeScript, can use the information.
 
 Depends on [default-import](./2110-default-export.md).
 
