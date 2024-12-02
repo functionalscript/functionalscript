@@ -40,12 +40,12 @@ We need it to use JSDoc and TypeScript.
 1. [ ] [undefined](./231-undefined.md)
 2. [ ] [bigint](./232-bigint.md)
 3. [ ] [grouping](./233-grouping.md)
-4. [ ] [operators](./234-operatos.md)
+4. [ ] [operators](./234-operators.md)
 5. [ ] Property Accessors:
    1. [ ] [property-accessor](./2351-property-accessor.md)
    2. [ ] [property-call](./2352-property-call.md)
    3. [ ] [at](./2353-at.md)
-6. [ ] [global](./2360-global.md)
+6. [ ] [global](./2360-built-in.md)
 
 ### 2.4. Syntax Sugar
 
