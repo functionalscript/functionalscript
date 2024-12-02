@@ -16,11 +16,34 @@ File Types:
 
 - [ ] [JSON](./1000-json.md).
 
+**VM**
+
+We are introducing new commands
+
+|format|any           |Tag|                       |
+|------|--------------|---|-----------------------|
+|JSON  |null          | 00|                       |
+|      |number        | 01|u64                    |
+|      |false         | 02|                       |
+|      |true          | 03|                       |
+|      |string        | 04|String                 |
+|      |array         | 05|Array<Any>             |
+|      |object        | 06|Object                 |
+
 ## 2. DJS
 
 The DJS form a graph of values. It can be serialized without additional run-time information.
 
 File extensions: `.d.js` and `.d.mjs`.
+
+|format|any              |Tag|                       |Notes                          |
+|------|-----------------|---|-----------------------|-------------------------------|
+|DJS   |const_ref        | 07|u32                    |[const](./2120-const.md)       |
+|      |biging+          | 08|Array<u64>             |[bigint](./232-bigint.md)      |
+|      |bigint-          | 09|Array<u64>             |                               |
+|      |undefined        | 0A|                       |[undefined](./231-undefined.md)|
+|      |operators        |   |                       |[operators](./234-operators.md)|
+|      |property-accessor|   |                       |                               |
 
 ### 2.1. Required
 
