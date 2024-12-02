@@ -26,7 +26,7 @@ Also, from a function:
 Also, from an array:
 
 - `copyWithin`
-- `entries` - returns an iterator. An iterator can be mutated by `.next()` or `for()`.
+- `entries` - returns an iterator.
 - `values` - returns an iterator.
 - `keys` - returns an iterator.
 - `pop`
@@ -36,4 +36,8 @@ Also, from an array:
 - `sort`
 - `reverse`
 
-Functional script doesn't allow direct access to iterators.
+FunctionalScript doesn't allow direct access to iterators. An iterator can be mutated by `.next()` or `for()`. Indirect access to iterators is allowed through the `Iterable` interface. For example 
+```js
+for (const i of [1, 2]) { }
+```
+In this example, the loop gets a temporary iterator from the iterable interface of `[1, 2]` then use it and discard it. A user can't have direct access to the iterator and can't make a copy of it. 
