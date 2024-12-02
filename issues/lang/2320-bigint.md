@@ -1,4 +1,4 @@
-# Undefined Type
+# BigInt
 
 ```js
 export default 34n
