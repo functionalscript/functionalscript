@@ -1,20 +1,17 @@
 # Built-in Objects and Functions
 
-The built-in objects are special. We can get a function, like `Object.getOwnPropertyDescriptor`, but not the `Object` itself.
+The built-in objects are special. We can call a function, like `Object.getOwnPropertyDescriptor()`, but not the `Object` or the function.
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
-Some of the JS built-in objects and functions are "not allowed" in FS. It means, an FS compiler rejects code that contains "not allowed" objects and functions. 
+Some of the JS built-in objects and functions are "not allowed" in FS. It means, an FS compiler rejects code that contains "not allowed" objects and functions.
 
 ## Object
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-Functions:
-
-|Function                 |Priority   |
+|Function                 |side-effect|
 |-------------------------|-----------|
-|constructor              |not allowed|
 |assign                   |not allowed|
 |create                   |not allowed|
 |defineProperties         |not allowed|

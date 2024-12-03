@@ -39,14 +39,14 @@ File extensions: `.d.js` and `.d.mjs`.
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
 |DJS   |const_ref               | 07|u32       |[const](./2120-const.md)                        |
-|      |bigint+                 | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |bigint-                 | 09|Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |bigint_plus             | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |bigint_minus            | 09|Array<u64>|[bigint](./2320-bigint.md)                      |
 |      |undefined               | 0A|          |[undefined](./2310-undefined.md)                |
+|      |own_property            | 0B|          |[property-accessor](./2330-property-accessor.md)|
+|      |instance_property       | 0C|          |[property-accessor](./2330-property-accessor.md)|
+|      |instance_method_call    | 0D|          |[property-accessor](./2330-property-accessor.md)|
+|      |at                      | 0E|          |[property-accessor](./2330-property-accessor.md)|
 |      |operators               |   |          |[operators](./2340-operators.md)                |
-|      |property-accessors `a.b`|   |          |[property-accessor](./2351-property-accessor.md)|
-|      |property-call `a.b(c)`  |   |          |[property-call](./2352-property-call.md)        |
-|      |at `a[b]`               |   |          |[at](./2353-at.md)                              |
-|      |built-in functions      |   |          |[built-in](./2360-built-in.md)                  |
 
 ### 2.1. Required
 
@@ -65,12 +65,9 @@ We need it to use JSDoc and TypeScript.
 
 1. [ ] [undefined](./2310-undefined.md),
 2. [ ] [bigint](./2320-bigint.md),
-3. [ ] [grouping](./2330-grouping.md),
+3. [ ] [property-accessor](./2330-property-accessor.md),
 4. [ ] [operators](./2340-operators.md),
-5. [ ] Property Accessors:
-   1. [ ] [property-accessor](./2351-property-accessor.md),
-   2. [ ] [property-call](./2352-property-call.md),
-   3. [ ] [at](./2353-at.md),
+5. [ ] [grouping](./2350-grouping.md),
 6. [ ] [built-in](./2360-built-in.md).
 
 ### 2.4. Syntactic Sugar
