@@ -1,6 +1,6 @@
 # FunctionalScript Language
 
-When we implement features of FunctionalScript, the first priority is simplification of VM.
+When we implement features of FunctionalScript, the first priority is a simplification of the VM.
 
 File Types:
 
@@ -73,7 +73,7 @@ We need it to use JSDoc and TypeScript.
    3. [ ] [at](./2353-at.md),
 6. [ ] [built-in](./2360-built-in.md).
 
-### 2.4. Syntax Sugar
+### 2.4. Syntactic Sugar
 
 1. [ ] [identifier-property](./2410-identifier-property.md),
 2. [ ] [line-comment](./2420-line-comment.md),
@@ -103,7 +103,7 @@ File extensions: `.f.js` and `.f.mjs`.
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
 
-### 3.3. Syntax Sugar
+### 3.3. Syntactic Sugar
 
 1. [ ] [expression](./3210-expression.md)
 2. [ ] [one-parameter](./3220-one-parameter.md)
