@@ -1,33 +1,33 @@
 # Get Property
 
 ```js
-const own_property = a => b => Object.getOwnPropertyDescriptor(a, b)?.value
+const own_property = a => b => Object.getOwnPropertyDescriptor(obj, property)?.value
 // Or
-const own_property = a => b => Object.hasOwn(a, b) ? a[b] : void 0
+const own_property = a => b => Object.hasOwn(obj, property) ? obj[property] : void 0
 ```
 
 It's translated into the VM command `own_property`:
 
 ```rust
 struct OwnProperty {
-    a: Expression
-    b: Expression
+    obj: Expression
+    property: Expression
 }
 ```
 
 ## Instance Property
 
 ```js
-a.b
-a.['b']
+obj.property
+obj.['property']
 ```
 
 It's a translated into the VM command `instance_property`:
 
 ```rust
 struct InstanceProperty {
-    a: Expression
-    b: String16
+    obj: Expression
+    property: String16
 }
 ```
 
@@ -73,21 +73,21 @@ const f = () => {}
 ## Instance Method Call
 
 ```js
-a.b(c)
-a.['b'](c)
+obj.property(parameters)
+obj.['property'](parameters)
 ```
 
 It's translated into VM command `instance_method_call`:
 
 ```rust
 struct InstanceMethodCall {
-    a: Expression
-    b: String16
-    c: Array<Expression>
+    obj: Expression
+    property: String16
+    parameters: Array<Expression>
 }
 ```
 
-**Note**: All known instance methods can't be used in `instance_property` command! Even if they don't have side-effects.
+**Note**: All known instance methods can't be used in `instance_property` command! Even if they don't have side effects.
 
 [Object Instance Methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_methods)
 
@@ -156,16 +156,16 @@ struct InstanceMethodCall {
 ## At
 
 ```js
-a[42]
-a[+i]
+obj[42]
+obj[+index]
 ```
 
 It's translated into VM command `at`:
 
 ```rust
 struct InstanceMethodCall {
-    a: Expression
-    i: Expression
+    obj: Expression
+    index: Expression
 }
 ```
 
@@ -179,4 +179,4 @@ export default {
 }
 ```
 
-In `a[i]`, `i` has to be a `number`, If we don't know what is `i`, `+` requires before `i`. It means that the byte code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings). If it references an object, FS gives up. In the future, FS may try deeper analyses and type inference can help a lot.
+In `obj[index]`, `index` has to be a `number`. If we don't know what is `index`, `+` requires before `index`. It means the byte code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings). If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
