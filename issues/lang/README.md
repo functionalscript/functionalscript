@@ -39,7 +39,7 @@ File extensions: `.d.js` and `.d.mjs`.
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
 |DJS   |const_ref               | 07|u32       |[const](./2120-const.md)                        |
-|      |biging+                 | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |bigint+                 | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
 |      |bigint-                 | 09|Array<u64>|[bigint](./2320-bigint.md)                      |
 |      |undefined               | 0A|          |[undefined](./2310-undefined.md)                |
 |      |operators               |   |          |[operators](./2340-operators.md)                |
