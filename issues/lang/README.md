@@ -1,6 +1,8 @@
 # FunctionalScript Language
 
-When we implement features of FunctionalScript, the first priority is a simplification of the VM.
+When we implement features of FunctionalScript, the first priority is a simplification of the VM. Two main princples:
+1. if FS code pass validation/compilation, then it doesn't have side-effects,
+2. the code that passed validation/compilation should behave on VM the same way as on any other modern JavaScript engine. 
 
 File Types:
 
