@@ -22,7 +22,7 @@ obj.property
 obj.['property']
 ```
 
-It's a translated into the VM command `instance_property`:
+It's translated into the VM command `instance_property`:
 
 ```rust
 struct InstanceProperty {
@@ -182,3 +182,39 @@ export default {
 In `obj[index]`, `index` has to be a `number`. If we don't know what is `index`, `+` requires before `index`. It means the byte code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings). If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Iterators
+
+Direct access to an object with the [`Iterator` protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols) is not allowed in FunctionalScript.
+
+```ts
+type Value<T> = { done: true } | { done?: false, value: T }
+type Iterator<T> = {
+    next(): Value<T>
+}
+```
+
+However, FunctionalScript allows access to objects with the `Iterable` protocol.
+
+```ts
+type Iterable<T> = {
+    [Symbol.iterator](): Iterator<T>
+}
+```
+
+For example, JS Array implements the `Iterable` protocol.
+
+If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) in the FunctionalScript, the generator function has to be wrapped into `Iterable` interface. For example,
+
+```js
+// compilation error!
+const iterator = *() {
+    yield 4
+    yield 2
+}
+// ok
+const iterable = {
+    *[Symbol.iterator]() {
+        yield 4
+        yield 2
+    }
+}
+```
