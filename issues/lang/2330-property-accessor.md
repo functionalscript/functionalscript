@@ -188,7 +188,7 @@ Direct access to an object with the [`Iterator` protocol](https://developer.mozi
 ```ts
 type Value<T> = { done: true } | { done?: false, value: T }
 type Iterator<T> = {
-    next(): Value<T>
+    next: () => Value<T>
 }
 ```
 
@@ -196,7 +196,7 @@ However, FunctionalScript allows access to objects with the `Iterable` protocol.
 
 ```ts
 type Iterable<T> = {
-    [Symbol.iterator](): Iterator<T>
+    [Symbol.iterator]: () => Iterator<T>
 }
 ```
 
