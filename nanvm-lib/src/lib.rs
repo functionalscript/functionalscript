@@ -4,10 +4,10 @@ pub mod interface {
         Negative = -1,
     }
 
-    pub trait VarSize {
+    pub trait VarSize: Sized {
         type Header;
         type Item;
-        fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Self;
+        fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Option<Self>;
         fn header(&self) -> &Self::Header;
         fn items(&self) -> &[Self::Item];
     }
@@ -35,14 +35,15 @@ pub mod interface {
     }
 }
 
-pub mod simple {
+/// Naive implementation of VM.
+pub mod naive {
     use std::rc;
 
     use crate::interface::{self, Sign};
 
     struct Value<H, T> {
         header: H,
-        items: Vec<T>
+        items: Vec<T>,
     }
 
     #[repr(transparent)]
@@ -51,8 +52,11 @@ pub mod simple {
     impl<H, T> interface::VarSize for Rc<H, T> {
         type Header = H;
         type Item = T;
-        fn new(header: H, s: impl IntoIterator<Item = T>) -> Self {
-            Self(rc::Rc::new(Value { header, items: s.into_iter().collect() }))
+        fn new(header: H, s: impl IntoIterator<Item = T>) -> Option<Self> {
+            Some(Self(rc::Rc::new(Value {
+                header,
+                items: s.into_iter().collect(),
+            })))
         }
         fn header(&self) -> &Self::Header {
             &self.0.header
@@ -85,12 +89,12 @@ pub mod simple {
 mod test {
     use crate::{
         interface::{Sign, VarSize},
-        simple,
+        naive,
     };
 
     #[test]
     fn test() {
-        let s = simple::String::new((), b"Hello".map(|v| v as u16));
-        let bi = simple::BigInt::new(Sign::Positive, [15]);
+        let s = naive::String::new((), b"Hello".map(|v| v as u16));
+        let bi = naive::BigInt::new(Sign::Positive, [15]);
     }
 }
