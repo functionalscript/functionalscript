@@ -1,3 +1,4 @@
+/// Future optimization: `fn to_mut(self) -> Option<Mut<Self>>`
 pub mod interface {
     pub enum Sign {
         Positive = 1,
@@ -24,7 +25,7 @@ pub mod interface {
         type Any: Any<Array = Self>;
     }
 
-    pub trait Function {}
+    pub trait Function: VarSize<Header = u32, Item = u8> {}
 
     pub trait Any {
         type String: String;
@@ -41,28 +42,25 @@ pub mod naive {
 
     use crate::interface::{self, Sign};
 
-    struct Value<H, T> {
+    pub struct Rc<H, T> {
         header: H,
-        items: Vec<T>,
+        items: rc::Rc<[T]>,
     }
-
-    #[repr(transparent)]
-    pub struct Rc<H, T>(rc::Rc<Value<H, T>>);
 
     impl<H, T> interface::VarSize for Rc<H, T> {
         type Header = H;
         type Item = T;
         fn new(header: H, s: impl IntoIterator<Item = T>) -> Option<Self> {
-            Some(Self(rc::Rc::new(Value {
+            Some(Self {
                 header,
-                items: s.into_iter().collect(),
-            })))
+                items: rc::Rc::from_iter(s),
+            })
         }
         fn header(&self) -> &Self::Header {
-            &self.0.header
+            &self.header
         }
         fn items(&self) -> &[Self::Item] {
-            &self.0.items
+            &self.items
         }
     }
 
@@ -95,6 +93,6 @@ mod test {
     #[test]
     fn test() {
         let s = naive::String::new((), b"Hello".map(|v| v as u16));
-        let bi = naive::BigInt::new(Sign::Positive, [15]);
+        let bi = naive::BigInt::new(Sign::Positive, []);
     }
 }
