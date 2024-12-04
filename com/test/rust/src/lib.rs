@@ -28,19 +28,19 @@ impl _result::IMy::Ex for nanocom::CObject<My> {
         todo!()
     }
 
-    fn SetUnsafe(&self, p: *const _result::Slice, size: u32) {
+    fn SetUnsafe(&self, _p: *const _result::Slice, _size: u32) {
         todo!()
     }
 
-    fn Some(&self, p: &_result::IMy::Object) -> bool {
+    fn Some(&self, _p: &_result::IMy::Object) -> bool {
         todo!()
     }
 
-    fn GetIMy(&self, a: u16, b: i16) -> _result::IMy::Ref {
+    fn GetIMy(&self, _a: u16, _b: i16) -> _result::IMy::Ref {
         todo!()
     }
 
-    fn SetManagedStruct(&self, a: _result::ManagedStruct) {
+    fn SetManagedStruct(&self, _a: _result::ManagedStruct) {
         todo!()
     }
 }
