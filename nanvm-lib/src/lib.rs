@@ -1,41 +1,41 @@
 /// Future optimization: `fn to_mut(self) -> Option<Mut<Self>>`
 pub mod interface {
+    #[derive(PartialEq)]
     pub enum Sign {
         Positive = 1,
         Negative = -1,
     }
 
-    pub trait VarSize: Sized {
-        type Id: PartialEq;
+    pub trait Instance: Sized {
         type Header;
         type Item;
         fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Option<Self>;
         fn header(&self) -> &Self::Header;
         fn items(&self) -> &[Self::Item];
-        fn id(&self) -> Self::Id;
     }
 
-    pub trait String: VarSize<Header = (), Item = u16> {}
+    pub trait String: Instance<Header = (), Item = u16> {}
 
-    pub trait BigInt: VarSize<Header = Sign, Item = u64> {}
+    pub trait BigInt: Instance<Header = Sign, Item = u64> {}
 
-    pub trait Object: VarSize<Header = (), Item = (<Self::Any as Any>::String, Self::Any)> {
+    pub trait Object:
+        Instance<Header = (), Item = (<Self::Any as Any>::String, Self::Any)>
+    {
         type Any: Any<Object = Self>;
     }
 
-    pub trait Array: VarSize<Header = (), Item = Self::Any> {
+    pub trait Array: Instance<Header = (), Item = Self::Any> {
         type Any: Any<Array = Self>;
     }
 
-    pub trait Function: VarSize<Header = u32, Item = u8> {}
+    pub trait Function: Instance<Header = u32, Item = u8> {}
 
     pub trait Any {
         type String: String;
-        type Object: Object<Id = Self::Id>;
-        type Array: Array<Id = Self::Id>;
+        type Object: Object;
+        type Array: Array;
         type BitInt: BigInt;
         type Function: Function;
-        type Id;
     }
 }
 
@@ -45,15 +45,14 @@ pub mod naive {
 
     use crate::interface::{self, Sign};
 
-    pub struct Rc<H, T> {
+    pub struct Instance<H, T> {
         header: H,
         items: rc::Rc<[T]>,
     }
 
-    impl<H, T> interface::VarSize for Rc<H, T> {
+    impl<H: PartialEq, T> interface::Instance for Instance<H, T> {
         type Header = H;
         type Item = T;
-        type Id = *const ();
         fn new(header: H, s: impl IntoIterator<Item = T>) -> Option<Self> {
             Some(Self {
                 header,
@@ -66,20 +65,17 @@ pub mod naive {
         fn items(&self) -> &[Self::Item] {
             &self.items
         }
-        fn id(&self) -> Self::Id {
-            self.items.as_ptr() as Self::Id
-        }
     }
 
-    pub type String = Rc<(), u16>;
+    pub type String = Instance<(), u16>;
 
-    pub type BigInt = Rc<Sign, u64>;
+    pub type BigInt = Instance<Sign, u64>;
 
-    type Object = Rc<(), (String, Any)>;
+    type Object = Instance<(), (String, Any)>;
 
-    pub type Array = Rc<(), Any>;
+    pub type Array = Instance<(), Any>;
 
-    type Function = Rc<u32, u8>;
+    type Function = Instance<u32, u8>;
 
     pub enum Any {
         String(String),
@@ -93,7 +89,7 @@ pub mod naive {
 #[cfg(test)]
 mod test {
     use crate::{
-        interface::{Sign, VarSize},
+        interface::{Instance, Sign},
         naive,
     };
 
@@ -103,9 +99,9 @@ mod test {
         let bi = naive::BigInt::new(Sign::Positive, []);
         {
             let a = naive::Array::new((), []).unwrap();
-            let b  = naive::Array::new((), []).unwrap();
+            let b = naive::Array::new((), []).unwrap();
             // two empty arrays are not equal
-            assert_ne!(a.id(), b.id());
+            assert_ne!(a.items().as_ptr(), b.items().as_ptr());
         }
     }
 }
