@@ -8,15 +8,21 @@ pub mod interface {
         type Header;
         type Item;
         fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Self;
+        fn header(&self) -> &Self::Header;
+        fn items(&self) -> &[Self::Item];
     }
 
     pub trait String: VarSize<Header = (), Item = u16> {}
 
     pub trait BigInt: VarSize<Header = Sign, Item = u64> {}
 
-    pub trait Object {}
+    pub trait Object: VarSize<Header = (), Item = (<Self::Any as Any>::String, Self::Any)> {
+        type Any: Any<Object = Self>;
+    }
 
-    pub trait Array {}
+    pub trait Array: VarSize<Header = (), Item = Self::Any> {
+        type Any: Any<Array = Self>;
+    }
 
     pub trait Function {}
 
@@ -34,14 +40,25 @@ pub mod simple {
 
     use crate::interface::{self, Sign};
 
+    struct Value<H, T> {
+        header: H,
+        items: Vec<T>
+    }
+
     #[repr(transparent)]
-    pub struct Rc<H, T>(rc::Rc<(H, Vec<T>)>);
+    pub struct Rc<H, T>(rc::Rc<Value<H, T>>);
 
     impl<H, T> interface::VarSize for Rc<H, T> {
         type Header = H;
         type Item = T;
-        fn new(h: H, s: impl IntoIterator<Item = T>) -> Self {
-            Self(rc::Rc::new((h, s.into_iter().collect())))
+        fn new(header: H, s: impl IntoIterator<Item = T>) -> Self {
+            Self(rc::Rc::new(Value { header, items: s.into_iter().collect() }))
+        }
+        fn header(&self) -> &Self::Header {
+            &self.0.header
+        }
+        fn items(&self) -> &[Self::Item] {
+            &self.0.items
         }
     }
 
