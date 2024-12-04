@@ -10,62 +10,72 @@ Some of the JS built-in objects and functions are "not allowed" in FS. It means,
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-|Function                 |side-effect|
-|-------------------------|-----------|
-|assign                   |not allowed|
-|create                   |not allowed|
-|defineProperties         |not allowed|
-|defineProperty           |not allowed|
-|entries                  |1          |
-|freeze                   |not allowed|
-|fromEntries              |1          |
-|getOwnPropertyDescriptor |1          |
-|getOwnPropertyDescriptors|1          |
-|getOwnPropertyNames      |1          |
-|getOwnPropertySymbols    |not allowed|
-|getPrototypeOf           |not allowed|
-|groupBy                  |1          |
-|hasOwn                   |1          |
-|is                       |1          |
-|isExtensible             |not allowed|
-|isFrozen                 |not allowed|
-|isSealed                 |not allowed|
-|keys                     |1          |
-|preventExtensions        |not allowed|
-|seal                     |not allowed|
-|setPrototypeOf           |not allowed|
-|values                   |1          |
+|Function                 |side-effect                |
+|-------------------------|---------------------------|
+|assign                   |mutate                     |
+|create                   |creates a special prototype|
+|defineProperties         |mutate                     |
+|defineProperty           |mutate                     |
+|entries                  |no                         |
+|freeze                   |mutate                     |
+|fromEntries              |no                         |
+|getOwnPropertyDescriptor |no                         |
+|getOwnPropertyDescriptors|no                         |
+|getOwnPropertyNames      |no                         |
+|getOwnPropertySymbols    |return symbols             |
+|getPrototypeOf           |return prototypes          |
+|groupBy                  |return null-property object|
+|hasOwn                   |no                         |
+|is                       |no                         |
+|isExtensible             |no                         |
+|isFrozen                 |no                         |
+|isSealed                 |no                         |
+|keys                     |no                         |
+|preventExtensions        |mutate                     |
+|seal                     |mutate                     |
+|setPrototypeOf           |mutate                     |
+|values                   |no                         |
 
 ## Array
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 
-|Function                 |Priority   |
+|Function                 |side-effect|
 |-------------------------|-----------|
-|from                     |1          |
-|fromAsync                |1          |
-|isArray                  |1          |
-|of                       |1          |
+|from                     |no         |
+|fromAsync                |?          |
+|isArray                  |no         |
+|of                       |no         |
 
 ## BigInt
 
-|Function                 |Priority   |
+|Function                 |side-effect|
 |-------------------------|-----------|
-|asIntN                   |1          |
-|asUintN                  |1          |
+|asIntN                   |no         |
+|asUintN                  |no         |
 
 ## JSON
 
 |Function                 |Priority   |
 |-------------------------|-----------|
-|`isRawJSON`              |3          |
-|`parse`                  |2          |
-|`rawJSON`                |3          |
-|`stringify`              |2          |
+|`isRawJSON`              |no         |
+|`parse`                  |no         |
+|`rawJSON`                |no         |
+|`stringify`              |no         |
 
 ## Others
 
-`Infinity`
-`isFinite()`
-`isNaN()`
-`NaN`
+|Function                 |side-effect|
+|-------------------------|-----------|
+|`decodeURI()`            |no         |
+|`decodeURIComponent()`   |no         |
+|`encodeURI()`            |no         |
+|`encodeURIComponent()`   |no         |
+|`eval()`                 |no         |
+
+|Property    |side-effect|
+|------------|-----------|
+|`Infinity`  |no         |
+|`isFinite()`|no         |
+|`isNaN()`   |no         |
+|`NaN`       |no         |
