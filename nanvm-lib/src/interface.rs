@@ -1,5 +1,11 @@
 /// Future optimization: `fn to_mut(self) -> Option<Mut<Self>>`
 
+#[derive(Debug, PartialEq)]
+pub enum Nullish {
+    Null,
+    Undefined,
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Sign {
     Positive = 1,
@@ -23,12 +29,6 @@ pub trait Object<A: Any>: Instance<Header = (), Item = (A::String, A)> + Into<A>
 pub trait Array<A>: Instance<Header = (), Item = A> + Into<A> {}
 
 pub trait Function<A>: Instance<Header = u32, Item = u8> + Into<A> {}
-
-#[derive(Debug, PartialEq)]
-pub enum Nullish {
-    Null,
-    Undefined,
-}
 
 pub trait Any: PartialEq + Sized + From<f64> + From<bool> + From<Nullish> {
     type String: String<Self>;

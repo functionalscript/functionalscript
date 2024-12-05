@@ -2,7 +2,7 @@
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
-use crate::interface::{self, Sign, Unpacked};
+use crate::interface::{self, Nullish, Sign, Unpacked};
 
 pub trait Policy {
     type Header: PartialEq;
@@ -73,7 +73,7 @@ pub type String = Instance<ValuePolicy<(), u16>>;
 
 impl Into<Any> for String {
     fn into(self) -> Any {
-        Any(interface::Unpacked::String(self))
+        Any(Unpacked::String(self))
     }
 }
 
@@ -85,7 +85,7 @@ pub type BigInt = Instance<ValuePolicy<Sign, u64>>;
 
 impl Into<Any> for BigInt {
     fn into(self) -> Any {
-        Any(interface::Unpacked::BigInt(self))
+        Any(Unpacked::BigInt(self))
     }
 }
 
@@ -133,7 +133,7 @@ impl interface::Function<Any> for Function {}
 pub struct Any(Unpacked<Any>);
 
 impl From<interface::Nullish> for Any {
-    fn from(value: interface::Nullish) -> Self {
+    fn from(value: Nullish) -> Self {
         Self(Unpacked::Nullish(value))
     }
 }
@@ -158,5 +158,54 @@ impl interface::Any for Any {
     type Function = Function;
     fn unpack(self) -> Unpacked<Self> {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use interface::Instance;
+
+    use super::*;
+
+    #[test]
+    fn test_string() {
+        let s0 = String::new((), b"Hello".map(|v| v as u16));
+        let s1 = String::new((), b"Hello".map(|v| v as u16));
+        let s2 = String::new((), b"world!".map(|v| v as u16));
+        assert_eq!(s0, s1);
+        assert_ne!(s0, s2);
+    }
+
+    #[test]
+    fn test_bigint() {
+        let b0 = BigInt::new(Sign::Positive, [1, 2, 3]);
+        let b1 = BigInt::new(Sign::Positive, [1, 2, 3]);
+        let b2 = BigInt::new(Sign::Positive, [1, 2]);
+        let b3 = BigInt::new(Sign::Negative, [1, 2, 3]);
+        assert_eq!(b0, b1);
+        assert_ne!(b1, b2);
+        assert_ne!(b0, b3);
+    }
+
+    #[test]
+    fn test_array() {
+        let a = Array::new((), []).unwrap();
+        let b = Array::new((), []).unwrap();
+        // two empty arrays are not equal
+        assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+        assert_ne!(a, b);
+        //
+        assert_eq!(a, a);
+    }
+
+    #[test]
+    fn test_object() {
+        let a = Object::new((), []).unwrap();
+        let b = Object::new((), []).unwrap();
+        // two empty arrays are not equal
+        assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+        assert_ne!(a, b);
+        //
+        assert_eq!(a, a);
     }
 }
