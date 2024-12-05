@@ -123,3 +123,4 @@ _result.*
 target/
 
 _*
+.vscode

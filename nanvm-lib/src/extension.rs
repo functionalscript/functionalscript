@@ -29,7 +29,7 @@ impl<T: Any> AnyExtension for T {}
 
 #[cfg(test)]
 mod test {
-    use crate::{interface::{Instance, Nullish}, naive::{Any, Object}};
+    use crate::{interface::{Instance, Nullish}, naive::{Any, Object, Array}};
 
     use super::{string, AnyExtension};
 
@@ -69,5 +69,11 @@ mod test {
     fn test_object() {
         let x: Any = Object::new((), []).into();
         assert_eq!(string::<Any>("[object Object"), x.to_string());
+    }
+
+    #[test]
+    fn test_array() {
+        let x: Any = Array::new((), []).into();
+        assert_eq!(string::<Any>(""), x.to_string());
     }
 }
