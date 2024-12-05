@@ -10,6 +10,7 @@ pub trait Policy {
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
 }
 
+#[derive(Clone)]
 pub struct Instance<P: Policy> {
     header: P::Header,
     items: rc::Rc<[P::Item]>,
@@ -41,6 +42,7 @@ impl<P: Policy> interface::Instance for Instance<P> {
     }
 }
 
+#[derive(Clone)]
 pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
 impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
@@ -51,6 +53,7 @@ impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
     }
 }
 
+#[derive(Clone)]
 pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
 
 impl<H: PartialEq, T> Policy for RefPolicy<H, T> {
@@ -107,7 +110,13 @@ impl Into<Any> for Array {
     }
 }
 
-impl interface::Array<Any> for Array {}
+impl interface::Array<Any> for Array {
+    fn at(&self, i: usize) -> Any {
+        let items = &*self.items;
+        if items.len() <= i { return Nullish::Undefined.into() }
+        items[i].clone()
+    }
+}
 
 // Function
 
@@ -123,7 +132,7 @@ impl interface::Function<Any> for Function {}
 
 // Any
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Any(Unpacked<Any>);
 
 impl From<interface::Nullish> for Any {
