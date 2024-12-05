@@ -6,7 +6,7 @@ pub mod interface {
         Negative = -1,
     }
 
-    pub trait Instance: Sized + PartialEq {
+    pub trait Instance<A>: Sized + PartialEq {
         type Header;
         type Item;
         fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Option<Self>;
@@ -14,28 +14,22 @@ pub mod interface {
         fn items(&self) -> &[Self::Item];
     }
 
-    pub trait String: Instance<Header = (), Item = u16> {}
+    pub trait String<A>: Instance<A, Header = (), Item = u16> {}
 
-    pub trait BigInt: Instance<Header = Sign, Item = u64> {}
+    pub trait BigInt<A>: Instance<A, Header = Sign, Item = u64> {}
 
-    pub trait Object:
-        Instance<Header = (), Item = (<Self::Any as Any>::String, Self::Any)>
-    {
-        type Any: Any<Object = Self>;
-    }
+    pub trait Object<A: Any>: Instance<A, Header = (), Item = (A::String, A)> {}
 
-    pub trait Array: Instance<Header = (), Item = Self::Any> {
-        type Any: Any<Array = Self>;
-    }
+    pub trait Array<A>: Instance<A, Header = (), Item = A> {}
 
-    pub trait Function: Instance<Header = u32, Item = u8> {}
+    pub trait Function<A>: Instance<A, Header = u32, Item = u8> {}
 
-    pub trait Any: PartialEq {
-        type String: String;
-        type Object: Object;
-        type Array: Array;
-        type BitInt: BigInt;
-        type Function: Function;
+    pub trait Any: PartialEq + Sized {
+        type String: String<Self>;
+        type Object: Object<Self>;
+        type Array: Array<Self>;
+        type BitInt: BigInt<Self>;
+        type Function: Function<Self>;
     }
 }
 
@@ -72,13 +66,13 @@ pub mod naive {
         }
     }
 
-    impl<P: Policy> interface::Instance for Instance<P> {
+    impl<P: Policy> interface::Instance<Any> for Instance<P> {
         type Header = P::Header;
         type Item = P::Item;
-        fn new(header: Self::Header, s: impl IntoIterator<Item = Self::Item>) -> Option<Self> {
+        fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Option<Self> {
             Some(Self {
                 header,
-                items: rc::Rc::from_iter(s),
+                items: rc::Rc::from_iter(items),
             })
         }
         fn header(&self) -> &Self::Header {
@@ -111,21 +105,39 @@ pub mod naive {
 
     pub type String = Instance<ValuePolicy<(), u16>>;
 
+    impl interface::String<Any> for String {}
+
     pub type BigInt = Instance<ValuePolicy<Sign, u64>>;
+
+    impl interface::BigInt<Any> for BigInt {}
 
     pub type Object = Instance<RefPolicy<(), (String, Any)>>;
 
+    impl interface::Object<Any> for Object {}
+
     pub type Array = Instance<RefPolicy<(), Any>>;
+
+    impl interface::Array<Any> for Array {}
 
     pub type Function = Instance<RefPolicy<u32, u8>>;
 
-    #[derive(Debug)]
+    impl interface::Function<Any> for Function {}
+
+    #[derive(Debug, PartialEq)]
     pub enum Any {
         String(String),
         BigInt(BigInt),
         Array(Array),
         Object(Object),
         Function(Function),
+    }
+
+    impl interface::Any for Any {
+        type String = String;
+        type Object = Object;
+        type Array = Array;
+        type BitInt = BigInt;
+        type Function = Function;
     }
 }
 
