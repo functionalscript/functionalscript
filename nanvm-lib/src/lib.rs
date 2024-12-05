@@ -6,7 +6,7 @@ pub mod interface {
         Negative = -1,
     }
 
-    pub trait Instance: Sized {
+    pub trait Instance: Sized + PartialEq {
         type Header;
         type Item;
         fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Option<Self>;
@@ -41,19 +41,32 @@ pub mod interface {
 
 /// Naive implementation of VM.
 pub mod naive {
+    use core::marker::PhantomData;
     use std::rc;
 
     use crate::interface::{self, Sign};
 
-    pub struct Instance<H, T> {
-        header: H,
-        items: rc::Rc<[T]>,
+    pub trait Policy {
+        type Header: PartialEq;
+        type Item;
+        fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
     }
 
-    impl<H: PartialEq, T> interface::Instance for Instance<H, T> {
-        type Header = H;
-        type Item = T;
-        fn new(header: H, s: impl IntoIterator<Item = T>) -> Option<Self> {
+    pub struct Instance<P: Policy> {
+        header: P::Header,
+        items: rc::Rc<[P::Item]>,
+    }
+
+    impl<P: Policy> PartialEq for Instance<P> {
+        fn eq(&self, other: &Self) -> bool {
+            self.header == other.header && P::items_eq(&*self.items, &*other.items)
+        }
+    }
+
+    impl<P: Policy> interface::Instance for Instance<P> {
+        type Header = P::Header;
+        type Item = P::Item;
+        fn new(header: Self::Header, s: impl IntoIterator<Item = Self::Item>) -> Option<Self> {
             Some(Self {
                 header,
                 items: rc::Rc::from_iter(s),
@@ -67,15 +80,35 @@ pub mod naive {
         }
     }
 
-    pub type String = Instance<(), u16>;
+    pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
-    pub type BigInt = Instance<Sign, u64>;
+    impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
+        type Header = H;
+        type Item = T;
+        fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
+            a == b
+        }
+    }
 
-    type Object = Instance<(), (String, Any)>;
+    pub type String = Instance<ValuePolicy<(), u16>>;
 
-    pub type Array = Instance<(), Any>;
+    pub type BigInt = Instance<ValuePolicy<Sign, u64>>;
 
-    type Function = Instance<u32, u8>;
+    pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
+
+    impl<H: PartialEq, T> Policy for RefPolicy<H, T> {
+        type Header = H;
+        type Item = T;
+        fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
+            a.as_ptr() == b.as_ptr()
+        }
+    }
+
+    type Object = Instance<RefPolicy<(), (String, Any)>>;
+
+    pub type Array = Instance<RefPolicy<(), Any>>;
+
+    type Function = Instance<RefPolicy<u32, u8>>;
 
     pub enum Any {
         String(String),
