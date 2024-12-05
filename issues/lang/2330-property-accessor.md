@@ -27,9 +27,15 @@ It's translated into the VM command `instance_property`:
 ```rust
 struct InstanceProperty {
     obj: Expression
-    property: String16
+    index: u8
 }
 ```
+
+The property name is one implemented property names then it should be translated into `index: u8`.
+
+If a property name is one of prohibited property names or one of method names, then it's a compilation error.
+
+All other property names generates `own_property` commands.
 
 [Object Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_properties),
 
@@ -55,20 +61,19 @@ const f = () => {}
 
 [Array Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_properties).
 
-|name    |side-effect|
-|--------|-----------|
-|`length`|no         |
+| |name    |side-effect|
+|-|--------|-----------|
+|0|`length`|no         |
 
 [Function Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function#instance_properties)
 
-|name         |side-effect|run-time |
-|-------------|-----------|---------|
-|`arguments`  |no         |error    |
-|`caller`     |no         |error    |
-|`displayName`|no         |         |
-|`length`     |no         |         |
-|`name`       |no         |error    |
-|`prototype`  |no         |undefined|
+| |name         |side-effect|run-time |
+|-|-------------|-----------|---------|
+| |`arguments`  |no         |error    |
+| |`caller`     |no         |error    |
+| |`displayName`|no         |         |
+| |`name`       |no         |error    |
+| |`prototype`  |no         |undefined|
 
 ## Instance Method Call
 

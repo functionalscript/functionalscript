@@ -27,7 +27,7 @@ pub trait Object<A: Any>: Instance<Header = (), Item = (A::String, A)> + Into<A>
 }
 
 pub trait Array<A>: Instance<Header = (), Item = A> + Into<A> {
-    fn at(&self, i: usize) -> A;
+    fn at(&self, i: f64) -> A;
 }
 
 pub trait Function<A>: Instance<Header = u32, Item = u8> + Into<A> {}

@@ -107,7 +107,7 @@ impl Into<Any> for Object {
 }
 
 impl interface::Object<Any> for Object {
-    fn own(&self, i: <Any as interface::Any>::String) -> Any {
+    fn own(&self, i: String) -> Any {
         match self.items.into_iter().find(|v| v.0 == i) {
             Some(v) => v.1.clone(),
             None => Nullish::Undefined.into(),
@@ -126,12 +126,14 @@ impl Into<Any> for Array {
 }
 
 impl interface::Array<Any> for Array {
-    fn at(&self, i: usize) -> Any {
+    fn at(&self, n: f64) -> Any {
         let items = &*self.items;
-        if items.len() <= i {
-            return Nullish::Undefined.into();
+        let i = n as usize;
+        if i as f64 == n && i < items.len() {
+            items[i].clone()
+        } else {
+            Nullish::Undefined.into()
         }
-        items[i].clone()
     }
 }
 
