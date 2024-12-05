@@ -30,7 +30,7 @@ pub mod interface {
 
     pub trait Function: Instance<Header = u32, Item = u8> {}
 
-    pub trait Any {
+    pub trait Any: PartialEq {
         type String: String;
         type Object: Object;
         type Array: Array;
@@ -47,8 +47,8 @@ pub mod naive {
     use crate::interface::{self, Sign};
 
     pub trait Policy {
-        type Header: PartialEq + fmt::Debug;
-        type Item: fmt::Debug;
+        type Header: PartialEq;
+        type Item;
         fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
     }
 
@@ -57,8 +57,8 @@ pub mod naive {
         items: rc::Rc<[P::Item]>,
     }
 
-    impl<P: Policy> fmt::Debug for Instance<P> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    impl<P: Policy<Header: fmt::Debug, Item: fmt::Debug>> fmt::Debug for Instance<P> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("Instance")
                 .field("header", &self.header)
                 .field("items", &self.items)
@@ -91,7 +91,7 @@ pub mod naive {
 
     pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
-    impl<H: PartialEq + fmt::Debug, T: PartialEq + fmt::Debug> Policy for ValuePolicy<H, T> {
+    impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
         type Header = H;
         type Item = T;
         fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -101,7 +101,7 @@ pub mod naive {
 
     pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
 
-    impl<H: PartialEq + fmt::Debug, T: fmt::Debug> Policy for RefPolicy<H, T> {
+    impl<H: PartialEq, T> Policy for RefPolicy<H, T> {
         type Header = H;
         type Item = T;
         fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -113,11 +113,11 @@ pub mod naive {
 
     pub type BigInt = Instance<ValuePolicy<Sign, u64>>;
 
-    type Object = Instance<RefPolicy<(), (String, Any)>>;
+    pub type Object = Instance<RefPolicy<(), (String, Any)>>;
 
     pub type Array = Instance<RefPolicy<(), Any>>;
 
-    type Function = Instance<RefPolicy<u32, u8>>;
+    pub type Function = Instance<RefPolicy<u32, u8>>;
 
     #[derive(Debug)]
     pub enum Any {
@@ -137,15 +137,44 @@ mod test {
     };
 
     #[test]
-    fn test() {
-        let s = naive::String::new((), b"Hello".map(|v| v as u16));
-        let bi = naive::BigInt::new(Sign::Positive, []);
-        {
-            let a = naive::Array::new((), []).unwrap();
-            let b = naive::Array::new((), []).unwrap();
-            // two empty arrays are not equal
-            assert_ne!(a.items().as_ptr(), b.items().as_ptr());
-            assert_ne!(a, b);
-        }
+    fn test_string() {
+        let s0 = naive::String::new((), b"Hello".map(|v| v as u16));
+        let s1 = naive::String::new((), b"Hello".map(|v| v as u16));
+        let s2 = naive::String::new((), b"world!".map(|v| v as u16));
+        assert_eq!(s0, s1);
+        assert_ne!(s0, s2);
+    }
+
+    #[test]
+    fn test_bigint() {
+        let b0 = naive::BigInt::new(Sign::Positive, [1, 2, 3]);
+        let b1 = naive::BigInt::new(Sign::Positive, [1, 2, 3]);
+        let b2 = naive::BigInt::new(Sign::Positive, [1, 2]);
+        let b3 = naive::BigInt::new(Sign::Negative, [1, 2, 3]);
+        assert_eq!(b0, b1);
+        assert_ne!(b1, b2);
+        assert_ne!(b0, b3);
+    }
+
+    #[test]
+    fn test_array() {
+        let a = naive::Array::new((), []).unwrap();
+        let b = naive::Array::new((), []).unwrap();
+        // two empty arrays are not equal
+        assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+        assert_ne!(a, b);
+        //
+        assert_eq!(a, a);
+    }
+
+    #[test]
+    fn test_object() {
+        let a = naive::Object::new((), []).unwrap();
+        let b = naive::Object::new((), []).unwrap();
+        // two empty arrays are not equal
+        assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+        assert_ne!(a, b);
+        //
+        assert_eq!(a, a);
     }
 }
