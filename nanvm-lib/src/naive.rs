@@ -5,15 +5,23 @@ use std::rc;
 use crate::interface::{self, Nullish, Sign, Unpacked};
 
 pub trait Policy {
-    type Header: PartialEq;
+    type Header: PartialEq + Clone;
     type Item;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
 }
 
-#[derive(Clone)]
 pub struct Instance<P: Policy> {
     header: P::Header,
     items: rc::Rc<[P::Item]>,
+}
+
+impl<P: Policy> Clone for Instance<P> {
+    fn clone(&self) -> Self {
+        Self {
+            header: self.header.clone(),
+            items: self.items.clone(),
+        }
+    }
 }
 
 impl<P: Policy<Header: fmt::Debug, Item: fmt::Debug>> fmt::Debug for Instance<P> {
@@ -45,7 +53,7 @@ impl<P: Policy> interface::Instance for Instance<P> {
 #[derive(Clone)]
 pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
-impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
+impl<H: PartialEq + Clone, T: PartialEq> Policy for ValuePolicy<H, T> {
     type Header = H;
     type Item = T;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -56,7 +64,7 @@ impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
 #[derive(Clone)]
 pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
 
-impl<H: PartialEq, T> Policy for RefPolicy<H, T> {
+impl<H: PartialEq + Clone, T> Policy for RefPolicy<H, T> {
     type Header = H;
     type Item = T;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -113,7 +121,9 @@ impl Into<Any> for Array {
 impl interface::Array<Any> for Array {
     fn at(&self, i: usize) -> Any {
         let items = &*self.items;
-        if items.len() <= i { return Nullish::Undefined.into() }
+        if items.len() <= i {
+            return Nullish::Undefined.into();
+        }
         items[i].clone()
     }
 }

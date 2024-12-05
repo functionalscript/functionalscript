@@ -12,7 +12,7 @@ pub enum Sign {
     Negative = -1,
 }
 
-pub trait Instance: Sized + PartialEq {
+pub trait Instance: Sized + PartialEq + Clone {
     type Header;
     type Item;
     fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Option<Self>;
