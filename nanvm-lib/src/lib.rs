@@ -24,7 +24,13 @@ pub mod interface {
 
     pub trait Function<A>: Instance<Header = u32, Item = u8> + Into<A> {}
 
-    pub trait Any: PartialEq + Sized {
+    #[derive(Debug, PartialEq)]
+    pub enum Nullish {
+        Null,
+        Undefined,
+    }
+
+    pub trait Any: PartialEq + Sized + From<f64> + From<bool> + From<Nullish> {
         type String: String<Self>;
         type Object: Object<Self>;
         type Array: Array<Self>;
@@ -167,11 +173,32 @@ pub mod naive {
 
     #[derive(Debug, PartialEq)]
     pub enum Any {
+        Nullish(interface::Nullish),
+        Bool(bool),
+        Number(f64),
         String(String),
         BigInt(BigInt),
         Array(Array),
         Object(Object),
         Function(Function),
+    }
+
+    impl From<interface::Nullish> for Any {
+        fn from(value: interface::Nullish) -> Self {
+            Any::Nullish(value)
+        }
+    }
+
+    impl From<f64> for Any {
+        fn from(value: f64) -> Self {
+            Any::Number(value)
+        }
+    }
+
+    impl From<bool> for Any {
+        fn from(value: bool) -> Self {
+            Any::Bool(value)
+        }
     }
 
     impl interface::Any for Any {
