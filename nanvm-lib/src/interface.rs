@@ -16,8 +16,6 @@ pub trait Instance: Sized + PartialEq {
     type Header;
     type Item;
     fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Option<Self>;
-    fn header(&self) -> &Self::Header;
-    fn items(&self) -> &[Self::Item];
 }
 
 pub trait String<A>: Instance<Header = (), Item = u16> + Into<A> {}

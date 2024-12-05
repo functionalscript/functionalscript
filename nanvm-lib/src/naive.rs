@@ -39,12 +39,6 @@ impl<P: Policy> interface::Instance for Instance<P> {
             items: rc::Rc::from_iter(items),
         })
     }
-    fn header(&self) -> &Self::Header {
-        &self.header
-    }
-    fn items(&self) -> &[Self::Item] {
-        &self.items
-    }
 }
 
 pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
@@ -192,7 +186,7 @@ mod test {
         let a = Array::new((), []).unwrap();
         let b = Array::new((), []).unwrap();
         // two empty arrays are not equal
-        assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+        assert_ne!(a.items.as_ptr(), b.items.as_ptr());
         assert_ne!(a, b);
         //
         assert_eq!(a, a);
@@ -203,7 +197,7 @@ mod test {
         let a = Object::new((), []).unwrap();
         let b = Object::new((), []).unwrap();
         // two empty arrays are not equal
-        assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+        assert_ne!(a.items.as_ptr(), b.items.as_ptr());
         assert_ne!(a, b);
         //
         assert_eq!(a, a);
