@@ -36,6 +36,7 @@ pub mod interface {
         type Array: Array<Self>;
         type BigInt: BigInt<Self>;
         type Function: Function<Self>;
+        fn unpack(self) -> Unpacked<Self>;
     }
 
     #[derive(PartialEq, Debug)]
@@ -210,6 +211,9 @@ pub mod naive {
         type Array = Array;
         type BigInt = BigInt;
         type Function = Function;
+        fn unpack(self) -> Unpacked<Self> {
+            self.0
+        }
     }
 }
 
