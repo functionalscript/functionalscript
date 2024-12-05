@@ -56,7 +56,7 @@ pub mod naive {
     use core::{fmt, marker::PhantomData};
     use std::rc;
 
-    use crate::interface::{self, Sign};
+    use crate::interface::{self, Sign, Unpacked};
 
     pub trait Policy {
         type Header: PartialEq;
@@ -151,7 +151,7 @@ pub mod naive {
 
     impl Into<Any> for Object {
         fn into(self) -> Any {
-            Any(interface::Unpacked::Object(self))
+            Any(Unpacked::Object(self))
         }
     }
 
@@ -163,7 +163,7 @@ pub mod naive {
 
     impl Into<Any> for Array {
         fn into(self) -> Any {
-            Any(interface::Unpacked::Array(self))
+            Any(Unpacked::Array(self))
         }
     }
 
@@ -175,7 +175,7 @@ pub mod naive {
 
     impl Into<Any> for Function {
         fn into(self) -> Any {
-            Any(interface::Unpacked::Function(self))
+            Any(Unpacked::Function(self))
         }
     }
 
@@ -184,23 +184,23 @@ pub mod naive {
     // Any
 
     #[derive(PartialEq, Debug)]
-    pub struct Any(interface::Unpacked<Any>);
+    pub struct Any(Unpacked<Any>);
 
     impl From<interface::Nullish> for Any {
         fn from(value: interface::Nullish) -> Self {
-            Self(interface::Unpacked::Nullish(value))
+            Self(Unpacked::Nullish(value))
         }
     }
 
     impl From<f64> for Any {
         fn from(value: f64) -> Self {
-            Self(interface::Unpacked::Number(value))
+            Self(Unpacked::Number(value))
         }
     }
 
     impl From<bool> for Any {
         fn from(value: bool) -> Self {
-            Self(interface::Unpacked::Bool(value))
+            Self(Unpacked::Bool(value))
         }
     }
 
