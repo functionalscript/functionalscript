@@ -22,7 +22,9 @@ pub trait String<A>: Instance<Header = (), Item = u16> + Into<A> {}
 
 pub trait BigInt<A>: Instance<Header = Sign, Item = u64> + Into<A> {}
 
-pub trait Object<A: Any>: Instance<Header = (), Item = (A::String, A)> + Into<A> {}
+pub trait Object<A: Any>: Instance<Header = (), Item = (A::String, A)> + Into<A> {
+    fn own(&self, i: A::String) -> A;
+}
 
 pub trait Array<A>: Instance<Header = (), Item = A> + Into<A> {
     fn at(&self, i: usize) -> A;

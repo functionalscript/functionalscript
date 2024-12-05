@@ -106,7 +106,14 @@ impl Into<Any> for Object {
     }
 }
 
-impl interface::Object<Any> for Object {}
+impl interface::Object<Any> for Object {
+    fn own(&self, i: <Any as interface::Any>::String) -> Any {
+        match self.items.into_iter().find(|v| v.0 == i) {
+            Some(v) => v.1.clone(),
+            None => Nullish::Undefined.into(),
+        }
+    }
+}
 
 // Array
 
