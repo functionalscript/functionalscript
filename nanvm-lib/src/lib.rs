@@ -34,8 +34,20 @@ pub mod interface {
         type String: String<Self>;
         type Object: Object<Self>;
         type Array: Array<Self>;
-        type BitInt: BigInt<Self>;
+        type BigInt: BigInt<Self>;
         type Function: Function<Self>;
+    }
+
+    #[derive(PartialEq, Debug)]
+    pub enum Unpacked<A: Any> {
+        Nullish(Nullish),
+        Bool(bool),
+        Number(f64),
+        String(A::String),
+        BigInt(A::BigInt),
+        Array(A::Array),
+        Object(A::Object),
+        Function(A::Function),
     }
 }
 
@@ -115,7 +127,7 @@ pub mod naive {
 
     impl Into<Any> for String {
         fn into(self) -> Any {
-            Any::String(self)
+            Any(interface::Unpacked::String(self))
         }
     }
 
@@ -127,7 +139,7 @@ pub mod naive {
 
     impl Into<Any> for BigInt {
         fn into(self) -> Any {
-            Any::BigInt(self)
+            Any(interface::Unpacked::BigInt(self))
         }
     }
 
@@ -139,7 +151,7 @@ pub mod naive {
 
     impl Into<Any> for Object {
         fn into(self) -> Any {
-            Any::Object(self)
+            Any(interface::Unpacked::Object(self))
         }
     }
 
@@ -151,7 +163,7 @@ pub mod naive {
 
     impl Into<Any> for Array {
         fn into(self) -> Any {
-            Any::Array(self)
+            Any(interface::Unpacked::Array(self))
         }
     }
 
@@ -163,7 +175,7 @@ pub mod naive {
 
     impl Into<Any> for Function {
         fn into(self) -> Any {
-            Any::Function(self)
+            Any(interface::Unpacked::Function(self))
         }
     }
 
@@ -171,33 +183,24 @@ pub mod naive {
 
     // Any
 
-    #[derive(Debug, PartialEq)]
-    pub enum Any {
-        Nullish(interface::Nullish),
-        Bool(bool),
-        Number(f64),
-        String(String),
-        BigInt(BigInt),
-        Array(Array),
-        Object(Object),
-        Function(Function),
-    }
+    #[derive(PartialEq, Debug)]
+    pub struct Any(interface::Unpacked<Any>);
 
     impl From<interface::Nullish> for Any {
         fn from(value: interface::Nullish) -> Self {
-            Any::Nullish(value)
+            Self(interface::Unpacked::Nullish(value))
         }
     }
 
     impl From<f64> for Any {
         fn from(value: f64) -> Self {
-            Any::Number(value)
+            Self(interface::Unpacked::Number(value))
         }
     }
 
     impl From<bool> for Any {
         fn from(value: bool) -> Self {
-            Any::Bool(value)
+            Self(interface::Unpacked::Bool(value))
         }
     }
 
@@ -205,7 +208,7 @@ pub mod naive {
         type String = String;
         type Object = Object;
         type Array = Array;
-        type BitInt = BigInt;
+        type BigInt = BigInt;
         type Function = Function;
     }
 }
