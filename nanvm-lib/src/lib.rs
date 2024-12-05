@@ -1,6 +1,6 @@
 /// Future optimization: `fn to_mut(self) -> Option<Mut<Self>>`
 pub mod interface {
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Debug)]
     pub enum Sign {
         Positive = 1,
         Negative = -1,
@@ -41,20 +41,29 @@ pub mod interface {
 
 /// Naive implementation of VM.
 pub mod naive {
-    use core::marker::PhantomData;
+    use core::{fmt, marker::PhantomData};
     use std::rc;
 
     use crate::interface::{self, Sign};
 
     pub trait Policy {
-        type Header: PartialEq;
-        type Item;
+        type Header: PartialEq + fmt::Debug;
+        type Item: fmt::Debug;
         fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
     }
 
     pub struct Instance<P: Policy> {
         header: P::Header,
         items: rc::Rc<[P::Item]>,
+    }
+
+    impl<P: Policy> fmt::Debug for Instance<P> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("Instance")
+                .field("header", &self.header)
+                .field("items", &self.items)
+                .finish()
+        }
     }
 
     impl<P: Policy> PartialEq for Instance<P> {
@@ -82,7 +91,7 @@ pub mod naive {
 
     pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
-    impl<H: PartialEq, T: PartialEq> Policy for ValuePolicy<H, T> {
+    impl<H: PartialEq + fmt::Debug, T: PartialEq + fmt::Debug> Policy for ValuePolicy<H, T> {
         type Header = H;
         type Item = T;
         fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -90,13 +99,9 @@ pub mod naive {
         }
     }
 
-    pub type String = Instance<ValuePolicy<(), u16>>;
-
-    pub type BigInt = Instance<ValuePolicy<Sign, u64>>;
-
     pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
 
-    impl<H: PartialEq, T> Policy for RefPolicy<H, T> {
+    impl<H: PartialEq + fmt::Debug, T: fmt::Debug> Policy for RefPolicy<H, T> {
         type Header = H;
         type Item = T;
         fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -104,12 +109,17 @@ pub mod naive {
         }
     }
 
+    pub type String = Instance<ValuePolicy<(), u16>>;
+
+    pub type BigInt = Instance<ValuePolicy<Sign, u64>>;
+
     type Object = Instance<RefPolicy<(), (String, Any)>>;
 
     pub type Array = Instance<RefPolicy<(), Any>>;
 
     type Function = Instance<RefPolicy<u32, u8>>;
 
+    #[derive(Debug)]
     pub enum Any {
         String(String),
         BigInt(BigInt),
@@ -135,6 +145,7 @@ mod test {
             let b = naive::Array::new((), []).unwrap();
             // two empty arrays are not equal
             assert_ne!(a.items().as_ptr(), b.items().as_ptr());
+            assert_ne!(a, b);
         }
     }
 }
