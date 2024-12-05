@@ -42,11 +42,11 @@ impl<P: Policy> PartialEq for Instance<P> {
 impl<P: Policy> interface::Instance for Instance<P> {
     type Header = P::Header;
     type Item = P::Item;
-    fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Option<Self> {
-        Some(Self {
+    fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self {
+        Self {
             header,
             items: rc::Rc::from_iter(items),
-        })
+        }
     }
 }
 
@@ -107,12 +107,14 @@ impl Into<Any> for Object {
 }
 
 impl interface::Object<Any> for Object {
+    /*
     fn own(&self, i: String) -> Any {
         match self.items.into_iter().find(|v| v.0 == i) {
             Some(v) => v.1.clone(),
             None => Nullish::Undefined.into(),
         }
     }
+    */
 }
 
 // Array
@@ -126,6 +128,7 @@ impl Into<Any> for Array {
 }
 
 impl interface::Array<Any> for Array {
+    /*
     fn at(&self, n: f64) -> Any {
         let items = &*self.items;
         let i = n as usize;
@@ -135,6 +138,7 @@ impl interface::Array<Any> for Array {
             Nullish::Undefined.into()
         }
     }
+    */
 }
 
 // Function
@@ -181,6 +185,14 @@ impl interface::Any for Any {
     fn unpack(self) -> Unpacked<Self> {
         self.0
     }
+    /*
+    fn own_property(&self, index: Self) -> Self {
+        match self.items.into_iter().find(|v| v.0 == i) {
+            Some(v) => v.1.clone(),
+            None => Nullish::Undefined.into(),
+        }
+    }
+    */
 }
 
 #[cfg(test)]
@@ -211,8 +223,8 @@ mod test {
 
     #[test]
     fn test_array() {
-        let a = Array::new((), []).unwrap();
-        let b = Array::new((), []).unwrap();
+        let a = Array::new((), []);
+        let b = Array::new((), []);
         // two empty arrays are not equal
         assert_ne!(a.items.as_ptr(), b.items.as_ptr());
         assert_ne!(a, b);
@@ -222,8 +234,8 @@ mod test {
 
     #[test]
     fn test_object() {
-        let a = Object::new((), []).unwrap();
-        let b = Object::new((), []).unwrap();
+        let a = Object::new((), []);
+        let b = Object::new((), []);
         // two empty arrays are not equal
         assert_ne!(a.items.as_ptr(), b.items.as_ptr());
         assert_ne!(a, b);
