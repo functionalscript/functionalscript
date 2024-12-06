@@ -1,4 +1,4 @@
-use crate::interface::{Any, List, Nullish, Unpacked};
+use crate::{interface::{Any, List, Unpacked}, nullish::Nullish::*};
 
 pub trait AnyExtension: Any {
     fn string(c: &str) -> Self::String {
@@ -7,8 +7,8 @@ pub trait AnyExtension: Any {
     fn to_string(self) -> Self::String {
         match self.unpack() {
             Unpacked::Nullish(v) => Self::string(match v {
-                Nullish::Null => "null",
-                Nullish::Undefined => "undefined",
+                Null => "null",
+                Undefined => "undefined",
             }),
             Unpacked::Bool(v) => Self::string(match v {
                 true => "true",
@@ -25,7 +25,7 @@ pub trait AnyExtension: Any {
     fn own_property(self, i: Self) -> Self {
         match self.unpack() {
             Unpacked::Nullish(_) => panic!("own_property(\"nullish\")"),
-            Unpacked::Bool(_) => Nullish::Undefined.into(),
+            Unpacked::Bool(_) => Undefined.into(),
             Unpacked::Number(_) => todo!(),
             Unpacked::String(_) => todo!(),
             Unpacked::BigInt(_) => todo!(),
@@ -51,9 +51,7 @@ impl<T: Any> AnyExtension for T {}
 mod test {
     mod to_string {
         use crate::{
-            interface::{Nullish, PrefixList},
-            naive::{Any, Array, Object},
-            extension::AnyExtension,
+            extension::AnyExtension, interface::PrefixList, naive::{Any, Array, Object}, nullish::Nullish::*
         };
 
         #[test]
@@ -67,11 +65,11 @@ mod test {
         #[test]
         fn test_nullish() {
             {
-                let x: Any = Nullish::Null.into();
+                let x: Any = Null.into();
                 assert_eq!(Any::string("null"), x.to_string());
             }
             {
-                let x: Any = Nullish::Undefined.into();
+                let x: Any = Undefined.into();
                 assert_eq!(Any::string("undefined"), x.to_string());
             }
         }
@@ -102,19 +100,19 @@ mod test {
     }
 
     mod own_property {
-        use crate::{extension::AnyExtension, interface::Nullish, naive::Any};
+        use crate::{extension::AnyExtension, naive::Any, nullish::Nullish::*};
 
         #[test]
         #[should_panic]
         fn test_own_property_null() {
-            let x: Any = Nullish::Null.into();
+            let x: Any = Null.into();
             x.own_property(Any::string("hello").into());
         }
 
         #[test]
         fn test_own_property_bool() {
             let x: Any = true.into();
-            let undefined: Any = Nullish::Undefined.into();
+            let undefined: Any = Undefined.into();
             assert_eq!(undefined, x.own_property(Any::string("hello").into()));
         }
     }

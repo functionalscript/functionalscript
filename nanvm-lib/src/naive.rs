@@ -2,7 +2,7 @@
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
-use crate::interface::{self, Nullish, Sign, Unpacked};
+use crate::{interface::{self, Unpacked}, nullish::Nullish, sign::Sign};
 
 pub trait Policy {
     type Prefix: PartialEq + Clone;
@@ -165,7 +165,7 @@ impl interface::Function<Any> for Function {}
 #[derive(PartialEq, Debug, Clone)]
 pub struct Any(Unpacked<Any>);
 
-impl From<interface::Nullish> for Any {
+impl From<Nullish> for Any {
     fn from(value: Nullish) -> Self {
         Self(Unpacked::Nullish(value))
     }
@@ -205,6 +205,8 @@ impl interface::Any for Any {
 #[cfg(test)]
 mod test {
     use interface::PrefixList;
+
+    use crate::sign::Sign;
 
     use super::*;
 

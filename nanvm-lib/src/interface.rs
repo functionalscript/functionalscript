@@ -1,16 +1,6 @@
+use crate::{nullish::Nullish, sign::Sign};
+
 /// Future optimization: `fn to_mut(self) -> Option<Mut<Self>>`
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Nullish {
-    Null,
-    Undefined,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum Sign {
-    Positive = 1,
-    Negative = -1,
-}
 
 pub trait List: Sized + PartialEq + Clone {
     type Item;

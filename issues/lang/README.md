@@ -2,9 +2,9 @@
 
 Two main FunctionsScript princples:
 1. if FS code pass validation/compilation, then it doesn't have side-effects,
-2. the code that passed validation/compilation should behave on FunctionalScript VM the same way as on any other modern JavaScript engine. 
+2. the code that passed validation/compilation should behave on FunctionalScript VM the same way as on any other modern JavaScript engine.
 
-When we implement features of FunctionalScript, the first priority is a simplification of the VM. 
+When we implement features of FunctionalScript, the first priority is a simplification of the VM.
 
 File Types:
 
@@ -100,7 +100,7 @@ File extensions: `.f.js` and `.f.mjs`.
 
 ### 3.2. Priority 1
 
-1. [ ] `if`
+1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
 
