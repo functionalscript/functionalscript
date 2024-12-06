@@ -1,7 +1,7 @@
-use crate::interface::{Any, Unpacked, Nullish, Instance};
+use crate::interface::{Any, Unpacked, Nullish, List};
 
 fn string<A: Any>(c: &str) -> A::String {
-    A::String::new((), c.encode_utf16().into_iter())
+    A::String::new(c.encode_utf16().into_iter())
 }
 
 pub trait AnyExtension: Any {
@@ -18,7 +18,7 @@ pub trait AnyExtension: Any {
             Unpacked::Number(_) => todo!(),
             Unpacked::String(v) => v,
             Unpacked::BigInt(_) => todo!(),
-            Unpacked::Array(_) => Self::String::new((), []),
+            Unpacked::Array(_) => Self::String::new([]),
             Unpacked::Object(_) => string::<Self>("[object Object"),
             Unpacked::Function(_) => todo!(),
         }
@@ -29,7 +29,7 @@ impl<T: Any> AnyExtension for T {}
 
 #[cfg(test)]
 mod test {
-    use crate::{interface::{Instance, Nullish}, naive::{Any, Object, Array}};
+    use crate::{interface::{PrefixList, Nullish}, naive::{Any, Object, Array}};
 
     use super::{string, AnyExtension};
 

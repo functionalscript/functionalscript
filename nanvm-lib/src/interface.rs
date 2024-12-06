@@ -12,21 +12,26 @@ pub enum Sign {
     Negative = -1,
 }
 
-pub trait Instance: Sized + PartialEq + Clone {
-    type Header;
+pub trait List: Sized + PartialEq + Clone {
     type Item;
-    fn new(h: Self::Header, c: impl IntoIterator<Item = Self::Item>) -> Self;
+    fn new(list: impl IntoIterator<Item = Self::Item>) -> Self;
 }
 
-pub trait String<A>: Instance<Header = (), Item = u16> + Into<A> {}
+pub trait PrefixList: Sized + PartialEq + Clone {
+    type Prefix;
+    type Item;
+    fn new(prefix: Self::Prefix, list: impl IntoIterator<Item = Self::Item>) -> Self;
+}
 
-pub trait BigInt<A>: Instance<Header = Sign, Item = u64> + Into<A> {}
+pub trait String<A>: List<Item = u16> + Into<A> {}
 
-pub trait Object<A: Any>: Instance<Header = (), Item = (A::String, A)> + Into<A> {}
+pub trait BigInt<A>: PrefixList<Prefix = Sign, Item = u64> + Into<A> {}
 
-pub trait Array<A>: Instance<Header = (), Item = A> + Into<A> {}
+pub trait Object<A: Any>: List<Item = (A::String, A)> + Into<A> {}
 
-pub trait Function<A>: Instance<Header = u32, Item = u8> + Into<A> {}
+pub trait Array<A>: List<Item = A> + Into<A> {}
+
+pub trait Function<A>: PrefixList<Prefix = u32, Item = u8> + Into<A> {}
 
 pub trait Any: PartialEq + Sized + From<f64> + From<bool> + From<Nullish> + Clone {
     type String: String<Self>;

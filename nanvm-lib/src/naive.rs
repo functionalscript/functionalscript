@@ -5,48 +5,55 @@ use std::rc;
 use crate::interface::{self, Nullish, Sign, Unpacked};
 
 pub trait Policy {
-    type Header: PartialEq + Clone;
+    type Prefix: PartialEq + Clone;
     type Item;
-    fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
+    fn list_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
 }
 
 pub struct Instance<P: Policy> {
-    header: P::Header,
-    items: rc::Rc<[P::Item]>,
+    prefix: P::Prefix,
+    list: rc::Rc<[P::Item]>,
 }
 
 impl<P: Policy> Clone for Instance<P> {
     fn clone(&self) -> Self {
         Self {
-            header: self.header.clone(),
-            items: self.items.clone(),
+            prefix: self.prefix.clone(),
+            list: self.list.clone(),
         }
     }
 }
 
-impl<P: Policy<Header: fmt::Debug, Item: fmt::Debug>> fmt::Debug for Instance<P> {
+impl<P: Policy<Prefix: fmt::Debug, Item: fmt::Debug>> fmt::Debug for Instance<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instance")
-            .field("header", &self.header)
-            .field("items", &self.items)
+            .field("prefix", &self.prefix)
+            .field("list", &self.list)
             .finish()
     }
 }
 
 impl<P: Policy> PartialEq for Instance<P> {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header && P::items_eq(&*self.items, &*other.items)
+        self.prefix == other.prefix && P::list_eq(&*self.list, &*other.list)
     }
 }
 
-impl<P: Policy> interface::Instance for Instance<P> {
-    type Header = P::Header;
+impl<P: Policy> interface::PrefixList for Instance<P> {
+    type Prefix = P::Prefix;
     type Item = P::Item;
-    fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self {
+    fn new(prefix: Self::Prefix, list: impl IntoIterator<Item = Self::Item>) -> Self {
         Self {
-            header,
-            items: rc::Rc::from_iter(items),
+            prefix,
+            list: rc::Rc::from_iter(list),
         }
+    }
+}
+
+impl<P: Policy<Prefix = ()>> interface::List for Instance<P> {
+    type Item = P::Item;
+    fn new(c: impl IntoIterator<Item = Self::Item>) -> Self {
+        <Self as interface::PrefixList>::new((), c)
     }
 }
 
@@ -54,9 +61,9 @@ impl<P: Policy> interface::Instance for Instance<P> {
 pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
 impl<H: PartialEq + Clone, T: PartialEq> Policy for ValuePolicy<H, T> {
-    type Header = H;
+    type Prefix = H;
     type Item = T;
-    fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
+    fn list_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
         a == b
     }
 }
@@ -65,9 +72,9 @@ impl<H: PartialEq + Clone, T: PartialEq> Policy for ValuePolicy<H, T> {
 pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
 
 impl<H: PartialEq + Clone, T> Policy for RefPolicy<H, T> {
-    type Header = H;
+    type Prefix = H;
     type Item = T;
-    fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
+    fn list_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
         a.as_ptr() == b.as_ptr()
     }
 }
@@ -197,7 +204,7 @@ impl interface::Any for Any {
 
 #[cfg(test)]
 mod test {
-    use interface::Instance;
+    use interface::PrefixList;
 
     use super::*;
 
@@ -226,7 +233,7 @@ mod test {
         let a = Array::new((), []);
         let b = Array::new((), []);
         // two empty arrays are not equal
-        assert_ne!(a.items.as_ptr(), b.items.as_ptr());
+        assert_ne!(a.list.as_ptr(), b.list.as_ptr());
         assert_ne!(a, b);
         //
         assert_eq!(a, a);
@@ -237,7 +244,7 @@ mod test {
         let a = Object::new((), []);
         let b = Object::new((), []);
         // two empty arrays are not equal
-        assert_ne!(a.items.as_ptr(), b.items.as_ptr());
+        assert_ne!(a.list.as_ptr(), b.list.as_ptr());
         assert_ne!(a, b);
         //
         assert_eq!(a, a);
