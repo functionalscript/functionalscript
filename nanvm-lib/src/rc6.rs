@@ -18,6 +18,15 @@ impl<T> Rc6<T> {
     }
 }
 
+impl<T> Clone for Rc6<T> {
+    fn clone(&self) -> Self {
+        let r = unsafe { self.rc() };
+        let c = r.clone();
+        forget(r);
+        c.into()
+    }
+}
+
 impl<T> From<Rc<T>> for Rc6<T> {
     fn from(value: Rc<T>) -> Self {
         let mut result = Self([0; 6], PhantomData);
@@ -44,7 +53,7 @@ impl<T> Deref for Rc6<T> {
 }
 
 impl<T> DerefMut for Rc6<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.ptr() }
     }
 }
@@ -65,5 +74,21 @@ mod test {
     fn test() {
         let a = Rc::new(42);
         let b: Rc6<_> = a.into();
+        assert_eq!(*b, 42);
     }
+
+    enum X {
+        Nothing,
+        Rc(Rc6<usize>),
+    }
+
+    const _0: () = assert!(size_of::<X>() == 7);
+
+    #[repr(u8)]
+    enum X2 {
+        Nothing = 0,
+        X(X) = 1,
+    }
+
+    const _1: () = assert!(size_of::<X2>() == 8);
 }
