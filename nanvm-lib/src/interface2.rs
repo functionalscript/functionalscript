@@ -14,7 +14,7 @@ trait Complex<U: Unknown>: PartialEq + Sized {
     fn to_unknown(self) -> U;
     fn try_from_unknown(u: U) -> Option<Self>;
     fn header(&self) -> Self::Header;
-    fn data(&self) -> Self::Collection;
+    fn data(&self) -> &Self::Collection;
     fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self;
 }
 
