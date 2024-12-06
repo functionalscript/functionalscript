@@ -31,11 +31,11 @@ struct InstanceProperty {
 }
 ```
 
-The property name is one implemented property names then it should be translated into `index: u8`.
+If the property name is one of the implemented property names, it should be translated into `index: u8`.
 
-If a property name is one of prohibited property names or one of method names, then it's a compilation error.
+If a property name is one of the prohibited property names or one of the method names, then it's a compilation error.
 
-All other property names generates `own_property` commands.
+All other property names generate `own_property` commands.
 
 [Object Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_properties),
 
