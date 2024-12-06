@@ -23,6 +23,18 @@ pub trait AnyExtension: Any {
             Unpacked::Function(_) => todo!(),
         }
     }
+    fn own_property(self) -> Self {
+        match self.unpack() {
+            Unpacked::Nullish(nullish) => todo!(),
+            Unpacked::Bool(_) => todo!(),
+            Unpacked::Number(_) => todo!(),
+            Unpacked::String(_) => todo!(),
+            Unpacked::BigInt(_) => todo!(),
+            Unpacked::Array(_) => todo!(),
+            Unpacked::Object(_) => todo!(),
+            Unpacked::Function(_) => todo!(),
+        }
+    }
 }
 
 impl<T: Any> AnyExtension for T {}

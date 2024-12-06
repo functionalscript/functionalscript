@@ -40,9 +40,6 @@ pub trait Any: PartialEq + Sized + From<f64> + From<bool> + From<Nullish> + Clon
     type BigInt: BigInt<Self>;
     type Function: Function<Self>;
     fn unpack(self) -> Unpacked<Self>;
-    // fn to_string() -> Self::String;
-    // VM commands
-    // fn own_property(&self, index: Self) -> Self;
 }
 
 #[derive(PartialEq, Debug, Clone)]
