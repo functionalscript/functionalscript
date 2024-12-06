@@ -77,18 +77,18 @@ mod test {
         assert_eq!(*b, 42);
     }
 
-    enum X {
+    enum _X {
         Nothing,
         Rc(Rc6<usize>),
     }
 
-    const _0: () = assert!(size_of::<X>() == 7);
+    const _0: () = assert!(size_of::<_X>() == 7);
 
     #[repr(u8)]
-    enum X2 {
+    enum _X2 {
         Nothing = 0,
-        X(X) = 1,
+        X(_X) = 1,
     }
 
-    const _1: () = assert!(size_of::<X2>() == 8);
+    const _1: () = assert!(size_of::<_X2>() == 8);
 }
