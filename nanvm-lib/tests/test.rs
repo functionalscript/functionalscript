@@ -47,6 +47,7 @@ fn eq<A: Unknown>() {
             assert_ne!(number_nan, number_nan);
             assert_eq!(number_p0, number_n0);
             // Object.is()
+            assert_eq!((-0f64).to_bits(), (-0f64).to_bits());
             assert_ne!(0f64.to_bits(), (-0f64).to_bits());
             assert_eq!(number_p_inf0, number_p_inf1);
             assert_eq!(number_n_inf0, number_n_inf1);

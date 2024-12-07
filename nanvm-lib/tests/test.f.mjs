@@ -31,6 +31,7 @@ export default {
                 n(2.3)(-5.4)
                 n(NaN)(NaN)
                 e(0)(-0)
+                if (!Object.is(-0, -0)) { throw -0 }
                 if (Object.is(0, -0)) { throw -0 }
                 e(Infinity)(Infinity)
                 e(-Infinity)(-Infinity)
