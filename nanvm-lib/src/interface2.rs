@@ -1,41 +1,31 @@
-use crate::{nullish::Nullish, sign::Sign};
+use crate::{sign::Sign, simple::Simple};
 
-trait SimpleUnknown<T> {
-    fn new(value: T) -> Self;
-    fn try_to(&self) -> Option<T>;
-}
-
-trait Complex<U: Unknown>: PartialEq + Sized {
+pub trait Container {
+    type Header;
     type Item;
-    fn to_unknown(self) -> U;
-    fn try_from_unknown(u: U) -> Result<Self, U>;
+    fn header(&self) -> &Self::Header;
     /// For now, we use a slice.
     /// We may change it in the future to support more sophisticated containers.
     fn items(&self) -> &[Self::Item];
-}
-
-trait NoHeader<U: Unknown>: Complex<U> {
-    fn new(items: impl IntoIterator<Item = Self::Item>) -> Self;
-}
-
-trait WithHeader<U: Unknown>: Complex<U> {
-    type Header;
-    fn header(&self) -> Self::Header;
     fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self;
 }
 
-trait String16<U: Unknown<String16 = Self>>: NoHeader<U, Item = u16> {}
+pub trait Complex<U: Unknown>: PartialEq + Sized + Container {
+    fn to_unknown(self) -> U;
+    fn try_from_unknown(u: U) -> Result<Self, U>;
+}
 
-trait BigInt<U: Unknown<BigInt = Self>>: WithHeader<U, Header = Sign, Item = u64> {}
+pub trait String16<U: Unknown<String16 = Self>>: Complex<U> + Container<Header = (), Item = u16> {}
 
-trait Array<U: Unknown<Array = Self>>: NoHeader<U, Item = U> {}
+pub trait BigInt<U: Unknown<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {}
 
-trait Object<U: Unknown<Object = Self>>: NoHeader<U, Item = (U::String16, U)> {}
+pub trait Array<U: Unknown<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
 
-trait Function<U: Unknown<Function = Self>>: WithHeader<U, Header = u32, Item = u8> {}
+pub trait Object<U: Unknown<Object = Self>>: Complex<U> + Container<Header = (), Item = (U::String16, U)> {}
 
-trait Unknown:
-    PartialEq + Sized + SimpleUnknown<Nullish> + SimpleUnknown<bool> + SimpleUnknown<f64>
+pub trait Function<U: Unknown<Function = Self>>: Complex<U> + Container<Header = u32, Item = u8> {}
+
+pub trait Unknown: PartialEq + Sized
 {
     type String16: String16<Self>;
     type BigInt: BigInt<Self>;
@@ -43,21 +33,20 @@ trait Unknown:
     type Object: Object<Self>;
     type Function: Function<Self>;
 
+    fn new_simple(value: Simple) -> Self;
+    fn try_to_simple(&self) -> Option<Simple>;
+
     fn try_to<C: Complex<Self>>(self) -> Result<C, Self> {
         C::try_from_unknown(self)
     }
 }
 
 trait Extension: Sized {
-    fn from_simple<U: SimpleUnknown<Self>>(self) -> U {
-        U::new(self)
-    }
-
-    fn to_complex<C: NoHeader<impl Unknown>>(self) -> C
+    fn to_complex<C: Complex<impl Unknown> + Container<Header = ()>>(self) -> C
     where
         Self: IntoIterator<Item = C::Item>,
     {
-        C::new(self)
+        C::new((), self)
     }
 
     fn to_string16<U: Unknown>(self) -> U
