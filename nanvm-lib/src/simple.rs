@@ -1,6 +1,6 @@
 use crate::interface2::Unknown;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Simple {
     Null,
     Undefined,
@@ -9,7 +9,7 @@ pub enum Simple {
 }
 
 impl Simple {
-    fn to_unknown<U: Unknown>(self) -> U {
+    pub fn to_unknown<U: Unknown>(self) -> U {
         U::new_simple(self)
     }
 }

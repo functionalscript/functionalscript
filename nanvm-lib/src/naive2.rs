@@ -1,18 +1,18 @@
-use core::marker::PhantomData;
+use core::{fmt, marker::PhantomData};
 use std::rc;
 
 use crate::{interface2, sign::Sign, simple::Simple};
 
 pub trait Policy {
-    type Header: PartialEq;
-    type Item;
+    type Header: PartialEq + fmt::Debug;
+    type Item: fmt::Debug;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
 }
 
 #[derive(Clone)]
 pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
-impl<H: PartialEq + Clone, T: PartialEq> Policy for ValuePolicy<H, T> {
+impl<H: PartialEq + fmt::Debug + Clone, T: PartialEq + fmt::Debug> Policy for ValuePolicy<H, T> {
     type Header = H;
     type Item = T;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -23,7 +23,7 @@ impl<H: PartialEq + Clone, T: PartialEq> Policy for ValuePolicy<H, T> {
 #[derive(Clone)]
 pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
 
-impl<H: PartialEq + Clone, T> Policy for RefPolicy<H, T> {
+impl<H: PartialEq + fmt::Debug + Clone, T: fmt::Debug> Policy for RefPolicy<H, T> {
     type Header = H;
     type Item = T;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
@@ -34,6 +34,15 @@ impl<H: PartialEq + Clone, T> Policy for RefPolicy<H, T> {
 pub struct Complex<P: Policy> {
     header: P::Header,
     items: rc::Rc<[P::Item]>,
+}
+
+impl<P: Policy> fmt::Debug for Complex<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Complex")
+            .field("header", &self.header)
+            .field("items", &self.items)
+            .finish()
+    }
 }
 
 impl<P: Policy> PartialEq for Complex<P> {
@@ -157,8 +166,8 @@ impl interface2::Function<Unknown> for Function {}
 
 // Unknown
 
-#[derive(PartialEq)]
-enum Unknown {
+#[derive(PartialEq, Debug)]
+pub enum Unknown {
     Simple(Simple),
     String16(String16),
     BigInt(BigInt),

@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::{sign::Sign, simple::Simple};
 
 pub trait Container {
@@ -25,7 +27,7 @@ pub trait Object<U: Unknown<Object = Self>>: Complex<U> + Container<Header = (),
 
 pub trait Function<U: Unknown<Function = Self>>: Complex<U> + Container<Header = u32, Item = u8> {}
 
-pub trait Unknown: PartialEq + Sized
+pub trait Unknown: PartialEq + Sized + fmt::Debug
 {
     type String16: String16<Self>;
     type BigInt: BigInt<Self>;
@@ -48,25 +50,57 @@ trait Extension: Sized {
     {
         C::new((), self)
     }
+}
 
-    fn to_string16<U: Unknown>(self) -> U
-    where
-        Self: IntoIterator<Item = u16>,
+impl<T> Extension for T {}
+
+// String16
+
+trait String16Extension: IntoIterator<Item = u16> + Sized {
+    fn to_unknown<U: Unknown>(self) -> U
     {
         self.to_complex::<U::String16>().to_unknown()
     }
-    fn to_array<U: Unknown>(self) -> U
-    where
-        Self: IntoIterator<Item = U>
+}
+
+impl<T: IntoIterator<Item = u16> + Sized> String16Extension for T {}
+
+// Array
+
+trait ArrayExtension: IntoIterator<Item: Unknown> + Sized {
+    fn to_unknown(self) -> Self::Item
     {
-        self.to_complex::<U::Array>().to_unknown()
+        self.to_complex::<<Self::Item as Unknown>::Array>().to_unknown()
     }
-    fn to_object<U: Unknown>(self) -> U
-    where
-        Self: IntoIterator<Item = (U::String16, U)>
+}
+
+impl<T: IntoIterator<Item: Unknown> + Sized> ArrayExtension for T {}
+
+// Object
+
+trait ObjectExtension<U: Unknown>: IntoIterator<Item = (U::String16, U)> + Sized
+{
+    fn to_unknown(self) -> U
     {
         self.to_complex::<U::Object>().to_unknown()
     }
 }
 
-impl<T> Extension for T {}
+impl<U: Unknown, T: IntoIterator<Item = (U::String16, U)> + Sized> ObjectExtension<U> for T {}
+
+// Utf8
+
+pub trait Utf8 {
+    fn to_string16<U: Unknown>(&self) -> U::String16;
+    fn to_unknown<U: Unknown>(&self) -> U;
+}
+
+impl Utf8 for str {
+    fn to_string16<U: Unknown>(&self) -> U::String16 {
+        self.encode_utf16().to_complex()
+    }
+
+    fn to_unknown<U: Unknown>(&self) -> U {
+        self.to_string16::<U>().to_unknown()
+    }
+}
