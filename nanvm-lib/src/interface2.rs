@@ -52,6 +52,22 @@ pub trait Unknown: PartialEq + Sized + Clone + fmt::Debug {
     fn try_to<C: Complex<Self>>(self) -> Result<C, Self> {
         C::try_from_unknown(self)
     }
+
+    fn to_string(self) -> Self::String16 {
+        if let Some(simple) = self.try_to_simple() {
+            return simple.to_string::<Self>()
+        }
+        if let Ok(v) = self.clone().try_to::<Self::String16>() {
+            return v;
+        }
+        if self.clone().try_to::<Self::Array>().is_ok() {
+            return "".to_string16::<Self>()
+        }
+        if self.clone().try_to::<Self::Object>().is_ok() {
+            return "[object Object]".to_string16::<Self>()
+        }
+        todo!()
+    }
 }
 
 pub trait Extension: Sized {
