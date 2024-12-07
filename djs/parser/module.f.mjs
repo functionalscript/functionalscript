@@ -35,9 +35,26 @@ const { fromMap } = o
 
 /**
  * @typedef {{
-*  readonly status: 'module'
-*  readonly stage: 'module' | '.' | 'exports' | '='
-* }} StateModule
+*  readonly status: 'init'
+* }} StateInitial
+*/
+
+/**
+ * @typedef {{
+*  readonly status: 'import'
+* }} StateImport
+*/
+
+/**
+ * @typedef {{
+*  readonly status: 'const'
+* }} StateConst
+*/
+
+/**
+ * @typedef {{
+*  readonly status: 'export'
+* }} StateExport
 */
 
 /**
@@ -64,38 +81,28 @@ const { fromMap } = o
 
 /**
  * @typedef {|
-* StateModule |
+* StateInitial |
+* StateImport |
+* StateConst |
+* StateExport |
 * StateParse |
 * StateResult |
 * StateError
 * } DjsState
 */
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateModule) => DjsState}} */
-const parseModuleOp = token => state => {
-    switch(state.stage)
-    {
-        case 'module':
-        {
-            if (token.kind === 'id' && token.value === 'module') return { status: 'module', stage: '.' }
-            break;
-        }
-        case '.':
-        {
-            if (token.kind === '.') return { status: 'module', stage: 'exports' }
-            break;
-        }
-        case 'exports':
-        {
-            if (token.kind === 'id' && token.value === 'exports') return { status: 'module', stage: '=' }
-            break;
-        }
-        case '=':
-        {
-            if (token.kind === '=') return { status: '', top: null, stack: null }
-            if (token.kind === 'ws') return state
-        }
-    }
+/** @type {(token: tokenizerT.DjsToken) => (state: StateInitial) => DjsState}} */
+const parseInitialOp = token => state => {
+    if (token.kind === 'id' && token.value === 'import') return { status: 'import' }
+    if (token.kind === 'id' && token.value === 'const') return { status: 'const' }
+    if (token.kind === 'id' && token.value === 'export') return { status: 'export' }
+    return { status: 'error', message: 'unexpected token' }
+}
+
+/** @type {(token: tokenizerT.DjsToken) => (state: StateExport) => DjsState}} */
+const parseExportOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === 'id' && token.value === 'default') return { status: '', top: null, stack: null }
     return { status: 'error', message: 'unexpected token' }
 }
 
@@ -244,7 +251,10 @@ const parseObjectCommaOp = token => state => {
 /** @type {Operator.Fold<tokenizerT.DjsToken, DjsState>} */
 const foldOp = token => state => {
     switch (state.status) {
-        case 'module': return parseModuleOp(token)(state)
+        case 'init': return parseInitialOp(token)(state)
+        case 'import': return { status: 'error', message: 'todo' }
+        case 'const': return { status: 'error', message: 'todo' }
+        case 'export': return parseExportOp(token)(state)        
         case 'result': return { status: 'error', message: 'unexpected token' }
         case 'error': return { status: 'error', message: state.message }
         case '': return parseValueOp(token)(state)
@@ -261,7 +271,7 @@ const foldOp = token => state => {
 
 /** @type {(tokenList: List.List<tokenizerT.DjsToken>) => Result.Result<Djs.Unknown, string>} */
 const parse = tokenList => {
-    const state = fold(foldOp)({ status: 'module', stage: 'module' })(tokenList)
+    const state = fold(foldOp)({ status: 'init' })(tokenList)
     switch (state.status) {
         case 'result': return result.ok(state.value)
         case 'error': return result.error(state.message)
