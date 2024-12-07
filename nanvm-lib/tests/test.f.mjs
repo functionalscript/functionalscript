@@ -57,6 +57,15 @@ export default {
                 const a = []
                 e(a)(a)
                 n([])([])
+                const a0 = ['0']
+                e(a0)(a0)
+            }
+        },
+        object: {
+            object: () => {
+                const o = { '0': '0' }
+                e(o)(o)
+                n(o)({ '0': '0' })
             }
         }
     }

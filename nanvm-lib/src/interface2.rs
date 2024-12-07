@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{sign::Sign, simple::Simple};
 
-pub trait Container {
+pub trait Container: Clone {
     type Header;
     type Item;
     fn header(&self) -> &Self::Header;
@@ -17,18 +17,29 @@ pub trait Complex<U: Unknown>: PartialEq + Sized + Container {
     fn try_from_unknown(u: U) -> Result<Self, U>;
 }
 
-pub trait String16<U: Unknown<String16 = Self>>: Complex<U> + Container<Header = (), Item = u16> {}
+pub trait String16<U: Unknown<String16 = Self>>:
+    Complex<U> + Container<Header = (), Item = u16>
+{
+}
 
-pub trait BigInt<U: Unknown<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {}
+pub trait BigInt<U: Unknown<BigInt = Self>>:
+    Complex<U> + Container<Header = Sign, Item = u64>
+{
+}
 
 pub trait Array<U: Unknown<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
 
-pub trait Object<U: Unknown<Object = Self>>: Complex<U> + Container<Header = (), Item = (U::String16, U)> {}
-
-pub trait Function<U: Unknown<Function = Self>>: Complex<U> + Container<Header = u32, Item = u8> {}
-
-pub trait Unknown: PartialEq + Sized + fmt::Debug
+pub trait Object<U: Unknown<Object = Self>>:
+    Complex<U> + Container<Header = (), Item = (U::String16, U)>
 {
+}
+
+pub trait Function<U: Unknown<Function = Self>>:
+    Complex<U> + Container<Header = u32, Item = u8>
+{
+}
+
+pub trait Unknown: PartialEq + Sized + Clone + fmt::Debug {
     type String16: String16<Self>;
     type BigInt: BigInt<Self>;
     type Array: Array<Self>;
@@ -50,43 +61,30 @@ pub trait Extension: Sized {
     {
         C::new((), self)
     }
-}
 
-impl<T> Extension for T {}
-
-// String16
-
-pub trait String16Extension: IntoIterator<Item = u16> + Sized {
-    fn to_unknown<U: Unknown>(self) -> U
+    fn to_string16_unknown<U: Unknown>(self) -> U
+    where
+        Self: IntoIterator<Item = u16>,
     {
         self.to_complex::<U::String16>().to_unknown()
     }
-}
 
-impl<T: IntoIterator<Item = u16> + Sized> String16Extension for T {}
-
-// Array
-
-pub trait ArrayExtension: IntoIterator<Item: Unknown> + Sized {
-    fn to_unknown(self) -> Self::Item
+    fn to_array_unknown(self) -> Self::Item
+    where
+        Self: IntoIterator<Item: Unknown>,
     {
-        self.to_complex::<<Self::Item as Unknown>::Array>().to_unknown()
+        self.to_complex::<<Self::Item as Unknown>::Array>()
+            .to_unknown()
     }
-}
 
-impl<T: IntoIterator<Item: Unknown> + Sized> ArrayExtension for T {}
-
-// Object
-
-pub trait ObjectExtension<U: Unknown>: IntoIterator<Item = (U::String16, U)> + Sized
-{
-    fn to_unknown(self) -> U
+    fn to_object_unknown<U: Unknown>(self) -> U
+    where Self: IntoIterator<Item = (U::String16, U)>
     {
         self.to_complex::<U::Object>().to_unknown()
     }
 }
 
-impl<U: Unknown, T: IntoIterator<Item = (U::String16, U)> + Sized> ObjectExtension<U> for T {}
+impl<T> Extension for T {}
 
 // Utf8
 

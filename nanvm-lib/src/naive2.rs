@@ -4,7 +4,7 @@ use std::rc;
 use crate::{interface2, sign::Sign, simple::Simple};
 
 pub trait Policy {
-    type Header: PartialEq + fmt::Debug;
+    type Header: PartialEq + fmt::Debug + Clone;
     type Item: fmt::Debug;
     fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
 }
@@ -34,6 +34,12 @@ impl<H: PartialEq + fmt::Debug + Clone, T: fmt::Debug> Policy for RefPolicy<H, T
 pub struct Complex<P: Policy> {
     header: P::Header,
     items: rc::Rc<[P::Item]>,
+}
+
+impl<P: Policy> Clone for Complex<P> {
+    fn clone(&self) -> Self {
+        Self { header: self.header.clone(), items: self.items.clone() }
+    }
 }
 
 impl<P: Policy> fmt::Debug for Complex<P> {
@@ -166,7 +172,7 @@ impl interface2::Function<Unknown> for Function {}
 
 // Unknown
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Unknown {
     Simple(Simple),
     String16(String16),

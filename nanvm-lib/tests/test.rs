@@ -1,4 +1,4 @@
-use nanvm_lib::{interface2::{ArrayExtension, Unknown, Utf8}, naive2, simple::Simple};
+use nanvm_lib::{interface2::{Extension, Unknown, Utf8}, naive2, simple::Simple};
 
 fn eq<A: Unknown>() {
     // nullish
@@ -64,21 +64,31 @@ fn eq<A: Unknown>() {
     let string_hello1: A = "Hello!".to_unknown();
     let string_world0: A = "world!".to_unknown();
     let string0: A = "0".to_unknown();
+    let s0 = "0".to_string16::<A>();
     {
         {
             assert_eq!(string_hello0, string_hello1);
             assert_ne!(string_hello0, string_world0);
         }
         {
-            assert_ne!(number_p0, string0);
+            assert_ne!(number_p0, string0.clone());
         }
     }
     // array
-    let array0: A = [].to_unknown();
-    let array1: A = [].to_unknown();
+    let array0: A = [].to_array_unknown();
+    let array1: A = [].to_array_unknown();
+    let array2: A = [string0.clone()].to_array_unknown();
     {
         assert_eq!(array0, array0);
         assert_ne!(array0, array1);
+        assert_eq!(array2, array2);
+    }
+    // object
+    let object0: A = [(s0.clone(), string0.clone())].to_object_unknown();
+    let object1: A = [(s0, string0)].to_object_unknown();
+    {
+        assert_eq!(object0, object0);
+        assert_ne!(object0, object1);
     }
 }
 
