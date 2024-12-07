@@ -51,6 +51,13 @@ export default {
                 n(0)("0")
             }
         },
+        bigint: {
+            bigint: () => {
+                e(12n)(12n)
+                n(12n)(-12n)
+                n(12n)(13n)
+            }
+        },
         array: {
             array: () => {
                 /** @type {any} */

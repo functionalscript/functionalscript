@@ -1,4 +1,4 @@
-use nanvm_lib::{interface2::{Extension, Unknown, Utf8}, naive2, simple::Simple};
+use nanvm_lib::{interface2::{Complex, Container, Extension, Unknown, Utf8}, naive2, sign::Sign, simple::Simple};
 
 fn eq<A: Unknown>() {
     // nullish
@@ -73,6 +73,16 @@ fn eq<A: Unknown>() {
         {
             assert_ne!(number_p0, string0.clone());
         }
+    }
+    // bigint
+    let bigint12_0: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
+    let bigint12_1: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
+    let bigint12m: A =  A::BigInt::new(Sign::Negative, [12]).to_unknown();
+    let bigint13: A =  A::BigInt::new(Sign::Positive, [13]).to_unknown();
+    {
+        assert_eq!(bigint12_0, bigint12_1);
+        assert_ne!(bigint12_0, bigint12m);
+        assert_ne!(bigint12_0, bigint13);
     }
     // array
     let array0: A = [].to_array_unknown();
