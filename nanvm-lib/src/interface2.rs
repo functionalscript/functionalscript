@@ -5,7 +5,7 @@ trait SimpleUnknown<T> {
     fn try_to(&self) -> Option<T>;
 }
 
-trait Collection<U: Unknown>: PartialEq + Sized {
+trait Complex<U: Unknown>: PartialEq + Sized {
     type Item;
     fn to_unknown(self) -> U;
     fn try_from_unknown(u: U) -> Result<Self, U>;
@@ -14,11 +14,11 @@ trait Collection<U: Unknown>: PartialEq + Sized {
     fn items(&self) -> &[Self::Item];
 }
 
-trait NoHeader<U: Unknown>: Collection<U> {
+trait NoHeader<U: Unknown>: Complex<U> {
     fn new(items: impl IntoIterator<Item = Self::Item>) -> Self;
 }
 
-trait WithHeader<U: Unknown>: Collection<U> {
+trait WithHeader<U: Unknown>: Complex<U> {
     type Header;
     fn header(&self) -> Self::Header;
     fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self;
@@ -43,15 +43,41 @@ trait Unknown:
     type Object: Object<Self>;
     type Function: Function<Self>;
 
-    fn try_to<C: Collection<Self>>(self) -> Result<C, Self> {
+    fn try_to<C: Complex<Self>>(self) -> Result<C, Self> {
         C::try_from_unknown(self)
     }
 }
 
-trait ToUnknown: Sized {
-    fn to_unknown<U: SimpleUnknown<Self>>(self) -> U {
+trait Extension: Sized {
+    fn from_simple<U: SimpleUnknown<Self>>(self) -> U {
         U::new(self)
+    }
+
+    fn to_complex<C: NoHeader<impl Unknown>>(self) -> C
+    where
+        Self: IntoIterator<Item = C::Item>,
+    {
+        C::new(self)
+    }
+
+    fn to_string16<U: Unknown>(self) -> U
+    where
+        Self: IntoIterator<Item = u16>,
+    {
+        self.to_complex::<U::String16>().to_unknown()
+    }
+    fn to_array<U: Unknown>(self) -> U
+    where
+        Self: IntoIterator<Item = U>
+    {
+        self.to_complex::<U::Array>().to_unknown()
+    }
+    fn to_object<U: Unknown>(self) -> U
+    where
+        Self: IntoIterator<Item = (U::String16, U)>
+    {
+        self.to_complex::<U::Object>().to_unknown()
     }
 }
 
-impl<T> ToUnknown for T {}
+impl<T> Extension for T {}
