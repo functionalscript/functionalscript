@@ -43,7 +43,7 @@ pub trait Unknown: PartialEq + Sized + fmt::Debug
     }
 }
 
-trait Extension: Sized {
+pub trait Extension: Sized {
     fn to_complex<C: Complex<impl Unknown> + Container<Header = ()>>(self) -> C
     where
         Self: IntoIterator<Item = C::Item>,
@@ -56,7 +56,7 @@ impl<T> Extension for T {}
 
 // String16
 
-trait String16Extension: IntoIterator<Item = u16> + Sized {
+pub trait String16Extension: IntoIterator<Item = u16> + Sized {
     fn to_unknown<U: Unknown>(self) -> U
     {
         self.to_complex::<U::String16>().to_unknown()
@@ -67,7 +67,7 @@ impl<T: IntoIterator<Item = u16> + Sized> String16Extension for T {}
 
 // Array
 
-trait ArrayExtension: IntoIterator<Item: Unknown> + Sized {
+pub trait ArrayExtension: IntoIterator<Item: Unknown> + Sized {
     fn to_unknown(self) -> Self::Item
     {
         self.to_complex::<<Self::Item as Unknown>::Array>().to_unknown()
@@ -78,7 +78,7 @@ impl<T: IntoIterator<Item: Unknown> + Sized> ArrayExtension for T {}
 
 // Object
 
-trait ObjectExtension<U: Unknown>: IntoIterator<Item = (U::String16, U)> + Sized
+pub trait ObjectExtension<U: Unknown>: IntoIterator<Item = (U::String16, U)> + Sized
 {
     fn to_unknown(self) -> U
     {

@@ -1,4 +1,4 @@
-use nanvm_lib::{interface2::{Unknown, Utf8}, naive2, simple::Simple};
+use nanvm_lib::{interface2::{ArrayExtension, Unknown, Utf8}, naive2, simple::Simple};
 
 fn eq<A: Unknown>() {
     // nullish
@@ -72,6 +72,13 @@ fn eq<A: Unknown>() {
         {
             assert_ne!(number_p0, string0);
         }
+    }
+    // array
+    let array0: A = [].to_unknown();
+    let array1: A = [].to_unknown();
+    {
+        assert_eq!(array0, array0);
+        assert_ne!(array0, array1);
     }
 }
 

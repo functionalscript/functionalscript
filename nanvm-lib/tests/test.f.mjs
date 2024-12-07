@@ -50,6 +50,14 @@ export default {
             number: () => {
                 n(0)("0")
             }
+        },
+        array: {
+            array: () => {
+                /** @type {any} */
+                const a = []
+                e(a)(a)
+                n([])([])
+            }
         }
     }
 }
