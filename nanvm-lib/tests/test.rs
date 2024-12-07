@@ -1,11 +1,11 @@
-use nanvm_lib::{interface2::{Complex, Container, Extension, Unknown, Utf8}, naive2, sign::Sign, simple::Simple};
+use nanvm_lib::{interface2::{Complex, Container, Extension, Unknown, Utf8}, naive2, nullish::Nullish, sign::Sign, simple::Simple};
 
 fn eq<A: Unknown>() {
     // nullish
-    let null0: A = Simple::Null.to_unknown();
-    let null1 = Simple::Null.to_unknown();
-    let undefined0 = Simple::Undefined.to_unknown();
-    let undefined1 = Simple::Undefined.to_unknown();
+    let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
+    let null1 = Simple::Nullish(Nullish::Null).to_unknown();
+    let undefined0 = Simple::Nullish(Nullish::Undefined).to_unknown();
+    let undefined1 = Simple::Nullish(Nullish::Undefined).to_unknown();
     {
         assert_eq!(null0, null1);
         assert_eq!(undefined0, undefined1);

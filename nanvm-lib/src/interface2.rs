@@ -66,6 +66,7 @@ pub trait Unknown: PartialEq + Sized + Clone + fmt::Debug {
         if self.clone().try_to::<Self::Object>().is_ok() {
             return "[object Object]".to_string16::<Self>()
         }
+        // bigint and function
         todo!()
     }
 }
