@@ -22,9 +22,9 @@ const { fromMap } = o
 
 /** @typedef {['cref', number]} DjsModuleARef */
 
-/** @typedef {['array', Djs.Array]} DjsModuleArray */
+/** @typedef {['array', readonly DjsModuleConst[]]} DjsModuleArray */
 
-/** @typedef {['object', object]} DjsModuleObject */
+/** @typedef {['object', { readonly [k in string]: DjsModuleConst }]} DjsModuleObject */
 
 /**
  * @typedef {{
