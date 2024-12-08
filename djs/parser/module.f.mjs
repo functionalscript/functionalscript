@@ -24,7 +24,7 @@ const { fromMap } = o
 
 /** @typedef {['array', Djs.Array]} DjsModuleArray */
 
-/** @typedef {['array', object]} DjsModuleObject */
+/** @typedef {['object', object]} DjsModuleObject */
 
 /**
  * @typedef {{
