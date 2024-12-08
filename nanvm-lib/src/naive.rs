@@ -226,25 +226,4 @@ impl interface::Any for Any {
             Any::Function(complex) => interface::Unpacked::Function(complex),
         }
     }
-
-    fn try_to<C: interface::Complex<Self>>(self) -> Result<C, Self> {
-        C::try_from_unknown(self)
-    }
-
-    fn to_string(self) -> <Any as interface::Any>::String16 {
-        if let Some(simple) = self.try_to_simple() {
-            return simple.to_string::<Self>()
-        }
-        if let Ok(v) = self.clone().try_to::<<Any as interface::Any>::String16>() {
-            return v;
-        }
-        if self.clone().try_to::<<Any as interface::Any>::Array>().is_ok() {
-            return "".to_string16::<Self>()
-        }
-        if self.clone().try_to::<<Any as interface::Any>::Object>().is_ok() {
-            return "[object Object]".to_string16::<Self>()
-        }
-        // bigint and function
-        std::todo!()
-    }
 }
