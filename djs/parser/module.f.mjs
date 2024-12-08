@@ -11,6 +11,23 @@ const { fromMap } = o
 
 /**
  * @typedef {{
+* readonly modules: string[]
+* readonly consts: DjsModuleConst[]
+* }} DjsModule
+* */
+
+/** @typedef {boolean|string|number|null|bigint|DjsModuleCRef|DjsModuleARef|DjsModuleArray|DjsModuleObject} DjsModuleConst */
+
+/** @typedef {['cref', number]} DjsModuleCRef */
+
+/** @typedef {['cref', number]} DjsModuleARef */
+
+/** @typedef {['array', Djs.Array]} DjsModuleArray */
+
+/** @typedef {['array', object]} DjsModuleObject */
+
+/**
+ * @typedef {{
 * readonly kind: 'object'
 * readonly values: Map.Map<Djs.Unknown>
 * readonly key: string
