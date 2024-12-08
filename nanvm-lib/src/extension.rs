@@ -1,4 +1,4 @@
-use crate::{interface2::{Any, Container, Extension, Unpacked}, nullish::Nullish::*, simple::Simple};
+use crate::{interface::{Any, Container, Extension, Unpacked}, nullish::Nullish::*, simple::Simple};
 
 pub trait AnyExtension: Any {
     fn string(c: &str) -> Self::String16 {
@@ -51,7 +51,7 @@ impl<T: Any> AnyExtension for T {}
 mod test {
     mod to_string {
         use crate::{
-            extension::AnyExtension, interface2::{Complex, Extension}, naive2::{Any, Array, Object}, nullish::Nullish::*, simple::Simple
+            extension::AnyExtension, interface::{Complex, Extension}, naive::{Any, Array, Object}, nullish::Nullish::*, simple::Simple
         };
 
         #[test]
@@ -100,7 +100,7 @@ mod test {
     }
 
     mod own_property {
-        use crate::{extension::AnyExtension, interface2::Complex, naive2::Any, nullish::Nullish::*, simple::Simple};
+        use crate::{extension::AnyExtension, interface::Complex, naive::Any, nullish::Nullish::*, simple::Simple};
 
         #[test]
         #[should_panic]

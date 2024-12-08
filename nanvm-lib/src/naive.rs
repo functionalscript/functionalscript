@@ -1,7 +1,7 @@
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
-use crate::{interface2, nullish::Nullish, sign::Sign, simple::Simple};
+use crate::{interface, nullish::Nullish, sign::Sign, simple::Simple};
 
 pub trait Policy {
     type Header: PartialEq + fmt::Debug + Clone;
@@ -57,7 +57,7 @@ impl<P: Policy> PartialEq for Complex<P> {
     }
 }
 
-impl<P: Policy> interface2::Container for Complex<P> {
+impl<P: Policy> interface::Container for Complex<P> {
     type Header = P::Header;
     type Item = P::Item;
     fn items(&self) -> &[Self::Item] {
@@ -78,7 +78,7 @@ impl<P: Policy> interface2::Container for Complex<P> {
 
 pub type String16 = Complex<ValuePolicy<(), u16>>;
 
-impl interface2::Complex<Any> for String16 {
+impl interface::Complex<Any> for String16 {
     fn to_unknown(self) -> Any {
         Any::String16(self)
     }
@@ -91,13 +91,13 @@ impl interface2::Complex<Any> for String16 {
     }
 }
 
-impl interface2::String16<Any> for String16 {}
+impl interface::String16<Any> for String16 {}
 
 // BigInt
 
 pub type BigInt = Complex<ValuePolicy<Sign, u64>>;
 
-impl interface2::Complex<Any> for BigInt {
+impl interface::Complex<Any> for BigInt {
     fn to_unknown(self) -> Any {
         Any::BigInt(self)
     }
@@ -110,13 +110,13 @@ impl interface2::Complex<Any> for BigInt {
     }
 }
 
-impl interface2::BigInt<Any> for BigInt {}
+impl interface::BigInt<Any> for BigInt {}
 
 // Array
 
 pub type Array = Complex<RefPolicy<(), Any>>;
 
-impl interface2::Complex<Any> for Array {
+impl interface::Complex<Any> for Array {
     fn to_unknown(self) -> Any {
         Any::Array(self)
     }
@@ -129,13 +129,13 @@ impl interface2::Complex<Any> for Array {
     }
 }
 
-impl interface2::Array<Any> for Array {}
+impl interface::Array<Any> for Array {}
 
 // Object
 
 pub type Object = Complex<RefPolicy<(), (String16, Any)>>;
 
-impl interface2::Complex<Any> for Object {
+impl interface::Complex<Any> for Object {
     fn to_unknown(self) -> Any {
         Any::Object(self)
     }
@@ -148,13 +148,13 @@ impl interface2::Complex<Any> for Object {
     }
 }
 
-impl interface2::Object<Any> for Object {}
+impl interface::Object<Any> for Object {}
 
 // Function
 
 pub type Function = Complex<RefPolicy<u32, u8>>;
 
-impl interface2::Complex<Any> for Function {
+impl interface::Complex<Any> for Function {
     fn to_unknown(self) -> Any {
         Any::Function(self)
     }
@@ -168,7 +168,7 @@ impl interface2::Complex<Any> for Function {
     }
 }
 
-impl interface2::Function<Any> for Function {}
+impl interface::Function<Any> for Function {}
 
 // Unknown
 
@@ -182,7 +182,7 @@ pub enum Any {
     Function(Function),
 }
 
-impl interface2::Any for Any {
+impl interface::Any for Any {
     type String16 = String16;
     type BigInt = BigInt;
     type Array = Array;
@@ -201,29 +201,29 @@ impl interface2::Any for Any {
         }
     }
 
-    fn pack(u: interface2::Unpacked<Self>) -> Self {
+    fn pack(u: interface::Unpacked<Self>) -> Self {
         match u {
-            interface2::Unpacked::Nullish(n) => Self::Simple(Simple::Nullish(n)),
-            interface2::Unpacked::Bool(n) => Self::Simple(Simple::Boolean(n)),
-            interface2::Unpacked::Number(n) => Self::Simple(Simple::Number(n)),
-            interface2::Unpacked::String16(n) => Self::String16(n),
-            interface2::Unpacked::BigInt(n) => Self::BigInt(n),
-            interface2::Unpacked::Array(n) => Self::Array(n),
-            interface2::Unpacked::Object(n) => Self::Object(n),
-            interface2::Unpacked::Function(n) => Self::Function(n),
+            interface::Unpacked::Nullish(n) => Self::Simple(Simple::Nullish(n)),
+            interface::Unpacked::Bool(n) => Self::Simple(Simple::Boolean(n)),
+            interface::Unpacked::Number(n) => Self::Simple(Simple::Number(n)),
+            interface::Unpacked::String16(n) => Self::String16(n),
+            interface::Unpacked::BigInt(n) => Self::BigInt(n),
+            interface::Unpacked::Array(n) => Self::Array(n),
+            interface::Unpacked::Object(n) => Self::Object(n),
+            interface::Unpacked::Function(n) => Self::Function(n),
         }
     }
 
-    fn unpack(self) -> interface2::Unpacked<Self> {
+    fn unpack(self) -> interface::Unpacked<Self> {
         match self {
-            Any::Simple(Simple::Nullish(n)) => interface2::Unpacked::Nullish(n),
-            Any::Simple(Simple::Boolean(n)) => interface2::Unpacked::Bool(n),
-            Any::Simple(Simple::Number(n)) => interface2::Unpacked::Number(n),
-            Any::String16(complex) => interface2::Unpacked::String16(complex),
-            Any::BigInt(complex) => interface2::Unpacked::BigInt(complex),
-            Any::Array(complex) => interface2::Unpacked::Array(complex),
-            Any::Object(complex) => interface2::Unpacked::Object(complex),
-            Any::Function(complex) => interface2::Unpacked::Function(complex),
+            Any::Simple(Simple::Nullish(n)) => interface::Unpacked::Nullish(n),
+            Any::Simple(Simple::Boolean(n)) => interface::Unpacked::Bool(n),
+            Any::Simple(Simple::Number(n)) => interface::Unpacked::Number(n),
+            Any::String16(complex) => interface::Unpacked::String16(complex),
+            Any::BigInt(complex) => interface::Unpacked::BigInt(complex),
+            Any::Array(complex) => interface::Unpacked::Array(complex),
+            Any::Object(complex) => interface::Unpacked::Object(complex),
+            Any::Function(complex) => interface::Unpacked::Function(complex),
         }
     }
 }

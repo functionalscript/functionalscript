@@ -1,4 +1,4 @@
-use nanvm_lib::{interface2::{Complex, Container, Extension, Any, Utf8}, naive2, nullish::Nullish, sign::Sign, simple::Simple};
+use nanvm_lib::{interface::{Complex, Container, Extension, Any, Utf8}, naive, nullish::Nullish, sign::Sign, simple::Simple};
 
 fn eq<A: Any>() {
     // nullish
@@ -104,5 +104,5 @@ fn eq<A: Any>() {
 
 #[test]
 fn naive_eq() {
-    eq::<naive2::Any>();
+    eq::<naive::Any>();
 }

@@ -1,5 +1,5 @@
 use crate::{
-    interface2::{Any, Utf8},
+    interface::{Any, Utf8},
     nullish::Nullish,
 };
 
