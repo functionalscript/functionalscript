@@ -1,5 +1,7 @@
 [workspace]
+resolver = "2"
 members = [
     "com/rust/nanocom",
-    "com/test/rust"
+    "com/test/rust",
+    "nanvm-lib"
 ]
