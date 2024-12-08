@@ -1,7 +1,7 @@
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
-use crate::{interface, nullish::Nullish, sign::Sign, simple::Simple};
+use crate::{interface::{self, Utf8}, nullish::Nullish, sign::Sign, simple::Simple};
 
 pub trait Policy {
     type Header: PartialEq + fmt::Debug + Clone;
@@ -225,5 +225,26 @@ impl interface::Any for Any {
             Any::Object(complex) => interface::Unpacked::Object(complex),
             Any::Function(complex) => interface::Unpacked::Function(complex),
         }
+    }
+
+    fn try_to<C: interface::Complex<Self>>(self) -> Result<C, Self> {
+        C::try_from_unknown(self)
+    }
+
+    fn to_string(self) -> <Any as interface::Any>::String16 {
+        if let Some(simple) = self.try_to_simple() {
+            return simple.to_string::<Self>()
+        }
+        if let Ok(v) = self.clone().try_to::<<Any as interface::Any>::String16>() {
+            return v;
+        }
+        if self.clone().try_to::<<Any as interface::Any>::Array>().is_ok() {
+            return "".to_string16::<Self>()
+        }
+        if self.clone().try_to::<<Any as interface::Any>::Object>().is_ok() {
+            return "[object Object]".to_string16::<Self>()
+        }
+        // bigint and function
+        std::todo!()
     }
 }
