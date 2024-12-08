@@ -17,5 +17,5 @@
 8. Move logic from `.mjs` files to `.f.mjs` files.
 9. [ ] Generating a Website.
 10. [ ] Short URL table.
-10. [ ] [fs-load](./fs-load.md)
-11. [ ] Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
+11. [ ] [fs-load](./fs-load.md)
+12. [ ] Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
