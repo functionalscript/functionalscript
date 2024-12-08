@@ -1,13 +1,26 @@
 import result, * as Result from '../../types/result/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
-const { fold, first, drop, toArray } = list
+const { fold, first, drop, toArray, flat, map: listMap } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as tokenizerT from '../tokenizer/module.f.mjs'
 import map, * as Map from '../../types/map/module.f.mjs'
 const { setReplace } = map
 import * as Djs from '../module.f.mjs'
-import o from '../../types/object/module.f.mjs'
+import o, * as O from '../../types/object/module.f.mjs'
 const { fromMap } = o
+import f from '../../types/function/module.f.mjs'
+const { compose, fn } = f
+import j from '../../json/serializer/module.f.mjs'
+const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
+const { entries } = Object
+import bi from '../../types/bigint/module.f.mjs'
+const { serialize: bigintSerialize } = bi
+
+/** @typedef {O.Entry<DjsConst>} Entry*/
+
+/** @typedef {(List.List<Entry>)} Entries */
+
+/** @typedef {(entries: Entries) => Entries} MapEntries */
 
 /**
  * @typedef {{
@@ -22,14 +35,23 @@ const { fromMap } = o
 
 /** @typedef {['cref', number]} DjsModuleARef */
 
-/** @typedef {['array', List.List<DjsConst>]} DjsArray */
+/** @typedef {['array', readonly DjsConst[]]} DjsArray */
 
-/** @typedef {['object', Map.Map<DjsConst>, string]} DjsObject */
+/**
+ * @typedef {{
+*  readonly [k in string]: DjsConst
+* }} DjsObject
+*/
+
+/** @typedef {['array', List.List<DjsConst>]} DjsStackArray */
+
+/** @typedef {['object', Map.Map<DjsConst>, string]} DjsStackObject */
+
 
 /**
  * @typedef {|
-* DjsArray |
-* DjsObject
+* DjsStackArray |
+* DjsStackObject
 * } DjsStackElement
 */
 
@@ -105,13 +127,13 @@ const parseExportOp = token => state => {
     return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(obj: DjsObject) => (key: string) => DjsObject} */
+/** @type {(obj: DjsStackObject) => (key: string) => DjsStackObject} */
 const addKeyToObject = obj => key => ([ 'object', obj[1], key])
 
-/** @type {(obj: DjsObject) => (value: DjsConst) => DjsObject} */
+/** @type {(obj: DjsStackObject) => (value: DjsConst) => DjsStackObject} */
 const addValueToObject = obj => value => ([ 'object', setReplace(obj[2])(value)(obj[1]), '' ])
 
-/** @type {(array: DjsArray) => (value: DjsConst) => DjsArray} */
+/** @type {(array: DjsStackArray) => (value: DjsConst) => DjsStackArray} */
 const addToArray = array => value => ([ 'array', list.concat(array[1])([value]) ])
 
 /** @type {(state: ParseValueState) => (key: string) => ParserState} */
@@ -135,9 +157,16 @@ const startArray = state => {
 
 /** @type {(state: ParseValueState) => ParserState} */
 const endArray = state => {
+    const top = state.top;
     /** @type {ParseValueState} */
-    const newState = { state: state.state, module: state.module, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(state.top)
+    const newState = { state: state.state, module: state.module, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }    
+    if (top !== null && top[0] === 'array')
+    {
+        /** @type {DjsArray} */
+        const array =  ['array', toArray(top[1])];
+        return pushValue(newState)(array)
+    }
+    return pushValue(newState)(null)
 }
 
 /** @type {(state: ParseValueState) => ParserState} */
@@ -148,9 +177,10 @@ const startObject = state => {
 
 /** @type {(state: ParseValueState) => ParserState} */
 const endObject = state => {
+    const obj = state?.top !== null && state?.top[0] === 'object' ? fromMap(state.top[1]) : null;
     /** @type {ParseValueState} */
     const newState = { state: state.state, module: state.module, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(state.top)
+    return pushValue(newState)(obj)
 }
 
 /** @type {(token: tokenizerT.DjsToken) => DjsConst} */
@@ -284,6 +314,49 @@ const parse = tokenList => {
         default: return result.error('unexpected end')
     }
 }
+
+const colon = [':']
+
+/** @type {(mapEntries: Djs.MapEntries) => (value: DjsConst) => List.List<string>} */
+const serialize = sort => {
+    /** @type {(kv: readonly[string, DjsConst]) => List.List<string>} */
+    const propertySerialize = ([k, v]) => flat([
+        stringSerialize(k),
+        colon,
+        f(v)
+    ])
+    const mapPropertySerialize = listMap(propertySerialize)
+    /** @type {(object: Object) => List.List<string>} */
+    const objectSerialize = fn(entries)
+        .then(sort)
+        .then(mapPropertySerialize)
+        .then(objectWrap)
+        .result
+    /** @type {(value: DjsConst) => List.List<string>} */
+    const f = value => {
+        switch (typeof value) {
+            case 'boolean': { return boolSerialize(value) }
+            case 'number': { return numberSerialize(value) }
+            case 'string': { return stringSerialize(value) }
+            case 'bigint': { return [bigintSerialize(value)] }
+            default: {
+                if (value === null) { return nullSerialize }
+                //if (value instanceof Array) { return arraySerialize(value) }
+                return objectSerialize(value)
+            }
+        }
+    }
+    const arraySerialize = compose(listMap(f))(arrayWrap)
+    return f
+}
+
+/**
+ * The standard `JSON.stringify` rules determined by
+ * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
+ *
+ * @type {(mapEntries: Djs.MapEntries) => (value: DjsConst) => string}
+ */
+const stringify = sort => compose(serialize(sort))(concat)
 
 export default {
     /** @readonly */
