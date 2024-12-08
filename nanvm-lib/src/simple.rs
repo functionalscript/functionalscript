@@ -1,5 +1,5 @@
 use crate::{
-    interface2::{Unknown, Utf8},
+    interface2::{Any, Utf8},
     nullish::Nullish,
 };
 
@@ -11,10 +11,10 @@ pub enum Simple {
 }
 
 impl Simple {
-    pub fn to_unknown<U: Unknown>(self) -> U {
+    pub fn to_unknown<U: Any>(self) -> U {
         U::new_simple(self)
     }
-    pub fn to_string<U: Unknown>(self) -> U::String16 {
+    pub fn to_string<U: Any>(self) -> U::String16 {
         match self {
             Simple::Nullish(v) => (match v {
                 Nullish::Null => "null",

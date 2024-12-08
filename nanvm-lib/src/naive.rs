@@ -85,7 +85,7 @@ pub type String = Instance<ValuePolicy<(), u16>>;
 
 impl Into<Any> for String {
     fn into(self) -> Any {
-        Any(Unpacked::String(self))
+        Any(Unpacked::String16(self))
     }
 }
 
@@ -184,7 +184,7 @@ impl From<bool> for Any {
 }
 
 impl interface::Any for Any {
-    type String = String;
+    type String16 = String;
     type Object = Object;
     type Array = Array;
     type BigInt = BigInt;

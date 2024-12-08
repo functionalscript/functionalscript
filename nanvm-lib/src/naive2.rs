@@ -78,12 +78,12 @@ impl<P: Policy> interface2::Container for Complex<P> {
 
 pub type String16 = Complex<ValuePolicy<(), u16>>;
 
-impl interface2::Complex<Unknown> for String16 {
-    fn to_unknown(self) -> Unknown {
-        Unknown::String16(self)
+impl interface2::Complex<Any> for String16 {
+    fn to_unknown(self) -> Any {
+        Any::String16(self)
     }
-    fn try_from_unknown(u: Unknown) -> Result<Self, Unknown> {
-        if let Unknown::String16(v) = u {
+    fn try_from_unknown(u: Any) -> Result<Self, Any> {
+        if let Any::String16(v) = u {
             Ok(v)
         } else {
             Err(u)
@@ -91,18 +91,18 @@ impl interface2::Complex<Unknown> for String16 {
     }
 }
 
-impl interface2::String16<Unknown> for String16 {}
+impl interface2::String16<Any> for String16 {}
 
 // BigInt
 
 pub type BigInt = Complex<ValuePolicy<Sign, u64>>;
 
-impl interface2::Complex<Unknown> for BigInt {
-    fn to_unknown(self) -> Unknown {
-        Unknown::BigInt(self)
+impl interface2::Complex<Any> for BigInt {
+    fn to_unknown(self) -> Any {
+        Any::BigInt(self)
     }
-    fn try_from_unknown(u: Unknown) -> Result<Self, Unknown> {
-        if let Unknown::BigInt(v) = u {
+    fn try_from_unknown(u: Any) -> Result<Self, Any> {
+        if let Any::BigInt(v) = u {
             Ok(v)
         } else {
             Err(u)
@@ -110,18 +110,18 @@ impl interface2::Complex<Unknown> for BigInt {
     }
 }
 
-impl interface2::BigInt<Unknown> for BigInt {}
+impl interface2::BigInt<Any> for BigInt {}
 
 // Array
 
-pub type Array = Complex<RefPolicy<(), Unknown>>;
+pub type Array = Complex<RefPolicy<(), Any>>;
 
-impl interface2::Complex<Unknown> for Array {
-    fn to_unknown(self) -> Unknown {
-        Unknown::Array(self)
+impl interface2::Complex<Any> for Array {
+    fn to_unknown(self) -> Any {
+        Any::Array(self)
     }
-    fn try_from_unknown(u: Unknown) -> Result<Self, Unknown> {
-        if let Unknown::Array(v) = u {
+    fn try_from_unknown(u: Any) -> Result<Self, Any> {
+        if let Any::Array(v) = u {
             Ok(v)
         } else {
             Err(u)
@@ -129,18 +129,18 @@ impl interface2::Complex<Unknown> for Array {
     }
 }
 
-impl interface2::Array<Unknown> for Array {}
+impl interface2::Array<Any> for Array {}
 
 // Object
 
-pub type Object = Complex<RefPolicy<(), (String16, Unknown)>>;
+pub type Object = Complex<RefPolicy<(), (String16, Any)>>;
 
-impl interface2::Complex<Unknown> for Object {
-    fn to_unknown(self) -> Unknown {
-        Unknown::Object(self)
+impl interface2::Complex<Any> for Object {
+    fn to_unknown(self) -> Any {
+        Any::Object(self)
     }
-    fn try_from_unknown(u: Unknown) -> Result<Self, Unknown> {
-        if let Unknown::Object(v) = u {
+    fn try_from_unknown(u: Any) -> Result<Self, Any> {
+        if let Any::Object(v) = u {
             Ok(v)
         } else {
             Err(u)
@@ -148,19 +148,19 @@ impl interface2::Complex<Unknown> for Object {
     }
 }
 
-impl interface2::Object<Unknown> for Object {}
+impl interface2::Object<Any> for Object {}
 
 // Function
 
 pub type Function = Complex<RefPolicy<u32, u8>>;
 
-impl interface2::Complex<Unknown> for Function {
-    fn to_unknown(self) -> Unknown {
-        Unknown::Function(self)
+impl interface2::Complex<Any> for Function {
+    fn to_unknown(self) -> Any {
+        Any::Function(self)
     }
 
-    fn try_from_unknown(u: Unknown) -> Result<Self, Unknown> {
-        if let Unknown::Function(v) = u {
+    fn try_from_unknown(u: Any) -> Result<Self, Any> {
+        if let Any::Function(v) = u {
             Ok(v)
         } else {
             Err(u)
@@ -168,12 +168,12 @@ impl interface2::Complex<Unknown> for Function {
     }
 }
 
-impl interface2::Function<Unknown> for Function {}
+impl interface2::Function<Any> for Function {}
 
 // Unknown
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum Unknown {
+pub enum Any {
     Simple(Simple),
     String16(String16),
     BigInt(BigInt),
@@ -182,7 +182,7 @@ pub enum Unknown {
     Function(Function),
 }
 
-impl interface2::Unknown for Unknown {
+impl interface2::Any for Any {
     type String16 = String16;
     type BigInt = BigInt;
     type Array = Array;
@@ -214,16 +214,16 @@ impl interface2::Unknown for Unknown {
         }
     }
 
-    fn unpcak(self) -> interface2::Unpacked<Self> {
+    fn unpack(self) -> interface2::Unpacked<Self> {
         match self {
-            Unknown::Simple(Simple::Nullish(n)) => interface2::Unpacked::Nullish(n),
-            Unknown::Simple(Simple::Boolean(n)) => interface2::Unpacked::Bool(n),
-            Unknown::Simple(Simple::Number(n)) => interface2::Unpacked::Number(n),
-            Unknown::String16(complex) => interface2::Unpacked::String16(complex),
-            Unknown::BigInt(complex) => interface2::Unpacked::BigInt(complex),
-            Unknown::Array(complex) => interface2::Unpacked::Array(complex),
-            Unknown::Object(complex) => interface2::Unpacked::Object(complex),
-            Unknown::Function(complex) => interface2::Unpacked::Function(complex),
+            Any::Simple(Simple::Nullish(n)) => interface2::Unpacked::Nullish(n),
+            Any::Simple(Simple::Boolean(n)) => interface2::Unpacked::Bool(n),
+            Any::Simple(Simple::Number(n)) => interface2::Unpacked::Number(n),
+            Any::String16(complex) => interface2::Unpacked::String16(complex),
+            Any::BigInt(complex) => interface2::Unpacked::BigInt(complex),
+            Any::Array(complex) => interface2::Unpacked::Array(complex),
+            Any::Object(complex) => interface2::Unpacked::Object(complex),
+            Any::Function(complex) => interface2::Unpacked::Function(complex),
         }
     }
 }

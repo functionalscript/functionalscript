@@ -17,14 +17,14 @@ pub trait String<A>: List<Item = u16> + Into<A> {}
 
 pub trait BigInt<A>: PrefixList<Prefix = Sign, Item = u64> + Into<A> {}
 
-pub trait Object<A: Any>: List<Item = (A::String, A)> + Into<A> {}
+pub trait Object<A: Any>: List<Item = (A::String16, A)> + Into<A> {}
 
 pub trait Array<A>: List<Item = A> + Into<A> {}
 
 pub trait Function<A>: PrefixList<Prefix = u32, Item = u8> + Into<A> {}
 
 pub trait Any: PartialEq + Sized + From<f64> + From<bool> + From<Nullish> + Clone {
-    type String: String<Self>;
+    type String16: String<Self>;
     type Object: Object<Self>;
     type Array: Array<Self>;
     type BigInt: BigInt<Self>;
@@ -37,7 +37,7 @@ pub enum Unpacked<A: Any> {
     Nullish(Nullish),
     Bool(bool),
     Number(f64),
-    String(A::String),
+    String16(A::String16),
     BigInt(A::BigInt),
     Array(A::Array),
     Object(A::Object),

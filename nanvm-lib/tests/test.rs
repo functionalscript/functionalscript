@@ -1,6 +1,6 @@
-use nanvm_lib::{interface2::{Complex, Container, Extension, Unknown, Utf8}, naive2, nullish::Nullish, sign::Sign, simple::Simple};
+use nanvm_lib::{interface2::{Complex, Container, Extension, Any, Utf8}, naive2, nullish::Nullish, sign::Sign, simple::Simple};
 
-fn eq<A: Unknown>() {
+fn eq<A: Any>() {
     // nullish
     let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
     let null1 = Simple::Nullish(Nullish::Null).to_unknown();
@@ -104,5 +104,5 @@ fn eq<A: Unknown>() {
 
 #[test]
 fn naive_eq() {
-    eq::<naive2::Unknown>();
+    eq::<naive2::Any>();
 }

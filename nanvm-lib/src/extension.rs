@@ -1,10 +1,10 @@
-use crate::{interface::{Any, List, Unpacked}, nullish::Nullish::*};
+use crate::{interface2::{Any, Container, Extension, Unpacked}, nullish::Nullish::*, simple::Simple};
 
 pub trait AnyExtension: Any {
-    fn string(c: &str) -> Self::String {
-        Self::String::new(c.encode_utf16().into_iter())
+    fn string(c: &str) -> Self::String16 {
+        c.encode_utf16().into_iter().to_complex()
     }
-    fn to_string(self) -> Self::String {
+    fn to_string(self) -> Self::String16 {
         match self.unpack() {
             Unpacked::Nullish(v) => Self::string(match v {
                 Null => "null",
@@ -15,9 +15,9 @@ pub trait AnyExtension: Any {
                 false => "false",
             }),
             Unpacked::Number(_) => todo!(),
-            Unpacked::String(v) => v,
+            Unpacked::String16(v) => v,
             Unpacked::BigInt(_) => todo!(),
-            Unpacked::Array(_) => Self::String::new([]),
+            Unpacked::Array(_) => [].to_complex(),
             Unpacked::Object(_) => Self::string("[object Object"),
             Unpacked::Function(_) => todo!(),
         }
@@ -25,15 +25,15 @@ pub trait AnyExtension: Any {
     fn own_property(self, i: Self) -> Self {
         match self.unpack() {
             Unpacked::Nullish(_) => panic!("own_property(\"nullish\")"),
-            Unpacked::Bool(_) => Undefined.into(),
+            Unpacked::Bool(_) => Simple::Nullish(Undefined).to_unknown(),
             Unpacked::Number(_) => todo!(),
-            Unpacked::String(_) => todo!(),
+            Unpacked::String16(_) => todo!(),
             Unpacked::BigInt(_) => todo!(),
             Unpacked::Array(_) => match i.unpack() {
                 Unpacked::Nullish(_) => todo!(),
                 Unpacked::Bool(_) => todo!(),
                 Unpacked::Number(_) => todo!(),
-                Unpacked::String(_) => todo!(),
+                Unpacked::String16(_) => todo!(),
                 Unpacked::BigInt(_) => todo!(),
                 Unpacked::Array(_) => todo!(),
                 Unpacked::Object(_) => todo!(),
@@ -51,13 +51,13 @@ impl<T: Any> AnyExtension for T {}
 mod test {
     mod to_string {
         use crate::{
-            extension::AnyExtension, interface::PrefixList, naive::{Any, Array, Object}, nullish::Nullish::*
+            extension::AnyExtension, interface2::{Complex, Extension}, naive2::{Any, Array, Object}, nullish::Nullish::*, simple::Simple
         };
 
         #[test]
         fn test_string() {
             let s = Any::string("Hello world!");
-            let xs: Any = s.clone().into();
+            let xs: Any = s.clone().to_unknown();
             let sxs = xs.to_string();
             assert_eq!(s, sxs);
         }
@@ -65,11 +65,11 @@ mod test {
         #[test]
         fn test_nullish() {
             {
-                let x: Any = Null.into();
+                let x: Any = Simple::Nullish(Null).to_unknown();
                 assert_eq!(Any::string("null"), x.to_string());
             }
             {
-                let x: Any = Undefined.into();
+                let x: Any = Simple::Nullish(Undefined).to_unknown();
                 assert_eq!(Any::string("undefined"), x.to_string());
             }
         }
@@ -77,43 +77,43 @@ mod test {
         #[test]
         fn test_boolean() {
             {
-                let x: Any = true.into();
+                let x: Any = Simple::Boolean(true).to_unknown();
                 assert_eq!(Any::string("true"), x.to_string());
             }
             {
-                let x: Any = false.into();
+                let x: Any = Simple::Boolean(false).to_unknown();
                 assert_eq!(Any::string("false"), x.to_string());
             }
         }
 
         #[test]
         fn test_object() {
-            let x: Any = Object::new((), []).into();
+            let x: Any = [].to_object_unknown();
             assert_eq!(Any::string("[object Object"), x.to_string());
         }
 
         #[test]
         fn test_array() {
-            let x: Any = Array::new((), []).into();
+            let x: Any = [].to_array_unknown();
             assert_eq!(Any::string(""), x.to_string());
         }
     }
 
     mod own_property {
-        use crate::{extension::AnyExtension, naive::Any, nullish::Nullish::*};
+        use crate::{extension::AnyExtension, interface2::Complex, naive2::Any, nullish::Nullish::*, simple::Simple};
 
         #[test]
         #[should_panic]
         fn test_own_property_null() {
-            let x: Any = Null.into();
-            x.own_property(Any::string("hello").into());
+            let x: Any = Simple::Nullish(Null).to_unknown();
+            x.own_property(Any::string("hello").to_unknown());
         }
 
         #[test]
         fn test_own_property_bool() {
-            let x: Any = true.into();
-            let undefined: Any = Undefined.into();
-            assert_eq!(undefined, x.own_property(Any::string("hello").into()));
+            let x: Any = Simple::Boolean(true).to_unknown();
+            let undefined: Any = Simple::Nullish(Undefined).to_unknown();
+            assert_eq!(undefined, x.own_property(Any::string("hello").to_unknown()));
         }
     }
 }
