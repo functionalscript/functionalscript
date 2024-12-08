@@ -1,7 +1,7 @@
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
-use crate::{interface2, sign::Sign, simple::Simple};
+use crate::{interface2, nullish::Nullish, sign::Sign, simple::Simple};
 
 pub trait Policy {
     type Header: PartialEq + fmt::Debug + Clone;
@@ -198,6 +198,32 @@ impl interface2::Unknown for Unknown {
             Some(v.clone())
         } else {
             None
+        }
+    }
+
+    fn pack(u: interface2::Unpacked<Self>) -> Self {
+        match u {
+            interface2::Unpacked::Nullish(n) => Self::Simple(Simple::Nullish(n)),
+            interface2::Unpacked::Bool(n) => Self::Simple(Simple::Boolean(n)),
+            interface2::Unpacked::Number(n) => Self::Simple(Simple::Number(n)),
+            interface2::Unpacked::String16(n) => Self::String16(n),
+            interface2::Unpacked::BigInt(n) => Self::BigInt(n),
+            interface2::Unpacked::Array(n) => Self::Array(n),
+            interface2::Unpacked::Object(n) => Self::Object(n),
+            interface2::Unpacked::Function(n) => Self::Function(n),
+        }
+    }
+
+    fn unpcak(self) -> interface2::Unpacked<Self> {
+        match self {
+            Unknown::Simple(Simple::Nullish(n)) => interface2::Unpacked::Nullish(n),
+            Unknown::Simple(Simple::Boolean(n)) => interface2::Unpacked::Bool(n),
+            Unknown::Simple(Simple::Number(n)) => interface2::Unpacked::Number(n),
+            Unknown::String16(complex) => interface2::Unpacked::String16(complex),
+            Unknown::BigInt(complex) => interface2::Unpacked::BigInt(complex),
+            Unknown::Array(complex) => interface2::Unpacked::Array(complex),
+            Unknown::Object(complex) => interface2::Unpacked::Object(complex),
+            Unknown::Function(complex) => interface2::Unpacked::Function(complex),
         }
     }
 }

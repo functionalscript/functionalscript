@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::{sign::Sign, simple::Simple};
+use crate::{nullish::Nullish, sign::Sign, simple::Simple};
 
 pub trait Container: Clone {
     type Header;
@@ -46,6 +46,9 @@ pub trait Unknown: PartialEq + Sized + Clone + fmt::Debug {
     type Object: Object<Self>;
     type Function: Function<Self>;
 
+    fn pack(u: Unpacked<Self>) -> Self;
+    fn unpcak(self) -> Unpacked<Self>;
+
     fn new_simple(value: Simple) -> Self;
     fn try_to_simple(&self) -> Option<Simple>;
 
@@ -69,6 +72,18 @@ pub trait Unknown: PartialEq + Sized + Clone + fmt::Debug {
         // bigint and function
         todo!()
     }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Unpacked<U: Unknown> {
+    Nullish(Nullish),
+    Bool(bool),
+    Number(f64),
+    String16(U::String16),
+    BigInt(U::BigInt),
+    Array(U::Array),
+    Object(U::Object),
+    Function(U::Function),
 }
 
 pub trait Extension: Sized {
