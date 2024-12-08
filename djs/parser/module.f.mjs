@@ -11,169 +11,149 @@ const { fromMap } = o
 
 /**
  * @typedef {{
-* readonly modules: string[]
-* readonly consts: DjsModuleConst[]
+* readonly modules: List.List<string>
+* readonly consts: List.List<DjsConst>
 * }} DjsModule
 * */
 
-/** @typedef {boolean|string|number|null|bigint|DjsModuleCRef|DjsModuleARef|DjsModuleArray|DjsModuleObject} DjsModuleConst */
+/** @typedef {boolean|string|number|null|bigint|DjsModuleCRef|DjsModuleARef|DjsArray|DjsObject} DjsConst */
 
 /** @typedef {['cref', number]} DjsModuleCRef */
 
 /** @typedef {['cref', number]} DjsModuleARef */
 
-/** @typedef {['array', readonly DjsModuleConst[]]} DjsModuleArray */
+/** @typedef {['array', List.List<DjsConst>]} DjsArray */
 
-/** @typedef {['object', { readonly [k in string]: DjsModuleConst }]} DjsModuleObject */
-
-/**
- * @typedef {{
-* readonly kind: 'object'
-* readonly values: Map.Map<Djs.Unknown>
-* readonly key: string
-* }} JsonObject
-* */
-
-/**
- * @typedef {{
-* readonly kind: 'array'
-* readonly values: List.List<Djs.Unknown>
-* }} JsonArray
-* */
+/** @typedef {['object', Map.Map<DjsConst>, string]} DjsObject */
 
 /**
  * @typedef {|
-* JsonObject |
-* JsonArray
-* } JsonStackElement
+* DjsArray |
+* DjsObject
+* } DjsStackElement
 */
 
-/** @typedef {List.List<JsonStackElement>} JsonStack */
+/** @typedef {List.List<DjsStackElement>} DjsStack */
+
+/** @typedef {InitialState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState} ParserState */
 
 /**
  * @typedef {{
-*  readonly status: 'init'
-* }} StateInitial
-*/
-
-/**
- * @typedef {{
-*  readonly status: 'import'
-* }} StateImport
+*  readonly state: ''
+*  readonly module: DjsModule
+* }} InitialState
 */
 
 /**
  * @typedef {{
-*  readonly status: 'const'
-* }} StateConst
+*  readonly state: 'import'
+*  readonly module: DjsModule
+* }} ImportState
 */
 
 /**
  * @typedef {{
-*  readonly status: 'export'
-* }} StateExport
+*  readonly state: 'const' | 'const+name' | 'const+name='
+*  readonly module: DjsModule
+* }} ConstState
 */
 
 /**
  * @typedef {{
-*  readonly status: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
-*  readonly top: JsonStackElement | null
-*  readonly stack: JsonStack
-* }} StateParse
+*  readonly state: 'export'
+*  readonly module: DjsModule
+* }} ExportState
 */
 
 /**
  * @typedef {{
-*  readonly status: 'result'
-*  readonly value: Djs.Unknown
-* }} StateResult
+*  readonly state: 'constValue' | 'exportValue'
+*  readonly module: DjsModule
+*  readonly valueState: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
+*  readonly top: DjsStackElement | null
+*  readonly stack: DjsStack
+* }} ParseValueState
 */
 
 /**
  * @typedef {{
-*  readonly status: 'error'
+*  readonly state: 'result'
+*  readonly module: DjsModule
+* }} ResultState
+*/
+
+/**
+ * @typedef {{
+*  readonly state: 'error'
 *  readonly message: string
-* }} StateError
+* }} ErrorState
 */
 
-/**
- * @typedef {|
-* StateInitial |
-* StateImport |
-* StateConst |
-* StateExport |
-* StateParse |
-* StateResult |
-* StateError
-* } DjsState
-*/
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateInitial) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: InitialState) => ParserState}} */
 const parseInitialOp = token => state => {
-    if (token.kind === 'id' && token.value === 'import') return { status: 'import' }
-    if (token.kind === 'id' && token.value === 'const') return { status: 'const' }
-    if (token.kind === 'id' && token.value === 'export') return { status: 'export' }
-    return { status: 'error', message: 'unexpected token' }
+    if (token.kind === 'id' && token.value === 'import') return { state: 'import', module: state.module }
+    if (token.kind === 'id' && token.value === 'const') return { state: 'const', module: state.module }
+    if (token.kind === 'id' && token.value === 'export') return { state: 'export', module: state.module }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateExport) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ExportState) => ParserState}} */
 const parseExportOp = token => state => {
     if (token.kind === 'ws') return state
-    if (token.kind === 'id' && token.value === 'default') return { status: '', top: null, stack: null }
-    return { status: 'error', message: 'unexpected token' }
+    if (token.kind === 'id' && token.value === 'default') return { state: 'exportValue', module: state.module, valueState: '', top: null, stack: null }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(obj: JsonObject) => (key: string) => JsonObject} */
-const addKeyToObject = obj => key => ({ kind: 'object', values: obj.values, key: key })
+/** @type {(obj: DjsObject) => (key: string) => DjsObject} */
+const addKeyToObject = obj => key => ([ 'object', obj[1], key])
 
-/** @type {(obj: JsonObject) => (value: Djs.Unknown) => JsonObject} */
-const addValueToObject = obj => value => ({ kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' })
+/** @type {(obj: DjsObject) => (value: DjsConst) => DjsObject} */
+const addValueToObject = obj => value => ([ 'object', setReplace(obj[2])(value)(obj[1]), '' ])
 
-/** @type {(array: JsonArray) => (value: Djs.Unknown) => JsonArray} */
-const addToArray = array => value => ({ kind: 'array', values: list.concat(array.values)([value]) })
+/** @type {(array: DjsArray) => (value: DjsConst) => DjsArray} */
+const addToArray = array => value => ([ 'array', list.concat(array[1])([value]) ])
 
-/** @type {(state: StateParse) => (key: string) => DjsState} */
-const pushKey = state => value => {
-    if (state.top?.kind === 'object') { return { status: '{k', top: addKeyToObject(state.top)(value), stack: state.stack } }
-    return { status: 'error', message: 'error' }
+/** @type {(state: ParseValueState) => (key: string) => ParserState} */
+const pushKey = state => key => {
+    if (state.top?.[0] === 'object') { return { state: state.state, module: state.module, valueState: '{k', top: addKeyToObject(state.top)(key), stack: state.stack } }
+    return { state: 'error', message: 'error' }
 }
 
-/** @type {(state: StateParse) => (value: Djs.Unknown) => DjsState} */
+/** @type {(state: ParseValueState) => (value: DjsConst) => ParserState} */
 const pushValue = state => value => {
-    if (state.top === null) { return { status: 'result', value: value } }
-    if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
-    return { status: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
+    if (state.top === null) { return { state: 'result', module: state.module } }
+    if (state.top?.[0] === 'array') { return { state: state.state, module: state.module, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
+    return { state: state.state, module: state.module, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
 }
 
-/** @type {(state: StateParse) => DjsState} */
+/** @type {(state: ParseValueState) => ParserState} */
 const startArray = state => {
     const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
-    return { status: '[', top: { kind: 'array', values: null }, stack: newStack }
+    return { state: state.state, module: state.module, valueState: '[', top: ['array', null ], stack: newStack }
 }
 
-/** @type {(state: StateParse) => DjsState} */
+/** @type {(state: ParseValueState) => ParserState} */
 const endArray = state => {
-    const array = state.top !== null ? toArray(state.top.values) : null
-    /** @type {StateParse} */
-    const newState = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(array)
+    /** @type {ParseValueState} */
+    const newState = { state: state.state, module: state.module, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+    return pushValue(newState)(state.top)
 }
 
-/** @type {(state: StateParse) => DjsState} */
+/** @type {(state: ParseValueState) => ParserState} */
 const startObject = state => {
     const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
-    return { status: '{', top: { kind: 'object', values: null, key: '' }, stack: newStack }
+    return { state: state.state, module: state.module, valueState: '{', top: ['object', null, ''], stack: newStack }
 }
 
-/** @type {(state: StateParse) => DjsState} */
+/** @type {(state: ParseValueState) => ParserState} */
 const endObject = state => {
-    const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
-    /** @type {StateParse} */
-    const newState = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(obj)
+    /** @type {ParseValueState} */
+    const newState = { state: state.state, module: state.module, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+    return pushValue(newState)(state.top)
 }
 
-/** @type {(token: tokenizerT.DjsToken) => Djs.Unknown} */
+/** @type {(token: tokenizerT.DjsToken) => DjsConst} */
 const tokenToValue = token => {
     switch (token.kind) {
         case 'null': return null
@@ -199,98 +179,107 @@ const isValueToken = token => {
     }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseValueOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseArrayStartOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseArrayValueOp = token => state => {
     if (token.kind === ']') { return endArray(state) }
-    if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
+    if (token.kind === ',') { return { state: state.state, module: state.module, valueState: '[,', top: state.top, stack: state.stack } }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectStartOp = token => state => {
     if (token.kind === 'string') { return pushKey(state)(token.value) }
     if (token.kind === '}') { return endObject(state) }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectKeyOp = token => state => {
-    if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
+    if (token.kind === ':') { return { state: state.state, module: state.module, valueState: '{:', top: state.top, stack: state.stack } }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectColonOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectNextOp = token => state => {
     if (token.kind === '}') { return endObject(state) }
-    if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
+    if (token.kind === ',') { return { state: state.state, module: state.module, valueState: '{,', top: state.top, stack: state.stack } }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {(token: tokenizerT.DjsToken) => (state: StateParse) => DjsState}} */
+/** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectCommaOp = token => state => {
     if (token.kind === 'string') { return pushKey(state)(token.value) }
     if (token.kind === 'ws') { return state }
-    return { status: 'error', message: 'unexpected token' }
+    return { state: 'error', message: 'unexpected token' }
 }
 
-/** @type {Operator.Fold<tokenizerT.DjsToken, DjsState>} */
+/** @type {Operator.Fold<tokenizerT.DjsToken, ParserState>} */
 const foldOp = token => state => {
-    switch (state.status) {
-        case 'init': return parseInitialOp(token)(state)
-        case 'import': return { status: 'error', message: 'todo' }
-        case 'const': return { status: 'error', message: 'todo' }
+    switch (state.state) {
+        case '': return parseInitialOp(token)(state)
+        case 'import': return { state: 'error', message: 'todo' }
+        case 'const': return { state: 'error', message: 'todo' }
+        case 'const+name': return { state: 'error', message: 'todo' }
+        case 'const+name=': return { state: 'error', message: 'todo' }
         case 'export': return parseExportOp(token)(state)        
-        case 'result': return { status: 'error', message: 'unexpected token' }
-        case 'error': return { status: 'error', message: state.message }
-        case '': return parseValueOp(token)(state)
-        case '[': return parseArrayStartOp(token)(state)
-        case '[v': return parseArrayValueOp(token)(state)
-        case '[,': return parseValueOp(token)(state)
-        case '{': return parseObjectStartOp(token)(state)
-        case '{k': return parseObjectKeyOp(token)(state)
-        case '{:': return parseObjectColonOp(token)(state)
-        case '{v': return parseObjectNextOp(token)(state)
-        case '{,': return parseObjectCommaOp(token)(state)
+        case 'result': return { state: 'error', message: 'unexpected token' }
+        case 'error': return { state: 'error', message: state.message }
+        case 'constValue':
+        case 'exportValue': 
+        {
+            switch (state.valueState) 
+            {
+                case '': return parseValueOp(token)(state)
+                case '[': return parseArrayStartOp(token)(state)
+                case '[v': return parseArrayValueOp(token)(state)
+                case '[,': return parseValueOp(token)(state)
+                case '{': return parseObjectStartOp(token)(state)
+                case '{k': return parseObjectKeyOp(token)(state)
+                case '{:': return parseObjectColonOp(token)(state)
+                case '{v': return parseObjectNextOp(token)(state)
+                case '{,': return parseObjectCommaOp(token)(state)
+            }
+        }
     }
 }
 
-/** @type {(tokenList: List.List<tokenizerT.DjsToken>) => Result.Result<Djs.Unknown, string>} */
+/** @type {(tokenList: List.List<tokenizerT.DjsToken>) => Result.Result<DjsModule, string>} */
 const parse = tokenList => {
-    const state = fold(foldOp)({ status: 'init' })(tokenList)
-    switch (state.status) {
-        case 'result': return result.ok(state.value)
+    const state = fold(foldOp)({ state: '', module: { modules: null, consts: null } })(tokenList)
+    switch (state.state) {
+        case 'result': return result.ok(state.module)
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
     }
