@@ -1,7 +1,7 @@
 # Undefined Type
 
 ```js
-export default void 0
+export default undefined
 ```
 
 Depend on [default-export](./2110-default-export.md).

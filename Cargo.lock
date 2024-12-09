@@ -7,6 +7,10 @@ name = "nanocom"
 version = "0.2.1"
 
 [[package]]
+name = "nanvm-lib"
+version = "0.1.0"
+
+[[package]]
 name = "testrust"
 version = "0.1.0"
 dependencies = [

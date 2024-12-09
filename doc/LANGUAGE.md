@@ -1,15 +1,16 @@
 # FunctionalScript Programming Language
 
-Principals:
-- FunctionalScript VM should behaves the same way as a JavaScript VM
+Principles:
+
+- FunctionalScript VM should behaves the same way as a JavaScript VM,
 - Any unsupported feature should be reported at compile-time.
 
 ## 1. Module Ecosystem
 
-FunctionalScript uses [CommonJS](https://en.wikipedia.org/wiki/CommonJS) conventions as a module ecosystem. For example,
+FunctionalScript uses ESM conventions as a module ecosystem. For example,
 
 ```js
-const thirdPartyModule = require('third-party-package/module')
+import thirdPartyModule from 'third-party-package/module'
 
 const result = thirdPartyModule.someFunction('hello')
 ```
@@ -39,10 +40,10 @@ npm install -S github:functionalscript/functionalscript
 
 A module is a file with the `.js` extension. It contains three parts: references to other modules, definitions, and exports. For example
 
-`./first.js`
+`./first.f.mjs`
 ```js
 // 1. references
-const math = require('math')
+import math from 'math'
 
 // 2. definitions
 const myConst = 42
@@ -52,35 +53,35 @@ const add42 = addition(42)
 const _10digitsOfPi = math.calculatePi(10)
 
 // 3. exports
-module.exports = {
+export default {
    addition,
    add42,
    _10digitsOfPi,
 }
 ```
 
-`./second.js`
+`./second.f.mjs`
 ```js
 // 1. references
-const first = require('./first.js')
+import first from './first.f.mjs'
 
 // 2. definitions
 const _42plus7 = first.add42(7)
 
 // 3. exports
-module.exports = {
+export default {
    _42plus7,
 }
 ```
 
 ## 4. References To Other Modules
 
-The format of references is `const ANYNAME = require('PATH_TO_A_MODULE')`. For example,
+The format of references is `import ANYNAME from 'PATH_TO_A_MODULE'`. For example,
 
 ```js
-const math = require('math')
-const algebra = require('math/algebra')
-const localFile = require('../some-directory/some-file.js')
+import math from 'math'
+import algebra from 'math/algebra'
+import localFile from '../some-directory/some-file.f.mjs'
 ```
 
 ## 5. Definitions
@@ -107,11 +108,11 @@ See [Expressions](#7-Expressions).
 
 ### 6. Exports
 
-The format of exports is `module.exports = { A_LIST_OF_EXPORTED_DEFINITIONS }`. There should be only one `module.exports` at
+The format of exports is `export default { A_LIST_OF_EXPORTED_DEFINITIONS }`. There should be only one `export default` at
 the end of a FunctionalScript file. For example,
 
 ```js
-module.exports = {
+export default {
    nestedStructure,
    array,
    structure,
