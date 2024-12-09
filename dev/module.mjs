@@ -181,8 +181,12 @@ const codeAdd = i => p => m => {
 export const index = async () => {
     {
         const jj = './jsr.json'
+        const n = '/module.f.mjs'
         const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
-        const exports = Object.fromEntries(Object.keys(await loadModuleMap()).map(v => [v.replace('.f.mjs', ''), v]))
+        const exportsA = Object.keys(await loadModuleMap())
+            .filter(v => v.endsWith(n))
+            .map(v => [v.replace(n, ''), v])
+        const exports = Object.fromEntries(exportsA)
         await writeFile(
             jj,
             JSON.stringify({ ...jsr_json, exports }, null, 2))

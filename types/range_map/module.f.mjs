@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import sortedList, * as SortedList from '../sorted_list/module.f.mjs'
 const { genericMerge } = sortedList
 import list from '../list/module.f.mjs'

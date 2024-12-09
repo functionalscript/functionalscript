@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as compare from '../function/compare/module.f.mjs'
 import list, * as List from '../list/module.f.mjs'
 import * as option from '../nullable/module.f.mjs'

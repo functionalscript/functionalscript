@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as Compare from '../function/compare/module.f.mjs'
 import list from "../list/module.f.mjs"
 const { toArray } = list

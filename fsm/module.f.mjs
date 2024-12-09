@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list, * as List from '../types/list/module.f.mjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
 import byteSet, * as byteSetT from '../types/byte_set/module.f.mjs'

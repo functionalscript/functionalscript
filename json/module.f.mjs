@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list, * as List from '../types/list/module.f.mjs'
 const { next, flat, map } = list
 import string  from '../types/string/module.f.mjs'
