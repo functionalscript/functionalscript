@@ -182,7 +182,7 @@ export const index = async () => {
     {
         const jj = './jsr.json'
         const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
-        const exports = Object.keys(await loadModuleMap())
+        const exports = Object.fromEntries(Object.keys(await loadModuleMap()).map(v => [v.replace('.f.mjs', ''), v]))
         await writeFile(
             jj,
             JSON.stringify({ ...jsr_json, exports }, null, 2))
