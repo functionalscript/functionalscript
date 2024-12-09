@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import compare, * as Compare from '../function/compare/module.f.mjs'
 import * as Operator from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare

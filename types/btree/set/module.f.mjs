@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
 import btreeFind, * as BtreeFind from '../find/module.f.mjs'
 const { find } = btreeFind

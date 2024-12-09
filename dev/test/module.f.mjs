@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list from '../../types/list/module.f.mjs'
 const { fold } = list
 import sgr from '../../text/sgr/module.f.mjs'

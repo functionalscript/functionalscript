@@ -1,4 +1,4 @@
-import { readdir, writeFile } from 'node:fs/promises'
+import { readdir, writeFile, readFile } from 'node:fs/promises'
 
 /**
  * @typedef {{
@@ -66,12 +66,12 @@ export const exit = self.Deno ? self.Deno.exit : process.exit
 /** @type {(v: string) => string|undefined} */
 export const env =
     self.Deno ? self.Deno.env.get :
-    a => {
-        const r = Object.getOwnPropertyDescriptor(process.env, a)
-        return r === void 0 ? void 0 :
-            typeof r.get === 'function' ? r.get() :
-            r.value
-    }
+        a => {
+            const r = Object.getOwnPropertyDescriptor(process.env, a)
+            return r === void 0 ? void 0 :
+                typeof r.get === 'function' ? r.get() :
+                    r.value
+        }
 
 export const loadModuleMap = async () => {
     /** @type {() => Promise<UnknownMap>} */
@@ -178,7 +178,21 @@ const codeAdd = i => p => m => {
     return [result, im]
 }
 
-export const index = async() => {
+export const index = async () => {
+    {
+        const jj = './jsr.json'
+        const n = '/module.f.mjs'
+        const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
+        const exportsA = Object.keys(await loadModuleMap())
+            .filter(v => v.endsWith(n))
+            .map(v => [v.replace(n, ''), v])
+        const exports = Object.fromEntries(exportsA)
+        await writeFile(
+            jj,
+            JSON.stringify({ ...jsr_json, exports }, null, 2))
+    }
+
+    //
     /** @type {FolderMap} */
     let m = {}
     for (const k in await loadModuleMap()) {

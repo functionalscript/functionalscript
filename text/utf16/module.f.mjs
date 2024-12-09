@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list, * as List from '../../types/list/module.f.mjs'
 import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import range from '../../types/range/module.f.mjs'

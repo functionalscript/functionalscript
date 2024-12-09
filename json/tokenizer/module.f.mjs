@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list

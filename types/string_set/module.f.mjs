@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as BtreeTypes from '../btree/types/module.f.mjs'
 import btree from '../btree/module.f.mjs'
 import btf from '../btree/find/module.f.mjs'

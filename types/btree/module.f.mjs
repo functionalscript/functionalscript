@@ -1,3 +1,5 @@
+// @ts-self-types="./module.f.d.mts"
+
 import list, * as List from '../list/module.f.mjs'
 const { flat } = list
 import n from '../nullable/module.f.mjs'
