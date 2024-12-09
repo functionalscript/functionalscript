@@ -43,14 +43,6 @@ const flip = f => b => a => f(a)(b)
  * Creates an `Fn` instance from a function, enabling chaining of transformations.
  *
  * @type {<I, O>(f: (i: I) => O) => Fn<I, O>}
- *
- * @example
- * const add2 = (x) => x + 2; // Adds 2
- * const multiply3 = (x) => x * 3; // Multiplies by 3
- *
- * // Chain transformations
- * const add2multiply3 = fn(add2).then(multiply3).result;
- * const result = add2multiply3(5); // result is 21. (5 + 2) * 3.
  */
 const fn = result => ({
     result,
