@@ -103,7 +103,7 @@ File extensions: `.f.js` and `.f.mjs`.
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
-4. [ ] support for non-default `export`.
+4. [ ] [export](./3240-export.md)
 
 ### 3.3. Syntactic Sugar
 
@@ -116,6 +116,7 @@ File extensions: `.f.js` and `.f.mjs`.
 1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations), Stage 1:
    - [Node.js](https://nodejs.org/en/learn/typescript/run-natively),
    - `Deno` supports TypeScript,
-   - `Bun` supports TypeScript.
+   - `Bun` supports TypeScript,
+   - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2.
