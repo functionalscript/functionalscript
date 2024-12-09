@@ -103,6 +103,7 @@ File extensions: `.f.js` and `.f.mjs`.
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
+4. [ ] support for non-default `export`.
 
 ### 3.3. Syntactic Sugar
 
