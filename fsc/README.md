@@ -76,7 +76,6 @@
   - `do` ?
   - `else`
   - `export`
-  - `exports` <= non-standard
   - `false`
   - `function` ?
   - `globalThis` ?
@@ -86,11 +85,9 @@
   - `in`
   - `instanceof`
   - `let`
-  - `module` <= non-standard
   - `new` ?
   - `null`
   - `of`
-  - `require`  <= non-standard
   - `return`
   - `super`
   - `switch`

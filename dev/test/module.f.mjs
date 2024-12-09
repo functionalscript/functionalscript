@@ -46,7 +46,7 @@ import * as Result from '../../types/result/module.f.mjs'
  */
 
 /** @type {(s: string) => boolean} */
-const isTest = s => s.endsWith('test.f.cjs') || s.endsWith('test.f.mjs') || s.endsWith('test.f.js')
+const isTest = s => s.endsWith('test.f.mjs') || s.endsWith('test.f.js')
 
 /**
  * @typedef {{
