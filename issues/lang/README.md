@@ -109,3 +109,9 @@ File extensions: `.f.js` and `.f.mjs`.
 1. [ ] [expression](./3210-expression.md)
 2. [ ] [one-parameter](./3220-one-parameter.md)
 3. [ ] [assignments](./3330-assignments.md)
+
+## 4. ECMAScript Proposals
+
+1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations), Stage 1;
+2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2;
+3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2.
