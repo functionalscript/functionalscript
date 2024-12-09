@@ -1,6 +1,6 @@
 # Documentation
 
-FunctionalScript files have `.f.mjs` file extensions because it's using a ES module system.
+FunctionalScript files have `.f.mjs` file extensions because it's using the ES module system.
 
 ## 1. Language
 
