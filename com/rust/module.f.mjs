@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import types, * as Types from '../types/module.f.mjs'
 const { paramList } = types
 import * as Text from '../../text/module.f.mjs'

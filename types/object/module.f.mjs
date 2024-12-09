@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list, * as List from '../list/module.f.mjs'
 const { iterable } = list
 import map, * as Map from '../map/module.f.mjs'

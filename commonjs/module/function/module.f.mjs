@@ -1,3 +1,5 @@
+// @ts-self-types="./module.f.d.mts"
+
 /**
  * An IO interface for creating and running module functions.
  */

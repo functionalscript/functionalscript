@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 /**
  * @template I
  * @template O

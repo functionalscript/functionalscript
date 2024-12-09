@@ -1,4 +1,5 @@
-import package_, * as packageT from '../package/module.f.mjs'
+// @ts-self-types="./module.f.d.mts"
+import * as packageT from '../package/module.f.mjs'
 import module_, * as moduleT from '../module/module.f.mjs'
 const { idToString, dir } = module_
 import * as function_ from '../module/function/module.f.mjs'

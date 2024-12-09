@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import types, * as Types from '../types/module.f.mjs'
 import text, * as Text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'

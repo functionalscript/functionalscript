@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
 import * as List from '../../list/module.f.mjs'
 import cmp, * as cmpT from '../../function/compare/module.f.mjs'

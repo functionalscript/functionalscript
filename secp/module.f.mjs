@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as Operator from '../types/function/operator/module.f.mjs'
 import pf, * as Pf from '../prime_field/module.f.mjs'
 import bi from '../types/bigint/module.f.mjs'
