@@ -48,41 +48,44 @@ const { fromMap } = o
 
 /**
  * @typedef {{
-*  readonly state: ''
 *  readonly modules: List.List<string>
+*  readonly constNames: List.List<string>
 *  readonly consts: List.List<DjsConst>
+* }} ModuleState
+*/
+
+/**
+ * @typedef {{
+*  readonly state: ''
+*  readonly module: ModuleState
 * }} InitialState
 */
 
 /**
  * @typedef {{
 *  readonly state: 'import'
-*  readonly modules: List.List<string>
-*  readonly consts: List.List<DjsConst>
+*  readonly module: ModuleState
 * }} ImportState
 */
 
 /**
  * @typedef {{
 *  readonly state: 'const' | 'const+name' | 'const+name='
-*  readonly modules: List.List<string>
-*  readonly consts: List.List<DjsConst>
+*  readonly module: ModuleState
 * }} ConstState
 */
 
 /**
  * @typedef {{
 *  readonly state: 'export'
-*  readonly modules: List.List<string>
-*  readonly consts: List.List<DjsConst>
+*  readonly module: ModuleState
 * }} ExportState
 */
 
 /**
  * @typedef {{
 *  readonly state: 'constValue' | 'exportValue'
-*  readonly modules: List.List<string>
-*  readonly consts: List.List<DjsConst>
+*  readonly module: ModuleState
 *  readonly valueState: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
 *  readonly top: DjsStackElement | null
 *  readonly stack: DjsStack
@@ -92,8 +95,7 @@ const { fromMap } = o
 /**
  * @typedef {{
 *  readonly state: 'result'
-*  readonly modules: List.List<string>
-*  readonly consts: List.List<DjsConst>
+*  readonly module: ModuleState
 * }} ResultState
 */
 
@@ -138,8 +140,8 @@ const pushKey = state => key => {
 /** @type {(state: ParseValueState) => (value: DjsConst) => ParserState} */
 const pushValue = state => value => {
     if (state.top === null) { 
-        let consts = list.concat(state.consts)([value])
-        return { ... state, state: 'result', consts: consts } 
+        let consts = list.concat(state.module.consts)([value])
+        return { ... state, state: 'result', module: { ...state.module, consts: consts }}
     }
     if (state.top?.[0] === 'array') { return { ... state, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
     return { ... state, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
@@ -303,10 +305,10 @@ const foldOp = token => state => {
 
 /** @type {(tokenList: List.List<tokenizerT.DjsToken>) => Result.Result<DjsModule, string>} */
 const parse = tokenList => {
-    const state = fold(foldOp)({ state: '', modules: null, consts: null })(tokenList)
+    const state = fold(foldOp)({ state: '', module: { modules: null, constNames: null, consts: null }})(tokenList)
     switch (state.state) {
         case 'result': {
-            return result.ok([ toArray(state.modules), toArray(state.consts) ])
+            return result.ok([ toArray(state.module.modules), toArray(state.module.consts) ])
         }            
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
