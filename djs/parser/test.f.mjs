@@ -262,13 +262,13 @@ export default {
             const tokenList = tokenizeString('export default [ 0 , 1 , 2 ]')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[0,1,2]]') { throw result }
+            if (result !== '["ok",[[],[["array",[0,1,2]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default { "a" : 0 , "b" : 1 }')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",{"a":0,"b":1}]') { throw result }
+            if (result !== '["ok",[[],[{"a":0,"b":1}]]]') { throw result }
         },
     ],
     validModule:[
@@ -276,7 +276,7 @@ export default {
             const tokenList = tokenizeString('export default null')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",null]') { throw result }
+            if (result !== '["ok",[[],[null]]]') { throw result }
         },
     ],
     invalidModule:[
