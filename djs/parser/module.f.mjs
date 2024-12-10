@@ -127,6 +127,8 @@ const parseExportOp = token => state => {
 const parseConstOp = token => state => {
     if (token.kind === 'ws') return state
     if (token.kind === 'id') {
+        if (map.at(token.value)(state.module.constNames) !== null)
+            return { state: 'error', message: 'cannot redeclare constant' }        
         let constNames = map.setReplace(token.value)(length(state.module.consts))(state.module.constNames)
         return { ... state, state: 'const+name', module: { ...state.module, constNames: constNames } }
     }
@@ -164,10 +166,18 @@ const pushValue = state => value => {
             case 'exportValue': return { ... state, state: 'result', module: { ...state.module, consts: consts }}
             case 'constValue': return { ... state, state: '', module: { ...state.module, consts: consts }}
         }
-        
     }
     if (state.top?.[0] === 'array') { return { ... state, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
     return { ... state, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
+}
+
+
+/** @type {(state: ParseValueState) => (name: string) => ParserState} */
+const pushConstRef = state => name => {
+    const index = at(name)(state.module.constNames)
+    if (index === null)
+        return { state: 'error', message: 'const not found' }
+    return pushValue(state)(['cref', index])
 }
 
 /** @type {(state: ParseValueState) => ParserState} */
@@ -233,12 +243,7 @@ const isValueToken = token => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseValueOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === 'id') {
-        const index = at(token.value)(state.module.constNames)        
-        if (index === null)
-            return { state: 'error', message: 'const not found' }        
-        return pushValue(state)(['cref', index])
-    }
+    if (token.kind === 'id') { return pushConstRef(state)(token.value) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
@@ -248,6 +253,7 @@ const parseValueOp = token => state => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseArrayStartOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+    if (token.kind === 'id') { return pushConstRef(state)(token.value) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === '{') { return startObject(state) }
@@ -281,6 +287,7 @@ const parseObjectKeyOp = token => state => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectColonOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+    if (token.kind === 'id') { return pushConstRef(state)(token.value) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }

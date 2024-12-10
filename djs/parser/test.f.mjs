@@ -318,5 +318,17 @@ export default {
             const result = stringify(obj)
             if (result !== '["ok",[[],[1,2,["cref",1]]]]') { throw result }
         },
+        () => {
+            const tokenList = tokenizeString('const a = 1 const b = 2 export default [b,a,b]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[1,2,["array",[["cref",1],["cref",0],["cref",1]]]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('const a = 1 const b = 2 export default {"1st":b,"2nd":a,"3rd":b}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[1,2,{"1st":["cref",1],"2nd":["cref",0],"3rd":["cref",1]}]]]') { throw result }
+        },
     ],
 }
