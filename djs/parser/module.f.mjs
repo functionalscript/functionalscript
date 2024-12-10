@@ -144,7 +144,7 @@ const parseImportOp = token => state => {
         if (map.at(token.value)(state.module.refs) !== null)
             return { state: 'error', message: 'duplicate id' }
         /** @type {DjsModuleRef} */
-        let aref = ['aref', length(state.module.consts)]
+        let aref = ['aref', length(state.module.modules)]
         let refs = map.setReplace(token.value)(aref)(state.module.refs)
         return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
     }

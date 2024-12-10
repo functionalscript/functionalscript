@@ -331,4 +331,70 @@ export default {
             if (result !== '["ok",[[],[1,2,{"1st":["cref",1],"2nd":["cref",0],"3rd":["cref",1]}]]]') { throw result }
         },
     ],
+    invalidWithConst:[
+        () => {
+            const tokenList = tokenizeString('const = 1 const b = 2 export default 3')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('const a = 1 const a = 2 export default 3')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","duplicate id"]') { throw result }
+        },
+    ],
+    validWithArgs:[
+        () => {
+            const tokenList = tokenizeString('import a from "test/test.f.mjs" export default a')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[["test/test.f.mjs"],[["aref",0]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('import a from "first/test.f.mjs" import b from "second/test.f.mjs" export default [b, a, b]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[["first/test.f.mjs","second/test.f.mjs"],[["array",[["aref",1],["aref",0],["aref",1]]]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('import a from "test/test.f.mjs" const b = null export default [b, a, b]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[["test/test.f.mjs"],[null,["array",[["cref",0],["aref",0],["cref",0]]]]]]') { throw result }
+        },
+    ],
+    invalidWithArgs:[
+        () => {
+            const tokenList = tokenizeString('import a from export default a')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('import a "test/test.f.mjs" export default a')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('import from "test/test.f.mjs" export default a')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },   
+        () => {
+            const tokenList = tokenizeString('import a from "first/test.f.mjs" import a from "second/test.f.mjs" export default [b, a, b]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","duplicate id"]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('import a from "test/test.f.mjs" const a = null export default null')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","duplicate id"]') { throw result }
+        },
+    ],
 }
