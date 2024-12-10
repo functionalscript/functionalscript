@@ -8,19 +8,11 @@ const { setReplace, at } = map
 import o, * as O from '../../types/object/module.f.mjs'
 const { fromMap } = o
 
-/** @typedef {O.Entry<DjsConst>} Entry*/
-
-/** @typedef {(List.List<Entry>)} Entries */
-
-/** @typedef {(entries: Entries) => Entries} MapEntries */
-
 /** @typedef {[readonly string[], readonly DjsConst[]] } DjsModule */
 
-/** @typedef {boolean|string|number|null|bigint|DjsModuleCRef|DjsModuleARef|DjsArray|DjsObject} DjsConst */
+/** @typedef {boolean|string|number|null|bigint|DjsModuleRef|DjsArray|DjsObject} DjsConst */
 
-/** @typedef {['cref', number]} DjsModuleCRef */
-
-/** @typedef {['aref', number]} DjsModuleARef */
+/** @typedef {['aref' | 'cref', number]} DjsModuleRef */
 
 /** @typedef {['array', readonly DjsConst[]]} DjsArray */
 
@@ -48,11 +40,12 @@ const { fromMap } = o
 
 /**
  * @typedef {{
+*  readonly refs: Map.Map<DjsModuleRef>
 *  readonly modules: List.List<string>
-*  readonly constNames: Map.Map<number>
 *  readonly consts: List.List<DjsConst>
 * }} ModuleState
 */
+
 
 /**
  * @typedef {{
@@ -63,7 +56,7 @@ const { fromMap } = o
 
 /**
  * @typedef {{
-*  readonly state: 'import'
+*  readonly state: 'import' | 'import+name' | 'import+from'
 *  readonly module: ModuleState
 * }} ImportState
 */
@@ -127,10 +120,12 @@ const parseExportOp = token => state => {
 const parseConstOp = token => state => {
     if (token.kind === 'ws') return state
     if (token.kind === 'id') {
-        if (map.at(token.value)(state.module.constNames) !== null)
-            return { state: 'error', message: 'cannot redeclare constant' }        
-        let constNames = map.setReplace(token.value)(length(state.module.consts))(state.module.constNames)
-        return { ... state, state: 'const+name', module: { ...state.module, constNames: constNames } }
+        if (map.at(token.value)(state.module.refs) !== null)
+            return { state: 'error', message: 'duplicate id' }      
+        /** @type {DjsModuleRef} */
+        let cref = ['cref', length(state.module.consts)]
+        let refs = map.setReplace(token.value)(cref)(state.module.refs)
+        return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
     }
     return { state: 'error', message: 'unexpected token' }
 }
@@ -139,6 +134,39 @@ const parseConstOp = token => state => {
 const parseConstNameOp = token => state => {
     if (token.kind === 'ws') return state
     if (token.kind === '=') return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
+    return { state: 'error', message: 'unexpected token' }
+}
+
+/** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
+const parseImportOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === 'id') {
+        if (map.at(token.value)(state.module.refs) !== null)
+            return { state: 'error', message: 'duplicate id' }
+        /** @type {DjsModuleRef} */
+        let aref = ['aref', length(state.module.consts)]
+        let refs = map.setReplace(token.value)(aref)(state.module.refs)
+        return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
+    }
+    return { state: 'error', message: 'unexpected token' }
+}
+
+/** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
+const parseImportNameOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === 'id' && token.value === 'from') {
+        return { ... state, state: 'import+from' }
+    }
+    return { state: 'error', message: 'unexpected token' }
+}
+
+/** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
+const parseImportFromOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === 'string') {
+        const modules = list.concat(state.module.modules)([token.value])
+        return { ... state, state: '', module: { ...state.module, modules: modules } }
+    }
     return { state: 'error', message: 'unexpected token' }
 }
 
@@ -171,13 +199,12 @@ const pushValue = state => value => {
     return { ... state, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
 }
 
-
 /** @type {(state: ParseValueState) => (name: string) => ParserState} */
-const pushConstRef = state => name => {
-    const index = at(name)(state.module.constNames)
-    if (index === null)
+const pushRef = state => name => {
+    const ref = at(name)(state.module.refs)
+    if (ref === null)
         return { state: 'error', message: 'const not found' }
-    return pushValue(state)(['cref', index])
+    return pushValue(state)(ref)
 }
 
 /** @type {(state: ParseValueState) => ParserState} */
@@ -243,7 +270,7 @@ const isValueToken = token => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseValueOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === 'id') { return pushConstRef(state)(token.value) }
+    if (token.kind === 'id') { return pushRef(state)(token.value) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
@@ -253,7 +280,7 @@ const parseValueOp = token => state => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseArrayStartOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === 'id') { return pushConstRef(state)(token.value) }
+    if (token.kind === 'id') { return pushRef(state)(token.value) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === '{') { return startObject(state) }
@@ -287,7 +314,7 @@ const parseObjectKeyOp = token => state => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseObjectColonOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === 'id') { return pushConstRef(state)(token.value) }
+    if (token.kind === 'id') { return pushRef(state)(token.value) }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
@@ -313,7 +340,9 @@ const parseObjectCommaOp = token => state => {
 const foldOp = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
-        case 'import': return { state: 'error', message: 'todo' }
+        case 'import': return parseImportOp(token)(state)
+        case 'import+name': return parseImportNameOp(token)(state)
+        case 'import+from': return parseImportFromOp(token)(state)
         case 'const': return parseConstOp(token)(state)
         case 'const+name': return parseConstNameOp(token)(state)
         case 'export': return parseExportOp(token)(state)        
@@ -340,7 +369,7 @@ const foldOp = token => state => {
 
 /** @type {(tokenList: List.List<tokenizerT.DjsToken>) => Result.Result<DjsModule, string>} */
 const parse = tokenList => {
-    const state = fold(foldOp)({ state: '', module: { modules: null, constNames: null, consts: null }})(tokenList)
+    const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
         case 'result': {
             return result.ok([ toArray(state.module.modules), toArray(state.module.consts) ])
