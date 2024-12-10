@@ -312,5 +312,11 @@ export default {
             const result = stringify(obj)
             if (result !== '["ok",[[],[1,2,3]]]') { throw result }
         },
+        () => {
+            const tokenList = tokenizeString('const a = 1 const b = 2 export default b')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[1,2,["cref",1]]]]') { throw result }
+        },
     ],
 }

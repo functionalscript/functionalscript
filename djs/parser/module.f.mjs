@@ -1,10 +1,10 @@
 import result, * as Result from '../../types/result/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
-const { fold, first, drop, toArray, flat, map: listMap } = list
+const { fold, first, drop, toArray, map: listMap, length } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as tokenizerT from '../tokenizer/module.f.mjs'
 import map, * as Map from '../../types/map/module.f.mjs'
-const { setReplace } = map
+const { setReplace, at } = map
 import o, * as O from '../../types/object/module.f.mjs'
 const { fromMap } = o
 
@@ -20,7 +20,7 @@ const { fromMap } = o
 
 /** @typedef {['cref', number]} DjsModuleCRef */
 
-/** @typedef {['cref', number]} DjsModuleARef */
+/** @typedef {['aref', number]} DjsModuleARef */
 
 /** @typedef {['array', readonly DjsConst[]]} DjsArray */
 
@@ -49,7 +49,7 @@ const { fromMap } = o
 /**
  * @typedef {{
 *  readonly modules: List.List<string>
-*  readonly constNames: List.List<string>
+*  readonly constNames: Map.Map<number>
 *  readonly consts: List.List<DjsConst>
 * }} ModuleState
 */
@@ -127,7 +127,7 @@ const parseExportOp = token => state => {
 const parseConstOp = token => state => {
     if (token.kind === 'ws') return state
     if (token.kind === 'id') {
-        let constNames = list.concat(state.module.constNames)([token.value])
+        let constNames = map.setReplace(token.value)(length(state.module.consts))(state.module.constNames)
         return { ... state, state: 'const+name', module: { ...state.module, constNames: constNames } }
     }
     return { state: 'error', message: 'unexpected token' }
@@ -233,6 +233,12 @@ const isValueToken = token => {
 /** @type {(token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState}} */
 const parseValueOp = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+    if (token.kind === 'id') {
+        const index = at(token.value)(state.module.constNames)        
+        if (index === null)
+            return { state: 'error', message: 'const not found' }        
+        return pushValue(state)(['cref', index])
+    }
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === '{') { return startObject(state) }
     if (token.kind === 'ws') { return state }
