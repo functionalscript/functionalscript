@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import result, * as Result from '../../types/result/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list

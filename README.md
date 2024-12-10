@@ -12,17 +12,17 @@ FunctionalScript is a purely functional programming language and a strict subset
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-[A brief description of FunctionalScript Programming Language](./doc/LANGUAGE.md).
+[A working draft of the FunctionalScript specification](./issues/lang/README.md).
 
 Learn more about
-- [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
-- [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
+- [Purely Functional Programming in JavaScript](https://blog.bitsrc.io/purely-functional-programming-in-javascript-91114b1b2dff?sk=5f7132e56902f38fcf4c6164bfa681ed),
+- [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376?sk=30b32189a81d1a2dad16c2244f32328d).
 
-FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](sergey.oss@proton.me).
+FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](mailto:sergey.oss@proton.me).
 
 ## Vision
 
-We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Actually, we do the opposite; we remove everything that makes the most popular and cross-platform language unsafe, insecure, and less portable.
+We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Instead, we take the opposite approach: we remove everything that makes the most popular and cross-platform language unsafe, insecure, or less portable.
 
 ## Applications
 

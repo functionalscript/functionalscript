@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import function_ from '../function/module.f.mjs'
 const { identity, fn, compose } = function_
 import operator, * as Operator from '../function/operator/module.f.mjs'

@@ -1,3 +1,5 @@
+// @ts-self-types="./module.f.d.mts"
+
 /** @typedef {{}} Buffer */
 
 /**

@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
 import * as Cmp from '../../function/compare/module.f.mjs'
 import find, * as Find from '../find/module.f.mjs'

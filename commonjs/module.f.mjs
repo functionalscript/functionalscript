@@ -1,3 +1,5 @@
+// @ts-self-types="./module.f.d.mts"
+
 /** @typedef {(packageName: string) => PackageMap|Package|null} PackageMap */
 
 /**

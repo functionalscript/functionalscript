@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list from '../list/module.f.mjs'
 const { reduce } = list
 import operator from '../function/operator/module.f.mjs'

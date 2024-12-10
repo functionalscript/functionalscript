@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list, * as List from '../list/module.f.mjs'
 const { reduce: listReduce, repeat: listRepeat } = list
 import f from '../function/module.f.mjs'

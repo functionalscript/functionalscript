@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import _range, * as Range from '../../types/range/module.f.mjs'
 
 /** @type {(s: string) => (i: number) => number} */

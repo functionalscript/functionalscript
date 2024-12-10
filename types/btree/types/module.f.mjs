@@ -1,3 +1,5 @@
+// @ts-self-types="./module.f.d.mts"
+
 /**
  * @template T
  * @typedef {readonly[T]} Array1
