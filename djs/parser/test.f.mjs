@@ -18,7 +18,7 @@ export default {
             const tokenList = tokenizeString('export default null')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",null]') { throw result }
+            if (result !== '["ok",[[],[null]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default true')

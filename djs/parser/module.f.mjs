@@ -137,7 +137,10 @@ const pushKey = state => key => {
 
 /** @type {(state: ParseValueState) => (value: DjsConst) => ParserState} */
 const pushValue = state => value => {
-    if (state.top === null) { return { ... state, state: 'result' } }
+    if (state.top === null) { 
+        let consts = list.concat(state.consts)([value])
+        return { ... state, state: 'result', consts: consts } 
+    }
     if (state.top?.[0] === 'array') { return { ... state, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
     return { ... state, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
 }
