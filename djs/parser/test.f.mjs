@@ -304,5 +304,13 @@ export default {
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
         },
-    ]
+    ],
+    validWithConst:[
+        () => {
+            const tokenList = tokenizeString('const a = 1 export default 2')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[1,2]]]') { throw result }
+        },
+    ],
 }

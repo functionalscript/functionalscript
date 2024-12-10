@@ -70,7 +70,7 @@ const { fromMap } = o
 
 /**
  * @typedef {{
-*  readonly state: 'const' | 'const+name' | 'const+name='
+*  readonly state: 'const' | 'const+name'
 *  readonly module: ModuleState
 * }} ConstState
 */
@@ -109,6 +109,7 @@ const { fromMap } = o
 
 /** @type {(token: tokenizerT.DjsToken) => (state: InitialState) => ParserState}} */
 const parseInitialOp = token => state => {
+    if (token.kind === 'ws') return state
     if (token.kind === 'id' && token.value === 'import') return { ... state, state: 'import' }
     if (token.kind === 'id' && token.value === 'const') return { ... state, state: 'const' }
     if (token.kind === 'id' && token.value === 'export') return { ... state, state: 'export' }
@@ -119,6 +120,23 @@ const parseInitialOp = token => state => {
 const parseExportOp = token => state => {
     if (token.kind === 'ws') return state
     if (token.kind === 'id' && token.value === 'default') return { ... state, state: 'exportValue', valueState: '', top: null, stack: null }
+    return { state: 'error', message: 'unexpected token' }
+}
+
+/** @type {(token: tokenizerT.DjsToken) => (state: ConstState) => ParserState}} */
+const parseConstOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === 'id') {
+        let constNames = list.concat(state.module.constNames)([token.value])
+        return { ... state, state: 'const+name', module: { ...state.module, constNames: constNames } }
+    }
+    return { state: 'error', message: 'unexpected token' }
+}
+
+/** @type {(token: tokenizerT.DjsToken) => (state: ConstState) => ParserState}} */
+const parseConstNameOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === '=') return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
     return { state: 'error', message: 'unexpected token' }
 }
 
@@ -141,7 +159,12 @@ const pushKey = state => key => {
 const pushValue = state => value => {
     if (state.top === null) { 
         let consts = list.concat(state.module.consts)([value])
-        return { ... state, state: 'result', module: { ...state.module, consts: consts }}
+        switch(state.state)
+        {
+            case 'exportValue': return { ... state, state: 'result', module: { ...state.module, consts: consts }}
+            case 'constValue': return { ... state, state: '', module: { ...state.module, consts: consts }}
+        }
+        
     }
     if (state.top?.[0] === 'array') { return { ... state, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
     return { ... state, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
@@ -278,9 +301,8 @@ const foldOp = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
         case 'import': return { state: 'error', message: 'todo' }
-        case 'const': return { state: 'error', message: 'todo' }
-        case 'const+name': return { state: 'error', message: 'todo' }
-        case 'const+name=': return { state: 'error', message: 'todo' }
+        case 'const': return parseConstOp(token)(state)
+        case 'const+name': return parseConstNameOp(token)(state)
         case 'export': return parseExportOp(token)(state)        
         case 'result': return { state: 'error', message: 'unexpected token' }
         case 'error': return { state: 'error', message: state.message }
