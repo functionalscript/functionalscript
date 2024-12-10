@@ -307,10 +307,10 @@ export default {
     ],
     validWithConst:[
         () => {
-            const tokenList = tokenizeString('const a = 1 export default 2')
+            const tokenList = tokenizeString('const a = 1 const b = 2 export default 3')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[[],[1,2]]]') { throw result }
+            if (result !== '["ok",[[],[1,2,3]]]') { throw result }
         },
     ],
 }
