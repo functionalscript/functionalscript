@@ -179,36 +179,13 @@ const codeAdd = i => p => m => {
 }
 
 export const index = async () => {
-    {
-        const jj = './jsr.json'
-        const n = '/module.f.mjs'
-        const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
-        const exportsA = Object.keys(await loadModuleMap())
-            .filter(v => v.endsWith(n))
-            .map(v => [v.replace(n, ''), v])
-        const exports = Object.fromEntries(exportsA)
-        await writeFile(
-            jj,
-            JSON.stringify({ ...jsr_json, exports }, null, 2))
-    }
-
-    //
-    /** @type {FolderMap} */
-    let m = {}
-    for (const k in await loadModuleMap()) {
-        const [, ...s] = k.split('/')
-        switch (s[s.length - 1]) {
-            case 'module.f.cjs': case 'module.f.mjs': case 'module.f.js':
-                m = folderMapAdd(m)(s)
-                break
-        }
-    }
-    const [e, i] = codeAdd(indent)('')(m)
-    let s =
-        '// Generated file.\n' +
-        i +
-        'export default {\n' +
-        e +
-        '}\n'
-    await writeFile('index.f.mjs', s)
+    const jj = './jsr.json'
+    const n = '/module.f.mjs'
+    const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
+    const list = Object.keys(await loadModuleMap()).filter(v => v.endsWith(n))
+    const exportsA = list.map(v => [v.replace(n, ''), v])
+    const exports = Object.fromEntries(exportsA)
+    await writeFile(
+        jj,
+        JSON.stringify({ ...jsr_json, exports }, null, 2))
 }
