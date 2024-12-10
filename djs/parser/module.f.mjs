@@ -15,6 +15,8 @@ const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, 
 const { entries } = Object
 import bi from '../../types/bigint/module.f.mjs'
 const { serialize: bigintSerialize } = bi
+import string from '../../types/string/module.f.mjs'
+const { concat } = string
 
 /** @typedef {O.Entry<DjsConst>} Entry*/
 
@@ -317,7 +319,7 @@ const parse = tokenList => {
 
 const colon = [':']
 
-/** @type {(mapEntries: Djs.MapEntries) => (value: DjsConst) => List.List<string>} */
+/** @type {(mapEntries: MapEntries) => (value: DjsConst) => List.List<string>} */
 const serialize = sort => {
     /** @type {(kv: readonly[string, DjsConst]) => List.List<string>} */
     const propertySerialize = ([k, v]) => flat([
@@ -354,7 +356,7 @@ const serialize = sort => {
  * The standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  *
- * @type {(mapEntries: Djs.MapEntries) => (value: DjsConst) => string}
+ * @type {(mapEntries: MapEntries) => (value: DjsConst) => string}
  */
 const stringify = sort => compose(serialize(sort))(concat)
 
