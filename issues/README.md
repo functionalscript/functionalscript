@@ -25,3 +25,4 @@
 16. [ ] License in JSR file?
 17. [ ] [djs-extension](./17-djs-extension.md).
 18. [ ] Formatter for `.f.js` and `.f.ts` files.
+19. [ ] Convert FunctionalScript code using non-default `export`.
