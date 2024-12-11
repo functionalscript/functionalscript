@@ -157,9 +157,9 @@ const {
 
 const rangeOneNine = range('19')
 
-const rangeSetNewLine = [    
+const rangeSetNewLine = [
     one(lf),
-    one(cr)    
+    one(cr)
 ]
 
 const rangeSetWhiteSpace = [
@@ -458,7 +458,7 @@ const keywordEntries = [
 const keywordMap = map.fromEntries(keywordEntries)
 
 /** @type {(token: JsToken) => Boolean} */
-const isKeywordToken = token => at(token.kind)(keywordMap) !== null
+export const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
@@ -820,11 +820,4 @@ const scanTokenize = stateScan(tokenizeOp)
 const initial = scanTokenize({ kind: 'initial' })
 
 /** @type {(input: List.List<number>) => List.List<JsToken>} */
-const tokenize = input => flat(initial(flat([/** @type {List.List<CharCodeOrEof>} */(input), [null]])))
-
-export default {
-    /** @readonly */
-    tokenize,
-    /** @readonly */
-    isKeywordToken
-}
+export const tokenize = input => flat(initial(flat([/** @type {List.List<CharCodeOrEof>} */(input), [null]])))

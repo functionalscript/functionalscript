@@ -11,7 +11,7 @@ import cmp from '../types/function/compare/module.f.mjs'
 const { unsafeCmp } = cmp
 import operator, * as Operator from '../types/function/operator/module.f.mjs'
 const { strictEqual } = operator
-import j from '../json/module.f.mjs'
+import * as j from '../json/module.f.mjs'
 const { stringify } = j
 import f from '../types/function/module.f.mjs'
 const { identity } = f

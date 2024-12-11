@@ -4,15 +4,15 @@ import list, * as List from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
 import bf from '../../types/bigfloat/module.f.mjs'
 const { multiply } = bf
-import jsTokenizer, * as JsTokenizer from '../../js/tokenizer/module.f.mjs'
+import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 
 /**
  * @typedef {|
 * {readonly kind: 'true' | 'false' | 'null' } |
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
-* JsTokenizer.StringToken |
-* JsTokenizer.NumberToken |
-* JsTokenizer.ErrorToken
+* jsTokenizer.StringToken |
+* jsTokenizer.NumberToken |
+* jsTokenizer.ErrorToken
 * } JsonToken
 */
 
@@ -24,11 +24,11 @@ import jsTokenizer, * as JsTokenizer from '../../js/tokenizer/module.f.mjs'
 
 /**
  * @typedef {|
-* JsTokenizer.JsToken | null
+* jsTokenizer.JsToken | null
 * } ScanInput
 */
 
-/** @type {(input: JsTokenizer.JsToken) => List.List<JsonToken>} */
+/** @type {(input: jsTokenizer.JsToken) => List.List<JsonToken>} */
 const mapToken = input =>
 {
     switch(input.kind)

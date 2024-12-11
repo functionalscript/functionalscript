@@ -5,19 +5,19 @@ import list, * as List from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
 import bf from '../../types/bigfloat/module.f.mjs'
 const { multiply } = bf
-import jsTokenizer, * as jsTokenizerT from '../../js/tokenizer/module.f.mjs'
+import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 
 /**
  * @typedef {|
 * {readonly kind: 'true' | 'false' | 'null'} |
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' } |
-* jsTokenizerT.StringToken |
-* jsTokenizerT.NumberToken |
-* jsTokenizerT.ErrorToken |
-* jsTokenizerT.IdToken |
-* jsTokenizerT.BigIntToken |
-* jsTokenizerT.WhitespaceToken |
-* jsTokenizerT.NewLineToken
+* jsTokenizer.StringToken |
+* jsTokenizer.NumberToken |
+* jsTokenizer.ErrorToken |
+* jsTokenizer.IdToken |
+* jsTokenizer.BigIntToken |
+* jsTokenizer.WhitespaceToken |
+* jsTokenizer.NewLineToken
 * } DjsToken
 */
 
@@ -29,11 +29,11 @@ import jsTokenizer, * as jsTokenizerT from '../../js/tokenizer/module.f.mjs'
 
 /**
  * @typedef {|
-* jsTokenizerT.JsToken | null
+* jsTokenizer.JsToken | null
 * } ScanInput
 */
 
-/** @type {(input: jsTokenizerT.JsToken) => List.List<DjsToken>} */
+/** @type {(input: jsTokenizer.JsToken) => List.List<DjsToken>} */
 const mapToken = input =>
 {
     switch(input.kind)

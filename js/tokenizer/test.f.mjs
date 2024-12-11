@@ -1,4 +1,4 @@
-import tokenizer, * as Tokenizer from './module.f.mjs'
+import * as tokenizer from './module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 const { toArray } = list
 import * as djs from '../../djs/module.f.mjs'
@@ -6,7 +6,7 @@ import o from '../../types/object/module.f.mjs'
 const { sort } = o
 import encoding from '../../text/utf16/module.f.mjs'
 
-/** @type {(s: string) => readonly Tokenizer.JsToken[]} */
+/** @type {(s: string) => readonly tokenizer.JsToken[]} */
 const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = djs.stringify(sort)

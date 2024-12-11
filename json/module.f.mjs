@@ -22,7 +22,7 @@ const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, 
 /** @typedef {Object|boolean|string|number|null|Array} Unknown */
 
 /** @type {(value: Unknown) => (path: List.List<string>) => (src: Unknown) => Unknown} */
-const setProperty = value => {
+export const setProperty = value => {
     /** @type {(path: List.List<string>) => (src: Unknown) => Unknown} */
     const f = path => src => {
         const result = next(path)
@@ -43,7 +43,7 @@ const colon = [':']
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
 /** @type {(mapEntries: MapEntries) => (value: Unknown) => List.List<string>} */
-const serialize = sort => {
+export const serialize = sort => {
     /** @type {(kv: readonly[string, Unknown]) => List.List<string>} */
     const propertySerialize = ([k, v]) => flat([
         stringSerialize(k),
@@ -80,23 +80,10 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => compose(serialize(sort))(concat)
+export const stringify = sort => compose(serialize(sort))(concat)
 
 /** @type {(value: string) => Unknown} */
-const parse = JSON.parse
+export const parse = JSON.parse
 
 /** @type {(value: Unknown) => value is Object} */
-const isObject = value => typeof value === 'object' && value !== null && !(value instanceof Array)
-
-export default {
-    /** @readonly */
-    setProperty,
-    /** @readonly */
-    stringify,
-    /** @readonly */
-    serialize,
-    /** @readonly */
-    parse,
-    /** @readonly */
-    isObject,
-}
+export const isObject = value => typeof value === 'object' && value !== null && !(value instanceof Array)
