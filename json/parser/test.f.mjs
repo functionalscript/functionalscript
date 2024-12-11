@@ -2,7 +2,7 @@ import parser from './module.f.mjs'
 import tokenizer, * as Tokenizer from '../tokenizer/module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 const { toArray } = list
-import json from '../module.f.mjs'
+import * as json from '../module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { sort } = o
 import encoding from '../../text/utf16/module.f.mjs'

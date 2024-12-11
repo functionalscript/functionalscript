@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import json, * as Json from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.mjs'
 const { isObject } = json
 import * as dependencies from './dependencies/module.f.mjs'
 const { isDependenciesJson } = dependencies
@@ -14,7 +14,7 @@ const { at } = o
  * }} PackageJson
  */
 
-/** @type {(j: Json.Unknown) => j is PackageJson} */
+/** @type {(j: json.Unknown) => j is PackageJson} */
 export const isPackageJson = j => {
     if (!isObject(j)) { return false }
     if (typeof j.name !== 'string') { return false }

@@ -1,7 +1,7 @@
 import * as BTree from './types/module.f.mjs'
 import _ from './module.f.mjs'
 const { values } = _
-import json, * as jsonT from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.mjs'
 import o from '../object/module.f.mjs'
 const { sort } = o
 import str from '../string/module.f.mjs'
@@ -12,7 +12,7 @@ import f from './find/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 
-/** @type {(sequence: List.List<jsonT.Unknown>) => string} */
+/** @type {(sequence: List.List<json.Unknown>) => string} */
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */

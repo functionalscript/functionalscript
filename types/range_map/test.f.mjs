@@ -1,14 +1,14 @@
 import _, * as T from './module.f.mjs'
 import compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
-import json, * as Json from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.mjs'
 import object from '../object/module.f.mjs'
 const { sort } = object
 import sortedSet, * as SortedSet from '../sorted_set/module.f.mjs'
 import list from '../list/module.f.mjs'
 import operator from '../function/operator/module.f.mjs'
 
-/** @type {(a: readonly Json.Unknown[]) => string} */
+/** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = json.stringify(sort)
 
 /** @type {T.Operators<SortedSet.SortedSet<string>>} */

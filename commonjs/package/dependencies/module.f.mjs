@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import json, * as Json from '../../../json/module.f.mjs'
+import * as json from '../../../json/module.f.mjs'
 const { isObject } = json
 import list from '../../../types/list/module.f.mjs'
 const { map, every } = list
@@ -11,10 +11,10 @@ const { entries } = Object
 
 /** @typedef {DependencyMapJson|null} DependenciesJson */
 
-/** @type {(entry: Json.Entry) => boolean} */
+/** @type {(entry: json.Entry) => boolean} */
 const isDependencyJson = ([, v]) => typeof v === 'string'
 
-/** @type {(j: Json.Unknown) => j is DependenciesJson} */
+/** @type {(j: json.Unknown) => j is DependenciesJson} */
 export const isDependenciesJson = j => {
     if (j === null) { return true }
     if (!isObject(j)) { return false }

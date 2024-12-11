@@ -3,7 +3,7 @@ import * as BTree from '../types/module.f.mjs'
 import s from '../set/module.f.mjs'
 import str from '../../string/module.f.mjs'
 const { cmp } = str
-import json from '../../../json/module.f.mjs'
+import * as json from '../../../json/module.f.mjs'
 import o from '../../object/module.f.mjs'
 const { sort } = o
 

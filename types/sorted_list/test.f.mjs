@@ -1,7 +1,7 @@
 import _ from './module.f.mjs'
 import compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
-import json, * as Json from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.mjs'
 import object from '../object/module.f.mjs'
 const { sort } = object
 import list from '../list/module.f.mjs'
@@ -10,7 +10,7 @@ import * as Map from '../map/module.f.mjs'
 import f from '../function/module.f.mjs'
 const { flip } = f
 
-/** @type {(a: readonly Json.Unknown[]) => string} */
+/** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = json.stringify(sort)
 
 /** @type {<T>(a: T) => (b: T) => Map.Sign} */

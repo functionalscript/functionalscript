@@ -1,5 +1,5 @@
 import _ from './module.f.mjs'
-import json, * as jsonT from '../json/module.f.mjs'
+import * as json from '../json/module.f.mjs'
 import o from '../types/object/module.f.mjs'
 const { sort } = o
 
@@ -9,7 +9,7 @@ const toU32 = x => (x + 0x1_0000_0000) % 0x1_0000_0000
 /** @type {(a: number) => string} */
 const toHexString = x => toU32(x).toString(16).padStart(8, '0')
 
-/** @type {(a: readonly jsonT.Unknown[]) => string} */
+/** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = a => json.stringify(sort)(a)
 
 // {

@@ -1,11 +1,11 @@
 import _,  * as T from './module.f.mjs'
-import json, * as Json from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.mjs'
 import o  from '../object/module.f.mjs'
 const { sort } = o
 import operator from '../function/operator/module.f.mjs'
 const { addition, strictEqual, reduceToScan } = operator
 
-/** @type {(sequence: T.List<Json.Unknown>) => string} */
+/** @type {(sequence: T.List<json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 const stringifyTest = () => {

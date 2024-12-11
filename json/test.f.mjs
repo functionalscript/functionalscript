@@ -1,4 +1,4 @@
-import json from './module.f.mjs'
+import * as json from './module.f.mjs'
 import o from '../types/object/module.f.mjs'
 const { sort } = o
 import f from '../types/function/module.f.mjs'
