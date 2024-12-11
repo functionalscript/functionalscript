@@ -1,4 +1,4 @@
-import parser from './module.f.mjs'
+import * as parser from './module.f.mjs'
 import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 const { toArray } = list
