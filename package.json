@@ -1,9 +1,8 @@
 {
   "name": "functionalscript",
-  "version": "0.1.607",
+  "version": "0.1.608",
   "type": "module",
   "description": "FunctionalScript is a functional subset of JavaScript",
-  "main": "index.f.mjs",
   "scripts": {
     "tscp": "tsc --declaration --emitDeclarationOnly --noEmit false",
     "tsc": "tsc",

@@ -47,7 +47,7 @@ export default {
         },
         () => {
             const result = stringify(tokenizeString('{ \t\n\r}'))
-            if (result !== '[{"kind":"{"},{"kind":"ws"},{"kind":"}"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('""'))
