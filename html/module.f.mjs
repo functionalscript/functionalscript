@@ -97,7 +97,7 @@ const element2a = e => {
 }
 
 /** @type {(element: Element) => List.List<string>} */
-const element = e => {
+export const element = e => {
     switch (e.length) {
         case 1: { return element2a([e[0], {}]) }
         case 2: {
@@ -112,15 +112,6 @@ const element = e => {
     }
 }
 
-const html = compose(element)(listConcat(['<!DOCTYPE html>']))
+export const html = compose(element)(listConcat(['<!DOCTYPE html>']))
 
-const htmlToString = compose(html)(stringConcat)
-
-export default {
-    /** @readonly */
-    element,
-    /** @readonly */
-    html,
-    /** @readonly */
-    htmlToString,
-}
+export const htmlToString = compose(html)(stringConcat)
