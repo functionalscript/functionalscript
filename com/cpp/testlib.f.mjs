@@ -3,7 +3,6 @@ const { join } = string
 import text from '../../text/module.f.mjs'
 const { flat } = text
 import library from '../types/testlib.f.mjs'
-import m from './module.f.mjs'
-const { cpp } = m
+import { cpp } from './module.f.mjs'
 
 export default () => join('\n')(flat('    ')(cpp('My')(library)))

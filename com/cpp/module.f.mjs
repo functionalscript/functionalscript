@@ -52,7 +52,7 @@ const mapParamName = map(paramName)
 const joinComma = join(', ')
 
 /** @type {(name: string) => (lib: Types.Library) => Text.Block} */
-const cpp = name => lib => {
+export const cpp = name => lib => {
 
     /** @type {(t: Types.Type) => string|null} */
     const interface_ = t => {
@@ -147,9 +147,4 @@ const cpp = name => lib => {
         ['#pragma once', ''],
         namespace(name)(flat([flatMap(forward)(e), flatMap(def)(e)]))
     ])
-}
-
-export default {
-    /** @readonly */
-    cpp,
 }
