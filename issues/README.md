@@ -26,3 +26,5 @@
 17. [ ] [djs-extension](./17-djs-extension.md).
 18. [ ] Formatter for `.f.js` and `.f.ts` files.
 19. [ ] Convert FunctionalScript code using non-default `export`.
+20. [ ] Test framework should be able to run a subset of tests.
+21. [ ] Test Framework silent mode. Show progress and failled tests only.
