@@ -119,13 +119,8 @@ const header = [
 ]
 
 /** @type {(name: string) => (library: typesT.Library) => textT.Block} */
-const cs = name => library => {
+export const cs = name => library => {
     const v = flatMapDef(entries(library))
     const ns = namespace(name)(v)
     return flat([header, ns])
-}
-
-export default {
-    /** @readonly */
-    cs,
 }
