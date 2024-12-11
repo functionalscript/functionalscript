@@ -38,19 +38,19 @@ import * as Operator from '../../types/function/operator/module.f.mjs'
 const jsonStringify = JSON.stringify
 
 /** @type {(_: string) => List.List<string>} */
-const stringSerialize = input => [jsonStringify(input)]
+export const stringSerialize = input => [jsonStringify(input)]
 
 /** @type {(_: number) => List.List<string>} */
-const numberSerialize = input => [jsonStringify(input)]
+export const numberSerialize = input => [jsonStringify(input)]
 
-const nullSerialize = ['null']
+export const nullSerialize = ['null']
 
 const trueSerialize = ['true']
 
 const falseSerialize = ['false']
 
 /** @type {(_: boolean) => List.List<string>} */
-const boolSerialize = value => value ? trueSerialize : falseSerialize
+export const boolSerialize = value => value ? trueSerialize : falseSerialize
 
 const comma = [',']
 
@@ -67,9 +67,9 @@ const wrap = open => close => {
     return input => flat([seqOpen, join(input), seqClose])
 }
 
-const objectWrap = wrap('{')('}')
+export const objectWrap = wrap('{')('}')
 
-const arrayWrap = wrap('[')(']')
+export const arrayWrap = wrap('[')(']')
 
 /**
  * @template T
@@ -88,15 +88,15 @@ const arrayWrap = wrap('[')(']')
 
 export default {
     /** @readonly */
-    objectWrap,
+    // objectWrap,
     /** @readonly */
-    arrayWrap,
+    // arrayWrap,
     /** @readonly */
-    stringSerialize,
+    // stringSerialize,
     /** @readonly */
-    numberSerialize,
+    // numberSerialize,
     /** @readonly */
-    nullSerialize,
+    // nullSerialize,
     /** @readonly */
-    boolSerialize,
+    // boolSerialize,
 }

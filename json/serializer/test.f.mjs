@@ -1,4 +1,4 @@
-import _, * as T from './module.f.mjs'
+import * as _ from './module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 const { toArray } = list
 

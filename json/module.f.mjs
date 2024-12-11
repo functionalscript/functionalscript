@@ -8,7 +8,7 @@ const { at } = object
 import f from '../types/function/module.f.mjs'
 const { compose, fn } = f
 const { entries } = Object
-import s from './serializer/module.f.mjs'
+import * as s from './serializer/module.f.mjs'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = s
 
 /**
