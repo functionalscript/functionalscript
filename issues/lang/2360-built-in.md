@@ -56,7 +56,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
 ## JSON
 
-|Function                 |Priority   |
+|Function                 |side-effects|
 |-------------------------|-----------|
 |`isRawJSON`              |no         |
 |`parse`                  |no         |
