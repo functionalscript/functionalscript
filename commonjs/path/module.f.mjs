@@ -47,7 +47,7 @@ const normItems = items => {
 const firstNull = first(null)
 
 /** @type {(local: string) => (path: string) => LocalPath|null} */
-const parseLocal = local => {
+export const parseLocal = local => {
     /** @type {(path: string) => readonly[boolean, boolean, List.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
@@ -102,7 +102,7 @@ const mapDependency = d => ([external, internal]) => {
  *  (items: List.List<string>) =>
  *  Path|null}
  */
-const parseGlobal = dependencies =>
+export const parseGlobal = dependencies =>
 {
     const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
@@ -120,7 +120,7 @@ const parseGlobal = dependencies =>
  *  (path: string) =>
  *  Path|null }
  */
-const parse = packageId => dependencies => {
+export const parse = packageId => dependencies => {
     const pg = parseGlobal(dependencies)
     return local => path => {
         const parsed = parseLocal(local)(path)
@@ -147,7 +147,7 @@ const parse = packageId => dependencies => {
  *  Result
  * }
  */
-const parseAndFind = packageGet => moduleId => path => {
+export const parseAndFind = packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
     if (currentPack === null) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
@@ -163,15 +163,4 @@ const parseAndFind = packageGet => moduleId => path => {
     const indexJs = join('/')(concat(p.items)(['index.js']))
     const fileList = p.dir || isEmpty(p.items) ? [indexJs] : [file, `${file}.js`, indexJs]
     return firstNull(filterMap(tryFile)(fileList))
-}
-
-export default {
-    /** @readonly */
-    parseLocal,
-    /** @readonly */
-    parseGlobal,
-    /** @readonly */
-    parse,
-    /** @readonly */
-    parseAndFind,
 }

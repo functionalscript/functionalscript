@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 import dev from '../../dev/module.f.mjs'
 const { todo } = dev
 import json, * as Json from '../../json/module.f.mjs'
