@@ -15,13 +15,8 @@ const { entries } = Object
 const isDependencyJson = ([, v]) => typeof v === 'string'
 
 /** @type {(j: Json.Unknown) => j is DependenciesJson} */
-const isDependenciesJson = j => {
+export const isDependenciesJson = j => {
     if (j === null) { return true }
     if (!isObject(j)) { return false }
     return every(map(isDependencyJson)(entries(j)))
-}
-
-export default {
-    /** @readonly */
-    isDependenciesJson,
 }

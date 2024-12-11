@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import json, * as Json from '../../json/module.f.mjs'
 const { isObject } = json
-import dependencies, * as Dependencies from './dependencies/module.f.mjs'
+import * as dependencies from './dependencies/module.f.mjs'
 const { isDependenciesJson } = dependencies
 import o from '../../types/object/module.f.mjs'
 const { at } = o
@@ -10,7 +10,7 @@ const { at } = o
  * @typedef {{
  *  readonly name: string
  *  readonly version: string
- *  readonly dependencies?: Dependencies.DependenciesJson
+ *  readonly dependencies?: dependencies.DependenciesJson
  * }} PackageJson
  */
 
