@@ -77,12 +77,12 @@ const create = a => {
     return v => c => x(c)(i)(v)(c)
 }
 
-const terminal = -1
+export const terminal = -1
 
 /** @type {() => ToResult} */
 const toInit = () => () => [[], init]
 
-const init = create([
+export const init = create([
     codePointRange(one(terminal))(toInit),
     rangeSet(['\t', ' ', '\n', '\r'])(toInit),
     range('!')(() => () => [['!'], unexpectedSymbol]),
@@ -114,11 +114,4 @@ const init = create([
     range('|')(() => () => [['|'], unexpectedSymbol]),
     range('}')(() => () => [['}'], unexpectedSymbol]),
     range('~')(() => () => [['~'], unexpectedSymbol]),
-])(void 0)
-
-export default {
-    /** @readonly */
-    terminal,
-    /** @readonly */
-    init,
-}
+])(undefined)
