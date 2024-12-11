@@ -22,3 +22,5 @@
 13. [ ] Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 14. [ ] Combine `npm run index` and `npm run version`
 15. [ ] Generate `package.json/exports` instead of `index.f.mjs`.
+16. [ ] [djs-extension](./djs-extension.md).
+17. [ ] Formatter for `.f.js` and `.f.ts` files.
