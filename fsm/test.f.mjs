@@ -1,4 +1,4 @@
-import _, * as T from './module.f.mjs'
+import * as _ from './module.f.mjs'
 import byteSet from '../types/byte_set/module.f.mjs'
 import o from '../types/object/module.f.mjs'
 const { sort, fromEntries } = o
@@ -22,7 +22,7 @@ const buildDfa = () => {
     const idNext = byteSet.union(idBegin)(digit)
     const dot = _.toUnion('.')
 
-    /** @type {T.Grammar} */
+    /** @type {_.Grammar} */
     const grammar = [
         ['', digit, 'int'],
         ['int', digit, 'int'],

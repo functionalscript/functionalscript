@@ -31,7 +31,7 @@ const { stringToList } = utf16
 const stringifyIdentity = stringify(identity)
 
 /** @type {(s: string) => byteSetT.ByteSet} */
-const toRange = s => {
+export const toRange = s => {
     const [b, e] = toArray(stringToList(s))
     return byteSet.range([b, e])
 }
@@ -40,7 +40,7 @@ const toRange = s => {
 const toUnionOp = i => bs => byteSetUnion(bs)(one(i))
 
 /** @type {(s: string) => byteSetT.ByteSet} */
-const toUnion = s => {
+export const toUnion = s => {
     const codePoints = stringToList(s)
     return fold(toUnionOp)(empty)(codePoints)
 }
@@ -88,7 +88,7 @@ const initialState = ['']
 const initialStateStringify = stringifyIdentity(initialState)
 
 /** @type {(grammar: Grammar) => Dfa} */
-const dfa = grammar => addEntry(grammar)(initialState)({})
+export const dfa = grammar => addEntry(grammar)(initialState)({})
 
 const get = rangeMap.get(emptyStateStringify)
 
@@ -96,15 +96,4 @@ const get = rangeMap.get(emptyStateStringify)
 const runOp = dfa => input => s => get(input)(dfa[s])
 
 /** @type {(dfa: Dfa) => (input: List.List<number>) => List.List<string>} */
-const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
-
-export default {
-    /** @readonly */
-    dfa,
-    /** @readonly */
-    run,
-    /** @readonly */
-    toRange,
-    /** @readonly */
-    toUnion
-}
+export const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
