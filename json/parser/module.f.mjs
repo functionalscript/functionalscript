@@ -207,16 +207,11 @@ const foldOp = token => state => {
 }
 
 /** @type {(tokenList: List.List<Tokenizer.JsonToken>) => Result.Result<Json.Unknown, string>} */
-const parse = tokenList => {
+export const parse = tokenList => {
     const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
     switch (state.status) {
         case 'result': return result.ok(state.value)
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
     }
-}
-
-export default {
-    /** @readonly */
-    parse
 }
