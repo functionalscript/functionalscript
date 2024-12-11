@@ -36,7 +36,7 @@ const { fromMap } = o
 
 /** @typedef {List.List<DjsStackElement>} DjsStack */
 
-/** @typedef {InitialState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState} ParserState */
+/** @typedef {InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState} ParserState */
 
 /**
  * @typedef {{
@@ -46,12 +46,18 @@ const { fromMap } = o
 * }} ModuleState
 */
 
-
 /**
  * @typedef {{
 *  readonly state: ''
 *  readonly module: ModuleState
 * }} InitialState
+*/
+
+/**
+ * @typedef {{
+*  readonly state: 'nl'
+*  readonly module: ModuleState
+* }} NewLineRequiredState
 */
 
 /**
@@ -102,23 +108,30 @@ const { fromMap } = o
 
 /** @type {(token: tokenizerT.DjsToken) => (state: InitialState) => ParserState}} */
 const parseInitialOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === 'id' && token.value === 'import') return { ... state, state: 'import' }
     if (token.kind === 'id' && token.value === 'const') return { ... state, state: 'const' }
     if (token.kind === 'id' && token.value === 'export') return { ... state, state: 'export' }
     return { state: 'error', message: 'unexpected token' }
 }
 
+/** @type {(token: tokenizerT.DjsToken) => (state: NewLineRequiredState) => ParserState}} */
+const parseNewLineRequiredOp = token => state => {
+    if (token.kind === 'ws') return state
+    if (token.kind === 'nl') return { ... state, state: '' }
+    return { state: 'error', message: 'unexpected token' }
+}
+
 /** @type {(token: tokenizerT.DjsToken) => (state: ExportState) => ParserState}} */
 const parseExportOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === 'id' && token.value === 'default') return { ... state, state: 'exportValue', valueState: '', top: null, stack: null }
     return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ConstState) => ParserState}} */
 const parseConstOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === 'id') {
         if (map.at(token.value)(state.module.refs) !== null)
             return { state: 'error', message: 'duplicate id' }      
@@ -132,14 +145,14 @@ const parseConstOp = token => state => {
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ConstState) => ParserState}} */
 const parseConstNameOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === '=') return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
     return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
 const parseImportOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === 'id') {
         if (map.at(token.value)(state.module.refs) !== null)
             return { state: 'error', message: 'duplicate id' }
@@ -153,7 +166,7 @@ const parseImportOp = token => state => {
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
 const parseImportNameOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === 'id' && token.value === 'from') {
         return { ... state, state: 'import+from' }
     }
@@ -162,10 +175,10 @@ const parseImportNameOp = token => state => {
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
 const parseImportFromOp = token => state => {
-    if (token.kind === 'ws') return state
+    if (token.kind === 'ws' || token.kind === 'nl') return state
     if (token.kind === 'string') {
         const modules = list.concat(state.module.modules)([token.value])
-        return { ... state, state: '', module: { ...state.module, modules: modules } }
+        return { ... state, state: 'nl', module: { ...state.module, modules: modules } }
     }
     return { state: 'error', message: 'unexpected token' }
 }
@@ -192,7 +205,7 @@ const pushValue = state => value => {
         switch(state.state)
         {
             case 'exportValue': return { ... state, state: 'result', module: { ...state.module, consts: consts }}
-            case 'constValue': return { ... state, state: '', module: { ...state.module, consts: consts }}
+            case 'constValue': return { ... state, state: 'nl', module: { ...state.module, consts: consts }}
         }
     }
     if (state.top?.[0] === 'array') { return { ... state, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
@@ -340,6 +353,7 @@ const parseObjectCommaOp = token => state => {
 const foldOp = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
+        case 'nl': return parseNewLineRequiredOp(token)(state)
         case 'import': return parseImportOp(token)(state)
         case 'import+name': return parseImportNameOp(token)(state)
         case 'import+from': return parseImportFromOp(token)(state)
