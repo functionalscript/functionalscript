@@ -23,11 +23,6 @@ const build = f => immutableRequire => mutableData => {
 }
 
 /** @type {ModuleFunction.Compile} */
-const compile = source =>
+export const compile = source =>
     // Side effect: a `Function` constructor is not allowed in FunctionalScript.
     tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
-
-export default {
-    /** @readonly */
-    compile,
-}

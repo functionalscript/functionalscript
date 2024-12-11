@@ -9,5 +9,3 @@
  *  (fileName: string) => string|null
  * ]} Package
  */
-
-export default {}

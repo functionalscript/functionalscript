@@ -1,4 +1,4 @@
-import _ from './module.mjs'
+import * as _ from './module.mjs'
 import * as Run from './module/function/module.f.mjs'
 
 export default {
