@@ -47,9 +47,8 @@ export default {
         },
         () => {
             const result = stringify(tokenizeString('{ \t\n\r}'))
-            if (result !== '[{"kind":"{"},{"kind":"ws"},{"kind":"}"}]') { throw result }
+            if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"}]') { throw result }
         },
-
         () => {
             const result = stringify(tokenizeString('""'))
             if (result !== '[{"kind":"string","value":""}]') { throw result }
@@ -344,16 +343,20 @@ export default {
             if (result !== '[{"kind":"ws"}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('\n'))
+            const result = stringify(tokenizeString(' \t'))
             if (result !== '[{"kind":"ws"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('\n'))
+            if (result !== '[{"kind":"nl"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('\r'))
-            if (result !== '[{"kind":"ws"}]') { throw result }
+            if (result !== '[{"kind":"nl"}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString(' \t\n\r'))
-            if (result !== '[{"kind":"ws"}]') { throw result }
+            const result = stringify(tokenizeString(' \t\n\r '))
+            if (result !== '[{"kind":"nl"}]') { throw result }
         },
     ],
     id: [
