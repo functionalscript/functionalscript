@@ -110,79 +110,109 @@ const { fromMap } = o
 
 /** @type {(token: tokenizerT.DjsToken) => (state: InitialState) => ParserState}} */
 const parseInitialOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === 'id' && token.value === 'import') return { ... state, state: 'import' }
-    if (token.kind === 'id' && token.value === 'const') return { ... state, state: 'const' }
-    if (token.kind === 'id' && token.value === 'export') return { ... state, state: 'export' }
+    switch (token.kind)
+    {
+        case 'ws':
+        case 'nl': return state
+        case 'id': {
+            switch (token.value) {
+                case 'import': return { ... state, state: 'import' }
+                case 'const': return { ... state, state: 'const' }
+                case 'export': return { ... state, state: 'export' }
+            }
+        }
+    }
     return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: NewLineRequiredState) => ParserState}} */
 const parseNewLineRequiredOp = token => state => {
-    if (token.kind === 'ws') return state
-    if (token.kind === 'nl') return { ... state, state: '' }
-    return { state: 'error', message: 'unexpected token' }
+    switch (token.kind) {
+        case 'ws': return state
+        case 'nl': return { ... state, state: '' }
+        default: return { state: 'error', message: 'unexpected token' }
+    }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ExportState) => ParserState}} */
 const parseExportOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === 'id' && token.value === 'default') return { ... state, state: 'exportValue', valueState: '', top: null, stack: null }
+    switch (token.kind) {
+        case 'ws':
+        case 'nl': return state
+        case 'id': {
+            if (token.value === 'default') return { ... state, state: 'exportValue', valueState: '', top: null, stack: null }
+        }
+    }
     return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ConstState) => ParserState}} */
 const parseConstOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === 'id') {
-        if (map.at(token.value)(state.module.refs) !== null)
-            return { state: 'error', message: 'duplicate id' }      
-        /** @type {DjsModuleRef} */
-        let cref = ['cref', length(state.module.consts)]
-        let refs = map.setReplace(token.value)(cref)(state.module.refs)
-        return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
+    switch (token.kind) {
+        case 'ws':
+        case 'nl': return state
+        case 'id': {
+            if (map.at(token.value)(state.module.refs) !== null)
+                return { state: 'error', message: 'duplicate id' }      
+            /** @type {DjsModuleRef} */
+            let cref = ['cref', length(state.module.consts)]
+            let refs = map.setReplace(token.value)(cref)(state.module.refs)
+            return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
+        }
+        default: return { state: 'error', message: 'unexpected token' }
     }
-    return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ConstState) => ParserState}} */
 const parseConstNameOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === '=') return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
-    return { state: 'error', message: 'unexpected token' }
+    switch (token.kind) {
+        case 'ws':
+        case 'nl': return state
+        case '=': return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
+        default: return { state: 'error', message: 'unexpected token' }
+    }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
 const parseImportOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === 'id') {
-        if (map.at(token.value)(state.module.refs) !== null)
-            return { state: 'error', message: 'duplicate id' }
-        /** @type {DjsModuleRef} */
-        let aref = ['aref', length(state.module.modules)]
-        let refs = map.setReplace(token.value)(aref)(state.module.refs)
-        return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
+    switch (token.kind) {
+        case 'ws':
+        case 'nl': return state
+        case 'id': {
+            if (map.at(token.value)(state.module.refs) !== null)
+                return { state: 'error', message: 'duplicate id' }
+            /** @type {DjsModuleRef} */
+            let aref = ['aref', length(state.module.modules)]
+            let refs = map.setReplace(token.value)(aref)(state.module.refs)
+            return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
+        }
+        default: return { state: 'error', message: 'unexpected token' }
     }
-    return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
 const parseImportNameOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === 'id' && token.value === 'from') {
-        return { ... state, state: 'import+from' }
+    switch (token.kind) {
+        case 'ws':
+        case 'nl': return state
+        case 'id': {
+            if (token.value === 'from') return { ... state, state: 'import+from' }
+        }
     }
     return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(token: tokenizerT.DjsToken) => (state: ImportState) => ParserState}} */
 const parseImportFromOp = token => state => {
-    if (token.kind === 'ws' || token.kind === 'nl') return state
-    if (token.kind === 'string') {
-        const modules = list.concat(state.module.modules)([token.value])
-        return { ... state, state: 'nl', module: { ...state.module, modules: modules } }
+    switch (token.kind) {
+        case 'ws':
+        case 'nl': return state
+        case 'string': {
+            const modules = list.concat(state.module.modules)([token.value])
+            return { ... state, state: 'nl', module: { ...state.module, modules: modules } }
+        }
+        default: return { state: 'error', message: 'unexpected token' }
     }
-    return { state: 'error', message: 'unexpected token' }
 }
 
 /** @type {(obj: DjsStackObject) => (key: string) => DjsStackObject} */
