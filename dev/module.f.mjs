@@ -1,6 +1,3 @@
 // @ts-self-types="./module.f.d.mts"
 
-export default {
-    /** @readonly */
-    todo: () => { throw 'not implemented' },
-}
+export const todo = () => { throw 'not implemented' }

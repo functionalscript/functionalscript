@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 
 export default () => {
     if (!_.isDependenciesJson(null)) { throw 'error' }

@@ -19,5 +19,3 @@ import * as TypesResult from '../../../types/result/module.f.mjs'
  */
 
 /** @typedef {(source: string) => TypesResult.Result<Function_, unknown>} Compile */
-
-export default {}
