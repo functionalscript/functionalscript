@@ -30,3 +30,10 @@ type DefaultExport = {
     readonly default: unknown
 }
 ```
+
+We don't need to change `import` for now if we implement `import * as X from ...`. For example
+
+```js
+import * as List from 'types/list/module.f.mjs'
+const { map } = List
+```
