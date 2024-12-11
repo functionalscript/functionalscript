@@ -85,18 +85,3 @@ export const arrayWrap = wrap('[')(']')
  * @template T
  * @typedef {(entries: Entries<T>) => Entries<T>} MapEntries<T>
 */
-
-export default {
-    /** @readonly */
-    // objectWrap,
-    /** @readonly */
-    // arrayWrap,
-    /** @readonly */
-    // stringSerialize,
-    /** @readonly */
-    // numberSerialize,
-    /** @readonly */
-    // nullSerialize,
-    /** @readonly */
-    // boolSerialize,
-}
