@@ -132,7 +132,7 @@ const traitImpl = t => {
 const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex']
 
 /** @type {(library: Types.Library) => Text.Block} */
-const rust = library => {
+export const rust = library => {
 
     /** @type {(p: string) => (o: (_: string) => string) => (t: Types.Type) => string} */
     const type = p => {
@@ -257,9 +257,4 @@ const rust = library => {
     const def = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
 
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])
-}
-
-export default {
-    /** @readonly */
-    rust,
 }
