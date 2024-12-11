@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import * as Array from '../../array/module.f.mjs'
 
 /** @typedef {Array.Index3} Index3 */

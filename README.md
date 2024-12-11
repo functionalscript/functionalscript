@@ -3,7 +3,7 @@
 [![NPM Version](https://img.shields.io/npm/v/functionalscript)](https://www.npmjs.com/package/functionalscript)
 [![JSR Version](https://img.shields.io/jsr/v/%40functionalscript/functionalscript)](https://jsr.io/@functionalscript/functionalscript)
 
-FunctionalScript is a purely functional programming language and a strict subset of
+FunctionalScript is a safe, purely functional programming language and a strict subset of
 [ECMAScript](https://en.wikipedia.org/wiki/ECMAScript)/[JavaScript](https://en.wikipedia.org/wiki/JavaScript). It's inspired by
 
 - [JSON](https://en.wikipedia.org/wiki/JSON) and [JSON5](https://json5.org/) as subsets of JavaScript.
@@ -15,8 +15,8 @@ FunctionalScript is a purely functional programming language and a strict subset
 [A working draft of the FunctionalScript specification](./issues/lang/README.md).
 
 Learn more about
-- [Purely Functional Programming in JavaScript](https://medium.com/@sergeyshandar/purely-functional-programming-in-javascript-91114b1b2dff),
-- [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376).
+- [Purely Functional Programming in JavaScript](https://blog.bitsrc.io/purely-functional-programming-in-javascript-91114b1b2dff?sk=5f7132e56902f38fcf4c6164bfa681ed),
+- [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376?sk=30b32189a81d1a2dad16c2244f32328d).
 
 FunctionalScript is distributed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](mailto:sergey.oss@proton.me).
 

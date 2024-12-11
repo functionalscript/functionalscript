@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import operator, * as Operator from '../../types/function/operator/module.f.mjs'
 import range_map, * as RangeMap from '../../types/range_map/module.f.mjs'
 const { merge, fromRange, get } = range_map

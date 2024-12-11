@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 /** @typedef {readonly[number,number]} Range */
 
 /** @type {(range: Range) => (i: number) => boolean} */

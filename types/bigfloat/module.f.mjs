@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import bi from '../bigint/module.f.mjs'
 const { abs, sign } = bi
 

@@ -1,3 +1,5 @@
+// @ts-self-types="./module.f.d.mts"
+
 /**
  * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
  *

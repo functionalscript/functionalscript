@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import list, * as List from '../../types/list/module.f.mjs'
 const { flat, reduce, empty } = list
 import * as O from '../../types/object/module.f.mjs'

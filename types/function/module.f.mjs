@@ -1,4 +1,8 @@
+// @ts-self-types="./module.f.d.mts"
+
 /**
+ * A generic function type.
+ *
  * @template I
  * @template O
  * @typedef {(_: I) => O} Func
@@ -11,13 +15,23 @@
  */
 const compose = g => f => x => f(g(x))
 
-/** @type {<T>(value: T) => T} */
+/**
+ * A generic identity function.
+ *
+ * @type {<T>(value: T) => T}
+ */
 const identity = value => value
 
-/** @type {<A, B, C>(f: (a: A) => (b: B) => C) => (b: B) => (a: A) => C} */
+/**
+ * Flips the arguments of a curried function.
+ *
+ * @type {<A, B, C>(f: (a: A) => (b: B) => C) => (b: B) => (a: A) => C}
+ */
 const flip = f => b => a => f(a)(b)
 
 /**
+ * A functional utility type that enables seamless chaining of transformations.
+ *
  * @template I,O
  * @typedef {{
  *  readonly result: Func<I, O>
@@ -25,7 +39,11 @@ const flip = f => b => a => f(a)(b)
  * }} Fn
  */
 
-/** @type {<I, O>(f: (i: I) => O) => Fn<I, O>} */
+/**
+ * Creates an `Fn` instance from a function, enabling chaining of transformations.
+ *
+ * @type {<I, O>(f: (i: I) => O) => Fn<I, O>}
+ */
 const fn = result => ({
     result,
     then: g => fn(compose(result)(g))

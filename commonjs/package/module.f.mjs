@@ -1,3 +1,4 @@
+// @ts-self-types="./module.f.d.mts"
 import json, * as Json from '../../json/module.f.mjs'
 const { isObject } = json
 import dependencies, * as Dependencies from './dependencies/module.f.mjs'
