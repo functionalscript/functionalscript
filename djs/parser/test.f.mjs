@@ -2,7 +2,7 @@ import parser from './module.f.mjs'
 import tokenizer, * as tokenizerT from '../tokenizer/module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 const { toArray } = list
-import djs from '../module.f.mjs'
+import * as djs from '../module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { sort } = o
 import encoding from '../../text/utf16/module.f.mjs'
@@ -72,7 +72,7 @@ export default {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3]')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]]') { throw result }            
+            if (result !== '["ok",[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {}')
@@ -395,7 +395,7 @@ export default {
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
-        },   
+        },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs" \n import a from "second/test.f.mjs" \n export default [b, a, b]')
             const obj = parser.parse(tokenList)

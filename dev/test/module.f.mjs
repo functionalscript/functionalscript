@@ -80,7 +80,7 @@ const timeFormat = a => {
 }
 
 /** @type {<T>(input: Input<T>) => readonly[number, T]} */
-const main = input => {
+export default input => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
     /** @typedef {input extends Input<infer T> ? T : never} T */
@@ -146,5 +146,3 @@ const main = input => {
     state = log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)(state);
     return [ts.fail !== 0 ? 1 : 0, state]
 }
-
-export default main

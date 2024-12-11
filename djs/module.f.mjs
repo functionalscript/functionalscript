@@ -32,7 +32,7 @@ const colon = [':']
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
 /** @type {(mapEntries: MapEntries) => (value: Unknown) => List.List<string>} */
-const serialize = sort => {
+export const serialize = sort => {
     /** @type {(kv: readonly[string, Unknown]) => List.List<string>} */
     const propertySerialize = ([k, v]) => flat([
         stringSerialize(k),
@@ -70,11 +70,4 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => compose(serialize(sort))(concat)
-
-export default {
-    /** @readonly */
-    stringify,
-    /** @readonly */
-    serialize,
-}
+export const stringify = sort => compose(serialize(sort))(concat)

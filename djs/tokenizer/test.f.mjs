@@ -1,7 +1,7 @@
 import tokenizer, * as tokenizerT from './module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 const { toArray } = list
-import djs from '../module.f.mjs'
+import * as djs from '../module.f.mjs'
 import o from '../../types/object/module.f.mjs'
 const { sort } = o
 import encoding from '../../text/utf16/module.f.mjs'

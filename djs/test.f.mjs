@@ -3,7 +3,7 @@ import list from '../types/object/module.f.mjs'
 const { sort } = list
 import f from '../types/function/module.f.mjs'
 const { identity } = f
-import djs from './module.f.mjs'
+import * as djs from './module.f.mjs'
 
 export default {
     stringify: [
