@@ -94,14 +94,9 @@ const scanToken = state => input => {
 }
 
 /** @type {(input: List.List<number>) => List.List<DjsToken>} */
-const tokenize = input =>
+export const tokenize = input =>
 {
     /** @type {List.List<ScanInput>} */
     const jsTokens = jsTokenizer.tokenize(input)
     return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
-}
-
-export default {
-    /** @readonly */
-    tokenize
 }
