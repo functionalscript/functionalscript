@@ -61,14 +61,7 @@ const isParam = ([name]) => name !== '_'
 const filterParam = filter(isParam)
 
 /** @type {(fa: FieldArray) => List.List<Field> } */
-const paramList = compose(entries)(filterParam)
+export const paramList = compose(entries)(filterParam)
 
 /** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */
-const result = v => f => fa => '_' in fa ? f(fa._) : v
-
-export default {
-    /** @readonly */
-    paramList,
-    /** @readonly */
-    result,
-}
+export const result = v => f => fa => '_' in fa ? f(fa._) : v
