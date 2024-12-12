@@ -31,7 +31,7 @@ const { prime_field, sqrt } = pf
  */
 
 /** @type {(i: Init) => Curve} */
-const curve = ({ p, a: [a0, a1], n }) => {
+export const curve = ({ p, a: [a0, a1], n }) => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
@@ -85,38 +85,37 @@ const curve = ({ p, a: [a0, a1], n }) => {
     }
 }
 
-export default {
-    curve,
-    /** @type {(a: Point) => (b: Point) => boolean} */
-    eq: a => b => {
-        if (a === null || b === null) {
-            return a === b
-        }
-        const [ax, ay] = a
-        const [bx, by] = b
-        return ax === bx && ay === by
-    },
-    /** @type {Init} */
-    secp256k1: {
-        p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
-        a: [7n, 0n],
-        g: [
-            0x79be667e_f9dcbbac_55a06295_ce870b07_029bfcdb_2dce28d9_59f2815b_16f81798n,
-            0x483ada77_26a3c465_5da4fbfc_0e1108a8_fd17b448_a6855419_9c47d08f_fb10d4b8n
-        ],
-        n: 0xffffffff_ffffffff_ffffffff_fffffffe_baaedce6_af48a03b_bfd25e8c_d0364141n,
-    },
-    /** @type {Init} */
-    secp192r1: {
-        p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
-        a: [
-            0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
-            0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_fffffffcn
-        ],
-        g: [
-            0x188da80e_b03090f6_7cbf20eb_43a18800_f4ff0afd_82ff1012n,
-            0x07192b95_ffc8da78_631011ed_6b24cdd5_73f977a1_1e794811n
-        ],
-        n: 0xffffffff_ffffffff_ffffffff_99def836_146bc9b1_b4d22831n,
-    },
+/** @type {(a: Point) => (b: Point) => boolean} */
+export const eq = a => b => {
+    if (a === null || b === null) {
+        return a === b
+    }
+    const [ax, ay] = a
+    const [bx, by] = b
+    return ax === bx && ay === by
+}
+
+/** @type {Init} */
+export const secp256k1 = {
+    p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
+    a: [7n, 0n],
+    g: [
+        0x79be667e_f9dcbbac_55a06295_ce870b07_029bfcdb_2dce28d9_59f2815b_16f81798n,
+        0x483ada77_26a3c465_5da4fbfc_0e1108a8_fd17b448_a6855419_9c47d08f_fb10d4b8n
+    ],
+    n: 0xffffffff_ffffffff_ffffffff_fffffffe_baaedce6_af48a03b_bfd25e8c_d0364141n,
+}
+
+/** @type {Init} */
+export const secp192r1 = {
+    p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
+    a: [
+        0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
+        0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_fffffffcn
+    ],
+    g: [
+        0x188da80e_b03090f6_7cbf20eb_43a18800_f4ff0afd_82ff1012n,
+        0x07192b95_ffc8da78_631011ed_6b24cdd5_73f977a1_1e794811n
+    ],
+    n: 0xffffffff_ffffffff_ffffffff_99def836_146bc9b1_b4d22831n,
 }
