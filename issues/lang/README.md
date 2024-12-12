@@ -106,7 +106,7 @@ File extensions: `.f.js` and `.f.mjs`.
 4. [ ] [export](./3240-export.md)
 5. [ ] Regular Expressions
 6. [ ] Ownership of Mutable Objects (Singletons)
-7. [ ] [type inference](./3240-export.md)
+7. [ ] [type inference](./3270-type-inference.md)
 8. [ ] `async`/`await` and Promises
 
 ### 3.3. Syntactic Sugar
