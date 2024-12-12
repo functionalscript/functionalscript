@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as list from '../../types/list/module.f.mjs'
 import * as operator from '../../types/function/operator/module.f.mjs'
-import range from '../../types/range/module.f.mjs'
+import * as range from '../../types/range/module.f.mjs'
 const { contains } = range
 import * as f from '../../types/function/module.f.mjs'
 const { fn } = f

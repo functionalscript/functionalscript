@@ -5,7 +5,7 @@ const { merge, fromRange, get } = range_map
 import * as list from '../../types/list/module.f.mjs'
 import * as map from '../../types/map/module.f.mjs'
 const { at } = map
-import _range, * as Range from '../../types/range/module.f.mjs'
+import * as _range from '../../types/range/module.f.mjs'
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 import * as bigfloatT from '../../types/bigfloat/module.f.mjs'
@@ -316,7 +316,7 @@ const rangeId = [digitRange, ...rangeIdStart]
  * @typedef {(state: T) => ToToken} CreateToToken<T>
  */
 
-/** @typedef {list.List<Range.Range>} RangeSet */
+/** @typedef {list.List<_range.Range>} RangeSet */
 
 /**
  * @template T
@@ -344,7 +344,7 @@ const rangeMapMerge = def => merge({
     equal: operator.strictEqual,
 })
 
-/** @type {<T>(r: Range.Range) => (f: CreateToToken<T>) => RangeFunc<T>} */
+/** @type {<T>(r: _range.Range) => (f: CreateToToken<T>) => RangeFunc<T>} */
 const rangeFunc = r => f => def => fromRange(def)(r)(f)
 
 /** @type {<T>(def:  CreateToToken<T>) => (operator.Scan<RangeFunc<T>, RangeMapToToken<T>>)} */
@@ -356,10 +356,10 @@ const reduceRangeMap = def => a => {
     return toArray(listReduce(rangeMapMerge(def))(empty)(rm))
 }
 
-/** @type {<T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (operator.Scan<Range.Range, RangeMapToToken<T>>)} */
+/** @type {<T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (operator.Scan<_range.Range, RangeMapToToken<T>>)} */
 const scanRangeSetOp = def => f => r => [fromRange(def)(r)(f), scanRangeSetOp(def)(f)]
 
-/** @type {<T>(rs: list.List<Range.Range>) => (f: CreateToToken<T>) => RangeFunc<T>} */
+/** @type {<T>(rs: list.List<_range.Range>) => (f: CreateToToken<T>) => RangeFunc<T>} */
 const rangeSetFunc = rs => f => def => {
     const rm = scan(scanRangeSetOp(def)(f))(rs)
     return toArray(listReduce(rangeMapMerge(def))(empty)(rm))

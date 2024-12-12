@@ -9,7 +9,7 @@ const { range: asciiRange } = ascii
 const { fromCharCode } = String
 import * as f from '../types/function/module.f.mjs'
 const { fn } = f
-import _range, * as Range from '../types/range/module.f.mjs'
+import * as _range from '../types/range/module.f.mjs'
 const { one } = _range
 const { toArray, map } = list
 
@@ -61,7 +61,7 @@ const range = fn(asciiRange).then(codePointRange).result
 /** @type {(l: readonly string[]) => <T>(f: CreateToResult<T>) => State<T>} */
 const rangeSet = l => f => {
     /** @typedef {typeof f extends CreateToResult<infer T> ? T : never} T */
-    /** @type {(a: Range.Range) => (f: CreateToResult<T>) => State<T>} */
+    /** @type {(a: _range.Range) => (f: CreateToResult<T>) => State<T>} */
     const codePointRange = fromRange(def)
     /** @type {(r: string) => State<T>} */
     const g = r => codePointRange(asciiRange(r))(f)
