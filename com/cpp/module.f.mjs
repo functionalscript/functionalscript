@@ -59,9 +59,7 @@ const joinComma = join(', ')
 
 /**
  * Generates the C++ code for a library.
- * @param {string} name - The namespace name.
- * @returns {(lib: types.Library) => text.Block} - A function that takes a library definition
- * and returns the generated C++ code block.
+ * @type {(name: string) => (lib: types.Library) => text.Block}
  */
 export const cpp = name => lib => {
 
