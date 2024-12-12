@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 import * as operator from '../../types/function/operator/module.f.mjs'
-import range_map, * as RangeMap from '../../types/range_map/module.f.mjs'
+import * as range_map from '../../types/range_map/module.f.mjs'
 const { merge, fromRange, get } = range_map
 import * as list from '../../types/list/module.f.mjs'
 import * as map from '../../types/map/module.f.mjs'
@@ -325,7 +325,7 @@ const rangeId = [digitRange, ...rangeIdStart]
 
 /**
  * @template T
- * @typedef {RangeMap.RangeMapArray<CreateToToken<T>>} RangeMapToToken<T>
+ * @typedef {range_map.RangeMapArray<CreateToToken<T>>} RangeMapToToken<T>
  */
 
 /** @type {(old: string) => (input: number) => string} */
@@ -338,7 +338,7 @@ const union = def => a => b => {
     throw [a, b]
 }
 
-/** @type {<T>(def:  CreateToToken<T>) => RangeMap.RangeMerge<CreateToToken<T>>} */
+/** @type {<T>(def:  CreateToToken<T>) => range_map.RangeMerge<CreateToToken<T>>} */
 const rangeMapMerge = def => merge({
     union: union(def),
     equal: operator.strictEqual,

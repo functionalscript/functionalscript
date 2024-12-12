@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as operator from '../types/function/operator/module.f.mjs'
-import range_map, * as RM from '../types/range_map/module.f.mjs'
-const { merge: rangeMapMerge, fromRange, get } = range_map
+import * as rangeMap from '../types/range_map/module.f.mjs'
+const { merge: rangeMapMerge, fromRange, get } = rangeMap
 import * as list from '../types/list/module.f.mjs'
 const { reduce: listReduce } = list
 import * as ascii from '../text/ascii/module.f.mjs'
@@ -24,7 +24,7 @@ const { toArray, map } = list
 
 /**
  * @template T
- * @typedef {RM.RangeMapArray<CreateToResult<T>>} State
+ * @typedef {rangeMap.RangeMapArray<CreateToResult<T>>} State
  */
 
 /** @type {ToResult} */
@@ -46,7 +46,7 @@ const empty = []
 /** @type {<T>(a: list.List<State<T>>) => State<T>} */
 const reduce = a => {
     /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
-    /** @type {RM.RangeMerge<CreateToResult<T>>} */
+    /** @type {rangeMap.RangeMerge<CreateToResult<T>>} */
     const merge = rangeMapMerge({
         union,
         equal: operator.strictEqual,

@@ -61,10 +61,10 @@ const tailReduce = equal => state => tail => {
 }
 
 /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
-const merge = ({ union, equal }) => genericMerge({ reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal) })(null)
+export const merge = ({ union, equal }) => genericMerge({ reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal) })(null)
 
 /** @type {<T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T} */
-const get = def => value => rm => {
+export const get = def => value => rm => {
     const len = rm.length
     let b = 0
     let e = len - 1
@@ -81,13 +81,4 @@ const get = def => value => rm => {
 }
 
 /** @type {<T>(def: T) => (r: Range.Range) => (value: T) => RangeMapArray<T>} */
-const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]
-
-export default {
-    /** @readonly */
-    merge,
-    /** @readonly */
-    get,
-    /** @readonly */
-    fromRange,
-}
+export const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]

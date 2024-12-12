@@ -5,7 +5,7 @@ import * as byteSet from '../types/byte_set/module.f.mjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
 import sortedSet, * as SortedSet from '../types/sorted_set/module.f.mjs'
 const { intersect, union: sortedSetUnion } = sortedSet
-import rangeMap, * as RM from '../types/range_map/module.f.mjs'
+import * as rangeMap from '../types/range_map/module.f.mjs'
 const { merge } = rangeMap
 import * as cmp from '../types/function/compare/module.f.mjs'
 const { unsafeCmp } = cmp
@@ -24,7 +24,7 @@ const { stringToList } = utf16
 
 /**
  * @typedef {{
- *  readonly[state in string]: RM.RangeMapArray<string>
+ *  readonly[state in string]: rangeMap.RangeMapArray<string>
  * }} Dfa
  */
 
@@ -45,24 +45,24 @@ export const toUnion = s => {
     return fold(toUnionOp)(empty)(codePoints)
 }
 
-/** @type {RM.Operators<SortedSet.SortedSet<string>>} */
+/** @type {rangeMap.Operators<SortedSet.SortedSet<string>>} */
 const mergeOp = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual) }
 
 /** @type {(s: string) => (set: SortedSet.SortedSet<string>) => boolean} */
 const hasState = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))
 
-/** @type {(set: SortedSet.SortedSet<string>) => operator.Fold<Rule, RM.RangeMap<SortedSet.SortedSet<string>>>} */
+/** @type {(set: SortedSet.SortedSet<string>) => operator.Fold<Rule, rangeMap.RangeMap<SortedSet.SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
     if (hasState(ruleIn)(set)) { return merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
     return rm
 }
 
-/** @type {operator.Scan<RM.Entry<SortedSet.SortedSet<string>>, RM.Entry<string>>} */
+/** @type {operator.Scan<rangeMap.Entry<SortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
 const stringifyOp = ([sortedSet, max]) => [[stringifyIdentity(sortedSet), max], stringifyOp]
 
 const scanStringify = scan(stringifyOp)
 
-/** @type {operator.Scan<RM.Entry<SortedSet.SortedSet<string>>, SortedSet.SortedSet<string>>} */
+/** @type {operator.Scan<rangeMap.Entry<SortedSet.SortedSet<string>>, SortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
 const scanFetch = scan(fetchOp)
