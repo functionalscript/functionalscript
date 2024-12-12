@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import _range, * as Range from '../../types/range/module.f.mjs'
+import * as _range from '../../types/range/module.f.mjs'
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
@@ -9,22 +9,17 @@ const at = s => i => {
 }
 
 /** @type {(s: string) => number} */
-const one = s => at(s)(0)
+export const one = s => at(s)(0)
 
-/** @type {(s: string) => Range.Range} */
-const range = s => {
+/** @type {(s: string) => _range.Range} */
+export const range = s => {
     const f = at(s)
     const f0 = f(0)
     if (s.length === 1) { return [f0, f0] }
     return [f0, f(1)]
 }
 
-export default {
-    /** @readonly */
-    one,
-    /** @readonly */
-    range,
-
+export const ascii = {
     // 0x00..
 
     /** @readonly 0x08 */

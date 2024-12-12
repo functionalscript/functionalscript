@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 const { decToBin } = _
 
 export default {

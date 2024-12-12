@@ -1,10 +1,10 @@
 // @ts-self-types="./module.f.d.mts"
-import sortedList, * as SortedList from '../sorted_list/module.f.mjs'
+import * as sortedList from '../sorted_list/module.f.mjs'
 const { genericMerge } = sortedList
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { next } = list
 import * as Option from '../nullable/module.f.mjs'
-import number from '../number/module.f.mjs'
+import * as number from '../number/module.f.mjs'
 const { cmp } = number
 import * as O from '../function/operator/module.f.mjs'
 import * as Range from '../range/module.f.mjs'
@@ -16,7 +16,7 @@ import * as Range from '../range/module.f.mjs'
 
 /**
  * @template T
- * @typedef {SortedList.SortedList<Entry<T>>} RangeMap
+ * @typedef {sortedList.SortedList<Entry<T>>} RangeMap
  */
 
 /**
@@ -42,7 +42,7 @@ import * as Range from '../range/module.f.mjs'
  * @typedef {O.Reduce<RangeMap<T>>} RangeMerge
  */
 
-/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => SortedList.ReduceOp<Entry<T>, RangeState<T>>} */
+/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
 const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) => {
     const sign = cmp(aMax)(bMax)
     const min = sign === 1 ? bMax : aMax
@@ -51,7 +51,7 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) =
     return [newState, sign, [u, min]]
 }
 
-/** @type {<T>(equal: O.Equal<T>) => SortedList.TailReduce<Entry<T>, RangeState<T>>} */
+/** @type {<T>(equal: O.Equal<T>) => sortedList.TailReduce<Entry<T>, RangeState<T>>} */
 const tailReduce = equal => state => tail => {
     if (state === null) { return tail }
     const tailResult = next(tail)
@@ -61,10 +61,10 @@ const tailReduce = equal => state => tail => {
 }
 
 /** @type {<T>(op: Operators<T>) => RangeMerge<T>} */
-const merge = ({ union, equal }) => genericMerge({ reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal) })(null)
+export const merge = ({ union, equal }) => genericMerge({ reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal) })(null)
 
 /** @type {<T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T} */
-const get = def => value => rm => {
+export const get = def => value => rm => {
     const len = rm.length
     let b = 0
     let e = len - 1
@@ -81,13 +81,4 @@ const get = def => value => rm => {
 }
 
 /** @type {<T>(def: T) => (r: Range.Range) => (value: T) => RangeMapArray<T>} */
-const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]
-
-export default {
-    /** @readonly */
-    merge,
-    /** @readonly */
-    get,
-    /** @readonly */
-    fromRange,
-}
+export const fromRange = def => ([a, b]) => v => [[def, a - 1], [v, b]]

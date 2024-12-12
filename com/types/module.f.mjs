@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as O from '../../types/object/module.f.mjs'
-import list, * as List from '../../types/list/module.f.mjs'
-import f from '../../types/function/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
+import * as f from '../../types/function/module.f.mjs'
 const { compose } = f
 const { filter } = list
 const { entries } = Object
@@ -60,15 +60,8 @@ const isParam = ([name]) => name !== '_'
 
 const filterParam = filter(isParam)
 
-/** @type {(fa: FieldArray) => List.List<Field> } */
-const paramList = compose(entries)(filterParam)
+/** @type {(fa: FieldArray) => list.List<Field> } */
+export const paramList = compose(entries)(filterParam)
 
 /** @type {<T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T} */
-const result = v => f => fa => '_' in fa ? f(fa._) : v
-
-export default {
-    /** @readonly */
-    paramList,
-    /** @readonly */
-    result,
-}
+export const result = v => f => fa => '_' in fa ? f(fa._) : v

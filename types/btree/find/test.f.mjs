@@ -1,19 +1,19 @@
-import _, * as T from './module.f.mjs'
-import list from '../../list/module.f.mjs'
-import json, * as Json from '../../../json/module.f.mjs'
-import o from '../../object/module.f.mjs'
+import * as _ from './module.f.mjs'
+import * as list from '../../list/module.f.mjs'
+import * as json from '../../../json/module.f.mjs'
+import * as o from '../../object/module.f.mjs'
 const { sort } = o
 import * as btree from '../types/module.f.mjs'
-import string from '../../string/module.f.mjs'
+import * as string from '../../string/module.f.mjs'
 const { cmp } = string
-import s from '../set/module.f.mjs'
+import * as s from '../set/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 
 /** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
 const set = node => value => s.set(cmp(value))(() => value)(node)
 
-/** @type {(r: T.Result<Json.Unknown>) => string} */
+/** @type {(r: _.Result<json.Unknown>) => string} */
 const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
 
 /** @type {(i: string) => (m: btree.Node<string>) => string} */

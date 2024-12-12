@@ -1,16 +1,16 @@
 // @ts-self-types="./module.f.d.mts"
 
-import list, * as List from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { flat, map } = list
-import string from '../types/string/module.f.mjs'
+import * as string from '../types/string/module.f.mjs'
 const { concat } = string
 import * as O from '../types/object/module.f.mjs'
-import f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.mjs'
 const { compose, fn } = f
 const { entries } = Object
-import bi from '../types/bigint/module.f.mjs'
+import * as bi from '../types/bigint/module.f.mjs'
 const { serialize: bigintSerialize } = bi
-import j from '../json/serializer/module.f.mjs'
+import * as j from '../json/serializer/module.f.mjs'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
 
 /**
@@ -27,26 +27,26 @@ const colon = [':']
 
 /** @typedef {O.Entry<Unknown>} Entry*/
 
-/** @typedef {(List.List<Entry>)} Entries */
+/** @typedef {(list.List<Entry>)} Entries */
 
 /** @typedef {(entries: Entries) => Entries} MapEntries */
 
-/** @type {(mapEntries: MapEntries) => (value: Unknown) => List.List<string>} */
-const serialize = sort => {
-    /** @type {(kv: readonly[string, Unknown]) => List.List<string>} */
+/** @type {(mapEntries: MapEntries) => (value: Unknown) => list.List<string>} */
+export const serialize = sort => {
+    /** @type {(kv: readonly[string, Unknown]) => list.List<string>} */
     const propertySerialize = ([k, v]) => flat([
         stringSerialize(k),
         colon,
         f(v)
     ])
     const mapPropertySerialize = map(propertySerialize)
-    /** @type {(object: Object) => List.List<string>} */
+    /** @type {(object: Object) => list.List<string>} */
     const objectSerialize = fn(entries)
         .then(sort)
         .then(mapPropertySerialize)
         .then(objectWrap)
         .result
-    /** @type {(value: Unknown) => List.List<string>} */
+    /** @type {(value: Unknown) => list.List<string>} */
     const f = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -70,11 +70,4 @@ const serialize = sort => {
  *
  * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-const stringify = sort => compose(serialize(sort))(concat)
-
-export default {
-    /** @readonly */
-    stringify,
-    /** @readonly */
-    serialize,
-}
+export const stringify = sort => compose(serialize(sort))(concat)

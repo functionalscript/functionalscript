@@ -1,13 +1,13 @@
-import _, * as T from './module.f.mjs'
-import byteSet from '../types/byte_set/module.f.mjs'
-import o from '../types/object/module.f.mjs'
+import * as _ from './module.f.mjs'
+import * as byteSet from '../types/byte_set/module.f.mjs'
+import * as o from '../types/object/module.f.mjs'
 const { sort, fromEntries } = o
-import json from '../json/module.f.mjs'
-import f from '../types/function/module.f.mjs'
+import * as json from '../json/module.f.mjs'
+import * as f from '../types/function/module.f.mjs'
 const { identity } = f
-import list from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { toArray } = list
-import utf16 from '../text/utf16/module.f.mjs'
+import * as utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 
 const stringifyIdentity = json.stringify(identity)
@@ -22,7 +22,7 @@ const buildDfa = () => {
     const idNext = byteSet.union(idBegin)(digit)
     const dot = _.toUnion('.')
 
-    /** @type {T.Grammar} */
+    /** @type {_.Grammar} */
     const grammar = [
         ['', digit, 'int'],
         ['int', digit, 'int'],

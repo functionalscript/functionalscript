@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
-import string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 import * as Package from '../package/module.f.mjs'
 import * as Module from '../module/module.f.mjs'
@@ -19,7 +19,7 @@ import * as Module from '../module/module.f.mjs'
 /** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
-/** @typedef {readonly[List.List<string>] | null} OptionList */
+/** @typedef {readonly[list.List<string>] | null} OptionList */
 
 /** @type {(items: string) => (prior: OptionList) => OptionList} */
 const normItemsOp = first => prior => {
@@ -38,7 +38,7 @@ const normItemsOp = first => prior => {
     }
 }
 
-/** @type {(items: List.List<string>) => OptionList} */
+/** @type {(items: list.List<string>) => OptionList} */
 const normItems = items => {
     const result = fold(normItemsOp)([list.empty])(items)
     return result === null ? result : [reverse(result[0])]
@@ -47,8 +47,8 @@ const normItems = items => {
 const firstNull = first(null)
 
 /** @type {(local: string) => (path: string) => LocalPath|null} */
-const parseLocal = local => {
-    /** @type {(path: string) => readonly[boolean, boolean, List.List<string>]} */
+export const parseLocal = local => {
+    /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
         const dir = [null, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
@@ -69,9 +69,9 @@ const parseLocal = local => {
     }
 }
 
-/** @typedef {readonly[string, List.List<string>]} IdPath */
+/** @typedef {readonly[string, list.List<string>]} IdPath */
 
-/** @type {(prior: readonly[string|null, List.List<string>]) => List.Thunk<IdPath>} */
+/** @type {(prior: readonly[string|null, list.List<string>]) => list.Thunk<IdPath>} */
 const variants = prior => () => {
     const [a, b] = prior
     const r = next(b)
@@ -99,10 +99,10 @@ const mapDependency = d => ([external, internal]) => {
 /**
  * @type {(d: (local: string) => string|null) =>
  *  (dir: boolean) =>
- *  (items: List.List<string>) =>
+ *  (items: list.List<string>) =>
  *  Path|null}
  */
-const parseGlobal = dependencies =>
+export const parseGlobal = dependencies =>
 {
     const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
@@ -120,7 +120,7 @@ const parseGlobal = dependencies =>
  *  (path: string) =>
  *  Path|null }
  */
-const parse = packageId => dependencies => {
+export const parse = packageId => dependencies => {
     const pg = parseGlobal(dependencies)
     return local => path => {
         const parsed = parseLocal(local)(path)
@@ -147,7 +147,7 @@ const parse = packageId => dependencies => {
  *  Result
  * }
  */
-const parseAndFind = packageGet => moduleId => path => {
+export const parseAndFind = packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
     if (currentPack === null) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
@@ -163,15 +163,4 @@ const parseAndFind = packageGet => moduleId => path => {
     const indexJs = join('/')(concat(p.items)(['index.js']))
     const fileList = p.dir || isEmpty(p.items) ? [indexJs] : [file, `${file}.js`, indexJs]
     return firstNull(filterMap(tryFile)(fileList))
-}
-
-export default {
-    /** @readonly */
-    parseLocal,
-    /** @readonly */
-    parseGlobal,
-    /** @readonly */
-    parse,
-    /** @readonly */
-    parseAndFind,
 }

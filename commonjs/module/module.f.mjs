@@ -40,7 +40,7 @@ import * as O from '../../types/object/module.f.mjs'
  */
 
 /** @type {(id: Id) => Id | null} */
-const dir = id => {
+export const dir = id => {
     const len = id.path.length
     if (len < 1) { return null }
     return {
@@ -50,11 +50,4 @@ const dir = id => {
 }
 
 /** @type {(id: Id) => string} */
-const idToString = id => `${id.package}/${id.path.join('/')}`
-
-export default {
-    /** @readonly */
-    dir,
-    /** @readonly */
-    idToString,
-}
+export const idToString = id => `${id.package}/${id.path.join('/')}`

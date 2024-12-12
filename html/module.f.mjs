@@ -1,12 +1,12 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { map, flatMap, flat, concat: listConcat } = list
-import s from '../types/string/module.f.mjs'
+import * as s from '../types/string/module.f.mjs'
 const { concat: stringConcat } = s
 import * as O from '../types/object/module.f.mjs'
-import f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.mjs'
 const { compose } = f
-import utf16 from '../text/utf16/module.f.mjs'
+import * as utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 const { fromCharCode } = String
 const { entries } = Object
@@ -50,7 +50,7 @@ const isVoid = tag => voidTagList.includes(tag)
  * }} Attributes
  */
 
-/** @typedef {List.List<Node>} Nodes */
+/** @typedef {list.List<Node>} Nodes */
 
 /** @typedef {Element | string} Node */
 
@@ -71,33 +71,33 @@ const escapeCharCode = code => {
 
 const escape = compose(stringToList)(map(escapeCharCode))
 
-/** @type {(n: Node) => List.List<string>} */
+/** @type {(n: Node) => list.List<string>} */
 const node = n => typeof n === 'string' ? escape(n) : element(n)
 
 const nodes = flatMap(node)
 
-/** @type {(a: O.Entry<string>) => List.List<string>} */
+/** @type {(a: O.Entry<string>) => list.List<string>} */
 const attribute = ([name, value]) => flat([[' ', name, '="'], escape(value), ['"']])
 
-/** @type {(a: Attributes) => List.List<string>} */
+/** @type {(a: Attributes) => list.List<string>} */
 const attributes = compose(entries)(flatMap(attribute))
 
 const open = (/** @type {Element2A} */[tag, a]) => flat([[`<`, tag], attributes(a), [`>`]])
 
 const close = (/** @type {string}*/tag) => ['</', tag, '>']
 
-/** @type {(_: Element3) => List.List<string>} */
+/** @type {(_: Element3) => list.List<string>} */
 const element3 = ([tag, a, ns]) =>
     flat([open([tag, a]), nodes(ns), close(tag)])
 
-/** @type {(_: Element2A) => List.List<string>} */
+/** @type {(_: Element2A) => list.List<string>} */
 const element2a = e => {
     const [tag] = e
     return flat([open(e), isVoid(tag) ? [] : close(tag)])
 }
 
-/** @type {(element: Element) => List.List<string>} */
-const element = e => {
+/** @type {(element: Element) => list.List<string>} */
+export const element = e => {
     switch (e.length) {
         case 1: { return element2a([e[0], {}]) }
         case 2: {
@@ -112,15 +112,6 @@ const element = e => {
     }
 }
 
-const html = compose(element)(listConcat(['<!DOCTYPE html>']))
+export const html = compose(element)(listConcat(['<!DOCTYPE html>']))
 
-const htmlToString = compose(html)(stringConcat)
-
-export default {
-    /** @readonly */
-    element,
-    /** @readonly */
-    html,
-    /** @readonly */
-    htmlToString,
-}
+export const htmlToString = compose(html)(stringConcat)

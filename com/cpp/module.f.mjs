@@ -1,15 +1,15 @@
 // @ts-self-types="./module.f.d.mts"
-import types, * as Types from '../types/module.f.mjs'
-import text, * as Text from '../../text/module.f.mjs'
+import * as types from '../types/module.f.mjs'
+import * as text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'
-import list from '../../types/list/module.f.mjs'
-import string from '../../types/string/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 const { paramList } = types
 const { map, flatMap, flat } = list
 const { entries } = Object
 
-/** @type {(name: string) => (body: Text.Block) => Text.Block} */
+/** @type {(name: string) => (body: text.Block) => text.Block} */
 const struct = name => body => [`struct ${name}`, '{', body, '};']
 
 const baseTypeMap = {
@@ -28,7 +28,7 @@ const baseTypeMap = {
     bool: 'bool',
 }
 
-/** @type {(t: Types.BaseType) => string} */
+/** @type {(t: types.BaseType) => string} */
 const baseType = t => baseTypeMap[t]
 
 const resultVoid = types.result('void')
@@ -44,17 +44,17 @@ const ptr = id => `${id} const*`
 /** @type {(id: string) => string} */
 const ref = id => `${id} const&`
 
-/** @type {(p: Types.Field) => string} */
+/** @type {(p: types.Field) => string} */
 const paramName = ([name]) => name
 
 const mapParamName = map(paramName)
 
 const joinComma = join(', ')
 
-/** @type {(name: string) => (lib: Types.Library) => Text.Block} */
-const cpp = name => lib => {
+/** @type {(name: string) => (lib: types.Library) => text.Block} */
+export const cpp = name => lib => {
 
-    /** @type {(t: Types.Type) => string|null} */
+    /** @type {(t: types.Type) => string|null} */
     const interface_ = t => {
         if (!(t instanceof Array) || t.length !== 1) {
             return null
@@ -63,7 +63,7 @@ const cpp = name => lib => {
         return 'interface' in lib[name] ? name : null
     }
 
-    /** @type {(i: (t: string) => string) => (t: Types.Type) => string} */
+    /** @type {(i: (t: string) => string) => (t: types.Type) => string} */
     const objectType = i => t => {
         if (typeof (t) === 'string') { return baseType(t) }
         if (t.length === 2) { return `${type(t[1])} const*` }
@@ -75,27 +75,27 @@ const cpp = name => lib => {
 
     const resultType = objectType(ptr)
 
-    /** @type {(s: Types.Field) => Text.Item} */
+    /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
 
     const mapField = map(field)
 
-    /** @type {(s: Types.Struct) => Text.Block} */
+    /** @type {(s: types.Struct) => text.Block} */
     const defStruct = s => mapField(entries(s.struct))
 
-    /** @type {(fa: Types.FieldArray) => string} */
+    /** @type {(fa: types.FieldArray) => string} */
     const cppResult = resultVoid(resultType)
 
-    /** @type {(p: Types.Field) => string} */
+    /** @type {(p: types.Field) => string} */
     const param = ([name, t]) => `${objectType(ref)(t)} ${name}`
 
     const mapParam = map(param)
 
-    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => Text.Item} */
+    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => text.Item} */
     const methodHeader = result => paramArrayStr => name =>
         `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
-    /** @type {(m: Types.Method) => readonly Text.Item[]} */
+    /** @type {(m: types.Method) => readonly text.Item[]} */
     const method = ([name, paramArray]) => {
         const result = cppResult(paramArray)
         const paramL = paramList(paramArray)
@@ -116,7 +116,7 @@ const cpp = name => lib => {
 
     const mapMethod = flatMap(method)
 
-    /** @type {(i: Types.Interface) => Text.Block} */
+    /** @type {(i: types.Interface) => text.Block} */
     const defInterface = ({ guid, interface: i }) => {
         const g = guid.replaceAll('-', '');
         const lo = g.substring(0, 16);
@@ -127,7 +127,7 @@ const cpp = name => lib => {
         ])
     }
 
-    /** @type {(kv: O.Entry<Types.Definition>) => Text.Block} */
+    /** @type {(kv: O.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => 'interface' in d
         ? [
             `class ${name} : public ::nanocom::IUnknown`,
@@ -138,7 +138,7 @@ const cpp = name => lib => {
         ]
         : struct(name)(defStruct(d))
 
-    /** @type {(kv: O.Entry<Types.Definition>) => Text.Block} */
+    /** @type {(kv: O.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]
 
     const e = entries(lib)
@@ -147,9 +147,4 @@ const cpp = name => lib => {
         ['#pragma once', ''],
         namespace(name)(flat([flatMap(forward)(e), flatMap(def)(e)]))
     ])
-}
-
-export default {
-    /** @readonly */
-    cpp,
 }

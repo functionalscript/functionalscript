@@ -1,21 +1,21 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { flatMap } = list
 
 /** @typedef {ItemThunk|ItemArray} Block */
 
 /** @typedef {readonly Item[]} ItemArray */
 
-/** @typedef {() => List.List<Item>} ItemThunk */
+/** @typedef {() => list.List<Item>} ItemThunk */
 
 /** @typedef {string|ItemArray|ItemThunk} Item */
 
-/** @type {(indent: string) => (text: Block) => List.List<string>} */
-const flat = indent => {
+/** @type {(indent: string) => (text: Block) => list.List<string>} */
+export const flat = indent => {
 
-    /** @type {(prefix: string) => (text: Block) => List.List<string>} */
+    /** @type {(prefix: string) => (text: Block) => list.List<string>} */
     const f = prefix => {
-        /** @type {(item: Item) => List.List<string>} */
+        /** @type {(item: Item) => list.List<string>} */
         const g = item => typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
         return flatMap(g)
     }
@@ -24,11 +24,4 @@ const flat = indent => {
 }
 
 /** @type {(type: string) => (name: string) => (body: Block) => Block} */
-const curly = type => name => body => [`${type} ${name}`, '{', body, '}']
-
-export default {
-    /** @readonly */
-    flat,
-    /** @readonly */
-    curly,
-}
+export const curly = type => name => body => [`${type} ${name}`, '{', body, '}']

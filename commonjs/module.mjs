@@ -1,6 +1,6 @@
 import unsafeResult from '../types/result/module.mjs'
 const { tryCatch } = unsafeResult
-import result from '../types/result/module.f.mjs'
+import * as result from '../types/result/module.f.mjs'
 const { unwrap } = result
 import * as ModuleFunction from './module/function/module.f.mjs'
 
@@ -23,11 +23,6 @@ const build = f => immutableRequire => mutableData => {
 }
 
 /** @type {ModuleFunction.Compile} */
-const compile = source =>
+export const compile = source =>
     // Side effect: a `Function` constructor is not allowed in FunctionalScript.
     tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
-
-export default {
-    /** @readonly */
-    compile,
-}

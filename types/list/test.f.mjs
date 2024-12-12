@@ -1,11 +1,11 @@
-import _,  * as T from './module.f.mjs'
-import json, * as Json from '../../json/module.f.mjs'
-import o  from '../object/module.f.mjs'
+import * as _ from './module.f.mjs'
+import * as json from '../../json/module.f.mjs'
+import * as o from '../object/module.f.mjs'
 const { sort } = o
-import operator from '../function/operator/module.f.mjs'
+import * as operator from '../function/operator/module.f.mjs'
 const { addition, strictEqual, reduceToScan } = operator
 
-/** @type {(sequence: T.List<Json.Unknown>) => string} */
+/** @type {(sequence: _.List<json.Unknown>) => string} */
 const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
 
 const stringifyTest = () => {
@@ -197,7 +197,7 @@ const stress = () => ({
         if (first !== n - 1) { throw first }
     },
     concatBack: () => {
-        /** @type {T.List<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
@@ -207,7 +207,7 @@ const stress = () => ({
         const r = _.toArray(sequence)
     },
     flatToArray: () => {
-        /** @type {T.List<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
@@ -216,7 +216,7 @@ const stress = () => ({
         const r = _.toArray(sequence)
     },
     flatNext: () => {
-        /** @type {T.List<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
@@ -225,7 +225,7 @@ const stress = () => ({
         const a = _.next(sequence)
     },
     concatFront: () => {
-        /** @type {T.List<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
@@ -234,7 +234,7 @@ const stress = () => ({
         const a = _.next(sequence)
     },
     flatFront: () => {
-        /** @type {T.List<number>} */
+        /** @type {_.List<number>} */
         let sequence = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {

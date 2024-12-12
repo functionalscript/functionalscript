@@ -1,9 +1,8 @@
-import string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
-import text from '../../text/module.f.mjs'
+import * as text from '../../text/module.f.mjs'
 const { flat } = text
 import library from '../types/testlib.f.mjs'
-import m from './module.f.mjs'
-const { cpp } = m
+import { cpp } from './module.f.mjs'
 
 export default () => join('\n')(flat('    ')(cpp('My')(library)))

@@ -1,7 +1,7 @@
-import result, * as Result from './module.f.mjs'
+import * as result from './module.f.mjs'
 const { ok, error } = result
 
-/** @type {<T>(f: () => T) => Result.Result<T, unknown>} */
+/** @type {<T>(f: () => T) => result.Result<T, unknown>} */
 const tryCatch = f => {
     // Side effect: `try catch` is not allowed in FunctionalScript.
     try {

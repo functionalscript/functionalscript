@@ -1,20 +1,20 @@
 // @ts-self-types="./module.f.d.mts"
-import result, * as Result from '../../types/result/module.f.mjs'
-import list, * as List from '../../types/list/module.f.mjs'
+import * as result from '../../types/result/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as Tokenizer from '../tokenizer/module.f.mjs'
-import map, * as Map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.mjs'
 const { setReplace } = map
 import * as Json from '../module.f.mjs'
-import o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.mjs'
 const { fromMap } = o
 
 
 /**
  * @typedef {{
 * readonly kind: 'object'
-* readonly values: Map.Map<Json.Unknown>
+* readonly values: map.Map<Json.Unknown>
 * readonly key: string
 * }} JsonObject
 * */
@@ -22,7 +22,7 @@ const { fromMap } = o
 /**
  * @typedef {{
 * readonly kind: 'array'
-* readonly values: List.List<Json.Unknown>
+* readonly values: list.List<Json.Unknown>
 * }} JsonArray
 * */
 
@@ -33,7 +33,7 @@ const { fromMap } = o
 * } JsonStackElement
 */
 
-/** @typedef {List.List<JsonStackElement>} JsonStack */
+/** @typedef {list.List<JsonStackElement>} JsonStack */
 
 /**
  * @typedef {{
@@ -206,17 +206,12 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: List.List<Tokenizer.JsonToken>) => Result.Result<Json.Unknown, string>} */
-const parse = tokenList => {
+/** @type {(tokenList: list.List<Tokenizer.JsonToken>) => result.Result<Json.Unknown, string>} */
+export const parse = tokenList => {
     const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
     switch (state.status) {
         case 'result': return result.ok(state.value)
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
     }
-}
-
-export default {
-    /** @readonly */
-    parse
 }

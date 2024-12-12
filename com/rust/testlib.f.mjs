@@ -1,10 +1,8 @@
-import text from '../../text/module.f.mjs'
+import * as text from '../../text/module.f.mjs'
 const { flat } = text
-import string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
-import x from './module.f.mjs'
+import { rust } from './module.f.mjs'
 import library from '../types/testlib.f.mjs'
-
-const { rust } = x
 
 export default join('\n')(flat('    ')(rust(library)))

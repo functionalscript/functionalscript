@@ -1,13 +1,13 @@
-import _, * as T from './module.f.mjs'
+import * as _ from './module.f.mjs'
 const { curve, secp256k1, secp192r1, eq } = _
 
 export default {
     test: () => {
-        /** @type {(c: T.Init) => void} */
+        /** @type {(c: _.Init) => void} */
         const test_curve = c => {
             const { g } = c
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
-            /** @type {(p: T.Point) => void} */
+            /** @type {(p: _.Point) => void} */
             const point_check = p => {
                 if (p === null) { throw 'null' }
                 const [x, y] = p
@@ -17,7 +17,7 @@ export default {
             }
             point_check(g)
             point_check(neg(g))
-            /** @type {(p: T.Point) => void} */
+            /** @type {(p: _.Point) => void} */
             const test_mul = p => {
                 if (mul(p)(0n) !== null) { throw 'O' }
                 if (mul(p)(1n) !== p) { throw 'p' }

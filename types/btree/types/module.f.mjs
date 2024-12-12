@@ -62,5 +62,3 @@
  * @template T
  * @typedef { readonly[...Branch5<T>, T, Node<T>] } Branch7
  */
-
-export default {}

@@ -5,11 +5,9 @@
  *
  * @type {(c: number) => string}
  */
-const sgr = c => `\x1b[${c.toString()}m`
+export const sgr = c => `\x1b[${c.toString()}m`
 
-export default {
-    /** @readonly */
-    sgr,
+export const codes = {
     /** @readonly */
     reset: sgr(0),
     /** @readonly */

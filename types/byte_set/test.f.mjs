@@ -1,11 +1,11 @@
-import _ from './module.f.mjs'
-import list from '../list/module.f.mjs'
+import * as _ from './module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { every, countdown, map, toArray } = list
-import json, * as Json from '../../json/module.f.mjs'
-import o from '../object/module.f.mjs'
+import * as json from '../../json/module.f.mjs'
+import * as o from '../object/module.f.mjs'
 const { sort } = o
 
-/** @type {(a: readonly Json.Unknown[]) => string} */
+/** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = json.stringify(sort)
 
 export default {

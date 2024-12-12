@@ -1,30 +1,30 @@
 // @ts-self-types="./module.f.d.mts"
-import * as packageT from '../package/module.f.mjs'
-import module_, * as moduleT from '../module/module.f.mjs'
-const { idToString, dir } = module_
+import * as package_ from '../package/module.f.mjs'
+import * as module from '../module/module.f.mjs'
+const { idToString, dir } = module
 import * as function_ from '../module/function/module.f.mjs'
-import map, * as Map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.mjs'
 const { empty: mapEmpty, setReplace } = map
-import object from '../../types/object/module.f.mjs'
+import * as object from '../../types/object/module.f.mjs'
 const { fromMap } = object
-import path from '../path/module.f.mjs'
+import * as path from '../path/module.f.mjs'
 const { parseAndFind } = path
-import stringSet, * as StringSet from '../../types/string_set/module.f.mjs'
+import * as stringSet from '../../types/string_set/module.f.mjs'
 const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 
 /**
  * @template M
  * @typedef {{
- *  readonly packageGet: packageT.Get
- *  readonly moduleMapInterface: moduleT.MapInterface<M>
- *  readonly moduleId: moduleT.Id
+ *  readonly packageGet: package_.Get
+ *  readonly moduleMapInterface: module.MapInterface<M>
+ *  readonly moduleId: module.Id
  *  readonly moduleMap: M
  * }} Config
  */
 
 /**
  * @template M
- * @typedef {readonly[moduleT.State, M]} Result
+ * @typedef {readonly[module.State, M]} Result
  */
 
 /** @type {<M>(moduleMap: M) => Result<M>} */
@@ -32,19 +32,19 @@ const notFound = moduleMap => [['error', ['file not found']], moduleMap]
 
 /**
  * @type {(compile: function_.Compile) =>
- *  (packageGet: packageT.Get) =>
- *  <M>(moduleMapInterface: moduleT.MapInterface<M>) =>
- *  (moduleId: moduleT.Id) =>
+ *  (packageGet: package_.Get) =>
+ *  <M>(moduleMapInterface: module.MapInterface<M>) =>
+ *  (moduleId: module.Id) =>
  *  (moduleMap: M) =>
  *  Result<M>
  * }
  */
-const getOrBuild = compile => packageGet => moduleMapInterface =>  {
-    /** @typedef {typeof moduleMapInterface extends moduleT.MapInterface<infer M> ? M : never} M */
+export const getOrBuild = compile => packageGet => moduleMapInterface =>  {
+    /** @typedef {typeof moduleMapInterface extends module.MapInterface<infer M> ? M : never} M */
 
     /**
-     * @type {(buildSet: StringSet.StringSet) =>
-     *  (moduleId: moduleT.Id) =>
+     * @type {(buildSet: stringSet.StringSet) =>
+     *  (moduleId: module.Id) =>
      *  (source: string) =>
      *  (moduleMap: M) =>
      *  Result<M>}
@@ -53,9 +53,9 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         const moduleIdStr = idToString(moduleId)
         const buildSet1 = setSet(moduleIdStr)(buildSet)
         const moduleDir = dir(moduleId)
-        /** @type {function_.Require<readonly[Map.Map<string>, M]>} */
+        /** @type {function_.Require<readonly[map.Map<string>, M]>} */
         const require_ = p => ([requireMap, m]) => {
-            /** @type {(e: unknown) => function_.Result<readonly[Map.Map<string>, M]>} */
+            /** @type {(e: unknown) => function_.Result<readonly[map.Map<string>, M]>} */
             const error = e => [['error', e], [requireMap, m]]
             if (moduleDir === null) { return error('file not found') }
             const r = parseAndFind(packageGet)(moduleDir)(p)
@@ -66,9 +66,9 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             return [state[0] === 'error' ? state : ['ok', state[1].exports], [setReplace(p)(rIdStr)(requireMap), m1]]
         }
         return source => moduleMap => {
-            /** @type {(s: moduleT.State) => (m: M) => Result<M>} */
+            /** @type {(s: module.State) => (m: M) => Result<M>} */
             const set = s => m => [s, moduleMapInterface.setReplace(moduleIdStr)(s)(m)]
-            /** @type {(e: moduleT.Error) => (m: M) => Result<M>} */
+            /** @type {(e: module.Error) => (m: M) => Result<M>} */
             const error = e => set(['error', e])
             // check compilation
             const [kind, result] = compile(source)
@@ -81,7 +81,7 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
             return x(moduleMap2)
         }
     }
-    /** @type {(moduleId: moduleT.Id) => (moduleMap: M) => Result<M>} */
+    /** @type {(moduleId: module.Id) => (moduleMap: M) => Result<M>} */
     const f = moduleId => moduleMap => {
         const moduleIdStr = idToString(moduleId)
         // check moduleMap
@@ -97,9 +97,4 @@ const getOrBuild = compile => packageGet => moduleMapInterface =>  {
         return (source === null ? notFound : build(stringSetEmpty)(moduleId)(source))(moduleMap)
     }
     return f
-}
-
-export default {
-    /** @readonly */
-    getOrBuild,
 }

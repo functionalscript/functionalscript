@@ -1,4 +1,4 @@
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { flat } = list
 
 import cppContent from '../cpp/testlib.f.mjs'
@@ -34,7 +34,7 @@ import rustContent from '../rust/testlib.f.mjs'
  *      readonly name: string
  *      readonly content: string
  *  }
- *  readonly line: List.List<List.List<string>>
+ *  readonly line: list.List<list.List<string>>
  * }} Output
  */
 

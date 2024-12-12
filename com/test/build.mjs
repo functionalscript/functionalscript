@@ -3,12 +3,12 @@ import { execSync } from 'node:child_process'
 import { platform, exit } from 'node:process'
 import build, * as Build from './build.f.mjs'
 const { cpp, cs, rust } = build
-import string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 const { log, error } = console
-import sgr from '../../text/sgr/module.f.mjs'
-const { bold, reset } = sgr
-import list from '../../types/list/module.f.mjs'
+import * as sgr from '../../text/sgr/module.f.mjs'
+const { bold, reset } = sgr.codes
+import * as list from '../../types/list/module.f.mjs'
 
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'

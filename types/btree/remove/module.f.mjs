@@ -1,11 +1,11 @@
 // @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
 import * as Cmp from '../../function/compare/module.f.mjs'
-import find, * as Find from '../find/module.f.mjs'
-import list from '../../list/module.f.mjs'
+import * as find from '../find/module.f.mjs'
+import * as list from '../../list/module.f.mjs'
 const { fold, concat, next } = list
 import * as Array from '../../array/module.f.mjs'
-import n from '../../nullable/module.f.mjs'
+import * as n from '../../nullable/module.f.mjs'
 const { map } = n
 
 /**
@@ -17,11 +17,11 @@ const { map } = n
  * @template T
  * @typedef {{
  *  readonly first: Leaf01<T>,
- *  readonly tail: Find.Path<T>
+ *  readonly tail: find.Path<T>
  * }} RemovePath
  */
 
-/** @type {<T>(tail: Find.Path<T>) => (n: _.Node<T>) => readonly[T, RemovePath<T>]} */
+/** @type {<T>(tail: find.Path<T>) => (n: _.Node<T>) => readonly[T, RemovePath<T>]} */
 const path = tail => n => {
     switch (n.length) {
         case 1: { return [n[0], { first: null, tail }] }
@@ -95,7 +95,7 @@ const initValue1 = a => n => {
  * @typedef {(a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>} Merge
  */
 
-/** @type {<A, T>(ms: Array.Array2<Merge<A, T>>) => (i: Find.PathItem<T>) => (a: A) => Branch<T>} */
+/** @type {<A, T>(ms: Array.Array2<Merge<A, T>>) => (i: find.PathItem<T>) => (a: A) => Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms
     /** @typedef {typeof ms extends Array.Array2<Merge<infer A, infer T>> ? [A,T] : never} AT */
@@ -118,14 +118,14 @@ const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 const initReduce = reduceX([initValue0, initValue1])
 
 /** @type {<T>(c: Cmp.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
-const nodeRemove = c => node => {
+export const nodeRemove = c => node => {
     /** @typedef {typeof c extends Cmp.Compare<infer T> ? T : never} T */
     /** @type  {() => null | RemovePath<T>} */
     const f = () => {
         const { first, tail } = find.find(c)(node)
-        /** @type {(n: _.Node<T>) => (f: (v: T) => Find.PathItem<T>) => RemovePath<T>} */
+        /** @type {(n: _.Node<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>} */
         const branch = n => f => {
-            const [v, p] = path(/** @type {Find.Path<T>} */(null))(n)
+            const [v, p] = path(/** @type {find.Path<T>} */(null))(n)
             return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
         }
         const [i, n] = first
@@ -158,11 +158,4 @@ const nodeRemove = c => node => {
 }
 
 /** @type {<T>(c: Cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
-const remove =  c => map(nodeRemove(c))
-
-export default {
-    /** @readonly */
-    nodeRemove,
-    /** @readonly */
-    remove,
-}
+export const remove =  c => map(nodeRemove(c))
