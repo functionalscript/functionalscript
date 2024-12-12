@@ -5,7 +5,7 @@ const { sort, fromEntries } = o
 import * as json from '../json/module.f.mjs'
 import * as f from '../types/function/module.f.mjs'
 const { identity } = f
-import list from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { toArray } = list
 import * as utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16

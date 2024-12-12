@@ -6,13 +6,13 @@ import o from '../object/module.f.mjs'
 const { sort } = o
 import str from '../string/module.f.mjs'
 const { cmp } = str
-import list, * as List from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 import * as s from './set/module.f.mjs'
 import * as f from './find/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 
-/** @type {(sequence: List.List<json.Unknown>) => string} */
+/** @type {(sequence: list.List<json.Unknown>) => string} */
 const stringify = sequence => jsonStr(list.toArray(sequence))
 
 /** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */
@@ -67,7 +67,7 @@ const test = () => {
     _map = set(_map)('f')
     //
     {
-        /** @type {List.Result<string>} */
+        /** @type {list.Result<string>} */
         let _item = list.next(values(_map))
         while (_item !== null) {
             _item = list.next(_item.tail)

@@ -3,7 +3,7 @@ import * as types from '../types/module.f.mjs'
 const { paramList } = types
 import * as Text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { flat, map, flatMap } = list
 const { entries } = Object
 import * as func from '../../types/function/module.f.mjs'
@@ -16,7 +16,7 @@ const rustField = field => `pub ${field},`
 
 const mapRustField = map(rustField)
 
-/** @type {(b: List.Thunk<string>) => (name: string) => Text.Block} */
+/** @type {(b: list.Thunk<string>) => (name: string) => Text.Block} */
 const rustStruct = b => name => [`#[repr(C)]`, `pub struct ${name} {`, mapRustField(b), `}`]
 
 const commaJoin = join(', ')
@@ -32,7 +32,7 @@ const self = ['&self']
 /** @type {(p: types.Field) => string} */
 const paramName = ([n]) => n
 
-/** @type {(p: types.FieldArray) => List.Thunk<string>} */
+/** @type {(p: types.FieldArray) => list.Thunk<string>} */
 const callList = p => map(paramName)(paramList(p))
 
 /** @type {(p: types.FieldArray) => string} */

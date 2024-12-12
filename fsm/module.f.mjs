@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
 import * as byteSet from '../types/byte_set/module.f.mjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
@@ -20,7 +20,7 @@ const { stringToList } = utf16
 
 /** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
-/** @typedef {List.List<Rule>} Grammar */
+/** @typedef {list.List<Rule>} Grammar */
 
 /**
  * @typedef {{
@@ -95,5 +95,5 @@ const get = rangeMap.get(emptyStateStringify)
 /** @type {(dfa: Dfa) => operator.Fold<number, string>} */
 const runOp = dfa => input => s => get(input)(dfa[s])
 
-/** @type {(dfa: Dfa) => (input: List.List<number>) => List.List<string>} */
+/** @type {(dfa: Dfa) => (input: list.List<number>) => list.List<string>} */
 export const run = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)

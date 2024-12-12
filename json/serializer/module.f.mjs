@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { flat, reduce, empty } = list
 import * as O from '../../types/object/module.f.mjs'
 import * as Operator from '../../types/function/operator/module.f.mjs'
@@ -37,10 +37,10 @@ import * as Operator from '../../types/function/operator/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 
-/** @type {(_: string) => List.List<string>} */
+/** @type {(_: string) => list.List<string>} */
 export const stringSerialize = input => [jsonStringify(input)]
 
-/** @type {(_: number) => List.List<string>} */
+/** @type {(_: number) => list.List<string>} */
 export const numberSerialize = input => [jsonStringify(input)]
 
 export const nullSerialize = ['null']
@@ -49,18 +49,18 @@ const trueSerialize = ['true']
 
 const falseSerialize = ['false']
 
-/** @type {(_: boolean) => List.List<string>} */
+/** @type {(_: boolean) => list.List<string>} */
 export const boolSerialize = value => value ? trueSerialize : falseSerialize
 
 const comma = [',']
 
-/** @type {Operator.Reduce<List.List<string>>} */
+/** @type {Operator.Reduce<list.List<string>>} */
 const joinOp = b => prior => flat([prior, comma, b])
 
-/** @type {(input: List.List<List.List<string>>) => List.List<string>} */
+/** @type {(input: list.List<list.List<string>>) => list.List<string>} */
 const join = reduce(joinOp)(empty)
 
-/** @type {(open: string) => (close: string) => (input: List.List<List.List<string>>) => List.List<string>} */
+/** @type {(open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>} */
 const wrap = open => close => {
     const seqOpen = [open]
     const seqClose = [close]
@@ -78,7 +78,7 @@ export const arrayWrap = wrap('[')(']')
 
 /**
  * @template T
- *  @typedef {(List.List<Entry<T>>)} Entries<T>
+ *  @typedef {(list.List<Entry<T>>)} Entries<T>
 */
 
 /**

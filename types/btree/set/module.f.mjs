@@ -3,7 +3,7 @@ import * as _ from '../types/module.f.mjs'
 import * as btreeFind from '../find/module.f.mjs'
 const { find } = btreeFind
 import * as Cmp from '../../function/compare/module.f.mjs'
-import list from '../../list/module.f.mjs'
+import * as list from '../../list/module.f.mjs'
 const { fold } = list
 
 /**

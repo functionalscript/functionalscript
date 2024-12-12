@@ -62,7 +62,7 @@ const fromArray = array => {
 }
 
 /** @type {<T>(head: List<T>) => (tail: List<T>) => List<T>} */
-const concat = head => tail => tail === null ? head : ({ head, tail })
+export const concat = head => tail => tail === null ? head : ({ head, tail })
 
 /** @type {<T>(list: List<T>) => NotLazy<T> } */
 const trampoline = list => {
@@ -71,7 +71,7 @@ const trampoline = list => {
 }
 
 /** @type {<T>(list: List<T>) => Result<T>} */
-const next = head => {
+export const next = head => {
     /** @type {typeof head} */
     let tail = null
     while (true) {
@@ -95,7 +95,7 @@ const next = head => {
 }
 
 /** @type {<T>(list: List<T>) => Iterable<T>} */
-const iterable = list => ({
+export const iterable = list => ({
     *[Symbol.iterator]() {
         let i = list
         while (true) {
@@ -110,7 +110,7 @@ const iterable = list => ({
 const { from } = Array
 
 /** @type {<T>(list: List<T>) => readonly T[]} */
-const toArray = list => {
+export const toArray = list => {
     const u = trampoline(list)
     return u instanceof Array ? u : from(iterable(u))
 }
@@ -126,16 +126,16 @@ const apply = f => input => () => {
 const flatStep = ({ first, tail }) => concat(first)(flat(tail))
 
 /** @type {<T>(list: List<List<T>>) => Thunk<T>} */
-const flat = apply(flatStep)
+export const flat = apply(flatStep)
 
 /** @type {<I, O>(f: (value: I) => O) => (n: NonEmpty<I>) => List<O>} */
 const mapStep = f => ({ first, tail }) => ({ first: f(first), tail: map(f)(tail) })
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
-const map = f => apply(mapStep(f))
+export const map = f => apply(mapStep(f))
 
 /** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
-const flatMap = f => compose(map(f))(flat)
+export const flatMap = f => compose(map(f))(flat)
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
 const filterStep = f => ({ first, tail }) => {
@@ -144,7 +144,7 @@ const filterStep = f => ({ first, tail }) => {
 }
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-const filter = f => apply(filterStep(f))
+export const filter = f => apply(filterStep(f))
 
 /** @type {<I, O>(f: (value: I) => O|null) => (n: NonEmpty<I>) => List<O>} */
 const filterMapStep = f => n => {
@@ -153,40 +153,40 @@ const filterMapStep = f => n => {
 }
 
 /** @type {<I, O>(f: (value: I) => O|null) => (input: List<I>) => Thunk<O>} */
-const filterMap = f => apply(filterMapStep(f))
+export const filterMap = f => apply(filterMapStep(f))
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
 const takeWhileStep = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } : null
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-const takeWhile = f => apply(takeWhileStep(f))
+export const takeWhile = f => apply(takeWhileStep(f))
 
 /** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
 const takeStep = n => ({ first, tail }) => 0 < n ? { first: first, tail: take(n - 1)(tail) } : null
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
-const take = n => apply(takeStep(n))
+export const take = n => apply(takeStep(n))
 
 /** @type {<T>(f: (value: T) => boolean) => (ne: NonEmpty<T>) => List<T>} */
 const dropWhileStep = f => ne => f(ne.first) ? dropWhile(f)(ne.tail) : ne
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-const dropWhile = f => apply(dropWhileStep(f))
+export const dropWhile = f => apply(dropWhileStep(f))
 
 /** @type {(n: number) => <T>(ne: NonEmpty<T>) => List<T>} */
 const dropStep = n => ne => 0 < n ? drop(n - 1)(ne.tail) : ne
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
-const drop = n => apply(dropStep(n))
+export const drop = n => apply(dropStep(n))
 
 /** @type {<D>(def: D) => <T>(input: List<T>) => D|T} */
-const first = def => input => {
+export const first = def => input => {
     const ne = next(input)
     return ne === null ? def : ne.first
 }
 
 /** @type {<D>(first: D) => <T>(tail: List<T>) => D|T} */
-const last = first => tail => {
+export const last = first => tail => {
     /** @typedef {typeof tail extends List<infer T> ? T : never} T */
     /** @type {NonEmpty<typeof first|T>} */
     let i = { first, tail }
@@ -200,37 +200,37 @@ const last = first => tail => {
 }
 
 /** @type {<D>(def: D) => <T>(f: (value: T) => boolean) => (input: List<T>) => D|T} */
-const find = def => f => compose(filter(f))(first(def))
+export const find = def => f => compose(filter(f))(first(def))
 
 /** @type {(input: List<boolean>) => boolean} */
-const some = find(false)(identity)
+export const some = find(false)(identity)
 
 /** @type {<T>(input: List<T>) => boolean} */
-const isEmpty = fn(map(() => true))
+export const isEmpty = fn(map(() => true))
     .then(some)
     .then(logicalNot)
     .result
 
-const every = fn(map(logicalNot))
+export const every = fn(map(logicalNot))
     .then(some)
     .then(logicalNot)
     .result
 
 /** @type {<T>(value: T) => (sequence: List<T>) => boolean} */
-const includes = value => compose(map(strictEqual(value)))(some)
+export const includes = value => compose(map(strictEqual(value)))(some)
 
 /** @type {(count: number) => Thunk<number>} */
-const countdown = count => () => {
+export const countdown = count => () => {
     if (count <= 0) { return null }
     const first = count - 1
     return { first, tail: countdown(first) }
 }
 
 /** @type {<T>(v: T) => (c: number) => Thunk<T>} */
-const repeat = v => compose(countdown)(map(() => v))
+export const repeat = v => compose(countdown)(map(() => v))
 
 /** @type {<T>(list: List<T>) => List<T>} */
-const cycle = list => () => {
+export const cycle = list => () => {
     const i = next(list)
     return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
@@ -242,19 +242,19 @@ const scanStep = op => ne => {
 }
 
 /** @type {<I, O>(op: operator.Scan<I, O>) => (input: List<I>) => Thunk<O>} */
-const scan = op => apply(scanStep(op))
+export const scan = op => apply(scanStep(op))
 
 /** @type {<I, S, O>(op: operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
-const stateScan = op => compose(stateScanToScan(op))(scan)
+export const stateScan = op => compose(stateScanToScan(op))(scan)
 
 /** @type {<I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
-const foldScan = op => compose(foldToScan(op))(scan)
+export const foldScan = op => compose(foldToScan(op))(scan)
 
 /** @type {<I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => O} */
-const fold = op => init => compose(foldScan(op)(init))(last(init))
+export const fold = op => init => compose(foldScan(op)(init))(last(init))
 
 /** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
-const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
+export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
 /** @type {<T>(list: List<T>) => Thunk<number>} */
 const lengthList = list => () => {
@@ -271,7 +271,7 @@ const lengthList = list => () => {
 const sum = reduce(addition)(0)
 
 /** @type {<T>(input: List<T>) => number} */
-const length = compose(lengthList)(sum)
+export const length = compose(lengthList)(sum)
 
 /**
  * @template T
@@ -282,7 +282,7 @@ const length = compose(lengthList)(sum)
 const entryOperator = index => value => [[index, value], index + 1]
 
 /** @type {<T>(input: List<T>) => Thunk<Entry<T>>} */
-const entries = input => {
+export const entries = input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
     /** @type {operator.StateScan<T, Number, Entry<T>>} */
     const o = entryOperator
@@ -293,10 +293,10 @@ const entries = input => {
 const reverseOperator = first => tail => ({ first, tail })
 
 /** @type {<T>(input: List<T>) => List<T>} */
-const reverse = fold(reverseOperator)(null)
+export const reverse = fold(reverseOperator)(null)
 
 /** @type {<A>(a: List<A>) => <B>(b: List<B>) => Thunk<readonly[A, B]>} */
-const zip = a => b => () => {
+export const zip = a => b => () => {
     const aResult = next(a)
     if (aResult === null) { return null }
     const bResult = next(b)
@@ -305,7 +305,7 @@ const zip = a => b => () => {
 }
 
 /** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
-const equal = e => {
+export const equal = e => {
     /** @typedef {typeof e extends operator.Equal<infer T> ? T : never} T */
     /** @type {(a: List<T>) => (b: List<T>) => List<boolean>} */
     const f = a => b => () => {
@@ -317,73 +317,4 @@ const equal = e => {
     return a => b => every(f(a)(b))
 }
 
-export default {
-    /** @readonly */
-    empty: null,
-    /** @readonly */
-    concat,
-    /** @readonly */
-    next,
-    /** @readonly */
-    iterable,
-    /** @readonly */
-    toArray,
-    /** @readonly */
-    flat,
-    /** @readonly */
-    map,
-    /** @readonly */
-    flatMap,
-    /** @readonly */
-    filter,
-    /** @readonly */
-    filterMap,
-    /** @readonly */
-    takeWhile,
-    /** @readonly */
-    take,
-    /** @readonly */
-    dropWhile,
-    /** @readonly */
-    drop,
-    /** @readonly */
-    first,
-    /** @readonly */
-    last,
-    /** @readonly */
-    find,
-    /** @readonly */
-    some,
-    /** @readonly */
-    every,
-    /** @readonly */
-    isEmpty,
-    /** @readonly */
-    includes,
-    /** @readonly */
-    countdown,
-    /** @readonly */
-    repeat,
-    /** @readonly */
-    cycle,
-    /** @readonly */
-    scan,
-    /** @readonly */
-    stateScan,
-    /** @readonly */
-    foldScan,
-    /** @readonly */
-    fold,
-    /** @readonly */
-    reduce,
-    /** @readonly */
-    length,
-    /** @readonly */
-    entries,
-    /** @readonly */
-    reverse,
-    /** @readonly */
-    zip,
-    /** @readonly */
-    equal
-}
+export const empty = null

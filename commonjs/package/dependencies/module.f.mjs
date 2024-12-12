@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as json from '../../../json/module.f.mjs'
 const { isObject } = json
-import list from '../../../types/list/module.f.mjs'
+import * as list from '../../../types/list/module.f.mjs'
 const { map, every } = list
 const { entries } = Object
 

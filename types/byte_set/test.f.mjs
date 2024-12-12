@@ -1,5 +1,5 @@
 import * as _ from './module.f.mjs'
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { every, countdown, map, toArray } = list
 import * as json from '../../json/module.f.mjs'
 import o from '../object/module.f.mjs'

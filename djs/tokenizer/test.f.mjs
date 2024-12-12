@@ -1,5 +1,5 @@
 import * as tokenizer from './module.f.mjs'
-import list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { toArray } = list
 import * as djs from '../module.f.mjs'
 import o from '../../types/object/module.f.mjs'

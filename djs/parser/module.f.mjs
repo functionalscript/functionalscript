@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 
 import result, * as Result from '../../types/result/module.f.mjs'
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray, map: listMap, length } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as tokenizerT from '../tokenizer/module.f.mjs'
@@ -24,7 +24,7 @@ const { fromMap } = o
 * }} DjsObject
 */
 
-/** @typedef {['array', List.List<DjsConst>]} DjsStackArray */
+/** @typedef {['array', list.List<DjsConst>]} DjsStackArray */
 
 /** @typedef {['object', Map.Map<DjsConst>, string]} DjsStackObject */
 
@@ -36,15 +36,15 @@ const { fromMap } = o
 * } DjsStackElement
 */
 
-/** @typedef {List.List<DjsStackElement>} DjsStack */
+/** @typedef {list.List<DjsStackElement>} DjsStack */
 
 /** @typedef {InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState} ParserState */
 
 /**
  * @typedef {{
 *  readonly refs: Map.Map<DjsModuleRef>
-*  readonly modules: List.List<string>
-*  readonly consts: List.List<DjsConst>
+*  readonly modules: list.List<string>
+*  readonly consts: list.List<DjsConst>
 * }} ModuleState
 */
 
@@ -413,7 +413,7 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: List.List<tokenizerT.DjsToken>) => Result.Result<DjsModule, string>} */
+/** @type {(tokenList: list.List<tokenizerT.DjsToken>) => Result.Result<DjsModule, string>} */
 export const parse = tokenList => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {

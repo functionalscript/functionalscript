@@ -8,7 +8,7 @@ const { join } = string
 const { log, error } = console
 import * as sgr from '../../text/sgr/module.f.mjs'
 const { bold, reset } = sgr.codes
-import list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'

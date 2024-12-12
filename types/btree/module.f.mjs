@@ -1,12 +1,12 @@
 // @ts-self-types="./module.f.d.mts"
 
-import list, * as List from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { flat } = list
 import n from '../nullable/module.f.mjs'
 const { map } = n
 import * as _ from './types/module.f.mjs'
 
-/** @type {<T>(node: _.Node<T>) => List.Thunk<T>} */
+/** @type {<T>(node: _.Node<T>) => list.Thunk<T>} */
 const nodeValues = node => () => {
     switch (node.length) {
         case 1: case 2: { return node }
@@ -31,5 +31,5 @@ const nodeValues = node => () => {
 
 export const empty = null
 
-/** @type {<T>(tree: _.Tree<T>) => List.List<T>} */
+/** @type {<T>(tree: _.Tree<T>) => list.List<T>} */
 export const values = map(nodeValues)

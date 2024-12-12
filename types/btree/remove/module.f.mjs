@@ -2,7 +2,7 @@
 import * as _ from '../types/module.f.mjs'
 import * as Cmp from '../../function/compare/module.f.mjs'
 import * as find from '../find/module.f.mjs'
-import list from '../../list/module.f.mjs'
+import * as list from '../../list/module.f.mjs'
 const { fold, concat, next } = list
 import * as Array from '../../array/module.f.mjs'
 import n from '../../nullable/module.f.mjs'

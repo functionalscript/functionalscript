@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
 import string from '../../types/string/module.f.mjs'
 const { join } = string
@@ -19,7 +19,7 @@ import * as Module from '../module/module.f.mjs'
 /** @type {(path: string) => readonly string[]} */
 const split = path => path.split('/')
 
-/** @typedef {readonly[List.List<string>] | null} OptionList */
+/** @typedef {readonly[list.List<string>] | null} OptionList */
 
 /** @type {(items: string) => (prior: OptionList) => OptionList} */
 const normItemsOp = first => prior => {
@@ -38,7 +38,7 @@ const normItemsOp = first => prior => {
     }
 }
 
-/** @type {(items: List.List<string>) => OptionList} */
+/** @type {(items: list.List<string>) => OptionList} */
 const normItems = items => {
     const result = fold(normItemsOp)([list.empty])(items)
     return result === null ? result : [reverse(result[0])]
@@ -48,7 +48,7 @@ const firstNull = first(null)
 
 /** @type {(local: string) => (path: string) => LocalPath|null} */
 export const parseLocal = local => {
-    /** @type {(path: string) => readonly[boolean, boolean, List.List<string>]} */
+    /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
     const fSeq = path => {
         const pathSeq = split(path)
         const dir = [null, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
@@ -69,9 +69,9 @@ export const parseLocal = local => {
     }
 }
 
-/** @typedef {readonly[string, List.List<string>]} IdPath */
+/** @typedef {readonly[string, list.List<string>]} IdPath */
 
-/** @type {(prior: readonly[string|null, List.List<string>]) => List.Thunk<IdPath>} */
+/** @type {(prior: readonly[string|null, list.List<string>]) => list.Thunk<IdPath>} */
 const variants = prior => () => {
     const [a, b] = prior
     const r = next(b)
@@ -99,7 +99,7 @@ const mapDependency = d => ([external, internal]) => {
 /**
  * @type {(d: (local: string) => string|null) =>
  *  (dir: boolean) =>
- *  (items: List.List<string>) =>
+ *  (items: list.List<string>) =>
  *  Path|null}
  */
 export const parseGlobal = dependencies =>

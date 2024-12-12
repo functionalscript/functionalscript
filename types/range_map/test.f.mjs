@@ -5,7 +5,7 @@ import * as json from '../../json/module.f.mjs'
 import object from '../object/module.f.mjs'
 const { sort } = object
 import sortedSet, * as SortedSet from '../sorted_set/module.f.mjs'
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 import * as operator from '../function/operator/module.f.mjs'
 
 /** @type {(a: readonly json.Unknown[]) => string} */

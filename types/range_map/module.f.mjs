@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import sortedList, * as SortedList from '../sorted_list/module.f.mjs'
 const { genericMerge } = sortedList
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { next } = list
 import * as Option from '../nullable/module.f.mjs'
 import number from '../number/module.f.mjs'

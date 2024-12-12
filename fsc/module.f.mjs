@@ -2,7 +2,7 @@
 import * as operator from '../types/function/operator/module.f.mjs'
 import range_map, * as RM from '../types/range_map/module.f.mjs'
 const { merge: rangeMapMerge, fromRange, get } = range_map
-import list, * as List from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.mjs'
 const { reduce: listReduce } = list
 import * as ascii from '../text/ascii/module.f.mjs'
 const { range: asciiRange } = ascii
@@ -43,9 +43,9 @@ const union = a => b => {
 /** @type {readonly never[]} */
 const empty = []
 
-/** @type {<T>(a: List.List<State<T>>) => State<T>} */
+/** @type {<T>(a: list.List<State<T>>) => State<T>} */
 const reduce = a => {
-    /** @typedef {typeof a extends List.List<State<infer T>> ? T : never} T */
+    /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
     /** @type {RM.RangeMerge<CreateToResult<T>>} */
     const merge = rangeMapMerge({
         union,
@@ -68,9 +68,9 @@ const rangeSet = l => f => {
     return reduce(map(g)(l))
 }
 
-/** @type {<T>(a: List.List<State<T>>) => CreateToResult<T>} */
+/** @type {<T>(a: list.List<State<T>>) => CreateToResult<T>} */
 const create = a => {
-    /** @typedef {typeof a extends List.List<State<infer T>> ? T : never} T */
+    /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
     const i = reduce(a)
     /** @type {(v: number) => (i: State<T>) => (v: T) => ToResult} */
     const x = get(def)

@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 import * as Operator from '../../types/function/operator/module.f.mjs'
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
 import * as bf from '../../types/bigfloat/module.f.mjs'
 const { multiply } = bf
@@ -28,7 +28,7 @@ import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 * } ScanInput
 */
 
-/** @type {(input: jsTokenizer.JsToken) => List.List<JsonToken>} */
+/** @type {(input: jsTokenizer.JsToken) => list.List<JsonToken>} */
 const mapToken = input =>
 {
     switch(input.kind)
@@ -51,7 +51,7 @@ const mapToken = input =>
     }
 }
 
-/** @type {(input: ScanInput) => readonly [List.List<JsonToken>, ScanState]} */
+/** @type {(input: ScanInput) => readonly [list.List<JsonToken>, ScanState]} */
 const parseDefaultState = input =>
 {
     if (input === null) return [empty, { kind: 'def'}]
@@ -62,7 +62,7 @@ const parseDefaultState = input =>
     }
 }
 
-/** @type {(input: ScanInput) => readonly [List.List<JsonToken>, ScanState]} */
+/** @type {(input: ScanInput) => readonly [list.List<JsonToken>, ScanState]} */
 const parseMinusState = input =>
 {
     if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def'}]
@@ -74,7 +74,7 @@ const parseMinusState = input =>
     }
 }
 
-/** @type {Operator.StateScan<ScanInput, ScanState, List.List<JsonToken>>} */
+/** @type {Operator.StateScan<ScanInput, ScanState, list.List<JsonToken>>} */
 const scanToken = state => input => {
     switch(state.kind)
     {
@@ -83,10 +83,10 @@ const scanToken = state => input => {
     }
 }
 
-/** @type {(input: List.List<number>) => List.List<JsonToken>} */
+/** @type {(input: list.List<number>) => list.List<JsonToken>} */
 export const tokenize = input =>
 {
-    /** @type {List.List<ScanInput>} */
+    /** @type {list.List<ScanInput>} */
     const jsTokens = jsTokenizer.tokenize(input)
     return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
 }

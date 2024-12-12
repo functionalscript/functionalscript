@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 import * as compare from '../function/compare/module.f.mjs'
-import list, * as List from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 import * as option from '../nullable/module.f.mjs'
 const { next } = list
 import * as f from '../function/module.f.mjs'
@@ -8,7 +8,7 @@ const { identity } = f
 
 /**
  * @template T
- * @typedef {List.List<T>} SortedList
+ * @typedef {list.List<T>} SortedList
  */
 
 /**
@@ -30,7 +30,7 @@ const { identity } = f
 /**
  * @template T
  * @template S
- * @typedef {(state: S) => (tail: List.List<T>) => List.List<T>} TailReduce
+ * @typedef {(state: S) => (tail: list.List<T>) => list.List<T>} TailReduce
  */
 
 /**
@@ -42,12 +42,12 @@ const { identity } = f
   * }} MergeReduce
  */
 
-/** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: List.List<T>) => (b: List.List<T>) => List.List<T>} */
+/** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
 const genericMerge = ({ reduceOp, tailReduce }) => {
     /** @typedef {typeof reduceOp extends ReduceOp<infer T, infer S> ? [T, S] : never} TS */
     /** @typedef {TS[0]} T */
     /** @typedef {TS[1]} S */
-    /** @type {(state: S) => (a: List.List<T>) => (b: List.List<T>) => List.List<T>} */
+    /** @type {(state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
     const f = state => a => b => () => {
         const aResult = next(a)
         if (aResult === null) { return tailReduce(state)(b) }
@@ -81,7 +81,7 @@ const cmpReduce = cmp => () => a => b => {
     return [sign === 1 ? b : a, sign, null]
 }
 
-/** @type {() => <T>(tail: List.List<T>) => List.List<T>} */
+/** @type {() => <T>(tail: list.List<T>) => list.List<T>} */
 const mergeTail = () => identity
 
 /** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|null} */

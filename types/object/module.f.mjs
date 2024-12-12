@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { iterable } = list
 import btMap, * as BTMap from '../map/module.f.mjs'
 const { entries: mapEntries, fromEntries: mapFromEntries } = btMap
@@ -23,10 +23,10 @@ const at = name => object => {
     return r === void 0 ? null : r.value
 }
 
-/** @type {<T>(e: List.List<Entry<T>>) => List.List<Entry<T>>} */
+/** @type {<T>(e: list.List<Entry<T>>) => list.List<Entry<T>>} */
 const sort = e => mapEntries(mapFromEntries(e))
 
-/** @type {<T>(e: List.List<Entry<T>>) => Map<T>} */
+/** @type {<T>(e: list.List<Entry<T>>) => Map<T>} */
 const fromEntries = e => objectFromEntries(iterable(e))
 
 /** @type {<T>(m: BTMap.Map<T>) => Map<T>} */

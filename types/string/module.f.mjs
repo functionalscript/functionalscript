@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import list, * as List from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { reduce: listReduce, repeat: listRepeat } = list
 import * as f from '../function/module.f.mjs'
 const { compose } = f
@@ -8,7 +8,7 @@ const { unsafeCmp } = compare
 import * as op from '../function/operator/module.f.mjs'
 const { join: joinOp, concat: concatOp } = op
 
-/** @type {(o: op.Reduce<string>) => (input: List.List<string>) => string} */
+/** @type {(o: op.Reduce<string>) => (input: list.List<string>) => string} */
 const reduce = o => listReduce(o)('')
 
 const join = compose(joinOp)(reduce)

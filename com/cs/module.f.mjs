@@ -3,7 +3,7 @@ import * as types from '../types/module.f.mjs'
 const { result, paramList } = types
 import * as text from '../../text/module.f.mjs'
 const { curly } = text
-import list, * as List from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.mjs'
 const { flat, map, some, flatMap } = list
 import string from '../../types/string/module.f.mjs'
 const { join } = string
@@ -14,11 +14,11 @@ const { entries } = Object
 const using = v => `using ${v};`
 
 /**
- * @type {(attributes: List.List<string>) =>
+ * @type {(attributes: list.List<string>) =>
  *  (type: string) =>
  *  (name: string) =>
  *  (body: text.Block) =>
- *  List.List<text.Item>}
+ *  list.List<text.Item>}
  */
 const typeDef = attributes => type => name => body =>
     flat([
@@ -96,7 +96,7 @@ const mapField = map(field)
 
 const flatMapMethod = flatMap(method)
 
-/** @type {(e: O.Entry<types.Definition>) => List.List<text.Item>} */
+/** @type {(e: O.Entry<types.Definition>) => list.List<text.Item>} */
 const def = ([n, d]) => {
     return !('interface' in d) ?
         struct(n)(mapField(entries(d.struct))) :

@@ -11,7 +11,7 @@ const { values } = bt
 import * as Compare from '../function/compare/module.f.mjs'
 import s from '../string/module.f.mjs'
 const { cmp } = s
-import list, * as List from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { fold } = list
 import * as Operator from '../function/operator/module.f.mjs'
 
@@ -55,10 +55,10 @@ const replace = () => b => b
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
 const setReplace = name => value => setReduceEntry(replace)([name, value])
 
-/** @type {<T>(map: Map<T>) => List.List<Entry<T>>} */
+/** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
 const entries = values
 
-/** @type {<T>(entries: List.List<Entry<T>>) => Map<T>} */
+/** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
 const fromEntries = fold(setReduceEntry(replace))(null)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */

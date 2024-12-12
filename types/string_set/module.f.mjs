@@ -14,7 +14,7 @@ const {
 } = btree
 import string from "../string/module.f.mjs"
 const { cmp } = string
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { fold } = list
 import * as f from '../function/module.f.mjs'
 const { compose } = f

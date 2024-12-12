@@ -2,7 +2,7 @@
 import * as compare from '../function/compare/module.f.mjs'
 import * as Operator from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { reduce } = list
 
 /** @typedef {Operator.Unary<bigint, bigint>} Unary*/

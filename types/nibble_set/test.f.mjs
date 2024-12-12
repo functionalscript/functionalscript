@@ -1,4 +1,4 @@
-import list from '../list/module.f.mjs'
+import * as list from '../list/module.f.mjs'
 const { every, map, countdown } = list
 import _ from './module.f.mjs'
 
