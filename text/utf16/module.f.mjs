@@ -44,7 +44,7 @@ const codePointToUtf16 = codePoint => {
     return [codePoint & 0xffff]
 }
 
-const fromCodePointList = flatMap(codePointToUtf16)
+export const fromCodePointList = flatMap(codePointToUtf16)
 
 const u16 = contains([0x0000, 0xFFFF])
 
@@ -78,10 +78,10 @@ const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofT
 const eofList = [null]
 
 /** @type {(input: List.List<u16>) => List.List<i32>} */
-const toCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
+export const toCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
 /** @type {(s: string) => List.List<u16>} */
-const stringToList = s => {
+export const stringToList = s => {
     /** @type {(i: number) => List.Result<number>} */
     const at = i => {
         const first = s.charCodeAt(i)
@@ -91,17 +91,6 @@ const stringToList = s => {
 }
 
 /** @type {(input: List.List<u16>) => string} */
-const listToString = fn(map(String.fromCharCode))
+export const listToString = fn(map(String.fromCharCode))
     .then(reduce(operator.concat)(''))
     .result
-
-export default {
-    /** @readonly */
-    fromCodePointList,
-    /** @readonly */
-    toCodePointList,
-    /** @readonly */
-    stringToList,
-    /** @readonly */
-    listToString
-}

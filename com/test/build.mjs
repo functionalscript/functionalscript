@@ -6,8 +6,8 @@ const { cpp, cs, rust } = build
 import string from '../../types/string/module.f.mjs'
 const { join } = string
 const { log, error } = console
-import sgr from '../../text/sgr/module.f.mjs'
-const { bold, reset } = sgr
+import * as sgr from '../../text/sgr/module.f.mjs'
+const { bold, reset } = sgr.codes
 import list from '../../types/list/module.f.mjs'
 
 import { fileURLToPath } from 'node:url'

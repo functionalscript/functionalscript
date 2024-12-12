@@ -15,7 +15,7 @@ import * as j from '../json/module.f.mjs'
 const { stringify } = j
 import f from '../types/function/module.f.mjs'
 const { identity } = f
-import utf16 from '../text/utf16/module.f.mjs'
+import * as utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 
 /** @typedef {readonly[string, byteSetT.ByteSet, string]} Rule */

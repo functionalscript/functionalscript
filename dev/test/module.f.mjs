@@ -1,8 +1,8 @@
 // @ts-self-types="./module.f.d.mts"
 import list from '../../types/list/module.f.mjs'
 const { fold } = list
-import sgr from '../../text/sgr/module.f.mjs'
-const { reset, fgGreen, fgRed, bold } = sgr
+import * as sgr from '../../text/sgr/module.f.mjs'
+const { reset, fgGreen, fgRed, bold } = sgr.codes
 import * as Result from '../../types/result/module.f.mjs'
 
 /**
