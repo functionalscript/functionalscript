@@ -104,14 +104,16 @@ File extensions: `.f.js` and `.f.mjs`.
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
 4. [ ] [export](./3240-export.md)
+5. [ ] Regular Expressions
+6. [ ] Ownership of Mutable Objects (Singletons)
+7. [ ] [type inference](./3240-export.md)
+8. [ ] `async`/`await` and Promises
 
 ### 3.3. Syntactic Sugar
 
 1. [ ] [expression](./3210-expression.md)
 2. [ ] [one-parameter](./3220-one-parameter.md)
 3. [ ] [assignments](./3330-assignments.md)
-4. [ ] Promises
-5. [ ] Regular Expressions
 
 ## 4. ECMAScript Proposals
 
