@@ -4,13 +4,14 @@
   "type": "module",
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
-    "tscp": "tsc --declaration --emitDeclarationOnly --noEmit false",
+    "tscp": "rm -rf out/ && tsc --allowJs --declaration --module ES2022 --target ES2022 --noEmit false --outDir out/ **/module.f.mjs",
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
     "index": "node ./dev/index.mjs",
     "version": "node ./nodejs/version/main.mjs",
     "test-only": "node --trace-uncaught ./dev/test.mjs",
-    "comtest": "node ./com/test/build.mjs"
+    "comtest": "node ./com/test/build.mjs",
+    "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
   },
   "repository": {
     "type": "git",

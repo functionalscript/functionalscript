@@ -124,3 +124,7 @@ target/
 
 _*
 .vscode
+/docs
+*.d.mts
+/out
+.DS_Store
