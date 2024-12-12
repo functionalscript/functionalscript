@@ -1,4 +1,10 @@
 // @ts-self-types="./module.f.d.mts"
+
+/**
+ * This module generates C++ code blocks, including structs, interfaces, and method headers,
+ * based on a COM library of type definitions.
+ */
+
 import * as types from '../types/module.f.mjs'
 import * as text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'
@@ -51,7 +57,12 @@ const mapParamName = map(paramName)
 
 const joinComma = join(', ')
 
-/** @type {(name: string) => (lib: types.Library) => text.Block} */
+/**
+ * Generates the C++ code for a library.
+ * @param {string} name - The namespace name.
+ * @returns {(lib: types.Library) => text.Block} - A function that takes a library definition
+ * and returns the generated C++ code block.
+ */
 export const cpp = name => lib => {
 
     /** @type {(t: types.Type) => string|null} */

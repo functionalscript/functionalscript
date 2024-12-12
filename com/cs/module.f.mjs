@@ -1,4 +1,11 @@
 // @ts-self-types="./module.f.d.mts"
+
+/**
+ * This module generates C# code blocks for COM interop from a high-level type library definition.
+ *
+ * The module maps type definitions (e.g., structs, interfaces, and methods) into C# constructs
+ * with appropriate attributes for COM interop, such as `[StructLayout]`, `[Guid]`, and `[InterfaceType]`.
+ */
 import * as types from '../types/module.f.mjs'
 const { result, paramList } = types
 import * as text from '../../text/module.f.mjs'
@@ -118,7 +125,11 @@ const header = [
     ''
 ]
 
-/** @type {(name: string) => (library: types.Library) => text.Block} */
+/**
+ * Generates the C# code for a library.
+ * @param {string} name - The namespace name for the C# library.
+ * @returns {(library: types.Library) => text.Block} - A function that takes a library definition and generates the corresponding C# code block.
+ */
 export const cs = name => library => {
     const v = flatMapDef(entries(library))
     const ns = namespace(name)(v)
