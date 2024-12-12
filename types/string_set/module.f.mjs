@@ -12,7 +12,7 @@ const {
     values,
     empty,
 } = btree
-import string from "../string/module.f.mjs"
+import * as string from "../string/module.f.mjs"
 const { cmp } = string
 import * as list from '../list/module.f.mjs'
 const { fold } = list

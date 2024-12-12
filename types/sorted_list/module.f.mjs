@@ -43,7 +43,7 @@ const { identity } = f
  */
 
 /** @type {<T,S>(reduce: MergeReduce<T,S>) => (state: S) => (a: list.List<T>) => (b: list.List<T>) => list.List<T>} */
-const genericMerge = ({ reduceOp, tailReduce }) => {
+export const genericMerge = ({ reduceOp, tailReduce }) => {
     /** @typedef {typeof reduceOp extends ReduceOp<infer T, infer S> ? [T, S] : never} TS */
     /** @typedef {TS[0]} T */
     /** @typedef {TS[1]} S */
@@ -68,7 +68,7 @@ const genericMerge = ({ reduceOp, tailReduce }) => {
  */
 
 /** @type {<T>(cmp: Cmp<T>) => (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>} */
-const merge = cmp => {
+export const merge = cmp => {
     /** @typedef {typeof cmp extends Cmp<infer T> ? T : never} T*/
     /** @type {TailReduce<T, null>} */
     const tailReduce = mergeTail
@@ -85,7 +85,7 @@ const cmpReduce = cmp => () => a => b => {
 const mergeTail = () => identity
 
 /** @type {<T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|null} */
-const find = cmp => value => array => {
+export const find = cmp => value => array => {
     let b = 0
     let e = array.length - 1
     while (true) {
@@ -104,13 +104,4 @@ const find = cmp => value => array => {
             }
         }
     }
-}
-
-export default {
-    /** @readonly */
-    merge,
-    /** @readonly */
-    genericMerge,
-    /** @readonly */
-    find
 }

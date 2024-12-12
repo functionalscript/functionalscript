@@ -8,7 +8,7 @@ const { flat, map, flatMap } = list
 const { entries } = Object
 import * as func from '../../types/function/module.f.mjs'
 const { fn } = func
-import string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 
 /** @type {(field: string) => string} */

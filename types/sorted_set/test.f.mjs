@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 import * as compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
 import * as json from '../../json/module.f.mjs'

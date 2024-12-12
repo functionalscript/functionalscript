@@ -11,23 +11,12 @@ const { join: joinOp, concat: concatOp } = op
 /** @type {(o: op.Reduce<string>) => (input: list.List<string>) => string} */
 const reduce = o => listReduce(o)('')
 
-const join = compose(joinOp)(reduce)
+export const join = compose(joinOp)(reduce)
 
-const concat = reduce(concatOp)
+export const concat = reduce(concatOp)
 
 /** @type {(n: string) => (v: number) => string} */
-const repeat = v => compose(listRepeat(v))(concat)
+export const repeat = v => compose(listRepeat(v))(concat)
 
 /** @type {(a: string) => (b: string) => compare.Sign} */
-const cmp = unsafeCmp
-
-export default {
-    /** @readonly */
-    join,
-    /** @readonly */
-    concat,
-    /** @readonly */
-    repeat,
-    /** @readonly */
-    cmp,
-}
+export const cmp = unsafeCmp

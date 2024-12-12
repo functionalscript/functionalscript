@@ -9,7 +9,7 @@ const { remove: btreeRemove } = btr
 import * as bt from '../btree/module.f.mjs'
 const { values } = bt
 import * as Compare from '../function/compare/module.f.mjs'
-import s from '../string/module.f.mjs'
+import * as s from '../string/module.f.mjs'
 const { cmp } = s
 import * as list from '../list/module.f.mjs'
 const { fold } = list

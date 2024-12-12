@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import sortedList, * as SortedList from '../sorted_list/module.f.mjs'
+import * as sortedList from '../sorted_list/module.f.mjs'
 const { genericMerge } = sortedList
 import * as list from '../list/module.f.mjs'
 const { next } = list
@@ -16,7 +16,7 @@ import * as Range from '../range/module.f.mjs'
 
 /**
  * @template T
- * @typedef {SortedList.SortedList<Entry<T>>} RangeMap
+ * @typedef {sortedList.SortedList<Entry<T>>} RangeMap
  */
 
 /**
@@ -42,7 +42,7 @@ import * as Range from '../range/module.f.mjs'
  * @typedef {O.Reduce<RangeMap<T>>} RangeMerge
  */
 
-/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => SortedList.ReduceOp<Entry<T>, RangeState<T>>} */
+/** @type {<T>(union: O.Reduce<T>) => (equal: O.Equal<T>) => sortedList.ReduceOp<Entry<T>, RangeState<T>>} */
 const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) => {
     const sign = cmp(aMax)(bMax)
     const min = sign === 1 ? bMax : aMax
@@ -51,7 +51,7 @@ const reduceOp = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) =
     return [newState, sign, [u, min]]
 }
 
-/** @type {<T>(equal: O.Equal<T>) => SortedList.TailReduce<Entry<T>, RangeState<T>>} */
+/** @type {<T>(equal: O.Equal<T>) => sortedList.TailReduce<Entry<T>, RangeState<T>>} */
 const tailReduce = equal => state => tail => {
     if (state === null) { return tail }
     const tailResult = next(tail)

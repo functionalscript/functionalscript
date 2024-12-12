@@ -3,7 +3,7 @@ import * as list from '../types/list/module.f.mjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
 import * as byteSet from '../types/byte_set/module.f.mjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
-import sortedSet, * as SortedSet from '../types/sorted_set/module.f.mjs'
+import * as sortedSet from '../types/sorted_set/module.f.mjs'
 const { intersect, union: sortedSetUnion } = sortedSet
 import * as rangeMap from '../types/range_map/module.f.mjs'
 const { merge } = rangeMap
@@ -45,29 +45,29 @@ export const toUnion = s => {
     return fold(toUnionOp)(empty)(codePoints)
 }
 
-/** @type {rangeMap.Operators<SortedSet.SortedSet<string>>} */
+/** @type {rangeMap.Operators<sortedSet.SortedSet<string>>} */
 const mergeOp = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual) }
 
-/** @type {(s: string) => (set: SortedSet.SortedSet<string>) => boolean} */
+/** @type {(s: string) => (set: sortedSet.SortedSet<string>) => boolean} */
 const hasState = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))
 
-/** @type {(set: SortedSet.SortedSet<string>) => operator.Fold<Rule, rangeMap.RangeMap<SortedSet.SortedSet<string>>>} */
+/** @type {(set: sortedSet.SortedSet<string>) => operator.Fold<Rule, rangeMap.RangeMap<sortedSet.SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
     if (hasState(ruleIn)(set)) { return merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
     return rm
 }
 
-/** @type {operator.Scan<rangeMap.Entry<SortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
+/** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, rangeMap.Entry<string>>} */
 const stringifyOp = ([sortedSet, max]) => [[stringifyIdentity(sortedSet), max], stringifyOp]
 
 const scanStringify = scan(stringifyOp)
 
-/** @type {operator.Scan<rangeMap.Entry<SortedSet.SortedSet<string>>, SortedSet.SortedSet<string>>} */
+/** @type {operator.Scan<rangeMap.Entry<sortedSet.SortedSet<string>>, sortedSet.SortedSet<string>>} */
 const fetchOp = ([item, _]) => [item, fetchOp]
 
 const scanFetch = scan(fetchOp)
 
-/** @type {(grammar: Grammar) => operator.Fold<SortedSet.SortedSet<string>, Dfa>} */
+/** @type {(grammar: Grammar) => operator.Fold<sortedSet.SortedSet<string>, Dfa>} */
 const addEntry = grammar => set => dfa => {
     const s = stringifyIdentity(set)
     if (s in dfa) { return dfa }

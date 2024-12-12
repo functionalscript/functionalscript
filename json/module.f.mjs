@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as list from '../types/list/module.f.mjs'
 const { next, flat, map } = list
-import string  from '../types/string/module.f.mjs'
+import * as string  from '../types/string/module.f.mjs'
 const { concat } = string
 import * as object from '../types/object/module.f.mjs'
 const { at } = object

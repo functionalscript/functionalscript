@@ -1,7 +1,7 @@
 import * as _ from './module.f.mjs'
 import * as BTree from '../types/module.f.mjs'
 import * as s from '../set/module.f.mjs'
-import str from '../../string/module.f.mjs'
+import * as str from '../../string/module.f.mjs'
 const { cmp } = str
 import * as json from '../../../json/module.f.mjs'
 import * as o from '../../object/module.f.mjs'

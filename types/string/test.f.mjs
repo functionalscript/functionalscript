@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 const { join, concat, repeat, cmp } = _
 import * as list from '../list/module.f.mjs'
 const { repeat: repeatList } = list

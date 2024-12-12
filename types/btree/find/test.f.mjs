@@ -4,7 +4,7 @@ import * as json from '../../../json/module.f.mjs'
 import * as o from '../../object/module.f.mjs'
 const { sort } = o
 import * as btree from '../types/module.f.mjs'
-import string from '../../string/module.f.mjs'
+import * as string from '../../string/module.f.mjs'
 const { cmp } = string
 import * as s from '../set/module.f.mjs'
 

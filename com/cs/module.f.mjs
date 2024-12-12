@@ -5,7 +5,7 @@ import * as text from '../../text/module.f.mjs'
 const { curly } = text
 import * as list from '../../types/list/module.f.mjs'
 const { flat, map, some, flatMap } = list
-import string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 import * as O from '../../types/object/module.f.mjs'
 const { entries } = Object
