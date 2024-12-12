@@ -47,7 +47,7 @@ const pow = base => exp => base ** BigInt(exp)
 const pow5 = pow(5n)
 
 /** @type {(b: BigFloat) => (mul: bigint) => BigFloat} */
-const multiply = ([m, e]) => mul => [m * mul, e]
+export const multiply = ([m, e]) => mul => [m * mul, e]
 
 /** @type {(b: BigFloat) => (div: bigint) => BigFloatWithRemainder} */
 const divide = ([m, e]) => div => [[m / div, e], m % div]
@@ -68,7 +68,7 @@ const round53 = ([[m, e], r]) => {
 }
 
 /** @type {(dec: BigFloat) => BigFloat} */
-const decToBin = dec => {
+export const decToBin = dec => {
     if (dec[0] === 0n) {
         return [0n, 0]
     }
@@ -85,11 +85,4 @@ const decToBin = dec => {
     const qr = divide([mAbs, e])(p)
     const r53 = round53(qr)
     return multiply(r53)(s)
-}
-
-export default {
-    /** @readonly */
-    decToBin,
-    /** @readonly */
-    multiply
 }

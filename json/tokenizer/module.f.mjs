@@ -2,7 +2,7 @@
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
-import bf from '../../types/bigfloat/module.f.mjs'
+import * as bf from '../../types/bigfloat/module.f.mjs'
 const { multiply } = bf
 import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 
