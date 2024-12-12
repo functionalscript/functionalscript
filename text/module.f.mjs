@@ -11,7 +11,7 @@ const { flatMap } = list
 /** @typedef {string|ItemArray|ItemThunk} Item */
 
 /** @type {(indent: string) => (text: Block) => List.List<string>} */
-const flat = indent => {
+export const flat = indent => {
 
     /** @type {(prefix: string) => (text: Block) => List.List<string>} */
     const f = prefix => {
@@ -24,11 +24,4 @@ const flat = indent => {
 }
 
 /** @type {(type: string) => (name: string) => (body: Block) => Block} */
-const curly = type => name => body => [`${type} ${name}`, '{', body, '}']
-
-export default {
-    /** @readonly */
-    flat,
-    /** @readonly */
-    curly,
-}
+export const curly = type => name => body => [`${type} ${name}`, '{', body, '}']

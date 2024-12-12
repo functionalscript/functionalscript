@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 import * as types from '../types/module.f.mjs'
-import text, * as Text from '../../text/module.f.mjs'
+import * as text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'
 import list from '../../types/list/module.f.mjs'
 import string from '../../types/string/module.f.mjs'
@@ -9,7 +9,7 @@ const { paramList } = types
 const { map, flatMap, flat } = list
 const { entries } = Object
 
-/** @type {(name: string) => (body: Text.Block) => Text.Block} */
+/** @type {(name: string) => (body: text.Block) => text.Block} */
 const struct = name => body => [`struct ${name}`, '{', body, '};']
 
 const baseTypeMap = {
@@ -51,7 +51,7 @@ const mapParamName = map(paramName)
 
 const joinComma = join(', ')
 
-/** @type {(name: string) => (lib: types.Library) => Text.Block} */
+/** @type {(name: string) => (lib: types.Library) => text.Block} */
 export const cpp = name => lib => {
 
     /** @type {(t: types.Type) => string|null} */
@@ -75,12 +75,12 @@ export const cpp = name => lib => {
 
     const resultType = objectType(ptr)
 
-    /** @type {(s: types.Field) => Text.Item} */
+    /** @type {(s: types.Field) => text.Item} */
     const field = ([name, t]) => `${type(t)} ${name};`
 
     const mapField = map(field)
 
-    /** @type {(s: types.Struct) => Text.Block} */
+    /** @type {(s: types.Struct) => text.Block} */
     const defStruct = s => mapField(entries(s.struct))
 
     /** @type {(fa: types.FieldArray) => string} */
@@ -91,11 +91,11 @@ export const cpp = name => lib => {
 
     const mapParam = map(param)
 
-    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => Text.Item} */
+    /** @type {(result: string) => (paramArrayStr: string) => (name: string) => text.Item} */
     const methodHeader = result => paramArrayStr => name =>
         `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
-    /** @type {(m: types.Method) => readonly Text.Item[]} */
+    /** @type {(m: types.Method) => readonly text.Item[]} */
     const method = ([name, paramArray]) => {
         const result = cppResult(paramArray)
         const paramL = paramList(paramArray)
@@ -116,7 +116,7 @@ export const cpp = name => lib => {
 
     const mapMethod = flatMap(method)
 
-    /** @type {(i: types.Interface) => Text.Block} */
+    /** @type {(i: types.Interface) => text.Block} */
     const defInterface = ({ guid, interface: i }) => {
         const g = guid.replaceAll('-', '');
         const lo = g.substring(0, 16);
@@ -127,7 +127,7 @@ export const cpp = name => lib => {
         ])
     }
 
-    /** @type {(kv: O.Entry<types.Definition>) => Text.Block} */
+    /** @type {(kv: O.Entry<types.Definition>) => text.Block} */
     const def = ([name, d]) => 'interface' in d
         ? [
             `class ${name} : public ::nanocom::IUnknown`,
@@ -138,7 +138,7 @@ export const cpp = name => lib => {
         ]
         : struct(name)(defStruct(d))
 
-    /** @type {(kv: O.Entry<types.Definition>) => Text.Block} */
+    /** @type {(kv: O.Entry<types.Definition>) => text.Block} */
     const forward = ([name]) => [`struct ${name};`]
 
     const e = entries(lib)

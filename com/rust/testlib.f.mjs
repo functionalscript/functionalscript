@@ -1,4 +1,4 @@
-import text from '../../text/module.f.mjs'
+import * as text from '../../text/module.f.mjs'
 const { flat } = text
 import string from '../../types/string/module.f.mjs'
 const { join } = string

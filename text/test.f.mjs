@@ -1,9 +1,9 @@
-import _, * as T from './module.f.mjs'
+import * as _ from './module.f.mjs'
 import string from '../types/string/module.f.mjs'
 const { join } = string
 
 export default () => {
-    /** @type {T.Block} */
+    /** @type {_.Block} */
     const text = [
         'a',
         'b',
