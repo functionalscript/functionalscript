@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "exports": {
     "./com/cpp": "./out/./com/cpp/module.f.mjs",
     "./com/cs": "./out/./com/cs/module.f.mjs",
