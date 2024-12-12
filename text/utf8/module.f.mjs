@@ -31,7 +31,7 @@ const codePointToUtf8 = input => {
     return [errorMask]
 }
 
-const fromCodePointList = flatMap(codePointToUtf8)
+export const fromCodePointList = flatMap(codePointToUtf8)
 
 /** @type {(state: Utf8NonEmptyState) => i32}*/
 const utf8StateToError = state => {
@@ -106,11 +106,4 @@ const utf8ByteOrEofToCodePointOp = state => input => input === null ? utf8EofToC
 const eofList = [null]
 
 /** @type {(input: List.List<u8>) => List.List<i32>} */
-const toCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
-
-export default {
-    /** @readonly */
-    fromCodePointList,
-    /** @readonly */
-    toCodePointList
-}
+export const toCodePointList = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
