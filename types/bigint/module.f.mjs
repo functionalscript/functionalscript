@@ -118,22 +118,3 @@ export const bitLength = v => {
     }
     return log2(v) + 1n
 }
-
-export default {
-    /** @readonly */
-//    addition,
-    /** @readonly */
-//    sum,
-    /** @readonly */
-//    abs,
-    /** @readonly */
-//    sign,
-    /** @readonly */
-//    serialize,
-    /** @readonly */
-//    scalar_mul,
-    /** @readonly */
-//    log2,
-    /** @readonly */
-//    bitLength,
-}

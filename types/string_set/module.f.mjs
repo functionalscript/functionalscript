@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as BtreeTypes from '../btree/types/module.f.mjs'
-import btree from '../btree/module.f.mjs'
-import btf from '../btree/find/module.f.mjs'
+import * as btree from '../btree/module.f.mjs'
+import * as btf from '../btree/find/module.f.mjs'
 const { find, isFound } = btf
 import btr from '../btree/remove/module.f.mjs'
 const { remove: btreeRemove } = btr

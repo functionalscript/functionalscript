@@ -63,7 +63,7 @@ const child = item =>
  */
 
 /** @type {<T>(c: cmpT.Compare<T>) => (node: _.Node<T>) => Result<T>} */
-const find = c => {
+export const find = c => {
     const i3 = index3(c)
     const i5 = index5(c)
     /** @typedef {typeof c extends cmpT.Compare<infer T> ? T : never} T */
@@ -99,7 +99,7 @@ const find = c => {
 }
 
 /** @type {<T>(first: First<T>) => boolean} */
-const isFound = ([i]) => {
+export const isFound = ([i]) => {
     switch (i) {
         case 1: case 3: { return true }
         default: { return false }
@@ -107,7 +107,7 @@ const isFound = ([i]) => {
 }
 
 /** @type {<T>(first: First<T>) => T | null} */
-const value = ([i, r]) => {
+export const value = ([i, r]) => {
     switch (i) {
         case 1: {
             switch (r.length) {
@@ -122,13 +122,4 @@ const value = ([i, r]) => {
             return null
         }
     }
-}
-
-export default {
-    /** @readonly */
-    find,
-    /** @readonly */
-    value,
-    /** @readonly */
-    isFound,
 }

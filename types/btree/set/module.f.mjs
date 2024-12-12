@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
-import btreeFind, * as BtreeFind from '../find/module.f.mjs'
+import * as btreeFind from '../find/module.f.mjs'
 const { find } = btreeFind
 import * as Cmp from '../../function/compare/module.f.mjs'
 import list from '../../list/module.f.mjs'
@@ -14,7 +14,7 @@ const { fold } = list
 /** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(i: BtreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
+/** @type {<T>(i: btreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
 const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: {

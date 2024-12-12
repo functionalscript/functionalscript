@@ -29,12 +29,7 @@ const nodeValues = node => () => {
     }
 }
 
-/** @type {<T>(tree: _.Tree<T>) => List.List<T>} */
-const values = map(nodeValues)
+export const empty = null
 
-export default {
-    /** @readonly */
-    empty: null,
-    /** @readonly */
-    values,
-}
+/** @type {<T>(tree: _.Tree<T>) => List.List<T>} */
+export const values = map(nodeValues)

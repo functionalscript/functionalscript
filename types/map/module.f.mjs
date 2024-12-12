@@ -1,12 +1,12 @@
 // @ts-self-types="./module.f.d.mts"
 import * as BtreeTypes from '../btree/types/module.f.mjs'
-import btf from '../btree/find/module.f.mjs'
+import * as btf from '../btree/find/module.f.mjs'
 const { value, find } = btf
 import bts from '../btree/set/module.f.mjs'
 const { set } = bts
 import btr from '../btree/remove/module.f.mjs'
 const { remove: btreeRemove } = btr
-import bt from '../btree/module.f.mjs'
+import * as bt from '../btree/module.f.mjs'
 const { values } = bt
 import * as Compare from '../function/compare/module.f.mjs'
 import s from '../string/module.f.mjs'
