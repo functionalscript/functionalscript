@@ -5,7 +5,7 @@ import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray, map: listMap, length } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as tokenizerT from '../tokenizer/module.f.mjs'
-import map, * as Map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.mjs'
 const { setReplace, at } = map
 import o, * as O from '../../types/object/module.f.mjs'
 const { fromMap } = o
@@ -26,7 +26,7 @@ const { fromMap } = o
 
 /** @typedef {['array', list.List<DjsConst>]} DjsStackArray */
 
-/** @typedef {['object', Map.Map<DjsConst>, string]} DjsStackObject */
+/** @typedef {['object', map.Map<DjsConst>, string]} DjsStackObject */
 
 
 /**
@@ -42,7 +42,7 @@ const { fromMap } = o
 
 /**
  * @typedef {{
-*  readonly refs: Map.Map<DjsModuleRef>
+*  readonly refs: map.Map<DjsModuleRef>
 *  readonly modules: list.List<string>
 *  readonly consts: list.List<DjsConst>
 * }} ModuleState

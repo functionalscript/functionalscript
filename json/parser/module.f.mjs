@@ -4,7 +4,7 @@ import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as Tokenizer from '../tokenizer/module.f.mjs'
-import map, * as Map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.mjs'
 const { setReplace } = map
 import * as Json from '../module.f.mjs'
 import o from '../../types/object/module.f.mjs'
@@ -14,7 +14,7 @@ const { fromMap } = o
 /**
  * @typedef {{
 * readonly kind: 'object'
-* readonly values: Map.Map<Json.Unknown>
+* readonly values: map.Map<Json.Unknown>
 * readonly key: string
 * }} JsonObject
 * */

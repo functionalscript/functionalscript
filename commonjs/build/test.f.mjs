@@ -1,5 +1,5 @@
 import * as _ from './module.f.mjs'
-import map, * as Map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.mjs'
 import * as Module from '../module/module.f.mjs'
 import * as ModuleFunction from '../module/function/module.f.mjs'
 import * as Result from '../../types/result/module.f.mjs'
@@ -69,7 +69,7 @@ const packageGet = packageId => {
 const getOrBuild = _.getOrBuild
     (compile)
     (packageGet)
-    (/** @type {Module.MapInterface<Map.Map<Module.State>>} */(map))
+    (/** @type {Module.MapInterface<map.Map<Module.State>>} */(map))
 
 export default () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(map.empty)

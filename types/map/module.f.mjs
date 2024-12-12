@@ -36,7 +36,7 @@ import * as Operator from '../function/operator/module.f.mjs'
 const keyCmp = a => ([b]) => cmp(a)(b)
 
 /** @type {(name: string) => <T>(map: Map<T>) => T|null} */
-const at = name => map => {
+export const at = name => map => {
     if (map === null) { return null }
     const result = value(find(keyCmp(name))(map).first)
     return result === null ? null : result[1]
@@ -47,36 +47,21 @@ const setReduceEntry = reduce => entry =>
     set(keyCmp(entry[0]))(old => old === null ? entry : [old[0], reduce(old[1])(entry[1])])
 
 /** @type {<T>(reduce: Operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>} */
-const setReduce = reduce => name => value => setReduceEntry(reduce)([name, value])
+export const setReduce = reduce => name => value => setReduceEntry(reduce)([name, value])
 
 /** @type {<T>(a: T) => (b: T) => T} */
 const replace = () => b => b
 
 /** @type {(name: string) => <T>(value: T) => (map: Map<T>) => Map<T>} */
-const setReplace = name => value => setReduceEntry(replace)([name, value])
+export const setReplace = name => value => setReduceEntry(replace)([name, value])
 
 /** @type {<T>(map: Map<T>) => list.List<Entry<T>>} */
-const entries = values
+export const entries = values
 
 /** @type {<T>(entries: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = fold(setReduceEntry(replace))(null)
+export const fromEntries = fold(setReduceEntry(replace))(null)
 
 /** @type {(name: string) => <T>(map: Map<T>) => Map<T>} */
-const remove = name => btreeRemove(keyCmp(name))
+export const remove = name => btreeRemove(keyCmp(name))
 
-export default {
-    /** @readonly */
-    empty: null,
-    /** @readonly */
-    at,
-    /** @readonly */
-    setReduce,
-    /** @readonly */
-    setReplace,
-    /** @readonly */
-    entries,
-    /** @readonly */
-    fromEntries,
-    /** @readonly */
-    remove,
-}
+export const empty = null
