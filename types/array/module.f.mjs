@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import option from '../nullable/module.f.mjs'
+import * as option from '../nullable/module.f.mjs'
 const { map } = option
 
 /**

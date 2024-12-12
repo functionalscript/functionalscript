@@ -2,7 +2,7 @@
 
 import * as list from '../list/module.f.mjs'
 const { flat } = list
-import n from '../nullable/module.f.mjs'
+import * as n from '../nullable/module.f.mjs'
 const { map } = n
 import * as _ from './types/module.f.mjs'
 

@@ -5,7 +5,7 @@ import * as find from '../find/module.f.mjs'
 import * as list from '../../list/module.f.mjs'
 const { fold, concat, next } = list
 import * as Array from '../../array/module.f.mjs'
-import n from '../../nullable/module.f.mjs'
+import * as n from '../../nullable/module.f.mjs'
 const { map } = n
 
 /**
