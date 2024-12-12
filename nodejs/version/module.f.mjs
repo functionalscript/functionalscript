@@ -20,7 +20,7 @@
 const { stringify, parse } = JSON
 
 /** @type {<T>(fs: Fs<T>) => string} */
-const getVersion = fs => readJson(fs)('package').version
+export const getVersion = fs => readJson(fs)('package').version
 
 const jsonFile = (/** @type {string} */jsonFile) => `${jsonFile}.json`
 
@@ -28,7 +28,7 @@ const jsonFile = (/** @type {string} */jsonFile) => `${jsonFile}.json`
 const readJson = fs => name => parse(fs.readFileSync(jsonFile(name)).toString())
 
 /** @type {<T>(node: Node<T>) => readonly[T, T]} */
-const updateVersion = ({ fs }) => {
+export const updateVersion = ({ fs }) => {
     const f = (/** @type {string} */name) => {
         return fs.writeFileSync(
             jsonFile(name),
@@ -44,9 +44,4 @@ const updateVersion = ({ fs }) => {
         f('package'),
         f('jsr')
     ]
-}
-
-export default {
-    getVersion,
-    updateVersion,
 }

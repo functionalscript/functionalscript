@@ -26,7 +26,7 @@ const { scalar_mul } = bi
  */
 
 /** @type {(p: bigint) => PrimeField} */
-const prime_field = p => {
+export const prime_field = p => {
     /** @type {Reduce} */
     const sub = a => b => {
         const r = a - b
@@ -77,15 +77,12 @@ const prime_field = p => {
     }
 }
 
-export default {
-    prime_field,
-    /** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
-    sqrt: ({p, mul, pow }) => {
-        if ((p & 3n) !== 3n) { throw 'sqrt' }
-        const sqrt_k = (p + 1n) >> 2n
-        return a => {
-            const result = pow(a)(sqrt_k)
-            return mul(result)(result) === a ? result : null
-        }
+/** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
+export const sqrt = ({p, mul, pow }) => {
+    if ((p & 3n) !== 3n) { throw 'sqrt' }
+    const sqrt_k = (p + 1n) >> 2n
+    return a => {
+        const result = pow(a)(sqrt_k)
+        return mul(result)(result) === a ? result : null
     }
 }

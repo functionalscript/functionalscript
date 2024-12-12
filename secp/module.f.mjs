@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 import * as Operator from '../types/function/operator/module.f.mjs'
-import pf, * as Pf from '../prime_field/module.f.mjs'
+import * as pf from '../prime_field/module.f.mjs'
 import bi from '../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 const { prime_field, sqrt } = pf
@@ -20,8 +20,8 @@ const { prime_field, sqrt } = pf
 
 /**
  * @typedef {{
- *  readonly pf: Pf.PrimeField
- *  readonly nf: Pf.PrimeField
+ *  readonly pf: pf.PrimeField
+ *  readonly nf: pf.PrimeField
  *  readonly y2: (x: bigint) => bigint
  *  readonly y: (x: bigint) => bigint|null
  *  readonly neg: (a: Point) => Point

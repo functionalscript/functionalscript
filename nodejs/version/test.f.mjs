@@ -1,4 +1,4 @@
-import _, * as T from './module.f.mjs'
+import * as _ from './module.f.mjs'
 
 const version = '0.3.0'
 
@@ -82,13 +82,13 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-/** @type {(s: string) => T.Buffer} */
+/** @type {(s: string) => _.Buffer} */
 const buffer = s => ({
     toString: () => s
 })
 
 export default () => {
-    /** @type {T.Node<string>} */
+    /** @type {_.Node<string>} */
     const node = {
         fs: {
             readFileSync: n => buffer(JSON.stringify(x[n])),
