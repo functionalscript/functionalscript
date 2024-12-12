@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import list, * as List from '../types/list/module.f.mjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
-import byteSet, * as byteSetT from '../types/byte_set/module.f.mjs'
+import * as byteSet from '../types/byte_set/module.f.mjs'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
 import sortedSet, * as SortedSet from '../types/sorted_set/module.f.mjs'
 const { intersect, union: sortedSetUnion } = sortedSet
@@ -18,7 +18,7 @@ const { identity } = f
 import * as utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16
 
-/** @typedef {readonly[string, byteSetT.ByteSet, string]} Rule */
+/** @typedef {readonly[string, byteSet.ByteSet, string]} Rule */
 
 /** @typedef {List.List<Rule>} Grammar */
 
@@ -30,16 +30,16 @@ const { stringToList } = utf16
 
 const stringifyIdentity = stringify(identity)
 
-/** @type {(s: string) => byteSetT.ByteSet} */
+/** @type {(s: string) => byteSet.ByteSet} */
 export const toRange = s => {
     const [b, e] = toArray(stringToList(s))
     return byteSet.range([b, e])
 }
 
-/** @type {Operator.Fold<number, byteSetT.ByteSet>} */
+/** @type {Operator.Fold<number, byteSet.ByteSet>} */
 const toUnionOp = i => bs => byteSetUnion(bs)(one(i))
 
-/** @type {(s: string) => byteSetT.ByteSet} */
+/** @type {(s: string) => byteSet.ByteSet} */
 export const toUnion = s => {
     const codePoints = stringToList(s)
     return fold(toUnionOp)(empty)(codePoints)

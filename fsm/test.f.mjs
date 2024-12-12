@@ -1,5 +1,5 @@
 import * as _ from './module.f.mjs'
-import byteSet from '../types/byte_set/module.f.mjs'
+import * as byteSet from '../types/byte_set/module.f.mjs'
 import o from '../types/object/module.f.mjs'
 const { sort, fromEntries } = o
 import * as json from '../json/module.f.mjs'
