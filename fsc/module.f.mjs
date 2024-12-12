@@ -4,7 +4,7 @@ import range_map, * as RM from '../types/range_map/module.f.mjs'
 const { merge: rangeMapMerge, fromRange, get } = range_map
 import list, * as List from '../types/list/module.f.mjs'
 const { reduce: listReduce } = list
-import ascii from '../text/ascii/module.f.mjs'
+import * as ascii from '../text/ascii/module.f.mjs'
 const { range: asciiRange } = ascii
 const { fromCharCode } = String
 import f from '../types/function/module.f.mjs'

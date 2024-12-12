@@ -10,9 +10,9 @@ const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 import * as bigfloatT from '../../types/bigfloat/module.f.mjs'
 const { fromCharCode } = String
-import ascii from '../../text/ascii/module.f.mjs'
+import * as ascii from '../../text/ascii/module.f.mjs'
+const { range } = ascii
 const {
-    range,
     //
     backspace,
     ht,
@@ -68,7 +68,7 @@ const {
     leftCurlyBracket,
     rightCurlyBracket,
     dollarSign
-} = ascii
+} = ascii.ascii
 
 /**
  * @typedef {{
