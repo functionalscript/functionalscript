@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 const { sum, abs, serialize, log2, bitLength } = _
 
 export default {

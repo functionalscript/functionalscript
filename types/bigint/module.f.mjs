@@ -8,18 +8,18 @@ const { reduce } = list
 /** @typedef {Operator.Unary<bigint, bigint>} Unary*/
 
 /** @type {(a: bigint) => (b: bigint) => bigint} */
-const addition = a => b => a + b
+export const addition = a => b => a + b
 
-const sum = reduce(addition)(0n)
+export const sum = reduce(addition)(0n)
 
 /** @type {(a: bigint) => bigint} */
-const abs = a => a >= 0 ? a : -a
+export const abs = a => a >= 0 ? a : -a
 
 /** @type {(a: bigint) => Compare.Sign} */
-const sign = a => unsafeCmp(a)(0n)
+export const sign = a => unsafeCmp(a)(0n)
 
 /** @type {(a: bigint) => string} */
-const serialize = a => `${a}n`
+export const serialize = a => `${a}n`
 
 /**
  * @template T
@@ -30,7 +30,7 @@ const serialize = a => `${a}n`
  */
 
 /** @type {<T>(a: Additive<T>) => (a: T) => (n: bigint) => T} */
-const scalar_mul = ({ 0: _0, add }) => a => n => {
+export const scalar_mul = ({ 0: _0, add }) => a => n => {
     let ai = a
     let ni = n
     let result = _0
@@ -64,7 +64,7 @@ const scalar_mul = ({ 0: _0, add }) => a => n => {
  * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
  *    determining the exact value of the logarithm.
  */
-const log2 = v => {
+export const log2 = v => {
     if (v <= 0n) { return -1n }
     let result = 0n
     let i = 1n
@@ -111,7 +111,7 @@ const log2 = v => {
  * The function uses the `log2` function to calculate the position of the most significant bit(MSB)
  * and adds `1n` to account for the MSB itself.For negative numbers, the absolute value is used.
  */
-const bitLength = v => {
+export const bitLength = v => {
     if (v <= 0n) {
         if (v === 0n) { return 0n }
         v = -v
@@ -121,19 +121,19 @@ const bitLength = v => {
 
 export default {
     /** @readonly */
-    addition,
+//    addition,
     /** @readonly */
-    sum,
+//    sum,
     /** @readonly */
-    abs,
+//    abs,
     /** @readonly */
-    sign,
+//    sign,
     /** @readonly */
-    serialize,
+//    serialize,
     /** @readonly */
-    scalar_mul,
+//    scalar_mul,
     /** @readonly */
-    log2,
+//    log2,
     /** @readonly */
-    bitLength,
+//    bitLength,
 }
