@@ -1,6 +1,6 @@
 // @ts-self-types="./module.f.d.mts"
 
-import result, * as Result from '../../types/result/module.f.mjs'
+import * as result from '../../types/result/module.f.mjs'
 import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray, map: listMap, length } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
@@ -413,7 +413,7 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: list.List<tokenizerT.DjsToken>) => Result.Result<DjsModule, string>} */
+/** @type {(tokenList: list.List<tokenizerT.DjsToken>) => result.Result<DjsModule, string>} */
 export const parse = tokenList => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {

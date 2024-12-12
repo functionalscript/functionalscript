@@ -1,6 +1,6 @@
 import unsafeResult from '../types/result/module.mjs'
 const { tryCatch } = unsafeResult
-import result from '../types/result/module.f.mjs'
+import * as result from '../types/result/module.f.mjs'
 const { unwrap } = result
 import * as ModuleFunction from './module/function/module.f.mjs'
 

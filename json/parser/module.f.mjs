@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import result, * as Result from '../../types/result/module.f.mjs'
+import * as result from '../../types/result/module.f.mjs'
 import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
@@ -206,7 +206,7 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: list.List<Tokenizer.JsonToken>) => Result.Result<Json.Unknown, string>} */
+/** @type {(tokenList: list.List<Tokenizer.JsonToken>) => result.Result<Json.Unknown, string>} */
 export const parse = tokenList => {
     const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
     switch (state.status) {
