@@ -7,7 +7,7 @@ import * as btr from '../btree/remove/module.f.mjs'
 const { remove: btreeRemove } = btr
 import * as bts from '../btree/set/module.f.mjs'
 const { set: btreeSet } = bts
-const {
+export const {
     /** @type {(s: StringSet) => list.List<string>} */
     values,
     empty,
@@ -22,30 +22,15 @@ const { compose } = f
 /** @typedef {BtreeTypes.Tree<string>} StringSet */
 
 /** @type {(value: string) => (set: StringSet) => boolean} */
-const contains = value => {
+export const contains = value => {
     const f = find(cmp(value))
     return s => s !== null && isFound(f(s).first)
 }
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const set = value => btreeSet(cmp(value))(() => value)
+export const set = value => btreeSet(cmp(value))(() => value)
 
-const fromValues = fold(set)(null)
+export const fromValues = fold(set)(null)
 
 /** @type {(value: string) => (s: StringSet) => StringSet} */
-const remove = compose(cmp)(btreeRemove)
-
-export default {
-    /** @readonly */
-    empty,
-    /** @readonly */
-    contains,
-    /** @readonly */
-    set,
-    /** @readonly */
-    values,
-    /** @readonly */
-    fromValues,
-    /** @readonly */
-    remove,
-}
+export const remove = compose(cmp)(btreeRemove)
