@@ -86,22 +86,22 @@ const uncheckTail = a => a.slice(1)
 const uncheckHead = a => a.slice(0, -1)
 
 /** @type {(index: number) => <T>(a: readonly T[]) => T|null} */
-const at = i => a => {
+export const at = i => a => {
     const r = a[i]
     return r === void 0 ? null : r
 }
 
 /** @type {<T>(_: readonly T[]) => T|null} */
-const first = at(0)
+export const first = at(0)
 
 /** @type {<T>(_: readonly T[]) => T|null} */
-const last = a => at(a.length - 1)(a)
+export const last = a => at(a.length - 1)(a)
 
 /** @type {<T>(_: readonly T[]) => readonly T[] | null} */
-const tail = a => a.length === 0 ? null : uncheckTail(a)
+export const tail = a => a.length === 0 ? null : uncheckTail(a)
 
 /** @type {<T>(_: readonly T[]) => readonly[T, readonly T[]]|null} */
-const splitFirst = a => {
+export const splitFirst = a => {
     /** @typedef {typeof a[0]} T*/
     /** @type {(_: T) => readonly[T, readonly T[]]} */
     const split = first => [first, uncheckTail(a)]
@@ -109,28 +109,11 @@ const splitFirst = a => {
 }
 
 /** @type {<T>(_: readonly T[]) => readonly T[]|null} */
-const head = a => a.length === 0 ? null : uncheckHead(a)
+export const head = a => a.length === 0 ? null : uncheckHead(a)
 
 /** @type {<T>(_: readonly T[]) => readonly[readonly T[], T]|null} */
-const splitLast = a => {
+export const splitLast = a => {
     const lastA = last(a)
     if (lastA === null) { return null }
     return [uncheckHead(a), lastA]
-}
-
-export default {
-    /** @readonly */
-    at,
-    /** @readnly */
-    first,
-    /** @readonly */
-    last,
-    /** @readonly */
-    head,
-    /** @readonly */
-    tail,
-    /** @readonly */
-    splitFirst,
-    /** @readonly */
-    splitLast,
 }
