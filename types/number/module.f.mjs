@@ -6,22 +6,11 @@ const { addition, min: minOp, max: maxOp } = operator
 import * as compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
 
-const sum = reduce(addition)(0)
+export const sum = reduce(addition)(0)
 
-const min = reduce(minOp)(null)
+export const min = reduce(minOp)(null)
 
-const max = reduce(maxOp)(null)
+export const max = reduce(maxOp)(null)
 
 /** @type {(a: number) => (b: number) => compare.Sign} */
-const cmp = unsafeCmp
-
-export default {
-    /** @readonly */
-    sum,
-    /** @readonly */
-    min,
-    /** @readonly */
-    max,
-    /** @readonly */
-    cmp,
-}
+export const cmp = unsafeCmp

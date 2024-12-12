@@ -3,7 +3,7 @@ import * as BTree from '../types/module.f.mjs'
 import s from '../../string/module.f.mjs'
 const { cmp } = s
 import * as json from '../../../json/module.f.mjs'
-import o from '../../object/module.f.mjs'
+import * as o from '../../object/module.f.mjs'
 const { sort } = o
 
 /** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */

@@ -3,7 +3,7 @@ import * as list from '../types/list/module.f.mjs'
 const { next, flat, map } = list
 import string  from '../types/string/module.f.mjs'
 const { concat } = string
-import object, * as O from '../types/object/module.f.mjs'
+import * as object from '../types/object/module.f.mjs'
 const { at } = object
 import * as f from '../types/function/module.f.mjs'
 const { compose, fn } = f
@@ -36,7 +36,7 @@ export const setProperty = value => {
 
 const colon = [':']
 
-/** @typedef {O.Entry<Unknown>} Entry*/
+/** @typedef {object.Entry<Unknown>} Entry*/
 
 /** @typedef {(list.List<Entry>)} Entries */
 

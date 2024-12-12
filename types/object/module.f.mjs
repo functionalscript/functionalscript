@@ -18,27 +18,16 @@ const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
  */
 
 /** @type {(name: string) => <T>(object: Map<T>) => T|null} */
-const at = name => object => {
+export const at = name => object => {
     const r = getOwnPropertyDescriptor(object, name)
     return r === void 0 ? null : r.value
 }
 
 /** @type {<T>(e: list.List<Entry<T>>) => list.List<Entry<T>>} */
-const sort = e => mapEntries(mapFromEntries(e))
+export const sort = e => mapEntries(mapFromEntries(e))
 
 /** @type {<T>(e: list.List<Entry<T>>) => Map<T>} */
-const fromEntries = e => objectFromEntries(iterable(e))
+export const fromEntries = e => objectFromEntries(iterable(e))
 
 /** @type {<T>(m: btMap.Map<T>) => Map<T>} */
-const fromMap = m => fromEntries(mapEntries(m))
-
-export default {
-    /** @readonly */
-    at,
-    /** @readonly */
-    sort,
-    /** @readonly */
-    fromEntries,
-    /** @readonly */
-    fromMap,
-}
+export const fromMap = m => fromEntries(mapEntries(m))

@@ -1,6 +1,6 @@
 import * as encoding from './module.f.mjs'
 import * as json from '../../json/module.f.mjs'
-import o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.mjs'
 const { sort } = o
 import * as list from '../../types/list/module.f.mjs'
 

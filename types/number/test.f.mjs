@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 const { sum, min, max, cmp } = _
 
 export default {

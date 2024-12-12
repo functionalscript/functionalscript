@@ -1,5 +1,5 @@
 import * as json from './module.f.mjs'
-import o from '../types/object/module.f.mjs'
+import * as o from '../types/object/module.f.mjs'
 const { sort } = o
 import * as f from '../types/function/module.f.mjs'
 const { identity } = f

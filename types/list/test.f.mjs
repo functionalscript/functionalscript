@@ -1,6 +1,6 @@
 import * as _ from './module.f.mjs'
 import * as json from '../../json/module.f.mjs'
-import o  from '../object/module.f.mjs'
+import * as o from '../object/module.f.mjs'
 const { sort } = o
 import * as operator from '../function/operator/module.f.mjs'
 const { addition, strictEqual, reduceToScan } = operator

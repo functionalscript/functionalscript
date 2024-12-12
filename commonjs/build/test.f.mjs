@@ -4,7 +4,7 @@ import * as Module from '../module/module.f.mjs'
 import * as ModuleFunction from '../module/function/module.f.mjs'
 import * as Result from '../../types/result/module.f.mjs'
 import * as Package from '../package/module.f.mjs'
-import o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.mjs'
 const { at } = o
 
 /** @type {{ readonly [k in string]?: Result.Result<ModuleFunction.Function_, unknown> }} */

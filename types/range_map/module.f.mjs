@@ -4,7 +4,7 @@ const { genericMerge } = sortedList
 import * as list from '../list/module.f.mjs'
 const { next } = list
 import * as Option from '../nullable/module.f.mjs'
-import number from '../number/module.f.mjs'
+import * as number from '../number/module.f.mjs'
 const { cmp } = number
 import * as O from '../function/operator/module.f.mjs'
 import * as Range from '../range/module.f.mjs'

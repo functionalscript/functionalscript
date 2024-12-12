@@ -7,7 +7,7 @@ import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as tokenizerT from '../tokenizer/module.f.mjs'
 import * as map from '../../types/map/module.f.mjs'
 const { setReplace, at } = map
-import o, * as O from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.mjs'
 const { fromMap } = o
 
 /** @typedef {[readonly string[], readonly DjsConst[]] } DjsModule */
