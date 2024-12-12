@@ -1,5 +1,5 @@
 import _ from './module.f.mjs'
-import compare from '../function/compare/module.f.mjs'
+import * as compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
 import * as json from '../../json/module.f.mjs'
 import object from '../object/module.f.mjs'
@@ -7,7 +7,7 @@ const { sort } = object
 import list from '../list/module.f.mjs'
 const { toArray, countdown, length } = list
 import * as Map from '../map/module.f.mjs'
-import f from '../function/module.f.mjs'
+import * as f from '../function/module.f.mjs'
 const { flip } = f
 
 /** @type {(a: readonly json.Unknown[]) => string} */

@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 import * as O from '../../types/object/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
-import f from '../../types/function/module.f.mjs'
+import * as f from '../../types/function/module.f.mjs'
 const { compose } = f
 const { filter } = list
 const { entries } = Object

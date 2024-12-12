@@ -2,7 +2,7 @@ import * as _ from './module.f.mjs'
 import * as dev from '../../dev/module.f.mjs'
 const { todo } = dev
 import * as json from '../../json/module.f.mjs'
-import f from '../../types/function/module.f.mjs'
+import * as f from '../../types/function/module.f.mjs'
 const { identity } = f
 import object, * as O from '../../types/object/module.f.mjs'
 const { at } = object

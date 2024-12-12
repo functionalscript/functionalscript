@@ -12,10 +12,10 @@
  */
 
 /** @type {(separator: string) => Reduce<string>} */
-const join = separator => value => prior => `${prior}${separator}${value}`
+export const join = separator => value => prior => `${prior}${separator}${value}`
 
 /** @type {Reduce<string>} */
-const concat = i => acc => `${acc}${i}`
+export const concat = i => acc => `${acc}${i}`
 
 /**
  * @template T
@@ -24,7 +24,7 @@ const concat = i => acc => `${acc}${i}`
  */
 
 /** @type {Unary<boolean, boolean>} */
-const logicalNot = v => !v
+export const logicalNot = v => !v
 
 /**
  * @template T
@@ -32,7 +32,7 @@ const logicalNot = v => !v
  */
 
 /** @type {<T>(a: T) => (b: T) => boolean} */
-const strictEqual = a => b => a === b
+export const strictEqual = a => b => a === b
 
 /**
  * @template I,O
@@ -45,13 +45,13 @@ const strictEqual = a => b => a === b
  */
 
 /** @type {<I, S, O>(op: StateScan<I, S, O>) => (prior: S) => Scan<I, O>} */
-const stateScanToScan = op => prior => i => {
+export const stateScanToScan = op => prior => i => {
     const [o, s] = op(prior)(i)
     return [o, stateScanToScan(op)(s)]
 }
 
 /** @type {<I, O>(fold: Fold<I, O>) => (prior: O) => Scan<I, O>} */
-const foldToScan = fold => prior => i => {
+export const foldToScan = fold => prior => i => {
     const result = fold(i)(prior)
     return [result, foldToScan(fold)(result)]
 }
@@ -62,44 +62,17 @@ const foldToScan = fold => prior => i => {
  */
 
 /** @type {<T>(fold: Reduce<T>) => Scan<T, T>} */
-const reduceToScan = op => init => [init, foldToScan(op)(init)]
+export const reduceToScan = op => init => [init, foldToScan(op)(init)]
 
 /** @type {Reduce<number>} */
-const addition = a => b => a + b
+export const addition = a => b => a + b
 
 /** @type {Reduce<number>} */
-const min = a => b => a < b ? a : b
+export const min = a => b => a < b ? a : b
 
 /** @type {Reduce<number>} */
-const max = a => b => a > b ? a : b
+export const max = a => b => a > b ? a : b
 
-const increment = addition(1)
+export const increment = addition(1)
 
-const counter = () => increment
-
-export default {
-    /** @readonly */
-    join,
-    /** @readonly */
-    addition,
-    /** @readonly */
-    increment,
-    /** @readonly */
-    strictEqual,
-    /** @readonly */
-    logicalNot,
-    /** @readonly */
-    min,
-    /** @readonly */
-    max,
-    /** @readonly */
-    stateScanToScan,
-    /** @readonly */
-    foldToScan,
-    /** @readonly */
-    reduceToScan,
-    /** @readonly */
-    counter,
-    /** @readonly */
-    concat,
-}
+export const counter = () => increment

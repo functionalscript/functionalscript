@@ -13,21 +13,21 @@
  *
  * @type {<I, X>(g: Func<I, X>) => <O>(f: Func<X, O>) => Func<I, O>}
  */
-const compose = g => f => x => f(g(x))
+export const compose = g => f => x => f(g(x))
 
 /**
  * A generic identity function.
  *
  * @type {<T>(value: T) => T}
  */
-const identity = value => value
+export const identity = value => value
 
 /**
  * Flips the arguments of a curried function.
  *
  * @type {<A, B, C>(f: (a: A) => (b: B) => C) => (b: B) => (a: A) => C}
  */
-const flip = f => b => a => f(a)(b)
+export const flip = f => b => a => f(a)(b)
 
 /**
  * A functional utility type that enables seamless chaining of transformations.
@@ -44,18 +44,7 @@ const flip = f => b => a => f(a)(b)
  *
  * @type {<I, O>(f: (i: I) => O) => Fn<I, O>}
  */
-const fn = result => ({
+export const fn = result => ({
     result,
     then: g => fn(compose(result)(g))
 })
-
-export default {
-    /** @readonly */
-    identity,
-    /** @readonly */
-    compose,
-    /** @readonly */
-    flip,
-    /** @readonly */
-    fn,
-}

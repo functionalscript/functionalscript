@@ -4,7 +4,7 @@ const { map, flatMap, flat, concat: listConcat } = list
 import s from '../types/string/module.f.mjs'
 const { concat: stringConcat } = s
 import * as O from '../types/object/module.f.mjs'
-import f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.mjs'
 const { compose } = f
 import * as utf16 from '../text/utf16/module.f.mjs'
 const { stringToList } = utf16

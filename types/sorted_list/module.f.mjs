@@ -3,7 +3,7 @@ import * as compare from '../function/compare/module.f.mjs'
 import list, * as List from '../list/module.f.mjs'
 import * as option from '../nullable/module.f.mjs'
 const { next } = list
-import f from '../function/module.f.mjs'
+import * as f from '../function/module.f.mjs'
 const { identity } = f
 
 /**

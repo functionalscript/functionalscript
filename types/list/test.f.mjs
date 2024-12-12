@@ -2,7 +2,7 @@ import _,  * as T from './module.f.mjs'
 import * as json from '../../json/module.f.mjs'
 import o  from '../object/module.f.mjs'
 const { sort } = o
-import operator from '../function/operator/module.f.mjs'
+import * as operator from '../function/operator/module.f.mjs'
 const { addition, strictEqual, reduceToScan } = operator
 
 /** @type {(sequence: T.List<json.Unknown>) => string} */

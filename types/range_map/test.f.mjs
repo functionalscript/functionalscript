@@ -1,12 +1,12 @@
 import _, * as T from './module.f.mjs'
-import compare from '../function/compare/module.f.mjs'
+import * as compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
 import * as json from '../../json/module.f.mjs'
 import object from '../object/module.f.mjs'
 const { sort } = object
 import sortedSet, * as SortedSet from '../sorted_set/module.f.mjs'
 import list from '../list/module.f.mjs'
-import operator from '../function/operator/module.f.mjs'
+import * as operator from '../function/operator/module.f.mjs'
 
 /** @type {(a: readonly json.Unknown[]) => string} */
 const stringify = json.stringify(sort)

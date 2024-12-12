@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import compare, * as Compare from '../function/compare/module.f.mjs'
+import * as compare from '../function/compare/module.f.mjs'
 import * as Operator from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
 import list from '../list/module.f.mjs'
@@ -15,7 +15,7 @@ export const sum = reduce(addition)(0n)
 /** @type {(a: bigint) => bigint} */
 export const abs = a => a >= 0 ? a : -a
 
-/** @type {(a: bigint) => Compare.Sign} */
+/** @type {(a: bigint) => compare.Sign} */
 export const sign = a => unsafeCmp(a)(0n)
 
 /** @type {(a: bigint) => string} */

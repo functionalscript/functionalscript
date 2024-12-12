@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import f from '../function/module.f.mjs'
+import * as f from '../function/module.f.mjs'
 const { compose } = f
 import * as RangeMap from '../range_map/module.f.mjs'
 import * as SortedSet from '../sorted_set/module.f.mjs'

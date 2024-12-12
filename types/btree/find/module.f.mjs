@@ -1,13 +1,13 @@
 // @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
 import * as List from '../../list/module.f.mjs'
-import cmp, * as cmpT from '../../function/compare/module.f.mjs'
+import * as cmp from '../../function/compare/module.f.mjs'
 const { index3, index5 } = cmp
 import * as Array from '../../array/module.f.mjs'
 
 /**
  * @template T
- * @typedef {readonly[cmpT.Index3, _.Leaf1<T>]} FirstLeaf1
+ * @typedef {readonly[cmp.Index3, _.Leaf1<T>]} FirstLeaf1
  */
 
 /**
@@ -17,7 +17,7 @@ import * as Array from '../../array/module.f.mjs'
 
 /**
  * @template T
- * @typedef {readonly[cmpT.Index5, _.Leaf2<T>]} FirstLeaf2
+ * @typedef {readonly[cmp.Index5, _.Leaf2<T>]} FirstLeaf2
  */
 
 /**
@@ -62,11 +62,11 @@ const child = item =>
  * }} Result<T>
  */
 
-/** @type {<T>(c: cmpT.Compare<T>) => (node: _.Node<T>) => Result<T>} */
+/** @type {<T>(c: cmp.Compare<T>) => (node: _.Node<T>) => Result<T>} */
 export const find = c => {
     const i3 = index3(c)
     const i5 = index5(c)
-    /** @typedef {typeof c extends cmpT.Compare<infer T> ? T : never} T */
+    /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     /** @type {(prior: Path<T>) => (node: _.Node<T>) => Result<T>} */
     const f = tail => node => {
         /** @type {(index: Array.KeyOf<typeof node>) => Result<T>} */

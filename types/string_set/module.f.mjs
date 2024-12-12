@@ -16,7 +16,7 @@ import string from "../string/module.f.mjs"
 const { cmp } = string
 import list from '../list/module.f.mjs'
 const { fold } = list
-import f from '../function/module.f.mjs'
+import * as f from '../function/module.f.mjs'
 const { compose } = f
 
 /** @typedef {BtreeTypes.Tree<string>} StringSet */

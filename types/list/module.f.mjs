@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
-import function_ from '../function/module.f.mjs'
+import * as function_ from '../function/module.f.mjs'
 const { identity, fn, compose } = function_
-import operator, * as Operator from '../function/operator/module.f.mjs'
+import * as operator from '../function/operator/module.f.mjs'
 const {
     addition,
     logicalNot,
@@ -235,25 +235,25 @@ const cycle = list => () => {
     return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
 
-/** @type {<I, O>(op: Operator.Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
+/** @type {<I, O>(op: operator.Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
 const scanStep = op => ne => {
     const [first, newOp] = op(ne.first)
     return { first, tail: scan(newOp)(ne.tail) }
 }
 
-/** @type {<I, O>(op: Operator.Scan<I, O>) => (input: List<I>) => Thunk<O>} */
+/** @type {<I, O>(op: operator.Scan<I, O>) => (input: List<I>) => Thunk<O>} */
 const scan = op => apply(scanStep(op))
 
-/** @type {<I, S, O>(op: Operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
+/** @type {<I, S, O>(op: operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
 const stateScan = op => compose(stateScanToScan(op))(scan)
 
-/** @type {<I,O>(op: Operator.Fold<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
+/** @type {<I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => Thunk<O>} */
 const foldScan = op => compose(foldToScan(op))(scan)
 
-/** @type {<I,O>(op: Operator.Fold<I, O>) => (init: O) => (input: List<I>) => O} */
+/** @type {<I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => O} */
 const fold = op => init => compose(foldScan(op)(init))(last(init))
 
-/** @type {<T>(op: Operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
+/** @type {<T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T} */
 const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
 /** @type {<T>(list: List<T>) => Thunk<number>} */
@@ -284,7 +284,7 @@ const entryOperator = index => value => [[index, value], index + 1]
 /** @type {<T>(input: List<T>) => Thunk<Entry<T>>} */
 const entries = input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
-    /** @type {Operator.StateScan<T, Number, Entry<T>>} */
+    /** @type {operator.StateScan<T, Number, Entry<T>>} */
     const o = entryOperator
     return stateScan(o)(0)(input)
 }
@@ -304,9 +304,9 @@ const zip = a => b => () => {
     return { first: [aResult.first, bResult.first], tail: zip(aResult.tail)(bResult.tail) }
 }
 
-/** @type {<T>(e: Operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
+/** @type {<T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean} */
 const equal = e => {
-    /** @typedef {typeof e extends Operator.Equal<infer T> ? T : never} T */
+    /** @typedef {typeof e extends operator.Equal<infer T> ? T : never} T */
     /** @type {(a: List<T>) => (b: List<T>) => List<boolean>} */
     const f = a => b => () => {
         const [aResult, bResult] = [next(a), next(b)]

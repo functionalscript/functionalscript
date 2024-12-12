@@ -5,7 +5,7 @@ import string  from '../types/string/module.f.mjs'
 const { concat } = string
 import object, * as O from '../types/object/module.f.mjs'
 const { at } = object
-import f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.mjs'
 const { compose, fn } = f
 const { entries } = Object
 import * as s from './serializer/module.f.mjs'

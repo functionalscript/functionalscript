@@ -3,7 +3,7 @@ import * as byteSet from '../types/byte_set/module.f.mjs'
 import o from '../types/object/module.f.mjs'
 const { sort, fromEntries } = o
 import * as json from '../json/module.f.mjs'
-import f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.mjs'
 const { identity } = f
 import list from '../types/list/module.f.mjs'
 const { toArray } = list

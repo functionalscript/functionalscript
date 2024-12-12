@@ -6,7 +6,7 @@ import * as O from '../../types/object/module.f.mjs'
 import list, * as List from '../../types/list/module.f.mjs'
 const { flat, map, flatMap } = list
 const { entries } = Object
-import func from '../../types/function/module.f.mjs'
+import * as func from '../../types/function/module.f.mjs'
 const { fn } = func
 import string from '../../types/string/module.f.mjs'
 const { join } = string
