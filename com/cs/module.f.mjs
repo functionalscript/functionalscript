@@ -127,8 +127,7 @@ const header = [
 
 /**
  * Generates the C# code for a library.
- * @param {string} name - The namespace name for the C# library.
- * @returns {(library: types.Library) => text.Block} - A function that takes a library definition and generates the corresponding C# code block.
+ * @type {(name: string) => (library: types.Library) => text.Block}
  */
 export const cs = name => library => {
     const v = flatMapDef(entries(library))
