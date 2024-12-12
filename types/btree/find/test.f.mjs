@@ -6,7 +6,7 @@ const { sort } = o
 import * as btree from '../types/module.f.mjs'
 import string from '../../string/module.f.mjs'
 const { cmp } = string
-import s from '../set/module.f.mjs'
+import * as s from '../set/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 

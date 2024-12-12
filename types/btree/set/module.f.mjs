@@ -89,9 +89,4 @@ const nodeSet = c => g => node => {
 }
 
 /** @type {<T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
-const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
-
-export default {
-    /** @readonly */
-    set,
-}
+export const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)

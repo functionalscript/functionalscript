@@ -118,7 +118,7 @@ const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 const initReduce = reduceX([initValue0, initValue1])
 
 /** @type {<T>(c: Cmp.Compare<T>) => (node: _.Node<T>) => _.Tree<T>} */
-const nodeRemove = c => node => {
+export const nodeRemove = c => node => {
     /** @typedef {typeof c extends Cmp.Compare<infer T> ? T : never} T */
     /** @type  {() => null | RemovePath<T>} */
     const f = () => {
@@ -158,11 +158,4 @@ const nodeRemove = c => node => {
 }
 
 /** @type {<T>(c: Cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>} */
-const remove =  c => map(nodeRemove(c))
-
-export default {
-    /** @readonly */
-    nodeRemove,
-    /** @readonly */
-    remove,
-}
+export const remove =  c => map(nodeRemove(c))

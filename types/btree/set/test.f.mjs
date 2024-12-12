@@ -1,4 +1,4 @@
-import _ from './module.f.mjs'
+import * as _ from './module.f.mjs'
 import * as BTree from '../types/module.f.mjs'
 import s from '../../string/module.f.mjs'
 const { cmp } = s

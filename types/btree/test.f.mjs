@@ -7,7 +7,7 @@ const { sort } = o
 import str from '../string/module.f.mjs'
 const { cmp } = str
 import list, * as List from '../list/module.f.mjs'
-import s from './set/module.f.mjs'
+import * as s from './set/module.f.mjs'
 import * as f from './find/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
