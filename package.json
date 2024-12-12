@@ -4,7 +4,7 @@
   "type": "module",
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
-    "tscp": "rm -rf out/ && tsc --allowJs --declaration --module ES2022 --target ES2022 --noEmit false --outDir out/ **/module.f.mjs",
+    "tscp": "rm -rf out/ && tsc --NoEmit false",
     "tsc": "tsc",
     "test": "tsc && npm run test-only",
     "index": "node ./dev/index.mjs",
@@ -33,7 +33,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.10.1",
+    "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
   }
 }
