@@ -149,3 +149,7 @@ type Request = readonly[Input, Continuation];
 type Continuation = (_: Output) => Request;
 type Main = Request
 ```
+
+## 6. Content-Addressable VM
+
+See also [Unison](https://www.unison-lang.org/).
