@@ -164,4 +164,4 @@ Hash structure: we will use several initial hashes for a compress function.
 
 We may use CDT for huge arrays, objects, strings and bigints.
 
-The first bit of a hash is reserved for a tag. If the tag is 0 then we have raw data with 1 at the end. A hash with all zeroes is used for 'undefined'. If the first bit is 0 then the value is a hash.
+The first bit of a hash is reserved for a tag. If the tag is 0 then we have raw data with 1 at the end. A hash with all zeroes is used for 'undefined'. If the first bit is 0 then the value is a hash. So we have only 255 bits for a hash.
