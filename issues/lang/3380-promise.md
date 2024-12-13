@@ -1,8 +1,8 @@
 # Promise
 
-It could be blocked until we solve ownership problem.
+It could be blocked until we solve the ownership problem.
 
-Promise is the main object. `async`, `await` is a syntax sugar. If we can safely work with promises than we can transform a FunctionalScript program with `async` functions to a normal function with Promises.
+Promise is the main object. `async` and `await` are syntax sugars. If we can safely work with promises, we can transform a FunctionalScript program with `async` functions into a normal function with Promises.
 
 ## `.then()`
 
