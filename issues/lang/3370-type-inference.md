@@ -1,6 +1,6 @@
 # Type Inference
 
-We need type inference to prove that a specific values have specific types. Type annotations can help but we can't trust them.
+We need type inference to prove that specific values have specific types. Type annotations can help, but we can't trust them.
 
 ## Level 1
 
@@ -28,7 +28,7 @@ It is a set. For example,
 Set<Type>
 ```
 
-On this level we can extend our `Type` definition with some known finite values:
+On this level, we can extend our `Type` definition with some known finite values:
 
 ```rs
 enum Type {
@@ -66,4 +66,4 @@ The set is finite and can be implemented using a bit-set.
 
 ### Level 3
 
-Compare to level 2, this level contains dynamic information about subsets of the type.
+Compared to level 2, this level contains dynamic information about subsets of the type.
