@@ -110,6 +110,8 @@ File extensions: `.f.js` and `.f.mjs`.
 1. [ ] [expression](./3210-expression.md)
 2. [ ] [one-parameter](./3220-one-parameter.md)
 3. [ ] [assignments](./3330-assignments.md)
+4. [ ] Promises
+5. [ ] Regular Expressions
 
 ## 4. ECMAScript Proposals
 
