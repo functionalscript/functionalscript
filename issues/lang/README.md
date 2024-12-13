@@ -1,6 +1,7 @@
 # FunctionalScript Language
 
-Two main FunctionsScript princples:
+Two main FunctionsScript principles:
+
 1. if FS code pass validation/compilation, then it doesn't have side-effects,
 2. the code that passed validation/compilation should behave on FunctionalScript VM the same way as on any other modern JavaScript engine.
 
