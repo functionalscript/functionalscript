@@ -133,17 +133,17 @@ Using dependency injection.
 
 This implementation of VM requires external function implementation.
 
-### 5.2. State Machine with Asynchronous Requests
+### 5.2 Isolated Asynchronous I/O
+
+It requires a promise implementation at least on a parser level.
+
+### 5.3. State Machine with Asynchronous Requests
+
+VM doesn't need to implement external functions or promises.
 
 ```ts
 type RequestType = ...;
 type Request = readonly[Input, Continuation];
 type Continuation = (_: Output) => Request;
 type Main = Request
-```
-
-```ts
-const f = async(io) => {
-   const v = await io.write()
-}
 ```
