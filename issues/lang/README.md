@@ -188,4 +188,6 @@ enum Value {
    Ref(u48)
 }
 ```
+
+Collision probability for 48 bits is 50% for `2^24` hashes (birthday attack). 
     
