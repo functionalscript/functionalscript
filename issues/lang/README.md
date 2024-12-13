@@ -99,23 +99,27 @@ File extensions: `.f.js` and `.f.mjs`.
 2. [ ] [parameters](./3120-parameters.md)
 3. [ ] [body-const](./3130-body-const.md)
 
-### 3.2. Priority 1
+### 3.2. Priority 2
 
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
 4. [ ] [export](./3240-export.md)
-5. [ ] Regular Expressions
-6. [ ] Ownership of Mutable Objects (Singletons)
-7. [ ] [type inference](./3270-type-inference.md)
-8. [ ] [async/await](./3280-async.md)
-9. [ ] [class](./3290-class.md)
+5. [ ] Ownership of Mutable Objects (Singletons)
 
-### 3.3. Syntactic Sugar
+### 3.3. Priority 3
 
-1. [ ] [expression](./3310-expression.md)
-2. [ ] [one-parameter](./3320-one-parameter.md)
-3. [ ] [assignments](./3330-assignments.md)
+1. [ ] Regular Expressions
+2. [ ] [type inference](./3370-type-inference.md)
+3. [ ] [async/await](./3380-async.md)
+4. [ ] [class](./3390-class.md)
+
+### 3.4. Syntactic Sugar
+
+1. [ ] [expression](./3410-expression.md)
+2. [ ] [one-parameter](./3420-one-parameter.md)
+3. [ ] [assignments](./3430-assignments.md)
+4. [ ] `async`/`await`. Depends on implementation of promises.
 
 ## 4. ECMAScript Proposals
 
