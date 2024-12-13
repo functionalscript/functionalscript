@@ -180,7 +180,7 @@ enum Value {
 }
 ```
 
-However while the `===` operation can be faster,  `Value::Hash` is slower when we need to access internals of the object, because it requires two dereferences. So we may comeback to use only references.
+However while the `===` operation can be faster,  `Value::Hash` is slower when we need to access internals of the object, because it requires two dereference operations. So we may comeback to use only references.
 
 ```rust
 enum Value {
