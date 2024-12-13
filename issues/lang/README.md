@@ -158,6 +158,8 @@ type Main = Request
 
 See also [Unison](https://www.unison-lang.org/).
 
+The main target is run-time performance.
+
 Hash function: most likely SHA256 because there are a lot of hardware support from modern processors.
 
 Hash structure: we will use several initial hashes for a compress function.
@@ -165,3 +167,5 @@ Hash structure: we will use several initial hashes for a compress function.
 We may use CDT for huge arrays, objects, strings and bigints.
 
 The first bit of a hash is reserved for a tag. If the tag is 0 then we have raw data with 1 at the end. A hash with all zeroes is used for 'undefined'. If the first bit is 0 then the value is a hash. So we have only 255 bits for a hash.
+
+Because we use tagged hash, we can keep small values in a `nanenum`. So it may reuse a lot from non-content addressable VM and ref-values can keep a lazy hash (not calculated until needed).
