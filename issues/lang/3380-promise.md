@@ -1,12 +1,10 @@
-# `aync` / `await` Functions
+# Promise
 
 It could be blocked until we solve ownership problem.
 
-## `Promise`
-
 Promise is the main object. `async`, `await` is a syntax sugar. If we can safely work with promises than we can transform a FunctionalScript program with `async` functions to a normal function with Promises.
 
-### `.then()`
+## `.then()`
 
 ```ts
 a.then(f)

@@ -111,7 +111,7 @@ File extensions: `.f.js` and `.f.mjs`.
 
 1. [ ] Regular Expressions
 2. [ ] [type inference](./3370-type-inference.md)
-3. [ ] [async/await](./3380-async.md)
+3. [ ] [promise](./3380-promise.md)
 4. [ ] [class](./3390-class.md)
 
 ### 3.4. Syntactic Sugar
