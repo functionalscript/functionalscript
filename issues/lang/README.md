@@ -2,7 +2,7 @@
 
 Two main FunctionsScript principles:
 
-1. if FS code pass validation/compilation, then it doesn't have side-effects,
+1. if FS code passes validation/compilation, then it doesn't have side-effects,
 2. the code that passed validation/compilation should behave on FunctionalScript VM the same way as on any other modern JavaScript engine.
 
 When we implement features of FunctionalScript, the first priority is a simplification of the VM.
@@ -119,7 +119,7 @@ File extensions: `.f.js` and `.f.mjs`.
 1. [ ] [expression](./3410-expression.md)
 2. [ ] [one-parameter](./3420-one-parameter.md)
 3. [ ] [assignments](./3430-assignments.md)
-4. [ ] `async`/`await`. Depends on implementation of promises.
+4. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ## 4. ECMAScript Proposals
 
@@ -141,7 +141,7 @@ This implementation of VM requires external function implementation.
 
 ### 5.2 Isolated Asynchronous I/O
 
-It requires a promise implementation at least on a parser level.
+It requires a promise implementation.
 
 ### 5.3. State Machine with Asynchronous Requests
 
