@@ -109,6 +109,7 @@ File extensions: `.f.js` and `.f.mjs`.
 6. [ ] Ownership of Mutable Objects (Singletons)
 7. [ ] [type inference](./3270-type-inference.md)
 8. [ ] [async/await](./3280-async.md)
+9. [ ] [class](./3290-class.md)
 
 ### 3.3. Syntactic Sugar
 
