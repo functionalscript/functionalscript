@@ -1,4 +1,11 @@
 // @ts-self-types="./module.f.d.mts"
+
+/**
+ * This module generates Rust code for COM interop from a high-level type library definition.
+ *
+ * The module provides functions to define structs, traits, and implementations in Rust,
+ * specifically tailored for `nanocom` interoperation.
+ */
 import * as types from '../types/module.f.mjs'
 const { paramList } = types
 import * as Text from '../../text/module.f.mjs'
@@ -131,7 +138,12 @@ const traitImpl = t => {
 
 const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<Self>: Ex']
 
-/** @type {(library: types.Library) => Text.Block} */
+/**
+ * Generates Rust code for the given type library.
+ *
+ * @param {types.Library} library - The library of type definitions to generate Rust code for.
+ * @returns {Text.Block} - A block of Rust code representing the library.
+ */
 export const rust = library => {
 
     /** @type {(p: string) => (o: (_: string) => string) => (t: types.Type) => string} */
