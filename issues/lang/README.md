@@ -107,7 +107,7 @@ File extensions: `.f.js` and `.f.mjs`.
 5. [ ] Regular Expressions
 6. [ ] Ownership of Mutable Objects (Singletons)
 7. [ ] [type inference](./3270-type-inference.md)
-8. [ ] `async`/`await` and Promises
+8. [ ] [async/await](./3280-async.md)
 
 ### 3.3. Syntactic Sugar
 
@@ -124,3 +124,26 @@ File extensions: `.f.js` and `.f.mjs`.
    - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2.
+
+## 5. I/O
+
+### 5.1. Isolated I/O
+
+Using dependency injection.
+
+This implementation of VM requires external function implementation.
+
+### 5.2. State Machine with Asynchronous Requests
+
+```ts
+type RequestType = ...;
+type Request = readonly[Input, Continuation];
+type Continuation = (_: Output) => Request;
+type Main = Request
+```
+
+```ts
+const f = async(io) => {
+   const v = await io.write()
+}
+```
