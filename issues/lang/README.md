@@ -113,8 +113,8 @@ File extensions: `.f.js` and `.f.mjs`.
 
 ### 3.3. Syntactic Sugar
 
-1. [ ] [expression](./3210-expression.md)
-2. [ ] [one-parameter](./3220-one-parameter.md)
+1. [ ] [expression](./3310-expression.md)
+2. [ ] [one-parameter](./3320-one-parameter.md)
 3. [ ] [assignments](./3330-assignments.md)
 
 ## 4. ECMAScript Proposals
