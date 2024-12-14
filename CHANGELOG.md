@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- djs: add undefined and comments [PR #325](https://github.com/functionalscript/functionalscript/pull/325).
+
 ## 0.2.3
 
 - BitVec and documentation update [PR #322](https://github.com/functionalscript/functionalscript/pull/322).

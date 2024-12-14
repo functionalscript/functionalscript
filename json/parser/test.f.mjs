@@ -244,5 +244,11 @@ export default {
             const result = stringify(obj)
             if (result !== '["error","unexpected token"]') { throw result }
         },
+        () => {
+            const tokenList = tokenizeString('undefined')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["error","unexpected token"]') { throw result }
+        },
     ]
 }
