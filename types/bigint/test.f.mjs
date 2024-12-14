@@ -77,6 +77,11 @@ export default {
             const result = log2(1n << v)
             if (result !== v) { throw result }
         },
+        () => {
+            const v = 0x18945n
+            const result = log2(v)
+            if (result !== 16n) { throw result }
+        }
     ],
     toString2: () => {
         // max for Bun (131_072 Bytes)

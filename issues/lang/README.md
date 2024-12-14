@@ -1,7 +1,8 @@
 # FunctionalScript Language
 
-Two main FunctionsScript princples:
-1. if FS code pass validation/compilation, then it doesn't have side-effects,
+Two main FunctionsScript principles:
+
+1. if FS code passes validation/compilation, then it doesn't have side-effects,
 2. the code that passed validation/compilation should behave on FunctionalScript VM the same way as on any other modern JavaScript engine.
 
 When we implement features of FunctionalScript, the first priority is a simplification of the VM.
@@ -22,7 +23,7 @@ File Types:
 
 **VM**:
 
-We are introducing new commands in the order that every new command depends only on previous commands.
+We are introducing new commands in such a way that every new command depends only on previous commands.
 
 |format|any           |Tag|          |
 |------|--------------|---|----------|
@@ -98,20 +99,27 @@ File extensions: `.f.js` and `.f.mjs`.
 2. [ ] [parameters](./3120-parameters.md)
 3. [ ] [body-const](./3130-body-const.md)
 
-### 3.2. Priority 1
+### 3.2. Priority 2
 
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
 4. [ ] [export](./3240-export.md)
+5. [ ] Ownership of Mutable Objects (Singletons)
 
-### 3.3. Syntactic Sugar
+### 3.3. Priority 3
 
-1. [ ] [expression](./3210-expression.md)
-2. [ ] [one-parameter](./3220-one-parameter.md)
-3. [ ] [assignments](./3330-assignments.md)
-4. [ ] Promises
-5. [ ] Regular Expressions
+1. [ ] Regular Expressions
+2. [ ] [type inference](./3370-type-inference.md)
+3. [ ] [promise](./3380-promise.md)
+4. [ ] [class](./3390-class.md)
+
+### 3.4. Syntactic Sugar
+
+1. [ ] [expression](./3410-expression.md)
+2. [ ] [one-parameter](./3420-one-parameter.md)
+3. [ ] [assignments](./3430-assignments.md)
+4. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ## 4. ECMAScript Proposals
 
@@ -122,3 +130,64 @@ File extensions: `.f.js` and `.f.mjs`.
    - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2.
+
+## 5. I/O
+
+### 5.1. Isolated I/O
+
+Using dependency injection.
+
+This implementation of VM requires external function implementation.
+
+### 5.2 Isolated Asynchronous I/O
+
+It requires a promise implementation.
+
+### 5.3. State Machine with Asynchronous Requests
+
+VM doesn't need to implement external functions or promises.
+
+```ts
+type RequestType = ...;
+type Request = readonly[Input, Continuation];
+type Continuation = (_: Output) => Request;
+type Main = Request
+```
+
+## 6. Content-Addressable VM
+
+See also [Unison](https://www.unison-lang.org/).
+
+The main target is run-time performance.
+
+Hash function: most likely SHA256 because there is a lot of hardware support from modern processors.
+
+Hash structure: we will use several initial hashes for a compress function.
+
+We may use CDT for huge arrays, objects, strings, and BigInts.
+
+The first bit of a hash is reserved for a tag. If the tag is `0`, we have raw data with `1` at the end. A hash with all zeroes is used for `undefined`. If the first bit is `0`, then the value is a hash. So, we have only 255 bits for a hash.
+
+Because we use tagged hash, we can keep small values in a `nanenum`. So it may reuse a lot from non-content addressable VM and ref-values can keep a hash value inside.
+
+Instead of an address, we can use a prefix, hash. 48 bits should be enough for most cases. However, we also need a mechanism to resolve collisions (even if they are rare). For example, our value can be an enum like this
+
+```rust
+enum Value {
+   Data(...),
+   Hash(u48),
+   Ref(u48),
+}
+```
+
+However, while the `===` operation can be faster, `Value::Hash` is slower when we need to access the object's internals because it requires two dereference operations. So, we may come back to using only references.
+
+```rust
+enum Value {
+   Data(...)
+   Ref(u48)
+}
+```
+
+Collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack). 
+    

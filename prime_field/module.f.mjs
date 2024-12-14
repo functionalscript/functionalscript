@@ -8,6 +8,8 @@ const { scalar_mul } = bi
 /** @typedef {Operator.Unary<bigint, bigint>} Unary*/
 
 /**
+ * A type representing a prime field and its associated operations.
+ *
  * @typedef {{
  *  readonly p: bigint
  *  readonly middle: bigint
@@ -25,7 +27,14 @@ const { scalar_mul } = bi
  * }} PrimeField
  */
 
-/** @type {(p: bigint) => PrimeField} */
+/**
+ * Creates a prime field with the specified prime modulus and associated operations.
+ *
+ * @param p - A prime number to define the field.
+ * @returns The prime field object.
+ *
+ * @type {(p: bigint) => PrimeField}
+ */
 export const prime_field = p => {
     /** @type {Reduce} */
     const sub = a => b => {
@@ -77,7 +86,21 @@ export const prime_field = p => {
     }
 }
 
-/** @type {(f: PrimeField) => (a: bigint) => bigint|null} */
+/**
+ * Computes the square root of a number in a prime field.
+ *
+ * @throws If the prime modulus `p` does not satisfy `p % 4 == 3`.
+ *
+ * @example
+ *
+ * ```js
+ * const field = prime_field(7n);
+ * const root = sqrt(field)(4n);
+ * if (root !== 2n) { throw root }
+ * ```
+ *
+ * @type {(f: PrimeField) => (a: bigint) => bigint|null}
+ */
 export const sqrt = ({p, mul, pow }) => {
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
