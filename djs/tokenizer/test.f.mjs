@@ -329,5 +329,31 @@ export default {
             const result = stringify(tokenizeString('[null]'))
             if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"}]') { throw result }
         },
+    ],
+    comments: [
+        () => {
+            const result = stringify(tokenizeString('//singleline comment'))
+            if (result !== '[{"kind":"//","value":"singleline comment"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('true//singleline comment\nfalse'))
+            if (result !== '[{"kind":"true"},{"kind":"//","value":"singleline comment"},{"kind":"nl"},{"kind":"false"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('/* multiline comment */'))
+            if (result !== '[{"kind":"/*","value":" multiline comment "}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('/* multiline comment *'))
+            if (result !== '[{"kind":"error","message":"*/ expected"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('/* multiline comment '))
+            if (result !== '[{"kind":"error","message":"*/ expected"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('/* multiline comment \n * **/'))
+            if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"}]') { throw result }
+        },
     ]
 }

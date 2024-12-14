@@ -17,7 +17,8 @@ import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 * jsTokenizer.IdToken |
 * jsTokenizer.BigIntToken |
 * jsTokenizer.WhitespaceToken |
-* jsTokenizer.NewLineToken
+* jsTokenizer.NewLineToken |
+* jsTokenizer.CommentToken
 * } DjsToken
 */
 
@@ -56,6 +57,8 @@ const mapToken = input =>
         case 'ws':
         case 'nl':
         case 'undefined':
+        case '//':
+        case '/*':
         case 'error': return [input]
         default: return jsTokenizer.isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
     }
