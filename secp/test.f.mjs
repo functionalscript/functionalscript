@@ -2,6 +2,20 @@ import * as _ from './module.f.mjs'
 const { curve, secp256k1, secp192r1, eq } = _
 
 export default {
+    example: () => {
+        /** @type {_.Init} */
+        const curveParams = {
+            p: 23n,
+            a: [0n, 1n],
+            g: [1n, 1n],
+            n: 19n
+        }
+        const c = curve(curveParams)
+        // Access curve operations
+        const point = c.add([1n, 1n])([2n, 5n]); // Add two points
+        const negPoint = c.neg([1n, 1n]); // Negate a point
+        const mulPoint = c.mul([1n, 1n])(3n); // Multiply a point by 3
+    },
     test: () => {
         /** @type {(c: _.Init) => void} */
         const test_curve = c => {

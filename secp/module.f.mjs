@@ -5,11 +5,22 @@ import * as bi from '../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 const { prime_field, sqrt } = pf
 
-/** @typedef {readonly[bigint, bigint]} Point2D */
-
-/** @typedef {Point2D|null} Point */
+/**
+ * A 2D point represented as a pair of `bigint` values `[x, y]`.
+ *
+ * @typedef {readonly[bigint, bigint]} Point2D
+ */
 
 /**
+ * A 2D point on an elliptic curve, represented as a pair of `bigint` values.
+ * `null` represents the point at infinity (`O`).
+ *
+ * @typedef {Point2D|null} Point
+ */
+
+/**
+ * Initialization parameters for an elliptic curve.
+ *
  * @typedef {{
  *  readonly p: bigint
  *  readonly a: readonly[bigint, bigint]
@@ -19,6 +30,8 @@ const { prime_field, sqrt } = pf
  */
 
 /**
+ * Represents an elliptic curve and its associated operations.
+ *
  * @typedef {{
  *  readonly pf: pf.PrimeField
  *  readonly nf: pf.PrimeField
@@ -30,7 +43,28 @@ const { prime_field, sqrt } = pf
  * }} Curve
  */
 
-/** @type {(i: Init) => Curve} */
+/**
+ * Constructs an elliptic curve with the given initialization parameters.
+ *
+ * @example
+ *
+ * ```js
+ * const curveParams = {
+ *     p: 23n,
+ *     a: [0n, 1n],
+ *     g: [1n, 1n],
+ *     n: 19n
+ * };
+ * const curveInstance = curve(curveParams);
+ *
+ * // Access curve operations
+ * const point = curveInstance.add([1n, 1n])([2n, 5n]); // Add two points
+ * const negPoint = curveInstance.neg([1n, 1n]); // Negate a point
+ * const mulPoint = curveInstance.mul([1n, 1n])(3n); // Multiply a point by 3
+ * ```
+ *
+ * @type {(i: Init) => Curve}
+ */
 export const curve = ({ p, a: [a0, a1], n }) => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
