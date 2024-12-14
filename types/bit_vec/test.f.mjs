@@ -1,6 +1,17 @@
 import { empty, len, appendBack, vec, uint, removeFront } from './module.f.mjs'
 
 export default {
+    uintExample: () => {
+        const vector = 0b110101n;
+        const extract3Bits = uint(3n);
+        const result = extract3Bits(vector); // result is 0b101n (5n)
+        if (result !== 0b101n) { throw result }
+    },
+    vecExample: () => {
+        const createVector = vec(4n);
+        const vector = createVector(5n); // vector is 0b10101n
+        if (vector !== 0b10101n) { throw vector }
+    },
     length: () => {
         const i = len(empty)
         if (i !== 0n) { throw i}
