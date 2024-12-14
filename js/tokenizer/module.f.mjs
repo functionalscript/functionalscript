@@ -141,6 +141,13 @@ const {
 */
 
 /**
+ * @typedef {{
+* readonly kind: '//' | '/*'
+* readonly value: string
+* }} CommentToken
+* */
+
+/**
  * @typedef {|
 * KeywordToken |
 * TrueToken |
@@ -154,7 +161,8 @@ const {
 * IdToken |
 * BigIntToken |
 * UndefinedToken |
-* OperatorToken
+* OperatorToken |
+* CommentToken
 * } JsToken
 */
 
@@ -243,21 +251,23 @@ const rangeId = [digitRange, ...rangeIdStart]
  * ParseNumberState |
  * InvalidNumberState |
  * ParseOperatorState |
- * ParseMinusState |
  * ParseWhitespaceState |
  * ParseNewLineState |
+ * ParseCommentState |
  * EofState
  * } TokenizerState
  */
 
 /**
  * @typedef {|
-  * '" are missing' |
+ * '" are missing' |
  * 'unescaped character' |
  * 'invalid hex value' |
  * 'unexpected character' |
  * 'invalid number' |
  * 'invalid token' |
+ * '*\/ expected' |
+ * 'unterminated string literal' |
  * 'eof'
  * } ErrorMessage
  */
@@ -277,6 +287,8 @@ const rangeId = [digitRange, ...rangeIdStart]
 /** @typedef {{ readonly kind: 'op', readonly value: string}} ParseOperatorState */
 
 /** @typedef {{ readonly kind: '-'}} ParseMinusState */
+
+/** @typedef {{ readonly kind: '//' | '/*' | '/**', readonly value: string}} ParseCommentState */
 
 /**
  * @typedef {{
@@ -538,8 +550,8 @@ const hasOperatorToken = op => at(op)(operatorMap) !== null
 const initialStateOp = create(state => () => [[{ kind: 'error', message: 'unexpected character' }], state])([
     rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }]),
     rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
-    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, { kind: 'ws' }]),
-    rangeSetFunc(rangeSetNewLine)(state => () => [empty, { kind: 'nl' }]),
+    rangeSetFunc(rangeSetWhiteSpace)(() => () => [empty, { kind: 'ws' }]),
+    rangeSetFunc(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }]),
     rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
     rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }]),
     rangeSetFunc(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
@@ -670,17 +682,11 @@ const invalidNumberStateOp = create(() => () => [empty, { kind: 'invalidNumber' 
     })
 ])
 
-/** @type {(state: ParseMinusState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const parseMinusStateOp = create(() => input => tokenizeOp({ kind: 'op', value: '-' })(input))([
-    rangeFunc(one(fullStop))(() => input => tokenizeOp({ kind: 'invalidNumber' })(input)),
-    rangeFunc(one(digit0))(() => () => [empty, { kind: 'number', value: '-0', b: startNegativeNumber, numberKind: '0' }]),
-    rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: appendChar('-')(input), b: addIntDigit(input)(startNegativeNumber), numberKind: 'int' }]),
-])
-
 /** @type {(state: ParseStringState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const parseStringStateOp = create(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])([
+const parseStringStateOp = create(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])([    
     rangeFunc(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }]),
-    rangeFunc(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }])
+    rangeFunc(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }]),
+    rangeSetFunc(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal'}], { kind: 'nl'}])
 ])
 
 /** @type {(state: ParseEscapeCharState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
@@ -740,14 +746,37 @@ const parseIdStateOp = create(parseIdDefault)([
 /** @type {(state: ParseOperatorState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseOperatorStateOp = state => input => {
     const nextStateValue = appendChar(state.value)(input)
-    if (hasOperatorToken(nextStateValue))
-        return [empty, { kind: 'op', value: nextStateValue }]
-    const next = tokenizeOp({ kind: 'initial' })(input)
-    return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
+    switch (nextStateValue)
+    {        
+        case '//': return [empty, { kind: '//', value: '' }]
+        case '/*': return [empty, { kind: '/*', value: '' }]
+        default: {
+            if (hasOperatorToken(nextStateValue))
+                return [empty, { kind: 'op', value: nextStateValue }]
+            const next = tokenizeOp({ kind: 'initial' })(input)
+            return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
+        }
+    }
 }
 
+/** @type {(state: ParseCommentState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseSinglelineCommentStateOp = create(state => input => [empty, { kind: '//', value: appendChar(state.value)(input) }])([
+    rangeSetFunc(rangeSetNewLine)(state => () => [[{ kind: '//', value: state.value }], { kind: 'nl' }])
+])
+
+/** @type {(state: ParseCommentState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseMultilineCommentStateOp = create(state => input => [empty, { kind: '/*', value: appendChar(state.value)(input) }])([
+    rangeFunc(one(asterisk))(state => () => [empty, { kind: '/**', value: state.value }]),
+])
+
+/** @type {(state: ParseCommentState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
+const parseMultilineCommentAsteriskStateOp = create(state => input => [empty, { kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input) }])([
+    rangeFunc(one(asterisk))(state => () => [empty, { kind: '/**', value: appendChar(state.value)(asterisk) }]),
+    rangeFunc(one(solidus))(state => () => [[{ kind: '/*', value: state.value }], { kind: 'initial' }])
+])
+
 /** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const parseWhitespaceDefault = state => input => {
+const parseWhitespaceDefault = () => input => {
     const next = tokenizeOp({ kind: 'initial' })(input)
     return [{ first: { kind: 'ws' }, tail: next[0] }, next[1]]
 }
@@ -755,7 +784,7 @@ const parseWhitespaceDefault = state => input => {
 /** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
 const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
     rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
-    rangeSetFunc(rangeSetNewLine)(state => () => [empty, { kind: 'nl' }])
+    rangeSetFunc(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }])
 ])
 
 /** @type {(state: ParseNewLineState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
@@ -784,7 +813,9 @@ const tokenizeCharCodeOp = state => {
         case 'invalidNumber': return invalidNumberStateOp(state)
         case 'number': return parseNumberStateOp(state)
         case 'op': return parseOperatorStateOp(state)
-        case '-': return parseMinusStateOp(state)
+        case '//': return parseSinglelineCommentStateOp(state)
+        case '/*': return parseMultilineCommentStateOp(state)
+        case '/**': return parseMultilineCommentAsteriskStateOp(state)
         case 'ws': return parseWhitespaceStateOp(state)
         case 'nl': return parseNewLineStateOp(state)
         case 'eof': return eofStateOp(state)
@@ -805,11 +836,13 @@ const tokenizeEofOp = state => {
                 case '.':
                 case 'e':
                 case 'e+':
-                case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'invalidNumber', }]
+                case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'eof', }]
                 default: return [[bufferToNumberToken(state)], { kind: 'eof' }]
             }
-        case 'op': return [[getOperatorToken(state.value)], { kind: 'eof' }]
-        case '-': return [[{kind: '-'}], { kind: 'eof' }]
+        case 'op': return [[getOperatorToken(state.value)], { kind: 'eof' }]        
+        case '//': return [[{kind: '//', value: state.value}], { kind: 'eof' }]
+        case '/*':
+        case '/**': return [[{ kind: 'error', message: '*/ expected' }], { kind: 'eof', }]
         case 'ws': return [[{kind: 'ws'}], { kind: 'eof' }]
         case 'nl': return [[{kind: 'nl'}], { kind: 'eof' }]
         case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
