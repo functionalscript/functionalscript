@@ -12,7 +12,7 @@ const { fromMap } = o
 
 /** @typedef {[readonly string[], readonly DjsConst[]] } DjsModule */
 
-/** @typedef {boolean|string|number|null|bigint|DjsModuleRef|DjsArray|DjsObject} DjsConst */
+/** @typedef {boolean|string|number|null|bigint|undefined|DjsModuleRef|DjsArray|DjsObject} DjsConst */
 
 /** @typedef {['aref' | 'cref', number]} DjsModuleRef */
 
@@ -295,6 +295,7 @@ const tokenToValue = token => {
         case 'number': return parseFloat(token.value)
         case 'string': return token.value
         case 'bigint': return token.value
+        case 'undefined': return undefined
         default: return null
     }
 }
@@ -307,7 +308,8 @@ const isValueToken = token => {
         case 'true':
         case 'number':
         case 'string':
-        case 'bigint': return true
+        case 'bigint':
+        case 'undefined': return true
         default: return false
     }
 }

@@ -387,6 +387,10 @@ export default {
             if (result !== '[{"kind":"null"}]') { throw result }
         },
         () => {
+            const result = stringify(tokenizeString('undefined'))
+            if (result !== '[{"kind":"undefined"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('[null]'))
             if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"}]') { throw result }
         },

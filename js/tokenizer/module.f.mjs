@@ -104,6 +104,8 @@ const {
 
 /** @typedef {{readonly kind: 'null'}} NullToken */
 
+/** @typedef {{readonly kind: 'undefined'}} UndefinedToken */
+
 /**
  * @typedef {|
  * {readonly kind: 'arguments' | 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' } |
@@ -151,6 +153,7 @@ const {
 * ErrorToken |
 * IdToken |
 * BigIntToken |
+* UndefinedToken |
 * OperatorToken
 * } JsToken
 */
@@ -448,6 +451,7 @@ const keywordEntries = [
     ['true', { kind: 'true'}],
     ['try', { kind: 'try'}],
     ['typeof', { kind: 'typeof'}],
+    ['undefined', { kind: 'undefined'}],
     ['var', { kind: 'var'}],
     ['void', { kind: 'void'}],
     ['while', { kind: 'while'}],

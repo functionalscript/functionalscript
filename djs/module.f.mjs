@@ -21,9 +21,11 @@ const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, 
 
 /** @typedef {readonly Unknown[]} Array */
 
-/** @typedef {Object|boolean|string|number|null|Array|bigint} Unknown */
+/** @typedef {Object|boolean|string|number|null|Array|bigint|undefined} Unknown */
 
 const colon = [':']
+
+const undefinedSerialize = ['undefined']
 
 /** @typedef {O.Entry<Unknown>} Entry*/
 
@@ -52,9 +54,10 @@ export const serialize = sort => {
             case 'boolean': { return boolSerialize(value) }
             case 'number': { return numberSerialize(value) }
             case 'string': { return stringSerialize(value) }
-            case 'bigint': { return [bigintSerialize(value)] }
+            case 'bigint': { return [bigintSerialize(value)] }            
             default: {
                 if (value === null) { return nullSerialize }
+                if (value === undefined) { return undefinedSerialize }
                 if (value instanceof Array) { return arraySerialize(value) }
                 return objectSerialize(value)
             }
