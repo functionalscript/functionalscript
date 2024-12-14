@@ -9,37 +9,32 @@ We are targeting the following systems:
 - Rust:
   - [ ] https://crates.io/
 
-## Creating `./index.f.mjs`
+The main principle is that we should be able to install FunctionalScript from Git/GitHub. Currently,
 
-Currently, we regenerate [./index.f.mjs](./index.f.mjs) using `npm run index` during CD (publishing). However, we don't check in CI if it was regenerated. The idea is that CI should check if all generated files in Git are updated:
+- `NPM` works with Git links and `.mjs` files.
+- `JSR`. Unfortunately, JSR doesn't support JSDoc type information, see [jsr-io/jsr/issues/494](https://github.com/jsr-io/jsr/issues/494).
+- Browsers. `import * from 'https://...'`.
+
+We have two options:
+
+- Continue to use JavaScript source files and generate JSR package before publishing,
+- Switch to TypeScript source files and write [prepack](https://docs.npmjs.com/cli/v7/using-npm/scripts) script. TS files could be a problem for our parser because it doesn't strip type annotations yet.
+
+This problem will go away as soon as ECMAScript supports for [Type Annotations](https://github.com/tc39/proposal-type-annotations).
+
+## Updating Packages
+
+Currently, we regenerate `exports` in [./jsr.json](./index.f.mjs) using `npm run index` during CD (publishing) and `version` using `npm run version`. We should combine it into `update` script.
+
+We don't check in CI if it was regenerated. The idea is that CI should check if all generated files in Git are updated:
 
 - [package.json](./package.json) `version` property
-- [jsr.json](./jsr.json), `version` property
-- [index.f.mjs](./index.f.mjs)
+- [jsr.json](./jsr.json), `version` and `exports` property.
 
-`version` property should be `version` calculated on a `main` branch.
+`version` property should be the same in `package.json` and `jsr.json`.
 
-We may abandon the idea to publish on every commit on `main`. Instead, we will publish only we when we update a version in the `main` branch. This strategy can also work for Rust packages. The idea is that people can still reference from Git if they would like to have a not-published version of a package. We will still release in CI but only when there is a new version.
+We abandoned the idea to publish on every commit on `main`. Instead, we publish only when there is an new version in the `main`. This strategy can also work for Rust packages.
 
-## Publishing
-
-Before publishing, we have to be sure that
-
-1. [index.f.mjs](./index.f.mjs) is up to date
-2. `version` is updated in [jsr.json](./jsr.json) and [package.json](./package.json).
-
-## CI Jobs
-
-### 1. Publishing (merge to `main`)
+## CI Publishing (merge to `main`)
 
 Check if the version is new, then publish.
-
-### 2. CI
-
-Errors:
-
-- correct `index.f.mjs` is merged.
-
-Warnings (not blocking CI):
-
-- out of date lock files, such as `package-lock.json` and `Cargo.lock`.
