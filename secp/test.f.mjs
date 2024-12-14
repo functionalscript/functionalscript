@@ -1,5 +1,5 @@
 import * as _ from './module.f.mjs'
-const { curve, secp256k1, secp192r1, eq } = _
+const { curve, secp256k1, secp192r1, secp256r1, eq } = _
 
 export default {
     example: () => {
@@ -23,10 +23,10 @@ export default {
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
             /** @type {(p: _.Point) => void} */
             const point_check = p => {
-                if (p === null) { throw 'null' }
+                if (p === null) { throw 'p === null' }
                 const [x, y] = p
                 const ye = yf(x)
-                if (ye === null) { throw 'null' }
+                if (ye === null) { throw 'ye === null' }
                 if (abs(ye) !== abs(y)) { throw 'ye' }
             }
             point_check(g)
@@ -58,5 +58,6 @@ export default {
         }
         test_curve(secp256k1)
         test_curve(secp192r1)
+        test_curve(secp256r1)
     }
 }

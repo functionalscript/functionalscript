@@ -129,18 +129,11 @@ export const eq = a => b => {
     return ax === bx && ay === by
 }
 
-/** @type {Init} */
-export const secp256k1 = {
-    p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
-    a: [7n, 0n],
-    g: [
-        0x79be667e_f9dcbbac_55a06295_ce870b07_029bfcdb_2dce28d9_59f2815b_16f81798n,
-        0x483ada77_26a3c465_5da4fbfc_0e1108a8_fd17b448_a6855419_9c47d08f_fb10d4b8n
-    ],
-    n: 0xffffffff_ffffffff_ffffffff_fffffffe_baaedce6_af48a03b_bfd25e8c_d0364141n,
-}
-
-/** @type {Init} */
+/**
+ * https://neuromancer.sk/std/secg/secp192r1
+ *
+ * @type {Init}
+ */
 export const secp192r1 = {
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
     a: [
@@ -152,4 +145,38 @@ export const secp192r1 = {
         0x07192b95_ffc8da78_631011ed_6b24cdd5_73f977a1_1e794811n
     ],
     n: 0xffffffff_ffffffff_ffffffff_99def836_146bc9b1_b4d22831n,
+}
+
+/**
+ * https://en.bitcoin.it/wiki/Secp256k1
+ * https://neuromancer.sk/std/secg/secp256k1
+ *
+ * @type {Init}
+ */
+export const secp256k1 = {
+    p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
+    a: [7n, 0n],
+    g: [
+        0x79be667e_f9dcbbac_55a06295_ce870b07_029bfcdb_2dce28d9_59f2815b_16f81798n,
+        0x483ada77_26a3c465_5da4fbfc_0e1108a8_fd17b448_a6855419_9c47d08f_fb10d4b8n
+    ],
+    n: 0xffffffff_ffffffff_ffffffff_fffffffe_baaedce6_af48a03b_bfd25e8c_d0364141n,
+}
+
+/**
+ * https://neuromancer.sk/std/secg/secp256r1
+ *
+ * @type { Init }
+ */
+export const secp256r1 ={
+    p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
+    a: [
+        0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< b
+        0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_fffffffcn, //< a
+    ],
+    g: [
+        0x6b17d1f2_e12c4247_f8bce6e5_63a440f2_77037d81_2deb33a0_f4a13945_d898c296n, //< x
+        0x4fe342e2_fe1a7f9b_8ee7eb4a_7c0f9e16_2bce3357_6b315ece_cbb64068_37bf51f5n, //< y
+    ],
+    n: 0xffffffff_00000000_ffffffff_ffffffff_bce6faad_a7179e84_f3b9cac2_fc632551n,
 }
