@@ -68,6 +68,11 @@ export default {
                 test(f.max - 1n)
                 test(f.max)
             },
+            sqrtExample: () => {
+                const field = prime_field(7n);
+                const root = sqrt(field)(4n);
+                if (root !== 2n) { throw root }
+            },
             sqrt: () => {
                 /** @type {(a: bigint) => void} */
                 const test = a => {
