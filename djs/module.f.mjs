@@ -54,7 +54,7 @@ export const serialize = sort => {
             case 'boolean': { return boolSerialize(value) }
             case 'number': { return numberSerialize(value) }
             case 'string': { return stringSerialize(value) }
-            case 'bigint': { return [bigintSerialize(value)] }            
+            case 'bigint': { return [bigintSerialize(value)] }
             default: {
                 if (value === null) { return nullSerialize }
                 if (value === undefined) { return undefinedSerialize }
