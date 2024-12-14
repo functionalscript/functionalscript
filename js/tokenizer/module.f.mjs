@@ -288,7 +288,13 @@ const rangeId = [digitRange, ...rangeIdStart]
 
 /** @typedef {{ readonly kind: '-'}} ParseMinusState */
 
-/** @typedef {{ readonly kind: '//' | '/*' | '/**', readonly value: string}} ParseCommentState */
+/**
+ *  @typedef {{
+ *  readonly kind: '//' | '/*' | '/**'
+ *  readonly value: string
+ *  readonly newLine: boolean
+ * }} ParseCommentState 
+ */
 
 /**
  * @typedef {{
@@ -301,7 +307,7 @@ const rangeId = [digitRange, ...rangeIdStart]
 
 /**
  * @typedef {{
- *  readonly kind: 'number',
+ *  readonly kind: 'number'
  *  readonly numberKind: '0' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits' | 'bigint'
  *  readonly value: string
  *  readonly b: ParseNumberBuffer
@@ -748,8 +754,8 @@ const parseOperatorStateOp = state => input => {
     const nextStateValue = appendChar(state.value)(input)
     switch (nextStateValue)
     {        
-        case '//': return [empty, { kind: '//', value: '' }]
-        case '/*': return [empty, { kind: '/*', value: '' }]
+        case '//': return [empty, { kind: '//', value: '', newLine: false }]
+        case '/*': return [empty, { kind: '/*', value: '', newLine: false }]
         default: {
             if (hasOperatorToken(nextStateValue))
                 return [empty, { kind: 'op', value: nextStateValue }]
@@ -760,19 +766,25 @@ const parseOperatorStateOp = state => input => {
 }
 
 /** @type {(state: ParseCommentState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const parseSinglelineCommentStateOp = create(state => input => [empty, { kind: '//', value: appendChar(state.value)(input) }])([
+const parseSinglelineCommentStateOp = create(state => input => [empty, { ...state, value: appendChar(state.value)(input) }])([
     rangeSetFunc(rangeSetNewLine)(state => () => [[{ kind: '//', value: state.value }], { kind: 'nl' }])
 ])
 
 /** @type {(state: ParseCommentState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const parseMultilineCommentStateOp = create(state => input => [empty, { kind: '/*', value: appendChar(state.value)(input) }])([
-    rangeFunc(one(asterisk))(state => () => [empty, { kind: '/**', value: state.value }]),
+const parseMultilineCommentStateOp = create(state => input => [empty, { ...state, value: appendChar(state.value)(input) }])([
+    rangeFunc(one(asterisk))(state => () => [empty, { ...state, kind: '/**' }]),
+    rangeSetFunc(rangeSetNewLine)(state => input => [empty, { ...state, value: appendChar(state.value)(input), newLine: true }]),
 ])
 
 /** @type {(state: ParseCommentState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */
-const parseMultilineCommentAsteriskStateOp = create(state => input => [empty, { kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input) }])([
-    rangeFunc(one(asterisk))(state => () => [empty, { kind: '/**', value: appendChar(state.value)(asterisk) }]),
-    rangeFunc(one(solidus))(state => () => [[{ kind: '/*', value: state.value }], { kind: 'initial' }])
+const parseMultilineCommentAsteriskStateOp = create(state => input => [empty, { ...state, kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input)}])([
+    rangeFunc(one(asterisk))(state => () => [empty, { ...state, value: appendChar(state.value)(asterisk) }]),
+    rangeSetFunc(rangeSetNewLine)(state => input => [empty, { kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input), newLine: true }]),
+    rangeFunc(one(solidus))(state => () => {
+        /** @type {list.List<JsToken>} */
+        const tokens = state.newLine ? [{ kind: '/*', value: state.value },  { kind: 'nl' }] : [{ kind: '/*', value: state.value }]
+        return [tokens, { kind: 'initial' }]
+    })
 ])
 
 /** @type {(state: ParseWhitespaceState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]} */

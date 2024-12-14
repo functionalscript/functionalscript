@@ -606,7 +606,11 @@ export default {
         },
         () => {
             const result = stringify(tokenizeString('/* multiline comment \n * **/'))
-            if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"}]') { throw result }
+            if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"}]') { throw result }
+        },
+        () => {
+            const result = stringify(tokenizeString('/* multiline comment *\n * **/'))
+            if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"}]') { throw result }
         },
     ]
 }
