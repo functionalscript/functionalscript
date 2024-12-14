@@ -27,5 +27,6 @@
 18. [ ] Formatter for `.f.js` and `.f.ts` files.
 19. [ ] Convert FunctionalScript code using non-default `export`.
 20. [ ] Test framework should be able to run a subset of tests.
-21. [ ] Test Framework silent mode. Show progress and failled tests only.
-22. [ ] bit sequences based on bigint
+21. [ ] Test Framework silent mode. Show progress and failed tests only.
+22. [x] bit sequences based on bigint
+23. [ ] a console program similar to one that we have in the NaNVM repo.
