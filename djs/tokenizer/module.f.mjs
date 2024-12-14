@@ -9,7 +9,7 @@ import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 
 /**
  * @typedef {|
-* {readonly kind: 'true' | 'false' | 'null'} |
+* {readonly kind: 'true' | 'false' | 'null' | 'undefined'} |
 * {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' } |
 * jsTokenizer.StringToken |
 * jsTokenizer.NumberToken |
@@ -17,7 +17,8 @@ import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
 * jsTokenizer.IdToken |
 * jsTokenizer.BigIntToken |
 * jsTokenizer.WhitespaceToken |
-* jsTokenizer.NewLineToken
+* jsTokenizer.NewLineToken |
+* jsTokenizer.CommentToken
 * } DjsToken
 */
 
@@ -55,6 +56,9 @@ const mapToken = input =>
         case 'number':
         case 'ws':
         case 'nl':
+        case 'undefined':
+        case '//':
+        case '/*':
         case 'error': return [input]
         default: return jsTokenizer.isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
     }

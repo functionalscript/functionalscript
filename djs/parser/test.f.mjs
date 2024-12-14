@@ -33,6 +33,12 @@ export default {
             if (result !== '["ok",[[],[false]]]') { throw result }
         },
         () => {
+            const tokenList = tokenizeString('export default undefined')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[undefined]]]') { throw result }
+        },
+        () => {
             const tokenList = tokenizeString('export default 0.1')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
@@ -87,10 +93,10 @@ export default {
             if (result !== '["ok",[[],[["array",[{}]]]]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null}')
+            const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined}')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
-            if (result !== '["ok",[[],[{"a":true,"b":false,"c":null}]]]') { throw result }
+            if (result !== '["ok",[[],[{"a":true,"b":false,"c":null,"d":undefined}]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}}')
@@ -259,13 +265,25 @@ export default {
     ],
     validWhiteSpaces:[
         () => {
-            const tokenList = tokenizeString('export default [ 0 , 1 , 2 ]')
+            const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",[[],[["array",[0,1,2]]]]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default { "a" : 0 , "b" : 1 }')
+            const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[{"a":0,"b":1}]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[["array",[0,1,2]]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",[[],[{"a":0,"b":1}]]]') { throw result }
@@ -409,4 +427,12 @@ export default {
             if (result !== '["error","duplicate id"]') { throw result }
         },
     ],
+    comments: [
+        () => {
+            const tokenList = tokenizeString('export //comment \n default /* comment */ null //comment')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[[],[null]]]') { throw result }
+        },
+    ]
 }
