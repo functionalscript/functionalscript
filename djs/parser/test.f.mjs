@@ -429,7 +429,7 @@ export default {
     ],
     comments: [
         () => {
-            const tokenList = tokenizeString('export //comment \n default /* comment */ null')
+            const tokenList = tokenizeString('export //comment \n default /* comment */ null //comment')
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",[[],[null]]]') { throw result }
