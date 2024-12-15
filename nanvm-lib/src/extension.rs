@@ -1,4 +1,4 @@
-use crate::{interface::{Any, Container, Extension, Unpacked}, nullish::Nullish::*, simple::Simple};
+use crate::{interface::{Any, Extension, Unpacked}, nullish::Nullish::*, simple::Simple};
 
 pub trait AnyExtension: Any {
     fn string(c: &str) -> Self::String16 {
