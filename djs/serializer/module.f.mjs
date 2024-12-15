@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
 
 import * as list from '../../types/list/module.f.mjs'
-const { flat, map } = list
+const { flat, map, entries: listEntries, concat: listConcat, flatMap } = list
 import * as string from '../../types/string/module.f.mjs'
 const { concat } = string
 import * as O from '../../types/object/module.f.mjs'
@@ -64,13 +64,22 @@ const djsConstSerialize = sort => {
     return f
 }
 
-// /** @type {(mapEntries: MapEntries) => (djsModule: DjsParser.DjsModule) => string} */
-// export const moduleSerialize =  sort => djsModule => {
-//     compose(map(serializeDjsConst))(arrayWrap)(djsModule[1])
-// }
+/** @type {(mapEntries: MapEntries) => (djsModule: DjsParser.DjsModule) => string} */
+export const djsModuleStringify =  sort => djsModule => {
+    const importEntries = listEntries(djsModule[0])
+    /** @type {(entry: list.Entry<string>) => list.List<string>} */
+    const importSerialize = entry => flat([['import _a'], numberSerialize(entry[0]), [' from "', entry[1], '"\n']])
 
-/**
- * @type {(mapEntries: MapEntries) => (value: DjsParser.DjsConst) => string}
- */
-export const djsConstStringify = sort => compose(djsConstSerialize(sort))(concat)
+    const len = djsModule[1].length
+    const constEntries = listEntries(djsModule[1])
+    /** @type {(entry: list.Entry<DjsParser.DjsConst>) => list.List<string>} */
+    const moduleEntrySerialize = entry => {
+        if (entry[0] === len - 1) {
+            return listConcat(['export default '])(djsConstSerialize(sort)(entry[1]))
+        }
+        return flat([['const _c'], numberSerialize(entry[0]), [' = '], djsConstSerialize(sort)(entry[1]), ['\n']])
+    }
+
+    return concat(listConcat(flatMap(importSerialize)(importEntries))(flatMap(moduleEntrySerialize)(constEntries)))
+}
 
