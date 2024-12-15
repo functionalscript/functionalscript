@@ -30,3 +30,6 @@
 21. [ ] Test Framework silent mode. Show progress and failed tests only.
 22. [x] bit sequences based on bigint
 23. [ ] a console program similar to one that we have in the NaNVM repo.
+24. [ ] create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
+    - [ ] run `node ./module.mjs input.f.mjs output.f.mjs`
+    - [ ] run `deno ./module.mjs input.f.mjs output.f.mjs`
