@@ -27,14 +27,14 @@ export default {
             const obj = parser.parse(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'const _c0 = 1\nconst _c1 = 2\nexport default [_c0,{"k1":[_c1]}]') { throw result }
+            if (result !== 'const c0 = 1\nconst c1 = 2\nexport default [c0,{"k1":[c1]}]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs" \n const b = a \n export default [a,{"k1":[b]}]')
             const obj = parser.parse(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'import _a0 from "test/test.f.mjs"\nconst _c0 = _a0\nexport default [_a0,{"k1":[_c0]}]') { throw result }
+            if (result !== 'import a0 from "test/test.f.mjs"\nconst c0 = a0\nexport default [a0,{"k1":[c0]}]') { throw result }
         },
     ],
 }

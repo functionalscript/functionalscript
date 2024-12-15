@@ -51,8 +51,8 @@ const djsConstSerialize = sort => {
                 if (value === undefined) { return undefinedSerialize }
                 if (value instanceof Array) {
                     switch (value[0]) {
-                        case 'aref': { return [`_a${value[1]}`] }
-                        case 'cref': { return [`_c${value[1]}`] }
+                        case 'aref': { return [`a${value[1]}`] }
+                        case 'cref': { return [`c${value[1]}`] }
                         case 'array': { return arraySerialize(value[1]) }
                     }
                 }
@@ -68,7 +68,7 @@ const djsConstSerialize = sort => {
 export const djsModuleStringify =  sort => djsModule => {
     const importEntries = listEntries(djsModule[0])
     /** @type {(entry: list.Entry<string>) => list.List<string>} */
-    const importSerialize = entry => flat([['import _a'], numberSerialize(entry[0]), [' from "', entry[1], '"\n']])
+    const importSerialize = entry => flat([['import a'], numberSerialize(entry[0]), [' from "', entry[1], '"\n']])
 
     const len = djsModule[1].length
     const constEntries = listEntries(djsModule[1])
@@ -77,7 +77,7 @@ export const djsModuleStringify =  sort => djsModule => {
         if (entry[0] === len - 1) {
             return listConcat(['export default '])(djsConstSerialize(sort)(entry[1]))
         }
-        return flat([['const _c'], numberSerialize(entry[0]), [' = '], djsConstSerialize(sort)(entry[1]), ['\n']])
+        return flat([['const c'], numberSerialize(entry[0]), [' = '], djsConstSerialize(sort)(entry[1]), ['\n']])
     }
 
     return concat(listConcat(flatMap(importSerialize)(importEntries))(flatMap(moduleEntrySerialize)(constEntries)))
