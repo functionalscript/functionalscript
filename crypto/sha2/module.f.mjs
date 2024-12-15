@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import * as arrayT from '../types/array/module.f.mjs'
+import * as arrayT from '../../types/array/module.f.mjs'
 
 /**
  * @typedef {{
