@@ -12,7 +12,8 @@ import * as bi from '../types/bigint/module.f.mjs'
 const { serialize: bigintSerialize } = bi
 import * as j from '../json/serializer/module.f.mjs'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
-
+import * as djs from './serializer/module.f.mjs'
+const { undefinedSerialize } = djs
 /**
  * @typedef {{
  *  readonly [k in string]: Unknown
@@ -24,8 +25,6 @@ const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, 
 /** @typedef {Object|boolean|string|number|null|Array|bigint|undefined} Unknown */
 
 const colon = [':']
-
-const undefinedSerialize = ['undefined']
 
 /** @typedef {O.Entry<Unknown>} Entry*/
 

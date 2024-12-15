@@ -16,7 +16,7 @@ import * as DjsParser from '../parser/module.f.mjs'
 
 const colon = [':']
 
-const undefinedSerialize = ['undefined']
+export const undefinedSerialize = ['undefined']
 
 /** @typedef {O.Entry<DjsParser.DjsConst>} Entry*/
 
