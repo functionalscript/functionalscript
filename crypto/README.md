@@ -1,3 +1,3 @@
 # Cryptography
 
-The directory contains algorithms and utilities for different cryptographic methods.
+The directory contains algorithms and utilities for various cryptographic methods.
