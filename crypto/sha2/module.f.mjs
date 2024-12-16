@@ -1,5 +1,5 @@
 // @ts-self-types="./module.f.d.mts"
-import * as arrayT from '../../types/array/module.f.mjs'
+import * as array from '../../types/array/module.f.mjs'
 
 /**
  * @typedef {{
@@ -8,9 +8,9 @@ import * as arrayT from '../../types/array/module.f.mjs'
  * }} HashInput
  */
 
-/** @typedef {arrayT.Array8<number>} Hash8 */
+/** @typedef {array.Array8<number>} Hash8 */
 
-/** @typedef {arrayT.Array16<number>} Array16 */
+/** @typedef {array.Array16<number>} Array16 */
 
 /** @type {(input: number) => (pos: number) => number} */
 const appendOneWithZeros = input => pos => (input >> pos << pos) | (1 << pos)
@@ -74,7 +74,7 @@ const smallSigma0 = smallSigma(7)(18)(3)
 
 const smallSigma1 = smallSigma(17)(19)(10)
 
-/** @type {(a: arrayT.Array4<number>) => number} */
+/** @type {(a: array.Array4<number>) => number} */
 const wi = ([a0, a1, a2, a3]) => (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) | 0
 
 /** @type {(w: Array16) => Array16} */
