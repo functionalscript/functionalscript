@@ -33,3 +33,7 @@
 24. [ ] create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
     - [ ] run `node ./module.mjs input.f.mjs output.f.mjs`
     - [ ] run `deno ./module.mjs input.f.mjs output.f.mjs`
+
+## Language Specification
+
+See [lang/README.md](./lang/README.md).

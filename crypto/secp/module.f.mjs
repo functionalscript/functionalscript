@@ -1,7 +1,7 @@
 // @ts-self-types="./module.f.d.mts"
-import * as Operator from '../types/function/operator/module.f.mjs'
+import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as pf from '../prime_field/module.f.mjs'
-import * as bi from '../types/bigint/module.f.mjs'
+import * as bi from '../../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 const { prime_field, sqrt } = pf
 
