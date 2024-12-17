@@ -33,6 +33,7 @@
 24. [ ] create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
     - [ ] run `node ./module.mjs input.f.mjs output.f.mjs`
     - [ ] run `deno ./module.mjs input.f.mjs output.f.mjs`
+25. [ ] Switch to Deno? Note: Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27 
 
 ## Language Specification
 
