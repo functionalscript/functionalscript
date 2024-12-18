@@ -1,18 +1,47 @@
 /** @type {readonly[bigint, bigint, bigint, bigint]} */
 const k4x16 = [0n, 0n, 0n, 0n]
 
-/** @type {(size: bigint) => (d: bigint) => (n: bigint) => bigint} */
-const rotr = size => d => {
-    const r = size - d
-    const mask = (1n << d) - 1n
-    return n => n >> d | (n & mask) << r
+/**
+ * @typedef {(d: bigint) => (n: bigint) => bigint} Binary
+ */
+
+/**
+ * @typedef {{
+ *  readonly size: bigint
+ *  readonly rotr: Binary
+ *  readonly bigSigma: (a: bigint, b: bigint, c: bigint) => (x: bigint) => bigint
+ * }} Field
+ */
+
+/**
+ * Creates a field.
+ *
+ * @type {(size: bigint) => Field}
+ */
+const field = size => {
+    /** @type {Binary} */
+    const rotr = d => {
+        const r = size - d
+        const mask = (1n << d) - 1n
+        return n => n >> d | (n & mask) << r
+    }
+    return {
+        size,
+        rotr,
+        bigSigma: (a, b, c) => {
+            const ra = rotr(a)
+            const rb = rotr(b)
+            const rc = rotr(c)
+            return x => ra(x) ^ rb(x) ^ rc(x)
+        }
+    }
 }
 
 /**
  * @type {{
  *  readonly size: bigint
  *  readonly k: readonly bigint[]
- * }} Field
+ * }} Method
  */
 
 /** @type {(init8: bigint) => (w16: bigint) => bigint} */
