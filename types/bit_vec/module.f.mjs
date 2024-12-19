@@ -19,25 +19,21 @@ export const empty = 1n
 export const lenght = log2
 
 /**
- * Creates a vector of bits of the given `vecLen` from the given unsigned integer.
+ * Creates a vector of bits of the given `len` from the given unsigned integer.
  *
- * @type {(vecLen: bigint) => (ui: bigint) => Vec}
+ * @type {(len: bigint) => (ui: bigint) => Vec}
  *
  * @example
  *
  * ```js
- * const u4 = vec(4n);
- * const vector = u4(5n); // vector is 0x15n
- * ```
- *
- * ```js
- * const u4 = vec(4n);
- * const vector = u4(0x5FEn); // vector is 0x1En
+ * const vec4 = vec(4n)
+ * const v0 = vec4(5n)     // 0x15n
+ * const v1 = vec4(0x5FEn) // 0x1En
  * ```
  */
-export const vec = vecLen => {
-    if (vecLen <= 0n) { return () => empty }
-    const stop = 1n << vecLen
+export const vec = len => {
+    if (len <= 0n) { return () => empty }
+    const stop = 1n << len
     const mask = stop - 1n
     return data => stop | (data & mask)
 }
@@ -46,7 +42,7 @@ export const vec = vecLen => {
 const mask = len => (1n << len) - 1n
 
 /**
- * Extract the least significant unsigned integer of the given `len` from the given vector.
+ * Extract the least significant unsigned integer from the given vector.
  *
  * @type {(uintLen: bigint) => (v: Vec) => bigint}
  *
@@ -69,7 +65,7 @@ export const uintLsb = len => {
 /**
  * Extract the most significant unsigned integer of the given `len` from the given vector.
  *
- * @type {(uintLen: bigint) => (v: Vec) => bigint}
+ * @type {(len: bigint) => (v: Vec) => bigint}
  *
  * @example
  *
@@ -78,11 +74,11 @@ export const uintLsb = len => {
  * const result = uintMsb(4n)(vector); // result is 0xFn
  * const result2 = uintMsb(16n)(vector); // result2 is 0xF500n
  */
-export const uintMsb = uintLen => {
-    const m = mask(uintLen)
+export const uintMsb = len => {
+    const m = mask(len)
     return v => {
         const vLen = lenght(v)
-        const d = vLen - uintLen
+        const d = vLen - len
         return (d >= 0n ? v >> d : v << -d) & m
     }
 }
@@ -103,7 +99,8 @@ export const uintMsb = uintLen => {
  */
 export const concatLsb = a => {
     const aLen = lenght(a)
-    return b => (b << aLen) | a
+    const m = mask(aLen)
+    return b => (b << aLen) | (a & m)
 }
 
 /**
