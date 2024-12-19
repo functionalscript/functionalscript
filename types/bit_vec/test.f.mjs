@@ -1,8 +1,9 @@
-import { empty, len, appendBack, vec, uint, removeFront } from './module.f.mjs'
+import { empty, vec, lenght } from './module.f.mjs'
+import { appendBack, uint, removeFront } from './le/module.f.mjs'
 
 export default {
     uintExample: () => {
-        const vector = 0b110101n;
+        const vector = 0b1110101n;
         const extract3Bits = uint(3n);
         const result = extract3Bits(vector); // result is 0b101n (5n)
         if (result !== 0b101n) { throw result }
@@ -13,13 +14,13 @@ export default {
         if (vector !== 0b10101n) { throw vector }
     },
     length: () => {
-        const i = len(empty)
+        const i = lenght(empty)
         if (i !== 0n) { throw i}
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)
         if (v !== 0x1FEn) { throw v }
-        if (len(v) !== 8n) { throw 'len' }
+        if (lenght(v) !== 8n) { throw 'len' }
         const u = uint(8n)(v)
         if (u !== 0xFEn) { throw v }
     },
@@ -29,7 +30,7 @@ export default {
         const b = vec8(0x789n)
         const ab = appendBack(a)(b)
         if (ab !== 0x18945n) { throw ab }
-        const s = len(ab)
+        const s = lenght(ab)
         if (s !== 16n) { throw `appendBack: ${s}` }
     },
     removeBack: () => {
