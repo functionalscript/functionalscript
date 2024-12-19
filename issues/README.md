@@ -33,7 +33,9 @@
 24. [ ] create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
     - [ ] run `node ./module.mjs input.f.mjs output.f.mjs`
     - [ ] run `deno ./module.mjs input.f.mjs output.f.mjs`
-25. [ ] Switch to Deno? Note: Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27 
+25. [ ] Switch to Deno an `.ts`?
+    1. Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27
+    2. One day we may switch back to `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included into ECMAScript. BTW, we should only use JS with type annotations instead of full TypeScript.
 
 ## Language Specification
 
