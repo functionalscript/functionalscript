@@ -22,8 +22,9 @@ const buildDfa = () => {
     const idNext = byteSet.union(idBegin)(digit)
     const dot = _.toUnion('.')
 
-    /** @type {_.Grammar} */
-    const grammar = [
+    const grammar
+        : _.Grammar
+        = [
         ['', digit, 'int'],
         ['int', digit, 'int'],
         ['', digit, 'floatBegin'],
