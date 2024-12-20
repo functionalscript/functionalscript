@@ -1,4 +1,4 @@
-import unsafeResult from '../types/result/module.mjs'
+import unsafeResult from '../types/result/module.ts'
 const { tryCatch } = unsafeResult
 import * as result from '../types/result/module.f.mjs'
 const { unwrap } = result
