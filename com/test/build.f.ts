@@ -3,7 +3,7 @@ const { flat } = list
 
 import cppContent from '../cpp/testlib.f.ts'
 import csContent from '../cs/testlib.f.ts'
-import rustContent from '../rust/testlib.f.mjs'
+import rustContent from '../rust/testlib.f.ts'
 
 type Platform =
    | 'aix'

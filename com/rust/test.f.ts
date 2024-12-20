@@ -1,4 +1,4 @@
-import rust from './testlib.f.mjs'
+import rust from './testlib.f.ts'
 
 export default () => {
     const e =
