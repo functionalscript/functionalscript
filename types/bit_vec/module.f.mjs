@@ -49,7 +49,7 @@ const mask = len => (1n << len) - 1n
  * @example
  *
  * ```js
- * const vector = vec(8n)(0xF5) // 0x1F5n
+ * const vector = vec(8n)(0xF5n) // 0x1F5n
  * const result = uintLsb(4n)(vector); // result is 5n
  * const result2 = uintLsb(16n)(vector); // result2 is 0xF5n
  * ```
@@ -70,9 +70,10 @@ export const uintLsb = len => {
  * @example
  *
  * ```js
- * const vector = vec(8n)(0xF5) // 0x1F5n
+ * const vector = vec(8n)(0xF5n) // 0x1F5n
  * const result = uintMsb(4n)(vector); // result is 0xFn
  * const result2 = uintMsb(16n)(vector); // result2 is 0xF500n
+ * ```
  */
 export const uintMsb = len => {
     const m = mask(len)
