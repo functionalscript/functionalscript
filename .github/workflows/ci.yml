@@ -25,8 +25,6 @@ jobs:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
     - run: npm run test20
-    - run: npm run version
-    - run: npm pack
 
   node:
     runs-on: ubuntu-latest
