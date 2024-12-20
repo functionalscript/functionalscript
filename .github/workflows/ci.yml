@@ -33,8 +33,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20, 22, 23]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        node-version: [22, 23]
 
     steps:
     - uses: actions/checkout@v2
