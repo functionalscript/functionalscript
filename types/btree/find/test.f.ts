@@ -10,18 +10,22 @@ import * as s from '../set/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 
-/** @type {(node: btree.Node<string>) => (value: string) => btree.Node<string>} */
-const set = node => value => s.set(cmp(value))(() => value)(node)
+const set
+    : (node: btree.Node<string>) => (value: string) => btree.Node<string>
+    = node => value => s.set(cmp(value))(() => value)(node)
 
-/** @type {(r: _.Result<json.Unknown>) => string} */
-const str = r => jsonStr(list.toArray(list.map(x => x[0])(r)))
+const str
+    : (r: _.Result<json.Unknown>) => string
+    = r => jsonStr(list.toArray(list.map((x: any) => x[0])(r)))
 
-/** @type {(i: string) => (m: btree.Node<string>) => string} */
-const find = i => m => str(_.find(cmp(i))(m))
+const find
+    : (i: string) => (m: btree.Node<string>) => string
+    = i => m => str(_.find(cmp(i))(m))
 
 const test = () => {
-    /** @type {btree.Node<string>} */
-    let _map = ['1']
+    let _map
+        : btree.Node<string>
+        = ['1']
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())
     {
