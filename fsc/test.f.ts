@@ -5,8 +5,10 @@ import * as j from '../json/module.f.mjs'
 const { stringify } = j
 const s = stringify(i => i)
 
-/** @type {(v: string) => string} */
-const f = v => {
+/** @type {} */
+const f
+    : (v: string) => string
+    = v => {
     const n = one(v)
     return s(_.init(n)[0])
 }
