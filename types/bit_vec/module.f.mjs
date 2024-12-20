@@ -149,5 +149,6 @@ export const removeLsb = len => v => {
  * const v = vec(16n)(0x3456n) // 0x13456n
  * const r = removeMsb(4n)(v) // 0x1456n
  * const r2 = removeMsb(24n)(v) // 0x1n
+ * ```
  */
 export const removeMsb = len => v => vec(lenght(v) - len)(v)

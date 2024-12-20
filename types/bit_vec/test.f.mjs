@@ -1,5 +1,3 @@
-import { concat } from '../list/module.f.mjs'
-import { remove } from '../map/module.f.mjs'
 import { empty, vec, lenght, concatLsb, uintLsb, uintMsb, removeLsb, concatMsb, removeMsb } from './module.f.mjs'
 
 export default {
