@@ -5,8 +5,9 @@ const { sort } = o
 import * as operator from '../function/operator/module.f.mjs'
 const { addition, strictEqual, reduceToScan } = operator
 
-/** @type {(sequence: _.List<json.Unknown>) => string} */
-const stringify = sequence => json.stringify(sort)(_.toArray(sequence))
+const stringify
+    : (sequence: _.List<json.Unknown>) => string
+    = sequence => json.stringify(sort)(_.toArray(sequence))
 
 const stringifyTest = () => {
     const s = stringify([1, 2, 3])
@@ -36,7 +37,7 @@ const concat = () => {
 }
 
 const flatMap = () => {
-    const result = stringify(_.flatMap(x => [x, x * 2, x * 3])([0, 1, 2, 3]))
+    const result = stringify(_.flatMap((x: number) => [x, x * 2, x * 3])([0, 1, 2, 3]))
     if (result !== '[0,0,0,1,2,3,2,4,6,3,6,9]') { throw result }
 }
 
@@ -57,28 +58,28 @@ const take = [
 
 const find = [
     () => {
-        const result = _.find(null)(x => x % 2 === 0)([1, 3, 5, 7])
+        const result = _.find(null)((x: number) => x % 2 === 0)([1, 3, 5, 7])
         if (result !== null) { throw result }
     },
     () => {
-        const result = _.find(null)(x => x % 2 === 0)([1, 2, 3, 4])
+        const result = _.find(null)((x: number) => x % 2 === 0)([1, 2, 3, 4])
         if (result !== 2) { throw result }
     }
 ]
 
 const takeWhile = [
     () => {
-        const result = stringify(_.takeWhile(x => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+        const result = stringify(_.takeWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
         if (result !== '[1,2,3,4,5]') { throw result }
     },
     () => {
-        const result = stringify(_.takeWhile(x => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        const result = stringify(_.takeWhile((x: number) => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
         if (result !== '[1,2,3,4,5]') { throw result }
     }
 ]
 
 const dropWhile = () => {
-    const result = stringify(_.dropWhile(x => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    const result = stringify(_.dropWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
     if (result !== '[10,11]') { throw result }
 }
 
@@ -147,7 +148,7 @@ const zip = [
 ]
 
 const logic = () => {
-    const map5 = _.map(x => x > 5)
+    const map5 = _.map((x: number) => x > 5)
 
     return [
         () => {
@@ -185,7 +186,7 @@ const stress = () => ({
         const n = 100_000_000
         const result = _.toArray(_.countdown(n))
         if (result.length !== n) { throw result.length }
-        const len = _.length(_.filter(x => x > n)(result))
+        const len = _.length(_.filter((x: number) => x > n)(result))
         if (len !== 0) { throw len }
     },
     first: () => {
@@ -197,8 +198,9 @@ const stress = () => ({
         if (first !== n - 1) { throw first }
     },
     concatBack: () => {
-        /** @type {_.List<number>} */
-        let sequence = []
+        let sequence
+            : _.List<number>
+            = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
         for (let i = 0; i < 5_000_000; ++i) {
@@ -207,8 +209,9 @@ const stress = () => ({
         const r = _.toArray(sequence)
     },
     flatToArray: () => {
-        /** @type {_.List<number>} */
-        let sequence = []
+        let sequence
+            : _.List<number>
+            = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
             sequence = _.flat([sequence, [i]])
@@ -216,8 +219,9 @@ const stress = () => ({
         const r = _.toArray(sequence)
     },
     flatNext: () => {
-        /** @type {_.List<number>} */
-        let sequence = []
+        let sequence
+            : _.List<number>
+            = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
             sequence = _.flat([sequence, [i]])
@@ -225,8 +229,9 @@ const stress = () => ({
         const a = _.next(sequence)
     },
     concatFront: () => {
-        /** @type {_.List<number>} */
-        let sequence = []
+        let sequence
+            : _.List<number>
+            = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
             sequence = _.concat([i])(sequence)
@@ -234,8 +239,9 @@ const stress = () => ({
         const a = _.next(sequence)
     },
     flatFront: () => {
-        /** @type {_.List<number>} */
-        let sequence = []
+        let sequence
+            : _.List<number>
+            = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {
             sequence = _.flat([[i], sequence])
