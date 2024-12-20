@@ -11,7 +11,7 @@
     "test": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
     "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "index": "node --experimental-strip-types ./dev/index.ts",
-    "version": "node ./nodejs/version/main.mjs",
+    "version": "node ./nodejs/version/main.ts",
     "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
   },
   "repository": {
