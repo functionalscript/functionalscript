@@ -7,8 +7,9 @@ import * as Package from '../package/module.f.mjs'
 import * as o from '../../types/object/module.f.mjs'
 const { at } = o
 
-/** @type {{ readonly [k in string]?: Result.Result<ModuleFunction.Function_, unknown> }} */
-const compileMap = {
+const compileMap
+    : { readonly [k in string]?: Result.Result<ModuleFunction.Function_, unknown> }
+    = {
     ':index.js': [
         'ok',
         require_ => m0 => {
@@ -31,13 +32,15 @@ const compileMap = {
         () => m0 => [['ok', 'x:r.js'], m0]],
 }
 
-/** @type {ModuleFunction.Compile} */
-const compile = source => compileMap[source] ?? ['error', 'invalid source']
+const compile
+    : ModuleFunction.Compile
+    = source => compileMap[source] ?? ['error', 'invalid source']
 
-/** @typedef {{ readonly [k in string]: string }} StringMap */
+type StringMap = { readonly [k in string]: string }
 
-/** @type {{ readonly [k in string]: { readonly dependencies: StringMap, readonly files: StringMap }}} */
-const packageMap = {
+const packageMap
+    : { readonly [k in string]: { readonly dependencies: StringMap, readonly files: StringMap }}
+    = {
     '': {
         dependencies: {
             'x': '/node_modules/x'
@@ -56,8 +59,9 @@ const packageMap = {
     },
 }
 
-/** @type {Package.Get} */
-const packageGet = packageId => {
+const packageGet
+    : Package.Get
+    = packageId => {
     const p = at(packageId)(packageMap)
     return p === null ? null :
         {
@@ -69,7 +73,7 @@ const packageGet = packageId => {
 const getOrBuild = _.getOrBuild
     (compile)
     (packageGet)
-    (/** @type {Module.MapInterface<map.Map<Module.State>>} */(map))
+    (map as Module.MapInterface<map.Map<Module.State>>)
 
 export default () => {
     let [r, m] = getOrBuild({ package: '', path: ['index.js'] })(map.empty)
