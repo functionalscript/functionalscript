@@ -1,5 +1,6 @@
-/** @type {(a: unknown) => (i: any) =>unknown} */
-const at = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
+const at
+    : (a: unknown) => (i: any) =>unknown
+    = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
 
 export default {
     ownProperty: {
