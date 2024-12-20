@@ -1,8 +1,10 @@
-/** @type {() => never} */
-const assert = () => { throw 'assert' }
+const assert
+    : () => never
+    = () => { throw 'assert' }
 
-/** @type {(_: boolean) => void} */
-const assert_if = c => { if (c) { throw 'assert_if' } }
+const assert_if
+    : (_: boolean) => void
+    = c => { if (c) { throw 'assert_if' } }
 
 export default {
     ctor: () => {
