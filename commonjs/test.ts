@@ -1,4 +1,4 @@
-import * as _ from './module.mjs'
+import * as _ from './module.ts'
 import * as Run from './module/function/module.f.mjs'
 
 export default {
@@ -32,8 +32,9 @@ export default {
         const d = _.compile(depSource)
         if (d[0] !== 'ok') { throw d }
 
-        /** @type {Run.Require<number>} */
-        const req = path => prior => {
+        const req
+            : Run.Require<number>
+            = path => prior => {
             if (path !== 'm') { throw path }
             return d[1](req)(prior + 1)
         }
