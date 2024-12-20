@@ -44,7 +44,7 @@ export default {
             m = remove('Hello world!')(m)
             if (at('Hello world!')(m) !== null) { throw m }
 
-            m = setReduce(a => b => a + b)('a')(43)(m)
+            m = setReduce((a: number) => (b: number) => a + b)('a')(43)(m)
             if (at('a')(m) !== 44) { throw 'error' }
         },
         () => {
@@ -58,8 +58,9 @@ export default {
         },
     ],
     stress: () => {
-        /** @type {import('./module.f.mjs').Map<number>} */
-        let m = empty
+        let m
+            : _.Map<number>
+            = empty
         for (let i = 0; i < 100_000; ++i) {
             m = setReplace((i * i).toString())(i)(m)
             /*
