@@ -7,17 +7,20 @@ import * as json from '../../../json/module.f.mjs'
 import * as o from '../../object/module.f.mjs'
 const { sort } = o
 
-/** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */
-const set = node => value => s.set(cmp(value))(() => value)(node)
+const set
+    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string>
+    = node => value => s.set(cmp(value))(() => value)(node)
 
-/** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string> | null} */
-const remove = node => value => _.nodeRemove(cmp(value))(node)
+const remove
+    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string> | null
+    = node => value => _.nodeRemove(cmp(value))(node)
 
 const jsonStr = json.stringify(sort)
 
 const test = () => {
-    /** @type {BTree.Node<string> | null} */
-    let _map = ['1']
+    let _map
+        : BTree.Node<string> | null
+        = ['1']
     for (let i = 2; i <= 38; i++)
         _map = set(_map)((i * i).toString())
     {
@@ -411,8 +414,9 @@ const test = () => {
 }
 
 const test2 = () => {
-    /** @type {BTree.Node<string>|null} */
-    let _map = ['1']
+    let _map
+        : BTree.Node<string>|null
+        = ['1']
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())
     if (_map.length !== 3) { throw _map }
