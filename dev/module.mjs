@@ -87,7 +87,7 @@ export const loadModuleMap = async () => {
                     if (i.isDirectory()) {
                         await f(file)
                     } else if (name.endsWith('.f.mjs') || name.endsWith('.f.js')) {
-                        const source = await import(`../${file}`)
+                        const source = await import(`../../${file}`)
                         map.push([file, source.default])
                     }
                 }
