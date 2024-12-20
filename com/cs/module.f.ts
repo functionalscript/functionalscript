@@ -17,17 +17,17 @@ const { join } = string
 import * as O from '../../types/object/module.f.mjs'
 const { entries } = Object
 
-/** @type {(v: string) => string} */
-const using = v => `using ${v};`
+const using
+    : (v: string) => string
+    = v => `using ${v};`
 
-/**
- * @type {(attributes: list.List<string>) =>
- *  (type: string) =>
- *  (name: string) =>
- *  (body: text.Block) =>
- *  list.List<text.Item>}
- */
-const typeDef = attributes => type => name => body =>
+const typeDef
+    :   (attributes: list.List<string>) =>
+        (type: string) =>
+        (name: string) =>
+        (body: text.Block) =>
+        list.List<text.Item>
+    = attributes => type => name => body =>
     flat([
         map(v => `[${v}]`)(attributes),
         curly(`public ${type}`)(name)(body)
@@ -49,34 +49,41 @@ const baseTypeMap = {
     usize: 'UIntPtr',
 }
 
-/** @type {(t: types.BaseType) => string} */
-const baseType = t => baseTypeMap[t]
+const baseType
+    : (t: types.BaseType) => string
+    = t => baseTypeMap[t]
 
-/** @type {(isUnsafe: boolean) => string} */
-const unsafe = isUnsafe => isUnsafe ? 'unsafe ' : ''
+const unsafe
+    : (isUnsafe: boolean) => string
+    = isUnsafe => isUnsafe ? 'unsafe ' : ''
 
-/** @type {(t: types.Type) => readonly[boolean, string]} */
-const fullType = t =>
+const fullType
+    : (t: types.Type) => readonly[boolean, string]
+    = t =>
     typeof (t) === 'string' ? [false, baseType(t)] :
         t.length === 1 ? [false, t[0]] :
             [true, `${type(t[1])}*`]
 
-/** @type {(m: types.Type) => string} */
-const type = t => fullType(t)[1]
+const type
+    : (m: types.Type) => string
+    = t => fullType(t)[1]
 
-/** @type {(f: types.Field) => string} */
-const param = ([name, t]) => `${type(t)} ${name}`
+const param
+    : (f: types.Field) => string
+    = ([name, t]) => `${type(t)} ${name}`
 
 const mapParam = map(param)
 
-/** @type {(f: types.Field) => string} */
-const field = ([name, comType]) => {
+const field
+    : (f: types.Field) => string
+    = ([name, comType]) => {
     const [isUnsafe, t] = fullType(comType)
     return `public ${unsafe(isUnsafe)}${t} ${name};`
 }
 
-/** @type {(field: types.Field) => boolean} */
-const isUnsafeField = field => fullType(field[1])[0]
+const isUnsafeField
+    : (field: types.Field) => boolean
+    = field => fullType(field[1])[0]
 
 const mapIsUnsafeField = map(isUnsafeField)
 
@@ -84,8 +91,10 @@ const resultVoid = result('void')
 
 const joinComma = join(', ')
 
-/** @type {(e: O.Entry<types.FieldArray>) => readonly string[]} */
-const method = ([name, m]) => {
+const method
+    : (e: O.Entry<types.FieldArray>) => readonly string[]
+    = ([name, m]) => {
+
     const paramAndResultList = entries(m)
     const pl = paramList(m)
     const isUnsafe = some(mapIsUnsafeField(paramAndResultList))
@@ -103,8 +112,9 @@ const mapField = map(field)
 
 const flatMapMethod = flatMap(method)
 
-/** @type {(e: O.Entry<types.Definition>) => list.List<text.Item>} */
-const def = ([n, d]) => {
+const def
+    : (e: O.Entry<types.Definition>) => list.List<text.Item>
+    = ([n, d]) => {
     return !('interface' in d) ?
         struct(n)(mapField(entries(d.struct))) :
         typeDef
@@ -127,9 +137,10 @@ const header = [
 
 /**
  * Generates the C# code for a library.
- * @type {(name: string) => (library: types.Library) => text.Block}
  */
-export const cs = name => library => {
+export const cs
+    : (name: string) => (library: types.Library) => text.Block
+    = name => library => {
     const v = flatMapDef(entries(library))
     const ns = namespace(name)(v)
     return flat([header, ns])
