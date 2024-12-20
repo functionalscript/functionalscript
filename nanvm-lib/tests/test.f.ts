@@ -1,10 +1,12 @@
-/** @type {(a: unknown) => (b: unknown) => void} */
-const e = a => b => {
+const e
+    : (a: unknown) => (b: unknown) => void
+    = a => b => {
     if (a === b) { } else { throw [a, '===', b] }
 }
 
-/** @type {(a: unknown) => (b: unknown) => void} */
-const n = a => b => {
+const n
+    : (a: unknown) => (b: unknown) => void
+    = a => b => {
     if (a !== b) { } else { throw [a, '!==', b] }
 }
 
@@ -60,8 +62,7 @@ export default {
         },
         array: {
             array: () => {
-                /** @type {any} */
-                const a = []
+                const a: any = []
                 e(a)(a)
                 n([])([])
                 const a0 = ['0']
