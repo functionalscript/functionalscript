@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.2.6
+
+- Refactoring of a vector of bits [PR #328](https://github.com/functionalscript/functionalscript/pull/328)
+
 ## 0.2.5
 
 - new [crypto/] directory [PR #327](https://github.com/functionalscript/functionalscript/pull/327).
