@@ -2,7 +2,7 @@ import * as list from '../../types/list/module.f.mjs'
 const { flat } = list
 
 import cppContent from '../cpp/testlib.f.ts'
-import csContent from '../cs/testlib.f.mjs'
+import csContent from '../cs/testlib.f.ts'
 import rustContent from '../rust/testlib.f.mjs'
 
 type Platform =

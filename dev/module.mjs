@@ -69,7 +69,7 @@ export const env =
     self.Deno ? self.Deno.env.get :
         a => {
             const r = Object.getOwnPropertyDescriptor(process.env, a)
-            return r === void 0 ? void 0 :
+            return r === undefined ? undefined :
                 typeof r.get === 'function' ? r.get() :
                     r.value
         }
@@ -89,7 +89,10 @@ export const loadModuleMap = async () => {
                         await f(file)
                         continue
                     }
-                    if (name.endsWith('.f.mjs') || name.endsWith('.f.js') || (name.endsWith('.f.ts') && !existsSync(name.substring(0, name.length - 3) + '.js'))) {
+                    if (name.endsWith('.f.mjs') ||
+                        name.endsWith('.f.js') ||
+                        (name.endsWith('.f.ts') && !existsSync(file.substring(0, file.length - 3) + '.js'))
+                    ) {
                         const source = await import(`../${file}`)
                         map.push([file, source.default])
                     }
