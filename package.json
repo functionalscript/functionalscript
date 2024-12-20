@@ -10,7 +10,7 @@
     "test20": "npm run prepack && node --trace-uncaught ./dev/test.mjs",
     "test": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.mjs",
     "comtest": "node --experimental-strip-types ./com/test/build.ts",
-    "index": "node ./dev/index.mjs",
+    "index": "node --experimental-strip-types ./dev/index.ts",
     "version": "node ./nodejs/version/main.mjs",
     "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
   },
