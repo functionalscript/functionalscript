@@ -31,8 +31,7 @@ type Output ={
    readonly line: list.List<list.List<string>>
 }
 
-
-type Func = (nodejs: NodeJs) => Output
+export type Func = (nodejs: NodeJs) => Output
 
 const flags
     : (platform: Platform) => readonly string[]
