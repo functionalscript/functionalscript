@@ -6,13 +6,12 @@
   "scripts": {
     "tscp": "tsc --NoEmit false --emitDeclarationOnly true",
     "tsct": "tsc --NoEmit false --checkJs false",
-    "tsc": "tsc",
-    "test": "npm run tscp && npm run tsct && npm run test-only",
+    "prepack": "npm run tscp && npm run tsct",
+    "test": "npm run prepack && node --trace-uncaught ./dev/test.mjs",
+    "test22": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.mjs",
+    "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "index": "node ./dev/index.mjs",
     "version": "node ./nodejs/version/main.mjs",
-    "test-only": "node --trace-uncaught ./dev/test.mjs",
-    "test22": "node --experimental-strip-types --trace-uncaught ./dev/test.mjs",
-    "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
   },
   "repository": {
