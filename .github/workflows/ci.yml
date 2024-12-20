@@ -58,7 +58,7 @@ jobs:
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
-    - run: deno run --quiet --allow-read --allow-env --allow-net ./dev/test.mjs
+    - run: deno run --quiet --allow-read --allow-env --allow-net ./dev/test.ts
 
   bun:
 
@@ -67,7 +67,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash
-    - run: /home/runner/.bun/bin/bun ./dev/test.mjs
+    - run: /home/runner/.bun/bin/bun ./dev/test.ts
 
   COM:
     strategy:

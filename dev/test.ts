@@ -1,30 +1,22 @@
-import { loadModuleMap, exit, env } from './module.mjs'
+import { loadModuleMap, exit, env } from './module.ts'
 import test from './test/module.f.mjs'
 
-/** @type {(f: (s: string) => void) => (s: string) => <T>(_: T) => T} */
-const anyLog = f => s => state => {
+const anyLog
+    : (f: (s: string) => void) => (s: string) => <T>(_: T) => T
+    = f => s => state => {
     f(s)
     return state
 }
 
-/**
- * @template T
- * @typedef {readonly['ok', T]} Ok
- */
+type Ok<T> = readonly['ok', T]
 
-/**
- * @template E
- * @typedef {readonly['error', E]} Error
- */
+type Error<E> = readonly['error', E]
 
-/**
- * @template T
- * @template E
- * @typedef {Ok<T>|Error<E>} Result
- */
+type Result<T, E> = Ok<T>|Error<E>
 
-/** @type {<T>(f: () => T) => Result<T, unknown>} */
-const tryCatch = f => {
+const tryCatch
+    : <T>(f: () => T) => Result<T, unknown>
+    = f => {
     // `try catch` is not allowed in FunctionalScript.
     try {
         return ['ok', f()]
@@ -33,8 +25,9 @@ const tryCatch = f => {
     }
 }
 
-/** @type {<R>(f: () => R) => <T>(state: T) => readonly[R, number, T]} Measure} */
-const measure = f => state => {
+const measure
+    : <R>(f: () => R) => <T>(state: T) => readonly[R, number, T]
+    = f => state => {
     const b = performance.now()
     const r = f()
     const e = performance.now()
