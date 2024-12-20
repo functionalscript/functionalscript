@@ -1,47 +1,43 @@
 import * as list from '../../types/list/module.f.mjs'
 const { flat } = list
 
-import cppContent from '../cpp/testlib.f.mjs'
+import cppContent from '../cpp/testlib.f.ts'
 import csContent from '../cs/testlib.f.mjs'
 import rustContent from '../rust/testlib.f.mjs'
 
-/**
- * @typedef {|
- *  'aix' |
- *  'android' |
- *  'darwin' |
- *  'freebsd' |
- *  'haiku' |
- *  'linux' |
- *  'openbsd' |
- *  'sunos' |
- *  'win32' |
- *  'cygwin' |
- *  'netbsd'
- * } Platform
- */
+type Platform =
+   | 'aix'
+   | 'android'
+   | 'darwin'
+   | 'freebsd'
+   | 'haiku'
+   | 'linux'
+   | 'openbsd'
+   | 'sunos'
+   | 'win32'
+   | 'cygwin'
+   | 'netbsd'
 
-/**
- * @typedef {{
- *  readonly dirname: string
- *  readonly platform: Platform
- * }} NodeJs
- */
+type NodeJs = {
+   readonly dirname: string
+   readonly platform: Platform
+}
 
-/**
- * @typedef {{
- *  readonly file: {
- *      readonly name: string
- *      readonly content: string
- *  }
- *  readonly line: list.List<list.List<string>>
- * }} Output
- */
+type Output ={
+   readonly file: {
+       readonly name: string
+       readonly content: string
+   }
+   readonly line: list.List<list.List<string>>
+}
 
-/** @typedef {(nodejs: NodeJs) => Output} Func */
 
-/** @type {(platform: Platform) => readonly string[]} */
-const flags = platform => {
+type Func = (nodejs: NodeJs) => Output
+
+const flags
+    : (platform: Platform) => readonly string[]
+    = platform => {
+
     switch (platform) {
         case 'win32':
             return []
@@ -52,8 +48,10 @@ const flags = platform => {
     }
 }
 
-/** @type {(platform: Platform) => (name: string) => string} */
-const output = platform => name => {
+const output
+    : (platform: Platform) => (name: string) => string
+    = platform => name => {
+
     switch (platform) {
         case 'win32': return `${name}.dll`
         case 'darwin': return `lib${name}.dylib`
@@ -61,8 +59,10 @@ const output = platform => name => {
     }
 }
 
-/** @type {Func} */
-const cpp = ({ dirname, platform }) => ({
+const cpp
+    : Func
+    = ({ dirname, platform }) => ({
+
     file: {
         name: `${dirname}/cpp/_result.hpp`,
         content: cppContent(),
@@ -76,8 +76,10 @@ const cpp = ({ dirname, platform }) => ({
     ],
 })
 
-/** @type {Func} */
-const cs = ({ dirname, platform }) => ({
+const cs
+    : Func
+    = ({ dirname, platform }) => ({
+
     file: {
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
@@ -90,8 +92,9 @@ const cs = ({ dirname, platform }) => ({
     ],
 })
 
-/** @type {Func} */
-const rust = ({ dirname }) => ({
+const rust
+: Func
+= ({ dirname }) => ({
     file: {
         name: `${dirname}/rust/src/_result.rs`,
         content: rustContent,
