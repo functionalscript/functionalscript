@@ -3,8 +3,9 @@ const { curve, secp256k1, secp192r1, secp256r1, eq } = _
 
 export default {
     example: () => {
-        /** @type {_.Init} */
-        const curveParams = {
+        const curveParams
+            : _.Init
+            = {
             p: 23n,
             a: [0n, 1n],
             g: [1n, 1n],
@@ -17,12 +18,14 @@ export default {
         const mulPoint = c.mul([1n, 1n])(3n); // Multiply a point by 3
     },
     test: () => {
-        /** @type {(c: _.Init) => void} */
-        const test_curve = c => {
+        const test_curve
+            : (c: _.Init) => void
+            = c => {
             const { g } = c
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
-            /** @type {(p: _.Point) => void} */
-            const point_check = p => {
+            const point_check
+                : (p: _.Point) => void
+                = p => {
                 if (p === null) { throw 'p === null' }
                 const [x, y] = p
                 const ye = yf(x)
@@ -31,15 +34,17 @@ export default {
             }
             point_check(g)
             point_check(neg(g))
-            /** @type {(p: _.Point) => void} */
-            const test_mul = p => {
+            const test_mul
+                : (p: _.Point) => void
+                = p => {
                 if (mul(p)(0n) !== null) { throw 'O' }
                 if (mul(p)(1n) !== p) { throw 'p' }
                 if (mul(p)(n) !== null) { throw 'n' }
                 const pn = neg(p)
                 if (!eq(mul(p)(n - 1n))(pn)) { throw 'n - 1' }
-                /** @type {(s: bigint) => void} */
-                const f = s => {
+                const f
+                    : (s: bigint) => void
+                    = s => {
                     const r = mul(p)(s)
                     point_check(r)
                     const rn = mul(pn)(s)
