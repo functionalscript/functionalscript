@@ -1,4 +1,4 @@
-import { empty, vec, lenght, concatLsb, uintLsb, uintMsb, removeLsb, concatMsb, removeMsb } from './module.f.mjs'
+import { empty, vec, length, concatLsb, uintLsb, uintMsb, removeLsb, concatMsb, removeMsb, uint, popUintLsb, popUintMsb } from './module.f.mjs'
 
 export default {
     examples: {
@@ -8,6 +8,12 @@ export default {
             if (v0 !== 0x15n) { throw v0 }
             const v1 = vec4(0x5FEn) // 0x1En
             if (v1 !== 0x1En) { throw v1 }
+        },
+        uint: () => {
+            const vector = vec(8n)(0x5n) // 0x105n
+            if (vector !== 0x105n) { throw vector }
+            const result = uint(vector); // result is 0x5n
+            if (result !== 0x5n) { throw result }
         },
         uintLsb: () => {
             const vector = vec(8n)(0xF5n) // 0x1F5n
@@ -24,6 +30,24 @@ export default {
             if (result !== 0xFn) { throw result }
             const result2 = uintMsb(16n)(vector); // result2 is 0xF500n
             if (result2 !== 0xF500n) { throw result2 }
+        },
+        popUintLsb: () => {
+            const vector = vec(8n)(0xF5n) // 0x1F5n
+            const [result, rest] = popUintLsb(4n)(vector); // result is 5n, rest is 0x1Fn
+            if (result !== 5n) { throw result }
+            if (rest !== 0x1Fn) { throw rest }
+            const [result2, rest2] = popUintLsb(16n)(vector); // result2 is 0xF5n, rest2 is 1n
+            if (result2 !== 0xF5n) { throw result2 }
+            if (rest2 !== 1n) { throw rest2 }
+        },
+        popUintMsb: () => {
+            const vector = vec(8n)(0xF5n) // 0x1F5n
+            const [result, rest] = popUintMsb(4n)(vector); // [0xFn, 0x15n]
+            if (result !== 0xFn) { throw result }
+            if (rest !== 0x15n) { throw rest }
+            const [result2, rest2] = popUintMsb(16n)(vector); // [0xF500n, 1n]
+            if (result2 !== 0xF500n) { throw result2 }
+            if (rest2 !== 1n) { throw rest2 }
         },
         concatLsb: () => {
             const u8 = vec(8n)
@@ -77,13 +101,13 @@ export default {
         if (vector !== 0b10101n) { throw vector }
     },
     length: () => {
-        const i = lenght(empty)
+        const i = length(empty)
         if (i !== 0n) { throw i}
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)
         if (v !== 0x1FEn) { throw v }
-        if (lenght(v) !== 8n) { throw 'len' }
+        if (length(v) !== 8n) { throw 'len' }
         const u = uintLsb(8n)(v)
         if (u !== 0xFEn) { throw v }
     },
@@ -93,7 +117,7 @@ export default {
         const b = vec8(0x789n)
         const ab = concatLsb(a)(b)
         if (ab !== 0x18945n) { throw ab }
-        const s = lenght(ab)
+        const s = length(ab)
         if (s !== 16n) { throw `appendBack: ${s}` }
     },
     removeBack: () => {

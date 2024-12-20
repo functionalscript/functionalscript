@@ -16,7 +16,7 @@ export const empty = 1n
 /**
  * Calculates the length of the given vector of bits.
  */
-export const lenght = log2
+export const length = log2
 
 /**
  * Creates a vector of bits of the given `len` and the given unsigned integer.
@@ -45,8 +45,15 @@ const mask = len => (1n << len) - 1n
  * Returns the unsigned integer of the given vector by removing a stop bit.
  *
  * @type {(len: Vec) => bigint}
+ *
+ * @example
+ *
+ * ```js
+ * const vector = vec(8n)(0x5n) // 0x105n
+ * const result = uint(vector); // result is 0x5n
+ * ```
  */
-export const uint = v => v ^ (1n << lenght(v))
+export const uint = v => v ^ (1n << length(v))
 
 /**
  * Extract the least significant unsigned integer from the given vector.
@@ -88,7 +95,17 @@ export const removeLsb = len => v => {
 }
 
 /**
+ * Extracts the least significant unsigned integer and removes it from the vector.
+ *
  * @type {(len: bigint) => (v: Vec) => [bigint, Vec]}
+ *
+ * @example
+ *
+ * ```js
+ * const vector = vec(8n)(0xF5n) // 0x1F5n
+ * const [result, rest] = popUintLsb(4n)(vector); // result is 5n, rest is 0x1Fn
+ * const [result2, rest2] = popUintLsb(16n)(vector); // result2 is 0xF5n, rest2 is 1n
+ * ```
  */
 export const popUintLsb = len => {
     const m = mask(len)
@@ -113,7 +130,7 @@ export const popUintLsb = len => {
  */
 export const uintMsb = len => {
     const m = mask(len)
-    return v => (v >> (lenght(v) - len)) & m
+    return v => (v >> (length(v) - len)) & m
 }
 
 /**
@@ -129,13 +146,25 @@ export const uintMsb = len => {
  * const r2 = removeMsb(24n)(v) // 0x1n
  * ```
  */
-export const removeMsb = len => v => vec(lenght(v) - len)(v)
+export const removeMsb = len => v => vec(length(v) - len)(v)
 
-/** @type {(len: bigint) => (v: Vec) => [bigint, Vec]} */
+/**
+ * Extracts the most significant unsigned integer and removes it from the vector.
+ *
+ * @type {(len: bigint) => (v: Vec) => [bigint, Vec]}
+ *
+ * @example
+ *
+ * ```js
+ * const vector = vec(8n)(0xF5n) // 0x1F5n
+ * const [result, rest] = popUintMsb(4n)(vector); // [0xFn, 0x15n]
+ * const [result2, rest2] = popUintMsb(16n)(vector); // [0xF500n, 1n]
+ * ```
+ */
 export const popUintMsb = len => {
     const m = mask(len)
     return v => {
-        const d = lenght(v) - len
+        const d = length(v) - len
         return [(v >> d) & m, vec(d)(v)]
     }
 }
@@ -155,7 +184,7 @@ export const popUintMsb = len => {
  * ```
  */
 export const concatLsb = a => {
-    const aLen = lenght(a)
+    const aLen = length(a)
     const m = mask(aLen)
     return b => (b << aLen) | (a & m)
 }
