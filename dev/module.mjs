@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readdir, writeFile, readFile } from 'node:fs/promises'
 
 /**
@@ -86,7 +87,9 @@ export const loadModuleMap = async () => {
                     const file = `${p}/${name}`
                     if (i.isDirectory()) {
                         await f(file)
-                    } else if (name.endsWith('.f.mjs') || name.endsWith('.f.js') || name.endsWith('.f.ts')) {
+                        continue
+                    }
+                    if (name.endsWith('.f.mjs') || name.endsWith('.f.js') || (name.endsWith('.f.ts') && !existsSync(name.substring(0, name.length - 3) + '.js'))) {
                         const source = await import(`../${file}`)
                         map.push([file, source.default])
                     }
