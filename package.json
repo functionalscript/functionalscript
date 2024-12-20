@@ -6,7 +6,7 @@
   "scripts": {
     "tscp": "rm -rf out/ && tsc --NoEmit false",
     "tsc": "tsc",
-    "test": "tsc && npm run test-only",
+    "test": "npm run tscp && npm run test-only",
     "index": "node ./dev/index.mjs",
     "version": "node ./nodejs/version/main.mjs",
     "test-only": "node --trace-uncaught ./dev/test.mjs",

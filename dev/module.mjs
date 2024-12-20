@@ -93,7 +93,7 @@ export const loadModuleMap = async () => {
                 }
             }
         }
-        await f('.')
+        await f('./out/')
         map.sort(cmp)
         return Object.fromEntries(map)
     }
