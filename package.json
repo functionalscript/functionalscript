@@ -11,6 +11,7 @@
     "index": "node ./dev/index.mjs",
     "version": "node ./nodejs/version/main.mjs",
     "test-only": "node --trace-uncaught ./dev/test.mjs",
+    "test22": "node --experimental-strip-types --trace-uncaught ./dev/test.mjs",
     "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
   },

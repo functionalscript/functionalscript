@@ -28,6 +28,24 @@ jobs:
     - run: npm run version
     - run: npm pack
 
+  node-ts:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20, 22, 23]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+    - run: npm ci
+    - run: npm run test22
+    - run: npm run version
+    - run: npm pack
+
   deno:
 
     runs-on: ubuntu-latest
