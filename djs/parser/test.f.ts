@@ -7,8 +7,9 @@ import * as o from '../../types/object/module.f.mjs'
 const { sort } = o
 import * as encoding from '../../text/utf16/module.f.mjs'
 
-/** @type {(s: string) => readonly tokenizer.DjsToken[]} */
-const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+const tokenizeString
+    : (s: string) => readonly tokenizer.DjsToken[]
+    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = djs.stringify(sort)
 
