@@ -6,8 +6,9 @@ import * as o from '../../types/object/module.f.mjs'
 const { sort } = o
 import * as encoding from '../../text/utf16/module.f.mjs'
 
-/** @type {(s: string) => readonly tokenizer.JsToken[]} */
-const tokenizeString = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+const tokenizeString
+    : (s: string) => readonly tokenizer.JsToken[]
+    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = djs.stringify(sort)
 
@@ -91,11 +92,11 @@ export default {
         },
         () => {
             const result = stringify(tokenizeString('"\r"'))
-            if (result !== '[{"kind":"error","message":"unterminated string literal"},{"kind":"nl"},{"kind":"error","message":"\\" are missing"}]') { throw result }            
+            if (result !== '[{"kind":"error","message":"unterminated string literal"},{"kind":"nl"},{"kind":"error","message":"\\" are missing"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\n null'))
-            if (result !== '[{"kind":"error","message":"unterminated string literal"},{"kind":"nl"},{"kind":"null"}]') { throw result }            
+            if (result !== '[{"kind":"error","message":"unterminated string literal"},{"kind":"nl"},{"kind":"null"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('"\\b\\f\\n\\r\\t"'))
