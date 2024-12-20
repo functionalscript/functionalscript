@@ -8,11 +8,13 @@ import * as object from '../../types/object/module.f.mjs'
 const { at } = object
 import * as Package from '../package/module.f.mjs'
 
-/** @type {<T>(o: object.Map<T>) => (s: string) => T|null} */
-const i = o => s => at(s)(o)
+const i
+    : <T>(o: object.Map<T>) => (s: string) => T|null
+    = o => s => at(s)(o)
 
-/** @type {(g: json.Unknown) => string} */
-const stringify = json.stringify(identity)
+const stringify
+    : (g: json.Unknown) => string
+    = json.stringify(identity)
 
 export default {
     0: () => {
@@ -70,8 +72,9 @@ export default {
         },
     },
     9: () => {
-        /** @type {object.Map<Package.Package>} */
-        const packages = {
+        const packages
+            : object.Map<Package.Package>
+            = {
             '': {
                 dependency: () => todo(),
                 file: i({ 'a/c': 'return "a/c"' }),
@@ -81,8 +84,9 @@ export default {
         if (result !== '{"id":{"package":"","path":["a","c"]},"source":"return \\"a/c\\""}') { throw result }
     },
     10: () => {
-        /** @type {object.Map<Package.Package>} */
-        const packages = {
+        const packages
+            : object.Map<Package.Package>
+            = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
@@ -131,8 +135,9 @@ export default {
         }
     },
     11: () => {
-        /** @type {object.Map<Package.Package>} */
-        const packages = {
+        const packages
+        : object.Map<Package.Package>
+        = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
@@ -158,8 +163,9 @@ export default {
         }
     },
     12: () => {
-        /** @type {object.Map<Package.Package>} */
-        const packages = {
+        const packages
+        : object.Map<Package.Package>
+        = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
