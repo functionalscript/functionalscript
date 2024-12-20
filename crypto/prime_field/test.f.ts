@@ -35,8 +35,9 @@ export default {
                 }
             },
             pow: () => {
-                /** @type {(a: bigint) => void} */
-                const test = a => {
+                const test
+                    : (a: bigint) => void
+                    = a => {
                     if (f.pow(a)(0n) !== 1n) { throw '**0'}
                     if (f.pow(a)(1n) !== a) { throw '**1' }
                     // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
@@ -74,8 +75,9 @@ export default {
                 if (root !== 2n) { throw root }
             },
             sqrt: () => {
-                /** @type {(a: bigint) => void} */
-                const test = a => {
+                const test
+                    : (a: bigint) => void
+                    = a => {
                     const a2 = f.mul(a)(a)
                     const s = sqrt_f(a2)
                     if (s !== null && f.abs(s) !== f.abs(a)) { throw 'sqrt' }
