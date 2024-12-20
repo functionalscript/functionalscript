@@ -2,12 +2,9 @@ import * as _ from './module.f.mjs'
 
 const version = '0.3.0'
 
-/**
- * @type {{
- *  readonly[k in string]: unknown
- * }}
- */
-const x = {
+const x
+    : { readonly[k in string]: unknown }
+    = {
     'package.json': {
         "name": "functionalscript",
         version,
@@ -82,14 +79,16 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-/** @type {(s: string) => _.Buffer} */
-const buffer = s => ({
+const buffer
+    : (s: string) => _.Buffer
+    = s => ({
     toString: () => s
 })
 
 export default () => {
-    /** @type {_.Node<string>} */
-    const node = {
+    const node
+        : _.Node<string>
+        = {
         fs: {
             readFileSync: n => buffer(JSON.stringify(x[n])),
             writeFileSync: (_, content) => content
