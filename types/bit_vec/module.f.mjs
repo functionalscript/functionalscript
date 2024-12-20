@@ -19,7 +19,7 @@ export const empty = 1n
 export const lenght = log2
 
 /**
- * Creates a vector of bits of the given `len` from the given unsigned integer.
+ * Creates a vector of bits of the given `len` and the given unsigned integer.
  *
  * @type {(len: bigint) => (ui: bigint) => Vec}
  *
@@ -42,6 +42,13 @@ export const vec = len => {
 const mask = len => (1n << len) - 1n
 
 /**
+ * Returns the unsigned integer of the given vector by removing a stop bit.
+ *
+ * @type {(len: Vec) => bigint}
+ */
+export const uint = v => v ^ (1n << lenght(v))
+
+/**
  * Extract the least significant unsigned integer from the given vector.
  *
  * @type {(uintLen: bigint) => (v: Vec) => bigint}
@@ -58,7 +65,36 @@ export const uintLsb = len => {
     const m = mask(len)
     return v => {
         const result = v & m
-        return result === v ? result ^ (1n << lenght(v)) : result
+        return result === v ? uint(v) : result
+    }
+}
+
+/**
+ * Removes the first `len` least significant bits from the given vector.
+ *
+ * @type {(len: bigint) => (v: Vec) => Vec}
+ *
+ * @example
+ *
+ * ```js
+ * const v = vec(16n)(0x3456n) // 0x13456n
+ * const r = removeLsb(4n)(v) // 0x1345n
+ * const r2 = removeLsb(24n)(v) // 0x1n
+ * ```
+ */
+export const removeLsb = len => v => {
+    const r = v >> len
+    return r === 0n ? empty : r
+}
+
+/**
+ * @type {(len: bigint) => (v: Vec) => [bigint, Vec]}
+ */
+export const popUintLsb = len => {
+    const m = mask(len)
+    return v => {
+        const result = v & m
+        return result === v ? [uint(v), empty] : [result, v >> len]
     }
 }
 
@@ -77,10 +113,30 @@ export const uintLsb = len => {
  */
 export const uintMsb = len => {
     const m = mask(len)
+    return v => (v >> (lenght(v) - len)) & m
+}
+
+/**
+ * Removes the first `len` most significant bits from the given vector.
+ *
+ * @type {(len: bigint) => (v: Vec) => Vec}
+ *
+ * @example
+ *
+ * ```js
+ * const v = vec(16n)(0x3456n) // 0x13456n
+ * const r = removeMsb(4n)(v) // 0x1456n
+ * const r2 = removeMsb(24n)(v) // 0x1n
+ * ```
+ */
+export const removeMsb = len => v => vec(lenght(v) - len)(v)
+
+/** @type {(len: bigint) => (v: Vec) => [bigint, Vec]} */
+export const popUintMsb = len => {
+    const m = mask(len)
     return v => {
-        const vLen = lenght(v)
-        const d = vLen - len
-        return (d >= 0n ? v >> d : v << -d) & m
+        const d = lenght(v) - len
+        return [(v >> d) & m, vec(d)(v)]
     }
 }
 
@@ -119,36 +175,3 @@ export const concatLsb = a => {
  * ```
  */
 export const concatMsb = flip(concatLsb)
-
-/**
- * Removes the first `len` least significant bits from the given vector.
- *
- * @type {(len: bigint) => (v: Vec) => Vec}
- *
- * @example
- *
- * ```js
- * const v = vec(16n)(0x3456n) // 0x13456n
- * const r = removeLsb(4n)(v) // 0x1345n
- * const r2 = removeLsb(24n)(v) // 0x1n
- * ```
- */
-export const removeLsb = len => v => {
-    const r = v >> len
-    return r === 0n ? empty : r
-}
-
-/**
- * Removes the first `len` most significant bits from the given vector.
- *
- * @type {(len: bigint) => (v: Vec) => Vec}
- *
- * @example
- *
- * ```js
- * const v = vec(16n)(0x3456n) // 0x13456n
- * const r = removeMsb(4n)(v) // 0x1456n
- * const r2 = removeMsb(24n)(v) // 0x1n
- * ```
- */
-export const removeMsb = len => v => vec(lenght(v) - len)(v)
