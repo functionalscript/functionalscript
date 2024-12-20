@@ -1,3 +1,3 @@
-import { index } from "./module.mjs"
+import { index } from "./module.ts"
 
 index()
