@@ -126,4 +126,6 @@ _*
 .vscode
 /docs
 .DS_Store
-out/
+**/*.d.mts
+**/*.d.ts
+**/*.js
