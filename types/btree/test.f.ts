@@ -12,15 +12,18 @@ import * as f from './find/module.f.mjs'
 
 const jsonStr = json.stringify(sort)
 
-/** @type {(sequence: list.List<json.Unknown>) => string} */
-const stringify = sequence => jsonStr(list.toArray(sequence))
+const stringify
+    : (sequence: list.List<json.Unknown>) => string
+    = sequence => jsonStr(list.toArray(sequence))
 
-/** @type {(node: BTree.Node<string>) => (value: string) => BTree.Node<string>} */
-const set = node => value => s.set(cmp(value))(() => value)(node)
+const set
+    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string>
+    = node => value => s.set(cmp(value))(() => value)(node)
 
-const valueTest1 = () => {
-    /** @type {BTree.Node<string>} */
-    let _map = ['a']
+const valueTest1 =() => {
+    let _map
+        : BTree.Node<string>
+        = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     _map = set(_map)('d')
@@ -31,8 +34,9 @@ const valueTest1 = () => {
 }
 
 const valuesTest2 = () => {
-    /** @type {BTree.Node<string>} */
-    let _map = ['1']
+    let _map
+        : BTree.Node<string>
+        = ['1']
     for(let i = 2; i <= 10; i++)
         _map = set(_map)((i*i).toString())
     let result = stringify(values(_map))
@@ -40,8 +44,9 @@ const valuesTest2 = () => {
 }
 
 const findTrue = () => {
-    /** @type {BTree.Node<string>} */
-    let _map = ['a']
+    let _map
+        : BTree.Node<string>
+        = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = f.value(f.find(cmp('b'))(_map).first)
@@ -49,8 +54,9 @@ const findTrue = () => {
 }
 
 const find = () => {
-    /** @type {BTree.Node<string>} */
-    let _map = ['a']
+    let _map
+        : BTree.Node<string>
+        = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     const result = f.value(f.find(cmp('e'))(_map).first)
@@ -58,8 +64,9 @@ const find = () => {
 }
 
 const test = () => {
-    /** @type {BTree.Node<string>} */
-    let _map = ['a']
+    let _map
+        : BTree.Node<string>
+        = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
     _map = set(_map)('d')
@@ -67,8 +74,9 @@ const test = () => {
     _map = set(_map)('f')
     //
     {
-        /** @type {list.Result<string>} */
-        let _item = list.next(values(_map))
+        let _item
+            : list.Result<string>
+            = list.next(values(_map))
         while (_item !== null) {
             _item = list.next(_item.tail)
         }
