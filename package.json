@@ -12,7 +12,7 @@
     "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "index": "node --experimental-strip-types ./dev/index.ts",
     "version": "node --experimental-strip-types ./nodejs/version/main.ts",
-    "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
+    "doc": "deno doc --html **/module.f.ts"
   },
   "repository": {
     "type": "git",

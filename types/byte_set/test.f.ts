@@ -5,8 +5,9 @@ import * as json from '../../json/module.f.mjs'
 import * as o from '../object/module.f.mjs'
 const { sort } = o
 
-/** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = json.stringify(sort)
+const stringify
+    : (a: readonly json.Unknown[]) => string
+    = json.stringify(sort)
 
 export default {
     has: [
@@ -47,7 +48,7 @@ export default {
         }
     ],
     universe: () => {
-        const x = every(map(v => _.has(v)(_.universe))(countdown(256)))
+        const x = every(map((v: any) => _.has(v)(_.universe))(countdown(256)))
         if (!x) { throw x }
     },
     compliment: {
