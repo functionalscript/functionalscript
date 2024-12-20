@@ -3,8 +3,9 @@ import * as string from '../types/string/module.f.mjs'
 const { join } = string
 
 export default () => {
-    /** @type {_.Block} */
-    const text = [
+    const text
+        : _.Block
+        = [
         'a',
         'b',
         () => [
