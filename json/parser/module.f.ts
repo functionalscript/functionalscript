@@ -1,4 +1,4 @@
-import * as result from '../../types/result/module.f.mjs'
+import * as result from '../../types/result/module.f.ts'
 import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'

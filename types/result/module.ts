@@ -1,4 +1,4 @@
-import * as result from './module.f.mjs'
+import * as result from './module.f.ts'
 const { ok, error } = result
 
 const tryCatch
