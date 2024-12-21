@@ -1,5 +1,5 @@
 import { log2 } from '../bigint/module.f.ts'
-import { flip } from '../function/module.f.mjs'
+import { flip } from '../function/module.f.ts'
 
 /**
  * A vector of bits represented as a `bigint`.

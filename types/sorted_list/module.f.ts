@@ -2,7 +2,7 @@ import * as compare from '../function/compare/module.f.ts'
 import * as list from '../list/module.f.ts'
 import * as option from '../nullable/module.f.ts'
 const { next } = list
-import * as f from '../function/module.f.mjs'
+import * as f from '../function/module.f.ts'
 const { identity } = f
 
 export type SortedList<T> = list.List<T>

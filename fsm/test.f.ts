@@ -3,7 +3,7 @@ import * as byteSet from '../types/byte_set/module.f.ts'
 import * as o from '../types/object/module.f.ts'
 const { sort, fromEntries } = o
 import * as json from '../json/module.f.ts'
-import * as f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.ts'
 const { identity } = f
 import * as list from '../types/list/module.f.ts'
 const { toArray } = list

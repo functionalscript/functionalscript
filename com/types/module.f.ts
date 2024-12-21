@@ -1,6 +1,6 @@
 import * as O from '../../types/object/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
-import * as f from '../../types/function/module.f.mjs'
+import * as f from '../../types/function/module.f.ts'
 const { compose } = f
 const { filter } = list
 const { entries } = Object

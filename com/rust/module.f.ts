@@ -11,7 +11,7 @@ import * as O from '../../types/object/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
 const { flat, map, flatMap } = list
 const { entries } = Object
-import * as func from '../../types/function/module.f.mjs'
+import * as func from '../../types/function/module.f.ts'
 const { fn } = func
 import * as string from '../../types/string/module.f.ts'
 const { join } = string

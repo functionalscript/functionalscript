@@ -1,4 +1,4 @@
-import * as f from '../function/module.f.mjs'
+import * as f from '../function/module.f.ts'
 const { compose } = f
 import * as RangeMap from '../range_map/module.f.ts'
 import * as SortedSet from '../sorted_set/module.f.ts'

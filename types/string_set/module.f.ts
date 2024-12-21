@@ -14,7 +14,7 @@ import * as string from "../string/module.f.ts"
 const { cmp } = string
 import * as list from '../list/module.f.ts'
 const { fold } = list
-import * as f from '../function/module.f.mjs'
+import * as f from '../function/module.f.ts'
 const { compose } = f
 
 export type StringSet = BtreeTypes.Tree<string>

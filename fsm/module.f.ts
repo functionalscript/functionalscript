@@ -12,7 +12,7 @@ import * as operator from '../types/function/operator/module.f.mjs'
 const { strictEqual } = operator
 import * as j from '../json/module.f.ts'
 const { stringify } = j
-import * as f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.ts'
 const { identity } = f
 import * as utf16 from '../text/utf16/module.f.ts'
 const { stringToList } = utf16

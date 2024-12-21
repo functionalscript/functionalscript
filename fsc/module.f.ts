@@ -6,7 +6,7 @@ const { reduce: listReduce } = list
 import * as ascii from '../text/ascii/module.f.ts'
 const { range: asciiRange } = ascii
 const { fromCharCode } = String
-import * as f from '../types/function/module.f.mjs'
+import * as f from '../types/function/module.f.ts'
 const { fn } = f
 import * as _range from '../types/range/module.f.ts'
 const { one } = _range

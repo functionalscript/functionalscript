@@ -1,4 +1,4 @@
-import * as function_ from '../function/module.f.mjs'
+import * as function_ from '../function/module.f.ts'
 const { identity, fn, compose } = function_
 import * as operator from '../function/operator/module.f.mjs'
 const {

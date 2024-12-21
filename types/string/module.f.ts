@@ -1,6 +1,6 @@
 import * as list from '../list/module.f.ts'
 const { reduce: listReduce, repeat: listRepeat } = list
-import * as f from '../function/module.f.mjs'
+import * as f from '../function/module.f.ts'
 const { compose } = f
 import * as compare from '../function/compare/module.f.ts'
 const { unsafeCmp } = compare

@@ -7,7 +7,7 @@ const { sort } = object
 import * as list from '../list/module.f.ts'
 const { toArray, countdown, length } = list
 import * as Map from '../map/module.f.ts'
-import * as f from '../function/module.f.mjs'
+import * as f from '../function/module.f.ts'
 const { flip } = f
 
 const stringify
