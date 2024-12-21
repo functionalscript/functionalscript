@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import * as dev from '../../dev/module.f.mjs'
+import * as dev from '../../dev/module.f.js'
 const { todo } = dev
 import * as json from '../../json/module.f.mjs'
 import * as f from '../../types/function/module.f.mjs'
