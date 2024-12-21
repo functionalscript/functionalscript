@@ -1,11 +1,9 @@
-// @ts-self-types="./module.f.d.mts"
-
 /**
  * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
- *
- * @type {(c: number) => string}
  */
-export const sgr = c => `\x1b[${c.toString()}m`
+export const sgr
+    : (c: number) => string
+    = c => `\x1b[${c.toString()}m`
 
 export const codes = {
     /** @readonly */

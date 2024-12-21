@@ -6,7 +6,7 @@ const { cpp, cs, rust } = build
 import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 const { log, error } = console
-import * as sgr from '../../text/sgr/module.f.mjs'
+import * as sgr from '../../text/sgr/module.f.ts'
 const { bold, reset } = sgr.codes
 import * as list from '../../types/list/module.f.mjs'
 
