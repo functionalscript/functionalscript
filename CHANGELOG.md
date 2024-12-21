@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- djs: add serializer [PR #326] https://github.com/functionalscript/functionalscript/pull/326
+
 ## 0.2.6
 
 - Refactoring of a vector of bits [PR #328](https://github.com/functionalscript/functionalscript/pull/328)
