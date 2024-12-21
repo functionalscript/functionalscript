@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 import * as map from '../../types/map/module.f.mjs'
 import * as Module from '../module/module.f.mjs'
 import * as ModuleFunction from '../module/function/module.f.mjs'
