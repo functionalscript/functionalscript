@@ -8,7 +8,7 @@ import * as rangeMap from '../types/range_map/module.f.ts'
 const { merge } = rangeMap
 import * as cmp from '../types/function/compare/module.f.ts'
 const { unsafeCmp } = cmp
-import * as operator from '../types/function/operator/module.f.mjs'
+import * as operator from '../types/function/operator/module.f.ts'
 const { strictEqual } = operator
 import * as j from '../json/module.f.ts'
 const { stringify } = j

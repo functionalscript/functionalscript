@@ -1,5 +1,5 @@
 import * as list from '../../types/list/module.f.ts'
-import * as operator from '../../types/function/operator/module.f.mjs'
+import * as operator from '../../types/function/operator/module.f.ts'
 import * as Array from '../../types/array/module.f.ts'
 const { flatMap, flat, stateScan } = list
 

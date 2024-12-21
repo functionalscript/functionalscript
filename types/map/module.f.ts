@@ -12,7 +12,7 @@ import * as s from '../string/module.f.ts'
 const { cmp } = s
 import * as list from '../list/module.f.ts'
 const { fold } = list
-import * as Operator from '../function/operator/module.f.mjs'
+import * as Operator from '../function/operator/module.f.ts'
 
 export type Sign = Compare.Sign
 

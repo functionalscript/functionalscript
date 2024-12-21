@@ -1,7 +1,7 @@
 import * as list from '../../types/list/module.f.ts'
 const { flat, reduce, empty } = list
 import * as O from '../../types/object/module.f.ts'
-import * as Operator from '../../types/function/operator/module.f.mjs'
+import * as Operator from '../../types/function/operator/module.f.ts'
 
 type Obj<T> = {
     readonly [k in string]: Unknown<T>

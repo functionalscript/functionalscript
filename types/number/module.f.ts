@@ -1,6 +1,6 @@
 import * as list from '../list/module.f.ts'
 const { reduce } = list
-import * as operator from '../function/operator/module.f.mjs'
+import * as operator from '../function/operator/module.f.ts'
 const { addition, min: minOp, max: maxOp } = operator
 import * as compare from '../function/compare/module.f.ts'
 const { unsafeCmp } = compare

@@ -1,4 +1,4 @@
-import * as operator from '../types/function/operator/module.f.mjs'
+import * as operator from '../types/function/operator/module.f.ts'
 import * as rangeMap from '../types/range_map/module.f.ts'
 const { merge: rangeMapMerge, fromRange, get } = rangeMap
 import * as list from '../types/list/module.f.ts'

@@ -4,7 +4,7 @@ import * as f from '../function/module.f.ts'
 const { compose } = f
 import * as compare from '../function/compare/module.f.ts'
 const { unsafeCmp } = compare
-import * as op from '../function/operator/module.f.mjs'
+import * as op from '../function/operator/module.f.ts'
 const { join: joinOp, concat: concatOp } = op
 
 const reduce
