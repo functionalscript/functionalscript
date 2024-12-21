@@ -1,7 +1,7 @@
 import * as compare from '../function/compare/module.f.ts'
 import * as Operator from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { reduce } = list
 
 type Unary = Operator.Unary<bigint, bigint>

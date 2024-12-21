@@ -2,7 +2,7 @@ import * as f from '../function/module.f.mjs'
 const { compose } = f
 import * as RangeMap from '../range_map/module.f.ts'
 import * as SortedSet from '../sorted_set/module.f.ts'
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { reverse, countdown, flat, map } = list
 
 export type ByteSet = bigint

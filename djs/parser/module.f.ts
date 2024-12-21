@@ -1,5 +1,5 @@
 import * as result from '../../types/result/module.f.ts'
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { fold, first, drop, toArray, map: listMap, length } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as tokenizerT from '../tokenizer/module.f.ts'

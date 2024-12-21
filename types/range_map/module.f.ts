@@ -1,6 +1,6 @@
 import * as sortedList from '../sorted_list/module.f.ts'
 const { genericMerge } = sortedList
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { next } = list
 import * as Option from '../nullable/module.f.ts'
 import * as number from '../number/module.f.ts'

@@ -12,7 +12,7 @@ export const {
 }: { values: (s: StringSet) => list.List<string>, empty: null } = btree
 import * as string from "../string/module.f.ts"
 const { cmp } = string
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { fold } = list
 import * as f from '../function/module.f.mjs'
 const { compose } = f

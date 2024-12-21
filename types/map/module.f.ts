@@ -10,7 +10,7 @@ const { values } = bt
 import * as Compare from '../function/compare/module.f.ts'
 import * as s from '../string/module.f.ts'
 const { cmp } = s
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { fold } = list
 import * as Operator from '../function/operator/module.f.mjs'
 

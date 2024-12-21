@@ -1,4 +1,4 @@
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { fold } = list
 import * as sgr from '../../text/sgr/module.f.ts'
 const { reset, fgGreen, fgRed, bold } = sgr.codes

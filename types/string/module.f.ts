@@ -1,4 +1,4 @@
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { reduce: listReduce, repeat: listRepeat } = list
 import * as f from '../function/module.f.mjs'
 const { compose } = f

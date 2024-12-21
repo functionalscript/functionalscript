@@ -1,4 +1,4 @@
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
 import * as string from '../../types/string/module.f.ts'
 const { join } = string

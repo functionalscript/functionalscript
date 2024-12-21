@@ -1,5 +1,5 @@
 import * as Compare from '../function/compare/module.f.ts'
-import * as list from "../list/module.f.mjs"
+import * as list from "../list/module.f.ts"
 const { toArray } = list
 import * as sortedList from '../sorted_list/module.f.ts'
 const { merge, genericMerge, find } = sortedList

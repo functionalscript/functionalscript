@@ -8,7 +8,7 @@ import * as types from '../types/module.f.ts'
 const { paramList } = types
 import * as Text from '../../text/module.f.ts'
 import * as O from '../../types/object/module.f.ts'
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { flat, map, flatMap } = list
 const { entries } = Object
 import * as func from '../../types/function/module.f.mjs'

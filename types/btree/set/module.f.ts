@@ -2,7 +2,7 @@ import * as _ from '../types/module.f.ts'
 import * as btreeFind from '../find/module.f.ts'
 const { find } = btreeFind
 import * as Cmp from '../../function/compare/module.f.ts'
-import * as list from '../../list/module.f.mjs'
+import * as list from '../../list/module.f.ts'
 const { fold } = list
 
 type Branch1To3<T> = _.Branch1<T> | _.Branch3<T>

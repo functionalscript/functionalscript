@@ -1,4 +1,4 @@
-import * as list from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.ts'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
 import * as byteSet from '../types/byte_set/module.f.ts'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet

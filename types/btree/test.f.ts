@@ -6,7 +6,7 @@ import * as o from '../object/module.f.ts'
 const { sort } = o
 import * as str from '../string/module.f.ts'
 const { cmp } = str
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 import * as s from './set/module.f.ts'
 import * as f from './find/module.f.ts'
 

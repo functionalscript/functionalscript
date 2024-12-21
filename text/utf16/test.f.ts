@@ -2,7 +2,7 @@ import * as encoding from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import * as o from '../../types/object/module.f.ts'
 const { sort } = o
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 
 const stringify
     : (a: readonly json.Unknown[]) => string

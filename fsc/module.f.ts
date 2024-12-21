@@ -1,7 +1,7 @@
 import * as operator from '../types/function/operator/module.f.mjs'
 import * as rangeMap from '../types/range_map/module.f.ts'
 const { merge: rangeMapMerge, fromRange, get } = rangeMap
-import * as list from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.ts'
 const { reduce: listReduce } = list
 import * as ascii from '../text/ascii/module.f.ts'
 const { range: asciiRange } = ascii

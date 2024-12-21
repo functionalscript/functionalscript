@@ -1,6 +1,6 @@
 import * as _ from './module.f.ts'
 const { join, concat, repeat, cmp } = _
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { repeat: repeatList } = list
 
 export default {

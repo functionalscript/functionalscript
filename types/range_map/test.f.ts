@@ -5,7 +5,7 @@ import * as json from '../../json/module.f.ts'
 import * as object from '../object/module.f.ts'
 const { sort } = object
 import * as sortedSet from '../sorted_set/module.f.ts'
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 import * as operator from '../function/operator/module.f.mjs'
 
 const stringify

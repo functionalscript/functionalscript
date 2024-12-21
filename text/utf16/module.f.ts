@@ -1,4 +1,4 @@
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 import * as operator from '../../types/function/operator/module.f.mjs'
 import * as range from '../../types/range/module.f.ts'
 const { contains } = range

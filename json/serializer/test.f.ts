@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { toArray } = list
 
 export default {

@@ -1,4 +1,4 @@
-import * as list from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.ts'
 const { map, flatMap, flat, concat: listConcat } = list
 import * as s from '../types/string/module.f.ts'
 const { concat: stringConcat } = s

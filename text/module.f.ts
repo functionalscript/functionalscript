@@ -1,4 +1,4 @@
-import * as list from '../types/list/module.f.mjs'
+import * as list from '../types/list/module.f.ts'
 const { flatMap } = list
 
 export type Block = ItemThunk|ItemArray

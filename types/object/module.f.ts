@@ -1,4 +1,4 @@
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { iterable } = list
 import * as btMap from '../map/module.f.ts'
 const { entries: mapEntries, fromEntries: mapFromEntries } = btMap

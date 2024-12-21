@@ -1,4 +1,4 @@
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { flat } = list
 
 import cppContent from '../cpp/testlib.f.ts'

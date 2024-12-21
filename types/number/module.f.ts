@@ -1,4 +1,4 @@
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { reduce } = list
 import * as operator from '../function/operator/module.f.mjs'
 const { addition, min: minOp, max: maxOp } = operator

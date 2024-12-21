@@ -1,4 +1,4 @@
-import * as list from '../../types/list/module.f.mjs'
+import * as list from '../../types/list/module.f.ts'
 const { flat, reduce, empty } = list
 import * as O from '../../types/object/module.f.ts'
 import * as Operator from '../../types/function/operator/module.f.mjs'

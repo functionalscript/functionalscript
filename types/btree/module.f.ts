@@ -1,4 +1,4 @@
-import * as list from '../list/module.f.mjs'
+import * as list from '../list/module.f.ts'
 const { flat } = list
 import * as n from '../nullable/module.f.ts'
 const { map } = n

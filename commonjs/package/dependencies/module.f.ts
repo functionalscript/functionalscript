@@ -1,6 +1,6 @@
 import * as json from '../../../json/module.f.ts'
 const { isObject } = json
-import * as list from '../../../types/list/module.f.mjs'
+import * as list from '../../../types/list/module.f.ts'
 const { map, every } = list
 const { entries } = Object
 

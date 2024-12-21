@@ -1,5 +1,5 @@
 import * as _ from '../types/module.f.ts'
-import * as List from '../../list/module.f.mjs'
+import * as List from '../../list/module.f.ts'
 import * as cmp from '../../function/compare/module.f.ts'
 const { index3, index5 } = cmp
 import * as Array from '../../array/module.f.ts'
