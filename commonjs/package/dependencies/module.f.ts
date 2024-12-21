@@ -1,4 +1,4 @@
-import * as json from '../../../json/module.f.mjs'
+import * as json from '../../../json/module.f.ts'
 const { isObject } = json
 import * as list from '../../../types/list/module.f.mjs'
 const { map, every } = list

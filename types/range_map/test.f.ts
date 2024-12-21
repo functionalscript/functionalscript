@@ -1,7 +1,7 @@
 import * as _ from './module.f.mjs'
 import * as compare from '../function/compare/module.f.mjs'
 const { unsafeCmp } = compare
-import * as json from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.ts'
 import * as object from '../object/module.f.mjs'
 const { sort } = object
 import * as sortedSet from '../sorted_set/module.f.mjs'

@@ -1,7 +1,7 @@
 import * as BTree from './types/module.f.mjs'
 import * as _ from './module.f.mjs'
 const { values } = _
-import * as json from '../../json/module.f.mjs'
+import * as json from '../../json/module.f.ts'
 import * as o from '../object/module.f.mjs'
 const { sort } = o
 import * as str from '../string/module.f.mjs'

@@ -2,7 +2,7 @@ import * as _ from './module.f.ts'
 import * as byteSet from '../types/byte_set/module.f.mjs'
 import * as o from '../types/object/module.f.mjs'
 const { sort, fromEntries } = o
-import * as json from '../json/module.f.mjs'
+import * as json from '../json/module.f.ts'
 import * as f from '../types/function/module.f.mjs'
 const { identity } = f
 import * as list from '../types/list/module.f.mjs'

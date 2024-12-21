@@ -499,12 +499,10 @@ const foldOp
     }
 }
 
-export const parse
-    : (tokenList: list.List<tokenizerT.DjsToken>) => result.Result<DjsModule, string>
-    = tokenList => {
+export const parse = (tokenList: list.List<tokenizerT.DjsToken>): result.Result<DjsModule, string> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
-        case 'result': return result.ok([ toArray(state.module.modules), toArray(state.module.consts) ])
+        case 'result': return result.ok<DjsModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
     }

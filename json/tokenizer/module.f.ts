@@ -1,35 +1,24 @@
-// @ts-self-types="./module.f.d.mts"
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as list from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
 import * as bf from '../../types/bigfloat/module.f.mjs'
 const { multiply } = bf
-import * as jsTokenizer from '../../js/tokenizer/module.f.js'
+import * as jsTokenizer from '../../js/tokenizer/module.f.ts'
 
-/**
- * @typedef {|
-* {readonly kind: 'true' | 'false' | 'null' } |
-* {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
-* jsTokenizer.StringToken |
-* jsTokenizer.NumberToken |
-* jsTokenizer.ErrorToken
-* } JsonToken
-*/
+export type JsonToken = |
+ {readonly kind: 'true' | 'false' | 'null' } |
+ {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+ jsTokenizer.StringToken |
+ jsTokenizer.NumberToken |
+ jsTokenizer.ErrorToken
 
-/**
- * @typedef {|
-* {readonly kind: 'def' | '-' }
-* } ScanState
-*/
+type ScanState = {readonly kind: 'def' | '-' }
 
-/**
- * @typedef {|
-* jsTokenizer.JsToken | null
-* } ScanInput
-*/
+type ScanInput = jsTokenizer.JsToken | null
 
-/** @type {(input: jsTokenizer.JsToken) => list.List<JsonToken>} */
-const mapToken = input =>
+const mapToken
+    : (input: jsTokenizer.JsToken) => list.List<JsonToken>
+    = input =>
 {
     switch(input.kind)
     {
@@ -51,8 +40,9 @@ const mapToken = input =>
     }
 }
 
-/** @type {(input: ScanInput) => readonly [list.List<JsonToken>, ScanState]} */
-const parseDefaultState = input =>
+const parseDefaultState
+    : (input: ScanInput) => readonly [list.List<JsonToken>, ScanState]
+    = input =>
 {
     if (input === null) return [empty, { kind: 'def'}]
     switch(input.kind)
@@ -62,8 +52,9 @@ const parseDefaultState = input =>
     }
 }
 
-/** @type {(input: ScanInput) => readonly [list.List<JsonToken>, ScanState]} */
-const parseMinusState = input =>
+const parseMinusState
+    : (input: ScanInput) => readonly [list.List<JsonToken>, ScanState]
+    = input =>
 {
     if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def'}]
     switch(input.kind)
@@ -74,8 +65,9 @@ const parseMinusState = input =>
     }
 }
 
-/** @type {Operator.StateScan<ScanInput, ScanState, list.List<JsonToken>>} */
-const scanToken = state => input => {
+const scanToken
+    : Operator.StateScan<ScanInput, ScanState, list.List<JsonToken>>
+    = state => input => {
     switch(state.kind)
     {
         case '-': return parseMinusState(input)
@@ -83,10 +75,11 @@ const scanToken = state => input => {
     }
 }
 
-/** @type {(input: list.List<number>) => list.List<JsonToken>} */
-export const tokenize = input =>
+export const tokenize
+    = (input: list.List<number>): list.List<JsonToken> =>
 {
-    /** @type {list.List<ScanInput>} */
-    const jsTokens = jsTokenizer.tokenize(input)
+    const jsTokens
+        : list.List<ScanInput>
+        = jsTokenizer.tokenize(input)
     return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
 }
