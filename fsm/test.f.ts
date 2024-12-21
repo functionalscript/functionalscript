@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 import * as byteSet from '../types/byte_set/module.f.mjs'
 import * as o from '../types/object/module.f.mjs'
 const { sort, fromEntries } = o
