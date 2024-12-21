@@ -1,5 +1,5 @@
 import * as package_ from '../package/module.f.mjs'
-import * as module from '../module/module.f.mjs'
+import * as module from '../module/module.f.ts'
 const { idToString, dir } = module
 import * as function_ from '../module/function/module.f.mjs'
 import * as map from '../../types/map/module.f.mjs'

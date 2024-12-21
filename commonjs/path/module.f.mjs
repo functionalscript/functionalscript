@@ -1,10 +1,9 @@
-// @ts-self-types="./module.f.d.mts"
 import * as list from '../../types/list/module.f.mjs'
 const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
 import * as string from '../../types/string/module.f.mjs'
 const { join } = string
 import * as Package from '../package/module.f.mjs'
-import * as Module from '../module/module.f.mjs'
+import * as Module from '../module/module.f.ts'
 
 /** @typedef {readonly string[]} Items */
 
