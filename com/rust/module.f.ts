@@ -1,12 +1,10 @@
-// @ts-self-types="./module.f.d.mts"
-
 /**
  * This module generates Rust code for COM interop from a high-level type library definition.
  *
  * The module provides functions to define structs, traits, and implementations in Rust,
  * specifically tailored for `nanocom` interoperation.
  */
-import * as types from '../types/module.f.mjs'
+import * as types from '../types/module.f.ts'
 const { paramList } = types
 import * as Text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'

@@ -1,12 +1,10 @@
-// @ts-self-types="./module.f.d.mts"
-
 /**
  * This module generates C# code blocks for COM interop from a high-level type library definition.
  *
  * The module maps type definitions (e.g., structs, interfaces, and methods) into C# constructs
  * with appropriate attributes for COM interop, such as `[StructLayout]`, `[Guid]`, and `[InterfaceType]`.
  */
-import * as types from '../types/module.f.mjs'
+import * as types from '../types/module.f.ts'
 const { result, paramList } = types
 import * as text from '../../text/module.f.mjs'
 const { curly } = text

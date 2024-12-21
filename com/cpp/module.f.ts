@@ -3,7 +3,7 @@
  * based on a COM library of type definitions.
  */
 
-import * as types from '../types/module.f.mjs'
+import * as types from '../types/module.f.ts'
 import * as text from '../../text/module.f.mjs'
 import * as O from '../../types/object/module.f.mjs'
 import * as list from '../../types/list/module.f.mjs'
