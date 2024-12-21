@@ -1,5 +1,5 @@
 import { loadModuleMap, exit, env } from './module.ts'
-import test from './test/module.f.mjs'
+import test from './test/module.f.ts'
 
 const anyLog
     : (f: (s: string) => void) => (s: string) => <T>(_: T) => T
