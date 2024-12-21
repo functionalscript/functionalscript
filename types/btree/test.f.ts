@@ -1,4 +1,4 @@
-import * as BTree from './types/module.f.mjs'
+import * as BTree from './types/module.f.ts'
 import * as _ from './module.f.ts'
 const { values } = _
 import * as json from '../../json/module.f.ts'
@@ -17,12 +17,12 @@ const stringify
     = sequence => jsonStr(list.toArray(sequence))
 
 const set
-    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string>
+    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string>
     = node => value => s.set(cmp(value))(() => value)(node)
 
 const valueTest1 =() => {
     let _map
-        : BTree.Node<string>
+        : BTree.TNode<string>
         = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -35,7 +35,7 @@ const valueTest1 =() => {
 
 const valuesTest2 = () => {
     let _map
-        : BTree.Node<string>
+        : BTree.TNode<string>
         = ['1']
     for(let i = 2; i <= 10; i++)
         _map = set(_map)((i*i).toString())
@@ -45,7 +45,7 @@ const valuesTest2 = () => {
 
 const findTrue = () => {
     let _map
-        : BTree.Node<string>
+        : BTree.TNode<string>
         = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -55,7 +55,7 @@ const findTrue = () => {
 
 const find = () => {
     let _map
-        : BTree.Node<string>
+        : BTree.TNode<string>
         = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
@@ -65,7 +65,7 @@ const find = () => {
 
 const test = () => {
     let _map
-        : BTree.Node<string>
+        : BTree.TNode<string>
         = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')

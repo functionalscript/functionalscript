@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import * as BTree from '../types/module.f.mjs'
+import * as BTree from '../types/module.f.ts'
 import * as s from '../../string/module.f.ts'
 const { cmp } = s
 import * as json from '../../../json/module.f.ts'
@@ -7,7 +7,7 @@ import * as o from '../../object/module.f.ts'
 const { sort } = o
 
 const set
-    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string>
+    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string>
     = node => value => _.set(cmp(value))(() => value)(node)
 
 const jsonStr = json.stringify(sort)
@@ -15,7 +15,7 @@ const jsonStr = json.stringify(sort)
 const test = [
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 10; i++)
             _map = set(_map)((i * i).toString())
@@ -25,7 +25,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 11; i++)
             _map = set(_map)((i * i).toString())
@@ -35,7 +35,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 12; i++)
             _map = set(_map)((i * i).toString())
@@ -45,7 +45,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 13; i++)
             _map = set(_map)((i * i).toString())
@@ -55,7 +55,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 14; i++)
             _map = set(_map)((i * i).toString())
@@ -65,7 +65,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 15; i++)
             _map = set(_map)((i * i).toString())
@@ -75,7 +75,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 16; i++)
             _map = set(_map)((i * i).toString())
@@ -85,7 +85,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 17; i++)
             _map = set(_map)((i * i).toString())
@@ -95,7 +95,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 18; i++)
             _map = set(_map)((i * i).toString())
@@ -107,7 +107,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 19; i++)
             _map = set(_map)((i * i).toString())
@@ -119,7 +119,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 20; i++)
             _map = set(_map)((i * i).toString())
@@ -133,7 +133,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 21; i++)
             _map = set(_map)((i * i).toString())
@@ -147,7 +147,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 22; i++)
             _map = set(_map)((i * i).toString())
@@ -161,7 +161,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 23; i++)
             _map = set(_map)((i * i).toString())
@@ -175,7 +175,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 24; i++)
             _map = set(_map)((i * i).toString())
@@ -189,7 +189,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 25; i++)
             _map = set(_map)((i * i).toString())
@@ -203,7 +203,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 26; i++)
             _map = set(_map)((i * i).toString())
@@ -219,7 +219,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 27; i++)
             _map = set(_map)((i * i).toString())
@@ -235,7 +235,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 28; i++)
             _map = set(_map)((i * i).toString())
@@ -251,7 +251,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 29; i++)
             _map = set(_map)((i * i).toString())
@@ -267,7 +267,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 30; i++)
             _map = set(_map)((i * i).toString())
@@ -283,7 +283,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 31; i++)
             _map = set(_map)((i * i).toString())
@@ -299,7 +299,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 32; i++)
             _map = set(_map)((i * i).toString())
@@ -315,7 +315,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 33; i++)
             _map = set(_map)((i * i).toString())
@@ -331,7 +331,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 34; i++)
             _map = set(_map)((i * i).toString())
@@ -347,7 +347,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 35; i++)
             _map = set(_map)((i * i).toString())
@@ -363,7 +363,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 36; i++)
             _map = set(_map)((i * i).toString())
@@ -379,7 +379,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 37; i++)
             _map = set(_map)((i * i).toString())
@@ -395,7 +395,7 @@ const test = [
 
     () => {
         let _map
-            : BTree.Node<string>
+            : BTree.TNode<string>
             = ['1']
         for (let i = 2; i <= 38; i++)
             _map = set(_map)((i * i).toString())

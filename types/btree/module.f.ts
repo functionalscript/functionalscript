@@ -2,10 +2,10 @@ import * as list from '../list/module.f.mjs'
 const { flat } = list
 import * as n from '../nullable/module.f.mjs'
 const { map } = n
-import * as _ from './types/module.f.mjs'
+import * as _ from './types/module.f.ts'
 
 const nodeValues
-    : <T>(node: _.Node<T>) => list.Thunk<T>
+    : <T>(node: _.TNode<T>) => list.Thunk<T>
     = node => () => {
     switch (node.length) {
         case 1: case 2: { return node }

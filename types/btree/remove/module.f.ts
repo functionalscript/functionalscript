@@ -1,5 +1,4 @@
-// @ts-self-types="./module.f.d.mts"
-import * as _ from '../types/module.f.mjs'
+import * as _ from '../types/module.f.ts'
 import * as Cmp from '../../function/compare/module.f.ts'
 import * as find from '../find/module.f.ts'
 import * as list from '../../list/module.f.mjs'
@@ -16,7 +15,7 @@ type RemovePath<T> = {
 }
 
 const path
-    : <T>(tail: find.Path<T>) => (n: _.Node<T>) => readonly[T, RemovePath<T>]
+    : <T>(tail: find.Path<T>) => (n: _.TNode<T>) => readonly[T, RemovePath<T>]
     = tail => n => {
     switch (n.length) {
         case 1: { return [n[0], { first: null, tail }] }
@@ -109,11 +108,11 @@ const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 const initReduce = reduceX([initValue0, initValue1])
 
 export const nodeRemove
-    = <T>(c: Cmp.Compare<T>) => (node: _.Node<T>): _.Tree<T> => {
+    = <T>(c: Cmp.Compare<T>) => (node: _.TNode<T>): _.Tree<T> => {
     const f = (): null | RemovePath<T> => {
         const { first, tail } = find.find(c)(node)
         const branch
-            : (n: _.Node<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>
+            : (n: _.TNode<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>
             = n => f => {
             const [v, p] = path(null as find.Path<T>)(n)
             return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }

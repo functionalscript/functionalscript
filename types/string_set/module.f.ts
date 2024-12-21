@@ -1,4 +1,4 @@
-import * as BtreeTypes from '../btree/types/module.f.mjs'
+import * as BtreeTypes from '../btree/types/module.f.ts'
 import * as btree from '../btree/module.f.ts'
 import * as btf from '../btree/find/module.f.ts'
 const { find, isFound } = btf
@@ -7,7 +7,6 @@ const { remove: btreeRemove } = btr
 import * as bts from '../btree/set/module.f.ts'
 const { set: btreeSet } = bts
 export const {
-    /** @type {} */
     values,
     empty,
 }: { values: (s: StringSet) => list.List<string>, empty: null } = btree

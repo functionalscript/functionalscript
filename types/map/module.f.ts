@@ -1,4 +1,4 @@
-import * as BtreeTypes from '../btree/types/module.f.mjs'
+import * as BtreeTypes from '../btree/types/module.f.ts'
 import * as btf from '../btree/find/module.f.ts'
 const { value, find } = btf
 import * as bts from '../btree/set/module.f.ts'
@@ -27,8 +27,7 @@ const keyCmp
     = a => ([b]) => cmp(a)(b)
 
 export const at
-    : (name: string) => <T>(map: Map<T>) => T|null
-    = name => map => {
+    = (name: string) => <T>(map: Map<T>): T|null => {
     if (map === null) { return null }
     const result = value(find(keyCmp(name))(map).first)
     return result === null ? null : result[1]

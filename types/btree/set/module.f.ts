@@ -1,4 +1,4 @@
-import * as _ from '../types/module.f.mjs'
+import * as _ from '../types/module.f.ts'
 import * as btreeFind from '../find/module.f.ts'
 const { find } = btreeFind
 import * as Cmp from '../../function/compare/module.f.ts'
@@ -36,7 +36,7 @@ const reduceOp
 const reduceBranch = fold(reduceOp)
 
 const nodeSet
-    = <T>(c: Cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>): _.Node<T> => {
+    = <T>(c: Cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.TNode<T>): _.TNode<T> => {
     const { first, tail } = find(c)(node)
     const [i, x] = first;
     const f = (): Branch1To3<T> => {
@@ -85,5 +85,5 @@ const nodeSet
 }
 
 export const set
-    : <T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>
+    : <T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.TNode<T>
     = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)

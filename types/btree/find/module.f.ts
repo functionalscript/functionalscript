@@ -1,4 +1,4 @@
-import * as _ from '../types/module.f.mjs'
+import * as _ from '../types/module.f.ts'
 import * as List from '../../list/module.f.mjs'
 import * as cmp from '../../function/compare/module.f.ts'
 const { index3, index5 } = cmp
@@ -21,7 +21,7 @@ type PathItem5<T> = readonly[0|2|4, _.Branch5<T>]
 export type PathItem<T> = PathItem3<T> | PathItem5<T>
 
 const child
-    = <T>(item: PathItem<T>): _.Node<T> => (item[1][item[0]] as _.Node<T>)
+    = <T>(item: PathItem<T>): _.TNode<T> => (item[1][item[0]] as _.TNode<T>)
 
 export type Path<T> = List.List<PathItem<T>>
 
@@ -31,12 +31,12 @@ export type Result<T> = {
 }
 
 export const find
-    = <T>(c: cmp.Compare<T>): (node: _.Node<T>) => Result<T> => {
+    = <T>(c: cmp.Compare<T>): (node: _.TNode<T>) => Result<T> => {
     const i3 = index3(c)
     const i5 = index5(c)
     // /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     const f
-        = (tail: Path<T>) => (node: _.Node<T>): Result<T> => {
+        = (tail: Path<T>) => (node: _.TNode<T>): Result<T> => {
         const append
             : (index: Array.KeyOf<typeof node>) => Result<T>
             = index => {

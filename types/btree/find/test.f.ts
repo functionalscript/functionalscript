@@ -3,7 +3,7 @@ import * as list from '../../list/module.f.mjs'
 import * as json from '../../../json/module.f.ts'
 import * as o from '../../object/module.f.ts'
 const { sort } = o
-import * as btree from '../types/module.f.mjs'
+import * as btree from '../types/module.f.ts'
 import * as string from '../../string/module.f.ts'
 const { cmp } = string
 import * as s from '../set/module.f.ts'
@@ -11,7 +11,7 @@ import * as s from '../set/module.f.ts'
 const jsonStr = json.stringify(sort)
 
 const set
-    : (node: btree.Node<string>) => (value: string) => btree.Node<string>
+    : (node: btree.TNode<string>) => (value: string) => btree.TNode<string>
     = node => value => s.set(cmp(value))(() => value)(node)
 
 const str
@@ -19,12 +19,12 @@ const str
     = r => jsonStr(list.toArray(list.map((x: any) => x[0])(r)))
 
 const find
-    : (i: string) => (m: btree.Node<string>) => string
+    : (i: string) => (m: btree.TNode<string>) => string
     = i => m => str(_.find(cmp(i))(m))
 
 const test = () => {
     let _map
-        : btree.Node<string>
+        : btree.TNode<string>
         = ['1']
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())

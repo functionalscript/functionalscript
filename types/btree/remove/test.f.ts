@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import * as BTree from '../types/module.f.mjs'
+import * as BTree from '../types/module.f.ts'
 import * as s from '../set/module.f.ts'
 import * as str from '../../string/module.f.ts'
 const { cmp } = str
@@ -8,18 +8,18 @@ import * as o from '../../object/module.f.ts'
 const { sort } = o
 
 const set
-    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string>
+    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string>
     = node => value => s.set(cmp(value))(() => value)(node)
 
 const remove
-    : (node: BTree.Node<string>) => (value: string) => BTree.Node<string> | null
+    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string> | null
     = node => value => _.nodeRemove(cmp(value))(node)
 
 const jsonStr = json.stringify(sort)
 
 const test = () => {
     let _map
-        : BTree.Node<string> | null
+        : BTree.TNode<string> | null
         = ['1']
     for (let i = 2; i <= 38; i++)
         _map = set(_map)((i * i).toString())
@@ -415,7 +415,7 @@ const test = () => {
 
 const test2 = () => {
     let _map
-        : BTree.Node<string>|null
+        : BTree.TNode<string>|null
         = ['1']
     for (let i = 2; i <= 10; i++)
         _map = set(_map)((i * i).toString())
