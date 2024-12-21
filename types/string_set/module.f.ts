@@ -1,5 +1,5 @@
 import * as BtreeTypes from '../btree/types/module.f.mjs'
-import * as btree from '../btree/module.f.mjs'
+import * as btree from '../btree/module.f.ts'
 import * as btf from '../btree/find/module.f.ts'
 const { find, isFound } = btf
 import * as btr from '../btree/remove/module.f.ts'

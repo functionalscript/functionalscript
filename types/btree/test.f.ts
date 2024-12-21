@@ -1,5 +1,5 @@
 import * as BTree from './types/module.f.mjs'
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 const { values } = _
 import * as json from '../../json/module.f.ts'
 import * as o from '../object/module.f.ts'

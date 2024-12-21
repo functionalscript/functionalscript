@@ -5,7 +5,7 @@ import * as bts from '../btree/set/module.f.ts'
 const { set } = bts
 import * as btr from '../btree/remove/module.f.ts'
 const { remove: btreeRemove } = btr
-import * as bt from '../btree/module.f.mjs'
+import * as bt from '../btree/module.f.ts'
 const { values } = bt
 import * as Compare from '../function/compare/module.f.ts'
 import * as s from '../string/module.f.ts'
