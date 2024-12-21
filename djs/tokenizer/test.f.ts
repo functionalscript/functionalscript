@@ -1,4 +1,4 @@
-import * as tokenizer from './module.f.mjs'
+import * as tokenizer from './module.f.ts'
 import * as list from '../../types/list/module.f.mjs'
 const { toArray } = list
 import * as djs from '../module.f.ts'
