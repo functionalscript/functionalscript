@@ -1,6 +1,5 @@
 import * as _ from './module.f.mjs'
 
-/** @type {_.Library} */
 export default {
     Slice: {
         struct: {
@@ -28,4 +27,4 @@ export default {
             SetManagedStruct: { a: ['ManagedStruct'] },
         },
     }
-}
+} satisfies _.Library
