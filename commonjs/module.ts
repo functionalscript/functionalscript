@@ -2,7 +2,7 @@ import unsafeResult from '../types/result/module.ts'
 const { tryCatch } = unsafeResult
 import * as result from '../types/result/module.f.mjs'
 const { unwrap } = result
-import * as ModuleFunction from './module/function/module.f.mjs'
+import * as ModuleFunction from './module/function/module.f.js'
 
 const build
     : (f: Function) => ModuleFunction.Function_

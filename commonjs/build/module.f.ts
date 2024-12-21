@@ -1,7 +1,7 @@
 import * as package_ from '../package/module.f.mjs'
 import * as module from '../module/module.f.ts'
 const { idToString, dir } = module
-import * as function_ from '../module/function/module.f.mjs'
+import * as function_ from '../module/function/module.f.ts'
 import * as map from '../../types/map/module.f.mjs'
 const { empty: mapEmpty, setReplace } = map
 import * as object from '../../types/object/module.f.mjs'
