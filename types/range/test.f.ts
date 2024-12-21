@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 
 export default () => {
     if (!_.contains([0, 5])(1)) { throw 1 }

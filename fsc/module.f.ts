@@ -8,7 +8,7 @@ const { range: asciiRange } = ascii
 const { fromCharCode } = String
 import * as f from '../types/function/module.f.mjs'
 const { fn } = f
-import * as _range from '../types/range/module.f.mjs'
+import * as _range from '../types/range/module.f.ts'
 const { one } = _range
 const { toArray, map } = list
 

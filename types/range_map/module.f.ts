@@ -6,7 +6,7 @@ import * as Option from '../nullable/module.f.ts'
 import * as number from '../number/module.f.ts'
 const { cmp } = number
 import * as O from '../function/operator/module.f.mjs'
-import * as Range from '../range/module.f.mjs'
+import * as Range from '../range/module.f.ts'
 
 export type Entry<T> =[T, number]
 

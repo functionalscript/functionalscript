@@ -1,4 +1,4 @@
-import * as _range from '../../types/range/module.f.mjs'
+import * as _range from '../../types/range/module.f.ts'
 
 const at
     : (s: string) => (i: number) => number
