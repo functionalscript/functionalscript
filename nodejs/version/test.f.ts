@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 
 const version = '0.3.0'
 
