@@ -6,7 +6,7 @@
  */
 import * as types from '../types/module.f.ts'
 const { paramList } = types
-import * as Text from '../../text/module.f.mjs'
+import * as Text from '../../text/module.f.ts'
 import * as O from '../../types/object/module.f.mjs'
 import * as list from '../../types/list/module.f.mjs'
 const { flat, map, flatMap } = list

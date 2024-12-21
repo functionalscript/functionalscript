@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 import * as string from '../types/string/module.f.mjs'
 const { join } = string
 
