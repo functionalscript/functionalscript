@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 const { curve, secp256k1, secp192r1, secp256r1, eq } = _
 
 export default {

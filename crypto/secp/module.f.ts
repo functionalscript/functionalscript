@@ -1,47 +1,42 @@
-// @ts-self-types="./module.f.d.mts"
 import * as Operator from '../../types/function/operator/module.f.mjs'
-import * as pf from '../prime_field/module.f.mjs'
+import * as pf from '../prime_field/module.f.ts'
 import * as bi from '../../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 const { prime_field, sqrt } = pf
 
 /**
  * A 2D point represented as a pair of `bigint` values `[x, y]`.
- *
- * @typedef {readonly[bigint, bigint]} Point2D
  */
+type Point2D = readonly[bigint, bigint]
 
 /**
  * A 2D point on an elliptic curve, represented as a pair of `bigint` values.
  * `null` represents the point at infinity (`O`).
- *
- * @typedef {Point2D|null} Point
  */
+export type Point = Point2D|null
 
 /**
  * Initialization parameters for an elliptic curve.
- *
- * @typedef {{
- *  readonly p: bigint
- *  readonly a: readonly[bigint, bigint]
- *  readonly g: readonly[bigint, bigint]
- *  readonly n: bigint
- * }} Init
  */
+export type Init = {
+    readonly p: bigint
+    readonly a: readonly[bigint, bigint]
+    readonly g: readonly[bigint, bigint]
+    readonly n: bigint
+}
 
 /**
  * Represents an elliptic curve and its associated operations.
- *
- * @typedef {{
- *  readonly pf: pf.PrimeField
- *  readonly nf: pf.PrimeField
- *  readonly y2: (x: bigint) => bigint
- *  readonly y: (x: bigint) => bigint|null
- *  readonly neg: (a: Point) => Point
- *  readonly add: Operator.Reduce<Point>
- *  readonly mul: (a: Point) => (n: bigint) => Point
- * }} Curve
  */
+type Curve = {
+    readonly pf: pf.PrimeField
+    readonly nf: pf.PrimeField
+    readonly y2: (x: bigint) => bigint
+    readonly y: (x: bigint) => bigint|null
+    readonly neg: (a: Point) => Point
+    readonly add: Operator.Reduce<Point>
+    readonly mul: (a: Point) => (n: bigint) => Point
+}
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.
@@ -62,10 +57,10 @@ const { prime_field, sqrt } = pf
  * const negPoint = curveInstance.neg([1n, 1n]); // Negate a point
  * const mulPoint = curveInstance.mul([1n, 1n])(3n); // Multiply a point by 3
  * ```
- *
- * @type {(i: Init) => Curve}
  */
-export const curve = ({ p, a: [a0, a1], n }) => {
+export const curve
+    : (i: Init) => Curve
+    = ({ p, a: [a0, a1], n }) => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
@@ -73,11 +68,15 @@ export const curve = ({ p, a: [a0, a1], n }) => {
     const addA1 = add(a1)
     const mulA1 = mul(a1)
     const addA0 = add(a0)
-    // y**2 = a1*x**3 + a0
-    /** @type {(x: bigint) => bigint} */
-    const y2 = x => addA0(add(pow3(x))(mulA1(x)))
-    /** @type {Operator.Reduce<Point>} */
-    const addPoint = p => q => {
+    /**
+     * y**2 = a1*x**3 + a0
+     */
+    const y2
+        : (x: bigint) => bigint
+        = x => addA0(add(pow3(x))(mulA1(x)))
+    const addPoint
+        : Operator.Reduce<Point>
+        = p => q => {
         if (p === null) {
             return q
         }
@@ -119,8 +118,9 @@ export const curve = ({ p, a: [a0, a1], n }) => {
     }
 }
 
-/** @type {(a: Point) => (b: Point) => boolean} */
-export const eq = a => b => {
+export const eq
+    : (a: Point) => (b: Point) => boolean
+    = a => b => {
     if (a === null || b === null) {
         return a === b
     }
@@ -131,10 +131,10 @@ export const eq = a => b => {
 
 /**
  * https://neuromancer.sk/std/secg/secp192r1
- *
- * @type {Init}
  */
-export const secp192r1 = {
+export const secp192r1
+    : Init
+    = {
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
     a: [
         0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
@@ -150,10 +150,10 @@ export const secp192r1 = {
 /**
  * https://en.bitcoin.it/wiki/Secp256k1
  * https://neuromancer.sk/std/secg/secp256k1
- *
- * @type {Init}
  */
-export const secp256k1 = {
+export const secp256k1
+    : Init
+    = {
     p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
     a: [7n, 0n],
     g: [
@@ -165,10 +165,10 @@ export const secp256k1 = {
 
 /**
  * https://neuromancer.sk/std/secg/secp256r1
- *
- * @type { Init }
  */
-export const secp256r1 ={
+export const secp256r1
+    : Init
+    = {
     p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
     a: [
         0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< b

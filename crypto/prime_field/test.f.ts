@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 const { prime_field, sqrt } = _
 
 export default {

@@ -1,50 +1,51 @@
-// @ts-self-types="./module.f.d.mts"
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as bi from '../../types/bigint/module.f.mjs'
 const { scalar_mul } = bi
 
-/** @typedef {Operator.Reduce<bigint>} Reduce */
+type Reduce = Operator.Reduce<bigint>
 
-/** @typedef {Operator.Unary<bigint, bigint>} Unary*/
+type Unary = Operator.Unary<bigint, bigint>
 
 /**
  * A type representing a prime field and its associated operations.
- *
- * @typedef {{
- *  readonly p: bigint
- *  readonly middle: bigint
- *  readonly max: bigint
- *  readonly neg: Unary
- *  readonly sub: Reduce
- *  readonly add: Reduce
- *  readonly abs: Unary
- *  readonly mul: Reduce
- *  readonly reciprocal: Unary
- *  readonly div: Reduce
- *  readonly pow: Reduce
- *  readonly pow2: Unary
- *  readonly pow3: Unary
- * }} PrimeField
  */
+export type PrimeField = {
+    readonly p: bigint
+    readonly middle: bigint
+    readonly max: bigint
+    readonly neg: Unary
+    readonly sub: Reduce
+    readonly add: Reduce
+    readonly abs: Unary
+    readonly mul: Reduce
+    readonly reciprocal: Unary
+    readonly div: Reduce
+    readonly pow: Reduce
+    readonly pow2: Unary
+    readonly pow3: Unary
+}
 
 /**
  * Creates a prime field with the specified prime modulus and associated operations.
  *
  * @param p - A prime number to define the field.
  * @returns The prime field object.
- *
- * @type {(p: bigint) => PrimeField}
  */
-export const prime_field = p => {
-    /** @type {Reduce} */
-    const sub = a => b => {
+export const prime_field
+    : (p: bigint) => PrimeField
+    = p => {
+    const sub
+        : Reduce
+        = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
     }
-    /** @type {Reduce} */
-    const mul = a => b => a * b % p
-    /** @type {Unary} */
-    const reciprocal = a => {
+    const mul
+        : Reduce
+        = a => b => a * b % p
+    const reciprocal
+        : Unary
+        = a => {
         if (a === 0n) { throw '1/0' }
         let a1 = a
         let a0 = p
@@ -62,10 +63,12 @@ export const prime_field = p => {
         return f1
     }
     const middle = p >> 1n
-    /** @type {Unary} */
-    const pow2 = a => mul(a)(a)
-    /** @type {Reduce} */
-    const pow = scalar_mul({ 0: 1n, add: mul })
+    const pow2
+        : Unary
+        = a => mul(a)(a)
+    const pow
+        : Reduce
+        = scalar_mul({ 0: 1n, add: mul })
     return {
         p,
         middle,
@@ -98,10 +101,10 @@ export const prime_field = p => {
  * const root = sqrt(field)(4n);
  * if (root !== 2n) { throw root }
  * ```
- *
- * @type {(f: PrimeField) => (a: bigint) => bigint|null}
  */
-export const sqrt = ({p, mul, pow }) => {
+export const sqrt
+    : (f: PrimeField) => (a: bigint) => bigint|null
+    = ({p, mul, pow }) => {
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
     return a => {
