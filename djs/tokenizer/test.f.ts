@@ -2,7 +2,7 @@ import * as tokenizer from './module.f.ts'
 import * as list from '../../types/list/module.f.mjs'
 const { toArray } = list
 import * as djs from '../module.f.ts'
-import * as o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.ts'
 const { sort } = o
 import * as encoding from '../../text/utf16/module.f.ts'
 

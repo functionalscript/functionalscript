@@ -1,8 +1,8 @@
 import * as list from '../types/list/module.f.mjs'
 const { next, flat, map } = list
-import * as string  from '../types/string/module.f.mjs'
+import * as string  from '../types/string/module.f.ts'
 const { concat } = string
-import * as object from '../types/object/module.f.mjs'
+import * as object from '../types/object/module.f.ts'
 const { at } = object
 import * as f from '../types/function/module.f.mjs'
 const { compose, fn } = f

@@ -1,16 +1,16 @@
-// @ts-self-types="./module.f.d.mts"
-import * as bi from '../bigint/module.f.mjs'
+import * as bi from '../bigint/module.f.ts'
 const { abs, sign } = bi
 
-/** @typedef {readonly[bigint,number]} BigFloat */
+export type BigFloat = readonly[bigint,number]
 
-/** @typedef {readonly[BigFloat,bigint]} BigFloatWithRemainder */
+type BigFloatWithRemainder = readonly[BigFloat,bigint]
 
 const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 const twoPow54 = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
-/** @type {(value: BigFloat) => (min: bigint) => BigFloat} */
-const increaseMantissa = ([m, e]) => min => {
+const increaseMantissa
+    : (value: BigFloat) => (min: bigint) => BigFloat
+    = ([m, e]) => min => {
     if (m === 0n) {
         return [m, e]
     }
@@ -25,8 +25,9 @@ const increaseMantissa = ([m, e]) => min => {
     }
 }
 
-/** @type {(value: BigFloat) => (max: bigint) => BigFloat} */
-const decreaseMantissa = ([m, e]) => max => {
+const decreaseMantissa
+    : (value: BigFloat) => (max: bigint) => BigFloat
+    = ([m, e]) => max => {
     if (m === 0n) {
         return [m, e]
     }
@@ -41,19 +42,23 @@ const decreaseMantissa = ([m, e]) => max => {
     }
 }
 
-/** @type {(base: bigint) => (exp: number) => bigint} */
-const pow = base => exp => base ** BigInt(exp)
+const pow
+    : (base: bigint) => (exp: number) => bigint
+    = base => exp => base ** BigInt(exp)
 
 const pow5 = pow(5n)
 
-/** @type {(b: BigFloat) => (mul: bigint) => BigFloat} */
-export const multiply = ([m, e]) => mul => [m * mul, e]
+export const multiply
+    : (b: BigFloat) => (mul: bigint) => BigFloat
+    = ([m, e]) => mul => [m * mul, e]
 
-/** @type {(b: BigFloat) => (div: bigint) => BigFloatWithRemainder} */
-const divide = ([m, e]) => div => [[m / div, e], m % div]
+const divide
+    : (b: BigFloat) => (div: bigint) => BigFloatWithRemainder
+    = ([m, e]) => div => [[m / div, e], m % div]
 
-/** @type {(b: BigFloatWithRemainder) => BigFloat} */
-const round53 = ([[m, e], r]) => {
+const round53
+    : (b: BigFloatWithRemainder) => BigFloat
+    = ([[m, e], r]) => {
     const mabs = abs(m)
     const s = BigInt(sign(m))
     const [m54, e54] = decreaseMantissa([mabs, e])(twoPow54)
@@ -67,14 +72,14 @@ const round53 = ([[m, e], r]) => {
     return multiply([m53 + o54, e53])(s)
 }
 
-/** @type {(dec: BigFloat) => BigFloat} */
-export const decToBin = dec => {
+export const decToBin
+    : (dec: BigFloat) => BigFloat
+    = dec => {
     if (dec[0] === 0n) {
         return [0n, 0]
     }
     if (dec[1] >= 0) {
-        /** @type {BigFloat} */
-        const bin = [dec[0] * pow5(dec[1]), dec[1]]
+        const bin: BigFloat = [dec[0] * pow5(dec[1]), dec[1]]
         const inc = increaseMantissa(bin)(twoPow53)
         return round53([inc, 0n])
     }

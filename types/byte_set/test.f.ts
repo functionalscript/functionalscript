@@ -1,8 +1,8 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 import * as list from '../list/module.f.mjs'
 const { every, countdown, map, toArray } = list
 import * as json from '../../json/module.f.ts'
-import * as o from '../object/module.f.mjs'
+import * as o from '../object/module.f.ts'
 const { sort } = o
 
 const stringify

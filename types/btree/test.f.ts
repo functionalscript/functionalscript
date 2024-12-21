@@ -2,13 +2,13 @@ import * as BTree from './types/module.f.mjs'
 import * as _ from './module.f.mjs'
 const { values } = _
 import * as json from '../../json/module.f.ts'
-import * as o from '../object/module.f.mjs'
+import * as o from '../object/module.f.ts'
 const { sort } = o
-import * as str from '../string/module.f.mjs'
+import * as str from '../string/module.f.ts'
 const { cmp } = str
 import * as list from '../list/module.f.mjs'
-import * as s from './set/module.f.mjs'
-import * as f from './find/module.f.mjs'
+import * as s from './set/module.f.ts'
+import * as f from './find/module.f.ts'
 
 const jsonStr = json.stringify(sort)
 

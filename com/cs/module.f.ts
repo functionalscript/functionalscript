@@ -10,9 +10,9 @@ import * as text from '../../text/module.f.ts'
 const { curly } = text
 import * as list from '../../types/list/module.f.mjs'
 const { flat, map, some, flatMap } = list
-import * as string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.ts'
 const { join } = string
-import * as O from '../../types/object/module.f.mjs'
+import * as O from '../../types/object/module.f.ts'
 const { entries } = Object
 
 const using

@@ -1,4 +1,4 @@
-import * as array from '../../types/array/module.f.mjs'
+import * as array from '../../types/array/module.f.ts'
 
 type HashInput = {
     readonly f: (i: number) => number

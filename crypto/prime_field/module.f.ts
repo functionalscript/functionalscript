@@ -1,5 +1,5 @@
 import * as Operator from '../../types/function/operator/module.f.mjs'
-import * as bi from '../../types/bigint/module.f.mjs'
+import * as bi from '../../types/bigint/module.f.ts'
 const { scalar_mul } = bi
 
 type Reduce = Operator.Reduce<bigint>

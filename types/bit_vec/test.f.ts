@@ -1,4 +1,4 @@
-import { empty, vec, length, concatLsb, uintLsb, uintMsb, removeLsb, concatMsb, removeMsb, uint, popUintLsb, popUintMsb } from './module.f.mjs'
+import { empty, vec, length, concatLsb, uintLsb, uintMsb, removeLsb, concatMsb, removeMsb, uint, popUintLsb, popUintMsb } from './module.f.ts'
 
 export default {
     examples: {

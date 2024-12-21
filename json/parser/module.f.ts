@@ -3,10 +3,10 @@ import * as list from '../../types/list/module.f.mjs'
 const { fold, first, drop, toArray } = list
 import * as Operator from '../../types/function/operator/module.f.mjs'
 import * as Tokenizer from '../tokenizer/module.f.ts'
-import * as map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.ts'
 const { setReplace } = map
 import * as Json from '../module.f.ts'
-import * as o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.ts'
 const { fromMap } = o
 
 type JsonObject = {

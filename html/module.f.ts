@@ -1,8 +1,8 @@
 import * as list from '../types/list/module.f.mjs'
 const { map, flatMap, flat, concat: listConcat } = list
-import * as s from '../types/string/module.f.mjs'
+import * as s from '../types/string/module.f.ts'
 const { concat: stringConcat } = s
-import * as O from '../types/object/module.f.mjs'
+import * as O from '../types/object/module.f.ts'
 import * as f from '../types/function/module.f.mjs'
 const { compose } = f
 import * as utf16 from '../text/utf16/module.f.ts'

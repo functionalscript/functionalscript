@@ -1,12 +1,12 @@
 import * as list from '../types/list/module.f.mjs'
 const { flat, map } = list
-import * as string from '../types/string/module.f.mjs'
+import * as string from '../types/string/module.f.ts'
 const { concat } = string
-import * as O from '../types/object/module.f.mjs'
+import * as O from '../types/object/module.f.ts'
 import * as f from '../types/function/module.f.mjs'
 const { compose, fn } = f
 const { entries } = Object
-import * as bi from '../types/bigint/module.f.mjs'
+import * as bi from '../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as j from '../json/serializer/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j

@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import * as string from '../types/string/module.f.mjs'
+import * as string from '../types/string/module.f.ts'
 const { join } = string
 
 export default () => {

@@ -2,7 +2,7 @@ import * as json from '../../json/module.f.ts'
 const { isObject } = json
 import * as dependencies from './dependencies/module.f.ts'
 const { isDependenciesJson } = dependencies
-import * as o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.ts'
 const { at } = o
 
 type PackageJson = {

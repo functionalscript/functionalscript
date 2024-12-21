@@ -7,13 +7,13 @@
 import * as types from '../types/module.f.ts'
 const { paramList } = types
 import * as Text from '../../text/module.f.ts'
-import * as O from '../../types/object/module.f.mjs'
+import * as O from '../../types/object/module.f.ts'
 import * as list from '../../types/list/module.f.mjs'
 const { flat, map, flatMap } = list
 const { entries } = Object
 import * as func from '../../types/function/module.f.mjs'
 const { fn } = func
-import * as string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.ts'
 const { join } = string
 
 const rustField

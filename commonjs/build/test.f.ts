@@ -1,10 +1,10 @@
 import * as _ from './module.f.ts'
-import * as map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.ts'
 import * as Module from '../module/module.f.ts'
 import * as ModuleFunction from '../module/function/module.f.ts'
 import * as Result from '../../types/result/module.f.mjs'
 import * as Package from '../package/module.f.ts'
-import * as o from '../../types/object/module.f.mjs'
+import * as o from '../../types/object/module.f.ts'
 const { at } = o
 
 const compileMap

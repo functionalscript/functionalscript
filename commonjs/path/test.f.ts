@@ -4,7 +4,7 @@ const { todo } = dev
 import * as json from '../../json/module.f.ts'
 import * as f from '../../types/function/module.f.mjs'
 const { identity } = f
-import * as object from '../../types/object/module.f.mjs'
+import * as object from '../../types/object/module.f.ts'
 const { at } = object
 import * as Package from '../package/module.f.ts'
 

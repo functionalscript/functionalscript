@@ -1,12 +1,12 @@
 import * as list from '../types/list/module.f.mjs'
 const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
-import * as byteSet from '../types/byte_set/module.f.mjs'
+import * as byteSet from '../types/byte_set/module.f.ts'
 const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
-import * as sortedSet from '../types/sorted_set/module.f.mjs'
+import * as sortedSet from '../types/sorted_set/module.f.ts'
 const { intersect, union: sortedSetUnion } = sortedSet
-import * as rangeMap from '../types/range_map/module.f.mjs'
+import * as rangeMap from '../types/range_map/module.f.ts'
 const { merge } = rangeMap
-import * as cmp from '../types/function/compare/module.f.mjs'
+import * as cmp from '../types/function/compare/module.f.ts'
 const { unsafeCmp } = cmp
 import * as operator from '../types/function/operator/module.f.mjs'
 const { strictEqual } = operator

@@ -1,12 +1,10 @@
-// @ts-self-types="./module.f.d.mts"
-import { log2 } from '../bigint/module.f.mjs'
+import { log2 } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.mjs'
 
 /**
  * A vector of bits represented as a `bigint`.
- *
- * @typedef {bigint} Vec
  */
+type Vec = bigint
 
 /**
  * An empty vector of bits.
@@ -21,8 +19,6 @@ export const length = log2
 /**
  * Creates a vector of bits of the given `len` and the given unsigned integer.
  *
- * @type {(len: bigint) => (ui: bigint) => Vec}
- *
  * @example
  *
  * ```js
@@ -31,20 +27,17 @@ export const length = log2
  * const v1 = vec4(0x5FEn) // 0x1En
  * ```
  */
-export const vec = len => {
+export const vec = (len: bigint): (ui: bigint) => Vec => {
     if (len <= 0n) { return () => empty }
     const stop = 1n << len
     const mask = stop - 1n
     return data => stop | (data & mask)
 }
 
-/** @type {(len: bigint) => bigint} */
-const mask = len => (1n << len) - 1n
+const mask = (len: bigint) => (1n << len) - 1n
 
 /**
  * Returns the unsigned integer of the given vector by removing a stop bit.
- *
- * @type {(len: Vec) => bigint}
  *
  * @example
  *
@@ -53,12 +46,10 @@ const mask = len => (1n << len) - 1n
  * const result = uint(vector); // result is 0x5n
  * ```
  */
-export const uint = v => v ^ (1n << length(v))
+export const uint = (v: Vec): bigint => v ^ (1n << length(v))
 
 /**
  * Extract the least significant unsigned integer from the given vector.
- *
- * @type {(uintLen: bigint) => (v: Vec) => bigint}
  *
  * @example
  *
@@ -68,7 +59,7 @@ export const uint = v => v ^ (1n << length(v))
  * const result2 = uintLsb(16n)(vector); // result2 is 0xF5n
  * ```
  */
-export const uintLsb = len => {
+export const uintLsb = (len: bigint): (v: Vec) => bigint => {
     const m = mask(len)
     return v => {
         const result = v & m
@@ -79,8 +70,6 @@ export const uintLsb = len => {
 /**
  * Removes the first `len` least significant bits from the given vector.
  *
- * @type {(len: bigint) => (v: Vec) => Vec}
- *
  * @example
  *
  * ```js
@@ -89,15 +78,13 @@ export const uintLsb = len => {
  * const r2 = removeLsb(24n)(v) // 0x1n
  * ```
  */
-export const removeLsb = len => v => {
+export const removeLsb = (len: bigint) => (v: Vec): Vec => {
     const r = v >> len
     return r === 0n ? empty : r
 }
 
 /**
  * Extracts the least significant unsigned integer and removes it from the vector.
- *
- * @type {(len: bigint) => (v: Vec) => [bigint, Vec]}
  *
  * @example
  *
@@ -107,7 +94,7 @@ export const removeLsb = len => v => {
  * const [result2, rest2] = popUintLsb(16n)(vector); // result2 is 0xF5n, rest2 is 1n
  * ```
  */
-export const popUintLsb = len => {
+export const popUintLsb = (len: bigint): (v: Vec) => readonly[bigint, Vec] => {
     const m = mask(len)
     return v => {
         const result = v & m
@@ -118,8 +105,6 @@ export const popUintLsb = len => {
 /**
  * Extract the most significant unsigned integer of the given `len` from the given vector.
  *
- * @type {(len: bigint) => (v: Vec) => bigint}
- *
  * @example
  *
  * ```js
@@ -128,15 +113,13 @@ export const popUintLsb = len => {
  * const result2 = uintMsb(16n)(vector); // result2 is 0xF500n
  * ```
  */
-export const uintMsb = len => {
+export const uintMsb = (len: bigint): (v: Vec) => bigint => {
     const m = mask(len)
     return v => (v >> (length(v) - len)) & m
 }
 
 /**
  * Removes the first `len` most significant bits from the given vector.
- *
- * @type {(len: bigint) => (v: Vec) => Vec}
  *
  * @example
  *
@@ -146,12 +129,10 @@ export const uintMsb = len => {
  * const r2 = removeMsb(24n)(v) // 0x1n
  * ```
  */
-export const removeMsb = len => v => vec(length(v) - len)(v)
+export const removeMsb = (len: bigint) => (v: Vec): Vec => vec(length(v) - len)(v)
 
 /**
  * Extracts the most significant unsigned integer and removes it from the vector.
- *
- * @type {(len: bigint) => (v: Vec) => [bigint, Vec]}
  *
  * @example
  *
@@ -161,7 +142,7 @@ export const removeMsb = len => v => vec(length(v) - len)(v)
  * const [result2, rest2] = popUintMsb(16n)(vector); // [0xF500n, 1n]
  * ```
  */
-export const popUintMsb = len => {
+export const popUintMsb = (len: bigint): (v: Vec) => readonly[bigint, Vec] => {
     const m = mask(len)
     return v => {
         const d = length(v) - len
@@ -172,8 +153,6 @@ export const popUintMsb = len => {
 /**
  * Concat the given vectors of bits. The first vector is the least significant.
  *
- * @type {(a: Vec) => (b: Vec) => Vec}
- *
  * @example
  *
  * ```js
@@ -183,7 +162,7 @@ export const popUintMsb = len => {
  * const ab = concatLsb(a)(b) // 0x18945n
  * ```
  */
-export const concatLsb = a => {
+export const concatLsb = (a: Vec): (b: Vec) => Vec => {
     const aLen = length(a)
     const m = mask(aLen)
     return b => (b << aLen) | (a & m)
@@ -191,8 +170,6 @@ export const concatLsb = a => {
 
 /**
  * Concat the given vectors of bits. The first vector is the most significant.
- *
- * @type {(b: Vec) => (a: Vec) => Vec}
  *
  * @example
  *
@@ -203,4 +180,6 @@ export const concatLsb = a => {
  * const ab = concatMsb(a)(b) // 0x14589n
  * ```
  */
-export const concatMsb = flip(concatLsb)
+export const concatMsb
+    : (b: Vec) => (a: Vec) => Vec
+    = flip(concatLsb)

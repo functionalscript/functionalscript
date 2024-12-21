@@ -1,4 +1,4 @@
-import * as O from '../../types/object/module.f.mjs'
+import * as O from '../../types/object/module.f.ts'
 
 export type MapInterface<M> = {
     readonly at: (moduleId: string) => (moduleMap: M) => State | null

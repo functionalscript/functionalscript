@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 const { at, setReplace, setReduce, empty, entries, remove } = _
 import * as seq from '../list/module.f.mjs'
 

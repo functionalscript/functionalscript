@@ -1,12 +1,12 @@
-import * as _ from './module.f.mjs'
-import * as compare from '../function/compare/module.f.mjs'
+import * as _ from './module.f.ts'
+import * as compare from '../function/compare/module.f.ts'
 const { unsafeCmp } = compare
 import * as json from '../../json/module.f.ts'
-import * as object from '../object/module.f.mjs'
+import * as object from '../object/module.f.ts'
 const { sort } = object
 import * as list from '../list/module.f.mjs'
 const { toArray, countdown, length } = list
-import * as Map from '../map/module.f.mjs'
+import * as Map from '../map/module.f.ts'
 import * as f from '../function/module.f.mjs'
 const { flip } = f
 

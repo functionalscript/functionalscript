@@ -2,13 +2,13 @@ import * as package_ from '../package/module.f.ts'
 import * as module from '../module/module.f.ts'
 const { idToString, dir } = module
 import * as function_ from '../module/function/module.f.ts'
-import * as map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.ts'
 const { empty: mapEmpty, setReplace } = map
-import * as object from '../../types/object/module.f.mjs'
+import * as object from '../../types/object/module.f.ts'
 const { fromMap } = object
 import * as path from '../path/module.f.ts'
 const { parseAndFind } = path
-import * as stringSet from '../../types/string_set/module.f.mjs'
+import * as stringSet from '../../types/string_set/module.f.ts'
 const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 
 type Config<M> = {

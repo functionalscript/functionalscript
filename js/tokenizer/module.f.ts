@@ -1,13 +1,13 @@
 import * as operator from '../../types/function/operator/module.f.mjs'
-import * as range_map from '../../types/range_map/module.f.mjs'
+import * as range_map from '../../types/range_map/module.f.ts'
 const { merge, fromRange, get } = range_map
 import * as list from '../../types/list/module.f.mjs'
-import * as map from '../../types/map/module.f.mjs'
+import * as map from '../../types/map/module.f.ts'
 const { at } = map
 import * as _range from '../../types/range/module.f.mjs'
 const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
-import * as bigfloatT from '../../types/bigfloat/module.f.mjs'
+import * as bigfloatT from '../../types/bigfloat/module.f.ts'
 const { fromCharCode } = String
 import * as ascii from '../../text/ascii/module.f.ts'
 const { range } = ascii

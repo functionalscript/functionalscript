@@ -1,36 +1,37 @@
-// @ts-self-types="./module.f.d.mts"
-import * as compare from '../function/compare/module.f.mjs'
+import * as compare from '../function/compare/module.f.ts'
 import * as Operator from '../function/operator/module.f.mjs'
 const { unsafeCmp } = compare
 import * as list from '../list/module.f.mjs'
 const { reduce } = list
 
-/** @typedef {Operator.Unary<bigint, bigint>} Unary*/
+type Unary = Operator.Unary<bigint, bigint>
 
-/** @type {(a: bigint) => (b: bigint) => bigint} */
-export const addition = a => b => a + b
+export const addition
+    : (a: bigint) => (b: bigint) => bigint
+    = a => b => a + b
 
 export const sum = reduce(addition)(0n)
 
-/** @type {(a: bigint) => bigint} */
-export const abs = a => a >= 0 ? a : -a
+export const abs
+    : (a: bigint) => bigint
+    = a => a >= 0 ? a : -a
 
-/** @type {(a: bigint) => compare.Sign} */
-export const sign = a => unsafeCmp(a)(0n)
+export const sign
+    : (a: bigint) => compare.Sign
+    = a => unsafeCmp(a)(0n)
 
-/** @type {(a: bigint) => string} */
-export const serialize = a => `${a}n`
+export const serialize
+    : (a: bigint) => string
+    = a => `${a}n`
 
-/**
- * @template T
- * @typedef {{
- *  readonly 0: T
- *  readonly add: Operator.Reduce<T>
- * }} Additive
- */
+type Additive<T> = {
+   readonly 0: T
+   readonly add: Operator.Reduce<T>
+}
 
-/** @type {<T>(a: Additive<T>) => (a: T) => (n: bigint) => T} */
-export const scalar_mul = ({ 0: _0, add }) => a => n => {
+export const scalar_mul
+    : <T>(a: Additive<T>) => (a: T) => (n: bigint) => T
+    = ({ 0: _0, add }) => a => n => {
     let ai = a
     let ni = n
     let result = _0
@@ -54,8 +55,8 @@ export const scalar_mul = ({ 0: _0, add }) => a => n => {
  * - `log2(2n)` returns `1n`,
  * - `log2(15n)` returns `3n`.
  *
- * @param {bigint} v - The input BigInt.
- * @returns {bigint} The base-2 logarithm (floor) of the input BigInt, or `-1n` if the input is less than or equal to 0.
+ * @param v - The input BigInt.
+ * @returns The base-2 logarithm (floor) of the input BigInt, or `-1n` if the input is less than or equal to 0.
  *
  * @remarks
  * The function operates in two phases:
@@ -64,7 +65,7 @@ export const scalar_mul = ({ 0: _0, add }) => a => n => {
  * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
  *    determining the exact value of the logarithm.
  */
-export const log2 = v => {
+export const log2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
     let result = 0n
     let i = 1n
@@ -104,14 +105,14 @@ export const log2 = v => {
  * The function handles both positive and negative numbers. For negative inputs, the bit length is calculated
  * based on the absolute value of the number. Zero has a bit length of 0.
  *
- * @param {bigint} v - The input BigInt.
- * @returns {bigint} The bit length of the input BigInt.
+ * @param v - The input BigInt.
+ * @returns The bit length of the input BigInt.
  *
  * @remark
  * The function uses the `log2` function to calculate the position of the most significant bit(MSB)
  * and adds `1n` to account for the MSB itself.For negative numbers, the absolute value is used.
  */
-export const bitLength = v => {
+export const bitLength = (v: bigint): bigint => {
     if (v <= 0n) {
         if (v === 0n) { return 0n }
         v = -v

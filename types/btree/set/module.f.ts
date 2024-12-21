@@ -1,21 +1,19 @@
-// @ts-self-types="./module.f.d.mts"
 import * as _ from '../types/module.f.mjs'
-import * as btreeFind from '../find/module.f.mjs'
+import * as btreeFind from '../find/module.f.ts'
 const { find } = btreeFind
-import * as Cmp from '../../function/compare/module.f.mjs'
+import * as Cmp from '../../function/compare/module.f.ts'
 import * as list from '../../list/module.f.mjs'
 const { fold } = list
 
-/**
- * @template T
- * @typedef {_.Branch1<T> | _.Branch3<T>} Branch1To3
- */
+type Branch1To3<T> = _.Branch1<T> | _.Branch3<T>
 
-/** @type {<T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>} */
-const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
+const b57
+    : <T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>
+    = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(i: btreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>} */
-const reduceOp = ([i, x]) => a => {
+const reduceOp
+    : <T>(i: btreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>
+    = ([i, x]) => a => {
     switch (i) {
         case 0: {
             switch (x.length) {
@@ -37,13 +35,11 @@ const reduceOp = ([i, x]) => a => {
 
 const reduceBranch = fold(reduceOp)
 
-/** @type {<T>(c: Cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>) => _.Node<T>} */
-const nodeSet = c => g => node => {
+const nodeSet
+    = <T>(c: Cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.Node<T>): _.Node<T> => {
     const { first, tail } = find(c)(node)
     const [i, x] = first;
-    /** @typedef {typeof c extends Cmp.Compare<infer T> ? T : never} T */
-    /** @type {() => Branch1To3<T>} */
-    const f = () => {
+    const f = (): Branch1To3<T> => {
         switch (i) {
             case 0: {
                 // insert
@@ -88,5 +84,6 @@ const nodeSet = c => g => node => {
     return r.length === 1 ? r[0] : r
 }
 
-/** @type {<T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>} */
-export const set = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
+export const set
+    : <T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.Node<T>
+    = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)

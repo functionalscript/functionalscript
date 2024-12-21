@@ -1,6 +1,6 @@
 import * as list from '../../types/list/module.f.mjs'
 import * as operator from '../../types/function/operator/module.f.mjs'
-import * as Array from '../../types/array/module.f.mjs'
+import * as Array from '../../types/array/module.f.ts'
 const { flatMap, flat, stateScan } = list
 
 type ByteOrEof = u8|null

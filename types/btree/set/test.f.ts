@@ -1,9 +1,9 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 import * as BTree from '../types/module.f.mjs'
-import * as s from '../../string/module.f.mjs'
+import * as s from '../../string/module.f.ts'
 const { cmp } = s
 import * as json from '../../../json/module.f.ts'
-import * as o from '../../object/module.f.mjs'
+import * as o from '../../object/module.f.ts'
 const { sort } = o
 
 const set

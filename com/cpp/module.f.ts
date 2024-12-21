@@ -5,9 +5,9 @@
 
 import * as types from '../types/module.f.ts'
 import * as text from '../../text/module.f.ts'
-import * as O from '../../types/object/module.f.mjs'
+import * as O from '../../types/object/module.f.ts'
 import * as list from '../../types/list/module.f.mjs'
-import * as string from '../../types/string/module.f.mjs'
+import * as string from '../../types/string/module.f.ts'
 const { join } = string
 const { paramList } = types
 const { map, flatMap, flat } = list
