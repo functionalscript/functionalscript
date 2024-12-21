@@ -2,7 +2,7 @@ import * as sortedList from '../sorted_list/module.f.ts'
 const { genericMerge } = sortedList
 import * as list from '../list/module.f.mjs'
 const { next } = list
-import * as Option from '../nullable/module.f.mjs'
+import * as Option from '../nullable/module.f.ts'
 import * as number from '../number/module.f.ts'
 const { cmp } = number
 import * as O from '../function/operator/module.f.mjs'
@@ -19,7 +19,7 @@ export type Operators<T> = {
    readonly equal: O.Equal<T>
 }
 
-type RangeState<T> =Option.Nullable<Entry<T>>
+type RangeState<T> = Option.Nullable<Entry<T>>
 
 export type RangeMerge<T> = O.Reduce<RangeMap<T>>
 

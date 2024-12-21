@@ -1,4 +1,4 @@
-import * as option from '../nullable/module.f.mjs'
+import * as option from '../nullable/module.f.ts'
 const { map } = option
 
 export type Array1<T> = readonly[T]

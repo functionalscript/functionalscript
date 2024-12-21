@@ -4,7 +4,7 @@ import * as find from '../find/module.f.ts'
 import * as list from '../../list/module.f.mjs'
 const { fold, concat, next } = list
 import * as Array from '../../array/module.f.ts'
-import * as n from '../../nullable/module.f.mjs'
+import * as n from '../../nullable/module.f.ts'
 const { map } = n
 
 type Leaf01<T> = null | _.Leaf1<T>

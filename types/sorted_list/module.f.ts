@@ -1,6 +1,6 @@
 import * as compare from '../function/compare/module.f.ts'
 import * as list from '../list/module.f.mjs'
-import * as option from '../nullable/module.f.mjs'
+import * as option from '../nullable/module.f.ts'
 const { next } = list
 import * as f from '../function/module.f.mjs'
 const { identity } = f
