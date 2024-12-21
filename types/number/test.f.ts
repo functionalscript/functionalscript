@@ -25,13 +25,15 @@ export default {
         if (result !== -1) { throw result }
     },
     standard: () => {
-        /** @type {(a: bigint) => (a: bigint) => void} */
-        const check = a => b => {
+        const check
+            : (a: bigint) => (a: bigint) => void
+            = a => b => {
             if (BigInt(Number(a)) != b) { throw [a, b] }
         }
 
-        /** @type {(v: bigint) => void} */
-        const eq = v => check(v)(v)
+        const eq
+            : (v: bigint) => void
+            = v => check(v)(v)
 
         // 53, 0x35 bits.
         //        3                   2                   1                   0
