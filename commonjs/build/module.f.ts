@@ -1,4 +1,4 @@
-import * as package_ from '../package/module.f.mjs'
+import * as package_ from '../package/module.f.ts'
 import * as module from '../module/module.f.ts'
 const { idToString, dir } = module
 import * as function_ from '../module/function/module.f.ts'

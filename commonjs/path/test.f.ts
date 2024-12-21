@@ -6,7 +6,7 @@ import * as f from '../../types/function/module.f.mjs'
 const { identity } = f
 import * as object from '../../types/object/module.f.mjs'
 const { at } = object
-import * as Package from '../package/module.f.mjs'
+import * as Package from '../package/module.f.ts'
 
 const i
     : <T>(o: object.Map<T>) => (s: string) => T|null
