@@ -1,6 +1,6 @@
 import * as list from '../list/module.f.mjs'
 const { every, map, countdown } = list
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 
 export default {
     has: () => {
