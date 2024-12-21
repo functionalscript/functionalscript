@@ -1,4 +1,3 @@
-// @ts-self-types="./module.f.d.mts"
 import * as list from '../../types/list/module.f.mjs'
 import * as operator from '../../types/function/operator/module.f.mjs'
 import * as range from '../../types/range/module.f.mjs'
@@ -7,33 +6,38 @@ import * as f from '../../types/function/module.f.mjs'
 const { fn } = f
 const { map, flat, stateScan, reduce, flatMap, empty } = list
 
-/** @typedef {u16|null} WordOrEof */
+type WordOrEof = u16|null
 
-/** @typedef {number|null} Utf16State */
+type Utf16State = number|null
 
-/** @typedef {number} u16 */
+type u16 = number
 
-/** @typedef {number} i32 */
+type i32 = number
 
 const lowBmp = contains([0x0000, 0xd7ff])
 const highBmp = contains([0xe000, 0xffff])
 
-/** @type {(codePoint: i32) => boolean} */
-const isBmpCodePoint = codePoint => lowBmp(codePoint) || highBmp(codePoint)
+const isBmpCodePoint
+    : (codePoint: i32) => boolean
+    = codePoint => lowBmp(codePoint) || highBmp(codePoint)
 
-/** @type {(codePoint: i32) => boolean} */
-const isHighSurrogate = contains([0xd800, 0xdbff])
+const isHighSurrogate
+    : (codePoint: i32) => boolean
+    = contains([0xd800, 0xdbff])
 
-/** @type {(codePoint: i32) => boolean} */
-const isLowSurrogate = contains([0xdc00, 0xdfff])
+const isLowSurrogate
+    : (codePoint: i32) => boolean
+    = contains([0xdc00, 0xdfff])
 
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
-/** @type {(a: i32) => boolean} */
-const isSupplementaryPlane = contains([0x01_0000, 0x10_ffff])
+const isSupplementaryPlane
+    : (a: i32) => boolean
+    = contains([0x01_0000, 0x10_ffff])
 
-/** @type {(input: i32) => list.List<u16>} */
-const codePointToUtf16 = codePoint => {
+const codePointToUtf16
+    : (input: i32) => list.List<u16>
+    = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
     if (isSupplementaryPlane(codePoint)) {
         const n = codePoint - 0x1_0000
@@ -48,8 +52,9 @@ export const fromCodePointList = flatMap(codePointToUtf16)
 
 const u16 = contains([0x0000, 0xFFFF])
 
-/** @type {operator.StateScan<u16, Utf16State, list.List<i32>>} */
-const utf16ByteToCodePointOp = state => word => {
+const utf16ByteToCodePointOp
+    : operator.StateScan<u16, Utf16State, list.List<i32>>
+    = state => word => {
     if (!u16(word)) {
         return [[0xffffffff], state]
     }
@@ -68,29 +73,36 @@ const utf16ByteToCodePointOp = state => word => {
     return [[state | errorMask, word | errorMask], null]
 }
 
-/** @type {(state: Utf16State) => readonly[list.List<i32>, Utf16State]} */
-const utf16EofToCodePointOp = state => [state === null ? empty : [state | errorMask],  null]
+const utf16EofToCodePointOp
+    : (state: Utf16State) => readonly[list.List<i32>, Utf16State]
+    = state => [state === null ? empty : [state | errorMask],  null]
 
-/** @type {operator.StateScan<WordOrEof, Utf16State, list.List<i32>>} */
-const utf16ByteOrEofToCodePointOp = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
+const utf16ByteOrEofToCodePointOp
+    : operator.StateScan<WordOrEof, Utf16State, list.List<i32>>
+    = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
-/** @type {list.List<WordOrEof>} */
-const eofList = [null]
+const eofList
+    : list.List<WordOrEof>
+    = [null]
 
-/** @type {(input: list.List<u16>) => list.List<i32>} */
-export const toCodePointList = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
+export const toCodePointList
+    : (input: list.List<u16>) => list.List<i32>
+    = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
-/** @type {(s: string) => list.List<u16>} */
-export const stringToList = s => {
-    /** @type {(i: number) => list.Result<number>} */
-    const at = i => {
+export const stringToList
+    : (s: string) => list.List<u16>
+    = s => {
+    const at
+        : (i: number) => list.Result<number>
+        = i => {
         const first = s.charCodeAt(i)
         return isNaN(first) ? empty : { first, tail: () => at(i + 1) }
     }
     return at(0)
 }
 
-/** @type {(input: list.List<u16>) => string} */
-export const listToString = fn(map(String.fromCharCode))
+export const listToString
+    : (input: list.List<u16>) => string
+    = fn(map(String.fromCharCode))
     .then(reduce(operator.concat)(''))
     .result

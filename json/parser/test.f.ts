@@ -5,7 +5,7 @@ const { toArray } = list
 import * as json from '../module.f.ts'
 import * as o from '../../types/object/module.f.mjs'
 const { sort } = o
-import * as encoding from '../../text/utf16/module.f.mjs'
+import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.JsonToken[]

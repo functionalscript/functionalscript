@@ -14,7 +14,7 @@ import * as j from '../json/module.f.ts'
 const { stringify } = j
 import * as f from '../types/function/module.f.mjs'
 const { identity } = f
-import * as utf16 from '../text/utf16/module.f.mjs'
+import * as utf16 from '../text/utf16/module.f.ts'
 const { stringToList } = utf16
 
 type Rule = readonly[string, byteSet.ByteSet, string]

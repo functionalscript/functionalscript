@@ -7,7 +7,7 @@ import * as f from '../types/function/module.f.mjs'
 const { identity } = f
 import * as list from '../types/list/module.f.mjs'
 const { toArray } = list
-import * as utf16 from '../text/utf16/module.f.mjs'
+import * as utf16 from '../text/utf16/module.f.ts'
 const { stringToList } = utf16
 
 const stringifyIdentity = json.stringify(identity)
