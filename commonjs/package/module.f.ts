@@ -1,6 +1,6 @@
 import * as json from '../../json/module.f.mjs'
 const { isObject } = json
-import * as dependencies from './dependencies/module.f.mjs'
+import * as dependencies from './dependencies/module.f.ts'
 const { isDependenciesJson } = dependencies
 import * as o from '../../types/object/module.f.mjs'
 const { at } = o
