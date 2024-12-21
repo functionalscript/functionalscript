@@ -1,5 +1,3 @@
-// @ts-self-types="./module.f.d.mts"
-
 import * as list from '../types/list/module.f.mjs'
 const { flat, map } = list
 import * as string from '../types/string/module.f.mjs'
@@ -13,43 +11,45 @@ const { serialize: bigintSerialize } = bi
 import * as j from '../json/serializer/module.f.mjs'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
 
-/**
- * @typedef {{
- *  readonly [k in string]: Unknown
- * }} Object
- */
+type Object = {
+   readonly [k in string]: Unknown
+}
 
-/** @typedef {readonly Unknown[]} Array */
+type Array = readonly Unknown[]
 
-/** @typedef {Object|boolean|string|number|null|Array|bigint|undefined} Unknown */
+type Unknown = Object|boolean|string|number|null|Array|bigint|undefined
 
 const colon = [':']
 
 const undefinedSerialize = ['undefined']
 
-/** @typedef {O.Entry<Unknown>} Entry*/
+type Entry = O.Entry<Unknown>
 
-/** @typedef {(list.List<Entry>)} Entries */
+type Entries = list.List<Entry>
 
-/** @typedef {(entries: Entries) => Entries} MapEntries */
+type MapEntries = (entries: Entries) => Entries
 
-/** @type {(mapEntries: MapEntries) => (value: Unknown) => list.List<string>} */
-export const serialize = sort => {
-    /** @type {(kv: readonly[string, Unknown]) => list.List<string>} */
-    const propertySerialize = ([k, v]) => flat([
+export const serialize
+    : (mapEntries: MapEntries) => (value: Unknown) => list.List<string>
+    = sort => {
+    const propertySerialize
+        : (kv: readonly[string, Unknown]) => list.List<string>
+        = ([k, v]) => flat([
         stringSerialize(k),
         colon,
         f(v)
     ])
     const mapPropertySerialize = map(propertySerialize)
-    /** @type {(object: Object) => list.List<string>} */
-    const objectSerialize = fn(entries)
+    const objectSerialize
+        : (object: Object) => list.List<string>
+        = fn(entries)
         .then(sort)
         .then(mapPropertySerialize)
         .then(objectWrap)
         .result
-    /** @type {(value: Unknown) => list.List<string>} */
-    const f = value => {
+    const f
+        : (value: Unknown) => list.List<string>
+        = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
             case 'number': { return numberSerialize(value) }
@@ -70,7 +70,7 @@ export const serialize = sort => {
 /**
  * The standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
- *
- * @type {(mapEntries: MapEntries) => (value: Unknown) => string}
  */
-export const stringify = sort => compose(serialize(sort))(concat)
+export const stringify
+    : (mapEntries: MapEntries) => (value: Unknown) => string
+    = sort => compose(serialize(sort))(concat)
