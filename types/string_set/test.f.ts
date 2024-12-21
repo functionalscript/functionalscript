@@ -1,0 +1,34 @@
+import * as _ from './module.f.ts'
+
+export default {
+    contains: () => {
+        const r = _.set('hello')(null)
+        if (!_.contains('hello')(r)) { throw r }
+        if (_.contains('hello1')(r)) { throw r }
+    },
+    remove: () => {
+        let r = _.set('hello')(null)
+        r = _.set('world')(r)
+        r = _.set('HELLO')(r)
+        r = _.set('WORLD!')(r)
+        if (!_.contains('hello')(r)) { throw r }
+        if (_.contains('hello1')(r)) { throw r }
+        if (!_.contains('HELLO')(r)) { throw r }
+        if (_.contains('WORLD')(r)) { throw r }
+        if (!_.contains('world')(r)) { throw r }
+        if (_.contains('world!')(r)) { throw r }
+        if (!_.contains('WORLD!')(r)) { throw r }
+        //
+        r = _.remove('hello')(r)
+        if (_.contains('hello')(r)) { throw r }
+        if (!_.contains('world')(r)) { throw r }
+        r = _.remove('world')(r)
+        if (_.contains('world')(r)) { throw r }
+        if (!_.contains('HELLO')(r)) { throw r }
+        r = _.remove('HELLO')(r)
+        if (_.contains('HELLO')(r)) { throw r }
+        if (!_.contains('WORLD!')(r)) { throw r }
+        r = _.remove('WORLD!')(r)
+        if (r !== null) { throw r }
+    }
+}
