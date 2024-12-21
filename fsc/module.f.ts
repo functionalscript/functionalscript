@@ -1,4 +1,3 @@
-// @ts-self-types="./module.f.d.mts"
 import * as operator from '../types/function/operator/module.f.mjs'
 import * as rangeMap from '../types/range_map/module.f.mjs'
 const { merge: rangeMapMerge, fromRange, get } = rangeMap
@@ -13,41 +12,38 @@ import * as _range from '../types/range/module.f.mjs'
 const { one } = _range
 const { toArray, map } = list
 
-/** @typedef {readonly[readonly string[], ToResult]} Result */
+type Result = readonly[readonly string[], ToResult]
 
-/** @typedef {(codePoint: number) => Result} ToResult */
+type ToResult = (codePoint: number) => Result
 
-/**
- * @template T
- * @typedef {(state: T) => ToResult} CreateToResult
- */
+type CreateToResult<T> = (state: T) => ToResult
 
-/**
- * @template T
- * @typedef {rangeMap.RangeMapArray<CreateToResult<T>>} State
- */
+type State<T> = rangeMap.RangeMapArray<CreateToResult<T>>
 
-/** @type {ToResult} */
-const unexpectedSymbol = codePoint => [[`unexpected symbol ${codePoint}`], unexpectedSymbol]
+const unexpectedSymbol
+    : ToResult
+    = codePoint => [[`unexpected symbol ${codePoint}`], unexpectedSymbol]
 
-/** @type {<T>(state: T) => ToResult} */
-const def = () => unexpectedSymbol
+const def
+    : <T>(state: T) => ToResult
+    = () => unexpectedSymbol
 
-/** @type {<T>(a: CreateToResult<T>) => (b: CreateToResult<T>) => CreateToResult<T>} */
-const union = a => b => {
+const union
+    : <T>(a: CreateToResult<T>) => (b: CreateToResult<T>) => CreateToResult<T>
+    = a => b => {
     if (a === def || a === b) { return b }
     if (b === def) { return a }
     throw [a, b]
 }
 
-/** @type {readonly never[]} */
-const empty = []
+const empty
+    : readonly never[]
+    = []
 
-/** @type {<T>(a: list.List<State<T>>) => State<T>} */
-const reduce = a => {
-    /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
-    /** @type {rangeMap.RangeMerge<CreateToResult<T>>} */
-    const merge = rangeMapMerge({
+const reduce = <T>(a: list.List<State<T>>): State<T> => {
+    const merge
+        : rangeMap.RangeMerge<CreateToResult<T>>
+        = rangeMapMerge({
         union,
         equal: operator.strictEqual,
     })
@@ -58,29 +54,30 @@ const codePointRange = fromRange(def)
 
 const range = fn(asciiRange).then(codePointRange).result
 
-/** @type {(l: readonly string[]) => <T>(f: CreateToResult<T>) => State<T>} */
-const rangeSet = l => f => {
-    /** @typedef {typeof f extends CreateToResult<infer T> ? T : never} T */
-    /** @type {(a: _range.Range) => (f: CreateToResult<T>) => State<T>} */
-    const codePointRange = fromRange(def)
-    /** @type {(r: string) => State<T>} */
-    const g = r => codePointRange(asciiRange(r))(f)
+const rangeSet
+    = (l: readonly string[]) => <T>(f: CreateToResult<T>): State<T> => {
+    const codePointRange
+        : (a: _range.Range) => (f: CreateToResult<T>) => State<T>
+        = fromRange(def)
+    const g
+        : (r: string) => State<T>
+        = r => codePointRange(asciiRange(r))(f)
     return reduce(map(g)(l))
 }
 
-/** @type {<T>(a: list.List<State<T>>) => CreateToResult<T>} */
-const create = a => {
-    /** @typedef {typeof a extends list.List<State<infer T>> ? T : never} T */
+const create = <T>(a: list.List<State<T>>): CreateToResult<T> => {
     const i = reduce(a)
-    /** @type {(v: number) => (i: State<T>) => (v: T) => ToResult} */
-    const x = get(def)
+    const x
+        : (v: number) => (i: State<T>) => (v: T) => ToResult
+        = get(def)
     return v => c => x(c)(i)(v)(c)
 }
 
 export const terminal = -1
 
-/** @type {() => ToResult} */
-const toInit = () => () => [[], init]
+const toInit
+    : () => ToResult
+    = () => () => [[], init]
 
 export const init = create([
     codePointRange(one(terminal))(toInit),

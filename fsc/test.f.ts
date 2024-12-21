@@ -1,4 +1,4 @@
-import * as _ from './module.f.mjs'
+import * as _ from './module.f.ts'
 import * as ascii from '../text/ascii/module.f.mjs'
 const { one } = ascii
 import * as j from '../json/module.f.mjs'
