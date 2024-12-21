@@ -5,23 +5,23 @@ const { join } = string
 import * as Package from '../package/module.f.mjs'
 import * as Module from '../module/module.f.ts'
 
-/** @typedef {readonly string[]} Items */
+type Items = readonly string[]
 
-/**
- * @typedef {{
- *  readonly external: boolean
- *  readonly dir: boolean
- *  readonly items: Items
- * }} LocalPath
- */
+type LocalPath = {
+    readonly external: boolean
+    readonly dir: boolean
+    readonly items: Items
+}
 
-/** @type {(path: string) => readonly string[]} */
-const split = path => path.split('/')
+const split
+    : (path: string) => readonly string[]
+    = path => path.split('/')
 
-/** @typedef {readonly[list.List<string>] | null} OptionList */
+type OptionList = readonly[list.List<string>] | null
 
-/** @type {(items: string) => (prior: OptionList) => OptionList} */
-const normItemsOp = first => prior => {
+const normItemsOp
+    : (items: string) => (prior: OptionList) => OptionList
+    = first => prior => {
     if (prior === null) { return null }
     const tail = prior[0]
     switch (first) {
@@ -37,21 +37,24 @@ const normItemsOp = first => prior => {
     }
 }
 
-/** @type {(items: list.List<string>) => OptionList} */
-const normItems = items => {
+const normItems
+    : (items: list.List<string>) => OptionList
+    = items => {
     const result = fold(normItemsOp)([list.empty])(items)
     return result === null ? result : [reverse(result[0])]
 }
 
 const firstNull = first(null)
 
-/** @type {(local: string) => (path: string) => LocalPath|null} */
-export const parseLocal = local => {
-    /** @type {(path: string) => readonly[boolean, boolean, list.List<string>]} */
-    const fSeq = path => {
+export const parseLocal
+    : (local: string) => (path: string) => LocalPath|null
+    = local => {
+    const fSeq
+        : (path: string) => readonly[boolean, boolean, list.List<string>]
+        = path => {
         const pathSeq = split(path)
         const dir = [null, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
-        return /** @type {readonly (string|null)[]} */(['.', '..']).includes(firstNull(pathSeq)) ?
+        return (['.', '..'] as readonly (string|null)[]).includes(firstNull(pathSeq)) ?
             [false, dir, flat([split(local), pathSeq])] :
             [true, dir, pathSeq]
     }
@@ -68,40 +71,44 @@ export const parseLocal = local => {
     }
 }
 
-/** @typedef {readonly[string, list.List<string>]} IdPath */
+type IdPath = readonly[string, list.List<string>]
 
-/** @type {(prior: readonly[string|null, list.List<string>]) => list.Thunk<IdPath>} */
-const variants = prior => () => {
+/** @type {} */
+const variants
+    : (prior: readonly[string|null, list.List<string>]) => list.Thunk<IdPath>
+    = prior => () => {
     const [a, b] = prior
     const r = next(b)
     if (r === list.empty) { return list.empty }
     const { first, tail } = r
-    /** @type {IdPath} */
-    const n = [a === null ? first : `${a}/${first}`, tail]
+    const n
+        : IdPath
+        = [a === null ? first : `${a}/${first}`, tail]
     return { first: n, tail: variants(n) }
 }
 
-/** @type {(d: (local: string) => string|null) => (p: IdPath) => IdPath|null} */
-const mapDependency = d => ([external, internal]) => {
+const mapDependency
+    : (d: (local: string) => string|null) => (p: IdPath) => IdPath|null
+    = d => ([external, internal]) => {
     const id = d(external)
     return id === null ? null : [id, internal]
 }
 
-/**
- * @typedef {{
- *  readonly package: string,
- *  readonly items: Items,
- *  readonly dir: boolean,
- * }} Path
- */
+type Path = {
+    readonly package: string,
+    readonly items: Items,
+    readonly dir: boolean,
+}
 
 /**
- * @type {(d: (local: string) => string|null) =>
- *  (dir: boolean) =>
- *  (items: list.List<string>) =>
- *  Path|null}
+ * @type {}
  */
-export const parseGlobal = dependencies =>
+export const parseGlobal
+    :   (d: (local: string) => string|null) =>
+        (dir: boolean) =>
+        (items: list.List<string>) =>
+        Path|null
+    = dependencies =>
 {
     const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
@@ -113,13 +120,15 @@ export const parseGlobal = dependencies =>
 }
 
 /**
- * @type {(packageId: string) =>
- *  (dependencies: (local: string) => string|null) =>
- *  (local: string) =>
- *  (path: string) =>
- *  Path|null }
+ * @type { }
  */
-export const parse = packageId => dependencies => {
+export const parse
+    :   (packageId: string) =>
+        (dependencies: (local: string) => string|null) =>
+        (local: string) =>
+        (path: string) =>
+        Path|null
+    = packageId => dependencies => {
     const pg = parseGlobal(dependencies)
     return local => path => {
         const parsed = parseLocal(local)(path)
@@ -130,31 +139,28 @@ export const parse = packageId => dependencies => {
     }
 }
 
-/**
- * @typedef {{
- *  readonly id: Module.Id
- *  readonly source: string
- * }} FoundResult
- */
+type FoundResult = {
+    readonly id: Module.Id
+    readonly source: string
+}
 
-/** @typedef {FoundResult| null} Result */
+type Result = FoundResult| null
 
-/**
- * @type {(packageGet: Package.Get) =>
- *  (moduleId: Module.Id) =>
- *  (path: string) =>
- *  Result
- * }
- */
-export const parseAndFind = packageGet => moduleId => path => {
+export const parseAndFind
+    :   (packageGet: Package.Get) =>
+        (moduleId: Module.Id) =>
+        (path: string) =>
+        Result
+    = packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
     if (currentPack === null) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
     if (p === null) { return null }
     const pack = packageGet(p.package)
     if (pack === null) { return null }
-    /** @type {(file: string) => FoundResult | null } */
-    const tryFile = file => {
+    const tryFile
+        : (file: string) => FoundResult | null
+        = file => {
         const source = pack.file(file)
         return source === null ? null : { id: { package: p.package, path: file.split('/') }, source }
     }
