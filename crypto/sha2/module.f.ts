@@ -1,29 +1,30 @@
-// @ts-self-types="./module.f.d.mts"
 import * as array from '../../types/array/module.f.mjs'
 
-/**
- * @typedef {{
- *  readonly f: (i: number) => number
- *  readonly length: number
- * }} HashInput
- */
+type HashInput = {
+    readonly f: (i: number) => number
+    readonly length: number
+}
 
-/** @typedef {array.Array8<number>} Hash8 */
+type Hash8 = array.Array8<number>
 
-/** @typedef {array.Array16<number>} Array16 */
+type Array16 = array.Array16<number>
 
-/** @type {(input: number) => (pos: number) => number} */
-const appendOneWithZeros = input => pos => (input >> pos << pos) | (1 << pos)
+const appendOneWithZeros
+    : (input: number) => (pos: number) => number
+    = input => pos => (input >> pos << pos) | (1 << pos)
 
-/** @type {(input: number) => (pos: number) => number} */
-const mod = a => b => (a % b + b) % b
+const mod
+    : (input: number) => (pos: number) => number
+    = a => b => (a % b + b) % b
 
-/** @type  {(input: readonly number[]) => (bits: number) => HashInput} */
-export const padding = input => bitsCount => {
+export const padding
+    : (input: readonly number[]) => (bits: number) => HashInput
+    = input => bitsCount => {
     const appendBlockIndex = (bitsCount / 32) | 0
     const length = (bitsCount + mod(447 - bitsCount)(512) + 65) / 32
-    /** @type {(i: number) => number} */
-    const f = i => {
+    const f
+        : (i: number) => number
+        = i => {
         if (i < appendBlockIndex) { return input[i] }
         if (i === appendBlockIndex) {
             return appendBlockIndex >= input.length ? 0x8000_0000 : appendOneWithZeros(input[appendBlockIndex])(31 - bitsCount % 32)
@@ -35,23 +36,28 @@ export const padding = input => bitsCount => {
     return ({ f, length })
 }
 
-/** @type {(d: number) => (n: number) => number} */
-const rotr = d => {
+const rotr
+    : (d: number) => (n: number) => number
+    = d => {
     const r = 32 - d
     return n => n >>> d | n << r
 }
 
-/** @type {(x: number) => (y: number) => (z: number) => number} */
-const ch = x => y => z => x & y ^ ~x & z
+const ch
+    : (x: number) => (y: number) => (z: number) => number
+    = x => y => z => x & y ^ ~x & z
 
-/** @type {(x: number) => (y: number) => (z: number) => number} */
-const maj = x => y => z => x & y ^ x & z ^ y & z
+const maj
+    : (x: number) => (y: number) => (z: number) => number
+    = x => y => z => x & y ^ x & z ^ y & z
 
-/** @type {(d: number) => (n: number) => number} */
-const shr = d => n => n >>> d
+const shr
+    : (d: number) => (n: number) => number
+    = d => n => n >>> d
 
-/** @type {(a: number) => (b: number) => (c: number) => (x: number) => number} */
-const bigSigma = a => b => c => {
+const bigSigma
+    : (a: number) => (b: number) => (c: number) => (x: number) => number
+    = a => b => c => {
     const ra = rotr(a)
     const rb = rotr(b)
     const rc = rotr(c)
@@ -62,8 +68,9 @@ const bigSigma0 = bigSigma(2)(13)(22)
 
 const bigSigma1 = bigSigma(6)(11)(25)
 
-/** @type {(a: number) => (b: number) => (c: number) => (x: number) => number} */
-const smallSigma = a => b => c => {
+const smallSigma
+    : (a: number) => (b: number) => (c: number) => (x: number) => number
+    = a => b => c => {
     const ra = rotr(a)
     const rb = rotr(b)
     const sc = shr(c)
@@ -74,11 +81,13 @@ const smallSigma0 = smallSigma(7)(18)(3)
 
 const smallSigma1 = smallSigma(17)(19)(10)
 
-/** @type {(a: array.Array4<number>) => number} */
-const wi = ([a0, a1, a2, a3]) => (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) | 0
+const wi
+    : (a: array.Array4<number>) => number
+    = ([a0, a1, a2, a3]) => (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) | 0
 
-/** @type {(w: Array16) => Array16} */
-const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]) => {
+const nextW
+    : (w: Array16) => Array16
+    = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]) => {
     w0 = wi([wE, w9, w1, w0])
     w1 = wi([wF, wA, w2, w1])
     w2 = wi([w0, wB, w3, w2])
@@ -117,8 +126,9 @@ const k = [
     ],
 ];
 
-/** @type {(init: Hash8) => (data: Array16) => Hash8} */
-const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
+const compress
+    : (init: Hash8) => (data: Array16) => Hash8
+    = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
     let w = data
 
     let a = a0
@@ -162,8 +172,9 @@ const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
     ]
 }
 
-/** @type {(init: Hash8) => (input: readonly number[]) => (bitsCount: number) => Hash8} */
-const compute = init => input => bitsCount => {
+const compute
+    : (init: Hash8) => (input: readonly number[]) => (bitsCount: number) => Hash8
+    = init => input => bitsCount => {
     const { f, length } = padding(input)(bitsCount)
 
     let result = init
@@ -179,17 +190,21 @@ const compute = init => input => bitsCount => {
     return result
 }
 
-/** @type {Hash8} */
-const init256 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
+const init256
+    : Hash8
+    = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
 
-/** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
-export const computeSha256 = compute(init256)
+export const computeSha256
+    : (input: readonly number[]) => (bitsCount: number) => Hash8
+    = compute(init256)
 
-/** @type {Hash8} */
-const init224 = [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4]
+const init224
+    : Hash8
+    = [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4]
 
-/** @type {(input: readonly number[]) => (bitsCount: number) => Hash8} */
-export const computeSha224 = compute(init224)
+export const computeSha224
+    : (input: readonly number[]) => (bitsCount: number) => Hash8
+    = compute(init224)
 
 export const compress256 = compress(init256)
 
