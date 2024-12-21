@@ -14,7 +14,7 @@ const { entries } = Object
 /** @typedef {string} Tag */
 
 // https://developer.mozilla.org/en-US/docs/Glossary/Void_element
-const voidTagList = [
+const voidTagList = /** @type {const} */([
     'area',
     'base',
     'br',
@@ -29,20 +29,20 @@ const voidTagList = [
     'source',
     'track',
     'wbr',
-]
+])
+
+/** @typedef {typeof voidTagList} VoidTagList */
+
+/** @typedef {keyof voidTagList} VoidTag */
 
 /** @type {(tag: string) => boolean} */
-const isVoid = tag => voidTagList.includes(tag)
+const isVoid = tag => voidTagList.includes(/** @type {any} */(tag))
 
-/** @typedef {readonly[Tag]} Element1*/
+/** @typedef {readonly[Tag, ...Node[]]} Element1*/
 
-/** @typedef {readonly[Tag, Attributes]} Element2A */
+/** @typedef {readonly[Tag, Attributes, ...Node[]]} Element2 */
 
-/** @typedef {readonly[Tag, readonly Node[]]} Element2N */
-
-/** @typedef {readonly[Tag, Attributes, Nodes]} Element3*/
-
-/** @typedef {Element1 | Element2A | Element2N | Element3} Element */
+/** @typedef {Element1 | Element2 } Element */
 
 /**
  * @typedef {{
@@ -50,7 +50,7 @@ const isVoid = tag => voidTagList.includes(tag)
  * }} Attributes
  */
 
-/** @typedef {list.List<Node>} Nodes */
+// /** @typedef {list.List<Node>} Nodes */
 
 /** @typedef {Element | string} Node */
 
@@ -82,34 +82,19 @@ const attribute = ([name, value]) => flat([[' ', name, '="'], escape(value), ['"
 /** @type {(a: Attributes) => list.List<string>} */
 const attributes = compose(entries)(flatMap(attribute))
 
-const open = (/** @type {Element2A} */[tag, a]) => flat([[`<`, tag], attributes(a), [`>`]])
+/** @type {(t: string) => (a: Attributes) => list.List<string>} */
+const open = t => a => flat([[`<`, t], attributes(a), [`>`]])
 
-const close = (/** @type {string}*/tag) => ['</', tag, '>']
-
-/** @type {(_: Element3) => list.List<string>} */
-const element3 = ([tag, a, ns]) =>
-    flat([open([tag, a]), nodes(ns), close(tag)])
-
-/** @type {(_: Element2A) => list.List<string>} */
-const element2a = e => {
-    const [tag] = e
-    return flat([open(e), isVoid(tag) ? [] : close(tag)])
+/** @type {(t: string) => (an: readonly[Attributes, readonly Node[]]) => list.List<string>} */
+const element3 = t => ([a, n]) => {
+    const o = flat([[`<`, t], attributes(a), [`>`]])
+    return isVoid(t) ? o : flat([o, nodes(n), ['</', t, '>']])
 }
 
 /** @type {(element: Element) => list.List<string>} */
 export const element = e => {
-    switch (e.length) {
-        case 1: { return element2a([e[0], {}]) }
-        case 2: {
-            const [tag, a] = e
-            return a instanceof Array ?
-                element3([tag, {}, a]) :
-                element2a([tag, a])
-        }
-        default: {
-            return element3(e)
-        }
-    }
+    const [t, a, ...n] = e
+    return element3(t)(a === undefined ? [{}, []]: typeof a === 'object' && !(a instanceof Array) ? [a, n] : [{}, [a, ...n]])
 }
 
 export const html = compose(element)(listConcat(['<!DOCTYPE html>']))

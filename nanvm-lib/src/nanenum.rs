@@ -99,7 +99,7 @@ impl<T: Raw64> Drop for NaNEnumPack<T> {
 
 #[cfg(test)]
 mod test {
-    use core::{mem::{forget, needs_drop}, ptr::null};
+    use core::{mem::forget, ptr::null, sync::atomic::{AtomicUsize, Ordering}};
     use std::rc::Rc;
 
     use crate::nanenum::{Raw64, NEGATIVE, NOT_FINITE};
@@ -108,6 +108,7 @@ mod test {
 
     // See https://doc.rust-lang.org/std/mem/fn.needs_drop.html
 
+    /*
     trait Dropable {
         const _A: () = assert!(needs_drop::<Self>());
     }
@@ -115,6 +116,7 @@ mod test {
     trait NonDropable {
         const _A: () = assert!(!needs_drop::<Self>());
     }
+    */
 
     #[test]
     fn test_f64() {
@@ -125,13 +127,13 @@ mod test {
 
     #[test]
     fn test_pack() {
-        static mut I: u64 = 0;
+        static I: AtomicUsize = AtomicUsize::new(0);
 
         struct P();
 
         impl Default for P {
             fn default() -> Self {
-                unsafe { I += 1 };
+                I.fetch_add(1, Ordering::Relaxed);
                 Self()
             }
         }
@@ -144,7 +146,7 @@ mod test {
 
         impl Drop for P {
             fn drop(&mut self) {
-                unsafe { I -= 1 };
+                I.fetch_sub(1, Ordering::Relaxed);
             }
         }
 
@@ -162,20 +164,20 @@ mod test {
         //
 
         {
-            unsafe { assert_eq!(I, 0) };
+            assert_eq!(I.load(Ordering::Relaxed), 0);
             {
                 let x = P::default();
-                unsafe { assert_eq!(I, 1) };
+                assert_eq!(I.load(Ordering::Relaxed), 1);
                 let m = NaNEnum::Else(x);
-                unsafe { assert_eq!(I, 1) };
+                assert_eq!(I.load(Ordering::Relaxed), 1);
                 let p = NaNEnumPack::pack(m);
-                unsafe { assert_eq!(I, 1) };
+                assert_eq!(I.load(Ordering::Relaxed), 1);
                 let p1 = p.clone();
-                unsafe { assert_eq!(I, 2) };
+                assert_eq!(I.load(Ordering::Relaxed), 2);
                 let m1 = p1.unpack();
-                unsafe { assert_eq!(I, 2) };
+                assert_eq!(I.load(Ordering::Relaxed), 2);
                 if let NaNEnum::Else(x1) = m1 {
-                    unsafe { assert_eq!(I, 2) };
+                    assert_eq!(I.load(Ordering::Relaxed), 2);
                     // assert_ne!(&x as *const _, null())
                     // assert_ne!(&m as *const _, null())
                     assert_ne!(&p as *const _, null());
@@ -186,26 +188,26 @@ mod test {
                     panic!()
                 }
             }
-            unsafe { assert_eq!(I, 0) };
+            assert_eq!(I.load(Ordering::Relaxed), 0);
         }
 
         //
 
         {
-            unsafe { assert_eq!(I, 0) };
+            assert_eq!(I.load(Ordering::Relaxed), 0);
             {
                 let x = P::default();
-                unsafe { assert_eq!(I, 1) };
+                assert_eq!(I.load(Ordering::Relaxed), 1);
                 let m = NaNEnum::Else(x.clone());
-                unsafe { assert_eq!(I, 2) };
+                assert_eq!(I.load(Ordering::Relaxed), 2);
                 let p = NaNEnumPack::pack(m.clone());
-                unsafe { assert_eq!(I, 3) };
+                assert_eq!(I.load(Ordering::Relaxed), 3);
                 let p1 = p.clone();
-                unsafe { assert_eq!(I, 4) };
+                assert_eq!(I.load(Ordering::Relaxed), 4);
                 let m1 = p1.clone().unpack();
-                unsafe { assert_eq!(I, 5) };
+                assert_eq!(I.load(Ordering::Relaxed), 5);
                 if let NaNEnum::Else(x1) = m1.clone() {
-                    unsafe { assert_eq!(I, 6) };
+                    assert_eq!(I.load(Ordering::Relaxed), 6);
                     assert_ne!(&x as *const _, null());
                     assert_ne!(&m as *const _, null());
                     assert_ne!(&p as *const _, null());
@@ -216,7 +218,7 @@ mod test {
                     panic!()
                 }
             }
-            unsafe { assert_eq!(I, 0) };
+            assert_eq!(I.load(Ordering::Relaxed), 0);
         }
     }
 
