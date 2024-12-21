@@ -8,15 +8,15 @@ const { setReplace, at } = map
 import * as o from '../../types/object/module.f.ts'
 const { fromMap } = o
 
-type DjsModule = [readonly string[], readonly DjsConst[]]
+export type DjsModule = [readonly string[], readonly DjsConst[]]
 
-type DjsConst = boolean|string|number|null|bigint|undefined|DjsModuleRef|DjsArray|DjsObject
+export type DjsConst = boolean|string|number|null|bigint|undefined|DjsModuleRef|DjsArray|DjsObject
 
 type DjsModuleRef = ['aref' | 'cref', number]
 
 type DjsArray = ['array', readonly DjsConst[]]
 
-type DjsObject = {
+export type DjsObject = {
     readonly [k in string]: DjsConst
 }
 

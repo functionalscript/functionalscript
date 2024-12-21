@@ -5,7 +5,7 @@ const { toArray } = list
 import * as o from '../../types/object/module.f.ts'
 const { sort } = o
 import * as encoding from '../../text/utf16/module.f.ts'
-import * as djsSerializer from '../serializer/module.f.mjs'
+import * as djsSerializer from '../serializer/module.f.ts'
 const { djsModuleStringify } = djsSerializer
 
 const tokenizeString

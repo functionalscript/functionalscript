@@ -10,30 +10,31 @@ import * as bi from '../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as j from '../json/serializer/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
-import * as djs from './serializer/module.f.mjs'
+import * as djs from './serializer/module.f.ts'
 const { undefinedSerialize } = djs
-/**
- * @typedef {{
- *  readonly [k in string]: Unknown
- * }} Object
- */
 
-/** @typedef {readonly Unknown[]} Array */
+type Object = {
+   readonly [k in string]: Unknown
+}
 
-/** @typedef {Object|boolean|string|number|null|Array|bigint|undefined} Unknown */
+type Array = readonly Unknown[]
+
+type Unknown = Object|boolean|string|number|null|Array|bigint|undefined
 
 const colon = [':']
 
-/** @typedef {O.Entry<Unknown>} Entry*/
+type Entry = O.Entry<Unknown>
 
-/** @typedef {(list.List<Entry>)} Entries */
+type Entries = list.List<Entry>
 
-/** @typedef {(entries: Entries) => Entries} MapEntries */
+type MapEntries = (entries: Entries) => Entries
 
-/** @type {(mapEntries: MapEntries) => (value: Unknown) => list.List<string>} */
-export const serialize = sort => {
-    /** @type {(kv: readonly[string, Unknown]) => list.List<string>} */
-    const propertySerialize = ([k, v]) => flat([
+export const serialize
+: (mapEntries: MapEntries) => (value: Unknown) => list.List<string>
+= sort => {
+    const propertySerialize
+    : (kv: readonly[string, Unknown]) => list.List<string>
+    = ([k, v]) => flat([
         stringSerialize(k),
         colon,
         f(v)
