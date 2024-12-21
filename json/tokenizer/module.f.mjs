@@ -4,7 +4,7 @@ import * as list from '../../types/list/module.f.mjs'
 const { empty, flat, stateScan } = list
 import * as bf from '../../types/bigfloat/module.f.mjs'
 const { multiply } = bf
-import * as jsTokenizer from '../../js/tokenizer/module.f.mjs'
+import * as jsTokenizer from '../../js/tokenizer/module.f.js'
 
 /**
  * @typedef {|
