@@ -9,7 +9,7 @@ const { one } = _range
 const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 import * as bigfloatT from '../../types/bigfloat/module.f.mjs'
 const { fromCharCode } = String
-import * as ascii from '../../text/ascii/module.f.mjs'
+import * as ascii from '../../text/ascii/module.f.ts'
 const { range } = ascii
 const {
     //

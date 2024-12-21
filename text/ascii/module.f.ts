@@ -1,18 +1,20 @@
-// @ts-self-types="./module.f.d.mts"
 import * as _range from '../../types/range/module.f.mjs'
 
-/** @type {(s: string) => (i: number) => number} */
-const at = s => i => {
+const at
+    : (s: string) => (i: number) => number
+    = s => i => {
     const r = s.codePointAt(i)
     if (r === void 0) { throw s }
     return r
 }
 
-/** @type {(s: string) => number} */
-export const one = s => at(s)(0)
+export const one
+    : (s: string) => number
+    = s => at(s)(0)
 
-/** @type {(s: string) => _range.Range} */
-export const range = s => {
+export const range
+    : (s: string) => _range.Range
+    = s => {
     const f = at(s)
     const f0 = f(0)
     if (s.length === 1) { return [f0, f0] }
