@@ -8,7 +8,7 @@ const { compose, fn } = f
 const { entries } = Object
 import * as bi from '../types/bigint/module.f.mjs'
 const { serialize: bigintSerialize } = bi
-import * as j from '../json/serializer/module.f.mjs'
+import * as j from '../json/serializer/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
 
 type Object = {
