@@ -10,11 +10,13 @@ import * as Map from '../map/module.f.mjs'
 import * as f from '../function/module.f.mjs'
 const { flip } = f
 
-/** @type {(a: readonly json.Unknown[]) => string} */
-const stringify = a => json.stringify(sort)(a)
+const stringify
+    : (a: readonly json.Unknown[]) => string
+    = a => json.stringify(sort)(a)
 
-/** @type {<T>(a: T) => (b: T) => Map.Sign} */
-const reverseCmp = flip(unsafeCmp)
+const reverseCmp
+    : <T>(a: T) => (b: T) => Map.Sign
+    = flip(unsafeCmp)
 
 export default {
     union: [
