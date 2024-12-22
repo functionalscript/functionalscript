@@ -99,7 +99,11 @@ impl<T: Raw64> Drop for NaNEnumPack<T> {
 
 #[cfg(test)]
 mod test {
-    use core::{mem::forget, ptr::null, sync::atomic::{AtomicUsize, Ordering}};
+    use core::{
+        mem::forget,
+        ptr::null,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
     use std::rc::Rc;
 
     use crate::nanenum::{Raw64, NEGATIVE, NOT_FINITE};

@@ -22,10 +22,7 @@ pub trait String16<U: Any<String16 = Self>>:
 {
 }
 
-pub trait BigInt<U: Any<BigInt = Self>>:
-    Complex<U> + Container<Header = Sign, Item = u64>
-{
-}
+pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {}
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
 
@@ -58,16 +55,16 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
 
     fn to_string(self) -> Self::String16 {
         if let Some(simple) = self.try_to_simple() {
-            return simple.to_string::<Self>()
+            return simple.to_string::<Self>();
         }
         if let Ok(v) = self.clone().try_to::<Self::String16>() {
             return v;
         }
         if self.clone().try_to::<Self::Array>().is_ok() {
-            return "".to_string16::<Self>()
+            return "".to_string16::<Self>();
         }
         if self.clone().try_to::<Self::Object>().is_ok() {
-            return "[object Object]".to_string16::<Self>()
+            return "[object Object]".to_string16::<Self>();
         }
         // bigint and function
         todo!()
@@ -105,12 +102,12 @@ pub trait Extension: Sized {
     where
         Self: IntoIterator<Item: Any>,
     {
-        self.to_complex::<<Self::Item as Any>::Array>()
-            .to_unknown()
+        self.to_complex::<<Self::Item as Any>::Array>().to_unknown()
     }
 
     fn to_object_unknown<U: Any>(self) -> U
-    where Self: IntoIterator<Item = (U::String16, U)>
+    where
+        Self: IntoIterator<Item = (U::String16, U)>,
     {
         self.to_complex::<U::Object>().to_unknown()
     }
