@@ -21,7 +21,7 @@ type PathItem5<T> = readonly[0|2|4, _.Branch5<T>]
 export type PathItem<T> = PathItem3<T> | PathItem5<T>
 
 const child
-    = <T>(item: PathItem<T>): _.TNode<T> => (item[1][item[0]] as _.TNode<T>)
+= <T>(item: PathItem<T>): _.TNode<T> => (item[1][item[0]] as _.TNode<T>)
 
 export type Path<T> = List.List<PathItem<T>>
 
@@ -31,7 +31,7 @@ export type Result<T> = {
 }
 
 export const find
-    = <T>(c: cmp.Compare<T>): (node: _.TNode<T>) => Result<T> => {
+= <T>(c: cmp.Compare<T>): (node: _.TNode<T>) => Result<T> => {
     const i3 = index3(c)
     const i5 = index5(c)
     // /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
