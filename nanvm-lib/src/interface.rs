@@ -71,7 +71,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
-    fn unary_plus(self) -> Self {
+    fn unary_plus(&self) -> Self {
         if let Some(simple) = self.try_to_simple() {
             match simple {
                 Simple::Nullish(v) => match v {
@@ -81,7 +81,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 Simple::Boolean(v) => {
                     return Self::new_simple(Simple::Number(if v { 1.0 } else { 0.0 }))
                 }
-                Simple::Number(v) => return self,
+                Simple::Number(v) => return self.clone(),
             }
         }
         if let Ok(v) = self.clone().try_to::<Self::String16>() {
