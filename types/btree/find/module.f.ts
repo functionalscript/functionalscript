@@ -34,7 +34,6 @@ export const find
 = <T>(c: cmp.Compare<T>): (node: _.TNode<T>) => Result<T> => {
     const i3 = index3(c)
     const i5 = index5(c)
-    // /** @typedef {typeof c extends cmp.Compare<infer T> ? T : never} T */
     const f
         = (tail: Path<T>) => (node: _.TNode<T>): Result<T> => {
         const append

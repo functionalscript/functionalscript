@@ -40,7 +40,7 @@ const x
             "typescript": "^4.7.4"
         }
     },
-    "jsr.json": {}
+    "deno.json": {}
 }
 
 const e = '{\n' +
