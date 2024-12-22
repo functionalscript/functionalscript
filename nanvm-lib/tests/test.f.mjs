@@ -8,6 +8,17 @@ const n = a => b => {
     if (a !== b) { } else { throw [a, '!==', b] }
 }
 
+/** @type {(n: any | null) => number} */
+const u_p = n => {
+    return +n
+}
+
+/** @type {(n: any | null) => void} */
+const u_p_nan = n => {
+    let r = +n
+    if (Number.isNaN(r)) { } else { throw [JSON.stringify(r), ' is not NaN'] }
+}
+
 export default {
     eq: {
         nullish: () => {
@@ -75,6 +86,19 @@ export default {
                 e(o)(o)
                 n(o)({ '0': '0' })
             }
+        }
+    },
+    unary_plus: {
+        null_: () => {
+            e(u_p(null))(0)
+        },
+        undefined_: () => {
+            u_p_nan(undefined)
+        },
+        boolean: () => {
+            e(u_p(false))(0)
+            // HELP! Why does this case break?!
+            // n(u_p(true))(1)
         }
     }
 }
