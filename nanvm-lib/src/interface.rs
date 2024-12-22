@@ -1,4 +1,5 @@
 use core::fmt;
+use std::char::decode_utf16;
 
 use crate::{nullish::Nullish, sign::Sign, simple::Simple};
 
@@ -68,6 +69,56 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
         // bigint and function
         todo!()
+    }
+
+    fn unary_plus(self) -> Self {
+        if let Some(simple) = self.try_to_simple() {
+            match simple {
+                Simple::Nullish(v) => match v {
+                    Nullish::Null => return Self::new_simple(Simple::Number(0.0)),
+                    Nullish::Undefined => return Self::new_simple(Simple::Number(f64::NAN)),
+                },
+                Simple::Boolean(v) => {
+                    return Self::new_simple(Simple::Number(if v { 1.0 } else { 0.0 }))
+                }
+                Simple::Number(v) => return self,
+            }
+        }
+        if let Ok(v) = self.clone().try_to::<Self::String16>() {
+            let items = v.items();
+            if items.is_empty() {
+                return Self::new_simple(Simple::Number(0.0));
+            }
+            let string: String = decode_utf16(items.iter().cloned())
+                .map(|r| r.unwrap_or('\u{FFFD}'))
+                .collect();
+            if let Ok(n) = string.parse::<f64>() {
+                return Self::new_simple(Simple::Number(n));
+            }
+            return Self::new_simple(Simple::Number(f64::NAN));
+        }
+        if let Ok(v) = self.clone().try_to::<Self::BigInt>() {
+            // TODO: throw TypeError here when we have a mechanism to throw an error.
+            return Self::new_simple(Simple::Number(f64::NAN));
+        }
+        if let Ok(v) = self.clone().try_to::<Self::Array>() {
+            let items = v.items();
+            if items.is_empty() {
+                return Self::new_simple(Simple::Number(0.0));
+            }
+            if items.len() > 1 {
+                return Self::new_simple(Simple::Number(f64::NAN));
+            }
+            return items[0].clone().unary_plus();
+        }
+        if let Ok(v) = self.clone().try_to::<Self::Object>() {
+            // TODO: use valueOf, toString functions of this object if they exist.
+            return Self::new_simple(Simple::Number(f64::NAN));
+        }
+        if let Ok(v) = self.clone().try_to::<Self::Function>() {
+            return Self::new_simple(Simple::Number(f64::NAN));
+        }
+        panic!("Unknown type")
     }
 }
 

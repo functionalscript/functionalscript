@@ -23,6 +23,7 @@ export default {
             },
             nullish: () => {
                 n(false)(undefined)
+                n(false)(null)
             }
         },
         number: {
