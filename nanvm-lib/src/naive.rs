@@ -1,7 +1,11 @@
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
-use crate::{interface::{self, Utf8}, nullish::Nullish, sign::Sign, simple::Simple};
+use crate::{
+    interface::{self},
+    sign::Sign,
+    simple::Simple,
+};
 
 pub trait Policy {
     type Header: PartialEq + fmt::Debug + Clone;
@@ -38,7 +42,10 @@ pub struct Complex<P: Policy> {
 
 impl<P: Policy> Clone for Complex<P> {
     fn clone(&self) -> Self {
-        Self { header: self.header.clone(), items: self.items.clone() }
+        Self {
+            header: self.header.clone(),
+            items: self.items.clone(),
+        }
     }
 }
 
@@ -61,7 +68,7 @@ impl<P: Policy> interface::Container for Complex<P> {
     type Header = P::Header;
     type Item = P::Item;
     fn items(&self) -> &[Self::Item] {
-        &*self.items
+        &self.items
     }
     fn header(&self) -> &Self::Header {
         &self.header
