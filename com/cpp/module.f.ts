@@ -14,8 +14,8 @@ const { map, flatMap, flat } = list
 const { entries } = Object
 
 const struct
-    : (name: string) => (body: text.Block) => text.Block
-    = name => body => [`struct ${name}`, '{', body, '};']
+= (name: string) => (body: text.Block): text.Block =>
+    [`struct ${name}`, '{', body, '};']
 
 const baseTypeMap = {
     u8: 'uint8_t',
