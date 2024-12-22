@@ -29,7 +29,7 @@ fn b(frame: Array<Any>, param: Array<Any>) {
       i
   } else {
       let a = frame[0];
-      a(frame, &[I])
+      a(frame, &[i])
   }
 }
 ```
