@@ -79,7 +79,7 @@ export const log2 = v => {
         i <<= 1n
     }
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
-    // Because of this, We check if `i` is greater than 1 before we divide it by 2.
+    // Because of this, we check if `i` is greater than 1 before we divide it by 2.
     while (i !== 1n) {
         i >>= 1n
         const n = v >> i
