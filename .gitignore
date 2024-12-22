@@ -126,3 +126,6 @@ _*
 .vscode
 /docs
 .DS_Store
+**/*.d.mts
+**/*.d.ts
+**/*.js
