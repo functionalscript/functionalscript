@@ -37,6 +37,6 @@ export const updateVersion
     }
     return [
         f('package'),
-        f('jsr')
+        f('deno')
     ]
 }

@@ -11,8 +11,7 @@
     "test": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
     "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "index": "node --experimental-strip-types ./dev/index.ts",
-    "version": "node --experimental-strip-types ./nodejs/version/main.ts",
-    "doc": "deno doc --html **/module.f.ts"
+    "version": "node --experimental-strip-types ./nodejs/version/main.ts"
   },
   "repository": {
     "type": "git",

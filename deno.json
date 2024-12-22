@@ -63,5 +63,8 @@
     "./types/sorted_set": "./out/types/sorted_set/module.f.ts",
     "./types/string": "./out/types/string/module.f.ts",
     "./types/string_set": "./out/types/string_set/module.f.ts"
+  },
+  "tasks": {
+    "doc": "deno doc --html **/module.f.ts"
   }
 }

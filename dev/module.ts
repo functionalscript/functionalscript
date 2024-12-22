@@ -184,7 +184,7 @@ const codeAdd
 }
 
 export const index = async () => {
-    const jj = './jsr.json'
+    const jj = './deno.json'
     const n = '/module.f.ts'
     const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
     const list = Object.keys(await loadModuleMap()).filter(v => v.endsWith(n))
