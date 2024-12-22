@@ -56,7 +56,7 @@ jobs:
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
-    - run: deno run --quiet --allow-read --allow-env --allow-net ./dev/test.ts
+    - run: deno task test
 
   bun:
 

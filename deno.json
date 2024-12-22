@@ -65,6 +65,7 @@
     "./types/string_set": "./out/types/string_set/module.f.ts"
   },
   "tasks": {
-    "doc": "deno doc --html **/module.f.ts"
+    "doc": "deno doc --html **/module.f.ts",
+    "test": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test.ts"
   }
 }

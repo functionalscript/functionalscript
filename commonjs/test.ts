@@ -1,5 +1,5 @@
 import * as _ from './module.ts'
-import * as Run from './module/function/module.f.js'
+import * as Run from './module/function/module.f.ts'
 
 export default {
     ok: () => {
