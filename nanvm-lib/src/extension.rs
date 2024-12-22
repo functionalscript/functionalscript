@@ -1,8 +1,12 @@
-use crate::{interface::{Any, Extension, Unpacked}, nullish::Nullish::*, simple::Simple};
+use crate::{
+    interface::{Any, Extension, Unpacked},
+    nullish::Nullish::*,
+    simple::Simple,
+};
 
 pub trait AnyExtension: Any {
     fn string(c: &str) -> Self::String16 {
-        c.encode_utf16().into_iter().to_complex()
+        c.encode_utf16().to_complex()
     }
     fn to_string(self) -> Self::String16 {
         match self.unpack() {
@@ -51,7 +55,11 @@ impl<T: Any> AnyExtension for T {}
 mod test {
     mod to_string {
         use crate::{
-            extension::AnyExtension, interface::{Complex, Extension}, naive::{Any, Array, Object}, nullish::Nullish::*, simple::Simple
+            extension::AnyExtension,
+            interface::{Complex, Extension},
+            naive::{Any, Array, Object},
+            nullish::Nullish::*,
+            simple::Simple,
         };
 
         #[test]
@@ -100,7 +108,10 @@ mod test {
     }
 
     mod own_property {
-        use crate::{extension::AnyExtension, interface::Complex, naive::Any, nullish::Nullish::*, simple::Simple};
+        use crate::{
+            extension::AnyExtension, interface::Complex, naive::Any, nullish::Nullish::*,
+            simple::Simple,
+        };
 
         #[test]
         #[should_panic]
