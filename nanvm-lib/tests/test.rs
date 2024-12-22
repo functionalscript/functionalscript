@@ -112,101 +112,75 @@ fn eq<A: Any>() {
 }
 
 fn unary_plus<A: Any>() {
+    let assert_is_nan = |a: A, test_case: &str| {
+        let nan = Any::unary_plus(a);
+        if let Some(simple) = nan.try_to_simple() {
+            match simple {
+                Simple::Number(f) => {
+                    assert!(f.is_nan());
+                }
+                _ => panic!("expected Number result of unary_plus of {}", test_case),
+            }
+        } else {
+            panic!("expected Simple result of unary_plus of {}", test_case);
+        }
+    };
+
     // null
     let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
-    assert_eq!(null0.unary_plus(), Simple::Number(0.0).to_unknown());
+    assert_eq!(Any::unary_plus(null0), Simple::Number(0.0).to_unknown());
+
     // undefined
     let undefined0: A = Simple::Nullish(Nullish::Undefined).to_unknown();
-    let nan0 = undefined0.unary_plus();
-    if let Some(simple) = nan0.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of undefined"),
-        }
-    } else {
-        panic!("expected Simple result of unary_plus of undefined");
-    }
+    assert_is_nan(Any::unary_plus(undefined0), "undefined");
+
     // boolean
     let true0: A = Simple::Boolean(true).to_unknown();
-    assert_eq!(true0.unary_plus(), Simple::Number(1.0).to_unknown());
+    assert_eq!(Any::unary_plus(true0), Simple::Number(1.0).to_unknown());
     let false0: A = Simple::Boolean(false).to_unknown();
-    assert_eq!(false0.unary_plus(), Simple::Number(0.0).to_unknown());
+    assert_eq!(Any::unary_plus(false0), Simple::Number(0.0).to_unknown());
+
     // number
     let number00: A = Simple::Number(0.0).to_unknown();
-    assert_eq!(number00.unary_plus(), Simple::Number(0.0).to_unknown());
+    assert_eq!(Any::unary_plus(number00), Simple::Number(0.0).to_unknown());
     let number01: A = Simple::Number(2.3).to_unknown();
-    assert_eq!(number01.unary_plus(), Simple::Number(2.3).to_unknown());
+    assert_eq!(Any::unary_plus(number01), Simple::Number(2.3).to_unknown());
     let number02: A = Simple::Number(-2.3).to_unknown();
-    assert_eq!(number02.unary_plus(), Simple::Number(-2.3).to_unknown());
+    assert_eq!(Any::unary_plus(number02), Simple::Number(-2.3).to_unknown());
+
     // string
-    let empty_string: A = "".to_unknown();
-    assert_eq!(empty_string.unary_plus(), Simple::Number(0.0).to_unknown());
+    let string_empty: A = "".to_unknown();
+    assert_eq!(
+        Any::unary_plus(string_empty),
+        Simple::Number(0.0).to_unknown()
+    );
     let string0: A = "0".to_unknown();
-    assert_eq!(string0.unary_plus(), Simple::Number(0.0).to_unknown());
+    assert_eq!(Any::unary_plus(string0), Simple::Number(0.0).to_unknown());
     let string1: A = "2.3".to_unknown();
-    assert_eq!(string1.unary_plus(), Simple::Number(2.3).to_unknown());
+    assert_eq!(Any::unary_plus(string1), Simple::Number(2.3).to_unknown());
     let string2: A = "a".to_unknown();
-    let nan1 = string2.unary_plus();
-    if let Some(simple) = nan1.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of non-number string"),
-        }
-    } else {
-        panic!("expected Simple result of unary_plus of non-number string");
-    }
+    assert_is_nan(Any::unary_plus(string2), "non-number string");
+
     // bigint
     let bigint0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
     // TODO: catch TypeError here when the right error handling is implemented; NAN for now.
-    let nan2 = bigint0.unary_plus();
-    if let Some(simple) = nan2.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of bigint"),
-        }
-    } else {
-        panic!("expected Simple result of unary_plus of non-number bigint");
-    }
+    assert_is_nan(Any::unary_plus(bigint0), "bigint");
+
     // array
     let array0: A = [].to_array_unknown();
-    assert_eq!(array0.unary_plus(), Simple::Number(0.0).to_unknown());
+    assert_eq!(Any::unary_plus(array0), Simple::Number(0.0).to_unknown());
     let array1: A = [Simple::Number(2.3).to_unknown()].to_array_unknown();
-    assert_eq!(array1.unary_plus(), Simple::Number(2.3).to_unknown());
+    assert_eq!(Any::unary_plus(array1), Simple::Number(2.3).to_unknown());
     let string3: A = "-2.3".to_unknown();
     let array2: A = [string3].to_array_unknown();
-    assert_eq!(array2.unary_plus(), Simple::Number(-2.3).to_unknown());
+    assert_eq!(Any::unary_plus(array2), Simple::Number(-2.3).to_unknown());
     let null1: A = Simple::Nullish(Nullish::Null).to_unknown();
     let array3: A = [null1.clone(), null1].to_array_unknown();
-    let nan3 = array3.unary_plus();
-    if let Some(simple) = nan3.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of multi-element array"),
-        }
-    } else {
-        panic!("expected Simple result of unary_plus of multi-element array");
-    }
+    assert_is_nan(Any::unary_plus(array3), "multi-element array");
+
     // object
     let object0: A = [].to_object_unknown();
-    let nan4 = object0.unary_plus();
-    if let Some(simple) = nan4.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of object"),
-        }
-    } else {
-        panic!("expected Simple result of unary_plus of object");
-    }
+    assert_is_nan(Any::unary_plus(object0), "object");
     // TODO: test objects with valueOf, toString functions.
     // TODO: test Function.
 }

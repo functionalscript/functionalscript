@@ -71,54 +71,43 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
-    fn unary_plus(&self) -> Self {
-        if let Some(simple) = self.try_to_simple() {
-            match simple {
-                Simple::Nullish(v) => match v {
-                    Nullish::Null => return Self::new_simple(Simple::Number(0.0)),
-                    Nullish::Undefined => return Self::new_simple(Simple::Number(f64::NAN)),
-                },
-                Simple::Boolean(v) => {
-                    return Self::new_simple(Simple::Number(if v { 1.0 } else { 0.0 }))
+    fn unary_plus(v: Self) -> Self {
+        match v.unpack() {
+            Unpacked::Nullish(n) => match n {
+                Nullish::Null => Self::new_simple(Simple::Number(0.0)),
+                Nullish::Undefined => Self::new_simple(Simple::Number(f64::NAN)),
+            },
+            Unpacked::Bool(b) => Self::new_simple(Simple::Number(if b { 1.0 } else { 0.0 })),
+            Unpacked::Number(n) => Self::new_simple(Simple::Number(n)),
+            Unpacked::String16(s) => {
+                let items = s.items();
+                if items.is_empty() {
+                    return Self::new_simple(Simple::Number(0.0));
                 }
-                Simple::Number(v) => return self.clone(),
+                let string: String = decode_utf16(items.iter().cloned())
+                    .map(|r| r.unwrap_or('\u{FFFD}'))
+                    .collect();
+                if let Ok(n) = string.parse::<f64>() {
+                    return Self::new_simple(Simple::Number(n));
+                }
+                Self::new_simple(Simple::Number(f64::NAN))
             }
-        }
-        if let Ok(v) = self.clone().try_to::<Self::String16>() {
-            let items = v.items();
-            if items.is_empty() {
-                return Self::new_simple(Simple::Number(0.0));
+            // TODO: throw TypeError for BigInt when we have a mechanism to throw an error.
+            Unpacked::BigInt(_) => Self::new_simple(Simple::Number(f64::NAN)),
+            Unpacked::Array(a) => {
+                let items = a.items();
+                if items.is_empty() {
+                    return Self::new_simple(Simple::Number(0.0));
+                }
+                if items.len() > 1 {
+                    return Self::new_simple(Simple::Number(f64::NAN));
+                }
+                Self::unary_plus(items[0].clone())
             }
-            let string: String = decode_utf16(items.iter().cloned())
-                .map(|r| r.unwrap_or('\u{FFFD}'))
-                .collect();
-            if let Ok(n) = string.parse::<f64>() {
-                return Self::new_simple(Simple::Number(n));
-            }
-            return Self::new_simple(Simple::Number(f64::NAN));
+            // TODO: use valueOf, toString functions for Object when present.
+            Unpacked::Object(_) => Self::new_simple(Simple::Number(f64::NAN)),
+            Unpacked::Function(_) => Self::new_simple(Simple::Number(f64::NAN)),
         }
-        if let Ok(v) = self.clone().try_to::<Self::BigInt>() {
-            // TODO: throw TypeError here when we have a mechanism to throw an error.
-            return Self::new_simple(Simple::Number(f64::NAN));
-        }
-        if let Ok(v) = self.clone().try_to::<Self::Array>() {
-            let items = v.items();
-            if items.is_empty() {
-                return Self::new_simple(Simple::Number(0.0));
-            }
-            if items.len() > 1 {
-                return Self::new_simple(Simple::Number(f64::NAN));
-            }
-            return items[0].clone().unary_plus();
-        }
-        if let Ok(v) = self.clone().try_to::<Self::Object>() {
-            // TODO: use valueOf, toString functions of this object if they exist.
-            return Self::new_simple(Simple::Number(f64::NAN));
-        }
-        if let Ok(v) = self.clone().try_to::<Self::Function>() {
-            return Self::new_simple(Simple::Number(f64::NAN));
-        }
-        panic!("Unknown type")
     }
 }
 
