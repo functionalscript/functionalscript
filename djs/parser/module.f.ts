@@ -2,8 +2,7 @@ import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import * as Operator from '../../types/function/operator/module.f.ts'
 import * as tokenizerT from '../tokenizer/module.f.ts'
-import * as map from '../../types/map/module.f.ts'
-const { setReplace, at } = map
+import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import * as o from '../../types/object/module.f.ts'
 const { fromMap } = o
 
@@ -21,7 +20,7 @@ export type DjsObject = {
 
 type DjsStackArray = ['array', List<DjsConst>]
 
-type DjsStackObject = ['object', map.Map<DjsConst>, string]
+type DjsStackObject = ['object', Map<DjsConst>, string]
 
 type DjsStackElement = |
     DjsStackArray |
@@ -32,7 +31,7 @@ type DjsStack = List<DjsStackElement>
 type ParserState = InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState
 
 type ModuleState = {
-    readonly refs: map.Map<DjsModuleRef>
+    readonly refs: Map<DjsModuleRef>
     readonly modules: List<string>
     readonly consts: List<DjsConst>
 }
@@ -148,12 +147,12 @@ const parseConstOp
         case '//':
         case '/*': return state
         case 'id': {
-            if (map.at(token.value)(state.module.refs) !== null)
+            if (at(token.value)(state.module.refs) !== null)
                 return { state: 'error', message: 'duplicate id' }
             let cref
                 : DjsModuleRef
                 = ['cref', length(state.module.consts)]
-            let refs = map.setReplace(token.value)(cref)(state.module.refs)
+            let refs = setReplace(token.value)(cref)(state.module.refs)
             return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
         }
         default: return { state: 'error', message: 'unexpected token' }
@@ -182,13 +181,13 @@ const parseImportOp
         case '//':
         case '/*': return state
         case 'id': {
-            if (map.at(token.value)(state.module.refs) !== null) {
+            if (at(token.value)(state.module.refs) !== null) {
                 return { state: 'error', message: 'duplicate id' }
             }
             let aref
                 : DjsModuleRef
                 = ['aref', length(state.module.modules)]
-            let refs = map.setReplace(token.value)(aref)(state.module.refs)
+            let refs = setReplace(token.value)(aref)(state.module.refs)
             return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
         }
         default: return { state: 'error', message: 'unexpected token' }
