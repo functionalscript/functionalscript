@@ -1,7 +1,18 @@
-import * as list from '../../types/list/module.f.ts'
-const { next, fold, reverse, first, flat, toArray, filterMap, isEmpty, concat } = list
-import * as string from '../../types/string/module.f.ts'
-const { join } = string
+import {
+    next,
+    fold,
+    reverse,
+    first,
+    flat,
+    toArray,
+    filterMap,
+    isEmpty,
+    concat,
+    type List,
+    empty,
+    type Thunk
+} from '../../types/list/module.f.ts'
+import { join } from '../../types/string/module.f.ts'
 import * as Package from '../package/module.f.ts'
 import * as Module from '../module/module.f.ts'
 
@@ -17,7 +28,7 @@ const split
     : (path: string) => readonly string[]
     = path => path.split('/')
 
-type OptionList = readonly[list.List<string>] | null
+type OptionList = readonly[List<string>] | null
 
 const normItemsOp
     : (items: string) => (prior: OptionList) => OptionList
@@ -38,27 +49,26 @@ const normItemsOp
 }
 
 const normItems
-    : (items: list.List<string>) => OptionList
-    = items => {
-    const result = fold(normItemsOp)([list.empty])(items)
+: (items: List<string>) => OptionList
+= items => {
+    const result = fold(normItemsOp)([empty])(items)
     return result === null ? result : [reverse(result[0])]
 }
 
 const firstNull = first(null)
 
 export const parseLocal
-    : (local: string) => (path: string) => LocalPath|null
-    = local => {
+: (local: string) => (path: string) => LocalPath|null
+= local => {
     const fSeq
-        : (path: string) => readonly[boolean, boolean, list.List<string>]
-        = path => {
+    : (path: string) => readonly[boolean, boolean, List<string>]
+    = path => {
         const pathSeq = split(path)
         const dir = [null, '', '.', '..'].includes(pathSeq[pathSeq.length - 1])
         return (['.', '..'] as readonly (string|null)[]).includes(firstNull(pathSeq)) ?
             [false, dir, flat([split(local), pathSeq])] :
             [true, dir, pathSeq]
     }
-    // /** @type {(path: string) => LocalPath|null} */
     return path => {
         const [external, dir, items] = fSeq(path)
         const n = normItems(items)
@@ -71,15 +81,15 @@ export const parseLocal
     }
 }
 
-type IdPath = readonly[string, list.List<string>]
+type IdPath = readonly[string, List<string>]
 
 /** @type {} */
 const variants
-    : (prior: readonly[string|null, list.List<string>]) => list.Thunk<IdPath>
-    = prior => () => {
+: (prior: readonly[string|null, List<string>]) => Thunk<IdPath>
+= prior => () => {
     const [a, b] = prior
     const r = next(b)
-    if (r === list.empty) { return list.empty }
+    if (r === empty) { return empty }
     const { first, tail } = r
     const n
         : IdPath
@@ -100,16 +110,12 @@ type Path = {
     readonly dir: boolean,
 }
 
-/**
- * @type {}
- */
 export const parseGlobal
-    :   (d: (local: string) => string|null) =>
-        (dir: boolean) =>
-        (items: list.List<string>) =>
-        Path|null
-    = dependencies =>
-{
+:   (d: (local: string) => string|null) =>
+    (dir: boolean) =>
+    (items: List<string>) =>
+    Path|null
+= dependencies => {
     const fMap = filterMap(mapDependency(dependencies))
     return dir => items => {
         const v = variants([null, items])
@@ -119,16 +125,13 @@ export const parseGlobal
     }
 }
 
-/**
- * @type { }
- */
 export const parse
-    :   (packageId: string) =>
-        (dependencies: (local: string) => string|null) =>
-        (local: string) =>
-        (path: string) =>
-        Path|null
-    = packageId => dependencies => {
+:   (packageId: string) =>
+    (dependencies: (local: string) => string|null) =>
+    (local: string) =>
+    (path: string) =>
+    Path|null
+= packageId => dependencies => {
     const pg = parseGlobal(dependencies)
     return local => path => {
         const parsed = parseLocal(local)(path)
@@ -147,11 +150,11 @@ type FoundResult = {
 type Result = FoundResult| null
 
 export const parseAndFind
-    :   (packageGet: Package.Get) =>
-        (moduleId: Module.Id) =>
-        (path: string) =>
-        Result
-    = packageGet => moduleId => path => {
+:   (packageGet: Package.Get) =>
+    (moduleId: Module.Id) =>
+    (path: string) =>
+    Result
+= packageGet => moduleId => path => {
     const currentPack = packageGet(moduleId.package)
     if (currentPack === null) { return null }
     const p = parse(moduleId.package)(currentPack.dependency)(moduleId.path.join('/'))(path)
