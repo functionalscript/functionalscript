@@ -34,6 +34,7 @@ switch (djsModule[0])
     case 'ok': {
         const output = stringifyDjsModule(djsModule[1])
         fs.writeFileSync(outputFileName, output)
+        break
     }
     case 'error': {
         console.log(`Parse error: ${djsModule[1]}`);
