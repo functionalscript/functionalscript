@@ -81,8 +81,8 @@ export default {
     unary_plus: () => {
         const op = (n: any | null): number => +n
         return () => ({
-            null_: () => e(op(null))(0),
-            undefined_: () => {
+            null: () => e(op(null))(0),
+            undefined: () => {
                 const result = op(undefined)
                 if (!Number.isNaN(result)) {
                     throw result
