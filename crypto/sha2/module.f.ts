@@ -206,6 +206,10 @@ export const computeSha224
     : (input: readonly number[]) => (bitsCount: number) => Hash8
     = compute(init224)
 
-export const compress256 = compress(init256)
+export const compress256
+: (data: Array16) => Hash8
+= compress(init256)
 
-export const compress224 = compress(init224)
+export const compress224
+: (data: Array16) => Hash8
+= compress(init224)

@@ -28,8 +28,10 @@ export const set
     : (value: string) => (s: StringSet) => StringSet
     = value => btreeSet(cmp(value))(() => value)
 
-export const fromValues = fold(set)(null)
+export const fromValues
+: (input: List<string>) => StringSet
+= fold(set)(null)
 
 export const remove
-    : (value: string) => (s: StringSet) => StringSet
-    = compose(cmp)(btreeRemove)
+: (value: string) => (s: StringSet) => StringSet
+= compose(cmp)(btreeRemove)
