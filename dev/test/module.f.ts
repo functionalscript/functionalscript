@@ -63,8 +63,6 @@ const timeFormat
 export default <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
-    // type T = input extends Input<infer T> ? T : never
-    /** @type {} */
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
