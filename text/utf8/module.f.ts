@@ -1,7 +1,6 @@
-import * as list from '../../types/list/module.f.ts'
+import { flatMap, flat, stateScan, type List } from '../../types/list/module.f.ts'
 import * as operator from '../../types/function/operator/module.f.ts'
 import * as Array from '../../types/array/module.f.ts'
-const { flatMap, flat, stateScan } = list
 
 type ByteOrEof = u8|null
 
@@ -16,7 +15,7 @@ type i32 = number
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 const codePointToUtf8
-    : (input:number) => list.List<u8>
+    : (input:number) => List<u8>
     = input => {
     if (input >= 0x0000 && input <= 0x007f) { return [input & 0b01111_1111] }
     if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000] }
@@ -61,7 +60,7 @@ const utf8StateToError
 }
 
 const utf8ByteToCodePointOp
-    : operator.StateScan<number, Utf8State, list.List<i32>>
+    : operator.StateScan<number, Utf8State, List<i32>>
     = state => byte => {
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
@@ -98,18 +97,18 @@ const utf8ByteToCodePointOp
 }
 
 const utf8EofToCodePointOp
-    : (state: Utf8State) => readonly[list.List<i32>, Utf8State]
-    = state =>
+: (state: Utf8State) => readonly[List<i32>, Utf8State]
+= state =>
     [state === null ? null : [utf8StateToError(state)], null]
 
 const utf8ByteOrEofToCodePointOp
-    : operator.StateScan<ByteOrEof, Utf8State, list.List<i32>>
-    = state => input => input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
+: operator.StateScan<ByteOrEof, Utf8State, List<i32>>
+= state => input => input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
 const eofList
-    : list.List<ByteOrEof>
-    = [null]
+: List<ByteOrEof>
+= [null]
 
 export const toCodePointList
-    : (input: list.List<u8>) => list.List<i32>
-    = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
+: (input: List<u8>) => List<i32>
+= input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
