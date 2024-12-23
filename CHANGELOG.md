@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- added main module [PR #340](https://github.com/functionalscript/functionalscript/pull/340)
+
 ## 0.3.0
 
-- Switching to TypeScript file [PR #330] https://github.com/functionalscript/functionalscript/pull/330
-- DJS: add serializer [PR #326] https://github.com/functionalscript/functionalscript/pull/326
+- Switching to TypeScript file [PR #330](https://github.com/functionalscript/functionalscript/pull/330)
+- DJS: add serializer [PR #326](https://github.com/functionalscript/functionalscript/pull/326)
 
 ## 0.2.6
 
