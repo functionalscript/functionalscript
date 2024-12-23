@@ -1,5 +1,4 @@
-import * as list from '../../types/list/module.f.ts'
-const { fold } = list
+import { entries, fold } from '../../types/list/module.f.ts'
 import * as codes from '../../text/sgr/module.f.ts'
 const { reset, fgGreen, fgRed, bold } = codes
 import * as Result from '../../types/result/module.f.ts'
@@ -109,7 +108,7 @@ export default <T>(input: Input<T>): readonly[number, T] => {
                         [ts, state] = fold
                             (f)
                             ([ts, state])
-                            (v instanceof Array ? list.entries(v) : Object.entries(v))
+                            (v instanceof Array ? entries(v) : Object.entries(v))
                     }
                     break
                 }
