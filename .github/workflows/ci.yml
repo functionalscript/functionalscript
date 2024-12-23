@@ -57,7 +57,7 @@ jobs:
       with:
         deno-version: ${{ matrix.deno-version }}
     - run: deno task test
-    - run: deno publish --dry-run --allow-slow-types
+    - run: deno publish --dry-run
 
   bun:
 
