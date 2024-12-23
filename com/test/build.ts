@@ -7,7 +7,7 @@ import * as string from '../../types/string/module.f.ts'
 const { join } = string
 const { log, error } = console
 import * as sgr from '../../text/sgr/module.f.ts'
-const { bold, reset } = sgr.codes
+const { bold, reset } = sgr
 import * as list from '../../types/list/module.f.ts'
 
 import { fileURLToPath } from 'node:url'
