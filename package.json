@@ -1,17 +1,17 @@
 {
   "name": "functionalscript",
-  "version": "0.2.6",
+  "version": "0.3.1",
   "type": "module",
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
-    "tscp": "rm -rf out/ && tsc --NoEmit false",
-    "tsc": "tsc",
-    "test": "tsc && npm run test-only",
-    "index": "node ./dev/index.mjs",
-    "version": "node ./nodejs/version/main.mjs",
-    "test-only": "node --trace-uncaught ./dev/test.mjs",
-    "comtest": "node ./com/test/build.mjs",
-    "doc": "rm -rf docs/ && npm run tscp && deno doc --html out/**/module.f.mjs"
+    "tscp": "tsc --NoEmit false --emitDeclarationOnly true",
+    "tsct": "tsc --NoEmit false --checkJs false",
+    "prepack": "npm run tscp && npm run tsct",
+    "test20": "npm run prepack && node --trace-uncaught ./dev/test.js",
+    "test": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
+    "comtest": "node --experimental-strip-types ./com/test/build.ts",
+    "index": "node --experimental-strip-types ./dev/index.ts",
+    "version": "node --experimental-strip-types ./nodejs/version/main.ts"
   },
   "repository": {
     "type": "git",
