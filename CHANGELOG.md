@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.3.5
+
 - fix for Node <=v20 [PR #341](https://github.com/functionalscript/functionalscript/pull/341)
 - a main module [PR #340](https://github.com/functionalscript/functionalscript/pull/340)
 
