@@ -31,7 +31,7 @@ jobs:
         continue-on-error: true
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
-      - run: deno publish --allow-dirty --allow-slow-types
+      - run: deno publish --allow-dirty
         continue-on-error: true
 
 
