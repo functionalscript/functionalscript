@@ -1,5 +1,4 @@
-import * as list from '../../types/list/module.f.ts'
-const { flat } = list
+import { flat, type List } from '../../types/list/module.f.ts'
 
 import cppContent from '../cpp/testlib.f.ts'
 import csContent from '../cs/testlib.f.ts'
@@ -28,7 +27,7 @@ type Output ={
        readonly name: string
        readonly content: string
    }
-   readonly line: list.List<list.List<string>>
+   readonly line: List<List<string>>
 }
 
 export type Func = (nodejs: NodeJs) => Output
