@@ -2,6 +2,10 @@
   "name": "functionalscript",
   "version": "0.3.4",
   "type": "module",
+  "files": [
+    "**/*.f.d.ts",
+    "**/*.f.js"
+  ],
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
