@@ -84,35 +84,22 @@ export const cpp = (name: string) => (lib: Library): text.Block => {
 
     const resultType = objectType(ptr)
 
-    const field
-    : (s: Field) => text.Item
-    = ([name, t]) => `${type(t)} ${name};`
+    const field = ([name, t]: Field) => `${type(t)} ${name};`
 
     const mapField = map(field)
 
-    const defStruct
-    : (s: Struct) => text.Block
-    = s => mapField(entries(s.struct))
+    const defStruct = (s: Struct) => mapField(entries(s.struct))
 
-    const cppResult
-    : (fa: FieldArray) => string
-    = resultVoid(resultType)
+    const cppResult = resultVoid(resultType)
 
-    const param
-    : (p: Field) => string
-    = ([name, t]) => `${objectType(ref)(t)} ${name}`
+    const param = ([name, t]: Field) => `${objectType(ref)(t)} ${name}`
 
     const mapParam = map(param)
 
-    const methodHeader
-        : (result: string) => (paramArrayStr: string) => (name: string) => text.Item
-        = result => paramArrayStr => name =>
-            `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
+    const methodHeader = (result: string) => (paramArrayStr: string) => (name: string) =>
+        `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
-    const method
-    : (m: Method) => readonly text.Item[]
-    = ([name, paramArray]) => {
-
+    const method = ([name, paramArray]: Method) => {
         const result = cppResult(paramArray)
         const paramL = paramList(paramArray)
         const paramArrayStr = `(${joinComma(mapParam(paramL))})`
@@ -132,34 +119,27 @@ export const cpp = (name: string) => (lib: Library): text.Block => {
 
     const mapMethod = flatMap(method)
 
-    const defInterface
-    : (i: Interface) => text.Block
-    = ({ guid, interface: i }) => {
-
-        const g = guid.replaceAll('-', '');
-        const lo = g.substring(0, 16);
-        const hi = g.substring(16);
+    const defInterface = ({ guid, interface: i }: Interface) => {
+        const g = guid.replaceAll('-', '')
+        const lo = g.substring(0, 16)
+        const hi = g.substring(16)
         return flat([
             [`constexpr static ::nanocom::GUID const guid = ::nanocom::GUID(0x${lo}, 0x${hi});`],
             mapMethod(entries(i))
         ])
     }
 
-    const def
-    : (kv: O.Entry<Definition>) => text.Block
-    = ([name, d]) => 'interface' in d
-        ? [
-            `class ${name} : public ::nanocom::IUnknown`,
-            '{',
-            'public:',
-            defInterface(d),
-            '};'
-        ]
-        : struct(name)(defStruct(d))
+    const def = ([name, d]: O.Entry<Definition>) =>
+        'interface' in d ?
+            [   `class ${name} : public ::nanocom::IUnknown`,
+                '{',
+                'public:',
+                defInterface(d),
+                '};'
+            ] :
+            struct(name)(defStruct(d))
 
-    const forward
-    : (kv: O.Entry<Definition>) => text.Block
-    = ([name]) => [`struct ${name};`]
+    const forward = ([name]: O.Entry<Definition>) => [`struct ${name};`]
 
     const e = entries(lib)
 
