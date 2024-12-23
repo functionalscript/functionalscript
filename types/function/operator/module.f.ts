@@ -58,6 +58,8 @@ export const max
 : Reduce<number>
 = a => b => a > b ? a : b
 
-export const increment = addition(1)
+export const increment
+: (b: number) => number
+= addition(1)
 
 export const counter = () => increment

@@ -222,7 +222,9 @@ export const isEmpty
     .then(logicalNot)
     .result
 
-export const every = fn(map(logicalNot))
+export const every
+: (_: List<boolean>) => boolean
+= fn(map(logicalNot))
     .then(some)
     .then(logicalNot)
     .result

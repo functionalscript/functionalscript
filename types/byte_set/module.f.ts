@@ -46,13 +46,17 @@ const difference
 
 // additional operations
 
-export const set = compose(one)(union)
+export const set
+: (_: number) => (b: ByteSet) => ByteSet
+= compose(one)(union)
 
-export const setRange = compose(range)(union)
+export const setRange
+: (_: readonly [number, number]) => (b: ByteSet) => ByteSet
+= compose(range)(union)
 
 export const unset
-    : (n: Byte) => (s: ByteSet) => ByteSet
-    = n => s => difference(s)(one(n))
+: (n: Byte) => (s: ByteSet) => ByteSet
+= n => s => difference(s)(one(n))
 
 const counter = reverse(countdown(256))
 

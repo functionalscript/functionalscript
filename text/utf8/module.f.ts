@@ -1,4 +1,4 @@
-import { flatMap, flat, stateScan, type List } from '../../types/list/module.f.ts'
+import { flatMap, flat, stateScan, type List, type Thunk } from '../../types/list/module.f.ts'
 import * as operator from '../../types/function/operator/module.f.ts'
 import * as Array from '../../types/array/module.f.ts'
 
@@ -30,7 +30,9 @@ const codePointToUtf8
     return [errorMask]
 }
 
-export const fromCodePointList = flatMap(codePointToUtf8)
+export const fromCodePointList
+: (input: List<number>) => Thunk<number>
+= flatMap(codePointToUtf8)
 
 const utf8StateToError
     : (state: Utf8NonEmptyState) => i32

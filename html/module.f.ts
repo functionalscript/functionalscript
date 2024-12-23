@@ -100,6 +100,10 @@ export const element
     return element3(t)(a === undefined ? [{}, []]: typeof a === 'object' && !(a instanceof Array) ? [a, n] : [{}, [a, ...n]])
 }
 
-export const html = compose(element)(listConcat(['<!DOCTYPE html>']))
+export const html
+: (_: Element) => List<string>
+= compose(element)(listConcat(['<!DOCTYPE html>']))
 
-export const htmlToString = compose(html)(stringConcat)
+export const htmlToString
+: (_: Element) => string
+= compose(html)(stringConcat)
