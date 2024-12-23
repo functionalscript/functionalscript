@@ -1,11 +1,9 @@
 import * as parser from './module.f.ts'
 import * as tokenizer from '../tokenizer/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { sort } = o
+import { sort } from '../../types/object/module.f.ts'
 import * as encoding from '../../text/utf16/module.f.ts'
-import * as djsSerializer from '../serializer/module.f.ts'
-const { djsModuleStringify } = djsSerializer
+import { djsModuleStringify } from '../serializer/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
