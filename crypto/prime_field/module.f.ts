@@ -1,6 +1,5 @@
 import * as Operator from '../../types/function/operator/module.f.ts'
-import * as bi from '../../types/bigint/module.f.ts'
-const { scalar_mul } = bi
+import { scalar_mul } from '../../types/bigint/module.f.ts'
 
 type Reduce = Operator.Reduce<bigint>
 
@@ -32,20 +31,14 @@ export type PrimeField = {
  * @returns The prime field object.
  */
 export const prime_field
-    : (p: bigint) => PrimeField
-    = p => {
-    const sub
-        : Reduce
-        = a => b => {
+: (p: bigint) => PrimeField
+= p => {
+    const sub: Reduce = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
     }
-    const mul
-        : Reduce
-        = a => b => a * b % p
-    const reciprocal
-        : Unary
-        = a => {
+    const mul: Reduce = a => b => a * b % p
+    const reciprocal: Unary = a => {
         if (a === 0n) { throw '1/0' }
         let a1 = a
         let a0 = p
@@ -63,12 +56,8 @@ export const prime_field
         return f1
     }
     const middle = p >> 1n
-    const pow2
-        : Unary
-        = a => mul(a)(a)
-    const pow
-        : Reduce
-        = scalar_mul({ 0: 1n, add: mul })
+    const pow2: Unary = a => mul(a)(a)
+    const pow: Reduce = scalar_mul({ 0: 1n, add: mul })
     return {
         p,
         middle,
@@ -103,8 +92,8 @@ export const prime_field
  * ```
  */
 export const sqrt
-    : (f: PrimeField) => (a: bigint) => bigint|null
-    = ({p, mul, pow }) => {
+: (f: PrimeField) => (a: bigint) => bigint|null
+= ({p, mul, pow }) => {
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
     return a => {
