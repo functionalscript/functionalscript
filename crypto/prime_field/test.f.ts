@@ -1,5 +1,4 @@
-import * as _ from './module.f.ts'
-const { prime_field, sqrt } = _
+import { prime_field, sqrt } from './module.f.ts'
 
 export default {
     prime_field_test: () => {
