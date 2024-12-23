@@ -2,12 +2,10 @@
  * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
  */
 export const sgr
-    : (c: number) => string
-    = c => `\x1b[${c.toString()}m`
+: (c: number) => string
+= c => `\x1b[${c.toString()}m`
 
-export const codes = {
-    reset: sgr(0),
-    bold: sgr(1),
-    fgRed: sgr(31),
-    fgGreen: sgr(32),
-}
+export const reset = sgr(0)
+export const bold = sgr(1)
+export const fgRed = sgr(31)
+export const fgGreen = sgr(32)

@@ -34,6 +34,7 @@
     "./nodejs/version": "./nodejs/version/module.f.ts",
     "./text/ascii": "./text/ascii/module.f.ts",
     "./text": "./text/module.f.ts",
+    "./text/sgr/codes": "./text/sgr/codes/module.f.ts",
     "./text/sgr": "./text/sgr/module.f.ts",
     "./text/utf16": "./text/utf16/module.f.ts",
     "./text/utf8": "./text/utf8/module.f.ts",
