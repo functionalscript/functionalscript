@@ -65,10 +65,7 @@ const joinComma = join(', ')
  */
 export const cpp = (name: string) => (lib: Library): text.Block => {
 
-    const interface_
-    // : (t: Type) => string|null
-    = (t: Type) => {
-
+    const interface_ = (t: Type) => {
         if (!(t instanceof Array) || t.length !== 1) {
             return null
         }
@@ -76,10 +73,7 @@ export const cpp = (name: string) => (lib: Library): text.Block => {
         return 'interface' in lib[name] ? name : null
     }
 
-    const objectType
-    : (i: (t: string) => string) => (t: Type) => string
-    = i => t => {
-
+    const objectType = (i: (t: string) => string) => (t: Type): string => {
         if (typeof (t) === 'string') { return baseType(t) }
         if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
