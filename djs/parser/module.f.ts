@@ -1,6 +1,5 @@
 import * as result from '../../types/result/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { fold, first, drop, toArray, map: listMap, length } = list
+import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import * as Operator from '../../types/function/operator/module.f.ts'
 import * as tokenizerT from '../tokenizer/module.f.ts'
 import * as map from '../../types/map/module.f.ts'
@@ -20,7 +19,7 @@ export type DjsObject = {
     readonly [k in string]: DjsConst
 }
 
-type DjsStackArray = ['array', list.List<DjsConst>]
+type DjsStackArray = ['array', List<DjsConst>]
 
 type DjsStackObject = ['object', map.Map<DjsConst>, string]
 
@@ -28,14 +27,14 @@ type DjsStackElement = |
     DjsStackArray |
     DjsStackObject
 
-type DjsStack = list.List<DjsStackElement>
+type DjsStack = List<DjsStackElement>
 
 type ParserState = InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState
 
 type ModuleState = {
     readonly refs: map.Map<DjsModuleRef>
-    readonly modules: list.List<string>
-    readonly consts: list.List<DjsConst>
+    readonly modules: List<string>
+    readonly consts: List<DjsConst>
 }
 
 type InitialState = {
@@ -220,7 +219,7 @@ const parseImportFromOp
         case '//':
         case '/*': return state
         case 'string': {
-            const modules = list.concat(state.module.modules)([token.value])
+            const modules = concat(state.module.modules)([token.value])
             return { ... state, state: 'nl', module: { ...state.module, modules: modules } }
         }
         default: return { state: 'error', message: 'unexpected token' }
@@ -237,7 +236,7 @@ const addValueToObject
 
 const addToArray
     : (array: DjsStackArray) => (value: DjsConst) => DjsStackArray
-    = array => value => ([ 'array', list.concat(array[1])([value]) ])
+    = array => value => ([ 'array', concat(array[1])([value]) ])
 
 const pushKey
     : (state: ParseValueState) => (key: string) => ParserState
@@ -250,7 +249,7 @@ const pushValue
     : (state: ParseValueState) => (value: DjsConst) => ParserState
     = state => value => {
     if (state.top === null) {
-        let consts = list.concat(state.module.consts)([value])
+        let consts = concat(state.module.consts)([value])
         switch(state.state)
         {
             case 'exportValue': return { ... state, state: 'result', module: { ...state.module, consts: consts }}
@@ -499,7 +498,7 @@ const foldOp
     }
 }
 
-export const parse = (tokenList: list.List<tokenizerT.DjsToken>): result.Result<DjsModule, string> => {
+export const parse = (tokenList: List<tokenizerT.DjsToken>): result.Result<DjsModule, string> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
         case 'result': return result.ok<DjsModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
