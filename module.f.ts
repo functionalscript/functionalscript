@@ -1,14 +1,14 @@
-import * as tokenizer from './djs/tokenizer/module.f'
+import * as tokenizer from './djs/tokenizer/module.f.ts'
 const { tokenize } = tokenizer
-import * as parser from './djs/parser/module.f'
+import * as parser from './djs/parser/module.f.ts'
 const { parse } = parser
-import * as serializer from './djs/serializer/module.f'
+import * as serializer from './djs/serializer/module.f.ts'
 const { djsModuleStringify } = serializer
-import * as list from './types/list/module.f'
+import * as list from './types/list/module.f.ts'
 const { toArray } = list
-import * as o from './types/object/module.f'
+import * as o from './types/object/module.f.ts'
 const { sort } = o
-import * as encoding from './text/utf16/module.f'
+import * as encoding from './text/utf16/module.f.ts'
 import fs from 'node:fs'
 
 const tokenizeString
