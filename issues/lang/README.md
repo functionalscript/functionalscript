@@ -130,6 +130,7 @@ File extensions: `.f.js` and `.f.mjs`.
    - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2.
+4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
 
 ## 5. I/O
 
