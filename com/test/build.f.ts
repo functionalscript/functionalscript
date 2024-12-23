@@ -1,41 +1,39 @@
 import { flat, type List } from '../../types/list/module.f.ts'
-
 import cppContent from '../cpp/testlib.f.ts'
 import csContent from '../cs/testlib.f.ts'
 import rustContent from '../rust/testlib.f.ts'
 
 type Platform =
-   | 'aix'
-   | 'android'
-   | 'darwin'
-   | 'freebsd'
-   | 'haiku'
-   | 'linux'
-   | 'openbsd'
-   | 'sunos'
-   | 'win32'
-   | 'cygwin'
-   | 'netbsd'
+    | 'aix'
+    | 'android'
+    | 'darwin'
+    | 'freebsd'
+    | 'haiku'
+    | 'linux'
+    | 'openbsd'
+    | 'sunos'
+    | 'win32'
+    | 'cygwin'
+    | 'netbsd'
 
 type NodeJs = {
-   readonly dirname: string
-   readonly platform: Platform
+    readonly dirname: string
+    readonly platform: Platform
 }
 
 type Output ={
-   readonly file: {
-       readonly name: string
-       readonly content: string
-   }
-   readonly line: List<List<string>>
+    readonly file: {
+        readonly name: string
+        readonly content: string
+    }
+    readonly line: List<List<string>>
 }
 
 export type Func = (nodejs: NodeJs) => Output
 
 const flags
-    : (platform: Platform) => readonly string[]
-    = platform => {
-
+: (platform: Platform) => readonly string[]
+= platform => {
     switch (platform) {
         case 'win32':
             return []
@@ -47,9 +45,8 @@ const flags
 }
 
 const output
-    : (platform: Platform) => (name: string) => string
-    = platform => name => {
-
+: (platform: Platform) => (name: string) => string
+= platform => name => {
     switch (platform) {
         case 'win32': return `${name}.dll`
         case 'darwin': return `lib${name}.dylib`
@@ -58,9 +55,8 @@ const output
 }
 
 const cpp
-    : Func
-    = ({ dirname, platform }) => ({
-
+: Func
+= ({ dirname, platform }) => ({
     file: {
         name: `${dirname}/cpp/_result.hpp`,
         content: cppContent(),
@@ -75,9 +71,8 @@ const cpp
 })
 
 const cs
-    : Func
-    = ({ dirname, platform }) => ({
-
+: Func
+= ({ dirname, platform }) => ({
     file: {
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
@@ -101,10 +96,7 @@ const rust
 })
 
 export default {
-    /** @readonly */
     cpp,
-    /** @readonly */
     cs,
-    /** @readonly */
     rust,
 }
