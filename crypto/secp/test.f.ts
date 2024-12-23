@@ -1,11 +1,8 @@
-import * as _ from './module.f.ts'
-const { curve, secp256k1, secp192r1, secp256r1, eq } = _
+import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point } from './module.f.ts'
 
 export default {
     example: () => {
-        const curveParams
-            : _.Init
-            = {
+        const curveParams: Init = {
             p: 23n,
             a: [0n, 1n],
             g: [1n, 1n],
@@ -19,13 +16,13 @@ export default {
     },
     test: () => {
         const test_curve
-            : (c: _.Init) => void
-            = c => {
+        : (c: Init) => void
+        = c => {
             const { g } = c
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
             const point_check
-                : (p: _.Point) => void
-                = p => {
+            : (p: Point) => void
+            = p => {
                 if (p === null) { throw 'p === null' }
                 const [x, y] = p
                 const ye = yf(x)
@@ -35,16 +32,16 @@ export default {
             point_check(g)
             point_check(neg(g))
             const test_mul
-                : (p: _.Point) => void
-                = p => {
+            : (p: Point) => void
+            = p => {
                 if (mul(p)(0n) !== null) { throw 'O' }
                 if (mul(p)(1n) !== p) { throw 'p' }
                 if (mul(p)(n) !== null) { throw 'n' }
                 const pn = neg(p)
                 if (!eq(mul(p)(n - 1n))(pn)) { throw 'n - 1' }
                 const f
-                    : (s: bigint) => void
-                    = s => {
+                : (s: bigint) => void
+                = s => {
                     const r = mul(p)(s)
                     point_check(r)
                     const rn = mul(pn)(s)
