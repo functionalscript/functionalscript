@@ -20,17 +20,10 @@ import { join } from '../../types/string/module.f.ts'
 import * as O from '../../types/object/module.f.ts'
 const { entries } = Object
 
-const using
-    : (v: string) => string
-    = v => `using ${v};`
+const using = (v: string) => `using ${v};`
 
 const typeDef
-    : (attributes: List<string>) =>
-        (type: string) =>
-        (name: string) =>
-        (body: Block) =>
-        List<Item>
-    = attributes => type => name => body =>
+    = (attributes: List<string>) => (type: string) => (name: string) => (body: Block) =>
         flat([
             map(v => `[${v}]`)(attributes),
             curly(`public ${type}`)(name)(body)
@@ -52,9 +45,7 @@ const baseTypeMap = {
     usize: 'UIntPtr',
 }
 
-const baseType
-    : (t: BaseType) => string
-    = t => baseTypeMap[t]
+const baseType = (t: BaseType) => baseTypeMap[t]
 
 const unsafe
     : (isUnsafe: boolean) => string
