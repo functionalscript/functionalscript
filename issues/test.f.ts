@@ -9,7 +9,6 @@ type TemplateType = `<html>${string}</html>`
 export default {
     literal: () => {
         const x = utf8`17`
-        console.log(x)
         const m: TemplateType = '<html>Hello</html>'
     },
     ownProperty: {
