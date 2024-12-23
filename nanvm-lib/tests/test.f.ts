@@ -80,7 +80,7 @@ export default {
     },
     unary_plus: () => {
         const op = (n: any | null): number => +n
-        return () => ({
+        return {
             null: () => e(op(null))(0),
             undefined: () => {
                 const result = op(undefined)
@@ -92,6 +92,6 @@ export default {
                 false: () => e(op(false))(0),
                 true: () => e(op(true))(1),
             }
-        })
+        }
     }
 }
