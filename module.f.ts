@@ -1,18 +1,19 @@
-import * as tokenizer from './djs/tokenizer/module.f.mjs'
+import * as tokenizer from './djs/tokenizer/module.f'
 const { tokenize } = tokenizer
-import * as parser from './djs/parser/module.f.mjs'
+import * as parser from './djs/parser/module.f'
 const { parse } = parser
-import * as serializer from './djs/serializer/module.f.mjs'
+import * as serializer from './djs/serializer/module.f'
 const { djsModuleStringify } = serializer
-import * as list from './types/list/module.f.mjs'
+import * as list from './types/list/module.f'
 const { toArray } = list
-import * as o from './types/object/module.f.mjs'
+import * as o from './types/object/module.f'
 const { sort } = o
-import * as encoding from './text/utf16/module.f.mjs'
+import * as encoding from './text/utf16/module.f'
 import fs from 'node:fs'
 
-/** @type {(s: string) => readonly tokenizer.DjsToken[]} */
-const tokenizeString = s => toArray(tokenize(encoding.stringToList(s)))
+const tokenizeString
+    : (s: string) => readonly tokenizer.DjsToken[]
+    = s => toArray(tokenize(encoding.stringToList(s)))
 
 const stringifyDjsModule = djsModuleStringify(sort)
 
