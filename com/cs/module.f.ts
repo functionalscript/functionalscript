@@ -4,8 +4,7 @@
  * The module maps type definitions (e.g., structs, interfaces, and methods) into C# constructs
  * with appropriate attributes for COM interop, such as `[StructLayout]`, `[Guid]`, and `[InterfaceType]`.
  */
-import * as types from '../types/module.f.ts'
-const { result, paramList } = types
+import { result, paramList, type BaseType, type Type, type Field, type FieldArray, type Definition, type Library } from '../types/module.f.ts'
 import * as text from '../../text/module.f.ts'
 const { curly } = text
 import * as list from '../../types/list/module.f.ts'
@@ -48,39 +47,41 @@ const baseTypeMap = {
 }
 
 const baseType
-    : (t: types.BaseType) => string
-    = t => baseTypeMap[t]
+: (t: BaseType) => string
+= t => baseTypeMap[t]
 
 const unsafe
-    : (isUnsafe: boolean) => string
-    = isUnsafe => isUnsafe ? 'unsafe ' : ''
+: (isUnsafe: boolean) => string
+= isUnsafe => isUnsafe ? 'unsafe ' : ''
 
 const fullType
-    : (t: types.Type) => readonly[boolean, string]
-    = t =>
-    typeof (t) === 'string' ? [false, baseType(t)] :
-        t.length === 1 ? [false, t[0]] :
-            [true, `${type(t[1])}*`]
+: (t: Type) => readonly[boolean, string]
+= t =>
+    typeof (t) === 'string' ?
+        [false, baseType(t)] :
+    t.length === 1 ?
+        [false, t[0]] :
+        [true, `${type(t[1])}*`]
 
 const type
-    : (m: types.Type) => string
-    = t => fullType(t)[1]
+: (m: Type) => string
+= t => fullType(t)[1]
 
 const param
-    : (f: types.Field) => string
-    = ([name, t]) => `${type(t)} ${name}`
+: (f: Field) => string
+= ([name, t]) => `${type(t)} ${name}`
 
 const mapParam = map(param)
 
 const field
-    : (f: types.Field) => string
-    = ([name, comType]) => {
+: (f: Field) => string
+= ([name, comType]) => {
     const [isUnsafe, t] = fullType(comType)
     return `public ${unsafe(isUnsafe)}${t} ${name};`
 }
 
 const isUnsafeField
-    : (field: types.Field) => boolean
+    : (field: Field) => boolean
     = field => fullType(field[1])[0]
 
 const mapIsUnsafeField = map(isUnsafeField)
@@ -90,8 +91,8 @@ const resultVoid = result('void')
 const joinComma = join(', ')
 
 const method
-    : (e: O.Entry<types.FieldArray>) => readonly string[]
-    = ([name, m]) => {
+: (e: O.Entry<FieldArray>) => readonly string[]
+= ([name, m]) => {
 
     const paramAndResultList = entries(m)
     const pl = paramList(m)
@@ -111,16 +112,15 @@ const mapField = map(field)
 const flatMapMethod = flatMap(method)
 
 const def
-    : (e: O.Entry<types.Definition>) => list.List<text.Item>
-    = ([n, d]) => {
-    return !('interface' in d) ?
+: (e: O.Entry<Definition>) => list.List<text.Item>
+= ([n, d]) =>
+    !('interface' in d) ?
         struct(n)(mapField(entries(d.struct))) :
         typeDef
             ([`Guid("${d.guid}")`, 'InterfaceType(ComInterfaceType.InterfaceIsIUnknown)'])
             ('interface')
             (n)
             (flatMapMethod(entries(d.interface)))
-}
 
 const flatMapDef = flatMap(def)
 
@@ -137,8 +137,8 @@ const header = [
  * Generates the C# code for a library.
  */
 export const cs
-    : (name: string) => (library: types.Library) => text.Block
-    = name => library => {
+: (name: string) => (library: Library) => text.Block
+= name => library => {
     const v = flatMapDef(entries(library))
     const ns = namespace(name)(v)
     return flat([header, ns])
