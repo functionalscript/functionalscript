@@ -6,17 +6,21 @@ const { unsafeCmp } = compare
 import { join as joinOp, concat as concatOp, type Reduce } from '../function/operator/module.f.ts'
 
 const reduce
-    : (o: Reduce<string>) => (input: list.List<string>) => string
-    = o => listReduce(o)('')
+: (o: Reduce<string>) => (input: list.List<string>) => string
+= o => listReduce(o)('')
 
-export const join = compose(joinOp)(reduce)
+export const join
+: (_: string) => (input: list.List<string>) => string
+= compose(joinOp)(reduce)
 
-export const concat = reduce(concatOp)
+export const concat
+: (input: list.List<string>) => string
+= reduce(concatOp)
 
 export const repeat
-    : (n: string) => (v: number) => string
-    = v => compose(listRepeat(v))(concat)
+: (n: string) => (v: number) => string
+= v => compose(listRepeat(v))(concat)
 
 export const cmp
-    : (a: string) => (b: string) => compare.Sign
-    = unsafeCmp
+: (a: string) => (b: string) => compare.Sign
+= unsafeCmp

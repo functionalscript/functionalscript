@@ -7,6 +7,7 @@ import {
     empty,
     type List,
     type Result,
+    type Thunk,
 } from '../../types/list/module.f.ts'
 import * as operator from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
@@ -55,9 +56,13 @@ const codePointToUtf16
     return [codePoint & 0xffff]
 }
 
-export const fromCodePointList = flatMap(codePointToUtf16)
+export const fromCodePointList
+: (input: List<number>) => Thunk<number>
+= flatMap(codePointToUtf16)
 
-const u16 = contains([0x0000, 0xFFFF])
+const u16
+: (i: number) => boolean
+= contains([0x0000, 0xFFFF])
 
 const utf16ByteToCodePointOp
 : operator.StateScan<u16, Utf16State, List<i32>>

@@ -59,9 +59,13 @@ const wrap
     return input => flat([seqOpen, join(input), seqClose])
 }
 
-export const objectWrap = wrap('{')('}')
+export const objectWrap
+: (input: list.List<list.List<string>>) => list.List<string>
+= wrap('{')('}')
 
-export const arrayWrap = wrap('[')(']')
+export const arrayWrap
+: (input: list.List<list.List<string>>) => list.List<string>
+= wrap('[')(']')
 
 type Entry<T> = O.Entry<Unknown<T>>
 

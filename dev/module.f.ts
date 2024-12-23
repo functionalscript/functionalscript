@@ -1,1 +1,1 @@
-export const todo = () => { throw 'not implemented' }
+export const todo = (): never => { throw 'not implemented' }

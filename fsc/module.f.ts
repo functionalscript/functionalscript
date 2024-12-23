@@ -85,7 +85,9 @@ const toInit
     : () => ToResult
     = () => () => [[], init]
 
-export const init = create([
+export const init
+: ToResult
+= create([
     codePointRange(one(terminal))(toInit),
     rangeSet(['\t', ' ', '\n', '\r'])(toInit),
     range('!')(() => () => [['!'], unexpectedSymbol]),

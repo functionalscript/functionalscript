@@ -1,7 +1,7 @@
 import * as compare from '../function/compare/module.f.ts'
 import * as Operator from '../function/operator/module.f.ts'
 const { unsafeCmp } = compare
-import { reduce } from '../list/module.f.ts'
+import { reduce, type List } from '../list/module.f.ts'
 
 type Unary = Operator.Unary<bigint, bigint>
 
@@ -9,7 +9,9 @@ export const addition
     : (a: bigint) => (b: bigint) => bigint
     = a => b => a + b
 
-export const sum = reduce(addition)(0n)
+export const sum
+: (input: List<bigint>) => bigint
+= reduce(addition)(0n)
 
 export const abs
     : (a: bigint) => bigint
