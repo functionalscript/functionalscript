@@ -1,16 +1,19 @@
 import * as operator from '../types/function/operator/module.f.ts'
-import * as rangeMap from '../types/range_map/module.f.ts'
-const { merge: rangeMapMerge, fromRange, get } = rangeMap
+import {
+    merge as rangeMapMerge,
+    fromRange,
+    get,
+    type RangeMapArray,
+    type RangeMerge,
+} from '../types/range_map/module.f.ts'
 import * as list from '../types/list/module.f.ts'
 const { reduce: listReduce } = list
-import * as ascii from '../text/ascii/module.f.ts'
-const { range: asciiRange } = ascii
-const { fromCharCode } = String
-import * as f from '../types/function/module.f.ts'
-const { fn } = f
-import * as _range from '../types/range/module.f.ts'
-const { one } = _range
+import { range as asciiRange } from '../text/ascii/module.f.ts'
+import { fn } from '../types/function/module.f.ts'
+import { one, type Range } from '../types/range/module.f.ts'
 const { toArray, map } = list
+
+const fromCharCode = String.fromCharCode
 
 type Result = readonly[readonly string[], ToResult]
 
@@ -18,7 +21,7 @@ type ToResult = (codePoint: number) => Result
 
 type CreateToResult<T> = (state: T) => ToResult
 
-type State<T> = rangeMap.RangeMapArray<CreateToResult<T>>
+type State<T> = RangeMapArray<CreateToResult<T>>
 
 const unexpectedSymbol
     : ToResult
@@ -42,8 +45,8 @@ const empty
 
 const reduce = <T>(a: list.List<State<T>>): State<T> => {
     const merge
-        : rangeMap.RangeMerge<CreateToResult<T>>
-        = rangeMapMerge({
+    : RangeMerge<CreateToResult<T>>
+    = rangeMapMerge({
         union,
         equal: operator.strictEqual,
     })
@@ -55,13 +58,16 @@ const codePointRange = fromRange(def)
 const range = fn(asciiRange).then(codePointRange).result
 
 const rangeSet
-    = (l: readonly string[]) => <T>(f: CreateToResult<T>): State<T> => {
+= (l: readonly string[]) => <T>(f: CreateToResult<T>): State<T> => {
+
     const codePointRange
-        : (a: _range.Range) => (f: CreateToResult<T>) => State<T>
-        = fromRange(def)
+    : (a: Range) => (f: CreateToResult<T>) => State<T>
+    = fromRange(def)
+
     const g
-        : (r: string) => State<T>
-        = r => codePointRange(asciiRange(r))(f)
+    : (r: string) => State<T>
+    = r => codePointRange(asciiRange(r))(f)
+
     return reduce(map(g)(l))
 }
 

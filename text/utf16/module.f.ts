@@ -1,10 +1,17 @@
-import * as list from '../../types/list/module.f.ts'
+import {
+    map,
+    flat,
+    stateScan,
+    reduce,
+    flatMap,
+    empty,
+    type List,
+    type Result,
+} from '../../types/list/module.f.ts'
 import * as operator from '../../types/function/operator/module.f.ts'
-import * as range from '../../types/range/module.f.ts'
-const { contains } = range
+import { contains } from '../../types/range/module.f.ts'
 import * as f from '../../types/function/module.f.ts'
 const { fn } = f
-const { map, flat, stateScan, reduce, flatMap, empty } = list
 
 type WordOrEof = u16|null
 
@@ -36,8 +43,8 @@ const isSupplementaryPlane
     = contains([0x01_0000, 0x10_ffff])
 
 const codePointToUtf16
-    : (input: i32) => list.List<u16>
-    = codePoint => {
+: (input: i32) => List<u16>
+= codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
     if (isSupplementaryPlane(codePoint)) {
         const n = codePoint - 0x1_0000
@@ -53,8 +60,8 @@ export const fromCodePointList = flatMap(codePointToUtf16)
 const u16 = contains([0x0000, 0xFFFF])
 
 const utf16ByteToCodePointOp
-    : operator.StateScan<u16, Utf16State, list.List<i32>>
-    = state => word => {
+: operator.StateScan<u16, Utf16State, List<i32>>
+= state => word => {
     if (!u16(word)) {
         return [[0xffffffff], state]
     }
@@ -74,27 +81,27 @@ const utf16ByteToCodePointOp
 }
 
 const utf16EofToCodePointOp
-    : (state: Utf16State) => readonly[list.List<i32>, Utf16State]
-    = state => [state === null ? empty : [state | errorMask],  null]
+: (state: Utf16State) => readonly[List<i32>, Utf16State]
+= state => [state === null ? empty : [state | errorMask],  null]
 
 const utf16ByteOrEofToCodePointOp
-    : operator.StateScan<WordOrEof, Utf16State, list.List<i32>>
-    = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
+: operator.StateScan<WordOrEof, Utf16State, List<i32>>
+= state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 const eofList
-    : list.List<WordOrEof>
-    = [null]
+: List<WordOrEof>
+= [null]
 
 export const toCodePointList
-    : (input: list.List<u16>) => list.List<i32>
-    = input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
+: (input: List<u16>) => List<i32>
+= input => flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
 
 export const stringToList
-    : (s: string) => list.List<u16>
-    = s => {
+: (s: string) => List<u16>
+= s => {
     const at
-        : (i: number) => list.Result<number>
-        = i => {
+    : (i: number) => Result<number>
+    = i => {
         const first = s.charCodeAt(i)
         return isNaN(first) ? empty : { first, tail: () => at(i + 1) }
     }
@@ -102,7 +109,7 @@ export const stringToList
 }
 
 export const listToString
-    : (input: list.List<u16>) => string
-    = fn(map(String.fromCharCode))
+: (input: List<u16>) => string
+= fn(map(String.fromCharCode))
     .then(reduce(operator.concat)(''))
     .result
