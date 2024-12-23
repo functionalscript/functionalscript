@@ -1,7 +1,6 @@
 import cpp from './testlib.f.ts'
 
-const f = () =>
-{
+const f = () => {
     const e =
         '#pragma once\n' +
         '\n' +

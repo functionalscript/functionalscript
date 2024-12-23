@@ -1,18 +1,15 @@
-import * as json from '../../json/module.f.ts'
-const { isObject } = json
-import * as dependencies from './dependencies/module.f.ts'
-const { isDependenciesJson } = dependencies
-import * as o from '../../types/object/module.f.ts'
-const { at } = o
+import { isObject, type Unknown } from '../../json/module.f.ts'
+import { isDependenciesJson, type DependenciesJson } from './dependencies/module.f.ts'
+import { at } from '../../types/object/module.f.ts'
 
 type PackageJson = {
     readonly name: string
     readonly version: string
-    readonly dependencies?: dependencies.DependenciesJson
+    readonly dependencies?: DependenciesJson
 }
 
 export const isPackageJson
-    = (j: json.Unknown): j is PackageJson => {
+= (j: Unknown): j is PackageJson => {
     if (!isObject(j)) { return false }
     if (typeof j.name !== 'string') { return false }
     if (typeof j.version !== 'string') { return false }

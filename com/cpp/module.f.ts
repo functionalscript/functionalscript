@@ -3,18 +3,27 @@
  * based on a COM library of type definitions.
  */
 
-import * as types from '../types/module.f.ts'
+import {
+    paramList,
+    result,
+    type BaseType,
+    type Definition,
+    type Field,
+    type FieldArray,
+    type Interface,
+    type Library,
+    type Method,
+    type Struct,
+    type Type,
+} from '../types/module.f.ts'
 import * as text from '../../text/module.f.ts'
 import * as O from '../../types/object/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-import * as string from '../../types/string/module.f.ts'
-const { join } = string
-const { paramList } = types
-const { map, flatMap, flat } = list
+import { map, flatMap, flat } from '../../types/list/module.f.ts'
+import { join } from '../../types/string/module.f.ts'
+
 const { entries } = Object
 
-const struct
-= (name: string) => (body: text.Block): text.Block =>
+const struct = (name: string) => (body: text.Block): text.Block =>
     [`struct ${name}`, '{', body, '};']
 
 const baseTypeMap = {
@@ -33,29 +42,19 @@ const baseTypeMap = {
     bool: 'bool',
 }
 
-const baseType
-    : (t: types.BaseType) => string
-    = t => baseTypeMap[t]
+const baseType = (t: BaseType) => baseTypeMap[t]
 
-const resultVoid = types.result('void')
+const resultVoid = result('void')
 
 const namespace = text.curly('namespace')
 
-const comRef
-    : (id: string) => string
-    = id => `::nanocom::ref<${id}>`
+const comRef = (id: string): string => `::nanocom::ref<${id}>`
 
-const ptr
-    : (id: string) => string
-    = id => `${id} const*`
+const ptr = (id: string): string => `${id} const*`
 
-const ref
-    : (id: string) => string
-    = id => `${id} const&`
+const ref = (id: string): string => `${id} const&`
 
-const paramName
-    : (p: types.Field) => string
-    = ([name]) => name
+const paramName = ([name]: Field): string => name
 
 const mapParamName = map(paramName)
 
@@ -64,14 +63,9 @@ const joinComma = join(', ')
 /**
  * Generates the C++ code for a library.
  */
-export const cpp
-    : (name: string) => (lib: types.Library) => text.Block
-    = name => lib => {
+export const cpp = (name: string) => (lib: Library): text.Block => {
 
-    const interface_
-        : (t: types.Type) => string|null
-        = t => {
-
+    const interface_ = (t: Type) => {
         if (!(t instanceof Array) || t.length !== 1) {
             return null
         }
@@ -79,10 +73,7 @@ export const cpp
         return 'interface' in lib[name] ? name : null
     }
 
-    const objectType
-        : (i: (t: string) => string) => (t: types.Type) => string
-        = i => t => {
-
+    const objectType = (i: (t: string) => string) => (t: Type): string => {
         if (typeof (t) === 'string') { return baseType(t) }
         if (t.length === 2) { return `${type(t[1])} const*` }
         const [id] = t
@@ -93,35 +84,22 @@ export const cpp
 
     const resultType = objectType(ptr)
 
-    const field
-        : (s: types.Field) => text.Item
-        = ([name, t]) => `${type(t)} ${name};`
+    const field = ([name, t]: Field) => `${type(t)} ${name};`
 
     const mapField = map(field)
 
-    const defStruct
-        : (s: types.Struct) => text.Block
-        = s => mapField(entries(s.struct))
+    const defStruct = (s: Struct) => mapField(entries(s.struct))
 
-    const cppResult
-        : (fa: types.FieldArray) => string
-        = resultVoid(resultType)
+    const cppResult = resultVoid(resultType)
 
-    const param
-        : (p: types.Field) => string
-        = ([name, t]) => `${objectType(ref)(t)} ${name}`
+    const param = ([name, t]: Field) => `${objectType(ref)(t)} ${name}`
 
     const mapParam = map(param)
 
-    const methodHeader
-        : (result: string) => (paramArrayStr: string) => (name: string) => text.Item
-        = result => paramArrayStr => name =>
-            `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
+    const methodHeader = (result: string) => (paramArrayStr: string) => (name: string) =>
+        `virtual ${result} ${name}${paramArrayStr} const noexcept = 0;`
 
-    const method
-        : (m: types.Method) => readonly text.Item[]
-        = ([name, paramArray]) => {
-
+    const method = ([name, paramArray]: Method) => {
         const result = cppResult(paramArray)
         const paramL = paramList(paramArray)
         const paramArrayStr = `(${joinComma(mapParam(paramL))})`
@@ -141,35 +119,27 @@ export const cpp
 
     const mapMethod = flatMap(method)
 
-    const defInterface
-        : (i: types.Interface) => text.Block
-        = ({ guid, interface: i }) => {
-
-        const g = guid.replaceAll('-', '');
-        const lo = g.substring(0, 16);
-        const hi = g.substring(16);
+    const defInterface = ({ guid, interface: i }: Interface) => {
+        const g = guid.replaceAll('-', '')
+        const lo = g.substring(0, 16)
+        const hi = g.substring(16)
         return flat([
             [`constexpr static ::nanocom::GUID const guid = ::nanocom::GUID(0x${lo}, 0x${hi});`],
             mapMethod(entries(i))
         ])
     }
 
-    const def
-        : (kv: O.Entry<types.Definition>) => text.Block
-        = ([name, d]) => 'interface' in d
+    const def = ([name, d]: O.Entry<Definition>) =>
+        'interface' in d ?
+            [   `class ${name} : public ::nanocom::IUnknown`,
+                '{',
+                'public:',
+                defInterface(d),
+                '};'
+            ] :
+            struct(name)(defStruct(d))
 
-        ? [
-            `class ${name} : public ::nanocom::IUnknown`,
-            '{',
-            'public:',
-            defInterface(d),
-            '};'
-        ]
-        : struct(name)(defStruct(d))
-
-    const forward
-        : (kv: O.Entry<types.Definition>) => text.Block
-        = ([name]) => [`struct ${name};`]
+    const forward = ([name]: O.Entry<Definition>) => [`struct ${name};`]
 
     const e = entries(lib)
 

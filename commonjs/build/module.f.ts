@@ -1,6 +1,12 @@
 import * as package_ from '../package/module.f.ts'
-import * as module from '../module/module.f.ts'
-const { idToString, dir } = module
+import {
+    idToString,
+    dir,
+    type MapInterface,
+    type Id,
+    type State,
+    type Error,
+} from '../module/module.f.ts'
 import * as function_ from '../module/function/module.f.ts'
 import * as map from '../../types/map/module.f.ts'
 const { empty: mapEmpty, setReplace } = map
@@ -13,31 +19,31 @@ const { set: setSet, contains: setContains, empty: stringSetEmpty } = stringSet
 
 type Config<M> = {
    readonly packageGet: package_.Get
-   readonly moduleMapInterface: module.MapInterface<M>
-   readonly moduleId: module.Id
+   readonly moduleMapInterface: MapInterface<M>
+   readonly moduleId: Id
    readonly moduleMap: M
 }
 
-type Result<M> = readonly[module.State, M]
+type Result<M> = readonly[State, M]
 
 const notFound
     : <M>(moduleMap: M) => Result<M>
     = moduleMap => [['error', ['file not found']], moduleMap]
 
 export const getOrBuild
-    :   (compile: function_.Compile) =>
-        (packageGet: package_.Get) =>
-        <M>(moduleMapInterface: module.MapInterface<M>) =>
-        (moduleId: module.Id) =>
-        (moduleMap: M) =>
-        Result<M>
-    = compile => packageGet => moduleMapInterface =>  {
+:   (compile: function_.Compile) =>
+    (packageGet: package_.Get) =>
+    <M>(moduleMapInterface: MapInterface<M>) =>
+    (moduleId: Id) =>
+    (moduleMap: M) =>
+    Result<M>
+= compile => packageGet => moduleMapInterface =>  {
 
-    type M = typeof moduleMapInterface extends module.MapInterface<infer M> ? M : never
+    type M = typeof moduleMapInterface extends MapInterface<infer M> ? M : never
 
     const build
         :   (buildSet: stringSet.StringSet) =>
-            (moduleId: module.Id) =>
+            (moduleId: Id) =>
             (source: string) =>
             (moduleMap: M) =>
             Result<M>
@@ -62,10 +68,10 @@ export const getOrBuild
         }
         return source => moduleMap => {
             const set
-                : (s: module.State) => (m: M) => Result<M>
+                : (s: State) => (m: M) => Result<M>
                 = s => m => [s, moduleMapInterface.setReplace(moduleIdStr)(s)(m)]
             const error
-                : (e: module.Error) => (m: M) => Result<M>
+                : (e: Error) => (m: M) => Result<M>
                 = e => set(['error', e])
             // check compilation
             const [kind, result] = compile(source)
@@ -80,8 +86,8 @@ export const getOrBuild
     }
 
     const f
-        : (moduleId: module.Id) => (moduleMap: M) => Result<M>
-        = moduleId => moduleMap => {
+    : (moduleId: Id) => (moduleMap: M) => Result<M>
+    = moduleId => moduleMap => {
 
         const moduleIdStr = idToString(moduleId)
         // check moduleMap

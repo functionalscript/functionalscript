@@ -5,20 +5,20 @@ export type MapInterface<M> = {
     readonly setReplace: (moduleId: string) => (moduleState: State) => (moduleMap: M) => M
 }
 
-export type State = |
-    readonly['ok', Module] |
-    readonly['error', Error]
+export type State =
+    | readonly['ok', Module]
+    | readonly['error', Error]
 
 type Module = {
     readonly exports: unknown
     readonly requireMap: O.Map<string>
 }
 
-export type Error = |
-    ['file not found'] |
-    ['compilation error', unknown] |
-    ['runtime error', unknown] |
-    ['circular reference']
+export type Error =
+    | ['file not found']
+    | ['compilation error', unknown]
+    | ['runtime error', unknown]
+    | ['circular reference']
 
 export type Id = {
     readonly package: string
@@ -26,8 +26,8 @@ export type Id = {
 }
 
 export const dir
-    : (id: Id) => Id | null
-    = id => {
+: (id: Id) => Id | null
+= id => {
     const len = id.path.length
     if (len < 1) { return null }
     return {
@@ -37,5 +37,5 @@ export const dir
 }
 
 export const idToString
-    : (id: Id) => string
-    = id => `${id.package}/${id.path.join('/')}`
+: (id: Id) => string
+= id => `${id.package}/${id.path.join('/')}`

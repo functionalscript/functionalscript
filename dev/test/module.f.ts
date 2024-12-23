@@ -1,7 +1,5 @@
-import * as list from '../../types/list/module.f.ts'
-const { fold } = list
-import * as codes from '../../text/sgr/module.f.ts'
-const { reset, fgGreen, fgRed, bold } = codes
+import { entries, fold } from '../../types/list/module.f.ts'
+import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
 import * as Result from '../../types/result/module.f.ts'
 
 type DependencyMap = {
@@ -65,8 +63,6 @@ const timeFormat
 export default <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
-    // type T = input extends Input<infer T> ? T : never
-    /** @type {} */
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
@@ -109,7 +105,7 @@ export default <T>(input: Input<T>): readonly[number, T] => {
                         [ts, state] = fold
                             (f)
                             ([ts, state])
-                            (v instanceof Array ? list.entries(v) : Object.entries(v))
+                            (v instanceof Array ? entries(v) : Object.entries(v))
                     }
                     break
                 }

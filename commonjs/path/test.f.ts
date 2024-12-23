@@ -1,20 +1,17 @@
 import * as _ from './module.f.ts'
-import * as dev from '../../dev/module.f.ts'
-const { todo } = dev
+import { todo } from '../../dev/module.f.ts'
 import * as json from '../../json/module.f.ts'
-import * as f from '../../types/function/module.f.ts'
-const { identity } = f
-import * as object from '../../types/object/module.f.ts'
-const { at } = object
+import { identity } from '../../types/function/module.f.ts'
+import { at, type Map } from '../../types/object/module.f.ts'
 import * as Package from '../package/module.f.ts'
 
 const i
-    : <T>(o: object.Map<T>) => (s: string) => T|null
-    = o => s => at(s)(o)
+: <T>(o: Map<T>) => (s: string) => T|null
+= o => s => at(s)(o)
 
 const stringify
-    : (g: json.Unknown) => string
-    = json.stringify(identity)
+: (g: json.Unknown) => string
+= json.stringify(identity)
 
 export default {
     0: () => {
@@ -73,8 +70,8 @@ export default {
     },
     9: () => {
         const packages
-            : object.Map<Package.Package>
-            = {
+        : Map<Package.Package>
+        = {
             '': {
                 dependency: () => todo(),
                 file: i({ 'a/c': 'return "a/c"' }),
@@ -85,8 +82,8 @@ export default {
     },
     10: () => {
         const packages
-            : object.Map<Package.Package>
-            = {
+        : Map<Package.Package>
+        = {
             '': {
                 dependency: x => {
                     const path = `node_modules/${x}`
@@ -136,7 +133,7 @@ export default {
     },
     11: () => {
         const packages
-        : object.Map<Package.Package>
+        : Map<Package.Package>
         = {
             '': {
                 dependency: x => {
@@ -164,7 +161,7 @@ export default {
     },
     12: () => {
         const packages
-        : object.Map<Package.Package>
+        : Map<Package.Package>
         = {
             '': {
                 dependency: x => {
