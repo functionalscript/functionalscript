@@ -18,14 +18,12 @@ import {
 } from '../types/module.f.ts'
 import * as text from '../../text/module.f.ts'
 import * as O from '../../types/object/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-import * as string from '../../types/string/module.f.ts'
-const { join } = string
-const { map, flatMap, flat } = list
+import { map, flatMap, flat } from '../../types/list/module.f.ts'
+import { join } from '../../types/string/module.f.ts'
+
 const { entries } = Object
 
-const struct
-= (name: string) => (body: text.Block): text.Block =>
+const struct = (name: string) => (body: text.Block): text.Block =>
     [`struct ${name}`, '{', body, '};']
 
 const baseTypeMap = {
@@ -65,13 +63,11 @@ const joinComma = join(', ')
 /**
  * Generates the C++ code for a library.
  */
-export const cpp
-: (name: string) => (lib: Library) => text.Block
-= name => lib => {
+export const cpp = (name: string) => (lib: Library): text.Block => {
 
     const interface_
-    : (t: Type) => string|null
-    = t => {
+    // : (t: Type) => string|null
+    = (t: Type) => {
 
         if (!(t instanceof Array) || t.length !== 1) {
             return null
