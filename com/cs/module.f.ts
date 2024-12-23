@@ -4,7 +4,16 @@
  * The module maps type definitions (e.g., structs, interfaces, and methods) into C# constructs
  * with appropriate attributes for COM interop, such as `[StructLayout]`, `[Guid]`, and `[InterfaceType]`.
  */
-import { result, paramList, type BaseType, type Type, type Field, type FieldArray, type Definition, type Library } from '../types/module.f.ts'
+import {
+    result,
+    paramList,
+    type BaseType,
+    type Type,
+    type Field,
+    type FieldArray,
+    type Definition,
+    type Library,
+} from '../types/module.f.ts'
 import { curly, type Block, type Item } from '../../text/module.f.ts'
 import { flat, map, some, flatMap, type List } from '../../types/list/module.f.ts'
 import { join } from '../../types/string/module.f.ts'
