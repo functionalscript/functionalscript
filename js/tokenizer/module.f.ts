@@ -67,7 +67,7 @@ const {
     leftCurlyBracket,
     rightCurlyBracket,
     dollarSign
-} = ascii.ascii
+} = ascii
 
 export type StringToken = {
     readonly kind: 'string'

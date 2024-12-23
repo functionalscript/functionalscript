@@ -1,7 +1,7 @@
 import * as list from '../../types/list/module.f.ts'
 const { fold } = list
-import * as sgr from '../../text/sgr/module.f.ts'
-const { reset, fgGreen, fgRed, bold } = sgr.codes
+import * as codes from '../../text/sgr/module.f.ts'
+const { reset, fgGreen, fgRed, bold } = codes
 import * as Result from '../../types/result/module.f.ts'
 
 type DependencyMap = {

@@ -88,7 +88,6 @@ export const loadModuleMap = async () => {
                         name.endsWith('.f.js') ||
                         (name.endsWith('.f.ts') && !existsSync(file.substring(0, file.length - 3) + '.js'))
                     ) {
-                        console.log(file)
                         const source = await import(`../${file}`)
                         map.push([file, source.default])
                     }
