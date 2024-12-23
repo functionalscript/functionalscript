@@ -89,8 +89,8 @@ export default {
                 }
             },
             boolean: {
-                false: () => e(+false)(0),
-                true: () => e(+true)(1),
+                false: () => e(op(false))(0),
+                true: () => e(op(true))(1),
             }
         })
     }
