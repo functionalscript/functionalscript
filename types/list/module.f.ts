@@ -1,14 +1,17 @@
-import * as function_ from '../function/module.f.ts'
-const { identity, fn, compose } = function_
-import * as operator from '../function/operator/module.f.ts'
-const {
+import { identity, fn, compose } from '../function/module.f.ts'
+import {
     addition,
     logicalNot,
     strictEqual,
     stateScanToScan,
     foldToScan,
-    reduceToScan
-} = operator
+    reduceToScan,
+    type Scan,
+    type StateScan,
+    type Fold,
+    type Reduce,
+    type Equal,
+} from '../function/operator/module.f.ts'
 
 export type List<T> = NotLazy<T> | Thunk<T>
 
@@ -248,30 +251,30 @@ export const cycle
 }
 
 const scanStep
-: <I, O>(op: operator.Scan<I, O>) => (ne: NonEmpty<I>) => List<O>
+: <I, O>(op: Scan<I, O>) => (ne: NonEmpty<I>) => List<O>
 = op => ne => {
     const [first, newOp] = op(ne.first)
     return { first, tail: scan(newOp)(ne.tail) }
 }
 
 export const scan
-: <I, O>(op: operator.Scan<I, O>) => (input: List<I>) => Thunk<O>
+: <I, O>(op: Scan<I, O>) => (input: List<I>) => Thunk<O>
 = op => apply(scanStep(op))
 
 export const stateScan
-: <I, S, O>(op: operator.StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>
+: <I, S, O>(op: StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>
 = op => compose(stateScanToScan(op))(scan)
 
 export const foldScan
-: <I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => Thunk<O>
+: <I,O>(op: Fold<I, O>) => (init: O) => (input: List<I>) => Thunk<O>
 = op => compose(foldToScan(op))(scan)
 
 export const fold
-: <I,O>(op: operator.Fold<I, O>) => (init: O) => (input: List<I>) => O
+: <I,O>(op: Fold<I, O>) => (init: O) => (input: List<I>) => O
 = op => init => compose(foldScan(op)(init))(last(init))
 
 export const reduce
-: <T>(op: operator.Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T
+: <T>(op: Reduce<T>) => <D>(def: D) => (input: List<T>) => D|T
 = op => def => compose(scan(reduceToScan(op)))(last(def))
 
 const lengthList
@@ -304,7 +307,7 @@ export const entries
 = input => {
     type T = typeof input extends List<infer T> ? T : never
     const o
-    : operator.StateScan<T, number, Entry<T>>
+    : StateScan<T, number, Entry<T>>
     = entryOperator
     return stateScan(o)(0)(input)
 }
@@ -328,9 +331,9 @@ export const zip
 }
 
 export const equal
-: <T>(e: operator.Equal<T>) => (a: List<T>) => (b: List<T>) => boolean
+: <T>(e: Equal<T>) => (a: List<T>) => (b: List<T>) => boolean
 = e => {
-    type T = typeof e extends operator.Equal<infer T> ? T : never
+    type T = typeof e extends Equal<infer T> ? T : never
     const f
     : (a: List<T>) => (b: List<T>) => List<boolean>
     = a => b => () => {

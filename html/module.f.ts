@@ -1,10 +1,7 @@
-import * as list from '../types/list/module.f.ts'
-const { map, flatMap, flat, concat: listConcat } = list
-import * as s from '../types/string/module.f.ts'
-const { concat: stringConcat } = s
+import { map, flatMap, flat, concat as listConcat, type List } from '../types/list/module.f.ts'
+import { concat as stringConcat } from '../types/string/module.f.ts'
 import * as O from '../types/object/module.f.ts'
-import * as f from '../types/function/module.f.ts'
-const { compose } = f
+import { compose } from '../types/function/module.f.ts'
 import * as utf16 from '../text/utf16/module.f.ts'
 const { stringToList } = utf16
 const { fromCharCode } = String
@@ -72,33 +69,33 @@ const escapeCharCode
 const escape = compose(stringToList)(map(escapeCharCode))
 
 const node
-    : (n: Node) => list.List<string>
-    = n => typeof n === 'string' ? escape(n) : element(n)
+: (n: Node) => List<string>
+= n => typeof n === 'string' ? escape(n) : element(n)
 
 const nodes = flatMap(node)
 
 const attribute
-    : (a: O.Entry<string>) => list.List<string>
-    = ([name, value]) => flat([[' ', name, '="'], escape(value), ['"']])
+: (a: O.Entry<string>) => List<string>
+= ([name, value]) => flat([[' ', name, '="'], escape(value), ['"']])
 
 const attributes
-    : (a: Attributes) => list.List<string>
-    = compose(entries)(flatMap(attribute))
+: (a: Attributes) => List<string>
+= compose(entries)(flatMap(attribute))
 
 const open
-    : (t: string) => (a: Attributes) => list.List<string>
-    = t => a => flat([[`<`, t], attributes(a), [`>`]])
+: (t: string) => (a: Attributes) => List<string>
+= t => a => flat([[`<`, t], attributes(a), [`>`]])
 
 const element3
-    : (t: string) => (an: readonly[Attributes, readonly Node[]]) => list.List<string>
-    = t => ([a, n]) => {
+: (t: string) => (an: readonly[Attributes, readonly Node[]]) => List<string>
+= t => ([a, n]) => {
     const o = flat([[`<`, t], attributes(a), [`>`]])
     return isVoid(t) ? o : flat([o, nodes(n), ['</', t, '>']])
 }
 
 export const element
-    : (element: Element) => list.List<string>
-    = e => {
+: (element: Element) => List<string>
+= e => {
     const [t, a, ...n] = e
     return element3(t)(a === undefined ? [{}, []]: typeof a === 'object' && !(a instanceof Array) ? [a, n] : [{}, [a, ...n]])
 }

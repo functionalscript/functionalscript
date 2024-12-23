@@ -1,7 +1,5 @@
-import * as list from '../list/module.f.ts'
-const { reduce } = list
-import * as operator from '../function/operator/module.f.ts'
-const { addition, min: minOp, max: maxOp } = operator
+import { reduce } from '../list/module.f.ts'
+import { addition, min as minOp, max as maxOp } from '../function/operator/module.f.ts'
 import * as compare from '../function/compare/module.f.ts'
 const { unsafeCmp } = compare
 

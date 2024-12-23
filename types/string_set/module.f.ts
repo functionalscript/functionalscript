@@ -6,16 +6,14 @@ import * as btr from '../btree/remove/module.f.ts'
 const { remove: btreeRemove } = btr
 import * as bts from '../btree/set/module.f.ts'
 const { set: btreeSet } = bts
-export const {
-    values,
-    empty,
-}: { values: (s: StringSet) => list.List<string>, empty: null } = btree
 import * as string from "../string/module.f.ts"
 const { cmp } = string
-import * as list from '../list/module.f.ts'
-const { fold } = list
+import { fold, type List } from '../list/module.f.ts'
 import * as f from '../function/module.f.ts'
 const { compose } = f
+
+export const values: (s: StringSet) => List<string> = btree.values
+export const empty: null = btree.empty
 
 export type StringSet = BtreeTypes.Tree<string>
 

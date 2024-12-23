@@ -1,5 +1,4 @@
-import * as f from '../function/module.f.ts'
-const { compose } = f
+import { compose } from '../function/module.f.ts'
 import * as RangeMap from '../range_map/module.f.ts'
 import * as SortedSet from '../sorted_set/module.f.ts'
 import * as list from '../list/module.f.ts'
