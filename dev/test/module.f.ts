@@ -1,6 +1,5 @@
 import { entries, fold } from '../../types/list/module.f.ts'
-import * as codes from '../../text/sgr/module.f.ts'
-const { reset, fgGreen, fgRed, bold } = codes
+import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
 import * as Result from '../../types/result/module.f.ts'
 
 type DependencyMap = {
