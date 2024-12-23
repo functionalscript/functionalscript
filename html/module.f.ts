@@ -49,7 +49,7 @@ type Attributes = {
     readonly[k in string]: string
 }
 
-type Node = Element | string
+export type Node = Element | string
 
 /**
  * https://stackoverflow.com/questions/7381974/which-characters-need-to-be-escaped-in-html
