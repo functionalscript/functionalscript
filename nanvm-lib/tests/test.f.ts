@@ -79,7 +79,7 @@ export default {
         }
     },
     unary_plus: () => {
-        const op = (n: any | null): number => +n
+        const op = (n: any) => +n
         return {
             null: () => e(op(null))(0),
             undefined: () => {
