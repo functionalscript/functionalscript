@@ -1,8 +1,17 @@
 const at
-    : (a: unknown) => (i: any) =>unknown
-    = a => i => Object.getOwnPropertyDescriptor(a, i)?.value
+: (a: unknown) => (i: any) =>unknown
+= a => i => Object.getOwnPropertyDescriptor(a, i)?.value
+
+const utf8 = (...x: [readonly string[]]) => x
+
+type TemplateType = `<html>${string}</html>`
 
 export default {
+    literal: () => {
+        const x = utf8`17`
+        console.log(x)
+        const m: TemplateType = '<html>Hello</html>'
+    },
     ownProperty: {
         nullish: () => {
             /* // panic
