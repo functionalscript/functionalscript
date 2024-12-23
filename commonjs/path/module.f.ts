@@ -8,8 +8,8 @@ import {
     filterMap,
     isEmpty,
     concat,
-    type List,
     empty,
+    type List,
     type Thunk
 } from '../../types/list/module.f.ts'
 import { join } from '../../types/string/module.f.ts'
@@ -25,14 +25,14 @@ type LocalPath = {
 }
 
 const split
-    : (path: string) => readonly string[]
-    = path => path.split('/')
+: (path: string) => readonly string[]
+= path => path.split('/')
 
 type OptionList = readonly[List<string>] | null
 
 const normItemsOp
-    : (items: string) => (prior: OptionList) => OptionList
-    = first => prior => {
+: (items: string) => (prior: OptionList) => OptionList
+= first => prior => {
     if (prior === null) { return null }
     const tail = prior[0]
     switch (first) {
@@ -83,7 +83,6 @@ export const parseLocal
 
 type IdPath = readonly[string, List<string>]
 
-/** @type {} */
 const variants
 : (prior: readonly[string|null, List<string>]) => Thunk<IdPath>
 = prior => () => {
@@ -98,8 +97,8 @@ const variants
 }
 
 const mapDependency
-    : (d: (local: string) => string|null) => (p: IdPath) => IdPath|null
-    = d => ([external, internal]) => {
+: (d: (local: string) => string|null) => (p: IdPath) => IdPath|null
+= d => ([external, internal]) => {
     const id = d(external)
     return id === null ? null : [id, internal]
 }
@@ -162,8 +161,8 @@ export const parseAndFind
     const pack = packageGet(p.package)
     if (pack === null) { return null }
     const tryFile
-        : (file: string) => FoundResult | null
-        = file => {
+    : (file: string) => FoundResult | null
+    = file => {
         const source = pack.file(file)
         return source === null ? null : { id: { package: p.package, path: file.split('/') }, source }
     }
