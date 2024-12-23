@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- export `html.Node`
+## 0.3.6
+
+- export `html.Node` [PR #342](https://github.com/functionalscript/functionalscript/pull/342)
 
 ## 0.3.5
 
