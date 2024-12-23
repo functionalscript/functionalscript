@@ -10,13 +10,11 @@ const n
     if (a !== b) { } else { throw [a, '!==', b] }
 }
 
-/** @type {(n: any | null) => number} */
-const u_p = n => {
+const u_p = (n: any | null): number => {
     return +n
 }
 
-/** @type {(n: any | null) => void} */
-const u_p_nan = n => {
+const u_p_nan = (n: any | null): void => {
     let r = +n
     if (Number.isNaN(r)) { } else { throw [JSON.stringify(r), ' is not NaN'] }
 }
@@ -99,7 +97,7 @@ export default {
         boolean: () => {
             e(u_p(false))(0)
             // HELP! Why does this case break?!
-            // n(u_p(true))(1)
+            //n(u_p(true))(1)
         }
     }
 }
