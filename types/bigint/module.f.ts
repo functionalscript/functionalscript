@@ -23,25 +23,25 @@ export const serialize
     : (a: bigint) => string
     = a => `${a}n`
 
-type Additive<T> = {
-   readonly 0: T
-   readonly add: Operator.Reduce<T>
+type Binary<T> = {
+   readonly neutral: T
+   readonly operation: Operator.Reduce<T>
 }
 
 export const scalar_mul
-    = <T>({ 0: _0, add }: Additive<T>) => (a: T) => (n: bigint): T => {
+    = <T>({ neutral, operation }: Binary<T>) => (a: T) => (n: bigint): T => {
         let ai = a
         let ni = n
-        let result = _0
+        let result = neutral
         while (true) {
             if ((ni & 1n) === 1n) {
-                result = add(result)(ai)
+                result = operation(result)(ai)
             }
             ni >>= 1n
             if (ni === 0n) {
                 return result
             }
-            ai = add(ai)(ai)
+            ai = operation(ai)(ai)
         }
     }
 

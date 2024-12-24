@@ -1,4 +1,4 @@
-import * as Operator from '../../types/function/operator/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
 import { prime_field, sqrt, type PrimeField } from '../prime_field/module.f.ts'
 import { scalar_mul } from '../../types/bigint/module.f.ts'
 
@@ -114,7 +114,7 @@ export const curve
             return [x, neg(y)]
         },
         add: addPoint,
-        mul: scalar_mul({ 0: null, add: addPoint })
+        mul: scalar_mul({ neutral: null, operation: addPoint })
     }
 }
 

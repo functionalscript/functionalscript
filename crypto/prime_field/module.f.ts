@@ -57,7 +57,7 @@ export const prime_field
     }
     const middle = p >> 1n
     const pow2: Unary = a => mul(a)(a)
-    const pow: Reduce = scalar_mul({ 0: 1n, add: mul })
+    const pow: Reduce = scalar_mul({ neutral: 1n, operation: mul })
     return {
         p,
         middle,
