@@ -14,7 +14,7 @@ type Tag = string
  *
  * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
  */
-const voidTagList = [
+const voidTagList: readonly string[] = [
     'area',
     'base',
     'br',
@@ -29,15 +29,9 @@ const voidTagList = [
     'source',
     'track',
     'wbr',
-] as const
+]
 
-type VoidTagList = typeof voidTagList
-
-type VoidTag = keyof VoidTagList
-
-const isVoid
-    : (tag: string) => boolean
-    = tag => (voidTagList as readonly string[]).includes(tag)
+const isVoid = (tag: string) => voidTagList.includes(tag)
 
 type Element1 = readonly [Tag, ...Node[]]
 
