@@ -30,7 +30,6 @@ type Monoid<T> = {
      * Learn more: {@link https://en.wikipedia.org/wiki/Identity_element}
      */
     readonly identity: T
-    readonly isIdentity: (v: T) => boolean
     /**
      * The associative binary operation of the monoid.
      * Takes one value of type `T` and returns a function that takes another value of type `T`,
@@ -51,8 +50,8 @@ export const semigroupRepeat = <T>(operation: Reduce<T>) => (a: T) => (n: bigint
     // n >= 1n
     let ai = a
     let ni = n
-    // remove trailing zeros
-    while ((ni & 1n) !== 1n) {
+    // remove trailing zeros.
+    while ((ni & 1n) === 0n) {
         ni >>= 1n
         ai = operation(ai)(ai)
     }
@@ -66,9 +65,9 @@ export const semigroupRepeat = <T>(operation: Reduce<T>) => (a: T) => (n: bigint
     ai = operation(ai)(ai)
     //
     while (true) {
-        const one = (ni & 1n) === 1n
+        const firstBit = ni & 1n
         ni >>= 1n
-        if (one) {
+        if (firstBit !== 0n) {
             result = operation(result)(ai)
             if (ni === 0n) {
                 return result
@@ -78,6 +77,7 @@ export const semigroupRepeat = <T>(operation: Reduce<T>) => (a: T) => (n: bigint
     }
 }
 
+/*
 export const repeat
     : <T>(m: Monoid<T>) => (a: T) => (n: bigint) => T
     = ({ identity, isIdentity, operation }) => {
@@ -85,4 +85,24 @@ export const repeat
         return a => isIdentity(a) ?
             () => identity :
             n => n === 0n ? identity : sg(a)(n)
+    }
+*/
+
+export const repeat
+    = <T>({ identity, operation }: Monoid<T>) => (a: T) => (n: bigint): T => {
+        if (n === 0n) { return identity }
+        let ai = a
+        let ni = n
+        let result = identity
+        while (true) {
+            const lsb = ni & 1n
+            ni >>= 1n
+            if (lsb !== 0n) {
+                result = operation(result)(ai)
+                if (ni === 0n) {
+                    return result
+                }
+            }
+            ai = operation(ai)(ai)
+        }
     }
