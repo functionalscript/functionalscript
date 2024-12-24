@@ -1,5 +1,5 @@
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import { repeat } from '../../types/semigroup/module.f.ts'
+import { repeat } from '../../types/monoid/module.f.ts'
 
 type Reduce = Operator.Reduce<bigint>
 

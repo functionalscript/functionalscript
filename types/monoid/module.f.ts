@@ -30,6 +30,7 @@ type Monoid<T> = {
      * Learn more: {@link https://en.wikipedia.org/wiki/Identity_element}
      */
     readonly identity: T
+    readonly isIdentity: (v: T) => boolean
     /**
      * The associative binary operation of the monoid.
      * Takes one value of type `T` and returns a function that takes another value of type `T`,
@@ -47,51 +48,41 @@ type Monoid<T> = {
 
 export const semigroupRepeat = <T>(operation: Reduce<T>) => (a: T) => (n: bigint) => {
     // assumption: `operation` is expensive.
-    if (n === 0n) { return a }
+    // n >= 1n
     let ai = a
     let ni = n
     // remove trailing zeros
-    while ((ni & 1n) === 1n) {
+    while ((ni & 1n) !== 1n) {
         ni >>= 1n
         ai = operation(ai)(ai)
     }
-    // ni = 0b{x}1n
-    // same as `result = operation(ai)(identity)`
-    let result = ai
+    // ni = 0b{...}1n
     ni >>= 1n
-    ai = operation(ai)(ai)
     if (ni === 0n) {
-        // same as `operation(result)(result)`
         return ai
     }
-    // ni !== 0n
+    // ni !== 0
+    let result = ai
+    ai = operation(ai)(ai)
+    //
     while (true) {
-        if ((ni & 1n) === 1n) {
+        const one = (ni & 1n) === 1n
+        ni >>= 1n
+        if (one) {
             result = operation(result)(ai)
-            ni >>= 1n
             if (ni === 0n) {
                 return result
             }
-        } else {
-            ni >>= 1n
         }
         ai = operation(ai)(ai)
     }
 }
 
 export const repeat
-    = <T>({ identity, operation }: Monoid<T>) => (a: T) => (n: bigint): T => {
-        let ai = a
-        let ni = n
-        let result = identity
-        while (true) {
-            if ((ni & 1n) === 1n) {
-                result = operation(result)(ai)
-            }
-            ni >>= 1n
-            if (ni === 0n) {
-                return result
-            }
-            ai = operation(ai)(ai)
-        }
+    : <T>(m: Monoid<T>) => (a: T) => (n: bigint) => T
+    = ({ identity, isIdentity, operation }) => {
+        const sg = semigroupRepeat(operation)
+        return a => isIdentity(a) ?
+            () => identity :
+            n => n === 0n ? identity : sg(a)(n)
     }
