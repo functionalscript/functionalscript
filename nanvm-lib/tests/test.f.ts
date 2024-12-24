@@ -90,8 +90,50 @@ export default {
             },
             boolean: {
                 false: () => e(op(false))(0),
-                true: () => e(op(true))(1),
+                true: () => e(op(true))(1)
+            },
+            number: {
+                zero: () => e(op(0))(0),
+                positive: () => e(op(2.3))(2.3),
+                negative: () => e(op(-2.3))(-2.3)
+            },
+            string: {
+                empty: () => e(op(""))(0),
+                zero: () => e(op("0"))(0),
+                positive: () => e(op("2.3"))(2.3),
+                nan: () => {
+                    const result = op(undefined)
+                    if (!Number.isNaN(result)) {
+                        throw result
+                    }
+                }
+            },
+            // TODO: bigint - handle TypeError exception for bigint. The test below (that follows
+            // current Rust implementation) is incorrect.
+            // bigint: {
+            //     nan: () => u_p_nan(0n)
+            // }
+            array: {
+                empty: () => e(op([]))(0),
+                single_number: () => e(op([2.3]))(2.3),
+                single_string: () => e(op(["-2.3"]))(-2.3),
+                multiple: () => {
+                    const result = op([null, null])
+                    if (!Number.isNaN(result)) {
+                        throw result
+                    }
+                }
+            },
+            object: {
+                empty: () => {
+                    const result = op({})
+                    if (!Number.isNaN(result)) {
+                        throw result
+                    }
+                }
+                // TODO: test objects with valueOf, toString functions - when Rust logic is implemented
             }
+            // TODO: test Function - when Rust logic is implemented
         }
     }
 }
