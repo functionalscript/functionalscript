@@ -31,8 +31,6 @@ const voidTagList: readonly string[] = [
     'wbr',
 ]
 
-const isVoid = (tag: string) => voidTagList.includes(tag)
-
 type Element1 = readonly [Tag, ...Node[]]
 
 type Element2 = readonly [Tag, Attributes, ...Node[]]
@@ -68,17 +66,23 @@ const nodes = flatMap(node)
 const attribute = ([name, value]: O.Entry<string>) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
-export const element = (e: Element): List<string> => {
+const attributes = compose(entries)(flatMap(attribute))
+
+const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]] => {
     const [tag, item1, ...list] = e
-    const [a, n] =
-        item1 === undefined ?
-            [{}, []] :
+    return item1 === undefined ?
+            [tag, {}, []] :
         typeof item1 === 'object' && !(item1 instanceof Array) ?
-            [item1, list] :
-            [{}, [item1, ...list]]
-    const at = flatMap(attribute)(entries(a))
-    const open = flat([[`<`, tag], at, [`>`]])
-    return isVoid(tag) ? open : flat([open, nodes(n), ['</', tag, '>']])
+            [tag, item1, list] :
+            [tag, {}, [item1, ...list]]
+}
+
+export const element = (e: Element): List<string> => {
+    const [tag, a, n] = parseElement(e)
+    const open = flat([[`<`, tag], attributes(a), [`>`]])
+    return voidTagList.includes(tag) ?
+        open :
+        flat([open, nodes(n), ['</', tag, '>']])
 }
 
 export const html
