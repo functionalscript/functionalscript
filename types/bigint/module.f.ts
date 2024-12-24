@@ -23,28 +23,6 @@ export const serialize
     : (a: bigint) => string
     = a => `${a}n`
 
-type Binary<T> = {
-   readonly neutral: T
-   readonly operation: Operator.Reduce<T>
-}
-
-export const scalar_mul
-    = <T>({ neutral, operation }: Binary<T>) => (a: T) => (n: bigint): T => {
-        let ai = a
-        let ni = n
-        let result = neutral
-        while (true) {
-            if ((ni & 1n) === 1n) {
-                result = operation(result)(ai)
-            }
-            ni >>= 1n
-            if (ni === 0n) {
-                return result
-            }
-            ai = operation(ai)(ai)
-        }
-    }
-
 /**
  * Calculates the base-2 logarithm (floor).
  *

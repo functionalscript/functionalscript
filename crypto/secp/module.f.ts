@@ -1,6 +1,6 @@
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import { prime_field, sqrt, type PrimeField } from '../prime_field/module.f.ts'
-import { scalar_mul } from '../../types/bigint/module.f.ts'
+import { repeat } from '../../types/semigroup/module.f.ts'
 
 /**
  * A 2D point represented as a pair of `bigint` values `[x, y]`.
@@ -114,7 +114,7 @@ export const curve
             return [x, neg(y)]
         },
         add: addPoint,
-        mul: scalar_mul({ neutral: null, operation: addPoint })
+        mul: repeat({ identity: null, operation: addPoint })
     }
 }
 

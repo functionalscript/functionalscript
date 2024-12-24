@@ -1,5 +1,5 @@
-import * as Operator from '../../types/function/operator/module.f.ts'
-import { scalar_mul } from '../../types/bigint/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
+import { repeat } from '../../types/semigroup/module.f.ts'
 
 type Reduce = Operator.Reduce<bigint>
 
@@ -57,7 +57,7 @@ export const prime_field
     }
     const middle = p >> 1n
     const pow2: Unary = a => mul(a)(a)
-    const pow: Reduce = scalar_mul({ neutral: 1n, operation: mul })
+    const pow: Reduce = repeat({ identity: 1n, operation: mul })
     return {
         p,
         middle,
