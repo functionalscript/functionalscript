@@ -4,8 +4,7 @@
  * The module provides functions to define structs, traits, and implementations in Rust,
  * specifically tailored for `nanocom` interoperation.
  */
-import * as types from '../types/module.f.ts'
-const { paramList } = types
+import { paramList, type Definition, type Field, type FieldArray, type Interface, type Library, type Method, type Type } from '../types/module.f.ts'
 import * as Text from '../../text/module.f.ts'
 import * as O from '../../types/object/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
@@ -39,34 +38,34 @@ const obj
 const self = ['&self']
 
 const paramName
-    : (p: types.Field) => string
-    = ([n]) => n
+: (p: Field) => string
+= ([n]) => n
 
 const callList
-    : (p: types.FieldArray) => list.Thunk<string>
-    = p => map(paramName)(paramList(p))
+: (p: FieldArray) => list.Thunk<string>
+= p => map(paramName)(paramList(p))
 
 const call
-    : (p: types.FieldArray) => string
-    = p => commaJoin(callList(p))
+: (p: FieldArray) => string
+= p => commaJoin(callList(p))
 
 const virtualCall
-    : (p: types.FieldArray) => string
-    = p => commaJoin(flat([['self'], callList(p)]))
+: (p: FieldArray) => string
+= p => commaJoin(flat([['self'], callList(p)]))
 
 const super_ = 'super::'
 
 const assign
-    : (m: types.Method) => string
-    = ([n]) => `${n}: Self::${n},`
+: (m: Method) => string
+= ([n]) => `${n}: Self::${n},`
 
 const mapAssign = map(assign)
 
 const this_ = ['this: &Object']
 
 const rustType
-    : (n: string) => string
-    = n => `pub type ${n} = nanocom::${n}<Interface>;`
+: (n: string) => string
+= n => `pub type ${n} = nanocom::${n}<Interface>;`
 
 type OptionalProperty<T> = T|{}
 
@@ -75,8 +74,8 @@ type Where = {readonly where: readonly string[]}
 type WhereContent = OptionalProperty<Where> & {readonly content: Text.Block}
 
 const whereContent
-    : (h: string) => (wh: WhereContent) => Text.Block
-    = h => wh => {
+: (h: string) => (wh: WhereContent) => Text.Block
+= h => wh => {
     const w = 'where' in wh ? [
         h,
         `where`,
@@ -99,8 +98,8 @@ type Impl = {
 }
 
 const rustImpl
-    : (impl: Impl) => Text.Block
-    = i => {
+: (impl: Impl) => Text.Block
+= i => {
     const p = 'param' in i ? `<${i.param}>` : ''
     const header = `impl${p} ${i.trait} for ${i.type}`
     return whereContent(header)(i)
@@ -118,16 +117,16 @@ const comma: (s: string) => string = s => `${s},`
 const mapComma = map(comma)
 
 const trait
-    : (t: Trait) => Text.Block
-    = t => {
+: (t: Trait) => Text.Block
+= t => {
     const p = t.pub === true ? 'pub ' : ''
     const h = `${p}trait ${t.type}`
     return whereContent(h)(t)
 }
 
 const traitImpl
-    : (t: Trait) => Text.Block
-    = t => {
+: (t: Trait) => Text.Block
+= t => {
     const i = rustImpl({
         param: 'T',
         trait: t.type,
@@ -146,14 +145,14 @@ const where = ['Self: nanocom::Class<Interface = Interface>', 'nanocom::CObject<
  * @param library - The library of type definitions to generate Rust code for.
  * @returns A block of Rust code representing the library.
  */
-export const rust = (library: types.Library): Text.Block => {
+export const rust = (library: Library): Text.Block => {
 
     const type
-        : (p: string) => (o: (_: string) => string) => (t: types.Type) => string
-        = p => {
+    : (p: string) => (o: (_: string) => string) => (t: Type) => string
+    = p => {
         const f
-            : (o: (_: string) => string) => (t: types.Type) => string
-            = o => t => {
+        : (o: (_: string) => string) => (t: Type) => string
+        = o => t => {
             if (typeof t === 'string') { return t }
             if (t.length === 2) { return `*const ${f(ref)(t[1])}` }
             const [id] = t
@@ -164,8 +163,8 @@ export const rust = (library: types.Library): Text.Block => {
     }
 
     const pf
-        : (p: string) => (o: (_: string) => string) => (f: types.Field) => string
-        = p => o => ([name, t]) => `${name}: ${type(p)(o)(t)}`
+    : (p: string) => (o: (_: string) => string) => (f: Field) => string
+    = p => o => ([name, t]) => `${name}: ${type(p)(o)(t)}`
 
     const param = pf(super_)(obj)
 
@@ -174,43 +173,43 @@ export const rust = (library: types.Library): Text.Block => {
     const mapField = map(pf('')(ref))
 
     const struct
-        : (fa: types.FieldArray) => (name: string) => Text.Block
-        = fn(entries)
-            .then(mapField)
-            .then(rustStruct)
-            .result
+    : (fa: FieldArray) => (name: string) => Text.Block
+    = fn(entries)
+        .then(mapField)
+        .then(rustStruct)
+        .result
 
     const func
-        : (first: readonly string[]) => (p: types.FieldArray) => string
-        = first => p => {
+    : (first: readonly string[]) => (p: FieldArray) => string
+    = first => p => {
         const resultStr = '_' in p ? ` -> ${type(super_)(ref)(p._)}` : ''
         const params = commaJoin(flat([first, mapParam(paramList(p))]))
         return `(${params})${resultStr}`
     }
 
     const virtualFnType
-        : (n: string) => (p: types.FieldArray) => string
-        = n => p => `extern "system" fn${n}${func(this_)(p)}`
+    : (n: string) => (p: FieldArray) => string
+    = n => p => `extern "system" fn${n}${func(this_)(p)}`
 
     const virtualFn
-        : (m: types.Method) => string
-        = ([n, p]) => `${n}: unsafe ${virtualFnType('')(p)}`
+    : (m: Method) => string
+    = ([n, p]) => `${n}: unsafe ${virtualFnType('')(p)}`
 
     const mapVirtualFn = map(virtualFn)
 
     const headerFn
-        : (m: types.Method) => string
-        = ([n, p]) => `fn ${n}${func(self)(p)}`
+    : (m: Method) => string
+    = ([n, p]) => `fn ${n}${func(self)(p)}`
 
     const traitFn
-        : (m: types.Method) => string
-        = m => `${headerFn(m)};`
+    : (m: Method) => string
+    = m => `${headerFn(m)};`
 
     const mapTraitFn = map(traitFn)
 
     const implFn
-        : (m: types.Method) => Text.Block
-        = m => {
+    : (m: Method) => Text.Block
+    = m => {
         const [n, p] = m
         return [
             `${headerFn(m)} {`,
@@ -222,8 +221,8 @@ export const rust = (library: types.Library): Text.Block => {
     const flatMapImplFn = flatMap(implFn)
 
     const impl
-        : (m: types.Method) => Text.Block
-        = ([n, p]) => {
+    : (m: Method) => Text.Block
+    = ([n, p]) => {
         const type = virtualFnType(` ${n}`)(p)
         return [
             `${type} {`,
@@ -235,8 +234,8 @@ export const rust = (library: types.Library): Text.Block => {
     const flatMapImpl = flatMap(impl)
 
     const interface_
-        : (i: types.Interface) => (name: string) => Text.Block
-        = ({ interface: i, guid }) => name => {
+    : (i: Interface) => (name: string) => Text.Block
+    = ({ interface: i, guid }) => name => {
 
         const e = entries(i)
 
@@ -280,8 +279,8 @@ export const rust = (library: types.Library): Text.Block => {
     }
 
     const def
-        : (type: O.Entry<types.Definition>) => Text.Block
-        = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
+    : (type: O.Entry<Definition>) => Text.Block
+    = ([name, type]) => ('interface' in type ? interface_(type) : struct(type.struct))(name)
 
     return flat([['#![allow(non_snake_case)]'], flatMap(def)(entries(library))])
 }

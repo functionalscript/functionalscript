@@ -1,8 +1,6 @@
 import * as Operator from '../../types/function/operator/module.f.ts'
-import * as pf from '../prime_field/module.f.ts'
-import * as bi from '../../types/bigint/module.f.ts'
-const { scalar_mul } = bi
-const { prime_field, sqrt } = pf
+import { prime_field, sqrt, type PrimeField } from '../prime_field/module.f.ts'
+import { scalar_mul } from '../../types/bigint/module.f.ts'
 
 /**
  * A 2D point represented as a pair of `bigint` values `[x, y]`.
@@ -29,8 +27,8 @@ export type Init = {
  * Represents an elliptic curve and its associated operations.
  */
 type Curve = {
-    readonly pf: pf.PrimeField
-    readonly nf: pf.PrimeField
+    readonly pf: PrimeField
+    readonly nf: PrimeField
     readonly y2: (x: bigint) => bigint
     readonly y: (x: bigint) => bigint|null
     readonly neg: (a: Point) => Point
@@ -59,8 +57,8 @@ type Curve = {
  * ```
  */
 export const curve
-    : (i: Init) => Curve
-    = ({ p, a: [a0, a1], n }) => {
+: (i: Init) => Curve
+= ({ p, a: [a0, a1], n }) => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
@@ -68,15 +66,17 @@ export const curve
     const addA1 = add(a1)
     const mulA1 = mul(a1)
     const addA0 = add(a0)
+
     /**
      * y**2 = a1*x**3 + a0
      */
     const y2
-        : (x: bigint) => bigint
-        = x => addA0(add(pow3(x))(mulA1(x)))
+    : (x: bigint) => bigint
+    = x => addA0(add(pow3(x))(mulA1(x)))
+
     const addPoint
-        : Operator.Reduce<Point>
-        = p => q => {
+    : Operator.Reduce<Point>
+    = p => q => {
         if (p === null) {
             return q
         }
@@ -119,8 +119,8 @@ export const curve
 }
 
 export const eq
-    : (a: Point) => (b: Point) => boolean
-    = a => b => {
+: (a: Point) => (b: Point) => boolean
+= a => b => {
     if (a === null || b === null) {
         return a === b
     }
@@ -132,9 +132,7 @@ export const eq
 /**
  * https://neuromancer.sk/std/secg/secp192r1
  */
-export const secp192r1
-    : Init
-    = {
+export const secp192r1: Init = {
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
     a: [
         0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
@@ -151,9 +149,7 @@ export const secp192r1
  * https://en.bitcoin.it/wiki/Secp256k1
  * https://neuromancer.sk/std/secg/secp256k1
  */
-export const secp256k1
-    : Init
-    = {
+export const secp256k1: Init = {
     p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
     a: [7n, 0n],
     g: [
@@ -166,9 +162,7 @@ export const secp256k1
 /**
  * https://neuromancer.sk/std/secg/secp256r1
  */
-export const secp256r1
-    : Init
-    = {
+export const secp256r1: Init = {
     p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
     a: [
         0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< b

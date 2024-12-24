@@ -4,12 +4,11 @@ import * as Module from '../module/module.f.ts'
 import * as ModuleFunction from '../module/function/module.f.ts'
 import * as Result from '../../types/result/module.f.ts'
 import * as Package from '../package/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { at } = o
+import { at } from '../../types/object/module.f.ts'
 
 const compileMap
-    : { readonly [k in string]?: Result.Result<ModuleFunction.Function_, unknown> }
-    = {
+: { readonly [k in string]?: Result.Result<ModuleFunction.Function_, unknown> }
+= {
     ':index.js': [
         'ok',
         require_ => m0 => {
@@ -33,14 +32,14 @@ const compileMap
 }
 
 const compile
-    : ModuleFunction.Compile
-    = source => compileMap[source] ?? ['error', 'invalid source']
+: ModuleFunction.Compile
+= source => compileMap[source] ?? ['error', 'invalid source']
 
 type StringMap = { readonly [k in string]: string }
 
 const packageMap
-    : { readonly [k in string]: { readonly dependencies: StringMap, readonly files: StringMap }}
-    = {
+: { readonly [k in string]: { readonly dependencies: StringMap, readonly files: StringMap }}
+= {
     '': {
         dependencies: {
             'x': '/node_modules/x'
@@ -60,8 +59,8 @@ const packageMap
 }
 
 const packageGet
-    : Package.Get
-    = packageId => {
+: Package.Get
+= packageId => {
     const p = at(packageId)(packageMap)
     return p === null ? null :
         {
