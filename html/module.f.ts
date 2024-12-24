@@ -54,33 +54,25 @@ type Node = Element | string
 /**
  * https://stackoverflow.com/questions/7381974/which-characters-need-to-be-escaped-in-html
  */
-const escapeCharCode
-    : (code: number) => string
-    = code => {
-        switch (code) {
-            case 0x22: return '&quot;'
-            case 0x26: return '&amp;'
-            case 0x3C: return '&lt;'
-            case 0x3E: return '&gt;'
-            default: return fromCharCode(code)
-        }
+const escapeCharCode = (code: number) => {
+    switch (code) {
+        case 0x22: return '&quot;'
+        case 0x26: return '&amp;'
+        case 0x3C: return '&lt;'
+        case 0x3E: return '&gt;'
+        default: return fromCharCode(code)
     }
+}
 
 const escape = compose(stringToList)(map(escapeCharCode))
 
-const node
-    : (n: Node) => List<string>
-    = n => typeof n === 'string' ? escape(n) : element(n)
+const node = (n: Node) =>
+    typeof n === 'string' ? escape(n) : element(n)
 
 const nodes = flatMap(node)
 
-const attribute
-    : (a: O.Entry<string>) => List<string>
-    = ([name, value]) => flat([[' ', name, '="'], escape(value), ['"']])
-
-const attributes
-    : (a: Attributes) => List<string>
-    = compose(entries)(flatMap(attribute))
+const attribute = ([name, value]: O.Entry<string>) =>
+    flat([[' ', name, '="'], escape(value), ['"']])
 
 export const element = (e: Element): List<string> => {
     const [tag, item1, ...list] = e
@@ -90,8 +82,9 @@ export const element = (e: Element): List<string> => {
         typeof item1 === 'object' && !(item1 instanceof Array) ?
             [item1, list] :
             [{}, [item1, ...list]]
-    const o = flat([[`<`, tag], attributes(a), [`>`]])
-    return isVoid(tag) ? o : flat([o, nodes(n), ['</', tag, '>']])
+    const at = flatMap(attribute)(entries(a))
+    const open = flat([[`<`, tag], at, [`>`]])
+    return isVoid(tag) ? open : flat([open, nodes(n), ['</', tag, '>']])
 }
 
 export const html
