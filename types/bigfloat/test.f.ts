@@ -1,5 +1,4 @@
-import * as _ from './module.f.ts'
-const { decToBin } = _
+import { decToBin } from './module.f.ts'
 
 export default {
     decToBin: [

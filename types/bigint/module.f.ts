@@ -1,21 +1,19 @@
 import * as compare from '../function/compare/module.f.ts'
-import * as Operator from '../function/operator/module.f.ts'
+import type * as Operator from '../function/operator/module.f.ts'
 const { unsafeCmp } = compare
 import { reduce, type List } from '../list/module.f.ts'
 
 type Unary = Operator.Unary<bigint, bigint>
 
-export const addition
-    : (a: bigint) => (b: bigint) => bigint
-    = a => b => a + b
+type Reduce = Operator.Reduce<bigint>
+
+export const addition: Reduce = a => b => a + b
 
 export const sum
-: (input: List<bigint>) => bigint
-= reduce(addition)(0n)
+    : (input: List<bigint>) => bigint
+    = reduce(addition)(0n)
 
-export const abs
-    : (a: bigint) => bigint
-    = a => a >= 0 ? a : -a
+export const abs: Unary = a => a >= 0 ? a : -a
 
 export const sign
     : (a: bigint) => compare.Sign
@@ -31,22 +29,21 @@ type Additive<T> = {
 }
 
 export const scalar_mul
-    : <T>(a: Additive<T>) => (a: T) => (n: bigint) => T
-    = ({ 0: _0, add }) => a => n => {
-    let ai = a
-    let ni = n
-    let result = _0
-    while (true) {
-        if ((ni & 1n) === 1n) {
-            result = add(result)(ai)
+    = <T>({ 0: _0, add }: Additive<T>) => (a: T) => (n: bigint): T => {
+        let ai = a
+        let ni = n
+        let result = _0
+        while (true) {
+            if ((ni & 1n) === 1n) {
+                result = add(result)(ai)
+            }
+            ni >>= 1n
+            if (ni === 0n) {
+                return result
+            }
+            ai = add(ai)(ai)
         }
-        ni >>= 1n
-        if (ni === 0n) {
-            return result
-        }
-        ai = add(ai)(ai)
     }
-}
 
 /**
  * Calculates the base-2 logarithm (floor).
