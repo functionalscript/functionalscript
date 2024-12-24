@@ -1,4 +1,12 @@
-use nanvm_lib::{interface::{Complex, Container, Extension, Any, Utf8}, naive, nullish::Nullish, sign::Sign, simple::Simple};
+use core::panic;
+
+use nanvm_lib::{
+    interface::{Any, Complex, Container, Extension, Utf8},
+    naive,
+    nullish::Nullish,
+    sign::Sign,
+    simple::Simple,
+};
 
 fn eq<A: Any>() {
     // nullish
@@ -26,6 +34,7 @@ fn eq<A: Any>() {
         // nullish
         {
             assert_ne!(false0, undefined0);
+            assert_ne!(false0, null0);
         }
     }
     // number
@@ -77,8 +86,8 @@ fn eq<A: Any>() {
     // bigint
     let bigint12_0: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
     let bigint12_1: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
-    let bigint12m: A =  A::BigInt::new(Sign::Negative, [12]).to_unknown();
-    let bigint13: A =  A::BigInt::new(Sign::Positive, [13]).to_unknown();
+    let bigint12m: A = A::BigInt::new(Sign::Negative, [12]).to_unknown();
+    let bigint13: A = A::BigInt::new(Sign::Positive, [13]).to_unknown();
     {
         assert_eq!(bigint12_0, bigint12_1);
         assert_ne!(bigint12_0, bigint12m);
@@ -102,7 +111,82 @@ fn eq<A: Any>() {
     }
 }
 
+fn unary_plus<A: Any>() {
+    let assert_is_nan = |a: A, test_case: &str| {
+        let nan = Any::unary_plus(a);
+        if let Some(simple) = nan.try_to_simple() {
+            match simple {
+                Simple::Number(f) => {
+                    assert!(f.is_nan());
+                }
+                _ => panic!("expected Number result of unary_plus of {}", test_case),
+            }
+        } else {
+            panic!("expected Simple result of unary_plus of {}", test_case);
+        }
+    };
+
+    // null
+    let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
+    assert_eq!(Any::unary_plus(null0), Simple::Number(0.0).to_unknown());
+
+    // undefined
+    let undefined0: A = Simple::Nullish(Nullish::Undefined).to_unknown();
+    assert_is_nan(Any::unary_plus(undefined0), "undefined");
+
+    // boolean
+    let true0: A = Simple::Boolean(true).to_unknown();
+    assert_eq!(Any::unary_plus(true0), Simple::Number(1.0).to_unknown());
+    let false0: A = Simple::Boolean(false).to_unknown();
+    assert_eq!(Any::unary_plus(false0), Simple::Number(0.0).to_unknown());
+
+    // number
+    let number00: A = Simple::Number(0.0).to_unknown();
+    assert_eq!(Any::unary_plus(number00), Simple::Number(0.0).to_unknown());
+    let number01: A = Simple::Number(2.3).to_unknown();
+    assert_eq!(Any::unary_plus(number01), Simple::Number(2.3).to_unknown());
+    let number02: A = Simple::Number(-2.3).to_unknown();
+    assert_eq!(Any::unary_plus(number02), Simple::Number(-2.3).to_unknown());
+
+    // string
+    let string_empty: A = "".to_unknown();
+    assert_eq!(
+        Any::unary_plus(string_empty),
+        Simple::Number(0.0).to_unknown()
+    );
+    let string0: A = "0".to_unknown();
+    assert_eq!(Any::unary_plus(string0), Simple::Number(0.0).to_unknown());
+    let string1: A = "2.3".to_unknown();
+    assert_eq!(Any::unary_plus(string1), Simple::Number(2.3).to_unknown());
+    let string2: A = "a".to_unknown();
+    assert_is_nan(Any::unary_plus(string2), "non-number string");
+
+    // bigint
+    let bigint0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
+    // TODO: catch TypeError here when the right error handling is implemented; NAN for now.
+    assert_is_nan(Any::unary_plus(bigint0), "bigint");
+
+    // array
+    let array0: A = [].to_array_unknown();
+    assert_eq!(Any::unary_plus(array0), Simple::Number(0.0).to_unknown());
+    let array1: A = [Simple::Number(2.3).to_unknown()].to_array_unknown();
+    assert_eq!(Any::unary_plus(array1), Simple::Number(2.3).to_unknown());
+    let string3: A = "-2.3".to_unknown();
+    let array2: A = [string3].to_array_unknown();
+    assert_eq!(Any::unary_plus(array2), Simple::Number(-2.3).to_unknown());
+    let null1: A = Simple::Nullish(Nullish::Null).to_unknown();
+    let array3: A = [null1.clone(), null1].to_array_unknown();
+    assert_is_nan(Any::unary_plus(array3), "multi-element array");
+
+    // object
+    let object0: A = [].to_object_unknown();
+    assert_is_nan(Any::unary_plus(object0), "object");
+    // TODO: test objects with valueOf, toString functions.
+    // TODO: test Function.
+}
+
 #[test]
 fn naive_eq() {
     eq::<naive::Any>();
+    unary_plus::<naive::Any>();
 }
