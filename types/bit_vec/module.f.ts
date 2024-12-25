@@ -48,6 +48,13 @@ const mask = (len: bigint) => (1n << len) - 1n
  */
 export const uint = (v: Vec): bigint => v ^ (1n << length(v))
 
+export type Endian = {
+    readonly uint: (len: bigint) => (v: Vec) => bigint
+    readonly remove: (len: bigint) => (v: Vec) => Vec
+    readonly popUint: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
+    readonly concat: (a: Vec) => (b: Vec) => Vec
+}
+
 /**
  * Extract the least significant unsigned integer from the given vector.
  *
