@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.3.5",
+  "version": "0.3.7",
   "type": "module",
   "files": [
     "**/*.f.d.ts",

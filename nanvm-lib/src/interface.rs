@@ -1,4 +1,5 @@
 use core::fmt;
+use std::char::decode_utf16;
 
 use crate::{nullish::Nullish, sign::Sign, simple::Simple};
 
@@ -68,6 +69,45 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
         // bigint and function
         todo!()
+    }
+
+    fn unary_plus(v: Self) -> Self {
+        match v.unpack() {
+            Unpacked::Nullish(n) => match n {
+                Nullish::Null => Self::new_simple(Simple::Number(0.0)),
+                Nullish::Undefined => Self::new_simple(Simple::Number(f64::NAN)),
+            },
+            Unpacked::Bool(b) => Self::new_simple(Simple::Number(if b { 1.0 } else { 0.0 })),
+            Unpacked::Number(n) => Self::new_simple(Simple::Number(n)),
+            Unpacked::String16(s) => {
+                let items = s.items();
+                if items.is_empty() {
+                    return Self::new_simple(Simple::Number(0.0));
+                }
+                let string: String = decode_utf16(items.iter().cloned())
+                    .map(|r| r.unwrap_or('\u{FFFD}'))
+                    .collect();
+                if let Ok(n) = string.parse::<f64>() {
+                    return Self::new_simple(Simple::Number(n));
+                }
+                Self::new_simple(Simple::Number(f64::NAN))
+            }
+            // TODO: throw TypeError for BigInt when we have a mechanism to throw an error.
+            Unpacked::BigInt(_) => Self::new_simple(Simple::Number(f64::NAN)),
+            Unpacked::Array(a) => {
+                let items = a.items();
+                if items.is_empty() {
+                    return Self::new_simple(Simple::Number(0.0));
+                }
+                if items.len() > 1 {
+                    return Self::new_simple(Simple::Number(f64::NAN));
+                }
+                Self::unary_plus(items[0].clone())
+            }
+            // TODO: use valueOf, toString functions for Object when present.
+            Unpacked::Object(_) => Self::new_simple(Simple::Number(f64::NAN)),
+            Unpacked::Function(_) => Self::new_simple(Simple::Number(f64::NAN)),
+        }
     }
 }
 
