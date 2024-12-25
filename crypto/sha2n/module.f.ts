@@ -1,6 +1,8 @@
 import { todo } from '../../dev/module.f.ts'
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
 import { bitLength } from "../../types/bigint/module.f.ts";
+import { uint, uintMsb } from "../../types/bit_vec/module.f.ts";
+import { vec } from "../../types/bit_vec/module.f.ts";
 import { popUintMsb } from "../../types/bit_vec/module.f.ts";
 import { length } from "../../types/bit_vec/module.f.ts";
 import { concatMsb } from '../../types/bit_vec/module.f.ts'
@@ -185,10 +187,10 @@ const append = (state: State) => {
         let remainderLen = length(remainder)
         while (remainderLen >= chunkLength) {
             const [u, nr] = popUintMsb(chunkLength)(remainder)
+            hash = compress(hash)(toV16(u))
             remainder = nr
             remainderLen -= chunkLength
             len += chunkLength
-            hash = compress(hash)(toV16(u))
         }
         return {
             base,
@@ -199,7 +201,21 @@ const append = (state: State) => {
     }
 }
 
-const end = (state: State): V8 => todo()
+const lastOne: Vec = vec(1n)(1n)
+
+const end = (state: State): V8 => {
+    const { base: { chunkLength, toV16, compress }, len } = state
+    let { remainder, hash } = state
+    remainder = concatMsb(remainder)(lastOne)
+    const rLen = length(remainder)
+    let u = uintMsb(chunkLength)(remainder)
+    // overflow
+    if (rLen + 64n > chunkLength) {
+        hash = compress(hash)(toV16(u))
+        u = 0n
+    }
+    return compress(hash)(toV16(u | len))
+}
 
 export const base32 = base({
     logBitLen: 5n,
