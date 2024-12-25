@@ -29,7 +29,7 @@ type Base = {
     readonly bitLength: bigint
     readonly chunkLength: bigint
     readonly compress: (i: V8) => (d: V16) => V8
-    readonly toV16: (u: bigint) => V16
+    readonly compressU: (i: V8) => (u: bigint) => V8
 }
 
 const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
@@ -93,57 +93,59 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const kLength = k.length
 
+    const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
+        let w = data
+
+        let a = a0
+        let b = b0
+        let c = c0
+        let d = d0
+        let e = e0
+        let f = f0
+        let g = g0
+        let h = h0
+
+        let i = 0
+        while (true) {
+            const ki = k[i]
+            for (let j = 0; j < 16; ++j) {
+                const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
+                const t2 = bigSigma0(a) + maj(a, b, c)
+                h = g
+                g = f
+                f = e
+                e = (d + t1) & mask
+                d = c
+                c = b
+                b = a
+                a = (t1 + t2) & mask
+            }
+            ++i
+            if (i === kLength) { break }
+            w = nextW(w)
+        }
+
+        return [
+            (a0 + a) & mask,
+            (b0 + b) & mask,
+            (c0 + c) & mask,
+            (d0 + d) & mask,
+            (e0 + e) & mask,
+            (f0 + f) & mask,
+            (g0 + g) & mask,
+            (h0 + h) & mask,
+        ]
+    }
+
     return {
 
         bitLength,
 
         chunkLength: bitLength << 4n, // * 16
 
-        compress: ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
-            let w = data
+        compress,
 
-            let a = a0
-            let b = b0
-            let c = c0
-            let d = d0
-            let e = e0
-            let f = f0
-            let g = g0
-            let h = h0
-
-            let i = 0
-            while (true) {
-                const ki = k[i]
-                for (let j = 0; j < 16; ++j) {
-                    const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
-                    const t2 = bigSigma0(a) + maj(a, b, c)
-                    h = g
-                    g = f
-                    f = e
-                    e = (d + t1) & mask
-                    d = c
-                    c = b
-                    b = a
-                    a = (t1 + t2) & mask
-                }
-                ++i
-                if (i === kLength) { break }
-                w = nextW(w)
-            }
-
-            return [
-                (a0 + a) & mask,
-                (b0 + b) & mask,
-                (c0 + c) & mask,
-                (d0 + d) & mask,
-                (e0 + e) & mask,
-                (f0 + f) & mask,
-                (g0 + g) & mask,
-                (h0 + h) & mask,
-            ]
-        },
-
-        toV16: (u: bigint): V16 => [
+        compressU: (i: V8) => (u: bigint) => compress(i)([
             (u >> (15n << logBitLen)) & mask,
             (u >> (14n << logBitLen)) & mask,
             (u >> (13n << logBitLen)) & mask,
@@ -160,7 +162,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
             (u >> (2n << logBitLen)) & mask,
             (u >> (1n << logBitLen)) & mask,
             u & mask,
-        ]
+        ])
     }
 }
 
@@ -180,14 +182,14 @@ const state = (base: Base) => (hash: V8): State => ({
 
 const append = (state: State) => {
     const { base } = state
-    const { compress, toV16, chunkLength } = base
+    const { compressU, chunkLength } = base
     return (v: Vec): State => {
         let { remainder, hash, len } = state
         remainder = concatMsb(remainder)(v)
         let remainderLen = length(remainder)
         while (remainderLen >= chunkLength) {
             const [u, nr] = popUintMsb(chunkLength)(remainder)
-            hash = compress(hash)(toV16(u))
+            hash = compressU(hash)(u)
             remainder = nr
             remainderLen -= chunkLength
             len += chunkLength
@@ -204,17 +206,16 @@ const append = (state: State) => {
 const lastOne: Vec = vec(1n)(1n)
 
 const end = (state: State): V8 => {
-    const { base: { chunkLength, toV16, compress }, len } = state
+    const { base: { chunkLength, compressU }, len } = state
     let { remainder, hash } = state
     remainder = concatMsb(remainder)(lastOne)
-    const rLen = length(remainder)
     let u = uintMsb(chunkLength)(remainder)
     // overflow
-    if (rLen + 64n > chunkLength) {
-        hash = compress(hash)(toV16(u))
+    if (length(remainder) + 64n > chunkLength) {
+        hash = compressU(hash)(u)
         u = 0n
     }
-    return compress(hash)(toV16(u | len))
+    return compressU(hash)(u | len)
 }
 
 export const base32 = base({
