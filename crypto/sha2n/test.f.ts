@@ -10,12 +10,6 @@ import {
     type V8
 } from './module.f.ts'
 
-const e1024 = 1n << 1023n
-
-const f32 = (a: V8) => a.reduce((p, v) => (p << 32n) | v)
-
-const f64 = (a: V8) => a.reduce((p, v) => (p << 64n) | v)
-
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
 export default {
     b32: () => {
