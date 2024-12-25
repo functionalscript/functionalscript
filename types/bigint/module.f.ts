@@ -93,3 +93,6 @@ export const bitLength = (v: bigint): bigint => {
     }
     return log2(v) + 1n
 }
+
+export const mask = (len: bigint): bigint =>
+    (1n << len) - 1n

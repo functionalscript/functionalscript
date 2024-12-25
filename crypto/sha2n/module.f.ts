@@ -1,4 +1,5 @@
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
+import { mask } from "../../types/bigint/module.f.ts";
 import {
     uintMsb,
     vec,
@@ -77,10 +78,10 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const maj = (x: bigint, y: bigint, z: bigint) => x & y ^ x & z ^ y & z
 
-    const mask = (1n << bitLength) - 1n
+    const m = mask(bitLength)
 
     const wi = ([a0, a1, a2, a3]: V4) =>
-        (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & mask
+        (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 
     const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]: V16): V16 => {
         w0 = wi([wE, w9, w1, w0])
@@ -125,11 +126,11 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
                 h = g
                 g = f
                 f = e
-                e = (d + t1) & mask
+                e = (d + t1) & m
                 d = c
                 c = b
                 b = a
-                a = (t1 + t2) & mask
+                a = (t1 + t2) & m
             }
             ++i
             if (i === kLength) { break }
@@ -137,19 +138,19 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         }
 
         return [
-            (a0 + a) & mask,
-            (b0 + b) & mask,
-            (c0 + c) & mask,
-            (d0 + d) & mask,
-            (e0 + e) & mask,
-            (f0 + f) & mask,
-            (g0 + g) & mask,
-            (h0 + h) & mask,
+            (a0 + a) & m,
+            (b0 + b) & m,
+            (c0 + c) & m,
+            (d0 + d) & m,
+            (e0 + e) & m,
+            (f0 + f) & m,
+            (g0 + g) & m,
+            (h0 + h) & m,
         ]
     }
 
     const at = (u: bigint) => (i: bigint) =>
-        (u >> (i << logBitLen)) & mask
+        (u >> (i << logBitLen)) & m
 
     const compress = (i: V8) => (u: bigint) => {
         const a = at(u)

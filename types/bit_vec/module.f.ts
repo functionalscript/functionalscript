@@ -1,4 +1,4 @@
-import { log2 } from '../bigint/module.f.ts'
+import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 
 /**
@@ -33,8 +33,6 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
     const mask = stop - 1n
     return data => stop | (data & mask)
 }
-
-const mask = (len: bigint) => (1n << len) - 1n
 
 /**
  * Returns the unsigned integer of the given vector by removing a stop bit.
