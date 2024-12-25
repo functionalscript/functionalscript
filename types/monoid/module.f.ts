@@ -45,63 +45,47 @@ type Monoid<T> = {
     readonly operation: Reduce<T>
 }
 
-export const semigroupRepeat = <T>(operation: Reduce<T>) => (a: T) => (n: bigint) => {
-    // assumption: `operation` is expensive.
-    // n >= 1n
-    let ai = a
-    let ni = n
-    // remove trailing zeros.
-    while ((ni & 1n) === 0n) {
-        ni >>= 1n
-        ai = operation(ai)(ai)
-    }
-    // ni = 0b{...}1n
-    ni >>= 1n
-    if (ni === 0n) {
-        return ai
-    }
-    // ni !== 0
-    let result = ai
-    ai = operation(ai)(ai)
-    //
-    while (true) {
-        const firstBit = ni & 1n
-        ni >>= 1n
-        if (firstBit !== 0n) {
-            result = operation(result)(ai)
-            if (ni === 0n) {
-                return result
-            }
-        }
-        ai = operation(ai)(ai)
-    }
-}
-
-/*
-export const repeat
-    : <T>(m: Monoid<T>) => (a: T) => (n: bigint) => T
-    = ({ identity, isIdentity, operation }) => {
-        const sg = semigroupRepeat(operation)
-        return a => isIdentity(a) ?
-            () => identity :
-            n => n === 0n ? identity : sg(a)(n)
-    }
-*/
-
+/**
+ * Repeats a monoid operation `n` times on the given element `a`.
+ * This function efficiently performs the operation using exponentiation by squaring.
+ *
+ * @template T The type of the elements in the monoid.
+ * @param monoid The monoid structure, including the identity and binary operation.
+ * @returns {(a: T) => (n: bigint) => T} A function that takes an element `a` and a repetition count `n`,
+ * and returns the result of applying the operation `n` times.
+ *
+ * @example
+ *
+ * ```ts
+ * const add: Monoid<number> = {
+ *     identity: 0,
+ *     operation: a => b => a + b,
+ * };
+ *
+ * const repeatAdd = repeat(add)
+ * const resultAdd = repeatAdd(2)(10n)) // 20
+ *
+ * const concat: Monoid<string> = {
+ *     identity: '',
+ *     operation: a => b => a + b,
+ * };
+ *
+ * const repeatConcat = repeat(concat);
+ * const result = repeatConcat('ha')(3n)); // 'hahaha'
+ * ```
+ */
 export const repeat
     = <T>({ identity, operation }: Monoid<T>) => (a: T) => (n: bigint): T => {
-        if (n === 0n) { return identity }
         let ai = a
         let ni = n
         let result = identity
         while (true) {
-            const lsb = ni & 1n
-            ni >>= 1n
-            if (lsb !== 0n) {
+            if ((ni & 1n) !== 0n) {
                 result = operation(result)(ai)
-                if (ni === 0n) {
-                    return result
-                }
+            }
+            ni >>= 1n
+            if (ni === 0n) {
+                return result
             }
             ai = operation(ai)(ai)
         }
