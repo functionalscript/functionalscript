@@ -28,7 +28,7 @@ type BaseInit = {
 type Base = {
     readonly bitLength: bigint
     readonly chunkLength: bigint
-    readonly compress: (i: V8) => (d: V16) => V8
+    readonly compressV16: (i: V8) => (d: V16) => V8
     readonly compressU: (i: V8) => (u: bigint) => V8
 }
 
@@ -93,7 +93,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const kLength = k.length
 
-    const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
+    const compressV16 = ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
         let w = data
 
         let a = a0
@@ -143,9 +143,9 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
         chunkLength: bitLength << 4n, // * 16
 
-        compress,
+        compressV16,
 
-        compressU: (i: V8) => (u: bigint) => compress(i)([
+        compressU: (i: V8) => (u: bigint) => compressV16(i)([
             (u >> (15n << logBitLen)) & mask,
             (u >> (14n << logBitLen)) & mask,
             (u >> (13n << logBitLen)) & mask,
