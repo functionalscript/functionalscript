@@ -1,12 +1,5 @@
-import { todo } from '../../dev/module.f.ts'
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
-import { bitLength } from "../../types/bigint/module.f.ts";
-import { uint, uintMsb } from "../../types/bit_vec/module.f.ts";
-import { vec } from "../../types/bit_vec/module.f.ts";
-import { popUintMsb } from "../../types/bit_vec/module.f.ts";
-import { length } from "../../types/bit_vec/module.f.ts";
-import { concatMsb } from '../../types/bit_vec/module.f.ts'
-import { empty, type Vec } from '../../types/bit_vec/module.f.ts'
+import { uintMsb, vec, popUintMsb, length, concatMsb, empty, type Vec } from '../../types/bit_vec/module.f.ts'
 
 type V3 = Array3<bigint>
 
@@ -28,8 +21,7 @@ type BaseInit = {
 type Base = {
     readonly bitLength: bigint
     readonly chunkLength: bigint
-    readonly compressV16: (i: V8) => (d: V16) => V8
-    readonly compressU: (i: V8) => (u: bigint) => V8
+    readonly compress: (i: V8) => (u: bigint) => V8
 }
 
 const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
@@ -143,9 +135,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
         chunkLength: bitLength << 4n, // * 16
 
-        compressV16,
-
-        compressU: (i: V8) => (u: bigint) => compressV16(i)([
+        compress: (i: V8) => (u: bigint) => compressV16(i)([
             (u >> (15n << logBitLen)) & mask,
             (u >> (14n << logBitLen)) & mask,
             (u >> (13n << logBitLen)) & mask,
@@ -182,14 +172,14 @@ const state = (base: Base) => (hash: V8): State => ({
 
 const append = (state: State) => {
     const { base } = state
-    const { compressU, chunkLength } = base
+    const { compress, chunkLength } = base
     return (v: Vec): State => {
         let { remainder, hash, len } = state
         remainder = concatMsb(remainder)(v)
         let remainderLen = length(remainder)
         while (remainderLen >= chunkLength) {
             const [u, nr] = popUintMsb(chunkLength)(remainder)
-            hash = compressU(hash)(u)
+            hash = compress(hash)(u)
             remainder = nr
             remainderLen -= chunkLength
             len += chunkLength
@@ -206,16 +196,16 @@ const append = (state: State) => {
 const lastOne: Vec = vec(1n)(1n)
 
 const end = (state: State): V8 => {
-    const { base: { chunkLength, compressU }, len } = state
+    const { base: { chunkLength, compress }, len } = state
     let { remainder, hash } = state
     remainder = concatMsb(remainder)(lastOne)
     let u = uintMsb(chunkLength)(remainder)
     // overflow
     if (length(remainder) + 64n > chunkLength) {
-        hash = compressU(hash)(u)
+        hash = compress(hash)(u)
         u = 0n
     }
-    return compressU(hash)(u | len)
+    return compress(hash)(u | len)
 }
 
 export const base32 = base({
