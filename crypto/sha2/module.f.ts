@@ -104,7 +104,7 @@ const k = [
         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
     ],
-];
+]
 
 const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]: Hash8) => (data: Array16): Hash8 => {
     let w = data
@@ -118,7 +118,7 @@ const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]: Hash8) => (data: Array16): H
     let g = g0
     let h = h0
 
-    let i = 0;
+    let i = 0
     while (true) {
         const ki = k[i]
         for (let j = 0; j < 16; ++j) {
