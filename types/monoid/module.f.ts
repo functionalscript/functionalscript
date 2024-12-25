@@ -51,7 +51,7 @@ export type Monoid<T> = {
  *
  * @template T The type of the elements in the monoid.
  * @param monoid The monoid structure, including the identity and binary operation.
- * @returns {(a: T) => (n: bigint) => T} A function that takes an element `a` and a repetition count `n`,
+ * @returns A function that takes an element `a` and a repetition count `n`,
  * and returns the result of applying the operation `n` times.
  *
  * @example
