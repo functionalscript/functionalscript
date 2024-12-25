@@ -1,9 +1,7 @@
 import * as _ from './module.f.ts'
 import * as json from '../../json/module.f.ts'
-import * as o from '../object/module.f.ts'
-const { sort } = o
-import * as operator from '../function/operator/module.f.ts'
-const { addition, strictEqual, reduceToScan } = operator
+import { sort } from '../object/module.f.ts'
+import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.ts'
 
 const stringify
     : (sequence: _.List<json.Unknown>) => string

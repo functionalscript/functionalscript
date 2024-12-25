@@ -1,5 +1,4 @@
-import * as _ from './module.f.ts'
-const { at, setReplace, setReduce, empty, entries, remove } = _
+import { at, setReplace, setReduce, empty, entries, remove, type Map } from './module.f.ts'
 import * as seq from '../list/module.f.ts'
 
 export default {
@@ -58,9 +57,7 @@ export default {
         },
     ],
     stress: () => {
-        let m
-            : _.Map<number>
-            = empty
+        let m: Map<number> = empty
         for (let i = 0; i < 100_000; ++i) {
             m = setReplace((i * i).toString())(i)(m)
             /*

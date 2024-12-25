@@ -1,4 +1,4 @@
-import * as Array from '../../array/module.f.ts'
+import type * as Array from '../../array/module.f.ts'
 
 export type Index3 = Array.Index3
 

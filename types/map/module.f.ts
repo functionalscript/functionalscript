@@ -1,24 +1,18 @@
-import * as BtreeTypes from '../btree/types/module.f.ts'
-import * as btf from '../btree/find/module.f.ts'
-const { value, find } = btf
-import * as bts from '../btree/set/module.f.ts'
-const { set } = bts
-import * as btr from '../btree/remove/module.f.ts'
-const { remove: btreeRemove } = btr
-import * as bt from '../btree/module.f.ts'
-const { values } = bt
-import * as Compare from '../function/compare/module.f.ts'
-import * as s from '../string/module.f.ts'
-const { cmp } = s
-import * as list from '../list/module.f.ts'
-const { fold } = list
-import * as Operator from '../function/operator/module.f.ts'
+import type * as BtreeTypes from '../btree/types/module.f.ts'
+import { value, find } from '../btree/find/module.f.ts'
+import { set } from '../btree/set/module.f.ts'
+import { remove as btreeRemove } from '../btree/remove/module.f.ts'
+import { values } from '../btree/module.f.ts'
+import type * as Compare from '../function/compare/module.f.ts'
+import { cmp } from '../string/module.f.ts'
+import { fold, type List } from '../list/module.f.ts'
+import type * as Operator from '../function/operator/module.f.ts'
 
 export type Sign = Compare.Sign
 
 type Cmp<T> = Compare.Compare<T>
 
-export type Entry<T> = readonly[string, T]
+export type Entry<T> = readonly [string, T]
 
 export type Map<T> = BtreeTypes.Tree<Entry<T>>
 
@@ -27,16 +21,16 @@ const keyCmp
     = a => ([b]) => cmp(a)(b)
 
 export const at
-    = (name: string) => <T>(map: Map<T>): T|null => {
-    if (map === null) { return null }
-    const result = value(find(keyCmp(name))(map).first)
-    return result === null ? null : result[1]
-}
+    = (name: string) => <T>(map: Map<T>): T | null => {
+        if (map === null) { return null }
+        const result = value(find(keyCmp(name))(map).first)
+        return result === null ? null : result[1]
+    }
 
 const setReduceEntry
     : <T>(reduce: Operator.Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>
     = reduce => entry =>
-    set(keyCmp(entry[0]))(old => old === null ? entry : [old[0], reduce(old[1])(entry[1])])
+        set(keyCmp(entry[0]))(old => old === null ? entry : [old[0], reduce(old[1])(entry[1])])
 
 export const setReduce
     : <T>(reduce: Operator.Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>
@@ -51,11 +45,11 @@ export const setReplace
     = name => value => setReduceEntry(replace)([name, value])
 
 export const entries
-    : <T>(map: Map<T>) => list.List<Entry<T>>
+    : <T>(map: Map<T>) => List<Entry<T>>
     = values
 
 export const fromEntries
-    : <T>(entries: list.List<Entry<T>>) => Map<T>
+    : <T>(entries: List<Entry<T>>) => Map<T>
     = fold(setReduceEntry(replace))(null)
 
 export const remove

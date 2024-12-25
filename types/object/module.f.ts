@@ -1,7 +1,6 @@
-import * as list from '../list/module.f.ts'
-const { iterable } = list
-import * as btMap from '../map/module.f.ts'
-const { entries: mapEntries, fromEntries: mapFromEntries } = btMap
+import { iterable, type List } from '../list/module.f.ts'
+import { entries as mapEntries, fromEntries as mapFromEntries, type Map as BtMap } from '../map/module.f.ts'
+
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 
 export type Map<T> = {
@@ -18,13 +17,13 @@ export const at
 }
 
 export const sort
-    : <T>(e: list.List<Entry<T>>) => list.List<Entry<T>>
+    : <T>(e: List<Entry<T>>) => List<Entry<T>>
     = e => mapEntries(mapFromEntries(e))
 
 export const fromEntries
-    : <T>(e: list.List<Entry<T>>) => Map<T>
+    : <T>(e: List<Entry<T>>) => Map<T>
     = e => objectFromEntries(iterable(e))
 
 export const fromMap
-    : <T>(m: btMap.Map<T>) => Map<T>
+    : <T>(m: BtMap<T>) => Map<T>
     = m => fromEntries(mapEntries(m))

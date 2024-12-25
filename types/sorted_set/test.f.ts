@@ -1,14 +1,10 @@
 import * as _ from './module.f.ts'
-import * as compare from '../function/compare/module.f.ts'
-const { unsafeCmp } = compare
+import { unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
-import * as object from '../object/module.f.ts'
-const { sort } = object
-import * as list from '../list/module.f.ts'
-const { toArray, countdown, length } = list
-import * as Map from '../map/module.f.ts'
-import * as f from '../function/module.f.ts'
-const { flip } = f
+import { sort } from '../object/module.f.ts'
+import { toArray, countdown, length } from '../list/module.f.ts'
+import type * as Map from '../map/module.f.ts'
+import { flip } from '../function/module.f.ts'
 
 const stringify
     : (a: readonly json.Unknown[]) => string

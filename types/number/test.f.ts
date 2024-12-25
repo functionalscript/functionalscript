@@ -1,5 +1,4 @@
-import * as _ from './module.f.ts'
-const { sum, min, max, cmp } = _
+import { sum, min, max, cmp } from './module.f.ts'
 
 export default {
     sum: () => {

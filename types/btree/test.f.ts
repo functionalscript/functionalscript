@@ -1,4 +1,4 @@
-import * as BTree from './types/module.f.ts'
+import type * as BTree from './types/module.f.ts'
 import * as _ from './module.f.ts'
 const { values } = _
 import * as json from '../../json/module.f.ts'

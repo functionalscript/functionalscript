@@ -1,8 +1,8 @@
-type Array1<T> = readonly[T]
+export type Array1<T> = readonly[T]
 
-type Array2<T> = readonly[T,T]
+export type Array2<T> = readonly[T,T]
 
-type Array3<T> = readonly[T,T,T]
+export type Array3<T> = readonly[T,T,T]
 
 type Index2 = 0|1
 

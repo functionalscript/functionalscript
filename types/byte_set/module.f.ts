@@ -1,6 +1,6 @@
 import { compose } from '../function/module.f.ts'
-import * as RangeMap from '../range_map/module.f.ts'
-import * as SortedSet from '../sorted_set/module.f.ts'
+import type * as RangeMap from '../range_map/module.f.ts'
+import type * as SortedSet from '../sorted_set/module.f.ts'
 import * as list from '../list/module.f.ts'
 const { reverse, countdown, flat, map } = list
 
@@ -47,16 +47,16 @@ const difference
 // additional operations
 
 export const set
-: (_: number) => (b: ByteSet) => ByteSet
-= compose(one)(union)
+    : (_: number) => (b: ByteSet) => ByteSet
+    = compose(one)(union)
 
 export const setRange
-: (_: readonly [number, number]) => (b: ByteSet) => ByteSet
-= compose(range)(union)
+    : (_: readonly [number, number]) => (b: ByteSet) => ByteSet
+    = compose(range)(union)
 
 export const unset
-: (n: Byte) => (s: ByteSet) => ByteSet
-= n => s => difference(s)(one(n))
+    : (n: Byte) => (s: ByteSet) => ByteSet
+    = n => s => difference(s)(one(n))
 
 const counter = reverse(countdown(256))
 

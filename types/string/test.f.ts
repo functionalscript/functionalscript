@@ -1,7 +1,5 @@
-import * as _ from './module.f.ts'
-const { join, concat, repeat, cmp } = _
-import * as list from '../list/module.f.ts'
-const { repeat: repeatList } = list
+import { join, concat, repeat, cmp } from './module.f.ts'
+import { repeat as repeatList } from '../list/module.f.ts'
 
 export default {
     join: {

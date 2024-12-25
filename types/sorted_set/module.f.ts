@@ -1,8 +1,6 @@
-import * as Compare from '../function/compare/module.f.ts'
-import * as list from "../list/module.f.ts"
-const { toArray } = list
-import * as sortedList from '../sorted_list/module.f.ts'
-const { merge, genericMerge, find } = sortedList
+import type * as Compare from '../function/compare/module.f.ts'
+import { toArray } from "../list/module.f.ts"
+import { merge, genericMerge, find, type SortedList, type ReduceOp } from '../sorted_list/module.f.ts'
 
 export type SortedSet<T> = readonly T[]
 
@@ -21,15 +19,15 @@ export const intersect
 const tailReduce = () => () => null
 
 const intersectMerge
-    : <T>(cmp: Cmp<T>) => (a: sortedList.SortedList<T>) => (b: sortedList.SortedList<T>) => sortedList.SortedList<T>
+    : <T>(cmp: Cmp<T>) => (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>
     = cmp => genericMerge({ reduceOp: intersectReduce(cmp), tailReduce })(null)
 
 const intersectReduce
-    : <T,S>(cmp: Cmp<T>) => sortedList.ReduceOp<T,S>
+    : <T, S>(cmp: Cmp<T>) => ReduceOp<T, S>
     = cmp => state => a => b => {
-    const sign = cmp(a)(b)
-    return [sign === 0 ? a : null, sign, state]
-}
+        const sign = cmp(a)(b)
+        return [sign === 0 ? a : null, sign, state]
+    }
 
 export const has
     : <T>(cmp: Cmp<T>) => (value: T) => (set: SortedSet<T>) => boolean

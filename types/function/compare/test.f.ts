@@ -1,5 +1,4 @@
-import * as _ from './module.f.ts'
-const { unsafeCmp } = _
+import { unsafeCmp } from './module.f.ts'
 
 export default () => {
     const result = unsafeCmp(true)(false)
