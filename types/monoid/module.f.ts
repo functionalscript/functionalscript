@@ -16,7 +16,7 @@ import type { Reduce } from "../function/operator/module.f.ts";
  *
  * @template T The type of the elements in the monoid.
  */
-type Monoid<T> = {
+export type Monoid<T> = {
     /**
      * The identity (neutral) element for the monoid.
      * When combined with any value under the `operation`, it leaves the other value unchanged.
@@ -62,16 +62,14 @@ type Monoid<T> = {
  *     operation: a => b => a + b,
  * };
  *
- * const repeatAdd = repeat(add)
- * const resultAdd = repeatAdd(2)(10n)) // 20
+ * const resultAdd = repeat(add)(2)(10n) // 20
  *
  * const concat: Monoid<string> = {
  *     identity: '',
  *     operation: a => b => a + b,
  * };
  *
- * const repeatConcat = repeat(concat);
- * const result = repeatConcat('ha')(3n)); // 'hahaha'
+ * const resultConcat = repeat(concat)('ha')(3n) // 'hahaha'
  * ```
  */
 export const repeat
