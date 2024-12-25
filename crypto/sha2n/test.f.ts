@@ -8,6 +8,7 @@ const f32 = (a: V8) => a.reduce((p, v) => (p << 32n) | v)
 
 const f64 = (a: V8) => a.reduce((p, v) => (p << 64n) | v)
 
+// https://en.wikipedia.org/wiki/SHA-2#Test_vectors
 export default {
     s224: () => {
         const result = f32(compress32(sha224)(empty32)) >> 32n
