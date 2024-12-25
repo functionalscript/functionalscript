@@ -94,5 +94,17 @@ export const bitLength = (v: bigint): bigint => {
     return log2(v) + 1n
 }
 
+/**
+ * Generates a bitmask with the specified number of bits set to 1.
+ *
+ * @param len - The number of bits to set in the mask. Must be a non-negative integer.
+ * @returns A bigint representing the bitmask, where the least significant `len` bits are 1.
+ *
+ * @example
+ *
+ * ```js
+ * const result = mask(3n) // 7n
+ * ```
+ */
 export const mask = (len: bigint): bigint =>
     (1n << len) - 1n

@@ -1,6 +1,10 @@
-import { sum, abs, serialize, log2, bitLength } from './module.f.ts'
+import { sum, abs, serialize, log2, bitLength, mask } from './module.f.ts'
 
 export default {
+    mask: () => {
+        const result = mask(3n) // 7n
+        if (result !== 7n) { throw result }
+    },
     sum: () => {
         const result = sum([2n, 3n, 4n, 5n])
         if (result !== 14n) { throw result }
