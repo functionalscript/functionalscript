@@ -9,6 +9,27 @@ export type V8 = Array8<bigint>
 
 export type V16 = Array16<bigint>
 
+export type State = {
+    readonly hash: V8
+    readonly len: bigint
+    readonly remainder: Vec
+}
+
+export const state = (hash: V8): State => ({
+    hash,
+    len: 0n,
+    remainder: empty,
+})
+
+export type Base = {
+    readonly bitLength: bigint
+    readonly chunkLength: bigint
+    readonly compress: (i: V8) => (u: bigint) => V8
+    readonly fromV8: (a: V8) => bigint
+    readonly append: (state: State) => (v: Vec) => State
+    readonly end: (state: State) => V8
+}
+
 type BaseInit = {
     readonly logBitLen: bigint
     readonly k: readonly V16[]
@@ -16,12 +37,6 @@ type BaseInit = {
     readonly bs1: V3
     readonly ss0: V3
     readonly ss1: V3
-}
-
-type Base = {
-    readonly bitLength: bigint
-    readonly chunkLength: bigint
-    readonly compress: (i: V8) => (u: bigint) => V8
 }
 
 const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
@@ -129,84 +144,71 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         ]
     }
 
+    const compress = (i: V8) => (u: bigint) => compressV16(i)([
+        (u >> (15n << logBitLen)) & mask,
+        (u >> (14n << logBitLen)) & mask,
+        (u >> (13n << logBitLen)) & mask,
+        (u >> (12n << logBitLen)) & mask,
+        (u >> (11n << logBitLen)) & mask,
+        (u >> (10n << logBitLen)) & mask,
+        (u >> (9n << logBitLen)) & mask,
+        (u >> (8n << logBitLen)) & mask,
+        (u >> (7n << logBitLen)) & mask,
+        (u >> (6n << logBitLen)) & mask,
+        (u >> (5n << logBitLen)) & mask,
+        (u >> (4n << logBitLen)) & mask,
+        (u >> (3n << logBitLen)) & mask,
+        (u >> (2n << logBitLen)) & mask,
+        (u >> (1n << logBitLen)) & mask,
+        u & mask,
+    ])
+
+    const chunkLength = bitLength << 4n // * 16
+
     return {
 
         bitLength,
 
-        chunkLength: bitLength << 4n, // * 16
+        chunkLength,
 
-        compress: (i: V8) => (u: bigint) => compressV16(i)([
-            (u >> (15n << logBitLen)) & mask,
-            (u >> (14n << logBitLen)) & mask,
-            (u >> (13n << logBitLen)) & mask,
-            (u >> (12n << logBitLen)) & mask,
-            (u >> (11n << logBitLen)) & mask,
-            (u >> (10n << logBitLen)) & mask,
-            (u >> (9n << logBitLen)) & mask,
-            (u >> (8n << logBitLen)) & mask,
-            (u >> (7n << logBitLen)) & mask,
-            (u >> (6n << logBitLen)) & mask,
-            (u >> (5n << logBitLen)) & mask,
-            (u >> (4n << logBitLen)) & mask,
-            (u >> (3n << logBitLen)) & mask,
-            (u >> (2n << logBitLen)) & mask,
-            (u >> (1n << logBitLen)) & mask,
-            u & mask,
-        ])
-    }
-}
+        compress,
 
-type State = {
-    readonly base: Base
-    readonly hash: V8
-    readonly len: bigint
-    readonly remainder: Vec
-}
+        fromV8: (a: V8) => a.reduce((p, v) => (p << bitLength) | v),
 
-const state = (base: Base) => (hash: V8): State => ({
-    base,
-    hash,
-    len: 0n,
-    remainder: empty,
-})
+        append: (state: State) => (v: Vec): State => {
+            let { remainder, hash, len } = state
+            remainder = concatMsb(remainder)(v)
+            let remainderLen = length(remainder)
+            while (remainderLen >= chunkLength) {
+                const [u, nr] = popUintMsb(chunkLength)(remainder)
+                hash = compress(hash)(u)
+                remainder = nr
+                remainderLen -= chunkLength
+                len += chunkLength
+            }
+            return {
+                hash,
+                len,
+                remainder
+            }
+        },
 
-const append = (state: State) => {
-    const { base } = state
-    const { compress, chunkLength } = base
-    return (v: Vec): State => {
-        let { remainder, hash, len } = state
-        remainder = concatMsb(remainder)(v)
-        let remainderLen = length(remainder)
-        while (remainderLen >= chunkLength) {
-            const [u, nr] = popUintMsb(chunkLength)(remainder)
-            hash = compress(hash)(u)
-            remainder = nr
-            remainderLen -= chunkLength
-            len += chunkLength
-        }
-        return {
-            base,
-            hash,
-            len,
-            remainder
+        end: (state: State): V8 => {
+            const { len } = state
+            let { remainder, hash } = state
+            remainder = concatMsb(remainder)(lastOne)
+            let u = uintMsb(chunkLength)(remainder)
+            // overflow
+            if (length(remainder) + 64n > chunkLength) {
+                hash = compress(hash)(u)
+                u = 0n
+            }
+            return compress(hash)(u | len)
         }
     }
 }
 
 const lastOne: Vec = vec(1n)(1n)
-
-const end = (state: State): V8 => {
-    const { base: { chunkLength, compress }, len } = state
-    let { remainder, hash } = state
-    remainder = concatMsb(remainder)(lastOne)
-    let u = uintMsb(chunkLength)(remainder)
-    // overflow
-    if (length(remainder) + 64n > chunkLength) {
-        hash = compress(hash)(u)
-        u = 0n
-    }
-    return compress(hash)(u | len)
-}
 
 export const base32 = base({
     logBitLen: 5n,
