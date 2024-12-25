@@ -1,4 +1,15 @@
-import { compress32, compress64, sha224, sha256, sha384, sha512, sha512x224, sha512x256, type V16, type V8 } from './module.f.ts'
+import {
+    compress32,
+    compress64,
+    sha224,
+    sha256,
+    sha384,
+    sha512,
+    sha512x224,
+    sha512x256,
+    type V16,
+    type V8
+} from './module.f.ts'
 
 const empty32: V16 = [0x8000_0000n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n]
 
