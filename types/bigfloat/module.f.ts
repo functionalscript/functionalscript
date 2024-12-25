@@ -41,17 +41,13 @@ const pow = (base: bigint) => (exp: number) => base ** BigInt(exp)
 
 const pow5 = pow(5n)
 
-export const multiply
-    = ([m, e]: BigFloat) => (mul: bigint): BigFloat =>
-        [m * mul, e]
+export const multiply = ([m, e]: BigFloat) => (mul: bigint): BigFloat =>
+    [m * mul, e]
 
-const divide
-    = ([m, e]: BigFloat) => (div: bigint): BigFloatWithRemainder =>
-        [[m / div, e], m % div]
+const divide = ([m, e]: BigFloat) => (div: bigint): BigFloatWithRemainder =>
+    [[m / div, e], m % div]
 
-const round53
-    : (b: BigFloatWithRemainder) => BigFloat
-    = ([[m, e], r]) => {
+const round53 = ([[m, e], r]: BigFloatWithRemainder): BigFloat => {
     const mabs = abs(m)
     const s = BigInt(sign(m))
     const [m54, e54] = decreaseMantissa([mabs, e])(twoPow54)
@@ -65,9 +61,7 @@ const round53
     return multiply([m53 + o54, e53])(s)
 }
 
-export const decToBin
-    : (dec: BigFloat) => BigFloat
-    = dec => {
+export const decToBin = (dec: BigFloat): BigFloat => {
     if (dec[0] === 0n) {
         return [0n, 0]
     }

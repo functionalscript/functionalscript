@@ -1,11 +1,3 @@
-const assert
-    : () => never
-    = () => { throw 'assert' }
-
-const assert_if
-    : (_: boolean) => void
-    = c => { if (c) { throw 'assert_if' } }
-
 export default {
     ctor: () => {
         const c = (() => { })['constructor']

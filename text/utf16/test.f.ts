@@ -4,9 +4,8 @@ import * as o from '../../types/object/module.f.ts'
 const { sort } = o
 import * as list from '../../types/list/module.f.ts'
 
-const stringify
-    : (a: readonly json.Unknown[]) => string
-    = a => json.stringify(sort)(a)
+const stringify = (a: readonly json.Unknown[]) =>
+    json.stringify(sort)(a)
 
 export default {
     toCodePointList: [

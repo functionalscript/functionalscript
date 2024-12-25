@@ -1,9 +1,8 @@
 import * as _ from './module.f.ts'
 import * as list from '../../list/module.f.ts'
 import * as json from '../../../json/module.f.ts'
-import * as o from '../../object/module.f.ts'
-const { sort } = o
-import * as btree from '../types/module.f.ts'
+import { sort } from '../../object/module.f.ts'
+import type * as btree from '../types/module.f.ts'
 import * as string from '../../string/module.f.ts'
 const { cmp } = string
 import * as s from '../set/module.f.ts'
@@ -23,11 +22,10 @@ const find
     = i => m => str(_.find(cmp(i))(m))
 
 const test = () => {
-    let _map
-        : btree.TNode<string>
-        = ['1']
-    for (let i = 2; i <= 10; i++)
+    let _map: btree.TNode<string> = ['1']
+    for (let i = 2; i <= 10; i++) {
         _map = set(_map)((i * i).toString())
+    }
     {
         const s = jsonStr(_map)
         if (s !== '[[["1","100"],"16",["25","36"]],"4",[["49"],"64",["81","9"]]]') { throw s }

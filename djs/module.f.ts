@@ -2,7 +2,7 @@ import * as list from '../types/list/module.f.ts'
 const { flat, map } = list
 import * as string from '../types/string/module.f.ts'
 const { concat } = string
-import * as O from '../types/object/module.f.ts'
+import type * as O from '../types/object/module.f.ts'
 import * as f from '../types/function/module.f.ts'
 const { compose, fn } = f
 const { entries } = Object

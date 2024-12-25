@@ -1,4 +1,4 @@
-import * as Operator from '../../types/function/operator/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
 const { empty, flat, stateScan } = list
 import * as bf from '../../types/bigfloat/module.f.ts'

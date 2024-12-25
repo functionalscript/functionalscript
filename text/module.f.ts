@@ -9,10 +9,7 @@ type ItemThunk = () => list.List<Item>
 
 export type Item = string|ItemArray|ItemThunk
 
-export const flat
-    : (indent: string) => (text: Block) => list.List<string>
-    = indent => {
-
+export const flat = (indent: string): (text: Block) => list.List<string> => {
     const f
         : (prefix: string) => (text: Block) => list.List<string>
         = prefix => {
@@ -25,6 +22,5 @@ export const flat
     return f('')
 }
 
-export const curly
-    : (type: string) => (name: string) => (body: Block) => Block
-    = type => name => body => [`${type} ${name}`, '{', body, '}']
+export const curly = (type: string) => (name: string) => (body: Block): Block =>
+    [`${type} ${name}`, '{', body, '}']

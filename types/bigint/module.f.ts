@@ -15,13 +15,11 @@ export const sum
 
 export const abs: Unary = a => a >= 0 ? a : -a
 
-export const sign
-    : (a: bigint) => compare.Sign
-    = a => unsafeCmp(a)(0n)
+export const sign = (a: bigint): compare.Sign =>
+    unsafeCmp(a)(0n)
 
-export const serialize
-    : (a: bigint) => string
-    = a => `${a}n`
+export const serialize = (a: bigint): string =>
+    `${a}n`
 
 /**
  * Calculates the base-2 logarithm (floor).
