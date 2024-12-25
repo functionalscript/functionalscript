@@ -27,7 +27,7 @@ export type Base = {
     readonly compress: (i: V8) => (u: bigint) => V8
     readonly fromV8: (a: V8) => bigint
     readonly append: (state: State) => (v: Vec) => State
-    readonly end: (state: State) => V8
+    readonly end: (hashLength: bigint) => (state: State) => bigint
 }
 
 type BaseInit = {
@@ -165,6 +165,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const chunkLength = bitLength << 4n // * 16
 
+    const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
+
     return {
 
         bitLength,
@@ -173,7 +175,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
         compress,
 
-        fromV8: (a: V8) => a.reduce((p, v) => (p << bitLength) | v),
+        fromV8,
 
         append: (state: State) => (v: Vec): State => {
             let { remainder, hash, len } = state
@@ -193,17 +195,20 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
             }
         },
 
-        end: (state: State): V8 => {
-            const { len } = state
-            let { remainder, hash } = state
-            remainder = concatMsb(remainder)(lastOne)
-            let u = uintMsb(chunkLength)(remainder)
-            // overflow
-            if (length(remainder) + 64n > chunkLength) {
-                hash = compress(hash)(u)
-                u = 0n
+        end: (hashLength: bigint) => {
+            const offset = (bitLength << 3n) - hashLength
+            return (state: State): bigint => {
+                const { len } = state
+                let { remainder, hash } = state
+                remainder = concatMsb(remainder)(lastOne)
+                let u = uintMsb(chunkLength)(remainder)
+                // overflow
+                if (length(remainder) + 64n > chunkLength) {
+                    hash = compress(hash)(u)
+                    u = 0n
+                }
+                return fromV8(compress(hash)(u | len)) >> offset
             }
-            return compress(hash)(u | len)
         }
     }
 }
