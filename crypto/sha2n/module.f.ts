@@ -25,6 +25,7 @@ type BaseInit = {
 
 type Base = {
     readonly bitLength: bigint
+    readonly chunkLength: bigint
     readonly compress: (i: V8) => (d: V16) => V8
     readonly toV16: (u: bigint) => V16
 }
@@ -91,7 +92,11 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     const kLength = k.length
 
     return {
+
         bitLength,
+
+        chunkLength: bitLength << 4n, // * 16
+
         compress: ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
             let w = data
 
@@ -136,27 +141,24 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
             ]
         },
 
-        toV16: (u: bigint): V16 => {
-            const mask = (1n << bitLength) - 1n
-            return [
-                (u >> (15n << logBitLen)) & mask,
-                (u >> (14n << logBitLen)) & mask,
-                (u >> (13n << logBitLen)) & mask,
-                (u >> (12n << logBitLen)) & mask,
-                (u >> (11n << logBitLen)) & mask,
-                (u >> (10n << logBitLen)) & mask,
-                (u >> (9n << logBitLen)) & mask,
-                (u >> (8n << logBitLen)) & mask,
-                (u >> (7n << logBitLen)) & mask,
-                (u >> (6n << logBitLen)) & mask,
-                (u >> (5n << logBitLen)) & mask,
-                (u >> (4n << logBitLen)) & mask,
-                (u >> (3n << logBitLen)) & mask,
-                (u >> (2n << logBitLen)) & mask,
-                (u >> (1n << logBitLen)) & mask,
-                u & mask,
-            ]
-        }
+        toV16: (u: bigint): V16 => [
+            (u >> (15n << logBitLen)) & mask,
+            (u >> (14n << logBitLen)) & mask,
+            (u >> (13n << logBitLen)) & mask,
+            (u >> (12n << logBitLen)) & mask,
+            (u >> (11n << logBitLen)) & mask,
+            (u >> (10n << logBitLen)) & mask,
+            (u >> (9n << logBitLen)) & mask,
+            (u >> (8n << logBitLen)) & mask,
+            (u >> (7n << logBitLen)) & mask,
+            (u >> (6n << logBitLen)) & mask,
+            (u >> (5n << logBitLen)) & mask,
+            (u >> (4n << logBitLen)) & mask,
+            (u >> (3n << logBitLen)) & mask,
+            (u >> (2n << logBitLen)) & mask,
+            (u >> (1n << logBitLen)) & mask,
+            u & mask,
+        ]
     }
 }
 
@@ -176,17 +178,16 @@ const state = (base: Base) => (hash: V8): State => ({
 
 const append = (state: State) => {
     const { base } = state
-    const { compress, bitLength, toV16 } = base
-    const need = bitLength << 3n // * 8n
+    const { compress, toV16, chunkLength } = base
     return (v: Vec): State => {
         let { remainder, hash, len } = state
         remainder = concatMsb(remainder)(v)
         let remainderLen = length(remainder)
-        while (remainderLen >= need) {
-            const [u, nr] = popUintMsb(need)(remainder)
+        while (remainderLen >= chunkLength) {
+            const [u, nr] = popUintMsb(chunkLength)(remainder)
             remainder = nr
-            remainderLen -= need
-            len += need
+            remainderLen -= chunkLength
+            len += chunkLength
             hash = compress(hash)(toV16(u))
         }
         return {
