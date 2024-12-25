@@ -7,7 +7,6 @@ import {
     sha512,
     sha512x224,
     sha512x256,
-    type V8
 } from './module.f.ts'
 
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors

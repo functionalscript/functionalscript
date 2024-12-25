@@ -15,12 +15,6 @@ export type State = {
     readonly remainder: Vec
 }
 
-export const state = (hash: V8): State => ({
-    hash,
-    len: 0n,
-    remainder: empty,
-})
-
 export type Base = {
     readonly bitLength: bigint
     readonly chunkLength: bigint
@@ -38,6 +32,8 @@ type BaseInit = {
     readonly ss0: V3
     readonly ss1: V3
 }
+
+const lastOne: Vec = vec(1n)(1n)
 
 const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
@@ -213,7 +209,21 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     }
 }
 
-const lastOne: Vec = vec(1n)(1n)
+export type Sha2 = {
+    readonly init: State
+    readonly append: (state: State) => (v: Vec) => State
+    readonly end: (state: State) => bigint
+}
+
+const sha2 = ({ append, end }: Base) => (hash: V8) => (hashLength: bigint): Sha2 =>  ({
+    init: {
+        hash,
+        len: 0n,
+        remainder: empty,
+    },
+    append,
+    end: end(hashLength),
+})
 
 export const base32 = base({
     logBitLen: 5n,
