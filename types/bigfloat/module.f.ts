@@ -1,5 +1,4 @@
-import * as bi from '../bigint/module.f.ts'
-const { abs, sign } = bi
+import { abs, sign } from '../bigint/module.f.ts'
 
 export type BigFloat = readonly[bigint,number]
 
@@ -8,9 +7,7 @@ type BigFloatWithRemainder = readonly[BigFloat,bigint]
 const twoPow53 = 0b0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 const twoPow54 = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
 
-const increaseMantissa
-    : (value: BigFloat) => (min: bigint) => BigFloat
-    = ([m, e]) => min => {
+const increaseMantissa = ([m, e]: BigFloat) => (min: bigint): BigFloat => {
     if (m === 0n) {
         return [m, e]
     }
@@ -25,9 +22,7 @@ const increaseMantissa
     }
 }
 
-const decreaseMantissa
-    : (value: BigFloat) => (max: bigint) => BigFloat
-    = ([m, e]) => max => {
+const decreaseMantissa = ([m, e]: BigFloat) => (max: bigint): BigFloat => {
     if (m === 0n) {
         return [m, e]
     }
@@ -42,19 +37,17 @@ const decreaseMantissa
     }
 }
 
-const pow
-    : (base: bigint) => (exp: number) => bigint
-    = base => exp => base ** BigInt(exp)
+const pow = (base: bigint) => (exp: number) => base ** BigInt(exp)
 
 const pow5 = pow(5n)
 
 export const multiply
-    : (b: BigFloat) => (mul: bigint) => BigFloat
-    = ([m, e]) => mul => [m * mul, e]
+    = ([m, e]: BigFloat) => (mul: bigint): BigFloat =>
+        [m * mul, e]
 
 const divide
-    : (b: BigFloat) => (div: bigint) => BigFloatWithRemainder
-    = ([m, e]) => div => [[m / div, e], m % div]
+    = ([m, e]: BigFloat) => (div: bigint): BigFloatWithRemainder =>
+        [[m / div, e], m % div]
 
 const round53
     : (b: BigFloatWithRemainder) => BigFloat
