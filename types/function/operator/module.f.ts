@@ -1,4 +1,4 @@
-type Binary<A, B, R> = (a: A) => (b: B) => R
+export type Binary<A, B, R> = (a: A) => (b: B) => R
 
 export type Fold<I, O> = Binary<I, O, O>
 
