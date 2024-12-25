@@ -1,31 +1,10 @@
 import { existsSync } from 'node:fs'
 import { readdir, writeFile, readFile } from 'node:fs/promises'
-
-/**
- * @typedef {{
- *  readonly withFileTypes: true
- * }} Options
- */
-
-/**
- * @typedef {{
- *  readonly name: string
- *  readonly isDirectory: () => boolean
- * }} Dirent
- */
-
-/**
- * @typedef {{
- *  readonly readdir: (path: string, options: Options) => Promise<readonly Dirent[]>
- *  readonly readFile: (path: string, options: 'utf8') => Promise<string>
- * }} FsPromises
- */
+import process from 'node:process'
 
 type Module = {
    readonly default?: unknown
 }
-
-/** @typedef {(name: string) => unknown} Require */
 
 type UnknownMap = {
    readonly[k in string]: unknown
@@ -33,9 +12,8 @@ type UnknownMap = {
 
 type Entry<T> = readonly[string, T]
 
-const cmp
-    : (a: Entry<unknown>, b: Entry<unknown>) => number
-    = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0
+const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>) =>
+    a < b ? -1 : a > b ? 1 : 0
 
 type MutableModuleMap = {
    [k in string]: Module
@@ -45,34 +23,27 @@ type ModuleMap = {
    readonly[k in string]: Module
 }
 
-const remove_tail
-    : (v: readonly string[]) => (dif: number) => readonly string[]
-    = v => dif => v.slice(0, v.length - dif)
-
-const self: any = globalThis
+const remove_tail = (v: readonly string[]) => (dif: number) =>
+    v.slice(0, v.length - dif)
 
 export const exit
     : (code: number) => never
-    = self.Deno ? self.Deno.exit : process.exit
+    = process.exit
 
 export const env
     : (v: string) => string|undefined
-    = self.Deno ? self.Deno.env.get :
-        a => {
-            const r = Object.getOwnPropertyDescriptor(process.env, a)
-            return r === undefined ? undefined :
-                typeof r.get === 'function' ? r.get() :
-                    r.value
-        }
+    = a => {
+        const r = Object.getOwnPropertyDescriptor(process.env, a)
+        return r === undefined ? undefined :
+            typeof r.get === 'function' ? r.get() :
+                r.value
+    }
 
 export const loadModuleMap = async () => {
-    const load
-        : () => Promise<UnknownMap>
-        = async () => {
+    const load = async (): Promise<UnknownMap> => {
         const map
             : (readonly[string, unknown])[]
             = []
-        /** @type {} */
         const f
             : (path: string) => Promise<void>
             = async p => {
@@ -101,15 +72,9 @@ export const loadModuleMap = async () => {
 
     const map = await load()
 
-    const build
-        : () => ModuleMap
-        = () => {
-        const d
-            : MutableModuleMap
-            = {}
-        const getModule
-            : (base: readonly string[]) => (k: string) => readonly[string, Module]
-            = base => k => {
+    const build = (): ModuleMap => {
+        const d: MutableModuleMap = {}
+        const getModule = (base: readonly string[]) => (k: string): readonly[string, Module] => {
             const relativePath = k.split('/')
             const dif = relativePath.filter(v => v === '..').length
             const path = [remove_tail(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
@@ -122,7 +87,6 @@ export const loadModuleMap = async () => {
                 }
             }
             {
-                /** @type {Module} */
                 const module = { default: map[pathStr] }
                 d[pathStr] = module
                 return [pathStr, module]
@@ -142,44 +106,6 @@ export const loadModuleMap = async () => {
 
 type FolderMap = {
    readonly[k in string]: string | FolderMap
-}
-
-const folderMapAdd
-    : (m: FolderMap) => (s: readonly string[]) => FolderMap
-    = m => s => {
-    const [first, ...rest] = s
-    const firstResult = m[first]
-    return typeof firstResult === 'string'
-        ? m
-        : {
-            ...m,
-            [first]: rest.length === 1
-                ? rest[0]
-                : folderMapAdd(firstResult === undefined ? {} : firstResult)(rest)
-        }
-}
-
-const indent = '  '
-
-const codeAdd
-    : (i: string) => (p: string) => (m: FolderMap) => readonly[string,string]
-    = i => p => m => {
-    let result = ''
-    let im = ''
-    for (const [k, v] of Object.entries(m)) {
-        const np = `${p}${k}`
-        if (typeof v === 'string') {
-            result += `${i}${k}: ${np},\n`
-            im += `import ${np} from './${np.replaceAll('$', '/')}/${v}'\n`
-        } else {
-            const [r, x] = codeAdd(i + indent)(`${np}\$`)(v)
-            result += `${i}${k}: \{\n`
-            result += r
-            result += `${i}\},\n`
-            im += x
-        }
-    }
-    return [result, im]
 }
 
 export const index = async () => {

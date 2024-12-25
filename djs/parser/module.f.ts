@@ -1,7 +1,7 @@
 import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
-import * as Operator from '../../types/function/operator/module.f.ts'
-import * as tokenizerT from '../tokenizer/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
+import type * as tokenizerT from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import * as o from '../../types/object/module.f.ts'
 const { fromMap } = o

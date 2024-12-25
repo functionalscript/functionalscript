@@ -24,19 +24,19 @@ const readJson
 export const updateVersion
     : <T>(node: Node<T>) => readonly[T, T]
     = ({ fs }) => {
-    const f = (name: string) => {
-        return fs.writeFileSync(
-            jsonFile(name),
-            stringify(
-                {
-                    ...readJson(fs)(name),
-                    version: getVersion(fs)
-                },
-                null,
-                2))
+        const f = (name: string) => {
+            return fs.writeFileSync(
+                jsonFile(name),
+                stringify(
+                    {
+                        ...readJson(fs)(name),
+                        version: getVersion(fs)
+                    },
+                    null,
+                    2))
+        }
+        return [
+            f('package'),
+            f('deno')
+        ]
     }
-    return [
-        f('package'),
-        f('deno')
-    ]
-}

@@ -2,17 +2,14 @@ import * as _ from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 
-const toU32
-    : (a: number) => number
-    = x => (x + 0x1_0000_0000) % 0x1_0000_0000
+const toU32 = (x: number) =>
+    (x + 0x1_0000_0000) % 0x1_0000_0000
 
-const toHexString
-    : (a: number) => string
-    = x => toU32(x).toString(16).padStart(8, '0')
+const toHexString = (x: number) =>
+    toU32(x).toString(16).padStart(8, '0')
 
-const stringify
-    : (a: readonly json.Unknown[]) => string
-    = a => json.stringify(sort)(a)
+const stringify = (a: readonly json.Unknown[]) =>
+    json.stringify(sort)(a)
 
 // {
 //     const result = _.padding([])(0)

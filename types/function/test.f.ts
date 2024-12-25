@@ -1,6 +1,4 @@
-import * as _ from './module.f.ts'
-
-const { fn } = _
+import { fn } from './module.f.ts'
 
 export default () => {
     const f

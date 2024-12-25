@@ -1,14 +1,10 @@
 import unsafeResult from '../types/result/module.ts'
 const { tryCatch } = unsafeResult
 import { unwrap } from '../types/result/module.f.ts'
-import * as ModuleFunction from './module/function/module.f.ts'
+import type * as ModuleFunction from './module/function/module.f.ts'
 
-const build
-: (f: Function) => ModuleFunction.Function_
-= f => immutableRequire => mutableData => {
-    const mutableRequire
-    : (path: string) => unknown
-    = path => {
+const build = (f: Function): ModuleFunction.Function_ => immutableRequire => mutableData => {
+    const mutableRequire = (path: string): unknown => {
         const [result, data] = immutableRequire(path)(mutableData)
         // Side effect: setting a variable from a nested function (closure)
         // is not allowed in FunctionalScript.
@@ -24,7 +20,7 @@ const build
 }
 
 export const compile
-: ModuleFunction.Compile
-= source =>
-    // Side effect: a `Function` constructor is not allowed in FunctionalScript.
-    tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))
+    : ModuleFunction.Compile
+    = source =>
+        // Side effect: a `Function` constructor is not allowed in FunctionalScript.
+        tryCatch(() => build(Function('module', 'require', `"use strict";${source}`)))

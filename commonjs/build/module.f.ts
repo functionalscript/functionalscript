@@ -1,4 +1,4 @@
-import * as package_ from '../package/module.f.ts'
+import type * as package_ from '../package/module.f.ts'
 import {
     idToString,
     dir,
@@ -7,9 +7,8 @@ import {
     type State,
     type Error,
 } from '../module/module.f.ts'
-import * as function_ from '../module/function/module.f.ts'
-import * as map from '../../types/map/module.f.ts'
-const { empty: mapEmpty, setReplace } = map
+import type * as function_ from '../module/function/module.f.ts'
+import { empty as mapEmpty, setReplace, type Map } from '../../types/map/module.f.ts'
 import * as object from '../../types/object/module.f.ts'
 const { fromMap } = object
 import * as path from '../path/module.f.ts'
@@ -26,9 +25,8 @@ type Config<M> = {
 
 type Result<M> = readonly[State, M]
 
-const notFound
-    : <M>(moduleMap: M) => Result<M>
-    = moduleMap => [['error', ['file not found']], moduleMap]
+const notFound = <M>(moduleMap: M): Result<M> =>
+    [['error', ['file not found']], moduleMap]
 
 export const getOrBuild
 :   (compile: function_.Compile) =>
@@ -53,10 +51,10 @@ export const getOrBuild
         const buildSet1 = setSet(moduleIdStr)(buildSet)
         const moduleDir = dir(moduleId)
         const require_
-            : function_.Require<readonly[map.Map<string>, M]>
+            : function_.Require<readonly[Map<string>, M]>
             = p => ([requireMap, m]) => {
             const error
-                : (e: unknown) => function_.Result<readonly[map.Map<string>, M]>
+                : (e: unknown) => function_.Result<readonly[Map<string>, M]>
                 = e => [['error', e], [requireMap, m]]
             if (moduleDir === null) { return error('file not found') }
             const r = parseAndFind(packageGet)(moduleDir)(p)
@@ -85,9 +83,7 @@ export const getOrBuild
         }
     }
 
-    const f
-    : (moduleId: Id) => (moduleMap: M) => Result<M>
-    = moduleId => moduleMap => {
+    const f = (moduleId: Id) => (moduleMap: M): Result<M> => {
 
         const moduleIdStr = idToString(moduleId)
         // check moduleMap

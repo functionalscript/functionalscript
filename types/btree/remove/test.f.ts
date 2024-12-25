@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import * as BTree from '../types/module.f.ts'
+import type * as BTree from '../types/module.f.ts'
 import * as s from '../set/module.f.ts'
 import * as str from '../../string/module.f.ts'
 const { cmp } = str
@@ -7,13 +7,12 @@ import * as json from '../../../json/module.f.ts'
 import * as o from '../../object/module.f.ts'
 const { sort } = o
 
-const set
-    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string>
-    = node => value => s.set(cmp(value))(() => value)(node)
+const set = (node: BTree.TNode<string>) => (value: string) =>
+    s.set(cmp(value))(() => value)(node)
 
 const remove
-    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string> | null
-    = node => value => _.nodeRemove(cmp(value))(node)
+    = (node: BTree.TNode<string>) => (value: string): BTree.TNode<string> | null =>
+        _.nodeRemove(cmp(value))(node)
 
 const jsonStr = json.stringify(sort)
 

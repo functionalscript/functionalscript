@@ -31,9 +31,7 @@ type Output ={
 
 export type Func = (nodejs: NodeJs) => Output
 
-const flags
-: (platform: Platform) => readonly string[]
-= platform => {
+const flags = (platform: Platform): readonly string[] => {
     switch (platform) {
         case 'win32':
             return []
@@ -44,9 +42,7 @@ const flags
     }
 }
 
-const output
-: (platform: Platform) => (name: string) => string
-= platform => name => {
+const output = (platform: Platform) => (name: string): string => {
     switch (platform) {
         case 'win32': return `${name}.dll`
         case 'darwin': return `lib${name}.dylib`
@@ -54,9 +50,7 @@ const output
     }
 }
 
-const cpp
-: Func
-= ({ dirname, platform }) => ({
+const cpp: Func = ({ dirname, platform }) => ({
     file: {
         name: `${dirname}/cpp/_result.hpp`,
         content: cppContent(),
@@ -70,9 +64,7 @@ const cpp
     ],
 })
 
-const cs
-: Func
-= ({ dirname, platform }) => ({
+const cs: Func = ({ dirname, platform }) => ({
     file: {
         name: `${dirname}/cs/_result.cs`,
         content: csContent,
@@ -85,9 +77,7 @@ const cs
     ],
 })
 
-const rust
-: Func
-= ({ dirname }) => ({
+const rust : Func = ({ dirname }) => ({
     file: {
         name: `${dirname}/rust/src/_result.rs`,
         content: rustContent,

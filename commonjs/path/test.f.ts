@@ -3,15 +3,13 @@ import { todo } from '../../dev/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { at, type Map } from '../../types/object/module.f.ts'
-import * as Package from '../package/module.f.ts'
+import type * as Package from '../package/module.f.ts'
 
-const i
-: <T>(o: Map<T>) => (s: string) => T|null
-= o => s => at(s)(o)
+const i = <T>(o: Map<T>) => (s: string): T|null => at(s)(o)
 
 const stringify
-: (g: json.Unknown) => string
-= json.stringify(identity)
+    : (g: json.Unknown) => string
+    = json.stringify(identity)
 
 export default {
     0: () => {

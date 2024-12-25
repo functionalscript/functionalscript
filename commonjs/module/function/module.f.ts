@@ -2,7 +2,7 @@
  * An IO interface for creating and running module functions.
  */
 
-import * as TypesResult from '../../../types/result/module.f.ts'
+import type * as TypesResult from '../../../types/result/module.f.ts'
 
 export type Function_ = <M>(require: Require<M>) => (prior: M) => Result<M>
 

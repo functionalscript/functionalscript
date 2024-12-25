@@ -1,7 +1,7 @@
 import * as list from '../../types/list/module.f.ts'
 const { flat, reduce, empty } = list
-import * as O from '../../types/object/module.f.ts'
-import * as Operator from '../../types/function/operator/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
 
 type Obj<T> = {
     readonly [k in string]: Unknown<T>
@@ -54,18 +54,18 @@ const join
 const wrap
     : (open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>
     = open => close => {
-    const seqOpen = [open]
-    const seqClose = [close]
-    return input => flat([seqOpen, join(input), seqClose])
-}
+        const seqOpen = [open]
+        const seqClose = [close]
+        return input => flat([seqOpen, join(input), seqClose])
+    }
 
 export const objectWrap
-: (input: list.List<list.List<string>>) => list.List<string>
-= wrap('{')('}')
+    : (input: list.List<list.List<string>>) => list.List<string>
+    = wrap('{')('}')
 
 export const arrayWrap
-: (input: list.List<list.List<string>>) => list.List<string>
-= wrap('[')(']')
+    : (input: list.List<list.List<string>>) => list.List<string>
+    = wrap('[')(']')
 
 type Entry<T> = O.Entry<Unknown<T>>
 

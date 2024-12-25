@@ -8,8 +8,7 @@ type PackageJson = {
     readonly dependencies?: DependenciesJson
 }
 
-export const isPackageJson
-= (j: Unknown): j is PackageJson => {
+export const isPackageJson = (j: Unknown): j is PackageJson => {
     if (!isObject(j)) { return false }
     if (typeof j.name !== 'string') { return false }
     if (typeof j.version !== 'string') { return false }

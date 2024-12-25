@@ -1,4 +1,4 @@
-import * as _ from './module.f.ts'
+import type { Library } from './module.f.ts'
 
 export default {
     Slice: {
@@ -27,4 +27,4 @@ export default {
             SetManagedStruct: { a: ['ManagedStruct'] },
         },
     }
-} satisfies _.Library
+} satisfies Library

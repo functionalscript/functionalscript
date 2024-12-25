@@ -1,16 +1,11 @@
-import * as BtreeTypes from '../btree/types/module.f.ts'
+import type * as BtreeTypes from '../btree/types/module.f.ts'
 import * as btree from '../btree/module.f.ts'
-import * as btf from '../btree/find/module.f.ts'
-const { find, isFound } = btf
-import * as btr from '../btree/remove/module.f.ts'
-const { remove: btreeRemove } = btr
-import * as bts from '../btree/set/module.f.ts'
-const { set: btreeSet } = bts
-import * as string from "../string/module.f.ts"
-const { cmp } = string
+import { find, isFound } from '../btree/find/module.f.ts'
+import { remove as btreeRemove } from '../btree/remove/module.f.ts'
+import { set as btreeSet } from '../btree/set/module.f.ts'
+import { cmp } from "../string/module.f.ts"
 import { fold, type List } from '../list/module.f.ts'
-import * as f from '../function/module.f.ts'
-const { compose } = f
+import { compose } from '../function/module.f.ts'
 
 export const values: (s: StringSet) => List<string> = btree.values
 export const empty: null = btree.empty

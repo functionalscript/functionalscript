@@ -1,6 +1,6 @@
 import { entries, fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
-import * as Result from '../../types/result/module.f.ts'
+import type * as Result from '../../types/result/module.f.ts'
 
 type DependencyMap = {
    readonly[k in string]?: Module
@@ -28,9 +28,7 @@ type Input<T> = {
     readonly env: (n: string) => string|undefined
  }
 
-const isTest
-    : (s: string) => boolean
-    = s => s.endsWith('test.f.mjs') || s.endsWith('test.f.js') || s.endsWith('test.f.ts')
+const isTest = (s: string) => s.endsWith('test.f.mjs') || s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
 type TestState = {
     readonly time: number,
@@ -38,19 +36,15 @@ type TestState = {
     readonly fail: number,
  }
 
-const addPass
-    : (time: number) => (testState: TestState) => TestState
-    = delta => ts => ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
+const addPass = (delta: number) => (ts: TestState): TestState =>
+    ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
 
-const addFail
-    : (time: number) => (testState: TestState) => TestState
-    = delta => ts => ({ ...ts, time: ts.time + delta, fail: ts.fail + 1 })
+const addFail = (delta: number) => (ts: TestState): TestState =>
+    ({ ...ts, time: ts.time + delta, fail: ts.fail + 1 })
 
 type FullState<T> = readonly[TestState, T]
 
-const timeFormat
-    : (a: number) => string
-    = a => {
+const timeFormat = (a: number) => {
     const y = Math.round(a * 10_000).toString()
     const yl = 5 - y.length
     const x = '0'.repeat(yl > 0 ? yl : 0) + y

@@ -1,8 +1,6 @@
-import { type Range } from '../../types/range/module.f.ts'
+import type { Range } from '../../types/range/module.f.ts'
 
-const at
-    : (s: string) => (i: number) => number
-    = s => i => {
+const at = (s: string) => (i: number) => {
     const r = s.codePointAt(i)
     if (r === void 0) { throw s }
     return r
@@ -10,9 +8,7 @@ const at
 
 export const one = (s: string): number => at(s)(0)
 
-export const range
-    : (s: string) => Range
-    = s => {
+export const range = (s: string): Range => {
     const f = at(s)
     const f0 = f(0)
     if (s.length === 1) { return [f0, f0] }

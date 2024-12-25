@@ -5,7 +5,6 @@ import * as j from '../json/module.f.ts'
 const { stringify } = j
 const s = stringify(i => i)
 
-/** @type {} */
 const f
     : (v: string) => string
     = v => {

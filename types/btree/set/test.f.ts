@@ -1,14 +1,11 @@
 import * as _ from './module.f.ts'
-import * as BTree from '../types/module.f.ts'
-import * as s from '../../string/module.f.ts'
-const { cmp } = s
+import type * as BTree from '../types/module.f.ts'
+import { cmp } from '../../string/module.f.ts'
 import * as json from '../../../json/module.f.ts'
-import * as o from '../../object/module.f.ts'
-const { sort } = o
+import { sort } from '../../object/module.f.ts'
 
-const set
-    : (node: BTree.TNode<string>) => (value: string) => BTree.TNode<string>
-    = node => value => _.set(cmp(value))(() => value)(node)
+const set = (node: BTree.TNode<string>) => (value: string): BTree.TNode<string> =>
+    _.set(cmp(value))(() => value)(node)
 
 const jsonStr = json.stringify(sort)
 

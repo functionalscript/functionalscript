@@ -1,23 +1,23 @@
 import * as result from '../../types/result/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
 const { fold, first, drop, toArray } = list
-import * as Operator from '../../types/function/operator/module.f.ts'
-import * as Tokenizer from '../tokenizer/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
+import type * as Tokenizer from '../tokenizer/module.f.ts'
 import * as map from '../../types/map/module.f.ts'
 const { setReplace } = map
-import * as Json from '../module.f.ts'
+import type * as Json from '../module.f.ts'
 import * as o from '../../types/object/module.f.ts'
 const { fromMap } = o
 
 type JsonObject = {
- readonly kind: 'object'
- readonly values: map.Map<Json.Unknown>
- readonly key: string
+    readonly kind: 'object'
+    readonly values: map.Map<Json.Unknown>
+    readonly key: string
 }
 
 type JsonArray = {
- readonly kind: 'array'
- readonly values: list.List<Json.Unknown>
+    readonly kind: 'array'
+    readonly values: list.List<Json.Unknown>
 }
 
 type JsonStackElement = |
@@ -62,160 +62,160 @@ const addToArray
 const pushKey
     : (state: StateParse) => (key: string) => JsonState
     = state => value => {
-    if (state.top?.kind === 'object') { return { status: '{k', top: addKeyToObject(state.top)(value), stack: state.stack } }
-    return { status: 'error', message: 'error' }
-}
+        if (state.top?.kind === 'object') { return { status: '{k', top: addKeyToObject(state.top)(value), stack: state.stack } }
+        return { status: 'error', message: 'error' }
+    }
 
 const pushValue
     : (state: StateParse) => (value: Json.Unknown) => JsonState
     = state => value => {
-    if (state.top === null) { return { status: 'result', value: value } }
-    if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
-    return { status: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
-}
+        if (state.top === null) { return { status: 'result', value: value } }
+        if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
+        return { status: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
+    }
 
 const startArray
     : (state: StateParse) => JsonState
     = state => {
-    const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
-    return { status: '[', top: { kind: 'array', values: null }, stack: newStack }
-}
+        const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
+        return { status: '[', top: { kind: 'array', values: null }, stack: newStack }
+    }
 
 const endArray
     : (state: StateParse) => JsonState
     = state => {
-    const array = state.top !== null ? toArray(state.top.values) : null
-    const newState
-        : StateParse
-        = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(array)
-}
+        const array = state.top !== null ? toArray(state.top.values) : null
+        const newState
+            : StateParse
+            = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+        return pushValue(newState)(array)
+    }
 
 const startObject
     : (state: StateParse) => JsonState
     = state => {
-    const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
-    return { status: '{', top: { kind: 'object', values: null, key: '' }, stack: newStack }
-}
+        const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
+        return { status: '{', top: { kind: 'object', values: null, key: '' }, stack: newStack }
+    }
 
 const endObject
     : (state: StateParse) => JsonState
     = state => {
-    const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
-    const newState
-        : StateParse
-        = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(obj)
-}
+        const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
+        const newState
+            : StateParse
+            = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
+        return pushValue(newState)(obj)
+    }
 
 const tokenToValue
     : (token: Tokenizer.JsonToken) => Json.Unknown
     = token => {
-    switch (token.kind) {
-        case 'null': return null
-        case 'false': return false
-        case 'true': return true
-        case 'number': return parseFloat(token.value)
-        case 'string': return token.value
-        default: return null
+        switch (token.kind) {
+            case 'null': return null
+            case 'false': return false
+            case 'true': return true
+            case 'number': return parseFloat(token.value)
+            case 'string': return token.value
+            default: return null
+        }
     }
-}
 
 const isValueToken
     : (token: Tokenizer.JsonToken) => boolean
     = token => {
-    switch (token.kind) {
-        case 'null':
-        case 'false':
-        case 'true':
-        case 'number':
-        case 'string': return true
-        default: return false
+        switch (token.kind) {
+            case 'null':
+            case 'false':
+            case 'true':
+            case 'number':
+            case 'string': return true
+            default: return false
+        }
     }
-}
 
 const parseValueOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === '[') { return startArray(state) }
-    if (token.kind === '{') { return startObject(state) }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+        if (token.kind === '[') { return startArray(state) }
+        if (token.kind === '{') { return startObject(state) }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const parseArrayStartOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-    if (token.kind === '[') { return startArray(state) }
-    if (token.kind === ']') { return endArray(state) }
-    if (token.kind === '{') { return startObject(state) }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+        if (token.kind === '[') { return startArray(state) }
+        if (token.kind === ']') { return endArray(state) }
+        if (token.kind === '{') { return startObject(state) }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const parseArrayValueOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (token.kind === ']') { return endArray(state) }
-    if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (token.kind === ']') { return endArray(state) }
+        if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const parseObjectStartOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (token.kind === 'string') { return pushKey(state)(token.value) }
-    if (token.kind === '}') { return endObject(state) }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (token.kind === 'string') { return pushKey(state)(token.value) }
+        if (token.kind === '}') { return endObject(state) }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const parseObjectKeyOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const parseObjectNextOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (token.kind === '}') { return endObject(state) }
-    if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (token.kind === '}') { return endObject(state) }
+        if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const parseObjectCommaOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-    if (token.kind === 'string') { return pushKey(state)(token.value) }
-    return { status: 'error', message: 'unexpected token' }
-}
+        if (token.kind === 'string') { return pushKey(state)(token.value) }
+        return { status: 'error', message: 'unexpected token' }
+    }
 
 const foldOp
     : Operator.Fold<Tokenizer.JsonToken, JsonState>
     = token => state => {
-    switch (state.status) {
-        case 'result': return { status: 'error', message: 'unexpected token' }
-        case 'error': return { status: 'error', message: state.message }
-        case '': return parseValueOp(token)(state)
-        case '[': return parseArrayStartOp(token)(state)
-        case '[v': return parseArrayValueOp(token)(state)
-        case '[,': return parseValueOp(token)(state)
-        case '{': return parseObjectStartOp(token)(state)
-        case '{k': return parseObjectKeyOp(token)(state)
-        case '{:': return parseValueOp(token)(state)
-        case '{v': return parseObjectNextOp(token)(state)
-        case '{,': return parseObjectCommaOp(token)(state)
+        switch (state.status) {
+            case 'result': return { status: 'error', message: 'unexpected token' }
+            case 'error': return { status: 'error', message: state.message }
+            case '': return parseValueOp(token)(state)
+            case '[': return parseArrayStartOp(token)(state)
+            case '[v': return parseArrayValueOp(token)(state)
+            case '[,': return parseValueOp(token)(state)
+            case '{': return parseObjectStartOp(token)(state)
+            case '{k': return parseObjectKeyOp(token)(state)
+            case '{:': return parseValueOp(token)(state)
+            case '{v': return parseObjectNextOp(token)(state)
+            case '{,': return parseObjectCommaOp(token)(state)
+        }
     }
-}
 
 export const parse
     : (tokenList: list.List<Tokenizer.JsonToken>) => result.Result<Json.Unknown, string>
     = tokenList => {
-    const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
-    switch (state.status) {
-        case 'result': return result.ok(state.value)
-        case 'error': return result.error(state.message)
-        default: return result.error('unexpected end')
+        const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
+        switch (state.status) {
+            case 'result': return result.ok(state.value)
+            case 'error': return result.error(state.message)
+            default: return result.error('unexpected end')
+        }
     }
-}

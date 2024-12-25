@@ -1,11 +1,9 @@
-import * as list from '../list/module.f.ts'
-const { flat } = list
-import * as n from '../nullable/module.f.ts'
-const { map } = n
-import * as _ from './types/module.f.ts'
+import { flat, type List, type Thunk } from '../list/module.f.ts'
+import { map } from '../nullable/module.f.ts'
+import type * as _ from './types/module.f.ts'
 
 const nodeValues
-    : <T>(node: _.TNode<T>) => list.Thunk<T>
+    : <T>(node: _.TNode<T>) => Thunk<T>
     = node => () => {
     switch (node.length) {
         case 1: case 2: { return node }
@@ -31,5 +29,5 @@ const nodeValues
 export const empty = null
 
 export const values
-    : <T>(tree: _.Tree<T>) => list.List<T>
+    : <T>(tree: _.Tree<T>) => List<T>
     = map(nodeValues)

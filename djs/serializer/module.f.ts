@@ -2,7 +2,7 @@ import * as list from '../../types/list/module.f.ts'
 const { flat, map, entries: listEntries, concat: listConcat, flatMap } = list
 import * as string from '../../types/string/module.f.ts'
 const { concat } = string
-import * as O from '../../types/object/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
 const { entries } = Object
@@ -10,7 +10,7 @@ import * as bi from '../../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as j from '../../json/serializer/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
-import * as DjsParser from '../parser/module.f.ts'
+import type * as DjsParser from '../parser/module.f.ts'
 
 const colon = [':']
 

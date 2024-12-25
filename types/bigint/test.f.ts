@@ -1,5 +1,4 @@
-import * as _ from './module.f.ts'
-const { sum, abs, serialize, log2, bitLength } = _
+import { sum, abs, serialize, log2, bitLength } from './module.f.ts'
 
 export default {
     sum: () => {
