@@ -215,7 +215,7 @@ export type Sha2 = {
     readonly end: (state: State) => bigint
 }
 
-const sha2 = ({ append, end }: Base) => (hash: V8) => (hashLength: bigint): Sha2 =>  ({
+const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 =>  ({
     init: {
         hash,
         len: 0n,
@@ -291,28 +291,50 @@ export const base64 = base({
     ss1: [19n, 61n, 6n],
 })
 
-export const sha256: V8 =
-    [0x6a09e667n, 0xbb67ae85n, 0x3c6ef372n, 0xa54ff53an, 0x510e527fn, 0x9b05688cn, 0x1f83d9abn, 0x5be0cd19n]
+export const sha256: Sha2 = sha2(
+    base32,
+    [0x6a09e667n, 0xbb67ae85n, 0x3c6ef372n, 0xa54ff53an, 0x510e527fn, 0x9b05688cn, 0x1f83d9abn, 0x5be0cd19n],
+    256n,
+)
 
-export const sha224: V8 =
-    [0xc1059ed8n, 0x367cd507n, 0x3070dd17n, 0xf70e5939n, 0xffc00b31n, 0x68581511n, 0x64f98fa7n, 0xbefa4fa4n]
+export const sha224: Sha2 = sha2(
+    base32,
+    [0xc1059ed8n, 0x367cd507n, 0x3070dd17n, 0xf70e5939n, 0xffc00b31n, 0x68581511n, 0x64f98fa7n, 0xbefa4fa4n],
+    224n,
+)
 
-export const sha512: V8 = [
-    0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn, 0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
-    0x510e527fade682d1n, 0x9b05688c2b3e6c1fn, 0x1f83d9abfb41bd6bn, 0x5be0cd19137e2179n,
-]
+export const sha512: Sha2 = sha2(
+    base64,
+    [
+        0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn, 0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
+        0x510e527fade682d1n, 0x9b05688c2b3e6c1fn, 0x1f83d9abfb41bd6bn, 0x5be0cd19137e2179n,
+    ],
+    512n,
+)
 
-export const sha384: V8 = [
-    0xcbbb9d5dc1059ed8n, 0x629a292a367cd507n, 0x9159015a3070dd17n, 0x152fecd8f70e5939n,
-    0x67332667ffc00b31n, 0x8eb44a8768581511n, 0xdb0c2e0d64f98fa7n, 0x47b5481dbefa4fa4n,
-]
+export const sha384: Sha2 = sha2(
+    base64,
+    [
+        0xcbbb9d5dc1059ed8n, 0x629a292a367cd507n, 0x9159015a3070dd17n, 0x152fecd8f70e5939n,
+        0x67332667ffc00b31n, 0x8eb44a8768581511n, 0xdb0c2e0d64f98fa7n, 0x47b5481dbefa4fa4n,
+    ],
+    384n,
+)
 
-export const sha512x224: V8 = [
-    0x8c3d37c819544da2n, 0x73e1996689dcd4d6n, 0x1dfab7ae32ff9c82n, 0x679dd514582f9fcfn,
-    0x0f6d2b697bd44da8n, 0x77e36f7304C48942n, 0x3f9d85a86a1d36C8n, 0x1112e6ad91d692a1n,
-]
+export const sha512x256: Sha2 = sha2(
+    base64,
+    [
+        0x22312194fc2bf72cn, 0x9f555fa3c84c64c2n, 0x2393b86b6f53b151n, 0x963877195940eabdn,
+        0x96283ee2a88effe3n, 0xbe5e1e2553863992n, 0x2b0199fc2c85b8aan, 0x0eb72ddC81c52ca2n,
+    ],
+    256n,
+)
 
-export const sha512x256: V8 = [
-    0x22312194fc2bf72cn, 0x9f555fa3c84c64c2n, 0x2393b86b6f53b151n, 0x963877195940eabdn,
-    0x96283ee2a88effe3n, 0xbe5e1e2553863992n, 0x2b0199fc2c85b8aan, 0x0eb72ddC81c52ca2n,
-]
+export const sha512x224: Sha2 = sha2(
+    base64,
+    [
+        0x8c3d37c819544da2n, 0x73e1996689dcd4d6n, 0x1dfab7ae32ff9c82n, 0x679dd514582f9fcfn,
+        0x0f6d2b697bd44da8n, 0x77e36f7304C48942n, 0x3f9d85a86a1d36C8n, 0x1112e6ad91d692a1n,
+    ],
+    224n,
+)
