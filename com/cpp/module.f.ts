@@ -9,7 +9,6 @@ import {
     type BaseType,
     type Definition,
     type Field,
-    type FieldArray,
     type Interface,
     type Library,
     type Method,
@@ -17,7 +16,7 @@ import {
     type Type,
 } from '../types/module.f.ts'
 import * as text from '../../text/module.f.ts'
-import * as O from '../../types/object/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
 import { map, flatMap, flat } from '../../types/list/module.f.ts'
 import { join } from '../../types/string/module.f.ts'
 

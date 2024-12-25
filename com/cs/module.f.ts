@@ -17,7 +17,8 @@ import {
 import { curly, type Block, type Item } from '../../text/module.f.ts'
 import { flat, map, some, flatMap, type List } from '../../types/list/module.f.ts'
 import { join } from '../../types/string/module.f.ts'
-import * as O from '../../types/object/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
+
 const { entries } = Object
 
 const using = (v: string) => `using ${v};`
