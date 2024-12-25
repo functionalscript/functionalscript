@@ -4,7 +4,7 @@ import { flip } from '../function/module.f.ts'
 /**
  * A vector of bits represented as a `bigint`.
  */
-type Vec = bigint
+export type Vec = bigint
 
 /**
  * An empty vector of bits.
@@ -181,5 +181,5 @@ export const concatLsb = (a: Vec): (b: Vec) => Vec => {
  * ```
  */
 export const concatMsb
-    : (b: Vec) => (a: Vec) => Vec
+    : (a: Vec) => (b: Vec) => Vec
     = flip(concatLsb)

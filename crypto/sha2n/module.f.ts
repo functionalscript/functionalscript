@@ -1,4 +1,10 @@
+import { todo } from '../../dev/module.f.ts'
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
+import { bitLength } from "../../types/bigint/module.f.ts";
+import { popUintMsb } from "../../types/bit_vec/module.f.ts";
+import { length } from "../../types/bit_vec/module.f.ts";
+import { concatMsb } from '../../types/bit_vec/module.f.ts'
+import { empty, type Vec } from '../../types/bit_vec/module.f.ts'
 
 type V3 = Array3<bigint>
 
@@ -8,8 +14,8 @@ export type V8 = Array8<bigint>
 
 export type V16 = Array16<bigint>
 
-type Base = {
-    readonly bitLength: bigint
+type BaseInit = {
+    readonly logBitLen: bigint
     readonly k: readonly V16[]
     readonly bs0: V3
     readonly bs1: V3
@@ -17,7 +23,15 @@ type Base = {
     readonly ss1: V3
 }
 
-const compress = ({ bitLength, k, bs0, bs1, ss0, ss1 }: Base) => {
+type Base = {
+    readonly bitLength: bigint
+    readonly compress: (i: V8) => (d: V16) => V8
+    readonly toV16: (u: bigint) => V16
+}
+
+const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
+
+    const bitLength = 1n << logBitLen
 
     const rotr = (d: bigint) => {
         const r = bitLength - d
@@ -76,58 +90,118 @@ const compress = ({ bitLength, k, bs0, bs1, ss0, ss1 }: Base) => {
 
     const kLength = k.length
 
-    return ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
-        let w = data
+    return {
+        bitLength,
+        compress: ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
+            let w = data
 
-        let a = a0
-        let b = b0
-        let c = c0
-        let d = d0
-        let e = e0
-        let f = f0
-        let g = g0
-        let h = h0
+            let a = a0
+            let b = b0
+            let c = c0
+            let d = d0
+            let e = e0
+            let f = f0
+            let g = g0
+            let h = h0
 
-        let i = 0
-        while (true) {
-            const ki = k[i]
-            for (let j = 0; j < 16; ++j) {
-                const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
-                const t2 = bigSigma0(a) + maj(a, b, c)
-                h = g
-                g = f
-                f = e
-                e = (d + t1) & mask
-                d = c
-                c = b
-                b = a
-                a = (t1 + t2) & mask
+            let i = 0
+            while (true) {
+                const ki = k[i]
+                for (let j = 0; j < 16; ++j) {
+                    const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
+                    const t2 = bigSigma0(a) + maj(a, b, c)
+                    h = g
+                    g = f
+                    f = e
+                    e = (d + t1) & mask
+                    d = c
+                    c = b
+                    b = a
+                    a = (t1 + t2) & mask
+                }
+                ++i
+                if (i === kLength) { break }
+                w = nextW(w)
             }
-            ++i
-            if (i === kLength) { break }
-            w = nextW(w)
-        }
 
-        return [
-            (a0 + a) & mask,
-            (b0 + b) & mask,
-            (c0 + c) & mask,
-            (d0 + d) & mask,
-            (e0 + e) & mask,
-            (f0 + f) & mask,
-            (g0 + g) & mask,
-            (h0 + h) & mask,
-        ]
+            return [
+                (a0 + a) & mask,
+                (b0 + b) & mask,
+                (c0 + c) & mask,
+                (d0 + d) & mask,
+                (e0 + e) & mask,
+                (f0 + f) & mask,
+                (g0 + g) & mask,
+                (h0 + h) & mask,
+            ]
+        },
+
+        toV16: (u: bigint): V16 => {
+            const mask = (1n << bitLength) - 1n
+            return [
+                (u >> (15n << logBitLen)) & mask,
+                (u >> (14n << logBitLen)) & mask,
+                (u >> (13n << logBitLen)) & mask,
+                (u >> (12n << logBitLen)) & mask,
+                (u >> (11n << logBitLen)) & mask,
+                (u >> (10n << logBitLen)) & mask,
+                (u >> (9n << logBitLen)) & mask,
+                (u >> (8n << logBitLen)) & mask,
+                (u >> (7n << logBitLen)) & mask,
+                (u >> (6n << logBitLen)) & mask,
+                (u >> (5n << logBitLen)) & mask,
+                (u >> (4n << logBitLen)) & mask,
+                (u >> (3n << logBitLen)) & mask,
+                (u >> (2n << logBitLen)) & mask,
+                (u >> (1n << logBitLen)) & mask,
+                u & mask,
+            ]
+        }
     }
 }
 
 type State = {
-    readonly append: (be: bigint) => State
-    readonly end: () => V8
+    readonly base: Base
+    readonly hash: V8
+    readonly len: bigint
+    readonly remainder: Vec
 }
 
-export const compress32 = compress({
-    bitLength: 32n,
+const state = (base: Base) => (hash: V8): State => ({
+    base,
+    hash,
+    len: 0n,
+    remainder: empty,
+})
+
+const append = (state: State) => {
+    const { base } = state
+    const { compress, bitLength, toV16 } = base
+    const need = bitLength << 3n // * 8n
+    return (v: Vec): State => {
+        let { remainder, hash, len } = state
+        remainder = concatMsb(remainder)(v)
+        let remainderLen = length(remainder)
+        while (remainderLen >= need) {
+            const [u, nr] = popUintMsb(need)(remainder)
+            remainder = nr
+            remainderLen -= need
+            len += need
+            hash = compress(hash)(toV16(u))
+        }
+        return {
+            base,
+            hash,
+            len,
+            remainder
+        }
+    }
+}
+
+const end = (state: State): V8 => todo()
+
+export const base32 = base({
+    logBitLen: 5n,
     k: [
         [
             0x428a2f98n, 0x71374491n, 0xb5c0fbcfn, 0xe9b5dba5n, 0x3956c25bn, 0x59f111f1n, 0x923f82a4n, 0xab1c5ed5n,
@@ -152,8 +226,8 @@ export const compress32 = compress({
     ss1: [17n, 19n, 10n],
 })
 
-export const compress64 = compress({
-    bitLength: 64n,
+export const base64 = base({
+    logBitLen: 6n,
     k: [
         [
             0x428a2f98d728ae22n, 0x7137449123ef65cdn, 0xb5c0fbcfec4d3b2fn, 0xe9b5dba58189dbbcn,
