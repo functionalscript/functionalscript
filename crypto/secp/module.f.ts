@@ -56,9 +56,7 @@ type Curve = {
  * const mulPoint = curveInstance.mul([1n, 1n])(3n); // Multiply a point by 3
  * ```
  */
-export const curve
-: (i: Init) => Curve
-= ({ p, a: [a0, a1], n }) => {
+export const curve = ({ p, a: [a0, a1], n }: Init): Curve => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
@@ -70,13 +68,9 @@ export const curve
     /**
      * y**2 = a1*x**3 + a0
      */
-    const y2
-    : (x: bigint) => bigint
-    = x => addA0(add(pow3(x))(mulA1(x)))
+    const y2 = (x: bigint) => addA0(add(pow3(x))(mulA1(x)))
 
-    const addPoint
-    : Operator.Reduce<Point>
-    = p => q => {
+    const addPoint: Operator.Reduce<Point> = p => q => {
         if (p === null) {
             return q
         }
@@ -118,9 +112,7 @@ export const curve
     }
 }
 
-export const eq
-: (a: Point) => (b: Point) => boolean
-= a => b => {
+export const eq = (a: Point) => (b: Point): boolean => {
     if (a === null || b === null) {
         return a === b
     }

@@ -30,9 +30,7 @@ export type PrimeField = {
  * @param p - A prime number to define the field.
  * @returns The prime field object.
  */
-export const prime_field
-: (p: bigint) => PrimeField
-= p => {
+export const prime_field = (p: bigint): PrimeField => {
     const sub: Reduce = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
@@ -91,9 +89,7 @@ export const prime_field
  * if (root !== 2n) { throw root }
  * ```
  */
-export const sqrt
-: (f: PrimeField) => (a: bigint) => bigint|null
-= ({p, mul, pow }) => {
+export const sqrt = ({p, mul, pow }: PrimeField): (a: bigint) => bigint|null => {
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
     return a => {

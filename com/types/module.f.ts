@@ -1,4 +1,4 @@
-import * as O from '../../types/object/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
 import { filter, type List } from '../../types/list/module.f.ts'
 import { compose } from '../../types/function/module.f.ts'
 
@@ -46,16 +46,14 @@ export type BaseType =
 
 type Pointer = readonly['*', Type]
 
-const isParam
-: (kv: O.Entry<Type>) => boolean
-= ([name]) => name !== '_'
+const isParam = ([name]: O.Entry<Type>): boolean => name !== '_'
 
 const filterParam = filter(isParam)
 
 export const paramList
-: (fa: FieldArray) => List<Field>
-= compose(entries)(filterParam)
+    : (fa: FieldArray) => List<Field>
+    = compose(entries)(filterParam)
 
 export const result
-: <T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray) => T
-= v => f => fa => '_' in fa ? f(fa._) : v
+    = <T>(v: T) => (f: (type: Type) => T) => (fa: FieldArray): T =>
+        '_' in fa ? f(fa._) : v

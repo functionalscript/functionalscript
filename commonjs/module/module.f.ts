@@ -1,4 +1,4 @@
-import * as O from '../../types/object/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
 
 export type MapInterface<M> = {
     readonly at: (moduleId: string) => (moduleMap: M) => State | null
@@ -25,9 +25,7 @@ export type Id = {
     readonly path: readonly string[]
 }
 
-export const dir
-: (id: Id) => Id | null
-= id => {
+export const dir = (id: Id): Id | null => {
     const len = id.path.length
     if (len < 1) { return null }
     return {
@@ -36,6 +34,5 @@ export const dir
     }
 }
 
-export const idToString
-: (id: Id) => string
-= id => `${id.package}/${id.path.join('/')}`
+export const idToString = (id: Id): string =>
+    `${id.package}/${id.path.join('/')}`

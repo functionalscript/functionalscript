@@ -9,12 +9,9 @@ type DependencyMapJson = {readonly[k in string]: string}
 
 export type DependenciesJson = DependencyMapJson|null
 
-const isDependencyJson
-: (entry: Entry) => boolean
-= ([, v]) => typeof v === 'string'
+const isDependencyJson = ([, v]: Entry) => typeof v === 'string'
 
-export const isDependenciesJson
-= (j: Unknown): j is DependenciesJson => {
+export const isDependenciesJson = (j: Unknown): j is DependenciesJson => {
     if (j === null) { return true }
     if (!isObject(j)) { return false }
     return every(map(isDependencyJson)(entries(j)))

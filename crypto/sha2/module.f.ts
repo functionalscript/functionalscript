@@ -1,4 +1,4 @@
-import * as array from '../../types/array/module.f.ts'
+import type * as array from '../../types/array/module.f.ts'
 
 type HashInput = {
     readonly f: (i: number) => number
@@ -9,17 +9,12 @@ type Hash8 = array.Array8<number>
 
 type Array16 = array.Array16<number>
 
-const appendOneWithZeros
-    : (input: number) => (pos: number) => number
-    = input => pos => (input >> pos << pos) | (1 << pos)
+const appendOneWithZeros = (input: number) => (pos: number) =>
+    (input >> pos << pos) | (1 << pos)
 
-const mod
-    : (input: number) => (pos: number) => number
-    = a => b => (a % b + b) % b
+const mod = (a: number) => (b: number) => (a % b + b) % b
 
-export const padding
-    : (input: readonly number[]) => (bits: number) => HashInput
-    = input => bitsCount => {
+export const padding = (input: readonly number[]) => (bitsCount: number): HashInput => {
     const appendBlockIndex = (bitsCount / 32) | 0
     const length = (bitsCount + mod(447 - bitsCount)(512) + 65) / 32
     const f
@@ -36,58 +31,43 @@ export const padding
     return ({ f, length })
 }
 
-const rotr
-    : (d: number) => (n: number) => number
-    = d => {
+const rotr = (d: number) => {
     const r = 32 - d
-    return n => n >>> d | n << r
+    return (n: number) => n >>> d | n << r
 }
 
-const ch
-    : (x: number) => (y: number) => (z: number) => number
-    = x => y => z => x & y ^ ~x & z
+const ch = (x: number) => (y: number) => (z: number) => x & y ^ ~x & z
 
-const maj
-    : (x: number) => (y: number) => (z: number) => number
-    = x => y => z => x & y ^ x & z ^ y & z
+const maj = (x: number) => (y: number) => (z: number) => x & y ^ x & z ^ y & z
 
-const shr
-    : (d: number) => (n: number) => number
-    = d => n => n >>> d
+const shr = (d: number) => (n: number) => n >>> d
 
-const bigSigma
-    : (a: number) => (b: number) => (c: number) => (x: number) => number
-    = a => b => c => {
+const bigSigma = (a: number) => (b: number) => (c: number) => {
     const ra = rotr(a)
     const rb = rotr(b)
     const rc = rotr(c)
-    return x => ra(x) ^ rb(x) ^ rc(x)
+    return (x: number) => ra(x) ^ rb(x) ^ rc(x)
 }
 
 const bigSigma0 = bigSigma(2)(13)(22)
 
 const bigSigma1 = bigSigma(6)(11)(25)
 
-const smallSigma
-    : (a: number) => (b: number) => (c: number) => (x: number) => number
-    = a => b => c => {
+const smallSigma = (a: number) => (b: number) => (c: number) => {
     const ra = rotr(a)
     const rb = rotr(b)
     const sc = shr(c)
-    return x => ra(x) ^ rb(x) ^ sc(x)
+    return (x:number) => ra(x) ^ rb(x) ^ sc(x)
 }
 
 const smallSigma0 = smallSigma(7)(18)(3)
 
 const smallSigma1 = smallSigma(17)(19)(10)
 
-const wi
-    : (a: array.Array4<number>) => number
-    = ([a0, a1, a2, a3]) => (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) | 0
+const wi = ([a0, a1, a2, a3]: array.Array4<number>) =>
+    (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) | 0
 
-const nextW
-    : (w: Array16) => Array16
-    = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]) => {
+const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]: Array16): Array16 => {
     w0 = wi([wE, w9, w1, w0])
     w1 = wi([wF, wA, w2, w1])
     w2 = wi([w0, wB, w3, w2])
@@ -126,9 +106,7 @@ const k = [
     ],
 ];
 
-const compress
-    : (init: Hash8) => (data: Array16) => Hash8
-    = ([a0, b0, c0, d0, e0, f0, g0, h0]) => data => {
+const compress = ([a0, b0, c0, d0, e0, f0, g0, h0]: Hash8) => (data: Array16): Hash8 => {
     let w = data
 
     let a = a0
@@ -172,9 +150,7 @@ const compress
     ]
 }
 
-const compute
-    : (init: Hash8) => (input: readonly number[]) => (bitsCount: number) => Hash8
-    = init => input => bitsCount => {
+const compute = (init: Hash8) => (input: readonly number[]) => (bitsCount: number): Hash8 => {
     const { f, length } = padding(input)(bitsCount)
 
     let result = init
@@ -207,9 +183,9 @@ export const computeSha224
     = compute(init224)
 
 export const compress256
-: (data: Array16) => Hash8
-= compress(init256)
+    : (data: Array16) => Hash8
+    = compress(init256)
 
 export const compress224
-: (data: Array16) => Hash8
-= compress(init224)
+    : (data: Array16) => Hash8
+    = compress(init224)
