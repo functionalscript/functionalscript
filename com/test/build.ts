@@ -19,9 +19,7 @@ const nodeJs = {
     platform,
 }
 
-const run
-: (f: Build.Func) => void
-= f => {
+const run = (f: Build.Func): void => {
     const { file: { name, content }, line } = f(nodeJs)
     log(`${bold}writing: ${name}${reset}`)
     writeFileSync(name, content)
