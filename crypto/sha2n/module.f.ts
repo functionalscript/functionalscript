@@ -1,5 +1,13 @@
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
-import { uintMsb, vec, popUintMsb, length, concatMsb, empty, type Vec } from '../../types/bit_vec/module.f.ts'
+import {
+    uintMsb,
+    vec,
+    popUintMsb,
+    length,
+    concatMsb,
+    empty,
+    type Vec
+} from '../../types/bit_vec/module.f.ts'
 
 type V3 = Array3<bigint>
 
@@ -140,39 +148,40 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         ]
     }
 
-    const compress = (i: V8) => (u: bigint) => compressV16(i)([
-        (u >> (15n << logBitLen)) & mask,
-        (u >> (14n << logBitLen)) & mask,
-        (u >> (13n << logBitLen)) & mask,
-        (u >> (12n << logBitLen)) & mask,
-        (u >> (11n << logBitLen)) & mask,
-        (u >> (10n << logBitLen)) & mask,
-        (u >> (9n << logBitLen)) & mask,
-        (u >> (8n << logBitLen)) & mask,
-        (u >> (7n << logBitLen)) & mask,
-        (u >> (6n << logBitLen)) & mask,
-        (u >> (5n << logBitLen)) & mask,
-        (u >> (4n << logBitLen)) & mask,
-        (u >> (3n << logBitLen)) & mask,
-        (u >> (2n << logBitLen)) & mask,
-        (u >> (1n << logBitLen)) & mask,
-        u & mask,
-    ])
+    const at = (u: bigint) => (i: bigint) =>
+        (u >> (i << logBitLen)) & mask
+
+    const compress = (i: V8) => (u: bigint) => {
+        const a = at(u)
+        return compressV16(i)([
+            a(15n),
+            a(14n),
+            a(13n),
+            a(12n),
+            a(11n),
+            a(10n),
+            a(9n),
+            a(8n),
+            a(7n),
+            a(6n),
+            a(5n),
+            a(4n),
+            a(3n),
+            a(2n),
+            a(1n),
+            a(0n),
+        ])
+    }
 
     const chunkLength = bitLength << 4n // * 16
 
     const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
 
     return {
-
         bitLength,
-
         chunkLength,
-
         compress,
-
         fromV8,
-
         append: (state: State) => (v: Vec): State => {
             let { remainder, hash, len } = state
             remainder = concatMsb(remainder)(v)
@@ -190,7 +199,6 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
                 remainder
             }
         },
-
         end: (hashLength: bigint) => {
             const offset = (bitLength << 3n) - hashLength
             return (state: State): bigint => {
@@ -215,7 +223,7 @@ export type Sha2 = {
     readonly end: (state: State) => bigint
 }
 
-const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 =>  ({
+const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 => ({
     init: {
         hash,
         len: 0n,
