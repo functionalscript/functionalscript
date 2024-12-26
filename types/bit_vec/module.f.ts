@@ -46,11 +46,88 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
  */
 export const uint = (v: Vec): bigint => v ^ (1n << length(v))
 
+/**
+ * Represents operations for handling bit vectors with a specific endian order.
+ */
 export type Endian = {
-    readonly uint: (len: bigint) => (v: Vec) => bigint
-    readonly remove: (len: bigint) => (v: Vec) => Vec
-    readonly popUint: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
+    /**
+     * Retrieves the first unsigned integer of the specified length from the given vector.
+     *
+     * @param len - The number of bits to read from the start of the vector.
+     * @returns A function that takes a vector and returns the extracted unsigned integer.
+     */
+    readonly front: (len: bigint) => (v: Vec) => bigint
+    /**
+     * Removes a specified number of bits from the start of the given vector.
+     *
+     * @param len - The number of bits to remove from the vector.
+     * @returns A function that takes a vector and returns the remaining vector.
+     */
+    readonly removeFront: (len: bigint) => (v: Vec) => Vec
+    /**
+     * Removes a specified number of bits from the start of the vector and returns
+     * the removed bits and the remaining vector.
+     *
+     * @param len - The number of bits to remove from the vector.
+     * @returns A function that takes a vector and returns
+     * a tuple containing the removed bits as an unsigned integer and the remaining vector.
+     */
+    readonly popFront: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
+    /**
+     * Concatenates two vectors.
+     *
+     * @param a - The first vector.
+     * @returns A function that takes a second vector and returns the concatenated vector.
+     */
     readonly concat: (a: Vec) => (b: Vec) => Vec
+}
+
+/**
+ * Implements operations for handling vectors in a least-significant-bit (LSB) first order.
+ */
+export const lsbFirst: Endian = {
+    front: len => {
+        const m = mask(len)
+        return v => {
+            const result = v & m
+            return result === v ? uint(v) : result
+        }
+    },
+    removeFront: len => v => {
+        const r = v >> len
+        return r === 0n ? empty : r
+    },
+    popFront: len => {
+        const m = mask(len)
+        return v => {
+            const result = v & m
+            return result === v ? [uint(v), empty] : [result, v >> len]
+        }
+    },
+    concat: a => {
+        const aLen = length(a)
+        const m = mask(aLen)
+        return b => (b << aLen) | (a & m)
+    }
+}
+
+/**
+ * Implements operations for handling vectors in a most-significant-bit (MSB) first order.
+ */
+export const msbFirst: Endian = {
+    front: len => {
+        const m = mask(len)
+        return v => (v >> (length(v) - len)) & m
+    },
+    removeFront: len => v => vec(length(v) - len)(v),
+    popFront: len => {
+        const m = mask(len)
+        return v => {
+            const d = length(v) - len
+            return [(v >> d) & m, vec(d)(v)]
+        }
+    },
+    concat: flip(lsbFirst.concat)
 }
 
 /**

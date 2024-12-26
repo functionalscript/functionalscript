@@ -4,14 +4,53 @@ import {
     length,
     concatLsb,
     uintLsb,
-    uintMsb,
     removeLsb,
     concatMsb,
     removeMsb,
     uint,
-    popUintLsb,
-    popUintMsb
+    lsbFirst,
+    msbFirst,
+    type Endian,
+    type Vec
 } from './module.f.ts'
+
+const frontTest = (e: Endian) => (r0: bigint) => (r1: bigint) => () => {
+    const vector = vec(8n)(0xF5n) // 0x1F5n
+    if (vector !== 0x1F5n) { throw vector }
+    const result = e.front(4n)(vector)
+    if (result !== r0) { throw result }
+    const result2 = e.front(16n)(vector)
+    if (result2 !== r1) { throw result2 }
+}
+
+const popFront = (e: Endian) => ([r00, r01]: readonly [bigint, bigint]) => ([r10, r11]: readonly [bigint, bigint]) => () => {
+    const vector = vec(8n)(0xF5n) // 0x1F5n
+    const [result, rest] = e.popFront(4n)(vector)
+    if (result !== r00) { throw result }
+    if (rest !== r01) { throw rest }
+    const [result2, rest2] = e.popFront(16n)(vector)
+    if (result2 !== r10) { throw result2 }
+    if (rest2 !== r11) { throw rest2 }
+}
+
+const removeFront = (e: Endian) => (r0: Vec) => (r1: Vec) => () => {
+    const v = vec(16n)(0x3456n) // 0x13456n
+    if (v !== 0x13456n) { throw v }
+    const r = e.removeFront(4n)(v)
+    if (r !== r0) { throw r }
+    const r2 = e.removeFront(24n)(v)
+    if (r2 !== r1) { throw r2 }
+}
+
+const concat = (e: Endian) => (r: Vec) => () => {
+    const u8 = vec(8n)
+    const a = u8(0x45n) // 0x145n
+    if (a !== 0x145n) { throw a }
+    const b = u8(0x89n) // 0x189n
+    if (b !== 0x189n) { throw b }
+    const ab = e.concat(a)(b) // 0x18945n
+    if (ab !== r) { throw ab }
+}
 
 export default {
     examples: {
@@ -25,77 +64,25 @@ export default {
         uint: () => {
             const vector = vec(8n)(0x5n) // 0x105n
             if (vector !== 0x105n) { throw vector }
-            const result = uint(vector); // result is 0x5n
+            const result = uint(vector) // result is 0x5n
             if (result !== 0x5n) { throw result }
         },
-        uintLsb: () => {
-            const vector = vec(8n)(0xF5n) // 0x1F5n
-            if (vector !== 0x1F5n) { throw vector }
-            const result = uintLsb(4n)(vector); // result is 5n
-            if (result !== 5n) { throw result }
-            const result2 = uintLsb(16n)(vector); // result2 is 0xF5n
-            if (result2 !== 0xF5n) { throw result2 }
-        },
-        uintMsb: () => {
-            const vector = vec(8n)(0xF5n) // 0x1F5n
-            if (vector !== 0x1F5n) { throw vector }
-            const result = uintMsb(4n)(vector); // result is 0xFn
-            if (result !== 0xFn) { throw result }
-            const result2 = uintMsb(16n)(vector); // result2 is 0xF500n
-            if (result2 !== 0xF500n) { throw result2 }
-        },
-        popUintLsb: () => {
-            const vector = vec(8n)(0xF5n) // 0x1F5n
-            const [result, rest] = popUintLsb(4n)(vector); // result is 5n, rest is 0x1Fn
-            if (result !== 5n) { throw result }
-            if (rest !== 0x1Fn) { throw rest }
-            const [result2, rest2] = popUintLsb(16n)(vector); // result2 is 0xF5n, rest2 is 1n
-            if (result2 !== 0xF5n) { throw result2 }
-            if (rest2 !== 1n) { throw rest2 }
-        },
-        popUintMsb: () => {
-            const vector = vec(8n)(0xF5n) // 0x1F5n
-            const [result, rest] = popUintMsb(4n)(vector); // [0xFn, 0x15n]
-            if (result !== 0xFn) { throw result }
-            if (rest !== 0x15n) { throw rest }
-            const [result2, rest2] = popUintMsb(16n)(vector); // [0xF500n, 1n]
-            if (result2 !== 0xF500n) { throw result2 }
-            if (rest2 !== 1n) { throw rest2 }
-        },
-        concatLsb: () => {
-            const u8 = vec(8n)
-            const a = u8(0x45n) // 0x145n
-            if (a !== 0x145n) { throw a }
-            const b = u8(0x89n) // 0x189n
-            if (b !== 0x189n) { throw b }
-            const ab = concatLsb(a)(b) // 0x18945n
-            if (ab !== 0x18945n) { throw ab }
-        },
-        concatMsb: () => {
-            const u8 = vec(8n)
-            const a = u8(0x45n) // 0x145n
-            if (a !== 0x145n) { throw a }
-            const b = u8(0x89n) // 0x189n
-            if (b !== 0x189n) { throw b }
-            const ab = concatMsb(a)(b) // 0x14589n
-            if (ab !== 0x14589n) { throw ab }
-        },
-        removeLsb: () => {
-            const v = vec(16n)(0x3456n) // 0x13456n
-            if (v !== 0x13456n) { throw v }
-            const r = removeLsb(4n)(v) // 0x1345n
-            if (r !== 0x1345n) { throw r }
-            const r2 = removeLsb(24n)(v) // 0x1n
-            if (r2 !== 0x1n) { throw r2 }
-        },
-        removeMsb: () => {
-            const v = vec(16n)(0x3456n) // 0x13456n
-            if (v !== 0x13456n) { throw v }
-            const r = removeMsb(4n)(v) // 0x1456n
-            if (r !== 0x1456n) { throw r }
-            const r2 = removeMsb(24n)(v) // 0x1n
-            if (r2 !== 0x1n) { throw r2 }
-        }
+    },
+    front: {
+        lsbf: frontTest(lsbFirst)(5n)(0xF5n),
+        msbf: frontTest(msbFirst)(0xFn)(0xF500n),
+    },
+    popFront: {
+        lsbm: popFront(lsbFirst)([5n, 0x1Fn])([0xF5n, 1n]),
+        msbm: popFront(msbFirst)([0xFn, 0x15n])([0xF500n, 1n]),
+    },
+    removeFront: {
+        lsbm: removeFront(lsbFirst)(0x1345n)(0x1n),
+        msbm: removeFront(msbFirst)(0x1456n)(0x1n),
+    },
+    concat: {
+        lsbm: concat(lsbFirst)(0x18945n),
+        msbm: concat(msbFirst)(0x14589n),
     },
     uintLsb: () => {
         const vector = 0b1110101n
@@ -115,7 +102,7 @@ export default {
     },
     length: () => {
         const i = length(empty)
-        if (i !== 0n) { throw i}
+        if (i !== 0n) { throw i }
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)
