@@ -23,9 +23,9 @@ const checkEmpty = ({ init, end }: Sha2) => (x: bigint) => {
 
 const u8 = vec(8n)
 
-const appendU8 = (v: number) => (a: bigint) => concat(a)(u8(BigInt(v)))
+const beAppendU8 = (v: number) => (a: bigint) => concat(a)(u8(BigInt(v)))
 
-const msbFirstUtf8 = (s: string) => fold(appendU8)(empty)(utf8.fromCodePointList(utf16.toCodePointList(utf16.stringToList(s))))
+const beUtf8 = (s: string) => fold(beAppendU8)(empty)(utf8.fromCodePointList(utf16.toCodePointList(utf16.stringToList(s))))
 
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
 export default {
@@ -81,8 +81,28 @@ export default {
         sha512x256: () => checkEmpty(sha512x256)(0xc672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967an),
         sha512x224: () => checkEmpty(sha512x224)(0x6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4n),
     },
-    utf8: () => {
-        const s = msbFirstUtf8("hello world")
-        if (s !== 0x168656C6C_6F20776F_726C64n) { throw s }
-    }
+    utf8: [
+        () => {
+            const s = beUtf8("The quick brown fox jumps over the lazy dog")
+            let state = sha224.init
+            state = sha224.append(state)(s)
+            const h = sha224.end(state)
+            if (h !== 0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n) { throw h }
+        },
+        () => {
+            const s = beUtf8("The quick brown fox jumps over the lazy dog.")
+            let state = sha224.init
+            state = sha224.append(state)(s)
+            const h = sha224.end(state)
+            if (h !== 0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn) { throw h }
+        },
+        () => {
+            const s = beUtf8("hello world")
+            if (s !== 0x168656C6C_6F20776F_726C64n) { throw s }
+            let state = sha256.init
+            state = sha256.append(state)(s)
+            const h = sha256.end(state)
+            if (h !== 0xb94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n) { throw h }
+        }
+    ]
 }

@@ -178,6 +178,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
 
+    const lastChunkLength = chunkLength - 65n
+
     return {
         bitLength,
         chunkLength,
@@ -203,16 +205,16 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         end: (hashLength: bigint) => {
             const offset = (bitLength << 3n) - hashLength
             return (state: State): bigint => {
-                const { len } = state
-                let { remainder, hash } = state
-                remainder = concat(remainder)(lastOne)
-                let u = front(chunkLength)(remainder)
-                // overflow
-                if (length(remainder) + 64n > chunkLength) {
+                const { len, remainder } = state
+                let { hash } = state
+                const rLen = length(remainder)
+                let u = front(chunkLength)(concat(remainder)(lastOne))
+                // last chunk overflow
+                if (rLen > lastChunkLength) {
                     hash = compress(hash)(u)
                     u = 0n
                 }
-                return fromV8(compress(hash)(u | len)) >> offset
+                return fromV8(compress(hash)(u | (len + rLen))) >> offset
             }
         }
     }
