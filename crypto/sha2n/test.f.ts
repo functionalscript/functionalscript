@@ -1,3 +1,5 @@
+import { stringToList } from '../../text/utf16/module.f.ts'
+import { fromCodePointList } from "../../text/utf8/module.f.ts";
 import {
     base32,
     base64,
@@ -14,6 +16,8 @@ const empty = ({ init, end }: Sha2) => (x: bigint) => {
     const result = end(init)
     if (result !== x) { throw [result, x] }
 }
+
+const utf8 = (s: string) => fromCodePointList(stringToList(s))
 
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
 export default {

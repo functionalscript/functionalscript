@@ -1,20 +1,20 @@
 import { flatMap, flat, stateScan, type List, type Thunk } from '../../types/list/module.f.ts'
-import type * as operator from '../../types/function/operator/module.f.ts'
-import type * as Array from '../../types/array/module.f.ts'
+import type { StateScan } from '../../types/function/operator/module.f.ts'
+import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
 
-type ByteOrEof = u8 | null
+export type ByteOrEof = U8 | null
 
-type Utf8NonEmptyState = Array.Array1<number> | Array.Array2<number> | Array.Array3<number>
+export type Utf8NonEmptyState = Array1<number> | Array2<number> | Array3<number>
 
-type Utf8State = null | Utf8NonEmptyState
+export type Utf8State = null | Utf8NonEmptyState
 
-type u8 = number
+export type U8 = number
 
-type i32 = number
+export type I32 = number
 
 const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
-const codePointToUtf8 = (input: number): readonly u8[] => {
+const codePointToUtf8 = (input: number): readonly U8[] => {
     if (input >= 0x0000 && input <= 0x007f) { return [input & 0b01111_1111] }
     if (input >= 0x0080 && input <= 0x07ff) { return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000] }
     if (input >= 0x0800 && input <= 0xffff) { return [input >> 12 | 0b1110_0000, input >> 6 & 0b0011_1111 | 0b1000_0000, input & 0b0011_1111 | 0b1000_0000] }
@@ -28,11 +28,10 @@ const codePointToUtf8 = (input: number): readonly u8[] => {
     return [errorMask]
 }
 
-export const fromCodePointList
-    : (input: List<number>) => Thunk<number>
+export const fromCodePointList: (input: List<number>) => Thunk<U8>
     = flatMap(codePointToUtf8)
 
-const utf8StateToError = (state: Utf8NonEmptyState): i32 => {
+const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
     let x
     switch (state.length) {
         case 1: {
@@ -57,8 +56,7 @@ const utf8StateToError = (state: Utf8NonEmptyState): i32 => {
     return x | errorMask
 }
 
-const utf8ByteToCodePointOp
-    : operator.StateScan<number, Utf8State, List<i32>>
+const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>>
     = state => byte => {
         if (byte < 0x00 || byte > 0xff) {
             return [[errorMask], state]
@@ -94,15 +92,13 @@ const utf8ByteToCodePointOp
         return [[error, byte | errorMask], null]
     }
 
-const utf8EofToCodePointOp = (state: Utf8State): readonly[List<i32>, Utf8State] =>
+const utf8EofToCodePointOp = (state: Utf8State): readonly[List<I32>, Utf8State] =>
     [state === null ? null : [utf8StateToError(state)], null]
 
-const utf8ByteOrEofToCodePointOp
-    : operator.StateScan<ByteOrEof, Utf8State, List<i32>>
+const utf8ByteOrEofToCodePointOp: StateScan<ByteOrEof, Utf8State, List<I32>>
     = state => input => input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
 
 const eofList: readonly ByteOrEof[] = [null]
 
-export const toCodePointList
-    : (input: List<u8>) => List<i32>
+export const toCodePointList: (input: List<U8>) => List<I32>
     = input => flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
