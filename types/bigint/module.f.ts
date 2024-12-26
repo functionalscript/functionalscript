@@ -3,9 +3,9 @@ import type * as Operator from '../function/operator/module.f.ts'
 const { unsafeCmp } = compare
 import { reduce, type List } from '../list/module.f.ts'
 
-type Unary = Operator.Unary<bigint, bigint>
+export type Unary = Operator.Unary<bigint, bigint>
 
-type Reduce = Operator.Reduce<bigint>
+export type Reduce = Operator.Reduce<bigint>
 
 export const addition: Reduce = a => b => a + b
 
