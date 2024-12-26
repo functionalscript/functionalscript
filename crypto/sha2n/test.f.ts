@@ -2,6 +2,7 @@ import * as utf16 from '../../text/utf16/module.f.ts'
 import * as utf8 from "../../text/utf8/module.f.ts"
 import { empty, msbFirst, vec } from "../../types/bit_vec/module.f.ts"
 import { fold } from '../../types/list/module.f.ts'
+import { repeat } from "../../types/monoid/module.f.ts";
 import {
     base32,
     base64,
@@ -104,5 +105,24 @@ export default {
             const h = sha256.end(state)
             if (h !== 0xb94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n) { throw h }
         }
-    ]
+    ],
+    fill: () => {
+        const times = repeat({ identity: empty, operation: beConcat })(vec(32n)(0x31313131n))
+        return {
+            8: () => {
+                const r = times(8n)
+                let state = sha256.init
+                state = sha256.append(state)(r)
+                const h = sha256.end(state)
+                if (h >> 224n !== 0x8a83665fn) { throw h }
+            },
+            16: () => {
+                const r = times(16n)
+                let state = sha256.init
+                state = sha256.append(state)(r)
+                const h = sha256.end(state)
+                if (h !== 0x3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n) { throw h }
+            }
+        }
+    }
 }
