@@ -83,8 +83,8 @@ export type Endian = {
      * const rL0 = lsbFirst.removeFront(4n)(v)  // 0x1345n
      * const rL1 = lsbFirst.removeFront(24n)(v) // 0x1n
      *
-     * const rM0 = msbFirst.removeMsb(4n)(v)  // 0x1456n
-     * const rM1 = msbFirst.removeMsb(24n)(v) // 0x1n
+     * const rM0 = msbFirst.removeFront(4n)(v)  // 0x1456n
+     * const rM1 = msbFirst.removeFront(24n)(v) // 0x1n
      * ```
      */
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
@@ -95,6 +95,16 @@ export type Endian = {
      * @param len - The number of bits to remove from the vector.
      * @returns A function that takes a vector and returns
      * a tuple containing the removed bits as an unsigned integer and the remaining vector.
+     *
+     * ```js
+     * const vector = vec(8n)(0xF5n) // 0x1F5n
+     *
+     * const [uL0, rL0] = lsbFirst.popFront(4n)(vector)  // [5n, 0x1Fn]
+     * const [uL1, rL1] = lsbFirst.popFront(16n)(vector) // [0xF5n, 1n]
+     *
+     * const [uM0, rM0] = msbFirst.popFront(4n)(vector)  // [0xFn, 0x15n]
+     * const [uM1, rM1] = msbFirst.popFront(16n)(vector) // [0xF500n, 1n]
+     * ```
      */
     readonly popFront: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
     /**

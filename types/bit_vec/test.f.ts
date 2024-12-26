@@ -5,8 +5,6 @@ import {
     concatLsb,
     uintLsb,
     removeLsb,
-    concatMsb,
-    removeMsb,
     uint,
     lsbFirst,
     msbFirst,
@@ -56,6 +54,11 @@ const assert_eq = (a: bigint, b: bigint) => {
     if (a !== b) { throw [a, b] }
 }
 
+const assert_eq2 = ([a0, a1]: readonly[bigint, bigint], [b0, b1]: readonly[bigint, bigint]) => {
+    assert_eq(a0, b0)
+    assert_eq(a1, b1)
+}
+
 export default {
     examples: {
         vec: () => {
@@ -79,6 +82,24 @@ export default {
 
             assert_eq(msbFirst.front(4n)(vector), 0xFn)
             assert_eq(msbFirst.front(16n)(vector), 0xF500n)
+        },
+        removeFront: () => {
+            const v = vec(16n)(0x3456n) // 0x13456n
+
+            assert_eq(lsbFirst.removeFront(4n)(v), 0x1345n)
+            assert_eq(lsbFirst.removeFront(24n)(v), 0x1n)
+
+            assert_eq(msbFirst.removeFront(4n)(v), 0x1456n)
+            assert_eq(msbFirst.removeFront(24n)(v), 0x1n)
+        },
+        popFront: () => {
+            const vector = vec(8n)(0xF5n) // 0x1F5n
+
+            assert_eq2(lsbFirst.popFront(4n)(vector), [5n, 0x1Fn])
+            assert_eq2(lsbFirst.popFront(16n)(vector), [0xF5n, 1n])
+
+            assert_eq2(msbFirst.popFront(4n)(vector), [0xFn, 0x15n])
+            assert_eq2(msbFirst.popFront(16n)(vector), [0xF500n, 1n])
         }
     },
     front: {
