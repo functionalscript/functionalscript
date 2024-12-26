@@ -38,5 +38,5 @@ export const msbUtf8 = (s: string): Vec =>
  * @param msbV - The UTF-8 bit vector with MSB first encoding.
  * @returns The resulting string.
  */
-export const msbUtf8ToString = (msbV: Vec) =>
+export const msbUtf8ToString = (msbV: Vec): string =>
     utf16.listToString(utf16.fromCodePointList(utf8.toCodePointList(u8List(msb)(msbV))))
