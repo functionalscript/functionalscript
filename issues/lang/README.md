@@ -132,6 +132,7 @@ File extensions: `.f.js` and `.f.mjs`.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2:
    One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`. 
 4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
+5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
 
 ## 5. I/O
 
@@ -158,7 +159,7 @@ type Main = Request
 
 ## 6. Content-Addressable VM
 
-See also [Unison](https://www.unison-lang.org/).
+See also [Unison](https://www.unison-lang.org/), [ScrapScript](https://scrapscript.org/). And ZK: [Lurk](https://filecoin.io/blog/posts/introducing-lurk-a-programming-language-for-recursive-zk-snarks/).
 
 The main target is run-time performance.
 
