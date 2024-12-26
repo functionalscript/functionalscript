@@ -9,10 +9,9 @@ import {
     type Result,
     type Thunk,
 } from '../../types/list/module.f.ts'
-import * as operator from '../../types/function/operator/module.f.ts'
+import { concat, type StateScan } from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
-import * as f from '../../types/function/module.f.ts'
-const { fn } = f
+import { fn } from '../../types/function/module.f.ts'
 
 type WordOrEof = u16|null
 
@@ -62,7 +61,7 @@ const u16
     = contains([0x0000, 0xFFFF])
 
 const utf16ByteToCodePointOp
-    : operator.StateScan<u16, Utf16State, List<i32>>
+    : StateScan<u16, Utf16State, List<i32>>
     = state => word => {
         if (!u16(word)) {
             return [[0xffffffff], state]
@@ -86,7 +85,7 @@ const utf16EofToCodePointOp = (state: Utf16State): readonly[List<i32>, Utf16Stat
     [state === null ? empty : [state | errorMask],  null]
 
 const utf16ByteOrEofToCodePointOp
-    : operator.StateScan<WordOrEof, Utf16State, List<i32>>
+    : StateScan<WordOrEof, Utf16State, List<i32>>
     = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 const eofList: List<WordOrEof> = [null]
@@ -106,5 +105,5 @@ export const stringToList = (s: string): List<u16> => {
 export const listToString
     : (input: List<u16>) => string
     = fn(map(String.fromCharCode))
-        .then(reduce(operator.concat)(''))
+        .then(reduce(concat)(''))
         .result
