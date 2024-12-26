@@ -159,7 +159,7 @@ type Main = Request
 
 ## 6. Content-Addressable VM
 
-See also [Unison](https://www.unison-lang.org/).
+See also [Unison](https://www.unison-lang.org/), [ScrapScript](https://scrapscript.org/). And ZK: [Lurk](https://filecoin.io/blog/posts/introducing-lurk-a-programming-language-for-recursive-zk-snarks/).
 
 The main target is run-time performance.
 
