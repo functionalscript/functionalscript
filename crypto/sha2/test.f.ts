@@ -21,6 +21,8 @@ const checkEmpty = ({ init, end }: Sha2) => (x: bigint) => {
 }
 
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
+//
+// https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Secure-Hashing
 export default {
     base: {
         b32: () => {
