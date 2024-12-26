@@ -40,6 +40,8 @@ export const serialize = (a: bigint): string =>
  *    determining the exact value of the logarithm.
  */
 export const log2 = (v: bigint): bigint => {
+    // TODO: use step 32 and `Math.clz32()` at the end.
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32
     if (v <= 0n) { return -1n }
     let result = 0n
     let i = 1n
@@ -83,8 +85,8 @@ export const log2 = (v: bigint): bigint => {
  * @returns The bit length of the input BigInt.
  *
  * @remark
- * The function uses the `log2` function to calculate the position of the most significant bit(MSB)
- * and adds `1n` to account for the MSB itself.For negative numbers, the absolute value is used.
+ * The function uses the `log2` function to calculate the position of the most significant bit (MSB)
+ * and adds `1n` to account for the MSB itself. For negative numbers, the absolute value is used.
  */
 export const bitLength = (v: bigint): bigint => {
     if (v <= 0n) {
