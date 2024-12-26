@@ -1,11 +1,8 @@
-import * as _ from './module.f.ts'
-import * as string from '../types/string/module.f.ts'
-const { join } = string
+import { flat, type Block } from './module.f.ts'
+import { join } from '../types/string/module.f.ts'
 
 export default () => {
-    const text
-        : _.Block
-        = [
+    const text: Block = [
         'a',
         'b',
         () => [
@@ -14,6 +11,6 @@ export default () => {
         ],
         'e',
     ]
-    const result = join('\n')(_.flat(':')(text))
+    const result = join('\n')(flat(':')(text))
     if (result !== 'a\nb\n:c\n::d\ne') { throw result }
 }
