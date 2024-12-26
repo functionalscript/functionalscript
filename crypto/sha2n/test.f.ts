@@ -14,7 +14,7 @@ import {
     sha512x256,
 } from './module.f.ts'
 
-const { concat } = msbFirst
+const { concat: beConcat } = msbFirst
 
 const checkEmpty = ({ init, end }: Sha2) => (x: bigint) => {
     const result = end(init)
@@ -23,7 +23,7 @@ const checkEmpty = ({ init, end }: Sha2) => (x: bigint) => {
 
 const u8 = vec(8n)
 
-const beAppendU8 = (v: number) => (a: bigint) => concat(a)(u8(BigInt(v)))
+const beAppendU8 = (v: number) => (a: bigint) => beConcat(a)(u8(BigInt(v)))
 
 const beUtf8 = (s: string) => fold(beAppendU8)(empty)(utf8.fromCodePointList(utf16.toCodePointList(utf16.stringToList(s))))
 
