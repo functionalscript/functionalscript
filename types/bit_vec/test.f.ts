@@ -50,13 +50,13 @@ const concat = (e: Endian) => (r: Vec) => () => {
     if (ab !== r) { throw ab }
 }
 
-const assert_eq = (a: bigint, b: bigint) => {
+const assertEq = (a: bigint, b: bigint) => {
     if (a !== b) { throw [a, b] }
 }
 
-const assert_eq2 = ([a0, a1]: readonly[bigint, bigint], [b0, b1]: readonly[bigint, bigint]) => {
-    assert_eq(a0, b0)
-    assert_eq(a1, b1)
+const assertEq2 = ([a0, a1]: readonly[bigint, bigint], [b0, b1]: readonly[bigint, bigint]) => {
+    assertEq(a0, b0)
+    assertEq(a1, b1)
 }
 
 export default {
@@ -77,29 +77,37 @@ export default {
         front: () => {
             const vector = vec(8n)(0xF5n) // 0x1F5n
 
-            assert_eq(lsbFirst.front(4n)(vector), 5n)
-            assert_eq(lsbFirst.front(16n)(vector), 0xF5n)
+            assertEq(lsbFirst.front(4n)(vector), 5n)
+            assertEq(lsbFirst.front(16n)(vector), 0xF5n)
 
-            assert_eq(msbFirst.front(4n)(vector), 0xFn)
-            assert_eq(msbFirst.front(16n)(vector), 0xF500n)
+            assertEq(msbFirst.front(4n)(vector), 0xFn)
+            assertEq(msbFirst.front(16n)(vector), 0xF500n)
         },
         removeFront: () => {
             const v = vec(16n)(0x3456n) // 0x13456n
 
-            assert_eq(lsbFirst.removeFront(4n)(v), 0x1345n)
-            assert_eq(lsbFirst.removeFront(24n)(v), 0x1n)
+            assertEq(lsbFirst.removeFront(4n)(v), 0x1345n)
+            assertEq(lsbFirst.removeFront(24n)(v), 0x1n)
 
-            assert_eq(msbFirst.removeFront(4n)(v), 0x1456n)
-            assert_eq(msbFirst.removeFront(24n)(v), 0x1n)
+            assertEq(msbFirst.removeFront(4n)(v), 0x1456n)
+            assertEq(msbFirst.removeFront(24n)(v), 0x1n)
         },
         popFront: () => {
             const vector = vec(8n)(0xF5n) // 0x1F5n
 
-            assert_eq2(lsbFirst.popFront(4n)(vector), [5n, 0x1Fn])
-            assert_eq2(lsbFirst.popFront(16n)(vector), [0xF5n, 1n])
+            assertEq2(lsbFirst.popFront(4n)(vector), [5n, 0x1Fn])
+            assertEq2(lsbFirst.popFront(16n)(vector), [0xF5n, 1n])
 
-            assert_eq2(msbFirst.popFront(4n)(vector), [0xFn, 0x15n])
-            assert_eq2(msbFirst.popFront(16n)(vector), [0xF500n, 1n])
+            assertEq2(msbFirst.popFront(4n)(vector), [0xFn, 0x15n])
+            assertEq2(msbFirst.popFront(16n)(vector), [0xF500n, 1n])
+        },
+        concat: () => {
+            const u8 = vec(8n)
+            const a = u8(0x45n) // 0x145n
+            const b = u8(0x89n) // 0x189n
+
+            assertEq(lsbFirst.concat(a)(b), 0x18945n)
+            assertEq(msbFirst.concat(a)(b), 0x14589n)
         }
     },
     front: {

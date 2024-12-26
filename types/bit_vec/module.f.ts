@@ -112,6 +112,17 @@ export type Endian = {
      *
      * @param a - The first vector.
      * @returns A function that takes a second vector and returns the concatenated vector.
+     *
+     * @example
+     *
+     * ```js
+     * const u8 = vec(8n)
+     * const a = u8(0x45n) // 0x145n
+     * const b = u8(0x89n) // 0x189n
+     *
+     * const abL = lsbFirst.concat(a)(b) // 0x18945n
+     * const abM = msbFirst.concat(a)(b) // 0x14589n
+     * ```
      */
     readonly concat: (a: Vec) => (b: Vec) => Vec
 }
