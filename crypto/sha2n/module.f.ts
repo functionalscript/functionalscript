@@ -1,14 +1,14 @@
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
 import { mask } from "../../types/bigint/module.f.ts";
 import {
-    uintMsb,
     vec,
-    popUintMsb,
     length,
-    concatMsb,
     empty,
+    msbFirst,
     type Vec
 } from '../../types/bit_vec/module.f.ts'
+
+const { concat, popFront, front } = msbFirst
 
 type V3 = Array3<bigint>
 
@@ -185,10 +185,10 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         fromV8,
         append: (state: State) => (v: Vec): State => {
             let { remainder, hash, len } = state
-            remainder = concatMsb(remainder)(v)
+            remainder = concat(remainder)(v)
             let remainderLen = length(remainder)
             while (remainderLen >= chunkLength) {
-                const [u, nr] = popUintMsb(chunkLength)(remainder)
+                const [u, nr] = popFront(chunkLength)(remainder)
                 hash = compress(hash)(u)
                 remainder = nr
                 remainderLen -= chunkLength
@@ -205,8 +205,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
             return (state: State): bigint => {
                 const { len } = state
                 let { remainder, hash } = state
-                remainder = concatMsb(remainder)(lastOne)
-                let u = uintMsb(chunkLength)(remainder)
+                remainder = concat(remainder)(lastOne)
+                let u = front(chunkLength)(remainder)
                 // overflow
                 if (length(remainder) + 64n > chunkLength) {
                     hash = compress(hash)(u)
