@@ -1,5 +1,6 @@
 import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
+import { fold, type List, type Thunk } from '../list/module.f.ts'
 
 /**
  * A vector of bits represented as a `bigint`.
@@ -35,6 +36,11 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
 }
 
 /**
+ * Creates an 8 bit vector from an unsigned integer.
+ */
+export const vec8: (u: bigint) => Vec = vec(8n)
+
+/**
  * Returns the unsigned integer of the given vector by removing a stop bit.
  *
  * @example
@@ -47,9 +53,11 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
 export const uint = (v: Vec): bigint => v ^ (1n << length(v))
 
 /**
- * Represents operations for handling bit vectors with a specific endian order.
+ * Represents operations for handling bit vectors with a specific bit order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering
  */
-export type Endian = {
+export type BitOrder = {
     /**
      * Retrieves the first unsigned integer of the specified length from the given vector.
      *
@@ -61,11 +69,11 @@ export type Endian = {
      * ```js
      * const vector = vec(8n)(0xF5n) // 0x1F5n
      *
-     * const resultL0 = lsbFirst.front(4n)(vector)  // resultL0 is 5n
-     * const resultL1 = lsbFirst.front(16n)(vector) // resultL1 is 0xF5n
+     * const resultL0 = lsb.front(4n)(vector)  // resultL0 is 5n
+     * const resultL1 = lsb.front(16n)(vector) // resultL1 is 0xF5n
      *
-     * const resultM0 = msbFirst.front(4n)(vector)  // resultM0 is 0xFn
-     * const resultM1 = msbFirst.front(16n)(vector) // resultM1 is 0xF500n
+     * const resultM0 = msb.front(4n)(vector)  // resultM0 is 0xFn
+     * const resultM1 = msb.front(16n)(vector) // resultM1 is 0xF500n
      * ```
      */
     readonly front: (len: bigint) => (v: Vec) => bigint
@@ -80,11 +88,11 @@ export type Endian = {
      * ```js
      * const v = vec(16n)(0x3456n) // 0x13456n
      *
-     * const rL0 = lsbFirst.removeFront(4n)(v)  // 0x1345n
-     * const rL1 = lsbFirst.removeFront(24n)(v) // 0x1n
+     * const rL0 = lsb.removeFront(4n)(v)  // 0x1345n
+     * const rL1 = lsb.removeFront(24n)(v) // 0x1n
      *
-     * const rM0 = msbFirst.removeFront(4n)(v)  // 0x1456n
-     * const rM1 = msbFirst.removeFront(24n)(v) // 0x1n
+     * const rM0 = msb.removeFront(4n)(v)  // 0x1456n
+     * const rM1 = msb.removeFront(24n)(v) // 0x1n
      * ```
      */
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
@@ -99,11 +107,11 @@ export type Endian = {
      * ```js
      * const vector = vec(8n)(0xF5n) // 0x1F5n
      *
-     * const [uL0, rL0] = lsbFirst.popFront(4n)(vector)  // [5n, 0x1Fn]
-     * const [uL1, rL1] = lsbFirst.popFront(16n)(vector) // [0xF5n, 1n]
+     * const [uL0, rL0] = lsb.popFront(4n)(vector)  // [5n, 0x1Fn]
+     * const [uL1, rL1] = lsb.popFront(16n)(vector) // [0xF5n, 1n]
      *
-     * const [uM0, rM0] = msbFirst.popFront(4n)(vector)  // [0xFn, 0x15n]
-     * const [uM1, rM1] = msbFirst.popFront(16n)(vector) // [0xF500n, 1n]
+     * const [uM0, rM0] = msb.popFront(4n)(vector)  // [0xFn, 0x15n]
+     * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, 1n]
      * ```
      */
     readonly popFront: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
@@ -120,17 +128,21 @@ export type Endian = {
      * const a = u8(0x45n) // 0x145n
      * const b = u8(0x89n) // 0x189n
      *
-     * const abL = lsbFirst.concat(a)(b) // 0x18945n
-     * const abM = msbFirst.concat(a)(b) // 0x14589n
+     * const abL = lsb.concat(a)(b) // 0x18945n
+     * const abM = msb.concat(a)(b) // 0x14589n
      * ```
      */
     readonly concat: (a: Vec) => (b: Vec) => Vec
 }
 
 /**
- * Implements operations for handling vectors in a least-significant-bit (LSB) first order.
+ * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering#LSb_0_bit_numbering
+ *
+ * Usually associated with Little-Endian (LE) byte order.
  */
-export const lsbFirst: Endian = {
+export const lsb: BitOrder = {
     front: len => {
         const m = mask(len)
         return v => {
@@ -157,9 +169,13 @@ export const lsbFirst: Endian = {
 }
 
 /**
- * Implements operations for handling vectors in a most-significant-bit (MSB) first order.
+ * Implements operations for handling vectors in a most-significant-bit (MSb) first order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering#MSb_0_bit_numbering
+ *
+ * Usually associated with Big-Endian (BE) byte order.
  */
-export const msbFirst: Endian = {
+export const msb: BitOrder = {
     front: len => {
         const m = mask(len)
         return v => (v >> (length(v) - len)) & m
@@ -172,5 +188,33 @@ export const msbFirst: Endian = {
             return [(v >> d) & m, vec(d)(v)]
         }
     },
-    concat: flip(lsbFirst.concat)
+    concat: flip(lsb.concat)
+}
+
+const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)(vec8(BigInt(u8)))
+
+/**
+ * Converts a list of unsigned 8-bit integers to a bit vector.
+ *
+ * @param bo The bit order for the conversion
+ * @param list The list of unsigned 8-bit integers to be converted.
+ * @returns The resulting vector based on the provided bit order.
+ */
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
+    fold(appendU8(bo))(empty)
+
+/**
+ * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
+ *
+ * @param bitOrder The bit order for the conversion.
+ * @param v The vector to be converted.
+ * @returns A thunk that produces a list of unsigned 8-bit integers.
+ */
+export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
+    const f = (v: Vec) => () => {
+        if (v === empty) { return null }
+        const [first, tail] = popFront(8n)(v)
+        return { first: Number(first), tail: f(tail) }
+    }
+    return f
 }

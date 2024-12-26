@@ -1,7 +1,5 @@
-import * as utf16 from '../../text/utf16/module.f.ts'
-import * as utf8 from "../../text/utf8/module.f.ts"
-import { empty, msbFirst, vec } from "../../types/bit_vec/module.f.ts"
-import { fold } from '../../types/list/module.f.ts'
+import { msbUtf8 } from "../../text/module.f.ts";
+import { empty, msb, vec } from "../../types/bit_vec/module.f.ts"
 import { repeat } from "../../types/monoid/module.f.ts";
 import {
     base32,
@@ -15,18 +13,12 @@ import {
     sha512x256,
 } from './module.f.ts'
 
-const { concat: beConcat } = msbFirst
+const { concat: beConcat } = msb
 
 const checkEmpty = ({ init, end }: Sha2) => (x: bigint) => {
     const result = end(init)
     if (result !== x) { throw [result, x] }
 }
-
-const u8 = vec(8n)
-
-const beAppendU8 = (v: number) => (a: bigint) => beConcat(a)(u8(BigInt(v)))
-
-const beUtf8 = (s: string) => fold(beAppendU8)(empty)(utf8.fromCodePointList(utf16.toCodePointList(utf16.stringToList(s))))
 
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
 export default {
@@ -84,21 +76,21 @@ export default {
     },
     utf8: [
         () => {
-            const s = beUtf8("The quick brown fox jumps over the lazy dog")
+            const s = msbUtf8("The quick brown fox jumps over the lazy dog")
             let state = sha224.init
             state = sha224.append(state)(s)
             const h = sha224.end(state)
             if (h !== 0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n) { throw h }
         },
         () => {
-            const s = beUtf8("The quick brown fox jumps over the lazy dog.")
+            const s = msbUtf8("The quick brown fox jumps over the lazy dog.")
             let state = sha224.init
             state = sha224.append(state)(s)
             const h = sha224.end(state)
             if (h !== 0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn) { throw h }
         },
         () => {
-            const s = beUtf8("hello world")
+            const s = msbUtf8("hello world")
             if (s !== 0x168656C6C_6F20776F_726C64n) { throw s }
             let state = sha256.init
             state = sha256.append(state)(s)

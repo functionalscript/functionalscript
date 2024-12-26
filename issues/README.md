@@ -43,6 +43,18 @@
     }
     ```
 27. [ ] Test Framework parse non-default export.
+28. [ ] Make a distinction between unit tests, examples and API tests.
+    - Unit tests are completely deterministic. They run every time module is loaded so they must be very very simple and check basic hypothesis. They are not available as public interface.
+      ```ts
+      import { unit } from 'dev/unit-test.f.ts'
+      unit({
+        check4: () => {
+            if (2 + 2 !== 4) { throw '2+2 != 4' }
+        }
+      })
+      ```
+    - Examples use only public API and located in `*example.f.ts` files.
+    - API tests use only public API and located in `*test.f.ts` files.
 
 ## Language Specification
 

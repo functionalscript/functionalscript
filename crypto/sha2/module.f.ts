@@ -4,11 +4,11 @@ import {
     vec,
     length,
     empty,
-    msbFirst,
+    msb,
     type Vec
 } from '../../types/bit_vec/module.f.ts'
 
-const { concat, popFront, front } = msbFirst
+const { concat, popFront, front } = msb
 
 type V3 = Array3<bigint>
 
@@ -18,9 +18,21 @@ export type V8 = Array8<bigint>
 
 export type V16 = Array16<bigint>
 
+/**
+ * Type definition for the state of the SHA-2 algorithm.
+ */
 export type State = {
+    /**
+     * The current hash value.
+     */
     readonly hash: V8
+    /**
+     * The length of the data processed so far.
+     */
     readonly len: bigint
+    /**
+     * The remaining data that has not yet been processed.
+     */
     readonly remainder: Vec
 }
 
@@ -222,14 +234,26 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
 /**
  * SHA2. See https://en.wikipedia.org/wiki/SHA-2
- *
- * @property init - Initial state of the SHA2 algorithm.
- * @property append - Function that appends data to the given state.
- * @property end - Function that finalizes the hash and returns the result.
  */
 export type Sha2 = {
+    /**
+     * Initial state of the SHA-2 algorithm.
+     */
     readonly init: State
+    /**
+     * Appends data to the state and returns the new state.
+     *
+     * @param state The current state.
+     * @param v The data to append.
+     * @returns The new state after appending data.
+     */
     readonly append: (state: State) => (v: Vec) => State
+    /**
+     * Finalizes the hash and returns the result as a bigint.
+     *
+     * @param state The final state.
+     * @returns The resulting hash.
+     */
     readonly end: (state: State) => bigint
 }
 

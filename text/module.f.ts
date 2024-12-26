@@ -1,4 +1,7 @@
+import { msb, u8List, u8ListToVec, type Vec } from "../types/bit_vec/module.f.ts";
 import { flatMap, type List } from '../types/list/module.f.ts'
+import * as utf8 from './utf8/module.f.ts'
+import * as utf16 from './utf16/module.f.ts'
 
 export type Block = ItemThunk | ItemArray
 
@@ -19,3 +22,21 @@ export const flat = (indent: string): (text: Block) => List<string> => {
 
 export const curly = (type: string) => (name: string) => (body: Block): Block =>
     [`${type} ${name}`, '{', body, '}']
+
+/**
+ * Converts a string to an UTF-8, represented as an MSB first bit vector.
+ *
+ * @param s The input string to be converted.
+ * @returns The resulting UTF-8 bit vector, MSB first.
+ */
+export const msbUtf8 = (s: string): Vec =>
+    u8ListToVec(msb)(utf8.fromCodePointList(utf16.toCodePointList(utf16.stringToList(s))))
+
+/**
+ * Converts a UTF-8 bit vector with MSB first encoding to a string.
+ *
+ * @param msbV - The UTF-8 bit vector with MSB first encoding.
+ * @returns The resulting string.
+ */
+export const msbUtf8ToString = (msbV: Vec) =>
+    utf16.listToString(utf16.fromCodePointList(utf8.toCodePointList(u8List(msb)(msbV))))
