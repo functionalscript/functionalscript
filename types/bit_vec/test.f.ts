@@ -52,6 +52,10 @@ const concat = (e: Endian) => (r: Vec) => () => {
     if (ab !== r) { throw ab }
 }
 
+const assert_eq = (a: bigint, b: bigint) => {
+    if (a !== b) { throw [a, b] }
+}
+
 export default {
     examples: {
         vec: () => {
@@ -67,6 +71,15 @@ export default {
             const result = uint(vector) // result is 0x5n
             if (result !== 0x5n) { throw result }
         },
+        front: () => {
+            const vector = vec(8n)(0xF5n) // 0x1F5n
+
+            assert_eq(lsbFirst.front(4n)(vector), 5n)
+            assert_eq(lsbFirst.front(16n)(vector), 0xF5n)
+
+            assert_eq(msbFirst.front(4n)(vector), 0xFn)
+            assert_eq(msbFirst.front(16n)(vector), 0xF500n)
+        }
     },
     front: {
         lsbf: frontTest(lsbFirst)(5n)(0xF5n),

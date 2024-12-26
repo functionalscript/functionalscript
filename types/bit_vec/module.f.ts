@@ -55,6 +55,18 @@ export type Endian = {
      *
      * @param len - The number of bits to read from the start of the vector.
      * @returns A function that takes a vector and returns the extracted unsigned integer.
+     *
+     * @example
+     *
+     * ```js
+     * const vector = vec(8n)(0xF5n) // 0x1F5n
+     *
+     * const resultL0 = lsbFirst.front(4n)(vector)  // resultL0 is 5n
+     * const resultL1 = lsbFirst.front(16n)(vector) // resultL1 is 0xF5n
+     *
+     * const resultM0 = msbFirst.front(4n)(vector)  // resultM0 is 0xFn
+     * const resultM1 = msbFirst.front(16n)(vector) // resultM1 is 0xF500n
+     * ```
      */
     readonly front: (len: bigint) => (v: Vec) => bigint
     /**
@@ -62,6 +74,18 @@ export type Endian = {
      *
      * @param len - The number of bits to remove from the vector.
      * @returns A function that takes a vector and returns the remaining vector.
+     *
+     * @example
+     *
+     * ```js
+     * const v = vec(16n)(0x3456n) // 0x13456n
+     *
+     * const rL0 = lsbFirst.removeFront(4n)(v)  // 0x1345n
+     * const rL1 = lsbFirst.removeFront(24n)(v) // 0x1n
+     *
+     * const rM0 = msbFirst.removeMsb(4n)(v)  // 0x1456n
+     * const rM1 = msbFirst.removeMsb(24n)(v) // 0x1n
+     * ```
      */
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
     /**
@@ -132,14 +156,6 @@ export const msbFirst: Endian = {
 
 /**
  * Extract the least significant unsigned integer from the given vector.
- *
- * @example
- *
- * ```js
- * const vector = vec(8n)(0xF5n) // 0x1F5n
- * const result = uintLsb(4n)(vector); // result is 5n
- * const result2 = uintLsb(16n)(vector); // result2 is 0xF5n
- * ```
  */
 export const uintLsb = (len: bigint): (v: Vec) => bigint => {
     const m = mask(len)
