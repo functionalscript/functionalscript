@@ -1,24 +1,19 @@
-import * as list from '../types/list/module.f.ts'
-const { flatMap } = list
+import { flatMap, type List } from '../types/list/module.f.ts'
 
-export type Block = ItemThunk|ItemArray
+export type Block = ItemThunk | ItemArray
 
 type ItemArray = readonly Item[]
 
-type ItemThunk = () => list.List<Item>
+type ItemThunk = () => List<Item>
 
-export type Item = string|ItemArray|ItemThunk
+export type Item = string | ItemArray | ItemThunk
 
-export const flat = (indent: string): (text: Block) => list.List<string> => {
-    const f
-        : (prefix: string) => (text: Block) => list.List<string>
-        = prefix => {
-        const g
-            : (item: Item) => list.List<string>
-            = item => typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
+export const flat = (indent: string): (text: Block) => List<string> => {
+    const f = (prefix: string) => {
+        const g = (item: Item): List<string> =>
+            typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
         return flatMap(g)
     }
-
     return f('')
 }
 
