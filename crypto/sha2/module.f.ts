@@ -236,7 +236,7 @@ const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 => ({
     end: end(hashLength),
 })
 
-export const base32 = base({
+export const base32: Base = base({
     logBitLen: 5n,
     k: [
         [
@@ -262,7 +262,7 @@ export const base32 = base({
     ss1: [17n, 19n, 10n],
 })
 
-export const base64 = base({
+export const base64: Base = base({
     logBitLen: 6n,
     k: [
         [
