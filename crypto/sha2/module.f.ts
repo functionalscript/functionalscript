@@ -220,6 +220,13 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     }
 }
 
+/**
+ * SHA2. See https://en.wikipedia.org/wiki/SHA-2
+ *
+ * @property init - Initial state of the SHA2 algorithm.
+ * @property append - Function that appends data to the given state.
+ * @property end - Function that finalizes the hash and returns the result.
+ */
 export type Sha2 = {
     readonly init: State
     readonly append: (state: State) => (v: Vec) => State
@@ -302,18 +309,21 @@ export const base64: Base = base({
     ss1: [19n, 61n, 6n],
 })
 
+/** SHA-256 */
 export const sha256: Sha2 = sha2(
     base32,
     [0x6a09e667n, 0xbb67ae85n, 0x3c6ef372n, 0xa54ff53an, 0x510e527fn, 0x9b05688cn, 0x1f83d9abn, 0x5be0cd19n],
     256n,
 )
 
+/** SHA-224 */
 export const sha224: Sha2 = sha2(
     base32,
     [0xc1059ed8n, 0x367cd507n, 0x3070dd17n, 0xf70e5939n, 0xffc00b31n, 0x68581511n, 0x64f98fa7n, 0xbefa4fa4n],
     224n,
 )
 
+/** SHA-512 */
 export const sha512: Sha2 = sha2(
     base64,
     [
@@ -323,6 +333,7 @@ export const sha512: Sha2 = sha2(
     512n,
 )
 
+/** SHA-384 */
 export const sha384: Sha2 = sha2(
     base64,
     [
@@ -332,6 +343,7 @@ export const sha384: Sha2 = sha2(
     384n,
 )
 
+/** SHA-512/256 */
 export const sha512x256: Sha2 = sha2(
     base64,
     [
@@ -341,6 +353,7 @@ export const sha512x256: Sha2 = sha2(
     256n,
 )
 
+/** SHA-512/224 */
 export const sha512x224: Sha2 = sha2(
     base64,
     [
