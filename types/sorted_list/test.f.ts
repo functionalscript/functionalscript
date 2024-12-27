@@ -5,12 +5,10 @@ import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
 import { flip } from '../function/module.f.ts'
 
-const stringify
-    : (a: readonly json.Unknown[]) => string
+const stringify: (a: readonly json.Unknown[]) => string
     = json.stringify(sort)
 
-const reverseCmp
-    : <T>(a: T) => (b: T) => Sign
+const reverseCmp: <T>(a: T) => (b: T) => Sign
     = flip(unsafeCmp)
 
 export default {
