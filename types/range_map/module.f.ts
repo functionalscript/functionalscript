@@ -1,9 +1,9 @@
 import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.ts'
 import { next } from '../list/module.f.ts'
-import type * as Option from '../nullable/module.f.ts'
+import type { Nullable } from '../nullable/module.f.ts'
 import { cmp } from '../number/module.f.ts'
 import type { Reduce, Equal } from '../function/operator/module.f.ts'
-import type * as Range from '../range/module.f.ts'
+import type { Range } from '../range/module.f.ts'
 
 export type Entry<T> = [T, number]
 
@@ -16,7 +16,7 @@ export type Operators<T> = {
     readonly equal: Equal<T>
 }
 
-type RangeState<T> = Option.Nullable<Entry<T>>
+type RangeState<T> = Nullable<Entry<T>>
 
 export type RangeMerge<T> = Reduce<RangeMap<T>>
 
@@ -58,5 +58,5 @@ export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T
         }
     }
 
-export const fromRange: <T>(def: T) => (r: Range.Range) => (value: T) => RangeMapArray<T>
+export const fromRange: <T>(def: T) => (r: Range) => (value: T) => RangeMapArray<T>
     = def => ([a, b]) => v => [[def, a - 1], [v, b]]
