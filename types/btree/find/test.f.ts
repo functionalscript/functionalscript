@@ -3,8 +3,7 @@ import * as list from '../../list/module.f.ts'
 import * as json from '../../../json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
 import type * as btree from '../types/module.f.ts'
-import * as string from '../../string/module.f.ts'
-const { cmp } = string
+import { cmp } from '../../string/module.f.ts'
 import * as s from '../set/module.f.ts'
 
 const jsonStr = json.stringify(sort)
