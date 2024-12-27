@@ -47,6 +47,22 @@ const benchmark = (f: (_: bigint) => bigint) => () => {
 }
 
 export default {
+    example: () => {
+        const total = sum([1n, 2n, 3n]) // 6n
+        if (total !== 6n) { throw total }
+
+        const absoluteValue = abs(-42n) // 42n
+        if (absoluteValue !== 42n) { throw total }
+
+        const logValue = log2(8n) // 3n
+        if (logValue !== 3n) { throw total }
+
+        const bitCount = bitLength(255n) // 8n
+        if (bitCount !== 8n) { throw total }
+
+        const bitmask = mask(5n) // 31n
+        if (bitmask !== 31n) { throw total }
+    },
     benchmark: {
         str: benchmark(stringLog2),
         stringHexLog2: benchmark(stringHexLog2),

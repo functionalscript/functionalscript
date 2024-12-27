@@ -5,20 +5,14 @@
  *
  * ```js
  * // Example usage:
- * import { sum, abs, log2, bitLength, mask } from './bigintUtilities';
+ * import { sum, abs, log2, bitLength, mask } from './module.f.ts'
  *
- * const a = [1n, 2n, 3n];
- * const total = sum(a); // 6n
- * const absoluteValue = abs(-42n); // 42n
- * const logValue = log2(8n); // 3n
- * const bitCount = bitLength(255n); // 8n
- * const bitmask = mask(5n); // 31n
+ * const total = sum([1n, 2n, 3n]) // 6n
+ * const absoluteValue = abs(-42n) // 42n
+ * const logValue = log2(8n) // 3n
+ * const bitCount = bitLength(255n) // 8n
+ * const bitmask = mask(5n) // 31n
  * ```
- *
- * @remarks
- * The module emphasizes type safety and performance, leveraging `bigint`'s ability to handle arbitrarily large integers.
- * Functions like `log2` and `bitLength` provide low-level binary manipulation utilities, while `sum` and `addition` demonstrate
- * basic arithmetic operations.
  */
 
 import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
@@ -34,13 +28,12 @@ export const addition: Reduce = a => b => a + b
 export const sum: (input: List<bigint>) => bigint
     = reduce(addition)(0n)
 
-export const abs: Unary = a => a >= 0 ? a : -a
+export const abs: Unary
+    = a => a >= 0 ? a : -a
 
-export const sign = (a: bigint): Sign =>
-    unsafeCmp(a)(0n)
+export const sign = (a: bigint): Sign => unsafeCmp(a)(0n)
 
-export const serialize = (a: bigint): string =>
-    `${a}n`
+export const serialize = (a: bigint): string => `${a}n`
 
 /**
  * Calculates the base-2 logarithm (floor).
