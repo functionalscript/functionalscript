@@ -1,10 +1,4 @@
-import type * as Array from '../../array/module.f.ts'
-
-export type Index3 = Array.Index3
-
-export type Index5 = Array.Index5
-
-type Array2<T> = Array.Array2<T>
+import type { Index3, Index5, Array2 } from '../../array/module.f.ts'
 
 export type Sign = -1|0|1
 

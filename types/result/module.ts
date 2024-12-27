@@ -1,8 +1,7 @@
-import * as result from './module.f.ts'
-const { ok, error } = result
+import { ok, error, type Result } from './module.f.ts'
 
 const tryCatch
-    : <T>(f: () => T) => result.Result<T, unknown>
+    : <T>(f: () => T) => Result<T, unknown>
     = f => {
         // Side effect: `try catch` is not allowed in FunctionalScript.
         try {

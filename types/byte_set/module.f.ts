@@ -1,8 +1,7 @@
 import { compose } from '../function/module.f.ts'
-import type * as RangeMap from '../range_map/module.f.ts'
-import type * as SortedSet from '../sorted_set/module.f.ts'
-import * as list from '../list/module.f.ts'
-const { reverse, countdown, flat, map } = list
+import type { RangeMap } from '../range_map/module.f.ts'
+import type { SortedSet } from '../sorted_set/module.f.ts'
+import { reverse, countdown, flat, map } from '../list/module.f.ts'
 
 export type ByteSet = bigint
 type Byte = number
@@ -61,7 +60,7 @@ export const unset
 const counter = reverse(countdown(256))
 
 const toRangeMapOp
-    : (n: ByteSet) => (s: string) => (i: number) => RangeMap.RangeMap<SortedSet.SortedSet<string>>
+    : (n: ByteSet) => (s: string) => (i: number) => RangeMap<SortedSet<string>>
     = n => s => i => {
     const current = has(i + 1)(n)
     const prev = has(i)(n)
@@ -69,5 +68,5 @@ const toRangeMapOp
 }
 
 export const toRangeMap
-    : (n: ByteSet) => (s: string) => RangeMap.RangeMap<SortedSet.SortedSet<string>>
+    : (n: ByteSet) => (s: string) => RangeMap<SortedSet<string>>
     = n => s => flat(map(toRangeMapOp(n)(s))(counter))

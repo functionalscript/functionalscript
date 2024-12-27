@@ -7,7 +7,7 @@ export type SortedList<T> = List<T>
 
 type SortedArray<T> = readonly T[]
 
-type Cmp<T> =(a: T) => (b: T) => compare.Sign
+type Cmp<T> = (a: T) => (b: T) => compare.Sign
 
 export type ReduceOp<T, S> = (state: S) => (a: T) => (b: T) => readonly[option.Nullable<T>, compare.Sign, S]
 

@@ -1,5 +1,5 @@
 import { at, setReplace, setReduce, empty, entries, remove, type Map } from './module.f.ts'
-import * as seq from '../list/module.f.ts'
+import { toArray } from '../list/module.f.ts'
 
 export default {
     main: [
@@ -52,7 +52,7 @@ export default {
             if (at('x')(m) !== 12) { throw 'error' }
             if (at('y')(m) !== 44) { throw 'error' }
             if (at('a')(m) !== null) { throw 'error' }
-            const e = seq.toArray(entries(m))
+            const e = toArray(entries(m))
             if (e.length !== 2) { throw 'error' }
         },
     ],

@@ -1,5 +1,5 @@
 import * as _ from './module.f.ts'
-import { unsafeCmp } from '../function/compare/module.f.ts'
+import { type Sign, unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
@@ -11,7 +11,7 @@ const stringify
     = json.stringify(sort)
 
 const reverseCmp
-    : <T>(a: T) => (b: T) => Map.Sign
+    : <T>(a: T) => (b: T) => Sign
     = flip(unsafeCmp)
 
 export default {
