@@ -54,7 +54,7 @@ export const log2 = (v: bigint): bigint => {
         i <<= 1n
     }
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
-    // Because of this, We check if `i` is greater than 1 before we divide it by 2.
+    // Because of this, We check if `i` is greater than 32 before we divide it by 2.
     while (i !== 32n) {
         i >>= 1n
         const n = v >> i
