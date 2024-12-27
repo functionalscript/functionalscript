@@ -1,23 +1,19 @@
-import * as tokenizer from './djs/tokenizer/module.f.ts'
-const { tokenize } = tokenizer
-import * as parser from './djs/parser/module.f.ts'
-const { parse } = parser
-import * as serializer from './djs/serializer/module.f.ts'
-const { djsModuleStringify } = serializer
-import * as list from './types/list/module.f.ts'
-const { toArray } = list
-import * as o from './types/object/module.f.ts'
-const { sort } = o
-import * as encoding from './text/utf16/module.f.ts'
-import fs from 'node:fs'
+import { type DjsToken, tokenize } from './djs/tokenizer/module.f.ts'
+import { parse } from './djs/parser/module.f.ts'
+import { djsModuleStringify } from './djs/serializer/module.f.ts'
+import { toArray } from './types/list/module.f.ts'
+import { sort } from './types/object/module.f.ts'
+import { stringToList } from './text/utf16/module.f.ts'
+import * as fs from 'node:fs'
+import * as process from 'node:process'
 
 const tokenizeString
-    : (s: string) => readonly tokenizer.DjsToken[]
-    = s => toArray(tokenize(encoding.stringToList(s)))
+    : (s: string) => readonly DjsToken[]
+    = s => toArray(tokenize(stringToList(s)))
 
 const stringifyDjsModule = djsModuleStringify(sort)
 
-var args = process.argv.slice(2)
+const args = process.argv.slice(2)
 
 if (args.length < 2) {
   console.log('Error: Requires 2 or more arguments');
