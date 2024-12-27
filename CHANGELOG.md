@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.3.8
+
+- SHA2 that works on bit vectors [PR #345](https://github.com/functionalscript/functionalscript/pull/345)
+
 ## 0.3.7
 
 - Monoid [PR #343](https://github.com/functionalscript/functionalscript/pull/343)
@@ -31,12 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.5
 
-- new [crypto/] directory [PR #327](https://github.com/functionalscript/functionalscript/pull/327).
-- simplified HTML [PR #327](https://github.com/functionalscript/functionalscript/pull/327).
-- djs: add undefined and comments [PR #325](https://github.com/functionalscript/functionalscript/pull/325).
+- new [crypto/] directory [PR #327](https://github.com/functionalscript/functionalscript/pull/327)
+- simplified HTML [PR #327](https://github.com/functionalscript/functionalscript/pull/327)
+- djs: add undefined and comments [PR #325](https://github.com/functionalscript/functionalscript/pull/325)
 
 ## 0.2.3
 
-- BitVec and documentation update [PR #322](https://github.com/functionalscript/functionalscript/pull/322).
+- BitVec and documentation update [PR #322](https://github.com/functionalscript/functionalscript/pull/322)
 
 ## 0.1.608

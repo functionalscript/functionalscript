@@ -3,9 +3,9 @@ import type * as Operator from '../function/operator/module.f.ts'
 const { unsafeCmp } = compare
 import { reduce, type List } from '../list/module.f.ts'
 
-type Unary = Operator.Unary<bigint, bigint>
+export type Unary = Operator.Unary<bigint, bigint>
 
-type Reduce = Operator.Reduce<bigint>
+export type Reduce = Operator.Reduce<bigint>
 
 export const addition: Reduce = a => b => a + b
 
@@ -40,6 +40,8 @@ export const serialize = (a: bigint): string =>
  *    determining the exact value of the logarithm.
  */
 export const log2 = (v: bigint): bigint => {
+    // TODO: use step 32 and `Math.clz32()` at the end.
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32
     if (v <= 0n) { return -1n }
     let result = 0n
     let i = 1n
@@ -83,8 +85,8 @@ export const log2 = (v: bigint): bigint => {
  * @returns The bit length of the input BigInt.
  *
  * @remark
- * The function uses the `log2` function to calculate the position of the most significant bit(MSB)
- * and adds `1n` to account for the MSB itself.For negative numbers, the absolute value is used.
+ * The function uses the `log2` function to calculate the position of the most significant bit (MSB)
+ * and adds `1n` to account for the MSB itself. For negative numbers, the absolute value is used.
  */
 export const bitLength = (v: bigint): bigint => {
     if (v <= 0n) {
@@ -93,3 +95,18 @@ export const bitLength = (v: bigint): bigint => {
     }
     return log2(v) + 1n
 }
+
+/**
+ * Generates a bitmask with the specified number of bits set to 1.
+ *
+ * @param len - The number of bits to set in the mask. Must be a non-negative integer.
+ * @returns A bigint representing the bitmask, where the least significant `len` bits are 1.
+ *
+ * @example
+ *
+ * ```js
+ * const result = mask(3n) // 7n
+ * ```
+ */
+export const mask = (len: bigint): bigint =>
+    (1n << len) - 1n

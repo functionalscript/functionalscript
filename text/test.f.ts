@@ -1,19 +1,23 @@
-import * as _ from './module.f.ts'
-import * as string from '../types/string/module.f.ts'
-const { join } = string
+import { flat, msbUtf8, msbUtf8ToString, type Block } from './module.f.ts'
+import { join } from '../types/string/module.f.ts'
 
-export default () => {
-    const text
-        : _.Block
-        = [
-        'a',
-        'b',
-        () => [
-            'c',
-            () => ['d'],
-        ],
-        'e',
-    ]
-    const result = join('\n')(_.flat(':')(text))
-    if (result !== 'a\nb\n:c\n::d\ne') { throw result }
+export default {
+    block: () => {
+        const text: Block = [
+            'a',
+            'b',
+            () => [
+                'c',
+                () => ['d'],
+            ],
+            'e',
+        ]
+        const result = join('\n')(flat(':')(text))
+        if (result !== 'a\nb\n:c\n::d\ne') { throw result }
+    },
+    encoding: () => {
+        const v = msbUtf8('Hello world!')
+        const r = msbUtf8ToString(v)
+        if (r !== 'Hello world!') { throw r }
+    }
 }

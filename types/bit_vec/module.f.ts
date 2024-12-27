@@ -1,10 +1,11 @@
-import { log2 } from '../bigint/module.f.ts'
+import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
+import { fold, type List, type Thunk } from '../list/module.f.ts'
 
 /**
  * A vector of bits represented as a `bigint`.
  */
-type Vec = bigint
+export type Vec = bigint
 
 /**
  * An empty vector of bits.
@@ -34,7 +35,10 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
     return data => stop | (data & mask)
 }
 
-const mask = (len: bigint) => (1n << len) - 1n
+/**
+ * Creates an 8 bit vector from an unsigned integer.
+ */
+export const vec8: (u: bigint) => Vec = vec(8n)
 
 /**
  * Returns the unsigned integer of the given vector by removing a stop bit.
@@ -49,137 +53,168 @@ const mask = (len: bigint) => (1n << len) - 1n
 export const uint = (v: Vec): bigint => v ^ (1n << length(v))
 
 /**
- * Extract the least significant unsigned integer from the given vector.
+ * Represents operations for handling bit vectors with a specific bit order.
  *
- * @example
- *
- * ```js
- * const vector = vec(8n)(0xF5n) // 0x1F5n
- * const result = uintLsb(4n)(vector); // result is 5n
- * const result2 = uintLsb(16n)(vector); // result2 is 0xF5n
- * ```
+ * https://en.wikipedia.org/wiki/Bit_numbering
  */
-export const uintLsb = (len: bigint): (v: Vec) => bigint => {
-    const m = mask(len)
-    return v => {
-        const result = v & m
-        return result === v ? uint(v) : result
+export type BitOrder = {
+    /**
+     * Retrieves the first unsigned integer of the specified length from the given vector.
+     *
+     * @param len - The number of bits to read from the start of the vector.
+     * @returns A function that takes a vector and returns the extracted unsigned integer.
+     *
+     * @example
+     *
+     * ```js
+     * const vector = vec(8n)(0xF5n) // 0x1F5n
+     *
+     * const resultL0 = lsb.front(4n)(vector)  // resultL0 is 5n
+     * const resultL1 = lsb.front(16n)(vector) // resultL1 is 0xF5n
+     *
+     * const resultM0 = msb.front(4n)(vector)  // resultM0 is 0xFn
+     * const resultM1 = msb.front(16n)(vector) // resultM1 is 0xF500n
+     * ```
+     */
+    readonly front: (len: bigint) => (v: Vec) => bigint
+    /**
+     * Removes a specified number of bits from the start of the given vector.
+     *
+     * @param len - The number of bits to remove from the vector.
+     * @returns A function that takes a vector and returns the remaining vector.
+     *
+     * @example
+     *
+     * ```js
+     * const v = vec(16n)(0x3456n) // 0x13456n
+     *
+     * const rL0 = lsb.removeFront(4n)(v)  // 0x1345n
+     * const rL1 = lsb.removeFront(24n)(v) // 0x1n
+     *
+     * const rM0 = msb.removeFront(4n)(v)  // 0x1456n
+     * const rM1 = msb.removeFront(24n)(v) // 0x1n
+     * ```
+     */
+    readonly removeFront: (len: bigint) => (v: Vec) => Vec
+    /**
+     * Removes a specified number of bits from the start of the vector and returns
+     * the removed bits and the remaining vector.
+     *
+     * @param len - The number of bits to remove from the vector.
+     * @returns A function that takes a vector and returns
+     * a tuple containing the removed bits as an unsigned integer and the remaining vector.
+     *
+     * ```js
+     * const vector = vec(8n)(0xF5n) // 0x1F5n
+     *
+     * const [uL0, rL0] = lsb.popFront(4n)(vector)  // [5n, 0x1Fn]
+     * const [uL1, rL1] = lsb.popFront(16n)(vector) // [0xF5n, 1n]
+     *
+     * const [uM0, rM0] = msb.popFront(4n)(vector)  // [0xFn, 0x15n]
+     * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, 1n]
+     * ```
+     */
+    readonly popFront: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
+    /**
+     * Concatenates two vectors.
+     *
+     * @param a - The first vector.
+     * @returns A function that takes a second vector and returns the concatenated vector.
+     *
+     * @example
+     *
+     * ```js
+     * const u8 = vec(8n)
+     * const a = u8(0x45n) // 0x145n
+     * const b = u8(0x89n) // 0x189n
+     *
+     * const abL = lsb.concat(a)(b) // 0x18945n
+     * const abM = msb.concat(a)(b) // 0x14589n
+     * ```
+     */
+    readonly concat: (a: Vec) => (b: Vec) => Vec
+}
+
+/**
+ * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering#LSb_0_bit_numbering
+ *
+ * Usually associated with Little-Endian (LE) byte order.
+ */
+export const lsb: BitOrder = {
+    front: len => {
+        const m = mask(len)
+        return v => {
+            const result = v & m
+            return result === v ? uint(v) : result
+        }
+    },
+    removeFront: len => v => {
+        const r = v >> len
+        return r === 0n ? empty : r
+    },
+    popFront: len => {
+        const m = mask(len)
+        return v => {
+            const result = v & m
+            return result === v ? [uint(v), empty] : [result, v >> len]
+        }
+    },
+    concat: a => {
+        const aLen = length(a)
+        const m = mask(aLen)
+        return b => (b << aLen) | (a & m)
     }
 }
 
 /**
- * Removes the first `len` least significant bits from the given vector.
+ * Implements operations for handling vectors in a most-significant-bit (MSb) first order.
  *
- * @example
+ * https://en.wikipedia.org/wiki/Bit_numbering#MSb_0_bit_numbering
  *
- * ```js
- * const v = vec(16n)(0x3456n) // 0x13456n
- * const r = removeLsb(4n)(v) // 0x1345n
- * const r2 = removeLsb(24n)(v) // 0x1n
- * ```
+ * Usually associated with Big-Endian (BE) byte order.
  */
-export const removeLsb = (len: bigint) => (v: Vec): Vec => {
-    const r = v >> len
-    return r === 0n ? empty : r
+export const msb: BitOrder = {
+    front: len => {
+        const m = mask(len)
+        return v => (v >> (length(v) - len)) & m
+    },
+    removeFront: len => v => vec(length(v) - len)(v),
+    popFront: len => {
+        const m = mask(len)
+        return v => {
+            const d = length(v) - len
+            return [(v >> d) & m, vec(d)(v)]
+        }
+    },
+    concat: flip(lsb.concat)
 }
 
+const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)(vec8(BigInt(u8)))
+
 /**
- * Extracts the least significant unsigned integer and removes it from the vector.
+ * Converts a list of unsigned 8-bit integers to a bit vector.
  *
- * @example
- *
- * ```js
- * const vector = vec(8n)(0xF5n) // 0x1F5n
- * const [result, rest] = popUintLsb(4n)(vector); // result is 5n, rest is 0x1Fn
- * const [result2, rest2] = popUintLsb(16n)(vector); // result2 is 0xF5n, rest2 is 1n
- * ```
+ * @param bo The bit order for the conversion
+ * @param list The list of unsigned 8-bit integers to be converted.
+ * @returns The resulting vector based on the provided bit order.
  */
-export const popUintLsb = (len: bigint): (v: Vec) => readonly[bigint, Vec] => {
-    const m = mask(len)
-    return v => {
-        const result = v & m
-        return result === v ? [uint(v), empty] : [result, v >> len]
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
+    fold(appendU8(bo))(empty)
+
+/**
+ * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
+ *
+ * @param bitOrder The bit order for the conversion.
+ * @param v The vector to be converted.
+ * @returns A thunk that produces a list of unsigned 8-bit integers.
+ */
+export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
+    const f = (v: Vec) => () => {
+        if (v === empty) { return null }
+        const [first, tail] = popFront(8n)(v)
+        return { first: Number(first), tail: f(tail) }
     }
+    return f
 }
-
-/**
- * Extract the most significant unsigned integer of the given `len` from the given vector.
- *
- * @example
- *
- * ```js
- * const vector = vec(8n)(0xF5n) // 0x1F5n
- * const result = uintMsb(4n)(vector); // result is 0xFn
- * const result2 = uintMsb(16n)(vector); // result2 is 0xF500n
- * ```
- */
-export const uintMsb = (len: bigint): (v: Vec) => bigint => {
-    const m = mask(len)
-    return v => (v >> (length(v) - len)) & m
-}
-
-/**
- * Removes the first `len` most significant bits from the given vector.
- *
- * @example
- *
- * ```js
- * const v = vec(16n)(0x3456n) // 0x13456n
- * const r = removeMsb(4n)(v) // 0x1456n
- * const r2 = removeMsb(24n)(v) // 0x1n
- * ```
- */
-export const removeMsb = (len: bigint) => (v: Vec): Vec => vec(length(v) - len)(v)
-
-/**
- * Extracts the most significant unsigned integer and removes it from the vector.
- *
- * @example
- *
- * ```js
- * const vector = vec(8n)(0xF5n) // 0x1F5n
- * const [result, rest] = popUintMsb(4n)(vector); // [0xFn, 0x15n]
- * const [result2, rest2] = popUintMsb(16n)(vector); // [0xF500n, 1n]
- * ```
- */
-export const popUintMsb = (len: bigint): (v: Vec) => readonly[bigint, Vec] => {
-    const m = mask(len)
-    return v => {
-        const d = length(v) - len
-        return [(v >> d) & m, vec(d)(v)]
-    }
-}
-
-/**
- * Concat the given vectors of bits. The first vector is the least significant.
- *
- * @example
- *
- * ```js
- * const u8 = vec(8n)
- * const a = u8(0x45n) // 0x145n
- * const b = u8(0x89n) // 0x189n
- * const ab = concatLsb(a)(b) // 0x18945n
- * ```
- */
-export const concatLsb = (a: Vec): (b: Vec) => Vec => {
-    const aLen = length(a)
-    const m = mask(aLen)
-    return b => (b << aLen) | (a & m)
-}
-
-/**
- * Concat the given vectors of bits. The first vector is the most significant.
- *
- * @example
- *
- * ```js
- * const u8 = vec(8n)
- * const a = u8(0x45n) // 0x145n
- * const b = u8(0x89n) // 0x189n
- * const ab = concatMsb(a)(b) // 0x14589n
- * ```
- */
-export const concatMsb
-    : (b: Vec) => (a: Vec) => Vec
-    = flip(concatLsb)
