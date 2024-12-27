@@ -21,7 +21,7 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ### newLog2 (32 based) versus others (2024/12/27)
 
-|Framework| str     |stringHex|log2     |newLog2 |
+|Framework|str bin  |str hex  |old log2 |log2    |
 |---------|---------|---------|---------|--------|
 |Bun      | 994.3296|458.6633 |1038.7439|669.9755|
 |Deno 2   |1884.6942|485.5894 | 240.4493|143.2709|
@@ -32,7 +32,7 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 |Node 18  |1888.5652|590.6440 | 243.8712|134.0867|
 |Node 16  |1901.8710|560.1892 | 339.8360|213.6341|
 
-`newLog2` wins on Deno and Node (V8) but slight lose on Bun (WebKit).
+The new `log2` wins on Deno and Node (V8) but slightly loses on Bun (WebKit).
 
 https://github.com/functionalscript/functionalscript/actions/runs/12521052013/job/34927599441?pr=346
 
