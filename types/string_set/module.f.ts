@@ -1,4 +1,4 @@
-import type * as BtreeTypes from '../btree/types/module.f.ts'
+import type { Tree } from '../btree/types/module.f.ts'
 import * as btree from '../btree/module.f.ts'
 import { find, isFound } from '../btree/find/module.f.ts'
 import { remove as btreeRemove } from '../btree/remove/module.f.ts'
@@ -10,7 +10,7 @@ import { compose } from '../function/module.f.ts'
 export const values: (s: StringSet) => List<string> = btree.values
 export const empty: null = btree.empty
 
-export type StringSet = BtreeTypes.Tree<string>
+export type StringSet = Tree<string>
 
 export const contains
     : (value: string) => (set: StringSet) => boolean
