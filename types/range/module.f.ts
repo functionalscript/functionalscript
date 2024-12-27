@@ -1,4 +1,3 @@
-
 export type Range = readonly [number, number]
 
 export const contains: (range: Range) => (i: number) => boolean
