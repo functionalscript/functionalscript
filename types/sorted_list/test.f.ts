@@ -3,7 +3,6 @@ import { type Sign, unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
-import type * as Map from '../map/module.f.ts'
 import { flip } from '../function/module.f.ts'
 
 const stringify
