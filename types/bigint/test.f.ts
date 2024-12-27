@@ -1,11 +1,9 @@
 import { sum, abs, serialize, log2, bitLength, mask } from './module.f.ts'
 
-const newLog2 = (v: bigint): bigint => {
-    // TODO: use step 32 and `Math.clz32()` at the end.
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32
+const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
     let result = 0n
-    let i = 32n
+    let i = 1n
     while (true) {
         const n = v >> i
         if (n === 0n) {
@@ -18,7 +16,7 @@ const newLog2 = (v: bigint): bigint => {
     }
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
     // Because of this, We check if `i` is greater than 1 before we divide it by 2.
-    while (i !== 32n) {
+    while (i !== 1n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -26,7 +24,7 @@ const newLog2 = (v: bigint): bigint => {
             v = n
         }
     }
-    return result + 31n - BigInt(Math.clz32(Number(v)))
+    return result
 }
 
 const stringLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
@@ -52,8 +50,8 @@ export default {
     benchmark: {
         str: benchmark(stringLog2),
         stringHexLog2: benchmark(stringHexLog2),
+        oldLog2: benchmark(oldLog2),
         log2: benchmark(log2),
-        newLog2: benchmark(newLog2),
     },
     mask: () => {
         const result = mask(3n) // 7n

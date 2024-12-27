@@ -55,6 +55,7 @@
       ```
     - Examples use only public API and located in `*example.f.ts` files.
     - API tests use only public API and located in `*test.f.ts` files.
+29. [ ] Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
 
 ## Language Specification
 
