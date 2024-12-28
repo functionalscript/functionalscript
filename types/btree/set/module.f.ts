@@ -1,9 +1,7 @@
-import * as _ from '../types/module.f.ts'
-import * as btreeFind from '../find/module.f.ts'
-const { find } = btreeFind
-import * as Cmp from '../../function/compare/module.f.ts'
-import * as list from '../../list/module.f.ts'
-const { fold } = list
+import type * as _ from '../types/module.f.ts'
+import { find, type PathItem } from '../find/module.f.ts'
+import type * as Cmp from '../../function/compare/module.f.ts'
+import { fold } from '../../list/module.f.ts'
 
 type Branch1To3<T> = _.Branch1<T> | _.Branch3<T>
 
@@ -12,7 +10,7 @@ const b57
     = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
 const reduceOp
-    : <T>(i: btreeFind.PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>
+    : <T>(i: PathItem<T>) => (a: Branch1To3<T>) => Branch1To3<T>
     = ([i, x]) => a => {
     switch (i) {
         case 0: {

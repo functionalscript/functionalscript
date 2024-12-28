@@ -1,6 +1,74 @@
 import { sum, abs, serialize, log2, bitLength, mask } from './module.f.ts'
 
+const oldLog2 = (v: bigint): bigint => {
+    if (v <= 0n) { return -1n }
+    let result = 0n
+    let i = 1n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            // overshot
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n // multiple by two
+    }
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 1 before we divide it by 2.
+    while (i !== 1n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+    return result
+}
+
+const stringLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
+
+const stringHexLog2 = (v: bigint): bigint => {
+    const len = (BigInt(v.toString(16).length) - 1n) << 2n
+    const x = v >> len
+    return len + 31n - BigInt(Math.clz32(Number(x)))
+}
+
+const benchmark = (f: (_: bigint) => bigint) => () => {
+    let e = 1_048_575n
+    let c = 1n << e
+    for (let i = 0n; i < 1_000; ++i) {
+        const x = f(c)
+        if (x !== e) { throw x }
+        c >>= 1n
+        --e
+    }
+}
+
 export default {
+    example: () => {
+        const total = sum([1n, 2n, 3n]) // 6n
+        if (total !== 6n) { throw total }
+
+        const absoluteValue = abs(-42n) // 42n
+        if (absoluteValue !== 42n) { throw total }
+
+        const logValue = log2(8n) // 3n
+        if (logValue !== 3n) { throw total }
+
+        const bitCount = bitLength(255n) // 8n
+        if (bitCount !== 8n) { throw total }
+
+        const bitmask = mask(5n) // 31n
+        if (bitmask !== 31n) { throw total }
+    },
+    benchmark: {
+        str: benchmark(stringLog2),
+        stringHexLog2: benchmark(stringHexLog2),
+        oldLog2: benchmark(oldLog2),
+        log2: benchmark(log2),
+    },
     mask: () => {
         const result = mask(3n) // 7n
         if (result !== 7n) { throw result }

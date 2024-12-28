@@ -5,15 +5,12 @@ export type Fold<I, O> = Binary<I, O, O>
 export const join = (separator: string): Reduce<string> => value => prior =>
     `${prior}${separator}${value}`
 
-export const concat
-    : Reduce<string>
-    = i => acc =>
-        `${acc}${i}`
+export const concat: Reduce<string> = i => acc =>
+    `${acc}${i}`
 
 export type Unary<T, R> = (value: T) => R
 
-export const logicalNot
-    : Unary<boolean, boolean>
+export const logicalNot: Unary<boolean, boolean>
     = v => !v
 
 export type Equal<T> = Binary<T, T, boolean>
@@ -40,20 +37,16 @@ export type Reduce<T> = Fold<T, T>
 export const reduceToScan = <T>(op: Reduce<T>): Scan<T, T> => init =>
     [init, foldToScan(op)(init)]
 
-export const addition
-    : Reduce<number>
+export const addition: Reduce<number>
     = a => b => a + b
 
-export const min
-    : Reduce<number>
+export const min: Reduce<number>
     = a => b => a < b ? a : b
 
-export const max
-    : Reduce<number>
+export const max: Reduce<number>
     = a => b => a > b ? a : b
 
-export const increment
-    : (b: number) => number
+export const increment: (b: number) => number
     = addition(1)
 
 export const counter = () => increment

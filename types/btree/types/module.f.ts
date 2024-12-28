@@ -1,14 +1,4 @@
-export type Array1<T> = readonly[T]
-
-export type Array2<T> = readonly[T,T]
-
-export type Array3<T> = readonly[T,T,T]
-
-type Index2 = 0|1
-
-type Index3 = 0|1|2
-
-type Index5 = 0|1|2|3|4
+import type { Array1, Array2 } from '../../array/module.f.ts'
 
 export type Leaf1<T> = Array1<T>
 

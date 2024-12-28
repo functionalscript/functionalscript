@@ -1,6 +1,22 @@
-import * as compare from '../function/compare/module.f.ts'
+/**
+ * This module provides a collection of utility functions and type definitions for working with `bigint` values in JavaScript.
+ *
+ * @example
+ *
+ * ```js
+ * // Example usage:
+ * import { sum, abs, log2, bitLength, mask } from './module.f.ts'
+ *
+ * const total = sum([1n, 2n, 3n]) // 6n
+ * const absoluteValue = abs(-42n) // 42n
+ * const logValue = log2(8n) // 3n
+ * const bitCount = bitLength(255n) // 8n
+ * const bitmask = mask(5n) // 31n
+ * ```
+ */
+
+import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
 import type * as Operator from '../function/operator/module.f.ts'
-const { unsafeCmp } = compare
 import { reduce, type List } from '../list/module.f.ts'
 
 export type Unary = Operator.Unary<bigint, bigint>
@@ -9,17 +25,15 @@ export type Reduce = Operator.Reduce<bigint>
 
 export const addition: Reduce = a => b => a + b
 
-export const sum
-    : (input: List<bigint>) => bigint
+export const sum: (input: List<bigint>) => bigint
     = reduce(addition)(0n)
 
-export const abs: Unary = a => a >= 0 ? a : -a
+export const abs: Unary
+    = a => a >= 0 ? a : -a
 
-export const sign = (a: bigint): compare.Sign =>
-    unsafeCmp(a)(0n)
+export const sign = (a: bigint): Sign => unsafeCmp(a)(0n)
 
-export const serialize = (a: bigint): string =>
-    `${a}n`
+export const serialize = (a: bigint): string => `${a}n`
 
 /**
  * Calculates the base-2 logarithm (floor).
@@ -40,11 +54,9 @@ export const serialize = (a: bigint): string =>
  *    determining the exact value of the logarithm.
  */
 export const log2 = (v: bigint): bigint => {
-    // TODO: use step 32 and `Math.clz32()` at the end.
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32
     if (v <= 0n) { return -1n }
-    let result = 0n
-    let i = 1n
+    let result = 31n
+    let i = 32n
     while (true) {
         const n = v >> i
         if (n === 0n) {
@@ -56,8 +68,8 @@ export const log2 = (v: bigint): bigint => {
         i <<= 1n
     }
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
-    // Because of this, We check if `i` is greater than 1 before we divide it by 2.
-    while (i !== 1n) {
+    // Because of this, We check if `i` is greater than 32 before we divide it by 2.
+    while (i !== 32n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -65,7 +77,7 @@ export const log2 = (v: bigint): bigint => {
             v = n
         }
     }
-    return result
+    return result - BigInt(Math.clz32(Number(v)))
 }
 
 /**

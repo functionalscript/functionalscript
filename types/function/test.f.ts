@@ -1,14 +1,11 @@
 import { fn } from './module.f.ts'
 
 export default () => {
-    const f
-        : (x: string) => readonly[string]
+    const f: (x: string) => readonly[string]
         = x => [x]
-    const g
-        : (x: readonly[string]) => readonly[number]
+    const g: (x: readonly[string]) => readonly[number]
         = ([x]) => [x.length]
-    const w
-        : (x: readonly[number]) => number
+    const w: (x: readonly[number]) => number
         = ([x]) => x
 
     const r = fn(f).then(g).then(w).result

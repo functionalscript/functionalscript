@@ -1,9 +1,9 @@
-import * as _ from '../types/module.f.ts'
-import * as Cmp from '../../function/compare/module.f.ts'
+import type * as _ from '../types/module.f.ts'
+import type * as Cmp from '../../function/compare/module.f.ts'
 import * as find from '../find/module.f.ts'
 import * as list from '../../list/module.f.ts'
 const { fold, concat, next } = list
-import * as Array from '../../array/module.f.ts'
+import type * as Array from '../../array/module.f.ts'
 import * as n from '../../nullable/module.f.ts'
 const { map } = n
 

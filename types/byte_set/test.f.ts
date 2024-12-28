@@ -1,9 +1,7 @@
 import * as _ from './module.f.ts'
-import * as list from '../list/module.f.ts'
-const { every, countdown, map, toArray } = list
+import { every, countdown, map, toArray } from '../list/module.f.ts'
 import * as json from '../../json/module.f.ts'
-import * as o from '../object/module.f.ts'
-const { sort } = o
+import { sort } from '../object/module.f.ts'
 
 const stringify
     : (a: readonly json.Unknown[]) => string

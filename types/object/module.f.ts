@@ -9,21 +9,17 @@ export type Map<T> = {
 
 export type Entry<T> = readonly[string, T]
 
-export const at
-    : (name: string) => <T>(object: Map<T>) => T|null
+export const at: (name: string) => <T>(object: Map<T>) => T|null
     = name => object => {
-    const r = getOwnPropertyDescriptor(object, name)
-    return r === void 0 ? null : r.value
-}
+        const r = getOwnPropertyDescriptor(object, name)
+        return r === void 0 ? null : r.value
+    }
 
-export const sort
-    : <T>(e: List<Entry<T>>) => List<Entry<T>>
+export const sort: <T>(e: List<Entry<T>>) => List<Entry<T>>
     = e => mapEntries(mapFromEntries(e))
 
-export const fromEntries
-    : <T>(e: List<Entry<T>>) => Map<T>
+export const fromEntries: <T>(e: List<Entry<T>>) => Map<T>
     = e => objectFromEntries(iterable(e))
 
-export const fromMap
-    : <T>(m: BtMap<T>) => Map<T>
+export const fromMap: <T>(m: BtMap<T>) => Map<T>
     = m => fromEntries(mapEntries(m))
