@@ -21,18 +21,17 @@ type MergeReduce<T, S> = {
 export const genericMerge
     = <T,S>({ reduceOp, tailReduce }: MergeReduce<T,S>)
         : (state: S) => (a: List<T>) => (b: List<T>) => List<T> => {
-        const f: (state: S) => (a: List<T>) => (b: List<T>) => List<T>
-            = state => a => b => () => {
-                const aResult = next(a)
-                if (aResult === null) { return tailReduce(state)(b) }
-                const bResult = next(b)
-                if (bResult === null) { return tailReduce(state)(aResult) }
-                const [first, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
-                const aNext = sign === 1 ? a : aResult.tail
-                const bNext = sign === -1 ? b : bResult.tail
-                const tail = f(stateNext)(aNext)(bNext)
-                return first === null ? tail : { first, tail }
-            }
+        const f = (state: S) => (a: List<T>) => (b: List<T>) => () => {
+            const aResult = next(a)
+            if (aResult === null) { return tailReduce(state)(b) }
+            const bResult = next(b)
+            if (bResult === null) { return tailReduce(state)(aResult) }
+            const [first, sign, stateNext] = reduceOp(state)(aResult.first)(bResult.first)
+            const aNext = sign === 1 ? a : aResult.tail
+            const bNext = sign === -1 ? b : bResult.tail
+            const tail = f(stateNext)(aNext)(bNext)
+            return first === null ? tail : { first, tail }
+        }
         return f
     }
 
