@@ -1,4 +1,4 @@
-import * as _ from './module.f.ts'
+import { nodeRemove } from './module.f.ts'
 import type { TNode } from '../types/module.f.ts'
 import * as s from '../set/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
@@ -10,7 +10,7 @@ const set = (node: TNode<string>) => (value: string) =>
 
 const remove
     = (node: TNode<string>) => (value: string): TNode<string> | null =>
-        _.nodeRemove(cmp(value))(node)
+        nodeRemove(cmp(value))(node)
 
 const jsonStr = json.stringify(sort)
 

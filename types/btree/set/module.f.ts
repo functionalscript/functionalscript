@@ -1,12 +1,12 @@
-import type * as _ from '../types/module.f.ts'
+import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
 import { find, type PathItem } from '../find/module.f.ts'
-import type * as Cmp from '../../function/compare/module.f.ts'
+import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
 
-type Branch1To3<T> = _.Branch1<T> | _.Branch3<T>
+type Branch1To3<T> = Branch1<T> | Branch3<T>
 
 const b57
-    : <T>(b: _.Branch5<T> | _.Branch7<T>) => Branch1To3<T>
+    : <T>(b: Branch5<T> | Branch7<T>) => Branch1To3<T>
     = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
 const reduceOp
@@ -34,7 +34,7 @@ const reduceOp
 const reduceBranch = fold(reduceOp)
 
 const nodeSet
-    = <T>(c: Cmp.Compare<T>) => (g: (value: T | null) => T) => (node: _.TNode<T>): _.TNode<T> => {
+    = <T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>): TNode<T> => {
     const { first, tail } = find(c)(node)
     const [i, x] = first;
     const f = (): Branch1To3<T> => {
@@ -83,5 +83,5 @@ const nodeSet
 }
 
 export const set
-    : <T>(c: Cmp.Compare<T>) => (f: (value: T|null) => T) => (tree: _.Tree<T>) => _.TNode<T>
+    : <T>(c: Compare<T>) => (f: (value: T|null) => T) => (tree: Tree<T>) => TNode<T>
     = c => f => tree => tree === null ? [f(null)] : nodeSet(c)(f)(tree)
