@@ -54,7 +54,7 @@ impl<T: Class> CObject<T> {
         match t.counter.fetch_sub(1, Ordering::Relaxed) {
             1 => {
                 let m = t as *const CObject<T> as *mut CObject<T>;
-                unsafe { Box::from_raw(m) };
+                let _ = unsafe { Box::from_raw(m) };
                 0
             }
             x => x - 1,

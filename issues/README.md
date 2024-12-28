@@ -1,30 +1,62 @@
 # Issues
 
-## Allow Debugging During Test Run
+1. [X] [test-debug](./01-test-debug.md).
+2. [X] [esm](./02-esm.md)
+3. [ ] [djs](./03-djs.md)
+4. [ ] VM Rust project
+5. [ ] [publish](./05-publish.md)
+6. [ ] fix index generation by including sub modules `{ ...m, add: mAdd, remove: mRemove}`.
+7. [ ] Conventions:
 
-Currently, we read files as strings and then parse them as functions. See [dev/test.mjs](dev/test.mjs). In this case, debugger doesn't know about source code and can't debug the functions. The main reason for loading modules as functions was that Deno v1 didn't support `.cjs` files. However, Deno v2 support them.
+    ```js
+    import list, * as List from 'list.mjs'
+    // list is for objects.
+    // List is for types and should be ignored by FJS or errored if used in code.
+    ```
 
-We can fix the issue by changing our test runner. The test runner will scan all directories and find all `test.f.cjs` files and then load them using `require`.
+8. Move logic from `.mjs` files to `.f.mjs` files.
+9. [ ] Generating a Website.
+10. [ ] Short URL table.
+11. [ ] [fs-load](./11-fs-load.md)
+12. [ ] Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
+13. [ ] Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
+14. [ ] Combine `npm run index` and `npm run version`
+15. [ ] Generate `package.json/exports` instead of `index.f.mjs`.
+16. [ ] License in JSR file?
+17. [ ] [djs-extension](./17-djs-extension.md).
+18. [ ] Formatter for `.f.js` and `.f.ts` files.
+19. [ ] Convert FunctionalScript code using non-default `export`.
+20. [ ] Test framework should be able to run a subset of tests.
+21. [ ] Test Framework silent mode. Show progress and failed tests only.
+22. [x] bit sequences based on bigint
+23. [ ] a console program similar to one that we have in the NaNVM repo.
+24. [ ] create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
+    - [ ] run `node ./module.mjs input.f.mjs output.f.mjs`
+    - [ ] run `deno ./module.mjs input.f.mjs output.f.mjs`
+25. [ ] Switch to Deno an `.ts`?
+    1. Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27
+    2. One day we may switch back to `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included into ECMAScript. BTW, we should only use JS with type annotations instead of full TypeScript.
+26. [ ] Test Framework should recognize `throw` conventions.
+    ```ts
+    export default {
+        'throw': () => { throw }
+    }
+    ```
+27. [ ] Test Framework parse non-default export.
+28. [ ] Make a distinction between unit tests, examples and API tests.
+    - Unit tests are completely deterministic. They run every time module is loaded so they must be very very simple and check basic hypothesis. They are not available as public interface.
+      ```ts
+      import { unit } from 'dev/unit-test.f.ts'
+      unit({
+        check4: () => {
+            if (2 + 2 !== 4) { throw '2+2 != 4' }
+        }
+      })
+      ```
+    - Examples use only public API and located in `*example.f.ts` files.
+    - API tests use only public API and located in `*test.f.ts` files.
+29. [ ] Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
 
-**Note:** we will drop support for Deno v1.
+## Language Specification
 
-## Creating `./_module.f.cjs`
-
-We can write a script which will generate `./_module.f.cjs` before packaging. Note: the script should be added into [prepack](https://docs.npmjs.com/cli/v8/using-npm/scripts#pre--post-scripts). The module should never be used by other internal modules. It's only for internal consumptions. The structure will be like this
-
-```js
-module.exports = {
-    types: {
-        list: require('./types/list/module.f.cjs'),
-        // ...
-    },
-    // ...
-}
-```
-
-Then, users can use it like this:
-
-```js
-const { types: { list } } = require('functionalscript)
-//...
-```
+See [lang/README.md](./lang/README.md).

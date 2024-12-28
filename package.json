@@ -1,15 +1,21 @@
 {
   "name": "functionalscript",
-  "version": "0.0.574",
+  "version": "0.3.10",
+  "type": "module",
+  "files": [
+    "**/*.f.d.ts",
+    "**/*.f.js"
+  ],
   "description": "FunctionalScript is a functional subset of JavaScript",
-  "main": "index.f.cjs",
   "scripts": {
-    "tsc": "tsc",
-    "test": "tsc && npm run test-only",
-    "index": "node ./dev/index.mjs",
-    "version": "node ./nodejs/version/main.cjs",
-    "test-only": "node --trace-uncaught ./dev/test.mjs",
-    "comtest": "node ./com/test/build.cjs"
+    "tsc-emit": "tsc --NoEmit false",
+    "prepack": "npm run tsc-emit",
+    "test20": "npm run prepack && node --trace-uncaught ./dev/test.js",
+    "test": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
+    "comtest": "node --experimental-strip-types ./com/test/build.ts",
+    "index": "node --experimental-strip-types ./dev/index.ts",
+    "version": "node --experimental-strip-types ./nodejs/version/main.ts",
+    "fsc": "node --experimental-strip-types ./main.ts"
   },
   "repository": {
     "type": "git",
@@ -31,7 +37,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
   }
 }

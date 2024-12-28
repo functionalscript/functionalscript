@@ -24,13 +24,15 @@ jobs:
       - uses: denoland/setup-deno@v1
         with:
           deno-version: 2
-      # - run: npm ci
+      - run: npm ci
       - run: npm run version
       - run: npm run index
       - run: npm publish
+        continue-on-error: true
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
       - run: deno publish --allow-dirty
+        continue-on-error: true
 
 
 
