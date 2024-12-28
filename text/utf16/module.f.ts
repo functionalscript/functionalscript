@@ -46,14 +46,12 @@ const codePointToUtf16 = (codePoint: I32): List<U16> => {
     return [codePoint & 0xffff]
 }
 
-export const fromCodePointList
-    : (input: List<number>) => Thunk<number>
+export const fromCodePointList: (input: List<number>) => Thunk<number>
     = flatMap(codePointToUtf16)
 
 const u16: (i: U16) => boolean = contains([0x0000, 0xFFFF])
 
-const utf16ByteToCodePointOp
-    : StateScan<U16, Utf16State, List<I32>>
+const utf16ByteToCodePointOp: StateScan<U16, Utf16State, List<I32>>
     = state => word => {
         if (!u16(word)) {
             return [[0xffffffff], state]
@@ -76,8 +74,7 @@ const utf16ByteToCodePointOp
 const utf16EofToCodePointOp = (state: Utf16State): readonly[List<I32>, Utf16State] =>
     [state === null ? empty : [state | errorMask],  null]
 
-const utf16ByteOrEofToCodePointOp
-    : StateScan<WordOrEof, Utf16State, List<I32>>
+const utf16ByteOrEofToCodePointOp: StateScan<WordOrEof, Utf16State, List<I32>>
     = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
 
 const eofList: List<WordOrEof> = [null]
@@ -93,8 +90,7 @@ export const stringToList = (s: string): List<U16> => {
     return at(0)
 }
 
-export const listToString
-    : (input: List<U16>) => string
+export const listToString: (input: List<U16>) => string
     = fn(map(String.fromCharCode))
         .then(reduce(concat)(''))
         .result

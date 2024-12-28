@@ -1,9 +1,9 @@
 import { map, flatMap, flat, concat as listConcat, type List } from '../types/list/module.f.ts'
 import { concat as stringConcat } from '../types/string/module.f.ts'
-import type * as O from '../types/object/module.f.ts'
+import type { Entry } from '../types/object/module.f.ts'
 import { compose } from '../types/function/module.f.ts'
-import * as utf16 from '../text/utf16/module.f.ts'
-const { stringToList } = utf16
+import { stringToList } from '../text/utf16/module.f.ts'
+
 const { fromCharCode } = String
 const { entries } = Object
 
@@ -63,7 +63,7 @@ const node = (n: Node) =>
 
 const nodes = flatMap(node)
 
-const attribute = ([name, value]: O.Entry<string>) =>
+const attribute = ([name, value]: Entry<string>) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
 const attributes = compose(entries)(flatMap(attribute))

@@ -2,9 +2,7 @@ import * as _ from './module.f.ts'
 
 const version = '0.3.0'
 
-const x
-    : { readonly[k in string]: unknown }
-    = {
+const x: { readonly[k in string]: unknown } = {
     'package.json': {
         "name": "functionalscript",
         version,
@@ -79,11 +77,10 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-const buffer
-    : (s: string) => _.Buffer
+const buffer: (s: string) => _.Buffer
     = s => ({
-    toString: () => s
-})
+        toString: () => s
+    })
 
 export default () => {
     const node
