@@ -25,10 +25,13 @@ https://github.com/functionalscript/functionalscript/actions/runs/12521052013/jo
 
 [benchmark.html](./benchmark.html)
 
-|Browser     |str bin|str hex|old log2|log2|
-|------------|-------|-------|--------|----|
-|Chrome,  AMD|   1298|    328|     623| 452|
-|FireFox, AMD|   1797|    323|    1704|1267|
+|Browser|CPU|str bin|str hex|old log2|log2|
+|-------|---|-------|-------|--------|----|
+|Chrome |AMD|   1298|    328|     623| 452|
+|Chrome | M1|    673|    176|     162| 106|
+|Safari | M1|    712|    180|     160| 106|
+|Firefox|AMD|   1797|    323|    1704|1267|
+|Firefox| M1|    788|    201|     910| 683|
 
 ### Minus versus Not
 
