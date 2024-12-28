@@ -1,4 +1,4 @@
-export type Buffer = {}
+export type Buffer = object
 
 type Fs<T> = {
    readonly readFileSync: (name: string) => Buffer
