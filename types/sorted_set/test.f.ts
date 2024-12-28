@@ -12,6 +12,21 @@ const reverseCmp: <T>(a: T) => (b: T) => Sign
     = flip(unsafeCmp)
 
 export default {
+    example: () => {
+        const cmp = (a: number) => (b: number) => a < b ? -1 : a > b ? 1 : 0
+
+        const setA = [1, 3, 5]
+        const setB = [3, 4, 5]
+
+        const unionSet = union(cmp)(setA)(setB) // [1, 3, 4, 5]
+        if (stringify(unionSet) !== '[1,3,4,5]') { throw 0 }
+
+        const intersectionSet = intersect(cmp)(setA)(setB) // [3, 5]
+        if (stringify(intersectionSet) !== '[3,5]') { throw 1 }
+
+        if (!has(cmp)(3)(setA)) { throw 2 }
+        if (has(cmp)(2)(setA)) { throw 3 }
+    },
     union: [
         () => {
             const result = stringify(toArray(union(unsafeCmp)([2, 3, 4])([1, 3, 5])))
