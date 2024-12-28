@@ -38,42 +38,35 @@ export const genericMerge
 
 type CmpReduceOp<T> = ReduceOp<T, null>
 
-export const merge
-    = <T>(cmp: Cmp<T>)
-        : (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T> => {
-        const tailReduce: TailReduce<T, null> = mergeTail
-        return genericMerge({ reduceOp: cmpReduce(cmp), tailReduce })(null)
-    }
+export const merge = <T>(cmp: Cmp<T>): (a: SortedList<T>) => (b: SortedList<T>) => SortedList<T> => {
+    const tailReduce: TailReduce<T, null> = mergeTail
+    return genericMerge({ reduceOp: cmpReduce(cmp), tailReduce })(null)
+}
 
-const cmpReduce
-    : <T>(cmp: Cmp<T>) => CmpReduceOp<T>
-    = cmp => () => a => b => {
-        const sign = cmp(a)(b)
-        return [sign === 1 ? b : a, sign, null]
-    }
+const cmpReduce = <T>(cmp: Cmp<T>): CmpReduceOp<T> => () => a => b => {
+    const sign = cmp(a)(b)
+    return [sign === 1 ? b : a, sign, null]
+}
 
-const mergeTail: () => <T>(tail: List<T>) => List<T>
-    = () => identity
+const mergeTail = (): <T>(tail: List<T>) => List<T> => identity
 
-export const find
-    : <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>) =>  T|null
-    = cmp => value => array => {
-        let b = 0
-        let e = array.length - 1
-        while (true) {
-            if (e - b < 0) return null
-            const mid = b + (e - b >> 1)
-            const sign = cmp(value)(array[mid])
-            switch(sign) {
-                case -1: {
-                    e = mid - 1
-                    break
-                }
-                case 0: { return value }
-                case 1: {
-                    b = mid + 1
-                    break
-                }
+export const find = <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>): T|null => {
+    let b = 0
+    let e = array.length - 1
+    while (true) {
+        if (e - b < 0) return null
+        const mid = b + (e - b >> 1)
+        const sign = cmp(value)(array[mid])
+        switch(sign) {
+            case -1: {
+                e = mid - 1
+                break
+            }
+            case 0: { return value }
+            case 1: {
+                b = mid + 1
+                break
             }
         }
     }
+}
