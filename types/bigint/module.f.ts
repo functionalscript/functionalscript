@@ -1,7 +1,7 @@
 /**
+ * A collection of utility functions for working with `bigint` values.
+ *
  * @module
- * 
- * This module provides a collection of utility functions for working with `bigint` values.
  *
  * @example
  *
