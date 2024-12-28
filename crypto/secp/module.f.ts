@@ -1,4 +1,4 @@
-import type * as Operator from '../../types/function/operator/module.f.ts'
+import type { Reduce } from '../../types/function/operator/module.f.ts'
 import { prime_field, sqrt, type PrimeField } from '../prime_field/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
 
@@ -32,7 +32,7 @@ type Curve = {
     readonly y2: (x: bigint) => bigint
     readonly y: (x: bigint) => bigint|null
     readonly neg: (a: Point) => Point
-    readonly add: Operator.Reduce<Point>
+    readonly add: Reduce<Point>
     readonly mul: (a: Point) => (n: bigint) => Point
 }
 
@@ -70,7 +70,7 @@ export const curve = ({ p, a: [a0, a1], n }: Init): Curve => {
      */
     const y2 = (x: bigint) => addA0(add(pow3(x))(mulA1(x)))
 
-    const addPoint: Operator.Reduce<Point> = p => q => {
+    const addPoint: Reduce<Point> = p => q => {
         if (p === null) {
             return q
         }

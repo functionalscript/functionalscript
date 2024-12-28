@@ -1,9 +1,5 @@
-import type * as Operator from '../../types/function/operator/module.f.ts'
+import type { Unary, Reduce } from '../../types/bigint/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
-
-type Reduce = Operator.Reduce<bigint>
-
-type Unary = Operator.Unary<bigint, bigint>
 
 /**
  * A type representing a prime field and its associated operations.
