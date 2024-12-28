@@ -1,3 +1,20 @@
+/**
+ * Utility functions for working with strings and lists of strings.
+ *
+ * @module
+ *
+ * @example
+ *
+ * ```js
+ * import { join, concat, repeat, cmp } from './module.f.ts'
+ *
+ * const words = ['hello', 'world']
+ * join(' ')(words) // 'hello world'
+ * concat(words) // 'helloworld'
+ * repeat('abc')(3) // 'abcabcabc'
+ * cmp('apple')('banana') // -1
+ * ```
+ */
 import { type List, reduce as listReduce, repeat as listRepeat } from '../list/module.f.ts'
 import { compose } from '../function/module.f.ts'
 import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
