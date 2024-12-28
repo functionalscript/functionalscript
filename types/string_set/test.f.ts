@@ -1,6 +1,17 @@
-import { contains, remove, set } from './module.f.ts'
+import { contains, fromValues, remove, set } from './module.f.ts'
 
 export default {
+    example: () => {
+        let mySet = fromValues(['apple', 'banana', 'cherry']);
+        if (!contains('banana')(mySet)) { throw '1' }
+        if (contains('date')(mySet)) { throw '2' }
+
+        mySet = set('date')(mySet);
+        if (!contains('date')(mySet)) { throw '3' }
+
+        mySet = remove('banana')(mySet);
+        if (contains('banana')(mySet)) { throw '4' }
+    },
     contains: () => {
         const r = set('hello')(null)
         if (!contains('hello')(r)) { throw r }
