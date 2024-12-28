@@ -13,8 +13,7 @@ export const compose
 /**
  * A generic identity function.
  */
-export const identity
-    : <T>(value: T) => T
+export const identity: <T>(value: T) => T
     = value => value
 
 /**

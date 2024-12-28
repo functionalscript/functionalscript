@@ -3,8 +3,7 @@ import { every, countdown, map, toArray } from '../list/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 
-const stringify
-    : (a: readonly json.Unknown[]) => string
+const stringify: (a: readonly json.Unknown[]) => string
     = json.stringify(sort)
 
 export default {

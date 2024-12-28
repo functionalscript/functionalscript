@@ -12,8 +12,7 @@ export type Entry<T> = readonly [string, T]
 
 export type Map<T> = Tree<Entry<T>>
 
-const keyCmp
-    : (a: string) => <T>(b: Entry<T>) => Sign
+const keyCmp: (a: string) => <T>(b: Entry<T>) => Sign
     = a => ([b]) => cmp(a)(b)
 
 export const at
