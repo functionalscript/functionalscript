@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.3.9
+
+- Improved `types/bigint/log2` algorithm [PR #346](https://github.com/functionalscript/functionalscript/pull/346)
+
 ## 0.3.8
 
 - SHA2 that works on bit vectors [PR #345](https://github.com/functionalscript/functionalscript/pull/345)

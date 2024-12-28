@@ -1,10 +1,11 @@
 /**
- * This module provides a collection of utility functions and type definitions for working with `bigint` values in JavaScript.
+ * @module
+ * 
+ * This module provides a collection of utility functions for working with `bigint` values.
  *
  * @example
  *
  * ```js
- * // Example usage:
  * import { sum, abs, log2, bitLength, mask } from './module.f.ts'
  *
  * const total = sum([1n, 2n, 3n]) // 6n
