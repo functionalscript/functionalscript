@@ -1,7 +1,5 @@
-import * as list from '../types/list/module.f.ts'
-const { equal, isEmpty, fold, toArray, scan, foldScan, empty: emptyList } = list
-import * as byteSet from '../types/byte_set/module.f.ts'
-const { toRangeMap, union: byteSetUnion, one, empty } = byteSet
+import { equal, isEmpty, fold, toArray, scan, foldScan, empty as emptyList, type List } from '../types/list/module.f.ts'
+import { toRangeMap, union as byteSetUnion, one, empty, range, type ByteSet } from '../types/byte_set/module.f.ts'
 import { intersect, type SortedSet, union as sortedSetUnion } from '../types/sorted_set/module.f.ts'
 import {
     merge,
@@ -17,9 +15,9 @@ import { stringify } from '../json/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
 
-type Rule = readonly [string, byteSet.ByteSet, string]
+type Rule = readonly [string, ByteSet, string]
 
-export type Grammar = list.List<Rule>
+export type Grammar = List<Rule>
 
 type Dfa = {
     readonly [state in string]: RangeMapArray<string>
@@ -27,16 +25,16 @@ type Dfa = {
 
 const stringifyIdentity = stringify(identity)
 
-export const toRange: (s: string) => byteSet.ByteSet
+export const toRange: (s: string) => ByteSet
     = s => {
         const [b, e] = toArray(stringToList(s))
-        return byteSet.range([b, e])
+        return range([b, e])
     }
 
-const toUnionOp: Fold<number, byteSet.ByteSet>
+const toUnionOp: Fold<number, ByteSet>
     = i => bs => byteSetUnion(bs)(one(i))
 
-export const toUnion: (s: string) => byteSet.ByteSet
+export const toUnion: (s: string) => ByteSet
     = s => {
         const codePoints = stringToList(s)
         return fold(toUnionOp)(empty)(codePoints)
@@ -91,5 +89,5 @@ const get = rangeMapGet(emptyStateStringify)
 const runOp: (dfa: Dfa) => Fold<number, string>
     = dfa => input => s => get(input)(dfa[s])
 
-export const run: (dfa: Dfa) => (input: list.List<number>) => list.List<string>
-    = dfa => input => foldScan(runOp(dfa))(initialStateStringify)(input)
+export const run = (dfa: Dfa) => (input: List<number>): List<string> =>
+    foldScan(runOp(dfa))(initialStateStringify)(input)
