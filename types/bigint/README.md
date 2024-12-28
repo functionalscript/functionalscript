@@ -21,6 +21,15 @@ The new `log2` wins on Deno and Node (V8) but slightly loses on Bun (WebKit).
 
 https://github.com/functionalscript/functionalscript/actions/runs/12521052013/job/34927599441?pr=346
 
+**Browser Test**
+
+[benchmark.html](./benchmark.html)
+
+|Browser     |str bin|str hex|old log2|log2|
+|------------|-------|-------|--------|----|
+|Chrome,  AMD|   1298|    328|     623| 452|
+|FireFox, AMD|   1797|    323|    1704|1267|
+
 ### Minus versus Not
 
 |Framework|minus `-`         |not `~`           |
