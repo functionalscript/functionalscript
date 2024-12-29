@@ -69,7 +69,7 @@ export default <T>(input: Input<T>): readonly[number, T] => {
                     if (v.length === 0) {
                         const [[s, r], delta, state0] = measure(() => tryCatch(v as () => unknown))(state)
                         state = state0
-                        if (s === 'error') {
+                        if (s === 'error' && v.name !== 'throw' /* tests named 'throw' are expected to throw */) {
                             ts = addFail(delta)(ts)
                             if (isGitHub) {
                                 // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
