@@ -108,7 +108,6 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 }
                 Result::Ok(Self::new_simple(Simple::Number(f64::NAN)))
             }
-            // TODO: throw TypeError for BigInt when we have a mechanism to throw an error.
             Unpacked::BigInt(_) => Result::Err(RuntimeError::TypeError(
                 "Cannot convert a BigInt value to a number".to_string(),
             )),
