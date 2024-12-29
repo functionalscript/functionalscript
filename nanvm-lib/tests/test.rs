@@ -1,5 +1,4 @@
 use core::panic;
-use std::array;
 
 use nanvm_lib::{
     interface::{Any, Complex, Container, Extension, RuntimeError, Utf8},

@@ -36,8 +36,14 @@
 25. [ ] Switch to Deno an `.ts`?
     1. Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27
     2. One day we may switch back to `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included into ECMAScript. BTW, we should only use JS with type annotations instead of full TypeScript.
-26. [ ] Test Framework parse non-default export.
-27. [ ] Make a distinction between unit tests, examples and API tests.
+26. [ ] Test Framework should recognize `throw` conventions.
+    ```ts
+    export default {
+        'throw': () => { throw }
+    }
+    ```
+27. [ ] Test Framework parse non-default export.
+28. [ ] Make a distinction between unit tests, examples and API tests.
     - Unit tests are completely deterministic. They run every time module is loaded so they must be very very simple and check basic hypothesis. They are not available as public interface.
       ```ts
       import { unit } from 'dev/unit-test.f.ts'
@@ -49,7 +55,7 @@
       ```
     - Examples use only public API and located in `*example.f.ts` files.
     - API tests use only public API and located in `*test.f.ts` files.
-28. [ ] Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
+29. [ ] Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
 
 ## Language Specification
 
