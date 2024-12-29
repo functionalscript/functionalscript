@@ -1,22 +1,18 @@
-import type * as _ from '../types/module.f.ts'
-import type * as Cmp from '../../function/compare/module.f.ts'
-import * as find from '../find/module.f.ts'
-import * as list from '../../list/module.f.ts'
-const { fold, concat, next } = list
-import type * as Array from '../../array/module.f.ts'
-import * as n from '../../nullable/module.f.ts'
-const { map } = n
+import type { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/module.f.ts'
+import type { Compare } from '../../function/compare/module.f.ts'
+import { type Path, type PathItem, find } from '../find/module.f.ts'
+import { fold, concat, next } from '../../list/module.f.ts'
+import type { Array2 } from '../../array/module.f.ts'
+import { map } from '../../nullable/module.f.ts'
 
-type Leaf01<T> = null | _.Leaf1<T>
+type Leaf01<T> = null | Leaf1<T>
 
 type RemovePath<T> = {
    readonly first: Leaf01<T>,
-   readonly tail: find.Path<T>
+   readonly tail: Path<T>
 }
 
-const path
-    : <T>(tail: find.Path<T>) => (n: _.TNode<T>) => readonly[T, RemovePath<T>]
-    = tail => n => {
+const path = <T>(tail: Path<T>) => (n: TNode<T>): readonly[T, RemovePath<T>] => {
     switch (n.length) {
         case 1: { return [n[0], { first: null, tail }] }
         case 2: { return [n[0], { first: [n[1]], tail }] }
@@ -25,11 +21,9 @@ const path
     }
 }
 
-type Branch<T> = _.Branch1<T> | _.Branch3<T> | _.Branch5<T>
+type Branch<T> = Branch1<T> | Branch3<T> | Branch5<T>
 
-const reduceValue0
-    : <T>(a: Branch<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>
-    = a => n => {
+const reduceValue0 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
     const [, v1, n2] = n
     if (a.length === 1) {
         switch (n2.length) {
@@ -42,9 +36,7 @@ const reduceValue0
     }
 }
 
-const reduceValue2
-    : <T>(a: Branch<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>
-    = a => n => {
+const reduceValue2 = <T>(a: Branch<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
     const [n0, v1, ] = n
     if (a.length === 1) {
         switch (n0.length) {
@@ -57,9 +49,7 @@ const reduceValue2
     }
 }
 
-const initValue0
-    : <T>(a: Leaf01<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>
-    = a => n => {
+const initValue0 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
     const [, v1, n2] = n
     if (a === null) {
         switch (n2.length) {
@@ -72,9 +62,7 @@ const initValue0
     }
 }
 
-const initValue1
-    : <T>(a: Leaf01<T>) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>
-    = a => n => {
+const initValue1 = <T>(a: Leaf01<T>) => (n: Branch3<T>): Branch1<T> | Branch3<T> => {
     const [n0, v1] = n
     if (a === null) {
         switch (n0.length) {
@@ -85,10 +73,9 @@ const initValue1
     } else { return [n0, v1, a] }
 }
 
-type Merge<A, T> = (a: A) => (n: _.Branch3<T>) => _.Branch1<T> | _.Branch3<T>
+type Merge<A, T> = (a: A) => (n: Branch3<T>) => Branch1<T> | Branch3<T>
 
-const reduceX
-    = <A, T>(ms: Array.Array2<Merge<A, T>>) => ([i, n]: find.PathItem<T>) => (a: A): Branch<T> => {
+const reduceX = <A, T>(ms: Array2<Merge<A, T>>) => ([i, n]: PathItem<T>) => (a: A): Branch<T> => {
     const [m0, m2] = ms
     const f
         : (m: Merge<A, T>) => Branch<T>
@@ -108,15 +95,15 @@ const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 const initReduce = reduceX([initValue0, initValue1])
 
 export const nodeRemove
-    = <T>(c: Cmp.Compare<T>) => (node: _.TNode<T>): _.Tree<T> => {
+    = <T>(c: Compare<T>) => (node: TNode<T>): Tree<T> => {
     const f = (): null | RemovePath<T> => {
-        const { first, tail } = find.find(c)(node)
+        const { first, tail } = find(c)(node)
         const branch
-            : (n: _.TNode<T>) => (f: (v: T) => find.PathItem<T>) => RemovePath<T>
+            : (n: TNode<T>) => (f: (v: T) => PathItem<T>) => RemovePath<T>
             = n => f => {
-            const [v, p] = path(null as find.Path<T>)(n)
-            return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
-        }
+                const [v, p] = path(null as Path<T>)(n)
+                return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
+            }
         const [i, n] = first
         switch (i) {
             case 1: {
@@ -146,6 +133,5 @@ export const nodeRemove
     return result.length === 1 ? result[0] : result
 }
 
-export const remove
-    : <T>(c: Cmp.Compare<T>) => (tree: _.Tree<T>) => _.Tree<T>
+export const remove: <T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>
     = c => map(nodeRemove(c))

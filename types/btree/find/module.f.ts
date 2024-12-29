@@ -1,7 +1,7 @@
 import type { Leaf1, Leaf2, Branch3, Branch5, TNode } from '../types/module.f.ts'
-import type * as List from '../../list/module.f.ts'
+import type { List } from '../../list/module.f.ts'
 import { index3, index5, type Compare } from '../../function/compare/module.f.ts'
-import type * as Array from '../../array/module.f.ts'
+import type { KeyOf } from '../../array/module.f.ts'
 import type { Index3, Index5 } from "../../array/module.f.ts";
 
 type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
@@ -23,7 +23,7 @@ export type PathItem<T> = PathItem3<T> | PathItem5<T>
 const child
 = <T>(item: PathItem<T>): TNode<T> => (item[1][item[0]] as TNode<T>)
 
-export type Path<T> = List.List<PathItem<T>>
+export type Path<T> = List<PathItem<T>>
 
 export type Result<T> = {
     readonly first: First<T>,
@@ -34,16 +34,13 @@ export const find
 = <T>(c: Compare<T>): (node: TNode<T>) => Result<T> => {
     const i3 = index3(c)
     const i5 = index5(c)
-    const f
-        = (tail: Path<T>) => (node: TNode<T>): Result<T> => {
-        const append
-            : (index: Array.KeyOf<typeof node>) => Result<T>
+    const f = (tail: Path<T>) => (node: TNode<T>): Result<T> => {
+        const append: (index: KeyOf<typeof node>) => Result<T>
             = index => {
-            const first = [index, node] as PathItem<T>
-            return f({ first, tail })(child(first))
-        }
-        const done
-            : (index: Array.KeyOf<typeof node>) => Result<T>
+                const first = [index, node] as PathItem<T>
+                return f({ first, tail })(child(first))
+            }
+        const done: (index: KeyOf<typeof node>) => Result<T>
             = index => ({ first: [index, node] as First<T>, tail })
         switch (node.length) {
             case 1: { return done(i3(node[0])) }

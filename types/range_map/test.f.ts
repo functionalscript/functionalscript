@@ -1,4 +1,4 @@
-import * as _ from './module.f.ts'
+import { get, merge, type RangeMapArray, type Operators, type RangeMap, fromRange } from './module.f.ts'
 import { unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
@@ -10,176 +10,151 @@ const stringify
     : (a: readonly json.Unknown[]) => string
     = json.stringify(sort)
 
-const op
-    : _.Operators<sortedSet.SortedSet<string>>
+const op: Operators<sortedSet.SortedSet<string>>
     = { union: sortedSet.union(unsafeCmp), equal: list.equal(operator.strictEqual) }
 
 export default {
     merge: [
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = null
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = null
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['c'], 3]]
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = [[['b'], 2], [['d'], 4]]
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['d'], 4]]
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = [[['b'], 2], [['c'], 3]]
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = [[['b'], 1], [['a'], 2]]
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a","b"],2]]') { throw result }
         },
         () => {
-            const a
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const a: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 1], [['b'], 2], [['a'], 3]]
-            const b
-                : _.RangeMap<sortedSet.SortedSet<string>>
+            const b: RangeMap<sortedSet.SortedSet<string>>
                 = [[['a'], 5]]
-            const merged = _.merge(op)(a)(b)
+            const merged = merge(op)(a)(b)
             const result = stringify(list.toArray(merged))
             if (result !== '[[["a"],1],[["a","b"],2],[["a"],5]]') { throw result }
         }
     ],
     get: () => {
-        const sortedSetEmpty
-            : sortedSet.SortedSet<string>
-            = []
-        const get = _.get(sortedSetEmpty)
+        const sortedSetEmpty: sortedSet.SortedSet<string> = []
+        const at = get(sortedSetEmpty)
         return [
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(5)(rm))
+                const result = stringify(at(5)(rm))
                 if (result !== '["a"]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(10)(rm))
+                const result = stringify(at(10)(rm))
                 if (result !== '["a"]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(15)(rm))
+                const result = stringify(at(15)(rm))
                 if (result !== '["b"]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(20)(rm))
+                const result = stringify(at(20)(rm))
                 if (result !== '["b"]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(25)(rm))
+                const result = stringify(at(25)(rm))
                 if (result !== '["c"]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(30)(rm))
+                const result = stringify(at(30)(rm))
                 if (result !== '["c"]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(get(35)(rm))
+                const result = stringify(at(35)(rm))
                 if (result !== '[]') { throw result }
             },
             () => {
-                const rm
-                    : _.RangeMapArray<sortedSet.SortedSet<string>>
+                const rm: RangeMapArray<sortedSet.SortedSet<string>>
                     = []
-                const result = stringify(get(10)(rm))
+                const result = stringify(at(10)(rm))
                 if (result !== '[]') { throw result }
             }
         ]
     },
     fromRange: () => {
         const def = -1
-        const rm = _.fromRange(def)([1, 7])(42)
+        const rm = fromRange(def)([1, 7])(42)
         return [
             () => {
-                const result = _.get(def)(0)(rm)
+                const result = get(def)(0)(rm)
                 if (result !== -1) { throw result }
             },
             () => {
-                const result = _.get(def)(1)(rm)
+                const result = get(def)(1)(rm)
                 if (result !== 42) { throw result }
             },
             () => {
-                const result = _.get(def)(3)(rm)
+                const result = get(def)(3)(rm)
                 if (result !== 42) { throw result }
             },
             () => {
-                const result = _.get(def)(7)(rm)
+                const result = get(def)(7)(rm)
                 if (result !== 42) { throw result }
             },
             () => {
-                const result = _.get(def)(9)(rm)
+                const result = get(def)(9)(rm)
                 if (result !== -1) { throw result }
             },
         ]

@@ -6,8 +6,7 @@ import { reverse, countdown, flat, map } from '../list/module.f.ts'
 export type ByteSet = bigint
 type Byte = number
 
-export const has
-    : (n: Byte) => (s: ByteSet) => boolean
+export const has: (n: Byte) => (s: ByteSet) => boolean
     = n => s => ((s >> BigInt(n)) & 1n) === 1n
 
 // create a set

@@ -51,8 +51,7 @@ export const at = (i: number) => <T>(a: readonly T[]): T|null => {
     return r === undefined ? null : r
 }
 
-export const first
-    : <T>(_: readonly T[]) => T|null
+export const first: <T>(_: readonly T[]) => T|null
     = at(0)
 
 export const last = <T>(a: readonly T[]): T|null =>
