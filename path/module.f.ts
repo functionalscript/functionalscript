@@ -1,6 +1,22 @@
-import type { Fold } from "../types/function/operator/module.f"
-import { type List, fold, last, drop, length, concat } from '../types/list/module.f.ts'
-import { join } from "../types/string/module.f"
+import { type Fold } from "../types/function/operator/module.f.ts"
+import { type List, fold, last, take, length, concat as listConcat } from '../types/list/module.f.ts'
+import { join } from "../types/string/module.f.ts"
+import { concat as stringConcat } from '../types/string/module.f.ts'
+
+const foldNormalizeOp: Fold<string, List<string>>
+ = input => state => {
+    switch(input) {
+        case '': { return state }
+        case '..': {
+            switch(last(undefined)(state)) {
+                case undefined:
+                case '..': { return listConcat(state)([input]) }
+                default: { return take(length(state) - 1)(state) }
+            }
+        }
+        default: { return listConcat(state)([input]) }
+    }
+}
 
 export const normalize: (path: string) => string
 = path => {
@@ -9,16 +25,8 @@ export const normalize: (path: string) => string
     return join('/')(foldResult)
 }
 
-const foldNormalizeOp: Fold<string, List<string>>
- = input => state => {
-    switch(input) {
-        case '': { return state }
-        case '..': {
-            switch(last(undefined)(state)) {
-                case '..': { return concat(state)([input]) }
-                default: { return drop(length(state) - 1)(state) }
-            }
-        }
-        default: { return concat(state)([input]) }
-    }
+export const concat: (a: string) => (b: string) => string
+= a => b => {
+    const s = stringConcat([a, '/', b])
+    return normalize(s)
 }
