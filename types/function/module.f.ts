@@ -1,7 +1,7 @@
 /**
  * A generic function type.
  */
-type Func<I, O> = (_: I) => O
+export type Func<I, O> = (_: I) => O
 
 /**
  * A postfix compose function.
