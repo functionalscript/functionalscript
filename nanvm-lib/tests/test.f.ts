@@ -105,7 +105,7 @@ export default {
                 nan: () => nan("a")
             },
             bigint: {
-                throw: () => op(0n)
+                throw: () => op(0n),
             },
             array: {
                 empty: () => e(op([]))(0),

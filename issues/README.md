@@ -36,7 +36,7 @@
 25. [ ] Switch to Deno an `.ts`?
     1. Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27
     2. One day we may switch back to `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included into ECMAScript. BTW, we should only use JS with type annotations instead of full TypeScript.
-26. [ ] Test Framework should recognize `throw` conventions.
+26. [x] Test Framework should recognize `throw` conventions.
     ```ts
     export default {
         'throw': () => { throw }
@@ -56,6 +56,11 @@
     - Examples use only public API and located in `*example.f.ts` files.
     - API tests use only public API and located in `*test.f.ts` files.
 29. [ ] Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
+30. [ ] Infra for exception-throwing tests that pass on throw (see point 26 above) should be improved.
+For example, 'throw' field could be not an immediate function but a reference to a helper function that throws
+(e.g. 'test_throw') - in this case the current infra will not recognize the 'throw' as the function name.
+Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
+require setting a flag when walking through a test free, as soon as a node has a 'throw' as its name.
 
 ## Language Specification
 
