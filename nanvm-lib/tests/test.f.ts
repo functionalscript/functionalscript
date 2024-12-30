@@ -104,11 +104,9 @@ export default {
                 positive: () => e(op("2.3"))(2.3),
                 nan: () => nan("a")
             },
-            // TODO: bigint - handle TypeError exception for bigint. The test below (that follows
-            // current Rust implementation) is incorrect.
-            // bigint: {
-            //     nan: () => u_p_nan(0n)
-            // }
+            bigint: {
+                throw: () => op(0n),
+            },
             array: {
                 empty: () => e(op([]))(0),
                 single_number: () => e(op([2.3]))(2.3),
@@ -118,8 +116,8 @@ export default {
             object: {
                 empty: () => nan({})
                 // TODO: test objects with valueOf, toString functions - when Rust logic is implemented
-            }
-            // TODO: test Function - when Rust logic is implemented
+            },
+            function: () => nan(op(() => {}))
         }
     }
 }
