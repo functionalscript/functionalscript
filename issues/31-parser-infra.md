@@ -52,12 +52,16 @@ type Node = {
 }
 ```
 
+Additional information that could be included into the `Node`:
+- position in the file `byte number`
+- position in a text file: `line` and `column` using Unicode.
+
 ## Merging Strategies
 
 1. Error on conflict.
 2. Ordered shallow merge. Rewrite existing rule.
 3. Ordered deep merge. For example, merging identifiers and keywords.
-   **Note:** the algorithm may try infinite resource allocation if grammar is invalid.
+   **Note:** the algorithm may try infinite resource allocation if grammar is invalid `LR`.
 
 See [LR parser](https://en.wikipedia.org/wiki/LR_parser).
 
