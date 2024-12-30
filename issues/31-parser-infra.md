@@ -1,15 +1,17 @@
 # Parser Infrastructure
 
-Two types:
+Types:
 
 - Sequence
 - Or
+- Terminal https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols.
 
 ```ts
 type Sequence<R> = readonly R[]
 type Or<R> = {readonly or: Sequence<R>}
 type Terminal = string
-type DataRule<R> = Sequence<R>|Or<R>|Terminal
+type TerminalRange = {readonly _:string}
+type DataRule<R> = Sequence<R>|Or<R>|Terminal|TerminalRange
 ```
 
 Define common and recursive rules using functions.
@@ -40,16 +42,6 @@ const i: RuleMap = {
 ```
 
 This type can be used for serialization.
-
-## Terminal Symbols
-
-```ts
-type TerminalSequence = string
-type TerminalRange = {readonly range: string}
-type Terminal = TerminalSequence | TerminalRange
-```
-
-See https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols.
 
 ## Output
 
