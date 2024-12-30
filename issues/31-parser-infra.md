@@ -75,4 +75,6 @@ The final automata should be deterministic.
 
 See [LR parser](https://en.wikipedia.org/wiki/LR_parser).
 
+## Example
 
+JSON: https://www.json.org/json-en.html
