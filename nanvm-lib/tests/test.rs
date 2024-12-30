@@ -187,14 +187,7 @@ fn unary_plus<A: Any>() {
 
     // bigint
     let bigint0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
-    match Any::unary_plus(bigint0) {
-        Err(RuntimeError::TypeError(s)) => {
-            assert_eq!(s, "Cannot convert a BigInt value to a number");
-        }
-        _ => {
-            panic!("expected TypeError");
-        }
-    }
+    assert_eq!(Any::unary_plus(bigint0), Err(RuntimeError::TypeError));
 
     // array
     let array0: A = [].to_array_unknown();

@@ -37,18 +37,10 @@ pub trait Function<U: Any<Function = Self>>:
 {
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RuntimeError {
-    TypeError(String),
+    TypeError,
     // More error variants will be added in the future as needed.
-}
-
-impl fmt::Display for RuntimeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::TypeError(s) => write!(f, "TypeError: {}", s),
-        }
-    }
 }
 
 pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
@@ -108,9 +100,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 }
                 Result::Ok(Self::new_simple(Simple::Number(f64::NAN)))
             }
-            Unpacked::BigInt(_) => Result::Err(RuntimeError::TypeError(
-                "Cannot convert a BigInt value to a number".to_string(),
-            )),
+            Unpacked::BigInt(_) => Result::Err(RuntimeError::TypeError),
             Unpacked::Array(a) => {
                 let items = a.items();
                 if items.is_empty() {
