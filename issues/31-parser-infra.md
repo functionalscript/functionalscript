@@ -40,6 +40,15 @@ const i: RuleMap = {
 
 This type can be used for serialization.
 
+## Output
+
+```ts
+type Node = {
+    readonly id: LazyRule
+    readonly nodes: readonly Node[]
+}
+```
+
 ## Determinism
 
 The final automata should be deterministic.
