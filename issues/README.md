@@ -1,12 +1,12 @@
 # Issues
 
-1. [X] [test-debug](./01-test-debug.md).
-2. [X] [esm](./02-esm.md)
-3. [ ] [djs](./03-djs.md)
-4. [ ] VM Rust project
-5. [ ] [publish](./05-publish.md)
-6. [ ] fix index generation by including sub modules `{ ...m, add: mAdd, remove: mRemove}`.
-7. [ ] Conventions:
+- [X] [01-test-debug](./01-test-debug.md).
+- [X] [02-esm](./02-esm.md)
+- [ ] [03-djs](./03-djs.md)
+- [ ] 04. VM Rust project
+- [ ] [05-publish](./05-publish.md)
+- [ ] 06. fix index generation by including sub modules `{ ...m, add: mAdd, remove: mRemove}`.
+- [ ] 07. Conventions:
 
     ```js
     import list, * as List from 'list.mjs'
@@ -14,36 +14,36 @@
     // List is for types and should be ignored by FJS or errored if used in code.
     ```
 
-8. Move logic from `.mjs` files to `.f.mjs` files.
-9. [ ] Generating a Website.
-10. [ ] Short URL table.
-11. [ ] [fs-load](./11-fs-load.md)
-12. [ ] Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
-13. [ ] Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
-14. [ ] Combine `npm run index` and `npm run version`
-15. [ ] Generate `package.json/exports` instead of `index.f.mjs`.
-16. [ ] License in JSR file?
-17. [ ] [djs-extension](./17-djs-extension.md).
-18. [ ] Formatter for `.f.js` and `.f.ts` files.
-19. [ ] Convert FunctionalScript code using non-default `export`.
-20. [ ] Test framework should be able to run a subset of tests.
-21. [ ] Test Framework silent mode. Show progress and failed tests only.
-22. [x] bit sequences based on bigint
-23. [ ] a console program similar to one that we have in the NaNVM repo.
-24. [ ] create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
+- [ ] 08. Move logic from `.ts` files to `.f.ts` files.
+- [ ] 09. Generating a Website.
+- [ ] 10. Short URL table.
+- [ ] [11-fs-load](./11-fs-load.md)
+- [ ] 12. Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
+- [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
+- [ ] 14. Combine `npm run index` and `npm run version`
+- [ ] 15. Generate `package.json/exports` instead of `index.f.mjs`.
+- [ ] 16. License in JSR file?
+- [ ] [17-djs-extension](./17-djs-extension.md).
+- [ ] 18. Formatter for `.f.js` and `.f.ts` files.
+- [ ] 19. Convert FunctionalScript code using non-default `export`.
+- [ ] 20. Test framework should be able to run a subset of tests.
+- [ ] 21. Test Framework silent mode. Show progress and failed tests only.
+- [x] 22. bit sequences based on bigint
+- [ ] 23. a console program similar to one that we have in the NaNVM repo.
+- [ ] 24. create `./module.mjs` that supports the same behavior like current NaNVM Rust implementation:
     - [ ] run `node ./module.mjs input.f.mjs output.f.mjs`
     - [ ] run `deno ./module.mjs input.f.mjs output.f.mjs`
-25. [ ] Switch to Deno an `.ts`?
+- [ ] 25. Switch to Deno an `.ts`?
     1. Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27
     2. One day we may switch back to `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included into ECMAScript. BTW, we should only use JS with type annotations instead of full TypeScript.
-26. [x] Test Framework should recognize `throw` conventions.
+- [x] 26. Test Framework should recognize `throw` conventions.
     ```ts
     export default {
         'throw': () => { throw }
     }
     ```
-27. [ ] Test Framework parse non-default export.
-28. [ ] Make a distinction between unit tests, examples and API tests.
+- [ ] 27. Test Framework parse non-default export.
+- [ ] 28. Make a distinction between unit tests, examples and API tests.
     - Unit tests are completely deterministic. They run every time module is loaded so they must be very very simple and check basic hypothesis. They are not available as public interface.
       ```ts
       import { unit } from 'dev/unit-test.f.ts'
@@ -55,8 +55,8 @@
       ```
     - Examples use only public API and located in `*example.f.ts` files.
     - API tests use only public API and located in `*test.f.ts` files.
-29. [ ] Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
-30. [ ] Infra for exception-throwing tests that pass on throw (see point 26 above) should be improved.
+- [ ] 29. Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
+- [ ] 30. Infra for exception-throwing tests that pass on throw (see point 26 above) should be improved.
 For example, 'throw' field could be not an immediate function but a reference to a helper function that throws
 (e.g. 'test_throw') - in this case the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
