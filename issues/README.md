@@ -62,6 +62,7 @@ For example, 'throw' field could be not an immediate function but a reference to
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
 require setting a flag when walking through a test free, as soon as a node has a 'throw' as its name.
 - [ ] [31-formal-grammar](./31-formal-grammar.md).
+- [ ] 32. implement a stupid, non-deterministic parser using [31-formal-grammar](./31-formal-grammar.md).
 
 ## Language Specification
 
