@@ -2,7 +2,7 @@ use core::{fmt, marker::PhantomData};
 use std::rc;
 
 use crate::{
-    interface::{self},
+    interface::{self, Container},
     sign::Sign,
     simple::Simple,
 };
@@ -231,6 +231,21 @@ impl interface::Any for Any {
             Any::Array(complex) => interface::Unpacked::Array(complex),
             Any::Object(complex) => interface::Unpacked::Object(complex),
             Any::Function(complex) => interface::Unpacked::Function(complex),
+        }
+    }
+
+    fn negate_bigint(self) -> Self {
+        if let Any::BigInt(BigInt { header, items }) = self {
+            match header {
+                Sign::Positive => {
+                    Any::BigInt(BigInt::new(Sign::Negative, items.as_ref().iter().cloned()))
+                }
+                Sign::Negative => {
+                    Any::BigInt(BigInt::new(Sign::Positive, items.as_ref().iter().cloned()))
+                }
+            }
+        } else {
+            panic!("Expected BigInt, found {:?}", self)
         }
     }
 }
