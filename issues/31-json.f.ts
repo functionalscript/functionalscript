@@ -48,7 +48,6 @@ const digit = { or: [
     onenine,
 ]}
 
-
 //
 
 const members = (): DataRule => ({ or: [

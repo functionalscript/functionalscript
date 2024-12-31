@@ -6,6 +6,8 @@ Types:
 - Sequence
 - Or
 
+See https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form
+
 ```ts
 type TerminalRange = readonly[number, number]
 type Sequence<R> = readonly R[]
@@ -19,6 +21,8 @@ Define common and recursive rules using functions.
 type LazyRule = () => DataRule
 type Rule = DataRule<Rule>|LazyRule
 
+// BNF:
+//   i = "(" i ")" | ""
 const i: LazyRule = () => {or:[
     [],
     ['(', i, ')'],
