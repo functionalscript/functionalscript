@@ -22,7 +22,7 @@ type LazyRule = () => DataRule
 type Rule = DataRule<Rule>|LazyRule
 
 // BNF:
-//   i = "(" i ")" | ""
+//   i ::= "(" i ")" | ""
 const i: LazyRule = () => {or:[
     [],
     ['(', i, ')'],
@@ -45,13 +45,6 @@ const i: RuleMap = {
 ```
 
 This type can be used for serialization.
-
-## TerminalRange
-
-`length`:
-
-- `1`: `'a'` one symbol
-- `2`: `'ab'` a range from `'a'` to `'b'`
 
 ## Output
 

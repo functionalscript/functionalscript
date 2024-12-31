@@ -11,7 +11,7 @@ type Rule = DataRule|LazyRule
 
 // JSON: https://www.json.org/json-en.html
 
-const ws = (): DataRule => ({ or: [
+const ws = () => ({ or: [
     [],
     [' ', ws],
     ['\t', ws],
