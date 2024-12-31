@@ -1,5 +1,3 @@
-import { todo } from "../dev/module.f.ts";
-
 type TerminalRange = readonly[number, number]
 
 type Sequence = readonly Rule[]
