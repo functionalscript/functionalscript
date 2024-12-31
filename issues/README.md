@@ -5,7 +5,6 @@
 - [ ] [03-djs](./03-djs.md)
 - [ ] 04. VM Rust project
 - [ ] [05-publish](./05-publish.md)
-- [ ] 06. fix index generation by including sub modules `{ ...m, add: mAdd, remove: mRemove}`.
 - [X] 07. Conventions:
 
     ```js
@@ -25,7 +24,7 @@
 - [ ] 16. License in JSR file?
 - [ ] [17-djs-extension](./17-djs-extension.md).
 - [ ] 18. Formatter for `.f.js` and `.f.ts` files.
-- [ ] 19. Convert FunctionalScript code using non-default `export`.
+- [X] 19. Convert FunctionalScript code using non-default `export`.
 - [ ] 20. Test framework should be able to run a subset of tests.
 - [ ] 21. Test Framework silent mode. Show progress and failed tests only.
 - [x] 22. bit sequences based on bigint
