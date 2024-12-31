@@ -7,10 +7,10 @@ Types:
 - Terminal https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols.
 
 ```ts
+type TerminalRange = readonly[number, number]
 type Sequence<R> = readonly R[]
-type Or<R> = {readonly or: Sequence<R>}
-type TerminalRange = string
-type DataRule<R> = Sequence<R>|Or<R>|TerminalRange
+type Or<R> = { readonly or: Sequence<R> }
+type DataRule<R> = Sequence<R>|Or<R>|TerminalRange|string
 ```
 
 Define common and recursive rules using functions.
