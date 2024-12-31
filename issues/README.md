@@ -63,6 +63,11 @@ Also, 'throw' could be a group of test functions (all of them passing tests when
 require setting a flag when walking through a test free, as soon as a node has a 'throw' as its name.
 - [ ] [31-formal-grammar](./31-formal-grammar.md).
 - [ ] 32. implement a stupid, non-deterministic parser using [31-formal-grammar](./31-formal-grammar.md).
+- [ ] 33. Rust: VM: implement `Any` and other types as wrappers
+  ```rust
+  struct Any<A: AnyPolicy>(A);
+  ```
+  This way we can implement operations on it, such as `+`.
 
 ## Language Specification
 
