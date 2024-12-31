@@ -2,9 +2,9 @@
 
 Types:
 
+- Terminal https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols.
 - Sequence
 - Or
-- Terminal https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols.
 
 ```ts
 type TerminalRange = readonly[number, number]
