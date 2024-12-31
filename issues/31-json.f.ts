@@ -9,7 +9,7 @@ type DataRule = Sequence|Or|TerminalRange|string
 type LazyRule = () => DataRule
 type Rule = DataRule|LazyRule
 
-// JSON:
+// JSON: https://www.json.org/json-en.html
 
 const ws = (): DataRule => ({ or: [
     [],
@@ -18,6 +18,38 @@ const ws = (): DataRule => ({ or: [
     ['\n', ws],
     ['\r', ws],
 ]})
+
+const sign = { or: [
+    [],
+    '+',
+    '-',
+]}
+
+const digits = () => ({ or: [
+    digit,
+    [digit, digits]
+]})
+
+const exponent = { or: [
+    [],
+    ['E', sign, digits],
+    ['e', sign, digits],
+]}
+
+const fraction = { or: [
+    [],
+    ['.', digits]
+]}
+
+const onenine = [0x31, 0x39] as const
+
+const digit = { or: [
+    '0',
+    onenine,
+]}
+
+
+//
 
 const members = (): DataRule => ({ or: [
     member,
@@ -34,12 +66,6 @@ const array = (): DataRule => ({ or: [
     ['[', element, ']'],
 ]})
 
-const onenine = [0x31, 0x39] as const
-
-const digit = { or: [
-    '0',
-    onenine,
-]}
 
 const hex = { or: [
     digit,
@@ -73,33 +99,11 @@ const characters = () => ({ or: [
 
 const string = ['"', characters, '"']
 
-const sign = { or: [
-    [],
-    '+',
-    '-',
-]}
-
-const digits = () => ({ or: [
-    digit,
-    [digit, digits]
-]})
-
 const integer = { or: [
     digit,
     [onenine, digits],
     ['-', digit],
     ['-', onenine, digits],
-]}
-
-const fraction = { or: [
-    [],
-    ['.', digits]
-]}
-
-const exponent = { or: [
-    [],
-    ['E', sign, digits],
-    ['e', sign, digits],
 ]}
 
 const number = [integer, fraction, exponent]

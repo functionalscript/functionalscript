@@ -77,4 +77,4 @@ See [LR parser](https://en.wikipedia.org/wiki/LR_parser).
 
 ## Example
 
-JSON: https://www.json.org/json-en.html
+See [31-json.f.ts](./31-json.f.ts)
