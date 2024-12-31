@@ -1,12 +1,12 @@
-# Parser Infrastructure
+# Formal Grammar
+
+[eDSL](https://en.wikipedia.org/wiki/Domain-specific_language#External_and_Embedded_Domain_Specific_Languages) for [formal grammars](https://en.wikipedia.org/wiki/Formal_grammar) using a modification of [BNF](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 
 Types:
 
-- Terminal https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols.
-- Sequence
-- Or
-
-See https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form
+- [Terminal](https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols#Terminal_symbols),
+- Sequence,
+- Or.
 
 ```ts
 type TerminalRange = readonly[number, number]
