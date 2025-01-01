@@ -146,11 +146,7 @@ fn unary_plus<A: Any>() {
     let nan: A = Simple::Number(f64::NAN).to_unknown();
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
     let test_cases: Vec<(A, A, &str)> = vec![
-        (
-            Simple::Nullish(Nullish::Null).to_unknown(),
-            zero.clone(),
-            "null",
-        ),
+        (null.clone(), zero.clone(), "null"),
         (
             Simple::Nullish(Nullish::Undefined).to_unknown(),
             nan.clone(),
@@ -237,11 +233,7 @@ fn unary_minus<A: Any>() {
     let nan: A = Simple::Number(f64::NAN).to_unknown();
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
     let test_cases: Vec<(A, A, &str)> = vec![
-        (
-            Simple::Nullish(Nullish::Null).to_unknown(),
-            zero.clone(),
-            "null",
-        ),
+        (null.clone(), zero.clone(), "null"),
         (
             Simple::Nullish(Nullish::Undefined).to_unknown(),
             nan.clone(),
