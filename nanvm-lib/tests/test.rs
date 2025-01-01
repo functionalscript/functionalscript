@@ -247,7 +247,11 @@ fn unary_minus<A: Any>() {
             nan.clone(),
             "undefined",
         ),
-        //(Simple::Boolean(true).to_unknown(), Simple::Number(-1.0).to_unknown(), "boolean true"),
+        (
+            Simple::Boolean(true).to_unknown(),
+            Simple::Number(-1.0).to_unknown(),
+            "boolean true",
+        ),
         (
             Simple::Boolean(false).to_unknown(),
             zero.clone(),
@@ -255,20 +259,20 @@ fn unary_minus<A: Any>() {
         ),
         (zero.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
         (
+            Simple::Number(-2.3).to_unknown(),
             Simple::Number(2.3).to_unknown(),
-            Simple::Number(2.3).to_unknown(),
-            "number 2.3",
+            "number -2.3",
         ),
         (
+            Simple::Number(2.3).to_unknown(),
             Simple::Number(-2.3).to_unknown(),
-            Simple::Number(-2.3).to_unknown(),
-            "number -2.3",
+            "number 2.3",
         ),
         ("".to_unknown(), zero.clone(), "string \"\""),
         ("0".to_unknown(), zero.clone(), "string \"0\""),
         (
             "2.3e2".to_unknown(),
-            Simple::Number(2.3e2).to_unknown(),
+            Simple::Number(-2.3e2).to_unknown(),
             "string \"2.3e2\"",
         ),
         ("a".to_unknown(), nan.clone(), "string \"a\""),
@@ -280,13 +284,13 @@ fn unary_minus<A: Any>() {
         ),
         (
             [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
-            Simple::Number(-0.3).to_unknown(),
+            Simple::Number(0.3).to_unknown(),
             "array [-0.3]",
         ),
         (
             ["0.3".to_unknown()].to_array_unknown(),
-            Simple::Number(0.3).to_unknown(),
-            "array [\"0.3\"]",
+            Simple::Number(-0.3).to_unknown(),
+            "array [\"-0.3\"]",
         ),
         (
             [null.clone()].to_array_unknown(),

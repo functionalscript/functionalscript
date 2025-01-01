@@ -135,7 +135,12 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         // Symbol, so we don't return error results. We use unary_plus as a helper function here,
         // handling BigInt case when the error result of unary_plus indicates that case.
         match Self::unary_plus(v) {
-            Ok(n) => n,
+            Ok(v) => {
+                match v.unpack() {
+                    Unpacked::Number(f) => Self::new_simple(Simple::Number(-f)),
+                    _ => panic!("unexpected OK result of unary_plus that is not a number"),
+                }
+            }
             Err(err) => match err {
                 RuntimeError::TypeError(TypeError::BigIntToNumber(n)) => Self::negate_bigint(n),
             },
