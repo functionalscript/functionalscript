@@ -1,7 +1,7 @@
 use core::panic;
 
 use nanvm_lib::{
-    interface::{Any, Complex, Container, Extension, RuntimeError, Utf8},
+    interface::{Any, Complex, Container, Extension, RuntimeError, Unpacked, Utf8},
     naive,
     nullish::Nullish,
     sign::Sign,
@@ -111,117 +111,213 @@ fn eq<A: Any>() {
     }
 }
 
-fn unary_plus<A: Any>() {
-    let assert_is_nan = |a: A, test_case: &str| {
-        let nan = Any::unary_plus(a).unwrap();
-        if let Some(simple) = nan.try_to_simple() {
-            match simple {
-                Simple::Number(f) => {
-                    assert!(f.is_nan());
-                }
-                _ => panic!("expected Number result of unary_plus of {}", test_case),
+fn assert_is_nan<A: Any>(a: A, test_case: &str) {
+    let nan = Any::unary_plus(a).unwrap();
+    if let Some(simple) = nan.try_to_simple() {
+        match simple {
+            Simple::Number(f) => {
+                assert!(f.is_nan());
             }
-        } else {
-            panic!("expected Simple result of unary_plus of {}", test_case);
+            _ => panic!("expected Number result of unary_plus of '{}'", test_case),
         }
-    };
+    } else {
+        panic!("expected Simple result of unary_plus of '{}'", test_case);
+    }
+}
 
-    // null
-    let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
-    assert_eq!(
-        Any::unary_plus(null0).unwrap(),
-        Simple::Number(0.0).to_unknown()
-    );
+fn test_op<A: Any>(result: A, expected: A, test_case: &str) {
+    match A::unpack(expected.clone()) {
+        Unpacked::Number(f) => {
+            if f.is_nan() {
+                assert_is_nan(result, test_case);
+            } else {
+                assert_eq!(result, expected);
+            }
+        }
+        Unpacked::BigInt(i) => {
+            assert_eq!(result, expected);
+        }
+        _ => panic!("expected is neither Number nor BigInt in '{}'", test_case),
+    }
+}
 
-    // undefined
-    let undefined0: A = Simple::Nullish(Nullish::Undefined).to_unknown();
-    assert_is_nan(Any::unary_plus(undefined0).unwrap(), "undefined");
-
-    // boolean
-    let true0: A = Simple::Boolean(true).to_unknown();
-    assert_eq!(
-        Any::unary_plus(true0).unwrap(),
-        Simple::Number(1.0).to_unknown()
-    );
-    let false0: A = Simple::Boolean(false).to_unknown();
-    assert_eq!(
-        Any::unary_plus(false0).unwrap(),
-        Simple::Number(0.0).to_unknown()
-    );
-
-    // number
-    let number00: A = Simple::Number(0.0).to_unknown();
-    assert_eq!(
-        Any::unary_plus(number00).unwrap(),
-        Simple::Number(0.0).to_unknown()
-    );
-    let number01: A = Simple::Number(2.3).to_unknown();
-    assert_eq!(
-        Any::unary_plus(number01).unwrap(),
-        Simple::Number(2.3).to_unknown()
-    );
-    let number02: A = Simple::Number(-2.3).to_unknown();
-    assert_eq!(
-        Any::unary_plus(number02).unwrap(),
-        Simple::Number(-2.3).to_unknown()
-    );
-
-    // string
-    let string_empty: A = "".to_unknown();
-    assert_eq!(
-        Any::unary_plus(string_empty).unwrap(),
-        Simple::Number(0.0).to_unknown()
-    );
-    let string0: A = "0".to_unknown();
-    assert_eq!(
-        Any::unary_plus(string0).unwrap(),
-        Simple::Number(0.0).to_unknown()
-    );
-    let string1: A = "2.3".to_unknown();
-    assert_eq!(
-        Any::unary_plus(string1).unwrap(),
-        Simple::Number(2.3).to_unknown()
-    );
-    let string2: A = "a".to_unknown();
-    assert_is_nan(Any::unary_plus(string2).unwrap(), "non-number string");
+fn unary_plus<A: Any>() {
+    let zero: A = Simple::Number(0.0).to_unknown();
+    let nan: A = Simple::Number(f64::NAN).to_unknown();
+    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
+    let test_cases: Vec<(A, A, &str)> = vec![
+        (null.clone(), zero.clone(), "null"),
+        (
+            Simple::Nullish(Nullish::Undefined).to_unknown(),
+            nan.clone(),
+            "undefined",
+        ),
+        (
+            Simple::Boolean(true).to_unknown(),
+            Simple::Number(1.0).to_unknown(),
+            "boolean true",
+        ),
+        (
+            Simple::Boolean(false).to_unknown(),
+            zero.clone(),
+            "boolean false",
+        ),
+        (zero.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
+        (
+            Simple::Number(2.3).to_unknown(),
+            Simple::Number(2.3).to_unknown(),
+            "number 2.3",
+        ),
+        (
+            Simple::Number(-2.3).to_unknown(),
+            Simple::Number(-2.3).to_unknown(),
+            "number -2.3",
+        ),
+        ("".to_unknown(), zero.clone(), "string \"\""),
+        ("0".to_unknown(), zero.clone(), "string \"0\""),
+        (
+            "2.3e2".to_unknown(),
+            Simple::Number(2.3e2).to_unknown(),
+            "string \"2.3e2\"",
+        ),
+        ("a".to_unknown(), nan.clone(), "string \"a\""),
+        ([].to_array_unknown(), zero.clone(), "array []"),
+        (
+            [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
+            Simple::Number(-0.3).to_unknown(),
+            "array [-0.3]",
+        ),
+        (
+            ["0.3".to_unknown()].to_array_unknown(),
+            Simple::Number(0.3).to_unknown(),
+            "array [\"0.3\"]",
+        ),
+        (
+            [null.clone()].to_array_unknown(),
+            zero.clone(),
+            "array [null]",
+        ),
+        (
+            [null.clone(), null.clone()].to_array_unknown(),
+            nan.clone(),
+            "array [null,null]",
+        ),
+        ([].to_object_unknown(), nan.clone(), "object {{}}"),
+        // TODO: decide on testing objects with valueOf, toString functions.
+        (
+            A::Function::new(0, [0]).to_unknown(),
+            nan.clone(),
+            "function",
+        ),
+    ];
+    for (result, expected, test_case) in test_cases.iter() {
+        test_op::<A>(
+            Any::unary_plus(result.clone()).unwrap(),
+            expected.clone(),
+            test_case,
+        );
+    }
 
     // bigint
     let bigint0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
-    assert_eq!(Any::unary_plus(bigint0), Err(RuntimeError::TypeError));
-
-    // array
-    let array0: A = [].to_array_unknown();
     assert_eq!(
-        Any::unary_plus(array0).unwrap(),
-        Simple::Number(0.0).to_unknown()
+        Any::unary_plus(bigint0.clone()),
+        Err(RuntimeError::TypeError(
+            nanvm_lib::interface::TypeError::BigIntToNumber(bigint0)
+        ))
     );
-    let array1: A = [Simple::Number(2.3).to_unknown()].to_array_unknown();
-    assert_eq!(
-        Any::unary_plus(array1).unwrap(),
-        Simple::Number(2.3).to_unknown()
-    );
-    let string3: A = "-2.3".to_unknown();
-    let array2: A = [string3].to_array_unknown();
-    assert_eq!(
-        Any::unary_plus(array2).unwrap(),
-        Simple::Number(-2.3).to_unknown()
-    );
-    let null1: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let array3: A = [null1.clone(), null1].to_array_unknown();
-    assert_is_nan(Any::unary_plus(array3).unwrap(), "multi-element array");
+}
 
-    // object
-    let object0: A = [].to_object_unknown();
-    assert_is_nan(Any::unary_plus(object0).unwrap(), "object");
-    // TODO: test objects with valueOf, toString functions.
+fn unary_minus<A: Any>() {
+    let zero: A = Simple::Number(0.0).to_unknown();
+    let nan: A = Simple::Number(f64::NAN).to_unknown();
+    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
+    let test_cases: Vec<(A, A, &str)> = vec![
+        (null.clone(), zero.clone(), "null"),
+        (
+            Simple::Nullish(Nullish::Undefined).to_unknown(),
+            nan.clone(),
+            "undefined",
+        ),
+        (
+            Simple::Boolean(true).to_unknown(),
+            Simple::Number(-1.0).to_unknown(),
+            "boolean true",
+        ),
+        (
+            Simple::Boolean(false).to_unknown(),
+            zero.clone(),
+            "boolean false",
+        ),
+        (zero.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
+        (
+            Simple::Number(-2.3).to_unknown(),
+            Simple::Number(2.3).to_unknown(),
+            "number -2.3",
+        ),
+        (
+            Simple::Number(2.3).to_unknown(),
+            Simple::Number(-2.3).to_unknown(),
+            "number 2.3",
+        ),
+        ("".to_unknown(), zero.clone(), "string \"\""),
+        ("0".to_unknown(), zero.clone(), "string \"0\""),
+        (
+            "2.3e2".to_unknown(),
+            Simple::Number(-2.3e2).to_unknown(),
+            "string \"2.3e2\"",
+        ),
+        ("a".to_unknown(), nan.clone(), "string \"a\""),
+        ([].to_array_unknown(), zero.clone(), "array []"),
+        (
+            A::BigInt::new(Sign::Positive, [1]).to_unknown(),
+            A::BigInt::new(Sign::Negative, [1]).to_unknown(),
+            "bigint 1n",
+        ),
+        (
+            [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
+            Simple::Number(0.3).to_unknown(),
+            "array [-0.3]",
+        ),
+        (
+            ["0.3".to_unknown()].to_array_unknown(),
+            Simple::Number(-0.3).to_unknown(),
+            "array [\"-0.3\"]",
+        ),
+        (
+            [null.clone()].to_array_unknown(),
+            zero.clone(),
+            "array [null]",
+        ),
+        (
+            [null.clone(), null.clone()].to_array_unknown(),
+            nan.clone(),
+            "array [null,null]",
+        ),
+        ([].to_object_unknown(), nan.clone(), "object {{}}"),
+        // TODO: decide on testing objects with valueOf, toString functions.
+        (
+            A::Function::new(0, [0]).to_unknown(),
+            nan.clone(),
+            "function",
+        ),
+    ];
+    for (result, expected, test_case) in test_cases.iter() {
+        test_op::<A>(
+            Any::unary_minus(result.clone()),
+            expected.clone(),
+            test_case,
+        );
+    }
+}
 
-    // function
-    let function0: A = A::Function::new(0, [0]).to_unknown();
-    assert_is_nan(Any::unary_plus(function0).unwrap(), "function");
+fn test_vm<A: Any>() {
+    eq::<A>();
+    unary_plus::<A>();
+    unary_minus::<A>();
 }
 
 #[test]
-fn naive_eq() {
-    eq::<naive::Any>();
-    unary_plus::<naive::Any>();
+fn test() {
+    test_vm::<naive::Any>();
 }
