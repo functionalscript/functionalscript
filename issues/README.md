@@ -61,6 +61,9 @@ For example, 'throw' field could be not an immediate function but a reference to
 (e.g. 'test_throw') - in this case the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
 require setting a flag when walking through a test free, as soon as a node has a 'throw' as its name.
+34. [ ] Refactor unary_plus in interface.rs so the runtime error of unary_plus does keep a value - that
+logic should be moved to a private free floating helper function (to keep public interface of Any clean).
+35. [ ] Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
 
 ## Language Specification
 

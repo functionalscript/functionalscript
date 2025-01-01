@@ -38,8 +38,14 @@ pub trait Function<U: Any<Function = Self>>:
 }
 
 #[derive(Debug, PartialEq)]
-pub enum RuntimeError {
-    TypeError,
+pub enum TypeError<U: Any> {
+    BigIntToNumber(U), // Cannot convert a given BigInt value to a number
+                       // More error variants will be added in the future as needed.
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RuntimeError<U: Any> {
+    TypeError(TypeError<U>),
     // More error variants will be added in the future as needed.
 }
 
@@ -55,6 +61,8 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
 
     fn new_simple(value: Simple) -> Self;
     fn try_to_simple(&self) -> Option<Simple>;
+
+    fn negate_bigint(self) -> Self; // must panic if not BigInt
 
     fn try_to<C: Complex<Self>>(self) -> Result<C, Self> {
         C::try_from_unknown(self)
@@ -77,15 +85,17 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
-    fn unary_plus(v: Self) -> Result<Self, RuntimeError> {
+    fn unary_plus(v: Self) -> Result<Self, RuntimeError<Self>> {
+        // https://tc39.es/ecma262/#sec-unary-plus-operator - here we effectively implement
+        // ECMAScript logic for an abstract operation ToNumber, see
+        // https://tc39.es/ecma262/#sec-tonumber - with the difference that TypeError exception
+        // is replaced with a correspondent runtime error result.
         match v.unpack() {
             Unpacked::Nullish(n) => match n {
                 Nullish::Null => Ok(Self::new_simple(Simple::Number(0.0))),
                 Nullish::Undefined => Ok(Self::new_simple(Simple::Number(f64::NAN))),
             },
-            Unpacked::Bool(b) => {
-                Ok(Self::new_simple(Simple::Number(if b { 1.0 } else { 0.0 })))
-            }
+            Unpacked::Bool(b) => Ok(Self::new_simple(Simple::Number(if b { 1.0 } else { 0.0 }))),
             Unpacked::Number(n) => Ok(Self::new_simple(Simple::Number(n))),
             Unpacked::String16(s) => {
                 let items = s.items();
@@ -100,7 +110,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 }
                 Ok(Self::new_simple(Simple::Number(f64::NAN)))
             }
-            Unpacked::BigInt(_) => Err(RuntimeError::TypeError),
+            Unpacked::BigInt(i) => Err(RuntimeError::TypeError(TypeError::BigIntToNumber(
+                Self::pack(Unpacked::BigInt(i)),
+            ))),
             Unpacked::Array(a) => {
                 let items = a.items();
                 if items.is_empty() {
@@ -114,6 +126,22 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
             // TODO: use valueOf, toString functions for Object when present.
             Unpacked::Object(_) => Ok(Self::new_simple(Simple::Number(f64::NAN))),
             Unpacked::Function(_) => Ok(Self::new_simple(Simple::Number(f64::NAN))),
+        }
+    }
+
+    fn unary_minus(v: Self) -> Self {
+        // https://tc39.es/ecma262/#sec-unary-minus-operator
+        // ECMAScript requires throwing TypeError for Symbol arguments; as of now we don't support
+        // Symbol, so we don't return error results. We use unary_plus as a helper function here,
+        // handling BigInt case when the error result of unary_plus indicates that case.
+        match Self::unary_plus(v) {
+            Ok(v) => match v.unpack() {
+                Unpacked::Number(f) => Self::new_simple(Simple::Number(-f)),
+                _ => panic!("unexpected OK result of unary_plus that is not a number"),
+            },
+            Err(err) => match err {
+                RuntimeError::TypeError(TypeError::BigIntToNumber(n)) => Self::negate_bigint(n),
+            },
         }
     }
 }
