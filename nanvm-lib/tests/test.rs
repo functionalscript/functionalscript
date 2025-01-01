@@ -311,17 +311,13 @@ fn unary_minus<A: Any>() {
     }
 }
 
-#[test]
-fn naive_eq() {
-    eq::<naive::Any>();
+fn test_vm<A: Any>() {
+    eq::<A>();
+    unary_plus::<A>();
+    unary_minus::<A>();
 }
 
 #[test]
-fn naive_unary_plus() {
-    unary_plus::<naive::Any>();
-}
-
-#[test]
-fn naive_unary_minus() {
-    unary_minus::<naive::Any>();
+fn test() {
+    test_vm::<naive::Any>();
 }
