@@ -3,7 +3,7 @@ import { unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { union, type SortedSet } from '../sorted_set/module.f.ts'
-import * as list from '../list/module.f.ts'
+import { equal, toArray } from '../list/module.f.ts'
 import * as operator from '../function/operator/module.f.ts'
 
 const stringify
@@ -11,7 +11,7 @@ const stringify
     = json.stringify(sort)
 
 const op: Operators<SortedSet<string>>
-    = { union: union(unsafeCmp), equal: list.equal(operator.strictEqual) }
+    = { union: union(unsafeCmp), equal: equal(operator.strictEqual) }
 
 export default {
     merge: [
@@ -21,7 +21,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = null
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
@@ -30,7 +30,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
@@ -39,7 +39,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
@@ -48,7 +48,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['b'], 2], [['d'], 4]]
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
@@ -57,7 +57,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['b'], 2], [['c'], 3]]
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
@@ -66,7 +66,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['b'], 1], [['a'], 2]]
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a","b"],2]]') { throw result }
         },
         () => {
@@ -75,7 +75,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['a'], 5]]
             const merged = merge(op)(a)(b)
-            const result = stringify(list.toArray(merged))
+            const result = stringify(toArray(merged))
             if (result !== '[[["a"],1],[["a","b"],2],[["a"],5]]') { throw result }
         }
     ],
