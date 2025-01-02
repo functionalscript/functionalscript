@@ -40,5 +40,5 @@ Naturally, users' implementations of custom toString uses fields of an object in
 (referred via 'this').
 FS supports custom implementations of toString too, but, since FS does not
 support 'this', such implementation is a static function that cannot read object's fields.
-This it is much less useful than the JS's option, and is FS's official guidelines discourage
+Thus it is much less useful than the JS's option, and is FS's official guidelines discourage
 custom implementations of toString (and other similar functions, e.g. valueOf).
