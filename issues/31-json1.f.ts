@@ -33,36 +33,45 @@ type TerminalRange = readonly[number, number]
     // ok
     const digit = [0x30, 0x39] as const
 
-    // ok
-    const digits1 = () => ({ or: [
+    const digits = [digit, () => ({ or: [
         [],
-        [[0x30, 0x39] as const, digits1]
-    ]})
+        digits
+    ]})]
 
-    // ok
-    const digits = [digit, digits1]
-
-    // ok
     const exponent = { or: [
         [],
         ['E', sign, digits],
         ['e', sign, digits],
     ]}
 
-    // ok
     const fraction = { or: [
         [],
         ['.', digits]
     ]}
 
-    // ok
+    //
+
+    const members = (): DataRule => ({ or: [
+        member,
+        [member, ',', members],
+    ]})
+
+    const object = { or: [
+        ['{', ws, '}'],
+        ['{', members, '}'],
+    ]}
+
+    const array = (): DataRule => ({ or: [
+        ['[', ws, ']'],
+        ['[', element, ']'],
+    ]})
+
     const hex = { or: [
-        [0x30, 0x39], // 0..9
+        digit,
         [0x41, 0x46], // A..F
         [0x61, 0x66], // a..f
     ]} as const
 
-    // ok
     const escape = { or: [
         '"',
         '\\',
@@ -75,26 +84,19 @@ type TerminalRange = readonly[number, number]
         ['u', hex, hex, hex, hex]
     ]}
 
-    // ok
-    const characters = (): DataRule => ({ or: [
+    const character: Rule = { or: [
+        [0x20, 0x21], // exclude '"' 0x22
+        [0x23, 0x5B], // exclude '\' 0x5C
+        [0x5D ,0x10FFFF],
+        ['\\', escape],
+    ]} as const
+
+    const characters = () => ({ or: [
         [],
-        [[0x20, 0x21], characters], // exclude '"' 0x22
-        [[0x23, 0x5B], characters], // exclude '\' 0x5C
-        [[0x5D ,0x10FFFF], characters],
-        ['\\', escape, characters],
+        [character, characters]
     ]})
 
     const string = ['"', characters, '"']
-
-    const object = { or: [
-        ['{', ws, '}'],
-        ['{', (): DataRule => members, '}'],
-    ]}
-
-    const array = (): DataRule => ({ or: [
-        ['[', ws, ']'],
-        ['[', element, ']'],
-    ]})
 
     const integer = { or: [
         digit,
@@ -118,11 +120,6 @@ type TerminalRange = readonly[number, number]
     const element = [ws, value, ws]
 
     const member = [ws, string, ws, ':', element]
-
-    const members = [member, (): DataRule => ({ or: [
-        [],
-        [',', members],
-    ]})]
 
     const json: Rule = element
 }
