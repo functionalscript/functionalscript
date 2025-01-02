@@ -55,14 +55,14 @@ type TerminalRange = readonly[number, number]
         ['.', digits]
     ]}
 
-    //
-
+    // ok
     const hex = { or: [
-        digit,
+        [0x30, 0x39], // 0..9
         [0x41, 0x46], // A..F
         [0x61, 0x66], // a..f
     ]} as const
 
+    // ok
     const escape = { or: [
         '"',
         '\\',
@@ -75,16 +75,13 @@ type TerminalRange = readonly[number, number]
         ['u', hex, hex, hex, hex]
     ]}
 
-    const character: Rule = { or: [
-        [0x20, 0x21], // exclude '"' 0x22
-        [0x23, 0x5B], // exclude '\' 0x5C
-        [0x5D ,0x10FFFF],
-        ['\\', escape],
-    ]} as const
-
-    const characters = () => ({ or: [
+    // ok
+    const characters = (): DataRule => ({ or: [
         [],
-        [character, characters]
+        [[0x20, 0x21], characters], // exclude '"' 0x22
+        [[0x23, 0x5B], characters], // exclude '\' 0x5C
+        [[0x5D ,0x10FFFF], characters],
+        ['\\', escape, characters],
     ]})
 
     const string = ['"', characters, '"']
