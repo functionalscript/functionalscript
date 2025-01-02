@@ -95,7 +95,10 @@ type TerminalRange = readonly[number, number]
     ]} as const
 
     // ok
-    const string = ['"', characters, '"']
+    const string1 = [characters, '"']
+
+    // ok
+    const string = ['"', string1]
 
     // ok
     const element = (): DataRule => [ws, value, ws]
@@ -104,17 +107,18 @@ type TerminalRange = readonly[number, number]
     const member2 = [ws, ':', element]
 
     // ok
-    const members1 = [string, member2, (): DataRule => ({ or: [
+    const members2 = [member2, (): DataRule => ({ or: [
         [],
         [',', members],
     ]})]
 
     // ok
-    const members = [ws, members1]
+    const members = [ws, string, members2]
 
+    // ok
     const object = ['{', ws, { or: [
         '}',
-        [members1, '}'],
+        ['"', string1, members2, '}'],
     ]}]
 
     const array = (): DataRule => ({ or: [
