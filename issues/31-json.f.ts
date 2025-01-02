@@ -52,7 +52,7 @@ type TerminalRange = readonly[number, number]
 
     const members = (): DataRule => ({ or: [
         member,
-        [member, '.', members],
+        [member, ',', members],
     ]})
 
     const object = { or: [
@@ -132,7 +132,7 @@ type TerminalRange = readonly[number, number]
 
     //
     type Id = keyof typeof map
-  
+
     type LazyRule = { readonly id: Id }
     type Rule = DataRule|LazyRule
 
@@ -192,7 +192,7 @@ type TerminalRange = readonly[number, number]
         number: [integer, fraction, exponent],
         members: { or: [
             member,
-            [member, '.', members],
+            [member, ',', members],
         ]},
         characters: { or: [
             [],
