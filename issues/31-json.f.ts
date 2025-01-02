@@ -1,5 +1,9 @@
 type TerminalRange = readonly[number, number]
 
+type SetItem = TerminalRange|number|null
+
+type Set = readonly SetItem[]
+
 // JSON: https://www.json.org/json-en.html
 {
     type Sequence = readonly Rule[]
@@ -13,22 +17,26 @@ type TerminalRange = readonly[number, number]
 
     const ws = () => ({ or: [
         [],
-        [' ', ws],
-        ['\t', ws],
-        ['\n', ws],
-        ['\r', ws],
+        ['\t', ws], // 0x09
+        ['\n', ws], // 0x0A
+        ['\r', ws], // 0x0D
+        [' ', ws],  // 0x20
     ]})
+
+    const wsSet: Set = [null, [0x09, 0x0A], 0x0D, 0x20]
 
     const sign = { or: [
         [],
-        '+',
-        '-',
+        '+', // 0x2B
+        '-', // 0x2D
     ]}
 
-    const digits = () => ({ or: [
-        digit,
-        [digit, digits]
-    ]})
+    const signSet: Set = [null, 0x2B, 0x2D]
+
+    const digits = () => [digit, ({ or: [
+        [],
+        digits
+    ]})]
 
     const exponent = { or: [
         [],
