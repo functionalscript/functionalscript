@@ -19,7 +19,7 @@ const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
 const toTerminalRangeSequence = (s: string): readonly TerminalRange[] =>
     toArray(toTerminalRangeMap(stringToCodePointList(s)))
 
-type Set = {
+export type Set = {
     readonly empty: boolean
     readonly map: RangeMapArray<boolean>
 }
@@ -37,7 +37,7 @@ const rangeToSet = (r: TerminalRange): Set => ({ empty: false, map: rangeMap(r)(
 
 const isTerminalRange = (rule: Sequence|TerminalRange): rule is TerminalRange => typeof rule[0] === 'number'
 
-const set = (rule: Rule): Set => {
+export const set = (rule: Rule): Set => {
     if (typeof rule === 'function') {
         rule = rule()
     }
