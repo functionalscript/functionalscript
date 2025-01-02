@@ -57,6 +57,31 @@ type TerminalRange = readonly[number, number]
 
     //
 
+    const hex = { or: [
+        digit,
+        [0x41, 0x46], // A..F
+        [0x61, 0x66], // a..f
+    ]} as const
+
+    const escape = { or: [
+        '"',
+        '\\',
+        '/',
+        'b',
+        'f',
+        'n',
+        'r',
+        't',
+        ['u', hex, hex, hex, hex]
+    ]}
+
+    const character: Rule = { or: [
+        [0x20, 0x21], // exclude '"' 0x22
+        [0x23, 0x5B], // exclude '\' 0x5C
+        [0x5D ,0x10FFFF],
+        ['\\', escape],
+    ]} as const
+
     const characters = () => ({ or: [
         [],
         [character, characters]
@@ -101,31 +126,6 @@ type TerminalRange = readonly[number, number]
         [],
         [',', members],
     ]})]
-
-    const hex = { or: [
-        digit,
-        [0x41, 0x46], // A..F
-        [0x61, 0x66], // a..f
-    ]} as const
-
-    const escape = { or: [
-        '"',
-        '\\',
-        '/',
-        'b',
-        'f',
-        'n',
-        'r',
-        't',
-        ['u', hex, hex, hex, hex]
-    ]}
-
-    const character: Rule = { or: [
-        [0x20, 0x21], // exclude '"' 0x22
-        [0x23, 0x5B], // exclude '\' 0x5C
-        [0x5D ,0x10FFFF],
-        ['\\', escape],
-    ]} as const
 
     const json: Rule = element
 }
