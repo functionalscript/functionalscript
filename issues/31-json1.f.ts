@@ -84,20 +84,23 @@ type TerminalRange = readonly[number, number]
         ['\\', escape, characters],
     ]})
 
+    // ok
     const integer = { or: [
         '0',
-        [[0x31, 0x39], { or: [
-            [],
-            digits
+        [[0x31, 0x39], digits1],
+        ['-', { or: [
+            '0',
+            [[0x31, 0x39], digits1],
         ]}],
-        ['-', digit],
-        ['-', onenine, digits],
     ]} as const
 
+    // ok
     const string = ['"', characters, '"']
 
+    // ok
     const element = (): DataRule => [ws, value, ws]
 
+    // ok
     const member = [ws, string, ws, ':', element]
 
     const members = [member, (): DataRule => ({ or: [
