@@ -100,11 +100,20 @@ type TerminalRange = readonly[number, number]
     // ok
     const string = ['"', string1]
 
+    // ok
+    const number1 = [fraction, exponent]
+
+    // ok
     const value = (): DataRule => ({ or: [
-        object,
-        array,
-        string,
-        number,
+        ['{', object1],
+        ['[', array1],
+        ['"', string1],
+        ['0', number1],
+        [[0x31, 0x39], digits1, number1],
+        ['-', { or: [
+            '0',
+            [[0x31, 0x39], digits1],
+        ]}, number1],
         'true',
         'false',
         'null'
@@ -129,17 +138,26 @@ type TerminalRange = readonly[number, number]
     const members = [ws, string, members2]
 
     // ok
-    const object = ['{', ws, { or: [
+    const object1 = [ws, { or: [
         '}',
         ['"', string1, members2, '}'],
     ]}]
 
-    const array = ['[', ws, (): DataRule => ({ or: [
+    const array1 = [ws, (): DataRule => ({ or: [
         ']',
-        [value, ws, ']'],
+        ['{', object1, ws, ']'],
+        ['[', array1, ws, ']'],
+        ['"', string1, ws, ']'],
+        ['0', number1, ws, ']'],
+        [[0x31, 0x39], digits1, number1, ws, ']'],
+        ['-', { or: [
+            '0',
+            [[0x31, 0x39], digits1],
+        ]}, number1, ws, ']'],
+        ['true', ws, ']'],
+        ['false', ws, ']'],
+        ['null', ws, ']'],
     ]})]
-
-    const number = [integer, fraction, exponent]
 
     const json: Rule = element
 }
