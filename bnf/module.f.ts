@@ -1,7 +1,6 @@
-import { todo } from "../dev/module.f.ts";
 import { type CodePoint, stringToCodePointList } from '../text/utf16/module.f.ts'
-import { length, map, toArray } from '../types/list/module.f.ts'
-import { fromRange, merge, Operators, type RangeMapArray } from '../types/range_map/module.f.ts'
+import { map, toArray } from '../types/list/module.f.ts'
+import { fromRange, merge, type Operators, type RangeMapArray } from '../types/range_map/module.f.ts'
 
 export type TerminalRange = readonly[CodePoint, CodePoint]
 
@@ -62,6 +61,13 @@ export const set = (rule: Rule): Set => {
         }
         return { empty: true, map: result }
     }
-    return todo()
+    let empty = false
+    let map: RangeMapArray<boolean> = []
+    for (const r of rule.or) {
+        const { empty: rEmpty, map: rMap } = set(r)
+        map = toArray(setMerge(map)(rMap))
+        empty ||= rEmpty
+    }
+    return { empty, map }
 }
 
