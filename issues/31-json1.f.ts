@@ -33,17 +33,23 @@ type TerminalRange = readonly[number, number]
     // ok
     const digit = [0x30, 0x39] as const
 
-    const digits = [digit, () => ({ or: [
+    // ok
+    const digits1 = (): DataRule => ({ or: [
         [],
-        digits
-    ]})]
+        [[0x30, 0x39], digits1]
+    ]})
 
+    // ok
+    const digits = [digit, digits1]
+
+    // ok
     const exponent = { or: [
         [],
         ['E', sign, digits],
         ['e', sign, digits],
     ]}
 
+    // ok
     const fraction = { or: [
         [],
         ['.', digits]
