@@ -20,8 +20,8 @@ type RangeState<T> = Nullable<Entry<T>>
 
 export type RangeMerge<T> = Reduce<RangeMap<T>>
 
-const reduceOp: <T>(union: Reduce<T>) => (equal: Equal<T>) => ReduceOp<Entry<T>, RangeState<T>>
-    = union => equal => state => ([aItem, aMax]) => ([bItem, bMax]) => {
+const reduceOp: <T>(union: Operators<T>) => ReduceOp<Entry<T>, RangeState<T>>
+    = ({ union, equal }) => state => ([aItem, aMax]) => ([bItem, bMax]) => {
         const sign = cmp(aMax)(bMax)
         const min = sign === 1 ? bMax : aMax
         const u = union(aItem)(bItem)
@@ -39,7 +39,7 @@ const tailReduce: <T>(equal: Equal<T>) => TailReduce<Entry<T>, RangeState<T>>
     }
 
 export const merge: <T>(op: Operators<T>) => RangeMerge<T>
-    = ({ union, equal }) => genericMerge({ reduceOp: reduceOp(union)(equal), tailReduce: tailReduce(equal) })(null)
+    = op => genericMerge({ reduceOp: reduceOp(op), tailReduce: tailReduce(op.equal) })(null)
 
 export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T
     = def => value => rm => {

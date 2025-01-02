@@ -111,6 +111,4 @@ const member = [ws, string, ws, ':', element]
 
 const json: Rule = element
 
-export default {
-    json,
-}
+export default []
