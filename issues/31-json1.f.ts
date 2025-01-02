@@ -121,10 +121,10 @@ type TerminalRange = readonly[number, number]
         ['"', string1, members2, '}'],
     ]}]
 
-    const array = (): DataRule => ({ or: [
-        ['[', ws, ']'],
-        ['[', element, ']'],
-    ]})
+    const array = ['[', (): DataRule => ({ or: [
+        [ws, ']'],
+        [element, ']'],
+    ]})]
 
     const number = [integer, fraction, exponent]
 
