@@ -100,8 +100,18 @@ type TerminalRange = readonly[number, number]
     // ok
     const string = ['"', string1]
 
+    const value = (): DataRule => ({ or: [
+        object,
+        array,
+        string,
+        number,
+        'true',
+        'false',
+        'null'
+    ]})
+
     // ok
-    const element1 = (): DataRule => [value, ws]
+    const element1 = [value, ws]
 
     // ok
     const element = [ws, element1]
@@ -126,20 +136,10 @@ type TerminalRange = readonly[number, number]
 
     const array = ['[', ws, (): DataRule => ({ or: [
         ']',
-        [element1, ']'],
+        [value, ws, ']'],
     ]})]
 
     const number = [integer, fraction, exponent]
-
-    const value = { or: [
-        object,
-        array,
-        string,
-        number,
-        'true',
-        'false',
-        'null'
-    ]}
 
     const json: Rule = element
 }
