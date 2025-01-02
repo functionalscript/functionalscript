@@ -85,11 +85,14 @@ type TerminalRange = readonly[number, number]
     ]})
 
     const integer = { or: [
-        digit,
-        [onenine, digits],
+        '0',
+        [[0x31, 0x39], { or: [
+            [],
+            digits
+        ]}],
         ['-', digit],
         ['-', onenine, digits],
-    ]}
+    ]} as const
 
     const string = ['"', characters, '"']
 
