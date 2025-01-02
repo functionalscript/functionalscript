@@ -103,15 +103,16 @@ type TerminalRange = readonly[number, number]
     // ok
     const member = [ws, string, ws, ':', element]
 
+    // ok
     const members = [member, (): DataRule => ({ or: [
         [],
         [',', members],
     ]})]
 
-    const object = { or: [
-        ['{', ws, '}'],
-        ['{', members, '}'],
-    ]}
+    const object = ['{', { or: [
+        [ws, '}'],
+        [members, '}'],
+    ]}]
 
     const array = (): DataRule => ({ or: [
         ['[', ws, ']'],
