@@ -38,35 +38,51 @@ type Set = readonly SetItem[]
         digits
     ]})]
 
+    const digitsSet: Set = [[0x30, 0x31]]
+
     const exponent = { or: [
         [],
         ['E', sign, digits],
         ['e', sign, digits],
     ]}
 
+    const exponentSet: Set = [null, 0x45, 0x65]
+
     const fraction = { or: [
         [],
         ['.', digits]
     ]}
 
+    const fractionSet: Set = [null, 0x2E]
+
     const onenine = [0x31, 0x39] as const
+
+    const onenineSet: Set = [[0x31, 0x39]]
 
     const digit = { or: [
         '0',
         onenine,
     ]}
 
+    const digitSet: Set = [[0x30, 0x31]]
+
     //
 
-    const members = (): DataRule => ({ or: [
-        member,
-        [member, ',', members],
-    ]})
+    const members1 = (): DataRule => [member1, ({ or: [
+        [],
+        [',', members],
+    ]})]
 
-    const object = { or: [
-        ['{', ws, '}'],
-        ['{', members, '}'],
-    ]}
+    const members1Set: Set = [0x22] // '"'
+
+    const members = [ws, members1]
+
+    const membersSet: Set = [[0x09, 0x0A], 0x0D, 0x20, 0x22]
+
+    const object = ['{', { or: [
+        [ws, '}'],
+        [members, '}'],
+    ]}]
 
     const array = (): DataRule => ({ or: [
         ['[', ws, ']'],
@@ -126,7 +142,11 @@ type Set = readonly SetItem[]
 
     const element = [ws, value, ws]
 
-    const member = [ws, string, ws, ':', element]
+    const member1 = [string, ws, ':', element]
+
+    const member1Set: Set = [0x22] // '"'
+
+    // const member = [ws, member1]
 
     const json: Rule = element
 }
