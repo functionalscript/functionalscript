@@ -3,8 +3,16 @@ import { fold, first, drop, toArray, length, concat, type List } from '../../typ
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import type * as tokenizerT from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { fromMap } = o
+import { fromMap } from '../../types/object/module.f.ts'
+import { type StringSet } from '../../types/string_set/module.f'
+import { type Fs } from '../io/module.f'
+
+export type ParserContext = {    
+    readonly fs: Fs
+    readonly path: string
+    readonly complete: Map<DjsModule>
+    readonly progress: StringSet    
+}
 
 export type DjsModule = [readonly string[], readonly DjsConst[]]
 
