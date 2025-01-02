@@ -27,7 +27,13 @@ type TerminalRange = readonly[number, number]
         '-',
     ]}
 
-    const digits = () => [digit, ({ or: [
+    // ok
+    const onenine = [0x31, 0x39] as const
+
+    // ok
+    const digit = [0x30, 0x39] as const
+
+    const digits = [digit, () => ({ or: [
         [],
         digits
     ]})]
@@ -41,13 +47,6 @@ type TerminalRange = readonly[number, number]
     const fraction = { or: [
         [],
         ['.', digits]
-    ]}
-
-    const onenine = [0x31, 0x39] as const
-
-    const digit = { or: [
-        '0',
-        onenine,
     ]}
 
     //
