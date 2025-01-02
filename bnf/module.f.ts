@@ -1,7 +1,7 @@
 import { todo } from "../dev/module.f.ts";
 import { type CodePoint, stringToCodePointList } from '../text/utf16/module.f.ts'
-import { map, toArray } from '../types/list/module.f.ts'
-import { fromRange, merge, type RangeMapArray } from '../types/range_map/module.f.ts'
+import { length, map, toArray } from '../types/list/module.f.ts'
+import { fromRange, merge, Operators, type RangeMapArray } from '../types/range_map/module.f.ts'
 
 export type TerminalRange = readonly[CodePoint, CodePoint]
 
@@ -26,6 +26,13 @@ type Set = {
 
 const rangeMap = fromRange(false)
 
+const op: Operators<boolean> = {
+    union: a => b => a || b,
+    equal: a => b => a === b
+}
+
+const setMerge = merge(op)
+
 const rangeToSet = (r: TerminalRange): Set => ({ empty: false, map: rangeMap(r)(true) })
 
 const isTerminalRange = (rule: Sequence|TerminalRange): rule is TerminalRange => typeof rule[0] === 'number'
@@ -45,14 +52,15 @@ const set = (rule: Rule): Set => {
         if (isTerminalRange(rule)) {
             return { empty: false, map: rangeMap(rule)(true) }
         }
-        let result = { empty: true, map: [] }
-        let i = 0
-        do {
-            todo()
-            // result = merge()
-            ++i
-        } while (result.empty && rule.length !== i)
-        return result
+        let result: RangeMapArray<boolean> = []
+        for (const r of rule) {
+            const { empty, map } = set(r)
+            result = toArray(setMerge(result)(map))
+            if (!empty) {
+                return { empty: false, map: result }
+            }
+        }
+        return { empty: true, map: result }
     }
     return todo()
 }
