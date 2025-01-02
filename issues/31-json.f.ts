@@ -1,9 +1,5 @@
 type TerminalRange = readonly[number, number]
 
-type SetItem = TerminalRange|number|null
-
-type Set = readonly SetItem[]
-
 // JSON: https://www.json.org/json-en.html
 {
     type Sequence = readonly Rule[]
@@ -17,28 +13,22 @@ type Set = readonly SetItem[]
 
     const ws = () => ({ or: [
         [],
-        ['\t', ws], // 0x09
-        ['\n', ws], // 0x0A
-        ['\r', ws], // 0x0D
-        [' ', ws],  // 0x20
+        [' ', ws],
+        ['\t', ws],
+        ['\n', ws],
+        ['\r', ws],
     ]})
-
-    const wsSet: Set = [null, [0x09, 0x0A], 0x0D, 0x20]
 
     const sign = { or: [
         [],
-        '+', // 0x2B
-        '-', // 0x2D
+        '+',
+        '-',
     ]}
 
-    const signSet: Set = [null, 0x2B, 0x2D]
-
-    const digits = () => [digit, ({ or: [
-        [],
-        digits
-    ]})]
-
-    const digitsSet: Set = [[0x30, 0x31]]
+    const digits = () => ({ or: [
+        digit,
+        [digit, digits]
+    ]})
 
     const exponent = { or: [
         [],
@@ -46,43 +36,29 @@ type Set = readonly SetItem[]
         ['e', sign, digits],
     ]}
 
-    const exponentSet: Set = [null, 0x45, 0x65]
-
     const fraction = { or: [
         [],
         ['.', digits]
     ]}
 
-    const fractionSet: Set = [null, 0x2E]
-
     const onenine = [0x31, 0x39] as const
-
-    const onenineSet: Set = [[0x31, 0x39]]
 
     const digit = { or: [
         '0',
         onenine,
     ]}
 
-    const digitSet: Set = [[0x30, 0x31]]
-
     //
 
-    const members1 = (): DataRule => [member1, ({ or: [
-        [],
-        [',', members],
-    ]})]
+    const members = (): DataRule => ({ or: [
+        member,
+        [member, ',', members],
+    ]})
 
-    const members1Set: Set = [0x22] // '"'
-
-    const members = [ws, members1]
-
-    const membersSet: Set = [[0x09, 0x0A], 0x0D, 0x20, 0x22]
-
-    const object = ['{', { or: [
-        [ws, '}'],
-        [members, '}'],
-    ]}]
+    const object = { or: [
+        ['{', ws, '}'],
+        ['{', members, '}'],
+    ]}
 
     const array = (): DataRule => ({ or: [
         ['[', ws, ']'],
@@ -142,11 +118,7 @@ type Set = readonly SetItem[]
 
     const element = [ws, value, ws]
 
-    const member1 = [string, ws, ':', element]
-
-    const member1Set: Set = [0x22] // '"'
-
-    // const member = [ws, member1]
+    const member = [ws, string, ws, ':', element]
 
     const json: Rule = element
 }
