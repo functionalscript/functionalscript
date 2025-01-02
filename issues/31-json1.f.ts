@@ -57,21 +57,6 @@ type TerminalRange = readonly[number, number]
 
     //
 
-    const members = (): DataRule => ({ or: [
-        member,
-        [member, ',', members],
-    ]})
-
-    const object = { or: [
-        ['{', ws, '}'],
-        ['{', members, '}'],
-    ]}
-
-    const array = (): DataRule => ({ or: [
-        ['[', ws, ']'],
-        ['[', element, ']'],
-    ]})
-
     const hex = { or: [
         digit,
         [0x41, 0x46], // A..F
@@ -102,14 +87,33 @@ type TerminalRange = readonly[number, number]
         [character, characters]
     ]})
 
-    const string = ['"', characters, '"']
-
     const integer = { or: [
         digit,
         [onenine, digits],
         ['-', digit],
         ['-', onenine, digits],
     ]}
+
+    const string = ['"', characters, '"']
+
+    const element = (): DataRule => [ws, value, ws]
+
+    const member = [ws, string, ws, ':', element]
+
+    const members = [member, (): DataRule => ({ or: [
+        [],
+        [',', members],
+    ]})]
+
+    const object = { or: [
+        ['{', ws, '}'],
+        ['{', members, '}'],
+    ]}
+
+    const array = (): DataRule => ({ or: [
+        ['[', ws, ']'],
+        ['[', element, ']'],
+    ]})
 
     const number = [integer, fraction, exponent]
 
@@ -122,10 +126,6 @@ type TerminalRange = readonly[number, number]
         'false',
         'null'
     ]}
-
-    const element = [ws, value, ws]
-
-    const member = [ws, string, ws, ':', element]
 
     const json: Rule = element
 }
