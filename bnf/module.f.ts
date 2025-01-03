@@ -1,7 +1,9 @@
 /**
+ *  Types for defining language grammars using Backus-Naur Form (BNF).
+ *
  * @module
  *
- * Types for defining language grammars using Backus-Naur Form (BNF).
+ * @description
  *
  * The primary utility of this module is to define grammars for text processing,
  * parsing, and lexing in a structured and reusable way.

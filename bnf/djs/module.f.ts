@@ -1,16 +1,20 @@
+/**
+ * Rules for serializing and deserializing the BNF grammar.
+ *
+ * @module
+ */
+
 import type { TerminalRange } from '../module.f.ts'
 
-type Sequence = readonly Rule[]
-type Or = { readonly or: Sequence }
+export type Sequence = readonly Rule[]
+export type Or = { readonly or: Sequence }
 
-type DataRule = Sequence|Or|TerminalRange|string
-
-//
-type Id = string
-
-type LazyRule = { readonly id: Id }
-type Rule = DataRule|LazyRule
-
-type RuleMap = { readonly[k in Id]: Rule }
+export type DataRule = Sequence|Or|TerminalRange|string
 
 //
+export type Id = string
+
+export type LazyRule = { readonly id: Id }
+export type Rule = DataRule|LazyRule
+
+export type RuleMap = { readonly[k in Id]: Rule }
