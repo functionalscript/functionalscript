@@ -62,6 +62,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 37. Language Design: Currently FS has no way to store references (objects/functions) into a container with fast search. Several options:
   - add `Map` to the language
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
+- [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 
 ## Language Specification
 
