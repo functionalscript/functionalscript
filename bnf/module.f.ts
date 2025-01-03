@@ -121,7 +121,7 @@ export const firstSet = (rule: Rule): CpSet => {
     }
     if (rule instanceof Array) {
         if (isTerminalRange(rule)) {
-            return { empty: false, map: fromRange(rule)(true) }
+            return rangeToSet(rule)
         }
         let result: RangeMapArray<boolean> = []
         for (const r of rule) {
@@ -142,3 +142,70 @@ export const firstSet = (rule: Rule): CpSet => {
     }
     return { empty, map }
 }
+
+//
+
+type MatchMap = {
+    empty: boolean
+    map: RangeMapArray<MatchMap>
+}
+
+const defMatchMap: MatchMap = { empty: false, map: [] }
+
+/**
+ * Operations on code point map.
+ */
+const matchMapOp: RangeMapOp<MatchMap> = rangeMap({
+    union: a => b => ({ empty: a.empty || b.empty, map: toArray(matchMapOp.merge(a.map)(b.map)) }),
+    equal: a => b => a === b,
+    def: defMatchMap
+})
+
+const { merge: mergeMap, fromRange: fromRangeMap } = matchMapOp
+
+const pass: MatchMap = { empty: true, map: [] }
+
+const rangeToMatchMap = (r: TerminalRange): MatchMap => ({ empty: false, map: fromRangeMap(r)(pass) })
+
+/**
+ * Processes a `Rule` and converts it into a `Set` of possible code points at the start of the rule.
+ *
+ * @param rule - The grammar rule to process.
+ * @returns A set representing the first possible code points in the grammar rule.
+ */
+/*
+export const matchMap = (rule: Rule): MatchMap => {
+    if (typeof rule === 'function') {
+        rule = rule()
+    }
+    if (typeof rule === 'string') {
+        const a = toTerminalRangeSequence(rule)
+        if (a.length === 0) {
+            return { empty: true, map: [] }
+        }
+        return rangeToMatchMap(a[0])
+    }
+    if (rule instanceof Array) {
+        if (isTerminalRange(rule)) {
+            return rangeToMatchMap(rule)
+        }
+        let result: RangeMapArray<boolean> = []
+        for (const r of rule) {
+            const { empty, map } = firstSet(r)
+            result = toArray(merge(result)(map))
+            if (!empty) {
+                return { empty: false, map: result }
+            }
+        }
+        return { empty: true, map: result }
+    }
+    let empty = false
+    let map: RangeMapArray<boolean> = []
+    for (const r of rule.or) {
+        const { empty: rEmpty, map: rMap } = firstSet(r)
+        map = toArray(merge(map)(rMap))
+        empty ||= rEmpty
+    }
+    return { empty, map }
+}
+*/
