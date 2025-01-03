@@ -1,4 +1,4 @@
-import { set, type DataRule, type Rule } from './module.f.ts'
+import { firstSet, setOp, type DataRule, type Rule } from './module.f.ts'
 import * as j from '../json/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
@@ -141,34 +141,47 @@ const json: Rule = element
 const stringify = j.stringify(sort)
 
 const eq = (a: Rule, e: string) => () => {
-    const r = stringify(set(a))
+    const r = stringify(firstSet(a))
     if (r !== e) { throw [r, e] }
 }
 
 export default {
-    ws: eq(ws, '{"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}'),
-    sign: eq(sign, '{"empty":true,"map":[[false,42],[true,43],[false,44],[true,45]]}'),
-    digits: eq(digits, '{"empty":false,"map":[[false,47],[true,57]]}'),
-    exponent: eq(exponent, '{"empty":true,"map":[[false,68],[true,69],[false,100],[true,101]]}'),
-    fraction: eq(fraction, '{"empty":true,"map":[[false,45],[true,46]]}'),
-    onenine: eq(onenine, '{"empty":false,"map":[[false,48],[true,57]]}'),
-    digit: eq(digit, '{"empty":false,"map":[[false,47],[true,57]]}'),
-    string: eq(string, '{"empty":false,"map":[[false,33],[true,34]]}'),
-    member: eq(member, '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}'),
-    members: eq(members, '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}'),
-    object: eq(object, '{"empty":false,"map":[[false,122],[true,123]]}'),
-    array: eq(array, '{"empty":false,"map":[[false,90],[true,91]]}'),
-    integer: eq(integer, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
-    number: eq(number, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
-    value: eq(value, '{"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
-    element: eq(
-        element,
-        '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
-    json: eq(
-        json,
-        '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
-    hex: eq(hex, '{"empty":false,"map":[[false,47],[true,57],[false,64],[true,70],[false,96],[true,102]]}'),
-    escape: eq(escape, '{"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}'),
-    character: eq(character, '{"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}'),
-    characters: eq(characters, '{"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}'),
+    example: () => {
+        const grammar: Rule = [
+             { or: [[65, 90], [97, 122], [48, 57]] }, // Matches 'A-Z', 'a-z', and '0-9'
+        ]
+
+        const s = firstSet(grammar)
+        if (s.empty) { throw s }
+        if (setOp.get('0'.codePointAt(0) as number)(s.map) !== true) { throw s }
+        if (setOp.get('h'.codePointAt(0) as number)(s.map) !== true) { throw s }
+        if (setOp.get('$'.codePointAt(0) as number)(s.map) !== false) { throw s }
+    },
+    first: {
+        ws: eq(ws, '{"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}'),
+        sign: eq(sign, '{"empty":true,"map":[[false,42],[true,43],[false,44],[true,45]]}'),
+        digits: eq(digits, '{"empty":false,"map":[[false,47],[true,57]]}'),
+        exponent: eq(exponent, '{"empty":true,"map":[[false,68],[true,69],[false,100],[true,101]]}'),
+        fraction: eq(fraction, '{"empty":true,"map":[[false,45],[true,46]]}'),
+        onenine: eq(onenine, '{"empty":false,"map":[[false,48],[true,57]]}'),
+        digit: eq(digit, '{"empty":false,"map":[[false,47],[true,57]]}'),
+        string: eq(string, '{"empty":false,"map":[[false,33],[true,34]]}'),
+        member: eq(member, '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}'),
+        members: eq(members, '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}'),
+        object: eq(object, '{"empty":false,"map":[[false,122],[true,123]]}'),
+        array: eq(array, '{"empty":false,"map":[[false,90],[true,91]]}'),
+        integer: eq(integer, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
+        number: eq(number, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
+        value: eq(value, '{"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+        element: eq(
+            element,
+            '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+        json: eq(
+            json,
+            '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+        hex: eq(hex, '{"empty":false,"map":[[false,47],[true,57],[false,64],[true,70],[false,96],[true,102]]}'),
+        escape: eq(escape, '{"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}'),
+        character: eq(character, '{"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}'),
+        characters: eq(characters, '{"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}'),
+    }
 }

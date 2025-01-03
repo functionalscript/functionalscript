@@ -1,3 +1,34 @@
+/**
+ * Utility functions and types for managing and merging range maps.
+ *
+ * @module
+ *
+ * @example
+ *
+ * ```js
+ * import { rangeMap } from './module.f.ts'
+ * import { toArray } from '../list/module.f.ts'
+ *
+ * const rmOps = rangeMap({
+ *     union: a => b => a || b,
+ *     equal: a => b => a === b,
+ *     def: false,
+ * })
+ *
+ * // Create range maps
+ * const range1 = rmOps.fromRange([0, 10])(true)
+ * const range2 = rmOps.fromRange([5, 15])(false)
+ *
+ * // Merge range maps
+ * const merged = toArray(rmOps.merge(range1)(range2))
+ *
+ * // Retrieve values from the merged range map
+ * if (rmOps.get(7)(merged) !== true) { throw 'error' }
+ * if (rmOps.get(12)(merged) !== false) { throw 'error' }
+ * if (rmOps.get(-1)(merged) !== false) { throw 'error' }
+ * ```
+ */
+
 import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.ts'
 import { next } from '../list/module.f.ts'
 import type { Nullable } from '../nullable/module.f.ts'
@@ -7,13 +38,29 @@ import type { Range } from '../range/module.f.ts'
 
 export type Entry<T> = [T, number]
 
+/**
+ * A sorted list of entries, where each entry is a tuple `[T, number]` that maps a value of type `T` to an upper boundary
+ * of a numeric range.
+ */
 export type RangeMap<T> = SortedList<Entry<T>>
 
 export type RangeMapArray<T> = readonly Entry<T>[]
 
+/**
+ * Defines the properties and operations required for managing range maps.
+ */
 export type Properties<T> = {
+    /**
+     * A function to merge two values of type `T`. This defines how overlapping ranges are combined.
+     */
     readonly union: Reduce<T>
+    /**
+     * A function to check equality between two values of type `T`.
+     */
     readonly equal: Equal<T>
+    /**
+     * The default value used when no range matches or for initializing ranges.
+     */
     readonly def: T
 }
 
@@ -62,12 +109,30 @@ export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T
 export const fromRange: <T>(def: T) => (r: Range) => (value: T) => RangeMapArray<T>
     = def => ([a, b]) => v => [[def, a - 1], [v, b]]
 
+/**
+ * Represents a set of operations for managing range maps.
+ */
 export type RangeMapOp<T> = {
+    /**
+     * Merges two range maps into a single range map.
+     */
     readonly merge: RangeMerge<T>
+    /**
+     * Retrieves the value associated with a given numeric range.
+     */
     readonly get: (value: number) => (rm: RangeMapArray<T>) => T
+    /**
+     * Constructs a range map for a single numeric range and value.
+     */
     readonly fromRange: (r: Range) => (value: T) => RangeMapArray<T>
 }
 
+/**
+ * Creates a set of operations for managing range maps using the specified properties.
+ *
+ * @param op - The properties defining union and equality operations and the default value.
+ * @returns An object containing operations for merging, retrieving, and constructing range maps.
+ */
 export const rangeMap = <T>(op: Properties<T>): RangeMapOp<T> => ({
     merge: merge(op),
     get: get(op.def),

@@ -1,4 +1,4 @@
-import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange } from './module.f.ts'
+import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange, rangeMap } from './module.f.ts'
 import { unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
@@ -18,6 +18,25 @@ const op: Properties<SortedSet<string>>
     }
 
 export default {
+    example: () => {
+        const rmOps = rangeMap({
+            union: a => b => a || b,
+            equal: a => b => a === b,
+            def: false,
+        })
+
+        // Create range maps
+        const range1 = rmOps.fromRange([0, 10])(true)
+        const range2 = rmOps.fromRange([5, 15])(false)
+
+        // Merge range maps
+        const merged = toArray(rmOps.merge(range1)(range2))
+
+        // Retrieve values from the merged range map
+        if (rmOps.get(7)(merged) !== true) { throw 'error' }
+        if (rmOps.get(12)(merged) !== false) { throw 'error' }
+        if (rmOps.get(-1)(merged) !== false) { throw 'error' }
+    },
     merge: [
         () => {
             const a: RangeMap<SortedSet<string>>
