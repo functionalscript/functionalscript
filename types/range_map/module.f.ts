@@ -61,3 +61,15 @@ export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T
 
 export const fromRange: <T>(def: T) => (r: Range) => (value: T) => RangeMapArray<T>
     = def => ([a, b]) => v => [[def, a - 1], [v, b]]
+
+export type RangeMapOp<T> = {
+    readonly merge: RangeMerge<T>
+    readonly get: (value: number) => (rm: RangeMapArray<T>) => T
+    readonly fromRange: (r: Range) => (value: T) => RangeMapArray<T>
+}
+
+export const rangeMap = <T>(op: Properties<T>): RangeMapOp<T> => ({
+    merge: merge(op),
+    get: get(op.def),
+    fromRange: fromRange(op.def),
+})

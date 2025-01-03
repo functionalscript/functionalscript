@@ -368,9 +368,11 @@ const startNumber
     : (digit: number) => ParseNumberBuffer
     = digit => ({ s: 1n, m: digitToBigInt(digit), f: 0, es: 1, e: 0 })
 
+/*
 const startNegativeNumber
     : ParseNumberBuffer
     = { s: -1n, m: 0n, f: 0, es: 1, e: 0 }
+*/
 
 const addIntDigit
     : (digit: number) => (b: ParseNumberBuffer) => ParseNumberBuffer

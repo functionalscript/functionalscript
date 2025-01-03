@@ -1,17 +1,17 @@
 import { type CodePoint, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { map, toArray } from '../types/list/module.f.ts'
-import { fromRange, merge, type Properties, type RangeMapArray } from '../types/range_map/module.f.ts'
+import { rangeMap, type RangeMapArray } from '../types/range_map/module.f.ts'
 
-export type TerminalRange = readonly[CodePoint, CodePoint]
+export type TerminalRange = readonly [CodePoint, CodePoint]
 
 export type Sequence = readonly Rule[]
 export type Or = { readonly or: Sequence }
 
-export type DataRule = Sequence|Or|TerminalRange|string
+export type DataRule = Sequence | Or | TerminalRange | string
 
 //
 export type LazyRule = () => DataRule
-export type Rule = DataRule|LazyRule
+export type Rule = DataRule | LazyRule
 
 const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
 
@@ -23,19 +23,15 @@ export type Set = {
     readonly map: RangeMapArray<boolean>
 }
 
-const rangeMap = fromRange(false)
-
-const op: Properties<boolean> = {
+const { merge, fromRange } = rangeMap({
     union: a => b => a || b,
     equal: a => b => a === b,
-    def: false,
-}
+    def: false
+})
 
-const setMerge = merge(op)
+const rangeToSet = (r: TerminalRange): Set => ({ empty: false, map: fromRange(r)(true) })
 
-const rangeToSet = (r: TerminalRange): Set => ({ empty: false, map: rangeMap(r)(true) })
-
-const isTerminalRange = (rule: Sequence|TerminalRange): rule is TerminalRange =>
+const isTerminalRange = (rule: Sequence | TerminalRange): rule is TerminalRange =>
     typeof rule[0] === 'number'
 
 export const set = (rule: Rule): Set => {
@@ -51,12 +47,12 @@ export const set = (rule: Rule): Set => {
     }
     if (rule instanceof Array) {
         if (isTerminalRange(rule)) {
-            return { empty: false, map: rangeMap(rule)(true) }
+            return { empty: false, map: fromRange(rule)(true) }
         }
         let result: RangeMapArray<boolean> = []
         for (const r of rule) {
             const { empty, map } = set(r)
-            result = toArray(setMerge(result)(map))
+            result = toArray(merge(result)(map))
             if (!empty) {
                 return { empty: false, map: result }
             }
@@ -67,7 +63,7 @@ export const set = (rule: Rule): Set => {
     let map: RangeMapArray<boolean> = []
     for (const r of rule.or) {
         const { empty: rEmpty, map: rMap } = set(r)
-        map = toArray(setMerge(map)(rMap))
+        map = toArray(merge(map)(rMap))
         empty ||= rEmpty
     }
     return { empty, map }
