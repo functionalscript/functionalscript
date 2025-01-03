@@ -1,6 +1,6 @@
 import { type CodePoint, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { map, toArray } from '../types/list/module.f.ts'
-import { fromRange, merge, type Operators, type RangeMapArray } from '../types/range_map/module.f.ts'
+import { fromRange, merge, type Properties, type RangeMapArray } from '../types/range_map/module.f.ts'
 
 export type TerminalRange = readonly[CodePoint, CodePoint]
 
@@ -25,9 +25,10 @@ export type Set = {
 
 const rangeMap = fromRange(false)
 
-const op: Operators<boolean> = {
+const op: Properties<boolean> = {
     union: a => b => a || b,
-    equal: a => b => a === b
+    equal: a => b => a === b,
+    def: false,
 }
 
 const setMerge = merge(op)

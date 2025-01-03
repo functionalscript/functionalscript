@@ -1,4 +1,4 @@
-import { get, merge, type RangeMapArray, type Operators, type RangeMap, fromRange } from './module.f.ts'
+import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange } from './module.f.ts'
 import { unsafeCmp } from '../function/compare/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
@@ -10,8 +10,12 @@ const stringify
     : (a: readonly json.Unknown[]) => string
     = json.stringify(sort)
 
-const op: Operators<SortedSet<string>>
-    = { union: union(unsafeCmp), equal: equal(operator.strictEqual) }
+const op: Properties<SortedSet<string>>
+    = {
+        union: union(unsafeCmp),
+        equal: equal(operator.strictEqual),
+        def: []
+    }
 
 export default {
     merge: [

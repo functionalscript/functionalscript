@@ -11,16 +11,17 @@ export type RangeMap<T> = SortedList<Entry<T>>
 
 export type RangeMapArray<T> = readonly Entry<T>[]
 
-export type Operators<T> = {
+export type Properties<T> = {
     readonly union: Reduce<T>
     readonly equal: Equal<T>
+    readonly def: T
 }
 
 type RangeState<T> = Nullable<Entry<T>>
 
 export type RangeMerge<T> = Reduce<RangeMap<T>>
 
-const reduceOp: <T>(union: Operators<T>) => ReduceOp<Entry<T>, RangeState<T>>
+const reduceOp: <T>(p: Properties<T>) => ReduceOp<Entry<T>, RangeState<T>>
     = ({ union, equal }) => state => ([aItem, aMax]) => ([bItem, bMax]) => {
         const sign = cmp(aMax)(bMax)
         const min = sign === 1 ? bMax : aMax
@@ -38,7 +39,7 @@ const tailReduce: <T>(equal: Equal<T>) => TailReduce<Entry<T>, RangeState<T>>
         return { first: state, tail: tailResult }
     }
 
-export const merge: <T>(op: Operators<T>) => RangeMerge<T>
+export const merge: <T>(op: Properties<T>) => RangeMerge<T>
     = op => genericMerge({ reduceOp: reduceOp(op), tailReduce: tailReduce(op.equal) })(null)
 
 export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T

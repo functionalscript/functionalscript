@@ -323,6 +323,7 @@ const rangeMapMerge
     = def => merge({
         union: union(def),
         equal: operator.strictEqual,
+        def,
     })
 
 const rangeFunc
