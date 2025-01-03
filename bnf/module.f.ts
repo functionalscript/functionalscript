@@ -102,6 +102,8 @@ const rangeToSet = (r: TerminalRange): CpSet => ({ empty: false, map: fromRange(
 const isTerminalRange = (rule: Sequence | TerminalRange): rule is TerminalRange =>
     typeof rule[0] === 'number'
 
+const passSet: CpSet = { empty: true, map: [] }
+
 /**
  * Processes a `Rule` and converts it into a `Set` of possible code points at the start of the rule.
  *
@@ -113,11 +115,11 @@ export const firstSet = (rule: Rule): CpSet => {
         rule = rule()
     }
     if (typeof rule === 'string') {
-        const a = toTerminalRangeSequence(rule)
-        if (a.length === 0) {
-            return { empty: true, map: [] }
+        const first = toTerminalRangeSequence(rule).at(0)
+        if (first === undefined) {
+            return passSet
         }
-        return rangeToSet(a[0])
+        return rangeToSet(first)
     }
     if (rule instanceof Array) {
         if (isTerminalRange(rule)) {
@@ -165,7 +167,7 @@ const { merge: mergeMap, fromRange: fromRangeMap } = matchMapOp
 
 const pass: MatchMap = { empty: true, map: [] }
 
-const rangeToMatchMap = (r: TerminalRange): MatchMap => ({ empty: false, map: fromRangeMap(r)(pass) })
+const rangeToMatchMap = (r: TerminalRange, p: MatchMap): MatchMap => ({ empty: false, map: fromRangeMap(r)(p) })
 
 /**
  * Processes a `Rule` and converts it into a `Set` of possible code points at the start of the rule.
@@ -180,14 +182,15 @@ export const matchMap = (rule: Rule): MatchMap => {
     }
     if (typeof rule === 'string') {
         const a = toTerminalRangeSequence(rule)
-        if (a.length === 0) {
-            return { empty: true, map: [] }
+        let result = pass
+        for (const r of a) {
+            result = rangeToMatchMap(r, result)
         }
-        return rangeToMatchMap(a[0])
+        return result
     }
     if (rule instanceof Array) {
         if (isTerminalRange(rule)) {
-            return rangeToMatchMap(rule)
+            return rangeToMatchMap(rule, pass)
         }
         let result: RangeMapArray<boolean> = []
         for (const r of rule) {
