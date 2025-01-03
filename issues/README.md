@@ -59,7 +59,7 @@ require setting a flag when walking through a test free, as soon as a node has a
 logic should be moved to a private free floating helper function (to keep public interface of Any clean).
 - [ ] 35. Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
 - [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
-- [ ] 37. Language Design: Currently FS has no way to store references (objects/functions) with fast search. Several options:
+- [ ] 37. Language Design: Currently FS has no way to store references (objects/functions) into a container with fast search. Several options:
   - add `Map` to the language
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 
