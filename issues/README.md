@@ -61,7 +61,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
 - [ ] 37. Language Design: Currently FS has no way to store references (objects/functions) with fast search. Several options:
   - add `Map` to the language
-  - use content (serialization). This can be slow with non-CA VM. Functions are still problematic.
+  - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 
 ## Language Specification
 
