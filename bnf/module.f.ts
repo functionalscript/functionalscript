@@ -146,7 +146,7 @@ export const firstSet = (rule: Rule): CpSet => {
     return { empty, map }
 }
 
-//
+// Under construction:
 
 type MatchMap = {
     empty: boolean
