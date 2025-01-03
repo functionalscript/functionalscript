@@ -20,7 +20,9 @@ type Utf16State = number | null
 export type U16 = number
 
 /**
- * [0, 0x10FFFF]
+ * [0, 0x10_FFFF]: 16+5 = 21 bits
+ *
+ * 121_0000_0000: 16+16+9 = 41 bits
  */
 export type CodePoint = number
 

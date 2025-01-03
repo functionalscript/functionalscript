@@ -64,31 +64,35 @@ const array = (): DataRule => ({ or: [
     ['[', element, ']'],
 ]})
 
+// {"empty":false,"map":[[false,47],[true,57],[false,64],[true,70],[false,96],[true,102]]}
 const hex = { or: [
-    digit,
+    digit,        // 48-57
     [0x41, 0x46], // A..F
     [0x61, 0x66], // a..f
 ]} as const
 
+// {"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}
 const escape = { or: [
-    '"',
-    '\\',
-    '/',
-    'b',
-    'f',
-    'n',
-    'r',
-    't',
-    ['u', hex, hex, hex, hex]
+    '"',                      //  34
+    '/',                      //  47
+    '\\',                     //  92
+    'b',                      //  98
+    'f',                      // 102
+    'n',                      // 110
+    'r',                      // 114
+    't',                      // 116
+    ['u', hex, hex, hex, hex] // 117
 ]}
 
+// {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
 const character: Rule = { or: [
-    [0x20, 0x21], // exclude '"' 0x22
-    [0x23, 0x5B], // exclude '\' 0x5C
-    [0x5D ,0x10FFFF],
-    ['\\', escape],
+    [0x20, 0x21],     // exclude '"' 0x22
+    [0x23, 0x5B],     // exclude '\' 0x5C
+    ['\\', escape],   // 92
+    [0x5D ,0x10FFFF], // 93-1114111
 ]} as const
 
+// {"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
 const characters = () => ({ or: [
     [],
     [character, characters]
@@ -119,6 +123,9 @@ const value = { or: [
     object,  // 123
 ]}
 
+// ws: {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
+// value: {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
+// {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
 const element = [ws, value, ws]
 
 // ws: {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
@@ -126,6 +133,7 @@ const element = [ws, value, ws]
 // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
 const member = [ws, string, ws, ':', element]
 
+// {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
 const json: Rule = element
 
 //
@@ -153,4 +161,14 @@ export default {
     integer: eq(integer, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
     number: eq(number, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
     value: eq(value, '{"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+    element: eq(
+        element,
+        '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+    json: eq(
+        json,
+        '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+    hex: eq(hex, '{"empty":false,"map":[[false,47],[true,57],[false,64],[true,70],[false,96],[true,102]]}'),
+    escape: eq(escape, '{"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}'),
+    character: eq(character, '{"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}'),
+    characters: eq(characters, '{"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}'),
 }
