@@ -34,7 +34,8 @@ const setMerge = merge(op)
 
 const rangeToSet = (r: TerminalRange): Set => ({ empty: false, map: rangeMap(r)(true) })
 
-const isTerminalRange = (rule: Sequence|TerminalRange): rule is TerminalRange => typeof rule[0] === 'number'
+const isTerminalRange = (rule: Sequence|TerminalRange): rule is TerminalRange =>
+    typeof rule[0] === 'number'
 
 export const set = (rule: Rule): Set => {
     if (typeof rule === 'function') {
@@ -70,4 +71,3 @@ export const set = (rule: Rule): Set => {
     }
     return { empty, map }
 }
-
