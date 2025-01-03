@@ -25,6 +25,7 @@
  * ```
  */
 
+import { todo } from "../dev/module.f.ts";
 import { type CodePoint, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { map, toArray } from '../types/list/module.f.ts'
 import { rangeMap, type RangeMapOp, type RangeMapArray } from '../types/range_map/module.f.ts'
@@ -154,11 +155,14 @@ type MatchMap = {
 
 const defMatchMap: MatchMap = { empty: false, map: [] }
 
+const unionMap = (a: MatchMap) => (b: MatchMap) =>
+    ({ empty: a.empty || b.empty, map: toArray(matchMapOp.merge(a.map)(b.map)) })
+
 /**
  * Operations on code point map.
  */
 const matchMapOp: RangeMapOp<MatchMap> = rangeMap({
-    union: a => b => ({ empty: a.empty || b.empty, map: toArray(matchMapOp.merge(a.map)(b.map)) }),
+    union: unionMap,
     equal: a => b => a === b,
     def: defMatchMap
 })
@@ -175,7 +179,6 @@ const rangeToMatchMap = (r: TerminalRange, p: MatchMap): MatchMap => ({ empty: f
  * @param rule - The grammar rule to process.
  * @returns A set representing the first possible code points in the grammar rule.
  */
-/*
 export const matchMap = (rule: Rule): MatchMap => {
     if (typeof rule === 'function') {
         rule = rule()
@@ -192,23 +195,20 @@ export const matchMap = (rule: Rule): MatchMap => {
         if (isTerminalRange(rule)) {
             return rangeToMatchMap(rule, pass)
         }
-        let result: RangeMapArray<boolean> = []
-        for (const r of rule) {
-            const { empty, map } = firstSet(r)
-            result = toArray(merge(result)(map))
-            if (!empty) {
-                return { empty: false, map: result }
-            }
+        let result = pass
+        for (const r of rule.toReversed()) {
+            todo()
+            /*
+            const rMap = matchMap(r)
+            result = unionMap(result)(rMap)
+            */
         }
-        return { empty: true, map: result }
+        return result
     }
-    let empty = false
-    let map: RangeMapArray<boolean> = []
+    let result = pass
     for (const r of rule.or) {
-        const { empty: rEmpty, map: rMap } = firstSet(r)
-        map = toArray(merge(map)(rMap))
-        empty ||= rEmpty
+        const rMap = matchMap(r)
+        result = unionMap(result)(rMap)
     }
-    return { empty, map }
+    return result
 }
-*/
