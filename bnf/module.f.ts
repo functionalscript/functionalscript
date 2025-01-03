@@ -9,7 +9,7 @@
  * @example
  *
  * ```js
- * import { set, type Rule, type Set } from './module.f.ts'
+ * import { firstSet, type Rule, type Set } from './module.f.ts'
  *
  * const grammar: Rule = [
  *     { or: [[65, 90], [97, 122], [48, 57]] }, // Matches 'A-Z', 'a-z', and '0-9'
