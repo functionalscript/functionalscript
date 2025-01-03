@@ -2,6 +2,8 @@ import { firstSet, setOp, type DataRule, type Rule } from './module.f.ts'
 import * as j from '../json/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
+// https://www.json.org/json-en.html
+
 // {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
 const ws = () => ({ or: [
     [],
@@ -18,8 +20,17 @@ const sign = { or: [
     '-', // 45
 ]}
 
+// {"empty":false,"map":[[false,48],[true,57]]}
+const onenine = [0x31, 0x39] as const
+
 // {"empty":false,"map":[[false,47],[true,57]]}
-const digits = () => ({ or: [
+const digit = { or: [
+    '0',
+    onenine,
+]}
+
+// {"empty":false,"map":[[false,47],[true,57]]}
+const digits = (): DataRule => ({ or: [
     digit,
     [digit, digits]
 ]})
@@ -37,32 +48,16 @@ const fraction = { or: [
     ['.', digits] // 46
 ]}
 
-// {"empty":false,"map":[[false,48],[true,57]]}
-const onenine = [0x31, 0x39] as const
-
-// {"empty":false,"map":[[false,47],[true,57]]}
-const digit = { or: [
-    '0',
-    onenine,
+// {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
+const integer = { or: [
+    digit,                  // 48-57
+    [onenine, digits],
+    ['-', digit],           // 45
+    ['-', onenine, digits],
 ]}
 
-// {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
-const members = (): DataRule => ({ or: [
-    member,
-    [member, '.', members],
-]})
-
-// {"empty":false,"map":[[false,122],[true,123]]}
-const object = { or: [
-    ['{', ws, '}'],      // 123
-    ['{', members, '}'],
-]}
-
-// {"empty":false,"map":[[false,90],[true,91]]}
-const array = (): DataRule => ({ or: [
-    ['[', ws, ']'],      // 91
-    ['[', element, ']'],
-]})
+// {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
+const number = [integer, fraction, exponent]
 
 // {"empty":false,"map":[[false,47],[true,57],[false,64],[true,70],[false,96],[true,102]]}
 const hex = { or: [
@@ -85,11 +80,11 @@ const escape = { or: [
 ]}
 
 // {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
-const character: Rule = { or: [
+const character = { or: [
     [0x20, 0x21],     // exclude '"' 0x22
     [0x23, 0x5B],     // exclude '\' 0x5C
-    ['\\', escape],   // 92
     [0x5D ,0x10FFFF], // 93-1114111
+    ['\\', escape],   // 92
 ]} as const
 
 // {"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
@@ -101,40 +96,49 @@ const characters = () => ({ or: [
 // {"empty":false,"map":[[false,33],[true,34]]}
 const string = ['"', characters, '"']
 
-// {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
-const integer = { or: [
-    digit,                  // 48-57
-    [onenine, digits],
-    ['-', digit],           // 45
-    ['-', onenine, digits],
-]}
-
-// {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
-const number = [integer, fraction, exponent]
-
-// {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
-const value = { or: [
-    string,  // 34
-    number,  // 45, 48-57
-    array,   // 91
-    'false', // 102
-    'null',  // 110
-    'true',  // 116
-    object,  // 123
-]}
-
-// ws: {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
-// value: {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
 // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
-const element = [ws, value, ws]
+const element = () => [ws, value, ws]
 
-// ws: {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
-// string: {"empty":false,"map":[[false,33],[true,34]]}
+// {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
+const elements = (): DataRule => ({ or: [
+    element,
+    [element, ',', elements]
+]})
+
+// {"empty":false,"map":[[false,90],[true,91]]}
+const array = { or: [
+    ['[', ws, ']'],      // 91
+    ['[', elements, ']'],
+]}
+
 // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
 const member = [ws, string, ws, ':', element]
 
+// {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
+const members = (): DataRule => ({ or: [
+    member,
+    [member, '.', members],
+]})
+
+// {"empty":false,"map":[[false,122],[true,123]]}
+const object = { or: [
+    ['{', ws, '}'],      // 123
+    ['{', members, '}'],
+]}
+
+// {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
+const value = { or: [
+    object,  // 123
+    array,   // 91
+    string,  // 34
+    number,  // 45, 48-57
+    'true',  // 116
+    'false', // 102
+    'null',  // 110
+]}
+
 // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
-const json: Rule = element
+const json = element
 
 //
 
@@ -175,6 +179,9 @@ export default {
         value: eq(value, '{"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
         element: eq(
             element,
+            '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+        elements: eq(
+            elements,
             '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
         json: eq(
             json,
