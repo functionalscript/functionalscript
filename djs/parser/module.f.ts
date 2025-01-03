@@ -1,10 +1,18 @@
 import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import type * as tokenizerT from '../tokenizer/module.f.ts'
+import { type DjsToken, tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { fromMap } = o
+import { fromMap } from '../../types/object/module.f.ts'
+import { type Fs } from '../io/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
+
+export type ParseContext = {    
+    readonly fs: Fs
+    readonly path: string
+    readonly complete: Map<DjsModule>
+    readonly stack: List<string>
+}
 
 export type DjsModule = [readonly string[], readonly DjsConst[]]
 
@@ -80,7 +88,7 @@ type ErrorState = {
 }
 
 const parseInitialOp
-    : (token: tokenizerT.DjsToken) => (state: InitialState) => ParserState
+    : (token: DjsToken) => (state: InitialState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -100,7 +108,7 @@ const parseInitialOp
 }
 
 const parseNewLineRequiredOp
-    : (token: tokenizerT.DjsToken) => (state: NewLineRequiredState) => ParserState
+    : (token: DjsToken) => (state: NewLineRequiredState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -112,7 +120,7 @@ const parseNewLineRequiredOp
 }
 
 const parseExportOp
-    : (token: tokenizerT.DjsToken) => (state: ExportState) => ParserState
+    : (token: DjsToken) => (state: ExportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -127,7 +135,7 @@ const parseExportOp
 }
 
 const parseResultOp
-    : (token: tokenizerT.DjsToken) => (state: ResultState) => ParserState
+    : (token: DjsToken) => (state: ResultState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -139,7 +147,7 @@ const parseResultOp
 }
 
 const parseConstOp
-    : (token: tokenizerT.DjsToken) => (state: ConstState) => ParserState
+    : (token: DjsToken) => (state: ConstState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -160,7 +168,7 @@ const parseConstOp
 }
 
 const parseConstNameOp
-    : (token: tokenizerT.DjsToken) => (state: ConstState) => ParserState
+    : (token: DjsToken) => (state: ConstState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -173,7 +181,7 @@ const parseConstNameOp
 }
 
 const parseImportOp
-    : (token: tokenizerT.DjsToken) => (state: ImportState) => ParserState
+    : (token: DjsToken) => (state: ImportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -195,7 +203,7 @@ const parseImportOp
 }
 
 const parseImportNameOp
-    : (token: tokenizerT.DjsToken) => (state: ImportState) => ParserState
+    : (token: DjsToken) => (state: ImportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -210,7 +218,7 @@ const parseImportNameOp
 }
 
 const parseImportFromOp
-    : (token: tokenizerT.DjsToken) => (state: ImportState) => ParserState
+    : (token: DjsToken) => (state: ImportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -310,7 +318,7 @@ const endObject
 }
 
 const tokenToValue
-    : (token: tokenizerT.DjsToken) => DjsConst
+    : (token: DjsToken) => DjsConst
     = token => {
     switch (token.kind) {
         case 'null': return null
@@ -325,7 +333,7 @@ const tokenToValue
 }
 
 const isValueToken
-    : (token: tokenizerT.DjsToken) => boolean
+    : (token: DjsToken) => boolean
     = token => {
     switch (token.kind) {
         case 'null':
@@ -340,7 +348,7 @@ const isValueToken
 }
 
 const parseValueOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
@@ -357,7 +365,7 @@ const parseValueOp
 }
 
 const parseArrayStartOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
@@ -375,7 +383,7 @@ const parseArrayStartOp
 }
 
 const parseArrayValueOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -390,7 +398,7 @@ const parseArrayValueOp
 }
 
 const parseObjectStartOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -405,7 +413,7 @@ const parseObjectStartOp
 }
 
 const parseObjectKeyOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -419,7 +427,7 @@ const parseObjectKeyOp
 }
 
 const parseObjectColonOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
@@ -436,7 +444,7 @@ const parseObjectColonOp
 }
 
 const parseObjectNextOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -451,7 +459,7 @@ const parseObjectNextOp
 }
 
 const parseObjectCommaOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -465,7 +473,7 @@ const parseObjectCommaOp
 }
 
 const foldOp
-    : Operator.Fold<tokenizerT.DjsToken, ParserState>
+    : Operator.Fold<DjsToken, ParserState>
     = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
@@ -497,7 +505,7 @@ const foldOp
     }
 }
 
-export const parse = (tokenList: List<tokenizerT.DjsToken>): result.Result<DjsModule, string> => {
+export const parseFromTokens = (tokenList: List<DjsToken>): result.Result<DjsModule, string> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
         case 'result': return result.ok<DjsModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
@@ -505,3 +513,16 @@ export const parse = (tokenList: List<tokenizerT.DjsToken>): result.Result<DjsMo
         default: return result.error('unexpected end')
     }
 }
+
+const parseWithContext = (context: ParseContext): result.Result<string, string> => {    
+    const s = context.fs.readFileSync(context.path)
+    const tokens = tokenize(stringToList(s))
+    const module = parseFromTokens(tokens)
+    //todo: parse import modules
+    return result.error('')
+}
+
+export const parse: (fs: Fs) => (path: string) => result.Result<string, string>
+ = fs => path => {
+    return parseWithContext({path, fs, stack: null, complete: null})
+ }
