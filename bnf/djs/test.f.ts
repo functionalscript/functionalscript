@@ -119,7 +119,7 @@ const classic = () => {
 const deterministic = () => {
     const map = {
         json: [
-            ['element']
+            ['ws', 'element']
         ],
         value: [
             [c('{'), 'ws', 'object', c('}')],
@@ -139,18 +139,18 @@ const deterministic = () => {
             [c(','), 'ws', 'member', 'members'],
         ],
         member: [
-            ['string', 'ws', c(':'), 'element'],
+            ['string', 'ws', c(':'), 'ws', 'element'],
         ],
         array: [
             ['ws'],
             ['elements'],
         ],
         elements: [
-            ['element'],
-            ['element', c(','), 'elements'],
+            ['ws', 'element'],
+            ['ws', 'element', c(','), 'elements'],
         ],
         element: [
-            ['ws', 'value', 'ws'],
+            ['value', 'ws'],
         ],
         string: [
             [c('"'), 'characters', c('"')],
