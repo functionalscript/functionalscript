@@ -117,7 +117,7 @@ export type Rule = DataRule | LazyRule
 
 const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
 
-const toTerminalRangeSequence = (s: string): readonly TerminalRange[] =>
+export const toTerminalRangeSequence = (s: string): readonly TerminalRange[] =>
     toArray(toTerminalRangeMap(stringToCodePointList(s)))
 
 /**

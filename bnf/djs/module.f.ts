@@ -6,15 +6,7 @@
 
 import type { TerminalRange } from '../module.f.ts'
 
-export type Sequence = readonly Rule[]
-export type Or = { readonly or: Sequence }
+export type Sequence<Id> = readonly (TerminalRange|Id)[]
+export type Rule<Id> = readonly Sequence<Id>[]
 
-export type DataRule = Sequence|Or|TerminalRange|string
-
-//
-export type Id = string
-
-export type LazyRule = { readonly id: Id }
-export type Rule = DataRule|LazyRule
-
-export type RuleMap = { readonly[k in Id]: Rule }
+export type RuleMap<Id extends string> = { readonly[k in Id]: Rule<Id> }
