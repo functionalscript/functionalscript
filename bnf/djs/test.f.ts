@@ -46,7 +46,7 @@ const classic = () => {
             [c('"'), 'characters', c('"')],
         ],
         characters: [
-            ['character'],
+            [],
             ['character', 'characters'],
         ],
         character: [
@@ -156,7 +156,7 @@ const deterministic = () => {
             [c('"'), 'characters', c('"')],
         ],
         characters: [
-            ['character'],
+            [],
             ['character', 'characters'],
         ],
         character: [
