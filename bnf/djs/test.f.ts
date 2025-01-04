@@ -6,7 +6,7 @@ const s = toTerminalRangeSequence
 
 const c = (a: string) => one(a.codePointAt(0) as number)
 
-const classic = () => {
+const _classic = () => {
     const map = {
         json: [
             ['element']
@@ -116,7 +116,7 @@ const classic = () => {
     const _map: RuleMap<keyof typeof map> = map
 }
 
-const deterministic = () => {
+const _deterministic = () => {
     const map = {
         json: [
             ['ws', 'element']
