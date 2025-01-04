@@ -134,7 +134,7 @@ const classic = () => {
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
     const members = (): DataRule => ({ or: [
         member,
-        [member, '.', members],
+        [member, ',', members],
     ]})
 
     // {"empty":false,"map":[[false,122],[true,123]]}
@@ -290,40 +290,58 @@ const deterministic = () => {
     const string = ['"', characters, '"']
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
-    const element1 = [(): DataRule => value, ws]
+    const element1 = (): DataRule => [value, ws]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
     const element = [ws, element1]
 
-    // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
-    const elements1 = [element1, { or: [
+    // {"empty":true,"map":[[false,43],[true,44]]}
+    const elements2 = (): DataRule => ({ or: [
         [],
-        [',', () => elements]
-    ]}]
+        [',', elements] // 44
+    ]})
+
+    // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
+    const elements1 = [element1, elements2]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
     const elements = [ws, elements1]
 
+    // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,92],[true,93],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
+    const array1 = { or: [
+        [']'],            // 93
+        [elements1, ']'],
+    ]}
+
     // {"empty":false,"map":[[false,90],[true,91]]}
-    const array = ['[', { or: [
-        [ws, ']'],      // 91
-        [elements, ']'],
-    ]}]
+    const array = ['[', ws, array1]
+
+    // {"empty":false,"map":[[false,33],[true,34]]}
+    const member1 = [string, ws, ':', element]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
-    const member = [ws, string, ws, ':', element]
+    const member = [ws, member1]
 
-    // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
-    const members = (): DataRule => ({ or: [
-        member,
-        [member, '.', members],
+    // {"empty":true,"map":[[false,43],[true,44]]}
+    const members2 = (): DataRule => ({ or: [
+        [],
+        [',', members], // 44
     ]})
 
-    // {"empty":false,"map":[[false,122],[true,123]]}
-    const object = { or: [
-        ['{', ws, '}'],      // 123
-        ['{', members, '}'],
+    // {"empty":false,"map":[[false,33],[true,34]]}
+    const members1 = [member1, members2]
+
+    // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
+    const members = [ws, members1]
+
+    // {"empty":false,"map":[[false,33],[true,34],[false,124],[true,125]]}
+    const object1 = { or: [
+        ['}'],           // 125
+        [members1, '}'],
     ]}
+
+    // {"empty":false,"map":[[false,122],[true,123]]}
+    const object = ['{', ws, object1]
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
     const value = { or: [
@@ -349,9 +367,16 @@ const deterministic = () => {
         onenine: eq(onenine, '{"empty":false,"map":[[false,48],[true,57]]}'),
         digit: eq(digit, '{"empty":false,"map":[[false,47],[true,57]]}'),
         string: eq(string, '{"empty":false,"map":[[false,33],[true,34]]}'),
+        member1: eq(member1, '{"empty":false,"map":[[false,33],[true,34]]}'),
         member: eq(member, '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}'),
+        members2: eq(members2, '{"empty":true,"map":[[false,43],[true,44]]}'),
+        members1: eq(members1, '{"empty":false,"map":[[false,33],[true,34]]}'),
         members: eq(members, '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}'),
+        object1: eq(object1, '{"empty":false,"map":[[false,33],[true,34],[false,124],[true,125]]}'),
         object: eq(object, '{"empty":false,"map":[[false,122],[true,123]]}'),
+        array1: eq(
+            array1,
+            '{"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,92],[true,93],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
         array: eq(array, '{"empty":false,"map":[[false,90],[true,91]]}'),
         integer1: eq(integer1, '{"empty":false,"map":[[false,47],[true,57]]}'),
         integer: eq(integer, '{"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}'),
@@ -363,6 +388,7 @@ const deterministic = () => {
         element: eq(
             element,
             '{"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),
+        elements2: eq(elements2, '{"empty":true,"map":[[false,43],[true,44]]}'),
         elements1: eq(
             elements1,
             '{"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}'),

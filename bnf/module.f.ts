@@ -92,7 +92,7 @@ export type Or = { readonly or: Sequence }
  *    'false',
  * ] }
  */
-export type DataRule = Sequence | Or | TerminalRange | string
+export type DataRule = Or | Sequence |  TerminalRange | string
 
 /**
  * Represents a lazy grammar rule for recursive definitions.
