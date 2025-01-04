@@ -186,11 +186,11 @@ const deterministic = () => {
             [c('-'), 'integer', 'fraction', 'exponent'],
         ],
         integer: [
-            ['digit'],
+            [c('0')],
             ['onenine', 'digits'],
         ],
         digits: [
-            ['digit'],
+            [],
             ['digit', 'digits'],
         ],
         digit: [
@@ -202,12 +202,12 @@ const deterministic = () => {
         ],
         fraction: [
             [],
-            [c('.'), 'digits'],
+            [c('.'), 'digit', 'digits'],
         ],
         exponent: [
             [],
-            [c('E'), 'sign', 'digits'],
-            [c('e'), 'sign', 'digits'],
+            [c('E'), 'sign', 'digit', 'digits'],
+            [c('e'), 'sign', 'digit', 'digits'],
         ],
         sign: [
             [],
