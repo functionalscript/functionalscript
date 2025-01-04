@@ -27,9 +27,9 @@
  * ```
  */
 
-import { type CodePoint, stringToCodePointList } from '../text/utf16/module.f.ts'
-import { map, toArray } from '../types/list/module.f.ts'
-import { rangeMap, type RangeMapOp, type RangeMapArray } from '../types/range_map/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.ts'
+import { rangeMap, type RangeMapOp, type RangeMapArray } from '../../types/range_map/module.f.ts'
 
 /**
  * Represents a terminal range as a pair of Unicode code points.

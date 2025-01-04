@@ -1,5 +1,5 @@
 import { one } from '../../types/range/module.f.ts'
-import { toTerminalRangeSequence } from '../module.f.ts'
+import { toTerminalRangeSequence } from '../func/module.f.ts'
 import type { RuleMap } from './module.f.ts'
 
 const s = toTerminalRangeSequence

@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { TerminalRange } from '../module.f.ts'
+import type { TerminalRange } from '../func/module.f.ts'
 
 export type Sequence<Id> = readonly (TerminalRange|Id)[]
 export type Rule<Id> = readonly Sequence<Id>[]

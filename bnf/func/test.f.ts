@@ -8,8 +8,8 @@ import {
     type Or,
     type LazyRule
 } from './module.f.ts'
-import * as j from '../json/module.f.ts'
-import { sort } from '../types/object/module.f.ts'
+import * as j from '../../json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
 
 const stringify = j.stringify(sort)
 
