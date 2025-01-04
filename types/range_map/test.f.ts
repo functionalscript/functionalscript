@@ -20,14 +20,14 @@ const op: Properties<SortedSet<string>>
 export default {
     example: () => {
         const rmOps = rangeMap({
-            union: a => b => a ^ b,
+            union: a => b => a | b,
             equal: a => b => a === b,
             def: 0,
         })
 
         // Create range maps
         const range1 = rmOps.fromRange([0, 10])(2)
-        const range2 = rmOps.fromRange([5, 15])(7)
+        const range2 = rmOps.fromRange([5, 15])(5)
 
         // Merge range maps
         const merged = toArray(rmOps.merge(range1)(range2))
@@ -38,11 +38,11 @@ export default {
         //
         if (rmOps.get(0)(merged) !== 2) { throw 'error' }
         if (rmOps.get(2)(merged) !== 2) { throw 'error' }
-        // 2 ^ 7 = 5
-        if (rmOps.get(7)(merged) !== 5) { throw 'error' }
+        // 2 | 5 = 7
+        if (rmOps.get(7)(merged) !== 7) { throw 'error' }
         //
-        if (rmOps.get(12)(merged) !== 7) { throw 'error' }
-        if (rmOps.get(15)(merged) !== 7) { throw 'error' }
+        if (rmOps.get(12)(merged) !== 5) { throw 'error' }
+        if (rmOps.get(15)(merged) !== 5) { throw 'error' }
         //
         if (rmOps.get(16)(merged) !== 0) { throw 'error' }
     },
