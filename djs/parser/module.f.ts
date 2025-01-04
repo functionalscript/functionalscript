@@ -7,7 +7,6 @@ import { fromMap } from '../../types/object/module.f.ts'
 import { type Fs } from '../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
-import { tail } from '../../types/array/module.f'
 
 export type ParseContext = {    
     readonly fs: Fs
