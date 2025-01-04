@@ -1,23 +1,11 @@
 # Issues
 
-- [X] [01-test-debug](./01-test-debug.md).
-- [X] [02-esm](./02-esm.md)
 - [ ] [03-djs](./03-djs.md)
-- [ ] 04. VM Rust project
 - [ ] [05-publish](./05-publish.md)
-- [X] 07. Conventions:
-
-    ```js
-    import list, * as List from 'list.mjs'
-    // list is for objects.
-    // List is for types and should be ignored by FJS or errored if used in code.
-    ```
-
 - [ ] 08. Move logic from `.ts` files to `.f.ts` files.
 - [ ] 09. Generating a Website.
 - [ ] 10. Short URL table.
 - [ ] [11-fs-load](./11-fs-load.md)
-- [X] 12. Replace file extensions from `.mjs` to `.js`. Make sure `package.json/type` is equal to `module`. May be later: https://v8.dev/features/modules#mjs
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 14. Combine `npm run index` and `npm run version`
 - [X] 15. Generate `package.json/exports` instead of `index.f.mjs`.
@@ -70,6 +58,11 @@ require setting a flag when walking through a test free, as soon as a node has a
 - [ ] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
 logic should be moved to a private free floating helper function (to keep public interface of Any clean).
 - [ ] 35. Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
+- [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
+- [ ] 37. Language Design: Currently FS has no way to store references (objects/functions) into a container with fast search. Several options:
+  - add `Map` to the language
+  - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
+- [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 
 ## Language Specification
 
