@@ -123,7 +123,7 @@ const deterministic = () => {
         ],
         value: [
             [c('{'), 'ws', 'object', c('}')],
-            ['array'],
+            [c('['), 'array', c(']')],
             ['string'],
             ['number'],
             s('true'),
@@ -142,8 +142,8 @@ const deterministic = () => {
             ['string', 'ws', c(':'), 'element'],
         ],
         array: [
-            [c('['), 'ws', c(']')],
-            [c('['), 'elements', c(']')],
+            ['ws'],
+            ['elements'],
         ],
         elements: [
             ['element'],
