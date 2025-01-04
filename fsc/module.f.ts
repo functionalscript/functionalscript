@@ -40,6 +40,7 @@ const reduce = <T>(a: List<State<T>>): State<T> => {
         = rangeMapMerge({
             union,
             equal: strictEqual,
+            def,
         })
     return toArray(listReduce(merge)(empty)(a))
 }

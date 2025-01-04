@@ -5,7 +5,7 @@ import {
     merge,
     get as rangeMapGet,
     type RangeMap,
-    type Operators,
+    type Properties,
     type RangeMapArray,
     type Entry
 } from '../types/range_map/module.f.ts'
@@ -40,8 +40,8 @@ export const toUnion: (s: string) => ByteSet
         return fold(toUnionOp)(empty)(codePoints)
     }
 
-const mergeOp: Operators<SortedSet<string>>
-    = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual) }
+const mergeOp: Properties<SortedSet<string>>
+    = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual), def: [] }
 
 const hasState: (s: string) => (set: SortedSet<string>) => boolean
     = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))

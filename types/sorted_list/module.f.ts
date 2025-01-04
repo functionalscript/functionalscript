@@ -50,13 +50,14 @@ const cmpReduce = <T>(cmp: Cmp<T>): CmpReduceOp<T> => () => a => b => {
 const mergeTail = (): <T>(tail: List<T>) => List<T> => identity
 
 export const find = <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>): T|null => {
+    const cmpValue = cmp(value)
     let b = 0
     let e = array.length - 1
     while (true) {
-        if (e - b < 0) return null
-        const mid = b + (e - b >> 1)
-        const sign = cmp(value)(array[mid])
-        switch(sign) {
+        const d = e - b
+        if (d < 0) return null
+        const mid = b + (d >> 1)
+        switch(cmpValue(array[mid])) {
             case -1: {
                 e = mid - 1
                 break
