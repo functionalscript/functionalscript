@@ -8,6 +8,8 @@
  * The primary utility of this module is to define grammars for text processing,
  * parsing, and lexing in a structured and reusable way.
  *
+ * See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
+ *
  * @example
  *
  * ```js
@@ -193,12 +195,12 @@ export const firstSet = (rule: Rule): CpSet => {
 
 // Under construction:
 
-// type IdSet = readonly number[]
+type IdSet = readonly number[]
 
-// type MatchRule = {
-//      readonly empty: boolean
-//      readonly map: RangeMapArray<IdSet>
-// }
+type MatchRule = {
+    readonly empty: boolean
+    readonly map: RangeMapArray<IdSet>
+}
 
 // type MatchMap = {
 //     empty: boolean
