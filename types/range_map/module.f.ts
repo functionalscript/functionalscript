@@ -6,26 +6,32 @@
  * @example
  *
  * ```js
- * import { rangeMap } from './module.f.ts'
- * import { toArray } from '../list/module.f.ts'
- *
  * const rmOps = rangeMap({
- *     union: a => b => a || b,
+ *     union: a => b => a ^ b,
  *     equal: a => b => a === b,
- *     def: false,
+ *     def: 0,
  * })
  *
  * // Create range maps
- * const range1 = rmOps.fromRange([0, 10])(true)
- * const range2 = rmOps.fromRange([5, 15])(false)
+ * const range1 = rmOps.fromRange([0, 10])(2)
+ * const range2 = rmOps.fromRange([5, 15])(7)
  *
- * // Merge range maps using our `union` operation (`||`).
+ * // Merge range maps
  * const merged = toArray(rmOps.merge(range1)(range2))
  *
  * // Retrieve values from the merged range map
- * if (rmOps.get(7)(merged) !== true) { throw 'error' }
- * if (rmOps.get(12)(merged) !== false) { throw 'error' }
- * if (rmOps.get(-1)(merged) !== false) { throw 'error' }
+ * //
+ * if (rmOps.get(-1)(merged) !== 0) { throw 'error' }
+ * //
+ * if (rmOps.get(0)(merged) !== 2) { throw 'error' }
+ * if (rmOps.get(2)(merged) !== 2) { throw 'error' }
+ * // overlapped: 2 ^ 7 = 5
+ * if (rmOps.get(7)(merged) !== 5) { throw 'error' }
+ * //
+ * if (rmOps.get(12)(merged) !== 7) { throw 'error' }
+ * if (rmOps.get(15)(merged) !== 7) { throw 'error' }
+ * //
+ * if (rmOps.get(16)(merged) !== 0) { throw 'error' }
  * ```
  */
 
