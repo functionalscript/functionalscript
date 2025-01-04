@@ -183,12 +183,11 @@ const deterministic = () => {
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
+            [c('-'), 'integer', 'fraction', 'exponent'],
         ],
         integer: [
             ['digit'],
             ['onenine', 'digits'],
-            [c('-'), 'digit'],
-            [c('-'), 'onenine', 'digits'],
         ],
         digits: [
             ['digit'],
