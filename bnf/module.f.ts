@@ -193,11 +193,11 @@ export const firstSet = (rule: Rule): CpSet => {
 
 // Under construction:
 
-// type Id = number
+// type IdSet = readonly number[]
 
 // type MatchRule = {
-//     readonly empty: boolean
-//     readonly map: RangeMapArray<Id>
+//      readonly empty: boolean
+//      readonly map: RangeMapArray<IdSet>
 // }
 
 // type MatchMap = {
