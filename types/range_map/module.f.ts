@@ -19,7 +19,7 @@
  * const range1 = rmOps.fromRange([0, 10])(true)
  * const range2 = rmOps.fromRange([5, 15])(false)
  *
- * // Merge range maps using the union operation ('||').
+ * // Merge range maps using our `union` operation (`||`).
  * const merged = toArray(rmOps.merge(range1)(range2))
  *
  * // Retrieve values from the merged range map
