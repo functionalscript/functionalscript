@@ -138,14 +138,17 @@ const deterministic = () => {
             ['members', c('}')],
         ],
         members: [
-            ['member', c(','), 'members'],
+            ['ws', 'member1', c(','), 'members'],
         ],
         members1: [
             [],
             [c(','), 'members'],
         ],
         member: [
-            ['ws', 'string', 'ws', c(':'), 'element'],
+            ['ws', 'member1'],
+        ],
+        member1: [
+            ['string', 'ws', c(':'), 'element'],
         ],
         array: [
             [c('['), 'ws', c(']')],
