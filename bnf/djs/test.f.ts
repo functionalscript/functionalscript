@@ -131,11 +131,11 @@ const deterministic = () => {
             s('null'),
         ],
         object: [
-            [c('{'), 'ws', 'object2'],
+            [c('{'), 'ws', 'members3', c('}')],
         ],
-        object2: [
-            [c('}')],
-            ['members2', c('}')],
+        members3: [
+            [],
+            ['members2'],
         ],
         members: [
             ['ws', 'members2'],
@@ -145,12 +145,9 @@ const deterministic = () => {
             [c(','), 'members'],
         ],
         members2: [
-            ['member1', c(','), 'members'],
+            ['member', c(','), 'members'],
         ],
         member: [
-            ['ws', 'member1'],
-        ],
-        member1: [
             ['string', 'ws', c(':'), 'element'],
         ],
         array: [
