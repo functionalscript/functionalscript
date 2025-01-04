@@ -1,4 +1,13 @@
-import { firstSet, setOp, type DataRule, type Rule } from './module.f.ts'
+import {
+    firstSet,
+    setOp,
+    type TerminalRange,
+    type DataRule,
+    type Rule,
+    type Sequence,
+    type Or,
+    type LazyRule
+} from './module.f.ts'
 import * as j from '../json/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
@@ -150,16 +159,38 @@ const eq = (a: Rule, e: string) => () => {
 }
 
 export default {
-    example: () => {
-        const grammar: Rule = [
-             { or: [[65, 90], [97, 122], [48, 57]] }, // Matches 'A-Z', 'a-z', and '0-9'
-        ]
+    example: {
+        module: () => {
+            const grammar: Rule = [
+                { or: [[65, 90], [97, 122], [48, 57]] }, // Matches 'A-Z', 'a-z', and '0-9'
+            ]
+            const s = firstSet(grammar)
+            if (s.empty) { throw s }
+            if (setOp.get('0'.codePointAt(0) as number)(s.map) !== true) { throw s }
+            if (setOp.get('h'.codePointAt(0) as number)(s.map) !== true) { throw s }
+            if (setOp.get('$'.codePointAt(0) as number)(s.map) !== false) { throw s }
+        },
+        types: () => {
+            const alpha: TerminalRange = [65, 90] // Matches 'A-Z'
+            const id2: Sequence = [alpha, alpha]  // Matches two uppercase letters
+            const digit: TerminalRange = [48, 57] // Matches '0-9'
+            // Matches two uppercase letters or one digit
+            const id2OrDigit: Or = { or: [
+                id2,
+                digit,
+            ] }
+            // Matches 'true', 'false'
+            const bool: DataRule = { or: [
+               'true',
+               'false',
+            ] }
+            const id: LazyRule = () => [alpha, { or: [
+                [],  // Empty
+                id   // Recursive
+            ] }]
 
-        const s = firstSet(grammar)
-        if (s.empty) { throw s }
-        if (setOp.get('0'.codePointAt(0) as number)(s.map) !== true) { throw s }
-        if (setOp.get('h'.codePointAt(0) as number)(s.map) !== true) { throw s }
-        if (setOp.get('$'.codePointAt(0) as number)(s.map) !== false) { throw s }
+            const _ = [id2OrDigit, bool, id]
+        }
     },
     first: {
         ws: eq(ws, '{"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}'),

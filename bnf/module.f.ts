@@ -33,18 +33,43 @@ import { rangeMap, type RangeMapOp, type RangeMapArray } from '../types/range_ma
 /**
  * Represents a terminal range as a pair of Unicode code points.
  * Typically used to define character ranges.
+ *
+ * @example
+ *
+ * ```ts
+ * const alpha: TerminalRange = [65, 90] // Matches 'A-Z'
+ * ```
  */
 export type TerminalRange = readonly [CodePoint, CodePoint]
 
 /**
- * Represents a sequence of rules.
- * Sequences are ordered lists of rules that must match in order.
+ * Represents a sequence of rules that must match in order.
+ *
+ * @example
+ *
+ * ```ts
+ * const alpha: TerminalRange = [65, 90] // Matches 'A-Z'
+ * const id2: Sequence = [alpha, alpha]  // Matches two uppercase letters
+ * ```
  */
 export type Sequence = readonly Rule[]
 
 /**
  * Represents a logical "or" operation between multiple sequences.
  * Allows defining alternatives within the grammar.
+ *
+ * @example
+ *
+ * ```ts
+ * const alpha: TerminalRange = [65, 90] // Matches 'A-Z'
+ * const id2: Sequence = [alpha, alpha]  // Matches two uppercase letters
+ * const digit: TerminalRange = [48, 57] // Matches '0-9'
+ * // Matches two uppercase letters or one digit
+ * const id2OrDigit: Or = { or: [
+ *     id2,
+ *     digit,
+ * ] }
+ * ```
  */
 export type Or = { readonly or: Sequence }
 
@@ -54,12 +79,33 @@ export type Or = { readonly or: Sequence }
  * - An "or" operation (`Or`)
  * - A terminal range (`TerminalRange`)
  * - A string (representing a literal sequence of characters)
+ *
+ * @remarks The rule can't have recursions.
+ *
+ * @example
+ *
+ * ```ts
+ * // Matches 'true', 'false'
+ * const bool: DataRule = { or: [
+ *    'true',
+ *    'false',
+ * ] }
  */
 export type DataRule = Sequence | Or | TerminalRange | string
 
 /**
- * Represents a lazy grammar rule.
- * A function that resolves to a `DataRule`
+ * Represents a lazy grammar rule for recursive definitions.
+ *
+ * @example
+ *
+ * ```ts
+ * const alpha: TerminalRange = [65, 90]  // Matches 'A-Z'
+ * // Matches a string of uppercase letters
+ * const id: LazyRule = () => [alpha, { or: [
+ *     [],  // Empty
+ *     id   // Recursive
+ * ] }]
+ * ```
  */
 export type LazyRule = () => DataRule
 
@@ -147,6 +193,13 @@ export const firstSet = (rule: Rule): CpSet => {
 }
 
 // Under construction:
+
+// type Id = number
+
+// type MatchRule = {
+//     readonly empty: boolean
+//     readonly map: RangeMapArray<Id>
+// }
 
 // type MatchMap = {
 //     empty: boolean
