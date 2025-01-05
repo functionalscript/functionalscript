@@ -1,12 +1,18 @@
 import { one } from '../../types/range/module.f.ts'
 import { toTerminalRangeSequence } from '../func/module.f.ts'
-import type { RuleMap } from './module.f.ts'
+import { toRuleMap, type RuleMap } from './module.f.ts'
+import { classic } from '../func/testlib.f.ts'
+import * as j from '../../json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+
+const stringify = j.stringify(sort)
+//const str = j.stringify(x => x)
 
 const s = toTerminalRangeSequence
 
 const c = (a: string) => one(a.codePointAt(0) as number)
 
-const _classic = () => {
+const classicTest = () => {
     const map = {
         json: [
             ['element']
@@ -113,7 +119,8 @@ const _classic = () => {
             [c('\t'), 'ws'],
         ],
     } as const
-    const _map: RuleMap<keyof typeof map> = map
+    const result: RuleMap<keyof typeof map> = map
+    return result
 }
 
 const _deterministic = () => {
@@ -223,4 +230,17 @@ const _deterministic = () => {
         ],
     } as const
     const _map: RuleMap<keyof typeof map> = map
+}
+
+export default {
+    classic: () => {
+        const c = classic()
+        const json = stringify(toRuleMap(c.json))
+        const jsonE = stringify(classicTest())
+        if (json !== jsonE) {
+            //console.error(json)
+            //console.error(jsonE)
+            throw [json, jsonE]
+        }
+    }
 }

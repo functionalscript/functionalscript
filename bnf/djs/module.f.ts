@@ -4,7 +4,6 @@
  * @module
  */
 
-import { length } from "../../types/list/module.f.ts";
 import { type TerminalRange, type Rule as FRule, toTerminalRangeSequence  } from '../func/module.f.ts'
 
 export type Sequence<Id> = readonly (TerminalRange|Id)[]
@@ -12,45 +11,33 @@ export type Rule<Id> = readonly Sequence<Id>[]
 
 export type RuleMap<Id extends string> = { readonly[k in Id]: Rule<Id> }
 
-export const toRuleMap = (fr: FRule): RuleMap<string> => {
-    const { name } = fr
-    let map: readonly (readonly[FRule, string])[] = [[fr, name]]
+export const toRuleMap = (src: FRule): RuleMap<string> => {
+    const { name } = src
+    let queue: readonly (readonly[FRule, string])[] = [[src, name]]
     let result: RuleMap<string> = { [name]: [] }
     let i = 0
     do {
-        const [fr, name] = map[i]
-        /**
-        if (map.find(([f])=> f === fr) !== undefined) {
-            continue
-        }
-        // not found
-        const { name } = fr
-        let newName = name
-        {
-            let i = 0
-            while (newName in result) {
-                newName = name + i
-                ++i
-            }
-        }
-        */
+        const [srcOr, name] = queue[i]
         let rule: Rule<string> = []
-        for (const fs of fr()) {
+        // iterate all sequences of the `Or` rule.
+        for (const srcSeq of srcOr()) {
             let seq: Sequence<string>
-            if (typeof fs === 'string') {
-                seq = toTerminalRangeSequence(fs)
+            if (typeof srcSeq === 'string') {
+                seq = toTerminalRangeSequence(srcSeq)
             } else {
                 seq = []
-                for (const fr of fs) {
+                // iterate all items of the sequence.
+                for (const srcItem of srcSeq) {
                     let item: TerminalRange|string
-                    if (fr instanceof Array) {
-                        item = fr
+                    if (srcItem instanceof Array) {
+                        item = srcItem
                     } else {
-                        const x = map.find(([f])=> f === fr)
-                        if (x !== undefined) {
-                            item = x[1]
+                        const existingRule = queue.find(([f])=> f === srcItem)
+                        if (existingRule !== undefined) {
+                            item = existingRule[1]
                         } else {
-                            const { name } = fr
+                            // find a name for the item.
+                            const { name } = srcItem
                             item = name
                             {
                                 let i = 0
@@ -59,7 +46,9 @@ export const toRuleMap = (fr: FRule): RuleMap<string> => {
                                     ++i
                                 }
                             }
-                            map = [...map, [fr, item]]
+                            // add the item to a queue under the generate name.
+                            queue = [...queue, [srcItem, item]]
+                            // add the name to the result and create a rule later.
                             result = { ...result, [item]: [] }
                         }
                     }
@@ -68,10 +57,10 @@ export const toRuleMap = (fr: FRule): RuleMap<string> => {
             }
             rule = [...rule, seq]
         }
-        //
+        // fix the rule in the result.
         result = { ...result, [name]: rule }
         ++i
-    } while (i !== map.length)
+    } while (i !== queue.length)
     return result
 }
 
