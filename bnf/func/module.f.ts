@@ -53,7 +53,7 @@ export type TerminalRange = readonly [CodePoint, CodePoint]
  * const id2: Sequence = [alpha, alpha]  // Matches two uppercase letters
  * ```
  */
-export type Sequence = readonly Rule[]
+export type Sequence = readonly (TerminalRange|Rule)[]
 
 /**
  * Represents a logical "or" operation between multiple sequences.
@@ -66,33 +66,13 @@ export type Sequence = readonly Rule[]
  * const id2: Sequence = [alpha, alpha]  // Matches two uppercase letters
  * const digit: TerminalRange = [48, 57] // Matches '0-9'
  * // Matches two uppercase letters or one digit
- * const id2OrDigit: Or = { or: [
+ * const id2OrDigit: Or = [
  *     id2,
- *     digit,
- * ] }
+ *     [digit],
+ * ]
  * ```
  */
-export type Or = { readonly or: Sequence }
-
-/**
- * Represents a grammar rule, which can be:
- * - A sequence of rules (`Sequence`)
- * - An "or" operation (`Or`)
- * - A terminal range (`TerminalRange`)
- * - A string (representing a literal sequence of characters)
- *
- * @remarks The rule can't have recursions.
- *
- * @example
- *
- * ```ts
- * // Matches 'true', 'false'
- * const bool: DataRule = { or: [
- *    'true',
- *    'false',
- * ] }
- */
-export type DataRule = Or | Sequence |  TerminalRange | string
+export type Or = readonly (Sequence|string)[]
 
 /**
  * Represents a lazy grammar rule for recursive definitions.
@@ -102,18 +82,13 @@ export type DataRule = Or | Sequence |  TerminalRange | string
  * ```ts
  * const alpha: TerminalRange = [65, 90]  // Matches 'A-Z'
  * // Matches a string of uppercase letters
- * const id: LazyRule = () => [alpha, { or: [
- *     [],  // Empty
- *     id   // Recursive
+ * const id: LazyRule = () => [
+ *     [alpha],    // Empty
+ *     [alpha, id] // Recursive
  * ] }]
  * ```
  */
-export type LazyRule = () => DataRule
-
-/**
- * Represents a rule in the grammar.
- */
-export type Rule = DataRule | LazyRule
+export type Rule = () => Or
 
 const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
 
@@ -158,6 +133,7 @@ const passSet: CpSet = { empty: true, map: [] }
  * @param rule - The grammar rule to process.
  * @returns A set representing the first possible code points in the grammar rule.
  */
+/*
 export const firstSet = (rule: Rule): CpSet => {
     if (typeof rule === 'function') {
         rule = rule()
@@ -192,6 +168,7 @@ export const firstSet = (rule: Rule): CpSet => {
     }
     return { empty, map }
 }
+*/
 
 // Under construction:
 
