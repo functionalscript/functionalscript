@@ -1,12 +1,12 @@
-import * as result from '../../types/result/module.f'
-import { fold, drop, map as listMap, type List } from '../../types/list/module.f'
-import type * as Operator from '../../types/function/operator/module.f'
-import { tokenize } from '../tokenizer/module.f'
-import { setReplace, at, type Map } from '../../types/map/module.f'
-import { type Fs } from '../io/module.f'
-import { stringToList } from '../../text/utf16/module.f'
-import { concat as pathConcat } from '../../path/module.f'
-import { parseFromTokens, type DjsModule } from '../parser/module.f'
+import * as result from '../../types/result/module.f.ts'
+import { fold, drop, map as listMap, type List } from '../../types/list/module.f.ts'
+import type * as Operator from '../../types/function/operator/module.f.ts'
+import { tokenize } from '../tokenizer/module.f.ts'
+import { setReplace, at, type Map } from '../../types/map/module.f.ts'
+import { type Fs } from '../io/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
+import { concat as pathConcat } from '../../path/module.f.ts'
+import { parseFromTokens, type DjsModule } from '../parser/module.f.ts'
 
 export type ParseContext = {    
     readonly fs: Fs
@@ -25,6 +25,16 @@ const parseImports
         return context
 }
 
+const parseModule
+    : (content: string | null) => result.Result<DjsModule, string>
+    = content => {
+        if (content === null) {
+            return result.error('file not found')  
+        }
+        const tokens = tokenize(stringToList(content))
+        return parseFromTokens(tokens)
+}
+
 const foldNextModuleOp
     : Operator.Fold<string, ParseContext>
     = path => context => {
@@ -33,9 +43,8 @@ const foldNextModuleOp
         }
 
         //todo: check for cycles
-        const s = context.fs.readFileSync(path)
-        const tokens = tokenize(stringToList(s))
-        const parseModuleResult: result.Result<DjsModule, string> = parseFromTokens(tokens)
+        const s = context.fs.readFileSync(path)        
+        const parseModuleResult = parseModule(s)
         const contextWithImports = parseImports(path)(parseModuleResult)(context)
 
         const c = setReplace(path)(parseModuleResult)(contextWithImports.complete) 
