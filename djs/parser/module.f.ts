@@ -1,12 +1,10 @@
 import * as result from '../../types/result/module.f.ts'
-import { fold, first, drop, toArray, length, concat, map as listMap, type List } from '../../types/list/module.f.ts'
+import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import { type DjsToken, tokenize } from '../tokenizer/module.f.ts'
+import { type DjsToken } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import { type Fs } from '../io/module.f.ts'
-import { stringToList } from '../../text/utf16/module.f.ts'
-import { concat as pathConcat } from '../../path/module.f.ts'
 
 export type ParseContext = {    
     readonly fs: Fs
@@ -513,37 +511,3 @@ export const parseFromTokens = (tokenList: List<DjsToken>): result.Result<DjsMod
         default: return result.error('unexpected end')
     }
 }
-
-const parseImports
-    : (path: string) => (parseModuleResult: result.Result<DjsModule, string>) => (context: ParseContext) => ParseContext
-    = path => parseModuleResult => context => {
-        if (parseModuleResult[0] === 'ok') {
-            const pathsCombine = listMap(pathConcat(path))(parseModuleResult[1][0])
-            const contextAfterImports = fold(foldNextModuleOp)({ ... context, stack: { first: path, tail: context.stack } })(pathsCombine)
-            return { ... contextAfterImports, stack: drop(1)(contextAfterImports.stack) }            
-        }
-        return context
-}
-
-const foldNextModuleOp
-    : Operator.Fold<string, ParseContext>
-    = path => context => {
-        if (at(path)(context.complete) !== null) {
-            return context
-        }
-
-        //todo: check for cycles        
-        const s = context.fs.readFileSync(path)
-        const tokens = tokenize(stringToList(s))
-        const parseModuleResult: result.Result<DjsModule, string> = parseFromTokens(tokens)
-        const contextWithImports = parseImports(path)(parseModuleResult)(context)
-
-        const c = setReplace(path)(parseModuleResult)(contextWithImports.complete)
-        return { ... contextWithImports, complete: setReplace(path)(parseModuleResult)(contextWithImports.complete) }
-}
-
-export const parse: (fs: Fs) => (path: string) => result.Result<string, string>
- = fs => path => {
-    const newContext = foldNextModuleOp(path)({fs, stack: null, complete: null})
-    return result.ok('todo')
- }
