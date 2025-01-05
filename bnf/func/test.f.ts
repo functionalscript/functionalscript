@@ -1,13 +1,10 @@
 import {
-    //firstSet,
-    setOp,
     type TerminalRange,
-    //type DataRule,
     type Rule,
     type Sequence,
     type Or,
-    toTerminalRangeSequence,
-    //type LazyRule
+    firstSet,
+    setOp,
 } from './module.f.ts'
 import * as j from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
@@ -16,11 +13,9 @@ import { one } from "../../types/range/module.f.ts";
 const stringify = j.stringify(sort)
 
 const eq = (a: Rule, e: string) => () => {
-    //const r = stringify(firstSet(a))
-    //if (r !== e) { throw [r, e] }
+    const r = stringify(firstSet(a))
+    if (r !== e) { throw [r, e] }
 }
-
-const s = toTerminalRangeSequence
 
 const c = (a: string) => one(a.codePointAt(0) as number)
 
@@ -460,13 +455,11 @@ export default {
                 [[97, 122]],
                 [[48, 57]],
             ]
-            /*
             const s = firstSet(grammar)
             if (s.empty) { throw s }
             if (setOp.get('0'.codePointAt(0) as number)(s.map) !== true) { throw s }
             if (setOp.get('h'.codePointAt(0) as number)(s.map) !== true) { throw s }
             if (setOp.get('$'.codePointAt(0) as number)(s.map) !== false) { throw s }
-            */
         },
         types: () => {
             const alpha: TerminalRange = [65, 90] // Matches 'A-Z'

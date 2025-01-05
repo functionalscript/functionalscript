@@ -12,23 +12,26 @@
  *
  * @example
  *
- * ```js
- * import { firstSet, type Rule, type Set } from './module.f.ts'
+ * ```ts
+ * import { firstSet, type Rule, type Set, setOp } from './module.f.ts'
  *
- * const grammar: Rule = [
- *     { or: [[65, 90], [97, 122], [48, 57]] }, // Matches 'A-Z', 'a-z', and '0-9'
- * ];
- *
+ * // Matches 'A-Z', 'a-z', and '0-9'
+ * const grammar: Rule = () => [
+ *     [[65, 90]],
+ *     [[97, 122]],
+ *     [[48, 57]],
+ * ]
  * const s = firstSet(grammar)
  * if (s.empty) { throw s }
- * if (setOp.get('0'.codePointAt(0))(s.map) !== true) { throw s }
- * if (setOp.get('h'.codePointAt(0))(s.map) !== true) { throw s }
- * if (setOp.get('$'.codePointAt(0))(s.map) !== false) { throw s }
+ * if (setOp.get('0'.codePointAt(0) as number)(s.map) !== true) { throw s }
+ * if (setOp.get('h'.codePointAt(0) as number)(s.map) !== true) { throw s }
+ * if (setOp.get('$'.codePointAt(0) as number)(s.map) !== false) { throw s }
  * ```
  */
 
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
+import { one } from '../../types/range/module.f.ts'
 import { rangeMap, type RangeMapOp, type RangeMapArray } from '../../types/range_map/module.f.ts'
 
 /**
@@ -81,11 +84,12 @@ export type Or = readonly (Sequence|string)[]
  *
  * ```ts
  * const alpha: TerminalRange = [65, 90]  // Matches 'A-Z'
- * // Matches a string of uppercase letters
- * const id: LazyRule = () => [
- *     [alpha],    // Empty
- *     [alpha, id] // Recursive
+ * // zero or more alpha symbols
+ * const alpha0x: Rule = () => [
+ *     [],              // Empty
+ *     [alpha, alpha0x] // Recursive
  * ] }]
+ * const id: Sequence = [alpha, alpha0x]
  * ```
  */
 export type Rule = () => Or
@@ -120,12 +124,30 @@ export const setOp: RangeMapOp<boolean> = rangeMap({
 
 const { merge, fromRange } = setOp
 
-const rangeToSet = (r: TerminalRange): CpSet => ({ empty: false, map: fromRange(r)(true) })
-
-const isTerminalRange = (rule: Sequence | TerminalRange): rule is TerminalRange =>
-    typeof rule[0] === 'number'
+const rangeToSet = (r: TerminalRange): CpSet =>
+    ({ empty: false, map: fromRange(r)(true) })
 
 const passSet: CpSet = { empty: true, map: [] }
+
+const firstSetSequence = (s: Sequence|string): CpSet => {
+    if (typeof s === 'string') {
+        const first = s.codePointAt(0)
+        if (first === undefined) {
+            return passSet
+        }
+        return rangeToSet(one(first))
+    }
+    let result: RangeMapArray<boolean> = []
+    for (const r of s) {
+        const { empty, map } =
+            r instanceof Array ? rangeToSet(r) : firstSet(r)
+        result = toArray(merge(result)(map))
+        if (!empty) {
+            return { empty: false, map: result }
+        }
+    }
+    return { empty: true, map: result }
+}
 
 /**
  * Processes a `Rule` and converts it into a `Set` of possible code points at the start of the rule.
@@ -133,113 +155,14 @@ const passSet: CpSet = { empty: true, map: [] }
  * @param rule - The grammar rule to process.
  * @returns A set representing the first possible code points in the grammar rule.
  */
-/*
 export const firstSet = (rule: Rule): CpSet => {
-    if (typeof rule === 'function') {
-        rule = rule()
-    }
-    if (typeof rule === 'string') {
-        const first = toTerminalRangeSequence(rule).at(0)
-        if (first === undefined) {
-            return passSet
-        }
-        return rangeToSet(first)
-    }
-    if (rule instanceof Array) {
-        if (isTerminalRange(rule)) {
-            return rangeToSet(rule)
-        }
-        let result: RangeMapArray<boolean> = []
-        for (const r of rule) {
-            const { empty, map } = firstSet(r)
-            result = toArray(merge(result)(map))
-            if (!empty) {
-                return { empty: false, map: result }
-            }
-        }
-        return { empty: true, map: result }
-    }
+    const or = rule()
     let empty = false
     let map: RangeMapArray<boolean> = []
-    for (const r of rule.or) {
-        const { empty: rEmpty, map: rMap } = firstSet(r)
+    for (const r of or) {
+        const { empty: rEmpty, map: rMap } = firstSetSequence(r)
         map = toArray(merge(map)(rMap))
         empty ||= rEmpty
     }
     return { empty, map }
 }
-*/
-
-// Under construction:
-
-type IdSet = readonly number[]
-
-type MatchRule = {
-    readonly empty: boolean
-    readonly map: RangeMapArray<IdSet>
-}
-
-// type MatchMap = {
-//     empty: boolean
-//     map: RangeMapArray<MatchMap>
-// }
-
-// const defMatchMap: MatchMap = { empty: false, map: [] }
-
-// const unionMap = (a: MatchMap) => (b: MatchMap) =>
-//     ({ empty: a.empty || b.empty, map: toArray(matchMapOp.merge(a.map)(b.map)) })
-
-// /**
-//  * Operations on code point map.
-//  */
-// const matchMapOp: RangeMapOp<MatchMap> = rangeMap({
-//     union: unionMap,
-//     equal: a => b => a === b,
-//     def: defMatchMap
-// })
-
-// const { merge: mergeMap, fromRange: fromRangeMap } = matchMapOp
-
-// const pass: MatchMap = { empty: true, map: [] }
-
-// const rangeToMatchMap = (r: TerminalRange, p: MatchMap): MatchMap => ({ empty: false, map: fromRangeMap(r)(p) })
-
-// /**
-//  * Processes a `Rule` and converts it into a `Set` of possible code points at the start of the rule.
-//  *
-//  * @param rule - The grammar rule to process.
-//  * @returns A set representing the first possible code points in the grammar rule.
-//  */
-// export const matchMap = (rule: Rule): MatchMap => {
-//     if (typeof rule === 'function') {
-//         rule = rule()
-//     }
-//     if (typeof rule === 'string') {
-//         const a = toTerminalRangeSequence(rule)
-//         let result = pass
-//         for (const r of a) {
-//             result = rangeToMatchMap(r, result)
-//         }
-//         return result
-//     }
-//     if (rule instanceof Array) {
-//         if (isTerminalRange(rule)) {
-//             return rangeToMatchMap(rule, pass)
-//         }
-//         let result = pass
-//         for (const r of rule.toReversed()) {
-//             todo()
-//             /*
-//             const rMap = matchMap(r)
-//             result = unionMap(result)(rMap)
-//             */
-//         }
-//         return result
-//     }
-//     let result = pass
-//     for (const r of rule.or) {
-//         const rMap = matchMap(r)
-//         result = unionMap(result)(rMap)
-//     }
-//     return result
-// }

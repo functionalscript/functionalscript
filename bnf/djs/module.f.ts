@@ -1,5 +1,3 @@
-// import type { Rule as FRule } from '../func/module.f.ts'
-
 /**
  * Rules for serializing and deserializing the BNF grammar.
  *
