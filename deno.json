@@ -4,7 +4,7 @@
   "license": "AGPL-3.0-only",
   "exports": {
     "./bnf/djs": "./bnf/djs/module.f.ts",
-    "./bnf": "./bnf/module.f.ts",
+    "./bnf/func": "./bnf/func/module.f.ts",
     "./com/cpp": "./com/cpp/module.f.ts",
     "./com/cs": "./com/cs/module.f.ts",
     "./com/rust": "./com/rust/module.f.ts",
