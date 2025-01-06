@@ -4,6 +4,7 @@
  * @module
  */
 
+import { tmpdir } from "os";
 import { type TerminalRange, type Rule as FRule, toTerminalRangeSequence  } from '../func/module.f.ts'
 
 export type Sequence<Id> = readonly (TerminalRange|Id)[]
@@ -29,6 +30,13 @@ type RuleMapTmp = {
     readonly queue: readonly (readonly[FRule, string])[]
     readonly result: RuleMap<string>
 }
+
+const tmpAdd = ({ queue, result }: RuleMapTmp, src: FRule, name: string): RuleMapTmp => ({
+    // add the item to a queue under the generate name.
+    queue: [...queue, [src, name]],
+    // add the name to the result and create a rule later.
+    result: { ...result, [name]: [] },
+})
 
 export const toRuleMap = (src: FRule): RuleMap<string> => {
     const { name } = src
@@ -59,12 +67,7 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
                         } else {
                             // find a name for the item.
                             item = findName(tmp.result, srcItem)
-                            tmp = {
-                                // add the item to a queue under the generate name.
-                                queue: [...tmp.queue, [srcItem, item]],
-                                // add the name to the result and create a rule later.
-                                result: { ...tmp.result, [item]: [] },
-                            }
+                            tmp = tmpAdd(tmp, srcItem, item)
                         }
                     }
                     seq = [...seq, item]
