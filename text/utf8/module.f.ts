@@ -30,7 +30,7 @@ export type ByteOrEof = U8 | null
 export type Utf8NonEmptyState =
   | Array1<number>
   | Array2<number>
-  | Array3<number>;
+  | Array3<number>
 
 /**
  * Represents the state of a UTF-8 decoding operation, which can be either `null` (no state)
