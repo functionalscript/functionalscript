@@ -243,4 +243,4 @@ const eofList: readonly ByteOrEof[] = [null];
  * @returns A list of Unicode code points or error codes.
  */
 export const toCodePointList: (input: List<U8>) => List<I32> = (input) =>
-  flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])));
+    flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
