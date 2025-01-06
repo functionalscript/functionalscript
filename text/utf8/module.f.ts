@@ -22,7 +22,7 @@ export type I32 = number
  * Represents an unsigend 8-bit type - U8 or the end-of-file indicator.
  * The U8 represents the byte itself, and null indicates that reading does not return anything else.
  */
-export type ByteOrEof = U8 | null;
+export type ByteOrEof = U8 | null
 
 /**
  * Represents the state of a UTF-8 decoding operation that contains at least one byte.
