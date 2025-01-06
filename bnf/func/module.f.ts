@@ -30,6 +30,7 @@
  */
 
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { empty as emptyArray } from '../../types/array/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { one } from '../../types/range/module.f.ts'
 import { rangeMap, type RangeMapOp, type RangeMapArray } from '../../types/range_map/module.f.ts'
@@ -127,7 +128,7 @@ const { merge, fromRange } = setOp
 const rangeToSet = (r: TerminalRange): CpSet =>
     ({ empty: false, map: fromRange(r)(true) })
 
-const passSet: CpSet = { empty: true, map: [] }
+const passSet: CpSet = { empty: true, map: emptyArray }
 
 const firstSetSequence = (s: Sequence|string): CpSet => {
     if (typeof s === 'string') {
@@ -137,7 +138,7 @@ const firstSetSequence = (s: Sequence|string): CpSet => {
         }
         return rangeToSet(one(first))
     }
-    let result: RangeMapArray<boolean> = []
+    let result: RangeMapArray<boolean> = emptyArray
     for (const r of s) {
         const { empty, map } =
             r instanceof Array ? rangeToSet(r) : firstSet(r)
@@ -158,7 +159,7 @@ const firstSetSequence = (s: Sequence|string): CpSet => {
 export const firstSet = (rule: Rule): CpSet => {
     const or = rule()
     let empty = false
-    let map: RangeMapArray<boolean> = []
+    let map: RangeMapArray<boolean> = emptyArray
     for (const r of or) {
         const { empty: rEmpty, map: rMap } = firstSetSequence(r)
         map = toArray(merge(map)(rMap))
