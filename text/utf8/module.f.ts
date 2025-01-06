@@ -234,7 +234,7 @@ const utf8ByteOrEofToCodePointOp: StateScan<ByteOrEof, Utf8State, List<I32>> =
  * termination of input. The list contains a single `null` value, which
  * represents the EOF condition.
  */
-const eofList: readonly ByteOrEof[] = [null];
+const eofList: readonly ByteOrEof[] = [null]
 
 /**
  * Converts a list of UTF-8 bytes into a list of Unicode code points.
