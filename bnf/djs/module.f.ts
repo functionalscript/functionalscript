@@ -5,6 +5,9 @@
  */
 
 import { empty as emptyArray } from '../../types/array/module.f.ts'
+import { strictEqual } from '../../types/function/operator/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
+import { rangeMap, RangeMapOp, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import { type TerminalRange, type Rule as FRule, toTerminalRangeSequence } from '../func/module.f.ts'
 
 export type Sequence<Id> = readonly (TerminalRange | Id)[]
@@ -105,3 +108,55 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
     return tmp.result
 }
 
+type DispatchResult = Sequence<string>|undefined
+
+type Dispatch = RangeMapArray<DispatchResult>
+
+const dispatchOp = rangeMap<DispatchResult>({
+    union: a => b => {
+        if (a === undefined) {
+            return b
+        }
+        if (b === undefined) {
+            return a
+        }
+        throw ['can not merge', a, b]
+    },
+    equal: strictEqual,
+    def: undefined,
+})
+
+type DispatchRule = readonly[boolean, Dispatch]
+
+type DispatchMap = { readonly[k in string]: DispatchRule }
+
+export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
+    const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
+        if (sequence.length === 0) {
+            return [dm, [true, []]]
+        }
+        let result: Dispatch = []
+        for (const item of sequence) {
+
+        }
+        return [dm, [false, result]]
+    }
+    const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
+        let result = dm
+        if (name in result) { return result }
+        let empty = false
+        let dispatch: Dispatch = []
+        for (const sequence of map[name]) {
+            const [newResult, [e, d]] = dispatchSequence(result, sequence)
+            result = newResult
+            empty ||= e
+            dispatch = toArray(dispatchOp.merge(dispatch)(d))
+        }
+        return { ...result, [name]: [empty, dispatch] }
+    }
+    let result: DispatchMap = {}
+    for (const k in map) {
+        result = dispatchRule(result, k)
+    }
+    return result
+}
