@@ -15,7 +15,8 @@
     "comtest": "node --experimental-strip-types ./com/test/build.ts",
     "index": "node --experimental-strip-types ./dev/index.ts",
     "version": "node --experimental-strip-types ./nodejs/version/main.ts",
-    "fsc": "node --experimental-strip-types ./main.ts"
+    "fsc": "node --experimental-strip-types ./main.ts",
+    "update": "npm run version && npm run index && npm install"
   },
   "repository": {
     "type": "git",
@@ -37,7 +38,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^22.10.5",
     "typescript": "^5.7.2"
   }
 }

@@ -11,13 +11,34 @@ export type Rule<Id> = readonly Sequence<Id>[]
 
 export type RuleMap<Id extends string> = { readonly[k in Id]: Rule<Id> }
 
+const findName = (map: RuleMap<string>, srcRule: FRule): string => {
+    // find a name for the item.
+    const { name } = srcRule
+    let result = name
+    {
+        let i = 0
+        while (result in map) {
+            result = name + i
+            ++i
+        }
+    }
+    return result
+}
+
+type RuleMapTmp = {
+    readonly queue: readonly (readonly[FRule, string])[]
+    readonly result: RuleMap<string>
+}
+
 export const toRuleMap = (src: FRule): RuleMap<string> => {
     const { name } = src
-    let queue: readonly (readonly[FRule, string])[] = [[src, name]]
-    let result: RuleMap<string> = { [name]: [] }
+    let tmp: RuleMapTmp = {
+        queue: [[src, name]],
+        result: { [name]: [] }
+    }
     let i = 0
     do {
-        const [srcOr, name] = queue[i]
+        const [srcOr, name] = tmp.queue[i]
         let rule: Rule<string> = []
         // iterate all sequences of the `Or` rule.
         for (const srcSeq of srcOr()) {
@@ -32,24 +53,18 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
                     if (srcItem instanceof Array) {
                         item = srcItem
                     } else {
-                        const existingRule = queue.find(([f])=> f === srcItem)
+                        const existingRule = tmp.queue.find(([f])=> f === srcItem)
                         if (existingRule !== undefined) {
                             item = existingRule[1]
                         } else {
                             // find a name for the item.
-                            const { name } = srcItem
-                            item = name
-                            {
-                                let i = 0
-                                while (item in result) {
-                                    item = name + i
-                                    ++i
-                                }
+                            item = findName(tmp.result, srcItem)
+                            tmp = {
+                                // add the item to a queue under the generate name.
+                                queue: [...tmp.queue, [srcItem, item]],
+                                // add the name to the result and create a rule later.
+                                result: { ...tmp.result, [item]: [] },
                             }
-                            // add the item to a queue under the generate name.
-                            queue = [...queue, [srcItem, item]]
-                            // add the name to the result and create a rule later.
-                            result = { ...result, [item]: [] }
                         }
                     }
                     seq = [...seq, item]
@@ -58,9 +73,12 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
             rule = [...rule, seq]
         }
         // fix the rule in the result.
-        result = { ...result, [name]: rule }
+        tmp = {
+            queue: tmp.queue,
+            result: { ...tmp.result, [name]: rule },
+        }
         ++i
-    } while (i !== queue.length)
-    return result
+    } while (i !== tmp.queue.length)
+    return tmp.result
 }
 
