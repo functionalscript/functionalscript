@@ -63,18 +63,7 @@ logic should be moved to a private free floating helper function (to keep public
   - add `Map` to the language
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
-- [ ] 39. [Crockford's base32](https://en.wikipedia.org/wiki/Base32#Crockford's_Base32)
-- [ ] 40. [Base64](https://en.wikipedia.org/wiki/Base64). In particular, an implementation for identifiers:
-
-  - `0`..`9`: 10
-  - `A`..`Z`: 26, total: 36
-  - `a`..`z`: 26, total: 62
-  - `_`, `$`:  2, total: 64
-
-  We can use an additional `stop` bit to signal the end of a sequence instead of padding. Parameters:
-
-  - fixed vs variable size,
-  - MSb/LSb.
+- [ ] [./39-radix-encoding.md](./39-radix-encoding.md)
 
 ## Language Specification
 
