@@ -30,21 +30,20 @@ type RuleMapTmp = {
     readonly result: RuleMap<string>
 }
 
-const tmpEmpty: RuleMapTmp = {
-    queue: [],
-    result: {},
-}
-
-const tmpAdd = ({ queue, result }: RuleMapTmp, src: FRule, name: string): RuleMapTmp => ({
+const tmpAdd = ({ queue, result }: RuleMapTmp) => (src: FRule, name: string): RuleMapTmp => ({
     // add the item to a queue under the name.
     queue: [...queue, [src, name]],
     // add the name to the result and create a rule later.
     result: { ...result, [name]: [] },
 })
 
+const tmpNew = tmpAdd({
+    queue: [],
+    result: {},
+})
+
 export const toRuleMap = (src: FRule): RuleMap<string> => {
-    const { name } = src
-    let tmp: RuleMapTmp = tmpAdd(tmpEmpty, src, name)
+    let tmp: RuleMapTmp = tmpNew(src, src.name)
     let i = 0
     do {
         const [srcOr, name] = tmp.queue[i]
@@ -68,7 +67,7 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
                         } else {
                             // find a name for the item.
                             item = findName(tmp.result, srcItem)
-                            tmp = tmpAdd(tmp, srcItem, item)
+                            tmp = tmpAdd(tmp)(srcItem, item)
                         }
                     }
                     seq = [...seq, item]
