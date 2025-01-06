@@ -41,7 +41,7 @@ export type Utf8State = null | Utf8NonEmptyState
 /**
  * Error mask constant used to represent invalid code points or encoding errors in UTF-8.
  */
-const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000;
+const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
