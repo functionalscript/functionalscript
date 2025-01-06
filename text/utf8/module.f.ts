@@ -54,7 +54,7 @@ const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
  *   - Returns `[errorMask]` if the input does not match valid UTF-8 encoding rules.
  */
 const codePointToUtf8 = (input: number): readonly U8[] => {
-  if (input >= 0x0000 && input <= 0x007f) return [input & 0b01111_1111];
+  if (input >= 0x0000 && input <= 0x007f) { return [input & 0b01111_1111] }
   if (input >= 0x0080 && input <= 0x07ff) {
     return [input >> 6 | 0b1100_0000, input & 0b0011_1111 | 0b1000_0000];
   }
