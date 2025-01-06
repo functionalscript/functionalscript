@@ -16,7 +16,7 @@ export type U8 = number
 /**
  * A singed 32-bit integer.
  */
-export type I32 = number;
+export type I32 = number
 
 /**
  * Represents an unsigend 8-bit type - U8 or the end-of-file indicator.
