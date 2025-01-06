@@ -4,12 +4,12 @@
  * @module
  */
 
-import { type TerminalRange, type Rule as FRule, toTerminalRangeSequence  } from '../func/module.f.ts'
+import { type TerminalRange, type Rule as FRule, toTerminalRangeSequence } from '../func/module.f.ts'
 
-export type Sequence<Id> = readonly (TerminalRange|Id)[]
+export type Sequence<Id> = readonly (TerminalRange | Id)[]
 export type Rule<Id> = readonly Sequence<Id>[]
 
-export type RuleMap<Id extends string> = { readonly[k in Id]: Rule<Id> }
+export type RuleMap<Id extends string> = { readonly [k in Id]: Rule<Id> }
 
 const findName = (map: RuleMap<string>, srcRule: FRule): string => {
     // find a name for the item.
@@ -26,16 +26,20 @@ const findName = (map: RuleMap<string>, srcRule: FRule): string => {
 }
 
 type RuleMapTmp = {
-    readonly queue: readonly (readonly[FRule, string])[]
+    readonly queue: readonly (readonly [FRule, string])[]
     readonly result: RuleMap<string>
 }
 
-const tmpAdd = ({ queue, result }: RuleMapTmp) => (src: FRule, name: string): RuleMapTmp => ({
-    // add the item to a queue under the name.
-    queue: [...queue, [src, name]],
-    // add the name to the result and create a rule later.
-    result: { ...result, [name]: [] },
-})
+const tmpAdd = ({ queue, result }: RuleMapTmp) => (src: FRule): [RuleMapTmp, string] => {
+    // find a name for the item.
+    const name = findName(result, src)
+    return [{
+        // add the item to a queue under the name.
+        queue: [...queue, [src, name]],
+        // add the name to the result and fill the rule later.
+        result: { ...result, [name]: [] },
+    }, name]
+}
 
 const tmpNew = tmpAdd({
     queue: [],
@@ -43,7 +47,7 @@ const tmpNew = tmpAdd({
 })
 
 export const toRuleMap = (src: FRule): RuleMap<string> => {
-    let tmp: RuleMapTmp = tmpNew(src, src.name)
+    let [tmp] = tmpNew(src)
     let i = 0
     do {
         const [srcOr, name] = tmp.queue[i]
@@ -57,17 +61,15 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
                 seq = []
                 // iterate all items of the sequence.
                 for (const srcItem of srcSeq) {
-                    let item: TerminalRange|string
+                    let item: TerminalRange | string
                     if (srcItem instanceof Array) {
                         item = srcItem
                     } else {
-                        const existingRule = tmp.queue.find(([f])=> f === srcItem)
+                        const existingRule = tmp.queue.find(([f]) => f === srcItem)
                         if (existingRule !== undefined) {
                             item = existingRule[1]
                         } else {
-                            // find a name for the item.
-                            item = findName(tmp.result, srcItem)
-                            tmp = tmpAdd(tmp)(srcItem, item)
+                            [tmp, item] = tmpAdd(tmp)(srcItem)
                         }
                     }
                     seq = [...seq, item]
