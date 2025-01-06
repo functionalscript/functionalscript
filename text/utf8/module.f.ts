@@ -11,7 +11,7 @@ import type { Array1, Array2, Array3 } from "../../types/array/module.f.ts";
 /**
  * An unsigned 8-bit integer, represents a single byte.
  */
-export type U8 = number;
+export type U8 = number
 
 /**
  * A singed 32-bit integer.
