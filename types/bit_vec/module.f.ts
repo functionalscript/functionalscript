@@ -1,3 +1,11 @@
+/**
+ * MSb is most-significant bit first.
+ * - byte: 0x53 = 0b0101_0011
+ * -                0123_4567
+ * LSb is least-significant bit first.
+ * - byte: 0x53 = 0b0101_0011
+ * -                7654_3210
+ */
 import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import { fold, type List, type Thunk } from '../list/module.f.ts'
@@ -24,8 +32,8 @@ export const length = log2
  *
  * ```js
  * const vec4 = vec(4n)
- * const v0 = vec4(5n)     // 0x15n
- * const v1 = vec4(0x5FEn) // 0x1En
+ * const v0 = vec4(5n)     // 0x15n = 0b1_0101
+ * const v1 = vec4(0x5FEn) // 0x1En = 0b1_1110
  * ```
  */
 export const vec = (len: bigint): (ui: bigint) => Vec => {
