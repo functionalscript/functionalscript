@@ -36,7 +36,7 @@ export type Utf8NonEmptyState =
  * Represents the state of a UTF-8 decoding operation, which can be either `null` (no state)
  * or a non-empty state containing one or more bytes.
  */
-export type Utf8State = null | Utf8NonEmptyState;
+export type Utf8State = null | Utf8NonEmptyState
 
 /**
  * Error mask constant used to represent invalid code points or encoding errors in UTF-8.
