@@ -252,7 +252,7 @@ export default {
         //
         const isSuccess = (s: readonly CodePoint[]|null) => s?.length === 0
         const expect = (s: string, success: boolean) => {
-            const r = f('json', toArray(stringToCodePointList(s)))
+            const [a, r] = f('json', toArray(stringToCodePointList(s)))
             if (isSuccess(r) !== success) {
                 throw r
             }
@@ -264,6 +264,7 @@ export default {
         expect('   true"   ', false)
         expect('   "Hello"   ', true)
         expect('   "Hello   ', false)
+        expect('   "Hello\\n\\r\\""   ', true)
         expect('   -56.7e+5  ', true)
         expect('   h-56.7e+5   ', false)
         expect('   -56.7e+5   3', false)

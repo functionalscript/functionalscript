@@ -175,36 +175,50 @@ export const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     return result
 }
 
-export type Match = (name: string, s: readonly CodePoint[]) => readonly CodePoint[] | null
+export type AstSequence = readonly(AstRule|CodePoint)[]
+
+export type AstRule = readonly[string, AstSequence]
+
+export type Remainder = readonly CodePoint[] | null
+
+export type MatchResult = readonly[AstRule, Remainder]
+
+export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
 export const match = (map: DispatchMap): Match => {
-    const f: Match = (name, s) => {
+    const f: Match = (name, s): MatchResult => {
+        const mr = (a: AstSequence, r: Remainder): MatchResult => [[name, a], r]
+        const mre = (a: AstSequence) => mr(a, null)
         const [empty, sequence] = map[name]
         if (s.length === 0) {
-            return empty ? s : null
+            return mr([], empty ? s : null)
         }
         const cp = s[0]
         const i = dispatchOp.get(cp)(sequence)
         if (i === null) {
-            return empty ? s : null
+            return mr([], empty ? s : null)
         }
+        let a: AstSequence = []
         let si = s
         for (const c of i) {
             if (typeof c === 'string') {
-                const newSi = f(c, si)
+                const [astRule, newSi] = f(c, si)
+                a = [...a, astRule]
                 if (newSi === null) {
-                    return null
+                    return mre(a)
                 }
                 si = newSi
             } else {
+                // c is TerminalRange
                 const [first, ...newSi] = si
                 if (first === undefined || !contains(c)(first)) {
-                    return null
+                    return mre(a)
                 }
+                a = [...a, first]
                 si = newSi
             }
         }
-        return si
+        return mr(a, si)
     }
     return f
 }
