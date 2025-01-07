@@ -1,6 +1,6 @@
 import { one } from '../../types/range/module.f.ts'
 import { toTerminalRangeSequence } from '../func/module.f.ts'
-import { toRuleMap, type RuleMap } from './module.f.ts'
+import { dispatchMap, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
@@ -230,6 +230,7 @@ const _deterministic = () => {
         ],
     } as const
     const _map: RuleMap<keyof typeof map> = map
+    return _map
 }
 
 export default {
@@ -242,5 +243,10 @@ export default {
             //console.error(jsonE)
             throw [json, jsonE]
         }
+    },
+    map: () => {
+        const c = _deterministic()
+        const x = dispatchMap(c)
+        console.error(stringify(x))
     }
 }

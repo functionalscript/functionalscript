@@ -4,10 +4,12 @@
  * @module
  */
 
+import type { CodePoint } from '../../text/utf16/module.f.ts'
 import { empty as emptyArray } from '../../types/array/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { rangeMap, RangeMapOp, type RangeMapArray } from '../../types/range_map/module.f.ts'
+import { contains } from '../../types/range/module.f.ts'
+import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import { type TerminalRange, type Rule as FRule, toTerminalRangeSequence } from '../func/module.f.ts'
 
 export type Sequence<Id> = readonly (TerminalRange | Id)[]
@@ -108,22 +110,22 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
     return tmp.result
 }
 
-type DispatchResult = Sequence<string>|undefined
+type DispatchResult = Sequence<string>|null
 
 type Dispatch = RangeMapArray<DispatchResult>
 
 const dispatchOp = rangeMap<DispatchResult>({
     union: a => b => {
-        if (a === undefined) {
+        if (a === null) {
             return b
         }
-        if (b === undefined) {
+        if (b === null) {
             return a
         }
-        throw ['can not merge', a, b]
+        throw ['can not merge [', a, '][', b, ']']
     },
     equal: strictEqual,
-    def: undefined,
+    def: null,
 })
 
 type DispatchRule = readonly[boolean, Dispatch]
@@ -132,14 +134,15 @@ type DispatchMap = { readonly[k in string]: DispatchRule }
 
 export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
-        let empty = false
+        let empty = true
         let result: Dispatch = []
         for (const item of sequence) {
             if (typeof item === 'string') {
                 dm = dispatchRule(dm, item)
                 const [e, dispatch] = dm[item]
-                // todo: replace with sequence???
-                result = toArray(dispatchOp.merge(result)(dispatch))
+                result = toArray(dispatchOp.merge
+                    (result)
+                    (dispatch.map(x => [x[0] === null ? null : sequence, x[1]])))
                 if (e) {
                     continue
                 }
@@ -147,7 +150,7 @@ export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
                 const dispatch = dispatchOp.fromRange(item)(sequence)
                 result = toArray(dispatchOp.merge(result)(dispatch))
             }
-            empty = true
+            empty = false
             break
         }
         return [dm, [empty, result]]
@@ -168,5 +171,38 @@ export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
     for (const k in map) {
         result = dispatchRule(result, k)
     }
+    // TODO: validate all sequences if they deterministic
     return result
+}
+
+export const match = (map: DispatchMap) => (name: string) => (s: readonly CodePoint[]): readonly CodePoint[]|null => {
+    const [empty, sequence] = map[name]
+    if (s.length === 0) {
+        return empty ? s : null
+    }
+    const cp = s[0]
+    const i = dispatchOp.get(cp)(sequence)
+    if (i === null) {
+        return empty ? s : null
+    }
+    let si = s
+    for (const c of i) {
+        if (typeof c === 'string') {
+            const newSi = match(map)(c)(si)
+            if (newSi === null) {
+                return null
+            }
+            si = newSi
+        } else {
+            const [first, ...newSi] = si
+            if (first === undefined) {
+                return null
+            }
+            if (!contains(c)(first)) {
+                return null
+            }
+            si = newSi
+        }
+    }
+    return si
 }
