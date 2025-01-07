@@ -175,8 +175,10 @@ export const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     return result
 }
 
-export const match = (map: DispatchMap) => {
-    const f = (name: string, s: readonly CodePoint[]): readonly CodePoint[] | null => {
+export type Match = (name: string, s: readonly CodePoint[]) => readonly CodePoint[] | null
+
+export const match = (map: DispatchMap): Match => {
+    const f: Match = (name: string, s: readonly CodePoint[]): readonly CodePoint[] | null => {
         const [empty, sequence] = map[name]
         if (s.length === 0) {
             return empty ? s : null
