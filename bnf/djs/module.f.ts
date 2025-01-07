@@ -195,10 +195,7 @@ export const match = (map: DispatchMap) => (name: string) => (s: readonly CodePo
             si = newSi
         } else {
             const [first, ...newSi] = si
-            if (first === undefined) {
-                return null
-            }
-            if (!contains(c)(first)) {
+            if (first === undefined || !contains(c)(first)) {
                 return null
             }
             si = newSi

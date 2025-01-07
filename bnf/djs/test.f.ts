@@ -1,9 +1,11 @@
 import { one } from '../../types/range/module.f.ts'
 import { toTerminalRangeSequence } from '../func/module.f.ts'
-import { dispatchMap, toRuleMap, type RuleMap } from './module.f.ts'
+import { dispatchMap, match, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
+import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 
 const stringify = j.stringify(sort)
 //const str = j.stringify(x => x)
@@ -247,6 +249,47 @@ export default {
     map: () => {
         const c = _deterministic()
         const x = dispatchMap(c)
-        console.error(stringify(x))
+        // console.error(stringify(x))
+        //
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   true   ')))
+            if (r?.length !== 0) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   tr2ue   ')))
+            if (r !== null) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   "Hello"   ')))
+            if (r?.length !== 0) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   "Hello   ')))
+            if (r !== null) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   -56.7e+5   ')))
+            if (r?.length !== 0) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   h-56.7e+5   ')))
+            if (r !== null) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   [ 12, false, "a"]  ')))
+            if (r?.length !== 0) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   [ 12, false2, "a"]  ')))
+            if (r !== null) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   { "q": [ 12, false, [{}], "a"] }  ')))
+            if (r?.length !== 0) { throw r }
+        }
+        {
+            const r = match(x)('json')(toArray(stringToCodePointList('   { "q": [ 12, false, [}], "a"] }  ')))
+            if (r !== null) { throw r }
+        }
     }
 }
