@@ -125,7 +125,7 @@ const classicTest = () => {
     return result
 }
 
-const _deterministic = () => {
+const deterministic = () => {
     const map = {
         json: [
             ['ws', 'element']
@@ -247,13 +247,12 @@ export default {
         }
     },
     map: () => {
-        const c = _deterministic()
-        const x = dispatchMap(c)
+        const f = match(dispatchMap(deterministic()))
         // console.error(stringify(x))
         //
         const isSuccess = (s: readonly CodePoint[]|null) => s?.length === 0
         const expect = (s: string, success: boolean) => {
-            const r = match(x)('json')(toArray(stringToCodePointList(s)))
+            const r = f('json', toArray(stringToCodePointList(s)))
             if (isSuccess(r) !== success) {
                 throw r
             }

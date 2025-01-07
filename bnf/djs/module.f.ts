@@ -65,7 +65,7 @@ const tmpNew = tmpAdd({
 
 const tmpItem = (tmp: RuleMapTmp, src: FRule): [RuleMapTmp, string] => {
     const found = tmp.queue.find(([f]) => f === src)
-    return  found !== undefined ? [tmp, found[1]] : tmpAdd(tmp)(src)
+    return found !== undefined ? [tmp, found[1]] : tmpAdd(tmp)(src)
 }
 
 /**
@@ -110,7 +110,7 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
     return tmp.result
 }
 
-type DispatchResult = Sequence<string>|null
+type DispatchResult = Sequence<string> | null
 
 type Dispatch = RangeMapArray<DispatchResult>
 
@@ -128,11 +128,11 @@ const dispatchOp = rangeMap<DispatchResult>({
     def: null,
 })
 
-type DispatchRule = readonly[boolean, Dispatch]
+type DispatchRule = readonly [boolean, Dispatch]
 
-type DispatchMap = { readonly[k in string]: DispatchRule }
+type DispatchMap = { readonly [k in string]: DispatchRule }
 
-export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
+export const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
         let empty = true
         let result: Dispatch = []
@@ -159,7 +159,7 @@ export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
         if (name in dm) { return dm }
         let empty = false
         let dispatch: Dispatch = []
-        for (const sequence of map[name]) {
+        for (const sequence of ruleMap[name]) {
             const [newDm, [e, d]] = dispatchSequence(dm, sequence)
             dm = newDm
             empty ||= e
@@ -168,38 +168,41 @@ export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
         return { ...dm, [name]: [empty, dispatch] }
     }
     let result: DispatchMap = {}
-    for (const k in map) {
+    for (const k in ruleMap) {
         result = dispatchRule(result, k)
     }
-    // TODO: validate all sequences if they deterministic
+    // TODO: validate all sequences if they are deterministic
     return result
 }
 
-export const match = (map: DispatchMap) => (name: string) => (s: readonly CodePoint[]): readonly CodePoint[]|null => {
-    const [empty, sequence] = map[name]
-    if (s.length === 0) {
-        return empty ? s : null
-    }
-    const cp = s[0]
-    const i = dispatchOp.get(cp)(sequence)
-    if (i === null) {
-        return empty ? s : null
-    }
-    let si = s
-    for (const c of i) {
-        if (typeof c === 'string') {
-            const newSi = match(map)(c)(si)
-            if (newSi === null) {
-                return null
-            }
-            si = newSi
-        } else {
-            const [first, ...newSi] = si
-            if (first === undefined || !contains(c)(first)) {
-                return null
-            }
-            si = newSi
+export const match = (map: DispatchMap) => {
+    const f = (name: string, s: readonly CodePoint[]): readonly CodePoint[] | null => {
+        const [empty, sequence] = map[name]
+        if (s.length === 0) {
+            return empty ? s : null
         }
+        const cp = s[0]
+        const i = dispatchOp.get(cp)(sequence)
+        if (i === null) {
+            return empty ? s : null
+        }
+        let si = s
+        for (const c of i) {
+            if (typeof c === 'string') {
+                const newSi = f(c, si)
+                if (newSi === null) {
+                    return null
+                }
+                si = newSi
+            } else {
+                const [first, ...newSi] = si
+                if (first === undefined || !contains(c)(first)) {
+                    return null
+                }
+                si = newSi
+            }
+        }
+        return si
     }
-    return si
+    return f
 }
