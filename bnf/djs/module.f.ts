@@ -132,27 +132,37 @@ type DispatchMap = { readonly[k in string]: DispatchRule }
 
 export const dispatchMap = (map: RuleMap<string>): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
-        if (sequence.length === 0) {
-            return [dm, [true, []]]
-        }
+        let empty = false
         let result: Dispatch = []
         for (const item of sequence) {
-
+            if (typeof item === 'string') {
+                dm = dispatchRule(dm, item)
+                const [e, dispatch] = dm[item]
+                // todo: replace with sequence???
+                result = toArray(dispatchOp.merge(result)(dispatch))
+                if (e) {
+                    continue
+                }
+            } else {
+                const dispatch = dispatchOp.fromRange(item)(sequence)
+                result = toArray(dispatchOp.merge(result)(dispatch))
+            }
+            empty = true
+            break
         }
-        return [dm, [false, result]]
+        return [dm, [empty, result]]
     }
     const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
-        let result = dm
-        if (name in result) { return result }
+        if (name in dm) { return dm }
         let empty = false
         let dispatch: Dispatch = []
         for (const sequence of map[name]) {
-            const [newResult, [e, d]] = dispatchSequence(result, sequence)
-            result = newResult
+            const [newDm, [e, d]] = dispatchSequence(dm, sequence)
+            dm = newDm
             empty ||= e
             dispatch = toArray(dispatchOp.merge(dispatch)(d))
         }
-        return { ...result, [name]: [empty, dispatch] }
+        return { ...dm, [name]: [empty, dispatch] }
     }
     let result: DispatchMap = {}
     for (const k in map) {
