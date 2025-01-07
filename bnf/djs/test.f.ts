@@ -4,8 +4,8 @@ import { dispatchMap, match, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { List, toArray } from '../../types/list/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 
 const stringify = j.stringify(sort)
 //const str = j.stringify(x => x)
@@ -251,54 +251,26 @@ export default {
         const x = dispatchMap(c)
         // console.error(stringify(x))
         //
-        const success = (s: readonly CodePoint[]|null) => s?.length === 0
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   true   ')))
-            if (success(r)) { throw r }
+        const isSuccess = (s: readonly CodePoint[]|null) => s?.length === 0
+        const expect = (s: string, success: boolean) => {
+            const r = match(x)('json')(toArray(stringToCodePointList(s)))
+            if (isSuccess(r) !== success) {
+                throw r
+            }
         }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   tr2ue   ')))
-            if (!success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   true"   ')))
-            if (!success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   "Hello"   ')))
-            if (success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   "Hello   ')))
-            if (!success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   -56.7e+5  ')))
-            if (success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   h-56.7e+5   ')))
-            if (!success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   -56.7e+5   3')))
-            if (!success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   [ 12, false, "a"]  ')))
-            if (success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   [ 12, false2, "a"]  ')))
-            if (!success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   { "q": [ 12, false, [{}], "a"] }  ')))
-            if (success(r)) { throw r }
-        }
-        {
-            const r = match(x)('json')(toArray(stringToCodePointList('   { "q": [ 12, false, [}], "a"] }  ')))
-            if (!success(r)) { throw r }
-        }
+
+        //
+        expect('   true   ', true)
+        expect('   tr2ue   ', false)
+        expect('   true"   ', false)
+        expect('   "Hello"   ', true)
+        expect('   "Hello   ', false)
+        expect('   -56.7e+5  ', true)
+        expect('   h-56.7e+5   ', false)
+        expect('   -56.7e+5   3', false)
+        expect('   [ 12, false, "a"]  ', true)
+        expect('   [ 12, false2, "a"]  ', false)
+        expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+        expect('   { "q": [ 12, false, [}], "a"] }  ', false)
     }
 }
