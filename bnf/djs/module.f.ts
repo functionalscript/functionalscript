@@ -102,9 +102,9 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
     return tmp.result
 }
 
-type DispatchResult = Sequence<string> | null
+export type DispatchResult = Sequence<string> | null
 
-type Dispatch = RangeMapArray<DispatchResult>
+export type Dispatch = RangeMapArray<DispatchResult>
 
 const dispatchOp = rangeMap<DispatchResult>({
     union: a => b => {
