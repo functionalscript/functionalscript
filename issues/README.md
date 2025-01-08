@@ -55,7 +55,7 @@ require setting a flag when walking through a test free, as soon as a node has a
   struct Any<A: AnyPolicy>(A);
   ```
   This way we can implement operations on it, such as `+`.
-- [ ] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
+- [x] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
 logic should be moved to a private free floating helper function (to keep public interface of Any clean).
 - [ ] 35. Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
 - [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
