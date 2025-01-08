@@ -64,6 +64,21 @@ logic should be moved to a private free floating helper function (to keep public
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 
+- [ ] 44. Follow `?` error handling pattern.
+
+  ```rust
+  trait Any {
+      type Result<T> = Result<T, Self>;
+      fn to_number(Self) -> Self::Result<(Self, f64)> { ... }
+      fn add(self, b: Self) -> Self::Result<Self> {
+          ....
+          let (b, num) = self.to_number()?;
+          ...
+      }
+  ...
+  }
+  ```
+
 ## Language Specification
 
 See [lang/README.md](./lang/README.md).
