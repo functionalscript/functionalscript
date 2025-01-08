@@ -1,4 +1,4 @@
-import { cp, str, type Rule } from './module.f.ts'
+import { cp, range, remove, str, type Rule } from './module.f.ts'
 
 // https://www.json.org/json-en.html
 
@@ -63,29 +63,27 @@ export const classic = () => {
     // {"empty":false,"map":[[false,47],[true,57],[false,64],[true,70],[false,96],[true,102]]}
     const hex: Rule = () => [
         [digit],       // 48-57
-        [[0x41, 0x46]], // A..F
-        [[0x61, 0x66]], // a..f
+        [range('AF')], // A..F
+        [range('af')], // a..f
     ]
 
     // {"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}
     const escape: Rule = () => [
-        str('"'),                         //  34
-        str('\\'),                        //  92
-        str('/'),                         //  47
-        str('b'),                         //  98
-        str('f'),                         // 102
-        str('n'),                         // 110
-        str('r'),                         // 114
-        str('t'),                         // 116
+        str('"'),                     //  34
+        str('\\'),                    //  92
+        str('/'),                     //  47
+        str('b'),                     //  98
+        str('f'),                     // 102
+        str('n'),                     // 110
+        str('r'),                     // 114
+        str('t'),                     // 116
         [cp('u'), hex, hex, hex, hex] // 117
     ]
 
     // {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
     const character: Rule = () =>[
-        [[0x20, 0x21]],     // exclude '"' 0x22
-        [[0x23, 0x5B]],     // exclude '\' 0x5C
-        [[0x5D ,0x10FFFF]], // 93-1114111
-        [cp('\\'), escape],   // 92
+        ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
+        [cp('\\'), escape],
     ]
 
     // {"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}

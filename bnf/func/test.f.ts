@@ -100,7 +100,7 @@ const deterministic = () => {
 
     // {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
     const character: Rule = () => [
-        remove(remove([[0x20, 0x10FFFF]])(cp('"')))(cp('\\')),
+        ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
         [cp('\\'), escape], // 92
     ]
 
@@ -237,5 +237,8 @@ export default {
 
             const _ = [id2OrDigit, bool, id]
         }
+    },
+    remove: () => {
+        const _x = remove([0x20, 0x10FFFF], [cp('"'), cp('\\')])
     }
 }

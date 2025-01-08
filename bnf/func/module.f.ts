@@ -106,7 +106,7 @@ export const range = (ab: string): TerminalRange => {
 
 export type RangeSet = readonly TerminalRange[]
 
-export const remove = (set: RangeSet) => ([a, b]: TerminalRange): RangeSet => {
+export const removeOne = (set: RangeSet, [a, b]: TerminalRange): RangeSet => {
     let result: RangeSet = []
     for (const [a0, b0] of set) {
         if (a0 < a) {
@@ -121,4 +121,12 @@ export const remove = (set: RangeSet) => ([a, b]: TerminalRange): RangeSet => {
         }
     }
     return result
+}
+
+export const remove = (set: TerminalRange, rSet: RangeSet): readonly RangeSet[] => {
+    let result: RangeSet = [set]
+    for (const r of rSet) {
+        result = removeOne(result, r)
+    }
+    return result.map(v => [v])
 }

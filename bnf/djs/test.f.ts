@@ -1,4 +1,4 @@
-import { cp, range, str } from '../func/module.f.ts'
+import { cp, range, remove, str } from '../func/module.f.ts'
 import { dispatchMap, parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
@@ -52,9 +52,7 @@ const classicTest = () => {
             ['character', 'characters'],
         ],
         character: [
-            [[0x20, 0x21]],      // exclude '"' 0x22
-            [[0x23, 0x5B]],      // exclude '\' 0x5C
-            [[0x5D ,0x10FFFF]],  // 93-1114111
+            ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
             [cp('\\'), 'escape'], // 92
         ],
         escape: [
@@ -163,9 +161,7 @@ const deterministic = () => {
             ['character', 'characters'],
         ],
         character: [
-            [[0x20, 0x21]],      // exclude '"' 0x22
-            [[0x23, 0x5B]],      // exclude '\' 0x5C
-            [[0x5D ,0x10FFFF]],  // 93-1114111
+            ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
             [cp('\\'), 'escape'], // 92
         ],
         escape: [
