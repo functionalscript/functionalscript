@@ -10,12 +10,12 @@ on:
   pull_request:
 
 jobs:
-  node22:
+  node20:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [16, 18, 20, 22]
+        node-version: [16, 18, 20]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
@@ -23,6 +23,17 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
+    - run: npm ci
+    - run: npm run test20
+
+  node22:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 22
     - run: npm ci
     - run: npm run test22
 

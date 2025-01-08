@@ -10,7 +10,8 @@
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
     "prepack": "npm run tsc-emit",
-    "test22": "npm run prepack && node --trace-uncaught ./dev/test.js",
+    "test20": "npm run prepack && node --trace-uncaught ./dev/test.js",
+    "test22": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
     "test": "tsc && node --trace-uncaught ./dev/test.ts",
     "comtest": "node ./com/test/build.ts",
     "index": "node ./dev/index.ts",
