@@ -49,7 +49,7 @@ export const classic = () => {
 
     // {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
     const integer: Rule = () => [
-        [digit],                // 48-57
+        [digit],                    // 48-57
         [onenine, digits],
         [cp('-'), digit],           // 45
         [cp('-'), onenine, digits],
@@ -110,7 +110,7 @@ export const classic = () => {
 
     // {"empty":false,"map":[[false,90],[true,91]]}
     const array: Rule = () => [
-        [cp('['), ws, cp(']')],      // 91
+        [cp('['), ws, cp(']')],       // 91
         [cp('['), elements, cp(']')],
     ]
 
@@ -133,13 +133,13 @@ export const classic = () => {
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
     const value: Rule = () => [
-        [object],  // 123
-        [array],   // 91
-        [string],  // 34
-        [number],  // 45, 48-57
-        str('true'),    // 116
-        str('false'),   // 102
-        str('null'),    // 110
+        [object],     // 123
+        [array],      // 91
+        [string],     // 34
+        [number],     // 45, 48-57
+        str('true'),  // 116
+        str('false'), // 102
+        str('null'),  // 110
     ]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}

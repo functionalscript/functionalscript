@@ -89,7 +89,7 @@ const classicTest = () => {
             ['onenine'],
         ],
         onenine: [
-            [range('19')], // 1-9
+            [range('19')],
         ],
         fraction: [
             [],
@@ -177,8 +177,8 @@ const deterministic = () => {
         ],
         hex: [
             ['digit'],
-            [range('AF')], // A-F
-            [range('af')], // a-f
+            [range('AF')],
+            [range('af')],
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
@@ -197,7 +197,7 @@ const deterministic = () => {
             ['onenine'],
         ],
         onenine: [
-            [range('19')], // 1-9
+            [range('19')],
         ],
         fraction: [
             [],
