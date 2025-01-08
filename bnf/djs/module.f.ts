@@ -214,20 +214,35 @@ const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     return result
 }
 
+/**
+ * Represents a parsed Abstract Syntax Tree (AST) sequence.
+ */
 export type AstSequence = readonly(AstRule|CodePoint)[]
 
+/**
+ * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
+ */
 export type AstRule = readonly[string, AstSequence]
 
+/**
+ * Represents the remaining input after a match attempt, or `null` if no match is possible.
+ */
 export type Remainder = readonly CodePoint[] | null
 
+/**
+ * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
+ */
 export type MatchResult = readonly[AstRule, Remainder]
 
+/**
+ * Represents an LL(1) parser function for matching input against grammar rules.
+ */
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
 /**
  * Creates a simple LL1 parser for the given map.
  *
- * @param map a prepared dispatch map.
+ * @param map a prepared rule map.
  * @returns a parser.
  */
 export const parser = (rm: RuleMap<string>): Match => {
