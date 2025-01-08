@@ -120,9 +120,9 @@ const dispatchOp = rangeMap<DispatchResult>({
     def: null,
 })
 
-type DispatchRule = readonly [boolean, Dispatch]
+export type DispatchRule = readonly [boolean, Dispatch]
 
-type DispatchMap = { readonly [k in string]: DispatchRule }
+export type DispatchMap = { readonly [k in string]: DispatchRule }
 
 export const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
@@ -178,7 +178,7 @@ export type MatchResult = readonly[AstRule, Remainder]
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
 /**
- * Creates an LL1 parser for the given map.
+ * Creates a simple LL1 parser for the given map.
  *
  * @param map a prepared dispatch map.
  * @returns a parser.
@@ -200,6 +200,7 @@ export const parser = (map: DispatchMap): Match => {
         let si = s
         for (const c of i) {
             if (typeof c === 'string') {
+                // c is a name
                 const [astRule, newSi] = f(c, si)
                 a = [...a, astRule]
                 if (newSi === null) {
