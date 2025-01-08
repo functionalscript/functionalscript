@@ -43,9 +43,6 @@ type RuleMapTmp = {
 
 /**
  * Add a new rule to the temporary map.
- *
- * @param param0
- * @returns
  */
 const tmpAdd = ({ queue, result }: RuleMapTmp) => (src: FRule): [RuleMapTmp, string] => {
     // find a name for the item.
@@ -185,7 +182,13 @@ export type MatchResult = readonly[AstRule, Remainder]
 
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
-export const match = (map: DispatchMap): Match => {
+/**
+ * Creates an LL1 parser for the given map.
+ *
+ * @param map a prepared dispatch map.
+ * @returns a parser.
+ */
+export const parser = (map: DispatchMap): Match => {
     const f: Match = (name, s): MatchResult => {
         const mr = (a: AstSequence, r: Remainder): MatchResult => [[name, a], r]
         const mre = (a: AstSequence) => mr(a, null)

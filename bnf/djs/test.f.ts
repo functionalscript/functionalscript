@@ -1,6 +1,6 @@
 import { one } from '../../types/range/module.f.ts'
 import { toTerminalRangeSequence } from '../func/module.f.ts'
-import { dispatchMap, match, toRuleMap, type RuleMap } from './module.f.ts'
+import { dispatchMap, parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
@@ -247,7 +247,7 @@ export default {
         }
     },
     map: () => {
-        const f = match(dispatchMap(deterministic()))
+        const f = parser(dispatchMap(deterministic()))
         // console.error(stringify(x))
         //
         const isSuccess = (s: readonly CodePoint[]|null) => s?.length === 0
