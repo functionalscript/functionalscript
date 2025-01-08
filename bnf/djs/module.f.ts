@@ -102,8 +102,14 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
     return tmp.result
 }
 
+/**
+ * A result of a dispatch. It's either a sequence or null.
+ */
 export type DispatchResult = Sequence<string> | null
 
+/**
+ * A dispatch.
+ */
 export type Dispatch = RangeMapArray<DispatchResult>
 
 const dispatchOp = rangeMap<DispatchResult>({
@@ -120,10 +126,22 @@ const dispatchOp = rangeMap<DispatchResult>({
     def: null,
 })
 
+/**
+ * A dispatch rule.
+ */
 export type DispatchRule = readonly [boolean, Dispatch]
 
+/**
+ * A dispatch map for LL1 parser.
+ */
 export type DispatchMap = { readonly [k in string]: DispatchRule }
 
+/**
+ * Creates a dispatch map for LL1 parser.
+ *
+ * @param ruleMap a serializable rule map.
+ * @returns A dispatch map
+ */
 export const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
         let empty = true

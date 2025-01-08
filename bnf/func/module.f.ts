@@ -1,12 +1,12 @@
 /**
- *  Types for defining language grammars using Backus-Naur Form (BNF).
+ *  Types for defining language grammar using Backus-Naur Form (BNF).
  *
  * @module
  *
  * @description
  *
- * The primary utility of this module is to define grammars for text processing,
- * parsing, and lexing in a structured and reusable way.
+ * The primary utility of this module is to define grammar for text processing,
+ * parsing and lexing in a structured and reusable way.
  *
  * See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
  *
@@ -90,11 +90,47 @@ export type Rule = () => Or
 
 const toTerminalRangeMap = map(one)
 
+/**
+ * Converts a string to an array of terminal ranges where each character is a separate range.
+ *
+ * @param s - The input string.
+ * @returns An array of terminal ranges representing each character in the string.
+ *
+ * @example
+ *
+ * ```ts
+ * const ranges = str('abc') // [[97, 97], [98, 98], [99, 99]]
+ * ```
+ */
 export const str = (s: string): readonly TerminalRange[] =>
     toArray(toTerminalRangeMap(stringToCodePointList(s)))
 
+/**
+ * Converts a single character string to a terminal range.
+ *
+ * @param a - The input character string.
+ * @returns A terminal range representing the character.
+ *
+ * @example
+ * ```ts
+ * const range = cp('A'); // [65, 65]
+ * ```
+ */
 export const cp = (a: string): TerminalRange => one(a.codePointAt(0) as number)
 
+/**
+ * Converts a two-character string into a terminal range.
+ *
+ * @param ab - The input string of two characters.
+ * @returns A terminal range representing the two characters.
+ *
+ * @throws {number} Throws an error if the input string does not have exactly two code points.
+ *
+ * @example
+ * ```ts
+ * const range = range('AZ'); // [65, 90]
+ * ```
+ */
 export const range = (ab: string): TerminalRange => {
     const a = toArray(stringToCodePointList(ab))
     if (a.length !== 2) {
@@ -104,9 +140,14 @@ export const range = (ab: string): TerminalRange => {
     return a as any as TerminalRange
 }
 
-export type RangeSet = readonly TerminalRange[]
+type RangeSet = readonly TerminalRange[]
 
-export const removeOne = (set: RangeSet, [a, b]: TerminalRange): RangeSet => {
+/**
+ * A set of terminal ranges compatible with the `Or` rule.
+ */
+export type OrRangeSet = readonly (readonly [TerminalRange])[]
+
+const removeOne = (set: RangeSet, [a, b]: TerminalRange): RangeSet => {
     let result: RangeSet = []
     for (const [a0, b0] of set) {
         if (a0 < a) {
@@ -123,9 +164,22 @@ export const removeOne = (set: RangeSet, [a, b]: TerminalRange): RangeSet => {
     return result
 }
 
-export const remove = (set: TerminalRange, rSet: RangeSet): readonly RangeSet[] => {
-    let result: RangeSet = [set]
-    for (const r of rSet) {
+/**
+ * Removes a terminal range from a set of ranges.
+ *
+ * @param range the original range.
+ * @param removeSet the set of ranges to be removed.
+ * @returns The resulting set of ranges after removal.
+ *
+ * @example
+ *
+ * ```ts
+ * const result = remove([65, 90], [cp('C'), cp('W')]) // [A..Z] w/o C and W
+ * ```
+ */
+export const remove = (range: TerminalRange, removeSet: RangeSet): OrRangeSet => {
+    let result: RangeSet = [range]
+    for (const r of removeSet) {
         result = removeOne(result, r)
     }
     return result.map(v => [v])

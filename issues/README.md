@@ -71,6 +71,8 @@ logic should be moved to a private free floating helper function (to keep public
   export type B = A | string
   ```
 
+- [ ] 41. BNF should use byte parsing instead of codePoint. In this case we can parse binary files as well.
+
 ## Language Specification
 
 See [lang/README.md](./lang/README.md).

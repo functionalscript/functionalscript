@@ -1,3 +1,5 @@
+import { stringify } from '../../json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
 import {
     type TerminalRange,
     type Rule,
@@ -236,7 +238,12 @@ export default {
             const id: Sequence = [alpha, alpha0x]
 
             const _ = [id2OrDigit, bool, id]
-        }
+        },
+        str: () => {
+            const ranges = str('abc') // [[97, 97], [98, 98], [99, 99]]
+            const result = stringify(sort)(ranges)
+            if (result !== '[[97,97],[98,98],[99,99]]') { throw result }
+        },
     },
     remove: () => {
         const _x = remove([0x20, 0x10FFFF], [cp('"'), cp('\\')])
