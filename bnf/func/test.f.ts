@@ -6,6 +6,7 @@ import {
     cp,
     str,
     range,
+    remove,
 } from './module.f.ts'
 
 const deterministic = () => {
@@ -99,9 +100,7 @@ const deterministic = () => {
 
     // {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
     const character: Rule = () => [
-        [[0x20, 0x21]],     // exclude '"' 0x22
-        [[0x23, 0x5B]],     // exclude '\' 0x5C
-        [[0x5D ,0x10FFFF]], // 93-1114111
+        remove(remove([[0x20, 0x10FFFF]])(cp('"')))(cp('\\')),
         [cp('\\'), escape], // 92
     ]
 
