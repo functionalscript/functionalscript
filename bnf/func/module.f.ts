@@ -21,19 +21,11 @@
  *     [[97, 122]],
  *     [[48, 57]],
  * ]
- * const s = firstSet(grammar)
- * if (s.empty) { throw s }
- * if (setOp.get('0'.codePointAt(0) as number)(s.map) !== true) { throw s }
- * if (setOp.get('h'.codePointAt(0) as number)(s.map) !== true) { throw s }
- * if (setOp.get('$'.codePointAt(0) as number)(s.map) !== false) { throw s }
  * ```
  */
 
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { empty as emptyArray } from '../../types/array/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import { one } from '../../types/range/module.f.ts'
-import { rangeMap, type RangeMapOp, type RangeMapArray } from '../../types/range_map/module.f.ts'
 
 /**
  * Represents a terminal range as a pair of Unicode code points.
@@ -99,71 +91,3 @@ const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
 
 export const toTerminalRangeSequence = (s: string): readonly TerminalRange[] =>
     toArray(toTerminalRangeMap(stringToCodePointList(s)))
-
-/**
- * A set that represents possible code points.
- */
-export type CpSet = {
-    /**
-     * Whether a grammar rule allows an empty sequence.
-     */
-    readonly empty: boolean
-    /**
-     * The range map representing a set of possible code points.
-     */
-    readonly map: RangeMapArray<boolean>
-}
-
-/**
- * Operations on code point sets.
- */
-export const setOp: RangeMapOp<boolean> = rangeMap({
-    union: a => b => a || b,
-    equal: a => b => a === b,
-    def: false
-})
-
-const { merge, fromRange } = setOp
-
-const rangeToSet = (r: TerminalRange): CpSet =>
-    ({ empty: false, map: fromRange(r)(true) })
-
-const passSet: CpSet = { empty: true, map: emptyArray }
-
-const firstSetSequence = (s: Sequence|string): CpSet => {
-    if (typeof s === 'string') {
-        const first = s.codePointAt(0)
-        if (first === undefined) {
-            return passSet
-        }
-        return rangeToSet(one(first))
-    }
-    let result: RangeMapArray<boolean> = emptyArray
-    for (const r of s) {
-        const { empty, map } =
-            r instanceof Array ? rangeToSet(r) : firstSet(r)
-        result = toArray(merge(result)(map))
-        if (!empty) {
-            return { empty: false, map: result }
-        }
-    }
-    return { empty: true, map: result }
-}
-
-/**
- * Processes a `Rule` and converts it into a `Set` of possible code points at the start of the rule.
- *
- * @param rule - The grammar rule to process.
- * @returns A set representing the first possible code points in the grammar rule.
- */
-export const firstSet = (rule: Rule): CpSet => {
-    const or = rule()
-    let empty = false
-    let map: RangeMapArray<boolean> = emptyArray
-    for (const r of or) {
-        const { empty: rEmpty, map: rMap } = firstSetSequence(r)
-        map = toArray(merge(map)(rMap))
-        empty ||= rEmpty
-    }
-    return { empty, map }
-}

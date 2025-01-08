@@ -1,7 +1,7 @@
 import { one } from '../../types/range/module.f.ts'
 import type { Rule } from './module.f.ts'
 
-const c = (a: string) => one(a.codePointAt(0) as number)
+export const c = (a: string) => one(a.codePointAt(0) as number)
 
 // https://www.json.org/json-en.html
 
