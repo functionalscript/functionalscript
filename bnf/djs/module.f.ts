@@ -10,11 +10,9 @@
  * const grammar: Rule = () => [
  *     [range('AZ')],          // 'A-Z'
  *     [range('az'), grammar], // 'a-z' followed by more grammar
- * ];
+ * ]
  *
- * const ruleMap = toRuleMap(grammar);
- * const dispatch = dispatchMap(ruleMap);
- * const parse = parser(dispatch);
+ * const parse = parser(toRuleMap(grammar))
  *
  * // Parse an input
  * const input = toArray(stringToCodePointList('abcdefgA'))
@@ -136,12 +134,12 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
 /**
  * Represents the result of dispatch.
  */
-export type DispatchResult = Sequence<string> | null
+type DispatchResult = Sequence<string> | null
 
 /**
  * Represents a dispatch for LL(1) parsing, using a range map for character lookups.
  */
-export type Dispatch = RangeMapArray<DispatchResult>
+type Dispatch = RangeMapArray<DispatchResult>
 
 const dispatchOp = rangeMap<DispatchResult>({
     union: a => b => {
@@ -160,12 +158,12 @@ const dispatchOp = rangeMap<DispatchResult>({
 /**
  * A dispatch rule.
  */
-export type DispatchRule = readonly [boolean, Dispatch]
+type DispatchRule = readonly [boolean, Dispatch]
 
 /**
  * A dispatch map for LL1 parser.
  */
-export type DispatchMap = { readonly [k in string]: DispatchRule }
+type DispatchMap = { readonly [k in string]: DispatchRule }
 
 /**
  * Creates a dispatch map for LL1 parser.
@@ -173,7 +171,7 @@ export type DispatchMap = { readonly [k in string]: DispatchRule }
  * @param ruleMap a serializable rule map.
  * @returns A dispatch map
  */
-export const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
+const dispatchMap = (ruleMap: RuleMap<string>): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: Sequence<string>): [DispatchMap, DispatchRule] => {
         let empty = true
         let result: Dispatch = []
@@ -232,7 +230,8 @@ export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
  * @param map a prepared dispatch map.
  * @returns a parser.
  */
-export const parser = (map: DispatchMap): Match => {
+export const parser = (rm: RuleMap<string>): Match => {
+    const map = dispatchMap(rm)
     const f: Match = (name, s): MatchResult => {
         const mr = (a: AstSequence, r: Remainder): MatchResult => [[name, a], r]
         const mre = (a: AstSequence) => mr(a, null)

@@ -1,5 +1,5 @@
 import { cp, range, remove, type Rule, str } from '../func/module.f.ts'
-import { dispatchMap, parser, toRuleMap, type RuleMap } from './module.f.ts'
+import { parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
@@ -232,11 +232,10 @@ export default {
             const grammar: Rule = () => [
                 [range('AZ')],          // 'A-Z'
                 [range('az'), grammar], // 'a-z' followed by more grammar
-            ];
+            ]
 
-            const ruleMap = toRuleMap(grammar);
-            const dispatch = dispatchMap(ruleMap);
-            const parse = parser(dispatch);
+            const ruleMap = toRuleMap(grammar)
+            const parse = parser(ruleMap)
 
             // Parse an input
             const input = toArray(stringToCodePointList('abcdefgA'))
@@ -257,7 +256,7 @@ export default {
         }
     },
     map: () => {
-        const f = parser(dispatchMap(deterministic()))
+        const f = parser(deterministic())
         // console.error(stringify(x))
         //
         const isSuccess = (s: readonly CodePoint[]|null) => s?.length === 0
