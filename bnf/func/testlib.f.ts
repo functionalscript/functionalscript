@@ -1,7 +1,4 @@
-import { one } from '../../types/range/module.f.ts'
-import type { Rule } from './module.f.ts'
-
-export const c = (a: string) => one(a.codePointAt(0) as number)
+import { cp, type Rule } from './module.f.ts'
 
 // https://www.json.org/json-en.html
 
@@ -9,10 +6,10 @@ export const classic = () => {
     // {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
     const ws: Rule = () => [
         [],
-        [c(' '), ws],  // 32
-        [c('\n'), ws], // 10
-        [c('\r'), ws], // 13
-        [c('\t'), ws], // 9
+        [cp(' '), ws],  // 32
+        [cp('\n'), ws], // 10
+        [cp('\r'), ws], // 13
+        [cp('\t'), ws], // 9
     ]
 
     // {"empty":true,"map":[[false,42],[true,43],[false,44],[true,45]]}
@@ -40,22 +37,22 @@ export const classic = () => {
     // {"empty":true,"map":[[false,68],[true,69],[false,100],[true,101]]}
     const exponent: Rule = () => [
         [],
-        [c('E'), sign, digits], // 69
-        [c('e'), sign, digits], // 101
+        [cp('E'), sign, digits], // 69
+        [cp('e'), sign, digits], // 101
     ]
 
     // {"empty":true,"map":[[false,45],[true,46]]}
     const fraction: Rule = () => [
         [],
-        [c('.'), digits] // 46
+        [cp('.'), digits] // 46
     ]
 
     // {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
     const integer: Rule = () => [
         [digit],                // 48-57
         [onenine, digits],
-        [c('-'), digit],           // 45
-        [c('-'), onenine, digits],
+        [cp('-'), digit],           // 45
+        [cp('-'), onenine, digits],
     ]
 
     // {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
@@ -80,7 +77,7 @@ export const classic = () => {
         'n',                         // 110
         'r',                         // 114
         't',                         // 116
-        [c('u'), hex, hex, hex, hex] // 117
+        [cp('u'), hex, hex, hex, hex] // 117
     ]
 
     // {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
@@ -88,7 +85,7 @@ export const classic = () => {
         [[0x20, 0x21]],     // exclude '"' 0x22
         [[0x23, 0x5B]],     // exclude '\' 0x5C
         [[0x5D ,0x10FFFF]], // 93-1114111
-        [c('\\'), escape],   // 92
+        [cp('\\'), escape],   // 92
     ]
 
     // {"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
@@ -99,7 +96,7 @@ export const classic = () => {
 
     // {"empty":false,"map":[[false,33],[true,34]]}
     const string: Rule = () => [
-        [c('"'), characters, c('"')]
+        [cp('"'), characters, cp('"')]
     ]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
@@ -110,30 +107,30 @@ export const classic = () => {
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
     const elements: Rule = () => [
         [element],
-        [element, c(','), elements]
+        [element, cp(','), elements]
     ]
 
     // {"empty":false,"map":[[false,90],[true,91]]}
     const array: Rule = () => [
-        [c('['), ws, c(']')],      // 91
-        [c('['), elements, c(']')],
+        [cp('['), ws, cp(']')],      // 91
+        [cp('['), elements, cp(']')],
     ]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
     const member: Rule = () => [
-        [ws, string, ws, c(':'), element]
+        [ws, string, ws, cp(':'), element]
     ]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34]]}
     const members: Rule = () => [
         [member],
-        [member, c(','), members],
+        [member, cp(','), members],
     ]
 
     // {"empty":false,"map":[[false,122],[true,123]]}
     const object: Rule = () => [
-        [c('{'), ws, c('}')],      // 123
-        [c('{'), members, c('}')],
+        [cp('{'), ws, cp('}')],      // 123
+        [cp('{'), members, cp('}')],
     ]
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}

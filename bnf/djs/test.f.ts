@@ -1,5 +1,4 @@
-import { one } from '../../types/range/module.f.ts'
-import { toTerminalRangeSequence } from '../func/module.f.ts'
+import { cp, seq } from '../func/module.f.ts'
 import { dispatchMap, parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
@@ -8,11 +7,6 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { toArray } from '../../types/list/module.f.ts'
 
 const stringify = j.stringify(sort)
-//const str = j.stringify(x => x)
-
-const s = toTerminalRangeSequence
-
-const c = (a: string) => one(a.codePointAt(0) as number)
 
 const classicTest = () => {
     const map = {
@@ -24,34 +18,34 @@ const classicTest = () => {
             ['array'],
             ['string'],
             ['number'],
-            s('true'),
-            s('false'),
-            s('null'),
+            seq('true'),
+            seq('false'),
+            seq('null'),
         ],
         object: [
-            [c('{'), 'ws', c('}')],
-            [c('{'), 'members', c('}')],
+            [cp('{'), 'ws', cp('}')],
+            [cp('{'), 'members', cp('}')],
         ],
         members: [
             ['member'],
-            ['member', c(','), 'members'],
+            ['member', cp(','), 'members'],
         ],
         member: [
-            ['ws', 'string', 'ws', c(':'), 'element'],
+            ['ws', 'string', 'ws', cp(':'), 'element'],
         ],
         array: [
-            [c('['), 'ws', c(']')],
-            [c('['), 'elements', c(']')],
+            [cp('['), 'ws', cp(']')],
+            [cp('['), 'elements', cp(']')],
         ],
         elements: [
             ['element'],
-            ['element', c(','), 'elements'],
+            ['element', cp(','), 'elements'],
         ],
         element: [
             ['ws', 'value', 'ws'],
         ],
         string: [
-            [c('"'), 'characters', c('"')],
+            [cp('"'), 'characters', cp('"')],
         ],
         characters: [
             [],
@@ -61,18 +55,18 @@ const classicTest = () => {
             [[0x20, 0x21]],      // exclude '"' 0x22
             [[0x23, 0x5B]],      // exclude '\' 0x5C
             [[0x5D ,0x10FFFF]],  // 93-1114111
-            [c('\\'), 'escape'], // 92
+            [cp('\\'), 'escape'], // 92
         ],
         escape: [
-            [c('"')],
-            [c('\\')],
-            [c('/')],
-            [c('b')],
-            [c('f')],
-            [c('n')],
-            [c('r')],
-            [c('t')],
-            [c('u'), 'hex', 'hex', 'hex', 'hex'],
+            [cp('"')],
+            [cp('\\')],
+            [cp('/')],
+            [cp('b')],
+            [cp('f')],
+            [cp('n')],
+            [cp('r')],
+            [cp('t')],
+            [cp('u'), 'hex', 'hex', 'hex', 'hex'],
         ],
         hex: [
             ['digit'],
@@ -85,15 +79,15 @@ const classicTest = () => {
         integer: [
             ['digit'],
             ['onenine', 'digits'],
-            [c('-'), 'digit'],
-            [c('-'), 'onenine', 'digits'],
+            [cp('-'), 'digit'],
+            [cp('-'), 'onenine', 'digits'],
         ],
         digits: [
             ['digit'],
             ['digit', 'digits'],
         ],
         digit: [
-            [c('0')],
+            [cp('0')],
             ['onenine'],
         ],
         onenine: [
@@ -101,24 +95,24 @@ const classicTest = () => {
         ],
         fraction: [
             [],
-            [c('.'), 'digits'],
+            [cp('.'), 'digits'],
         ],
         exponent: [
             [],
-            [c('E'), 'sign', 'digits'],
-            [c('e'), 'sign', 'digits'],
+            [cp('E'), 'sign', 'digits'],
+            [cp('e'), 'sign', 'digits'],
         ],
         sign: [
             [],
-            [c('+')],
-            [c('-')],
+            [cp('+')],
+            [cp('-')],
         ],
         ws: [
             [],
-            [c(' '), 'ws'],
-            [c('\n'), 'ws'],
-            [c('\r'), 'ws'],
-            [c('\t'), 'ws'],
+            [cp(' '), 'ws'],
+            [cp('\n'), 'ws'],
+            [cp('\r'), 'ws'],
+            [cp('\t'), 'ws'],
         ],
     } as const
     const result: RuleMap<keyof typeof map> = map
@@ -131,13 +125,13 @@ const deterministic = () => {
             ['ws', 'element']
         ],
         value: [
-            [c('{'), 'ws', 'object', c('}')],
-            [c('['), 'ws', 'array', c(']')],
+            [cp('{'), 'ws', 'object', cp('}')],
+            [cp('['), 'ws', 'array', cp(']')],
             ['string'],
             ['number'],
-            s('true'),
-            s('false'),
-            s('null'),
+            seq('true'),
+            seq('false'),
+            seq('null'),
         ],
         object: [
             [],
@@ -145,10 +139,10 @@ const deterministic = () => {
         ],
         members:[
             [],
-            [c(','), 'ws', 'member', 'members'],
+            [cp(','), 'ws', 'member', 'members'],
         ],
         member: [
-            ['string', 'ws', c(':'), 'ws', 'element'],
+            ['string', 'ws', cp(':'), 'ws', 'element'],
         ],
         array: [
             [],
@@ -156,13 +150,13 @@ const deterministic = () => {
         ],
         elements: [
             [],
-            [c(','), 'ws', 'element', 'elements'],
+            [cp(','), 'ws', 'element', 'elements'],
         ],
         element: [
             ['value', 'ws'],
         ],
         string: [
-            [c('"'), 'characters', c('"')],
+            [cp('"'), 'characters', cp('"')],
         ],
         characters: [
             [],
@@ -172,18 +166,18 @@ const deterministic = () => {
             [[0x20, 0x21]],      // exclude '"' 0x22
             [[0x23, 0x5B]],      // exclude '\' 0x5C
             [[0x5D ,0x10FFFF]],  // 93-1114111
-            [c('\\'), 'escape'], // 92
+            [cp('\\'), 'escape'], // 92
         ],
         escape: [
-            [c('"')],
-            [c('\\')],
-            [c('/')],
-            [c('b')],
-            [c('f')],
-            [c('n')],
-            [c('r')],
-            [c('t')],
-            [c('u'), 'hex', 'hex', 'hex', 'hex'],
+            [cp('"')],
+            [cp('\\')],
+            [cp('/')],
+            [cp('b')],
+            [cp('f')],
+            [cp('n')],
+            [cp('r')],
+            [cp('t')],
+            [cp('u'), 'hex', 'hex', 'hex', 'hex'],
         ],
         hex: [
             ['digit'],
@@ -192,10 +186,10 @@ const deterministic = () => {
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
-            [c('-'), 'integer', 'fraction', 'exponent'],
+            [cp('-'), 'integer', 'fraction', 'exponent'],
         ],
         integer: [
-            [c('0')],
+            [cp('0')],
             ['onenine', 'digits'],
         ],
         digits: [
@@ -203,7 +197,7 @@ const deterministic = () => {
             ['digit', 'digits'],
         ],
         digit: [
-            [c('0')],
+            [cp('0')],
             ['onenine'],
         ],
         onenine: [
@@ -211,24 +205,24 @@ const deterministic = () => {
         ],
         fraction: [
             [],
-            [c('.'), 'digit', 'digits'],
+            [cp('.'), 'digit', 'digits'],
         ],
         exponent: [
             [],
-            [c('E'), 'sign', 'digit', 'digits'],
-            [c('e'), 'sign', 'digit', 'digits'],
+            [cp('E'), 'sign', 'digit', 'digits'],
+            [cp('e'), 'sign', 'digit', 'digits'],
         ],
         sign: [
             [],
-            [c('+')],
-            [c('-')],
+            [cp('+')],
+            [cp('-')],
         ],
         ws: [
             [],
-            [c(' '), 'ws'],
-            [c('\n'), 'ws'],
-            [c('\r'), 'ws'],
-            [c('\t'), 'ws'],
+            [cp(' '), 'ws'],
+            [cp('\n'), 'ws'],
+            [cp('\r'), 'ws'],
+            [cp('\t'), 'ws'],
         ],
     } as const
     const _map: RuleMap<keyof typeof map> = map

@@ -26,6 +26,7 @@
 
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
+import { one } from '../../types/range/module.f.ts'
 
 /**
  * Represents a terminal range as a pair of Unicode code points.
@@ -89,5 +90,7 @@ export type Rule = () => Or
 
 const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
 
-export const toTerminalRangeSequence = (s: string): readonly TerminalRange[] =>
+export const seq = (s: string): readonly TerminalRange[] =>
     toArray(toTerminalRangeMap(stringToCodePointList(s)))
+
+export const cp = (a: string) => one(a.codePointAt(0) as number)

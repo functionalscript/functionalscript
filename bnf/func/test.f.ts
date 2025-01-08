@@ -1,21 +1,19 @@
-import type {
-    TerminalRange,
-    Rule,
-    Sequence,
-    Or,
+import {
+    type TerminalRange,
+    type Rule,
+    type Sequence,
+    type Or,
+    cp,
 } from './module.f.ts'
-import { c } from './testlib.f.ts'
-
-// const c = (a: string) => one(a.codePointAt(0) as number)
 
 const deterministic = () => {
     // {"empty":true,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32]]}
     const ws: Rule = () => [
         [],
-        [c('\t'), ws], // 9
-        [c('\n'), ws], // 10
-        [c('\r'), ws], // 13
-        [c(' '), ws],  // 32
+        [cp('\t'), ws], // 9
+        [cp('\n'), ws], // 10
+        [cp('\r'), ws], // 13
+        [cp(' '), ws],  // 32
     ]
 
     // {"empty":true,"map":[[false,42],[true,43],[false,44],[true,45]]}
@@ -50,14 +48,14 @@ const deterministic = () => {
     // {"empty":true,"map":[[false,68],[true,69],[false,100],[true,101]]}
     const exponent: Rule = () => [
         [],
-        [c('E'), sign, digits], // 69
-        [c('e'), sign, digits], // 101
+        [cp('E'), sign, digits], // 69
+        [cp('e'), sign, digits], // 101
     ]
 
     // {"empty":true,"map":[[false,45],[true,46]]}
     const fraction: Rule = () => [
         [],
-        [c('.'), digits] // 46
+        [cp('.'), digits] // 46
     ]
 
     // {"empty":false,"map":[[false,47],[true,57]]}
@@ -69,7 +67,7 @@ const deterministic = () => {
     // {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
     const integer: Rule = () => [
         [integer1],        // 48-57
-        [c('-'), integer1], // 45
+        [cp('-'), integer1], // 45
     ]
 
     // {"empty":false,"map":[[false,44],[true,45],[false,47],[true,57]]}
@@ -94,7 +92,7 @@ const deterministic = () => {
         'n',                         // 110
         'r',                         // 114
         't',                         // 116
-        [c('u'), hex, hex, hex, hex] // 117
+        [cp('u'), hex, hex, hex, hex] // 117
     ]
 
     // {"empty":false,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
@@ -102,7 +100,7 @@ const deterministic = () => {
         [[0x20, 0x21]],     // exclude '"' 0x22
         [[0x23, 0x5B]],     // exclude '\' 0x5C
         [[0x5D ,0x10FFFF]], // 93-1114111
-        [c('\\'), escape],  // 92
+        [cp('\\'), escape],  // 92
     ]
 
     // {"empty":true,"map":[[false,31],[true,33],[false,34],[true,1114111]]}
@@ -113,7 +111,7 @@ const deterministic = () => {
 
     // {"empty":false,"map":[[false,33],[true,34]]}
     const string: Rule = () => [
-        [c('"'), characters, c('"')]
+        [cp('"'), characters, cp('"')]
     ]
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
@@ -129,7 +127,7 @@ const deterministic = () => {
     // {"empty":true,"map":[[false,43],[true,44]]}
     const elements2: Rule = () => [
         [],
-        [c(','), elements] // 44
+        [cp(','), elements] // 44
     ]
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
@@ -145,23 +143,23 @@ const deterministic = () => {
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,92],[true,93],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
     const array1: Rule = () => [
         ']',                 // 93
-        [elements1, c(']')],
+        [elements1, cp(']')],
     ]
 
     // {"empty":false,"map":[[false,90],[true,91]]}
     const array: Rule = () => [
-        [c('['), ws, array1]
+        [cp('['), ws, array1]
     ]
 
     // {"empty":false,"map":[[false,33],[true,34]]}
     const member1: Rule = () => [
-        [string, ws, c(':'), element]
+        [string, ws, cp(':'), element]
     ]
 
     // {"empty":true,"map":[[false,43],[true,44]]}
     const members2: Rule = () => [
         [],
-        [c(','), members], // 44
+        [cp(','), members], // 44
     ]
 
     // {"empty":false,"map":[[false,33],[true,34]]}
@@ -177,12 +175,12 @@ const deterministic = () => {
     // {"empty":false,"map":[[false,33],[true,34],[false,124],[true,125]]}
     const object1: Rule = () => [
         '}',           // 125
-        [members1, c('}')],
+        [members1, cp('}')],
     ]
 
     // {"empty":false,"map":[[false,122],[true,123]]}
     const object: Rule = () => [
-        [c('{'), ws, object1]
+        [cp('{'), ws, object1]
     ]
 
     // {"empty":false,"map":[[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}
