@@ -1,4 +1,4 @@
-import { cp, type Rule } from './module.f.ts'
+import { cp, str, type Rule } from './module.f.ts'
 
 // https://www.json.org/json-en.html
 
@@ -15,8 +15,8 @@ export const classic = () => {
     // {"empty":true,"map":[[false,42],[true,43],[false,44],[true,45]]}
     const sign: Rule = () => [
         [],
-        '+', // 43
-        '-', // 45
+        str('+'), // 43
+        str('-'), // 45
     ]
 
     // {"empty":false,"map":[[false,48],[true,57]]}
@@ -24,7 +24,7 @@ export const classic = () => {
 
     // {"empty":false,"map":[[false,47],[true,57]]}
     const digit: Rule = () => [
-        '0',
+        str('0'),
         [onenine],
     ]
 
@@ -69,14 +69,14 @@ export const classic = () => {
 
     // {"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}
     const escape: Rule = () => [
-        '"',                         //  34
-        '\\',                        //  92
-        '/',                         //  47
-        'b',                         //  98
-        'f',                         // 102
-        'n',                         // 110
-        'r',                         // 114
-        't',                         // 116
+        str('"'),                         //  34
+        str('\\'),                        //  92
+        str('/'),                         //  47
+        str('b'),                         //  98
+        str('f'),                         // 102
+        str('n'),                         // 110
+        str('r'),                         // 114
+        str('t'),                         // 116
         [cp('u'), hex, hex, hex, hex] // 117
     ]
 
@@ -139,9 +139,9 @@ export const classic = () => {
         [array],   // 91
         [string],  // 34
         [number],  // 45, 48-57
-        'true',    // 116
-        'false',   // 102
-        'null',    // 110
+        str('true'),    // 116
+        str('false'),   // 102
+        str('null'),    // 110
     ]
 
     // {"empty":false,"map":[[false,8],[true,10],[false,12],[true,13],[false,31],[true,32],[false,33],[true,34],[false,44],[true,45],[false,47],[true,57],[false,90],[true,91],[false,101],[true,102],[false,109],[true,110],[false,115],[true,116],[false,122],[true,123]]}

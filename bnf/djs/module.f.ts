@@ -10,7 +10,7 @@ import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
-import { type TerminalRange, type Rule as FRule, seq } from '../func/module.f.ts'
+import type { TerminalRange, Rule as FRule } from '../func/module.f.ts'
 
 export type Sequence<Id> = readonly (TerminalRange | Id)[]
 export type Rule<Id> = readonly Sequence<Id>[]
@@ -79,21 +79,16 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
         let rule: Rule<string> = emptyArray
         // iterate all sequences of the `Or` rule.
         for (const srcSeq of srcOr()) {
-            let s: Sequence<string>
-            if (typeof srcSeq === 'string') {
-                s = seq(srcSeq)
-            } else {
-                s = emptyArray
-                // iterate all items of the sequence.
-                for (const srcItem of srcSeq) {
-                    let item: TerminalRange | string
-                    if (srcItem instanceof Array) {
-                        item = srcItem
-                    } else {
-                        [tmp, item] = tmpItem(tmp, srcItem)
-                    }
-                    s = [...s, item]
+            let s: Sequence<string> = emptyArray
+            // iterate all items of the sequence.
+            for (const srcItem of srcSeq) {
+                let item: TerminalRange | string
+                if (srcItem instanceof Array) {
+                    item = srcItem
+                } else {
+                    [tmp, item] = tmpItem(tmp, srcItem)
                 }
+                s = [...s, item]
             }
             rule = [...rule, s]
         }

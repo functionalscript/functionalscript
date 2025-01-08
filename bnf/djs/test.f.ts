@@ -1,4 +1,4 @@
-import { cp, seq } from '../func/module.f.ts'
+import { cp, range, str } from '../func/module.f.ts'
 import { dispatchMap, parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
@@ -18,9 +18,9 @@ const classicTest = () => {
             ['array'],
             ['string'],
             ['number'],
-            seq('true'),
-            seq('false'),
-            seq('null'),
+            str('true'),
+            str('false'),
+            str('null'),
         ],
         object: [
             [cp('{'), 'ws', cp('}')],
@@ -58,20 +58,20 @@ const classicTest = () => {
             [cp('\\'), 'escape'], // 92
         ],
         escape: [
-            [cp('"')],
-            [cp('\\')],
-            [cp('/')],
-            [cp('b')],
-            [cp('f')],
-            [cp('n')],
-            [cp('r')],
-            [cp('t')],
+            str('"'),
+            str('\\'),
+            str('/'),
+            str('b'),
+            str('f'),
+            str('n'),
+            str('r'),
+            str('t'),
             [cp('u'), 'hex', 'hex', 'hex', 'hex'],
         ],
         hex: [
             ['digit'],
-            [[0x41, 0x46]], // A-F
-            [[0x61, 0x66]], // a-f
+            [range('AF')], // A-F
+            [range('af')], // a-f
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
@@ -91,7 +91,7 @@ const classicTest = () => {
             ['onenine'],
         ],
         onenine: [
-            [[0x31, 0x39]], // 1-9
+            [range('19')], // 1-9
         ],
         fraction: [
             [],
@@ -129,9 +129,9 @@ const deterministic = () => {
             [cp('['), 'ws', 'array', cp(']')],
             ['string'],
             ['number'],
-            seq('true'),
-            seq('false'),
-            seq('null'),
+            str('true'),
+            str('false'),
+            str('null'),
         ],
         object: [
             [],
@@ -181,8 +181,8 @@ const deterministic = () => {
         ],
         hex: [
             ['digit'],
-            [[0x41, 0x46]], // A-F
-            [[0x61, 0x66]], // a-f
+            [range('AF')], // A-F
+            [range('af')], // a-f
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
@@ -201,7 +201,7 @@ const deterministic = () => {
             ['onenine'],
         ],
         onenine: [
-            [[0x31, 0x39]], // 1-9
+            [range('19')], // 1-9
         ],
         fraction: [
             [],

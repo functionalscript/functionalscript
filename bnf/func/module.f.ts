@@ -13,7 +13,7 @@
  * @example
  *
  * ```ts
- * import { firstSet, type Rule, type Set, setOp } from './module.f.ts'
+ * import type { Rule } from './module.f.ts'
  *
  * // Matches 'A-Z', 'a-z', and '0-9'
  * const grammar: Rule = () => [
@@ -69,7 +69,7 @@ export type Sequence = readonly (TerminalRange|Rule)[]
  * ]
  * ```
  */
-export type Or = readonly (Sequence|string)[]
+export type Or = readonly Sequence[]
 
 /**
  * Represents a lazy grammar rule for recursive definitions.
@@ -88,9 +88,37 @@ export type Or = readonly (Sequence|string)[]
  */
 export type Rule = () => Or
 
-const toTerminalRangeMap = map((cp: CodePoint): TerminalRange => [cp, cp])
+const toTerminalRangeMap = map(one)
 
-export const seq = (s: string): readonly TerminalRange[] =>
+export const str = (s: string): readonly TerminalRange[] =>
     toArray(toTerminalRangeMap(stringToCodePointList(s)))
 
-export const cp = (a: string) => one(a.codePointAt(0) as number)
+export const cp = (a: string): TerminalRange => one(a.codePointAt(0) as number)
+
+export const range = (ab: string): TerminalRange => {
+    const a = toArray(stringToCodePointList(ab))
+    if (a.length !== 2) {
+        throw a.length
+    }
+    // deno-lint-ignore no-explicit-any
+    return a as any as TerminalRange
+}
+
+export type RangeSet = readonly TerminalRange[]
+
+export const remove = (set: RangeSet) => ([a, b]: TerminalRange): RangeSet => {
+    let result: RangeSet = []
+    for (const [a0, b0] of set) {
+        if (a0 < a) {
+            // [a0
+            //     ]a
+            result = [...result, [a0, Math.min(b0, a - 1)]]
+        }
+        if (b < b0) {
+            //    b0]
+            // b[
+            result = [...result, [Math.max(b + 1, a0), b0]]
+        }
+    }
+    return result
+}
