@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.3.13
+
+- First LL(1) parser [PR #356](https://github.com/functionalscript/functionalscript/pull/356)
+
 ## 0.3.12
 
 - BNF types and `RangeMapOp` interface [PR #355](https://github.com/functionalscript/functionalscript/pull/355)

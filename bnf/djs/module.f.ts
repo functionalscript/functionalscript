@@ -21,7 +21,7 @@
  * const result = parse(grammar.name, input)
  * if (result === null) { throw result }
  * const [, b] = result
- * if (b?.length === 0) { throw b }
+ * if (b?.length !== 0) { throw b }
  * ```
  */
 
@@ -33,14 +33,24 @@ import { contains } from '../../types/range/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import type { TerminalRange, Rule as FRule } from '../func/module.f.ts'
 
+/**
+ * Represents a sequence of grammar rules, including terminal ranges or rule identifiers.
+ * @template Id - The type for rule identifiers.
+ */
 export type Sequence<Id> = readonly (TerminalRange | Id)[]
-export type Rule<Id> = readonly Sequence<Id>[]
-
-export type RuleMap<Id extends string> = { readonly [k in Id]: Rule<Id> }
 
 /**
- * Find a unique name for the rule.
+ * Represents a grammar rule as a collection of sequences.
+ * @template Id - The type for rule identifiers.
  */
+export type Rule<Id> = readonly Sequence<Id>[]
+
+/**
+ * Represents a map of grammar rules, where each rule is identified by a unique string identifier.
+ * @template Id - The type for rule identifiers.
+ */
+export type RuleMap<Id extends string> = { readonly [k in Id]: Rule<Id> }
+
 const findName = (map: RuleMap<string>, rule: FRule): string => {
     const { name } = rule
     let result = name
@@ -124,12 +134,12 @@ export const toRuleMap = (src: FRule): RuleMap<string> => {
 }
 
 /**
- * A result of a dispatch. It's either a sequence or null.
+ * Represents the result of dispatch.
  */
 export type DispatchResult = Sequence<string> | null
 
 /**
- * A dispatch.
+ * Represents a dispatch for LL(1) parsing, using a range map for character lookups.
  */
 export type Dispatch = RangeMapArray<DispatchResult>
 
