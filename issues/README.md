@@ -72,6 +72,15 @@ logic should be moved to a private free floating helper function (to keep public
   ```
 
 - [ ] 41. BNF should use byte parsing instead of codePoint. In this case we can parse binary files as well.
+- [ ] 42. Try mixing serializable BNFs.
+- [ ] 43. state-full parser.
+
+  ```ts
+  const { init, append, end } = parser(ruleMap)
+  let state = init
+  state = append(state, 'hello world!')
+  const ast = end(state)
+  ```
 
 ## Language Specification
 

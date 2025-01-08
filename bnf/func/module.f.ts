@@ -5,8 +5,8 @@
  *
  * @description
  *
- * The primary utility of this module is to define grammar for text processing,
- * parsing and lexing in a structured and reusable way.
+ * Utilities for serializing and deserializing BNF grammar
+ * and creating a simple LL(1) parser.
  *
  * See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
  *
@@ -82,7 +82,7 @@ export type Or = readonly Sequence[]
  * const alpha0x: Rule = () => [
  *     [],              // Empty
  *     [alpha, alpha0x] // Recursive
- * ] }]
+ * ]
  * const id: Sequence = [alpha, alpha0x]
  * ```
  */

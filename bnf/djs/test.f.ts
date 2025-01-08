@@ -1,4 +1,4 @@
-import { cp, range, remove, str } from '../func/module.f.ts'
+import { cp, range, remove, type Rule, str } from '../func/module.f.ts'
 import { dispatchMap, parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
@@ -226,6 +226,26 @@ const deterministic = () => {
 }
 
 export default {
+    example: {
+        module: () => {
+            // Define a simple grammar
+            const grammar: Rule = () => [
+                [range('AZ')],          // 'A-Z'
+                [range('az'), grammar], // 'a-z' followed by more grammar
+            ];
+
+            const ruleMap = toRuleMap(grammar);
+            const dispatch = dispatchMap(ruleMap);
+            const parse = parser(dispatch);
+
+            // Parse an input
+            const input = toArray(stringToCodePointList('abcdefgA'))
+            const result = parse(grammar.name, input)
+            if (result === null) { throw result }
+            const [, b] = result
+            if (b?.length !== 0) { throw b }
+        },
+    },
     classic: () => {
         const c = classic()
         const json = stringify(toRuleMap(c.json))

@@ -2,6 +2,27 @@
  * Rules for serializing and deserializing the BNF grammar.
  *
  * @module
+ *
+ * @example
+ *
+ * ```ts
+ * // Define a simple grammar
+ * const grammar: Rule = () => [
+ *     [range('AZ')],          // 'A-Z'
+ *     [range('az'), grammar], // 'a-z' followed by more grammar
+ * ];
+ *
+ * const ruleMap = toRuleMap(grammar);
+ * const dispatch = dispatchMap(ruleMap);
+ * const parse = parser(dispatch);
+ *
+ * // Parse an input
+ * const input = toArray(stringToCodePointList('abcdefgA'))
+ * const result = parse(grammar.name, input)
+ * if (result === null) { throw result }
+ * const [, b] = result
+ * if (b?.length === 0) { throw b }
+ * ```
  */
 
 import type { CodePoint } from '../../text/utf16/module.f.ts'
