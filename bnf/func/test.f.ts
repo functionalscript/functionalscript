@@ -205,6 +205,8 @@ const deterministic = () => {
 
 //
 
+const s = stringify(sort)
+
 export default {
     example: {
         module: () => {
@@ -241,9 +243,23 @@ export default {
         },
         str: () => {
             const ranges = str('abc') // [[97, 97], [98, 98], [99, 99]]
-            const result = stringify(sort)(ranges)
+            const result = s(ranges)
             if (result !== '[[97,97],[98,98],[99,99]]') { throw result }
         },
+        cp: () => {
+            const range = cp('A'); // [65, 65]
+            const result = s(range)
+            if (result !== '[65,65]') { throw result }
+        },
+        range: () => {
+            const r = range('AZ'); // [65, 90]
+            const result = s(r)
+            if (result !== '[65,90]') { throw result }
+        },
+        remove: () => {
+            const result = s(remove([65, 90], [cp('C'), cp('W')])) // [A..Z] w/o C and W
+            if (result !== '[[[65,66]],[[68,86]],[[88,90]]]') { throw result }
+        }
     },
     remove: () => {
         const _x = remove([0x20, 0x10FFFF], [cp('"'), cp('\\')])

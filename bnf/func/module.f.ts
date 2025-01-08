@@ -128,7 +128,7 @@ export const cp = (a: string): TerminalRange => one(a.codePointAt(0) as number)
  *
  * @example
  * ```ts
- * const range = range('AZ'); // [65, 90]
+ * const result = range('AZ'); // [65, 90]
  * ```
  */
 export const range = (ab: string): TerminalRange => {
