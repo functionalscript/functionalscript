@@ -96,6 +96,8 @@ logic should be moved to a private free floating helper function (to keep public
   ...
   }
   ```
+  
+- [ ] [nanenum](../nanvm-lib/src/nanenum.rs) should use new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance)
 
 ## Language Specification
 
