@@ -55,7 +55,7 @@ require setting a flag when walking through a test free, as soon as a node has a
   struct Any<A: AnyPolicy>(A);
   ```
   This way we can implement operations on it, such as `+`.
-- [ ] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
+- [x] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
 logic should be moved to a private free floating helper function (to keep public interface of Any clean).
 - [ ] 35. Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
 - [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
@@ -63,6 +63,39 @@ logic should be moved to a private free floating helper function (to keep public
   - add `Map` to the language
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
+- [ ] [./39-radix-encoding.md](./39-radix-encoding.md)
+- [ ] 40. TypeScript doesn't show an error if exported type references non-exported type. We need to find a way to detect such cases.
+
+  ```ts
+  type A = number
+  export type B = A | string
+  ```
+
+- [ ] 41. BNF should use byte parsing instead of codePoint. In this case we can parse binary files as well.
+- [ ] 42. Try mixing serializable BNFs.
+- [ ] 43. state-full parser.
+
+  ```ts
+  const { init, append, end } = parser(ruleMap)
+  let state = init
+  state = append(state, 'hello world!')
+  const ast = end(state)
+  ```
+
+- [ ] 44. Follow `?` error handling pattern.
+
+  ```rust
+  trait Any {
+      type Result<T> = Result<T, Self>;
+      fn to_number(Self) -> Self::Result<(Self, f64)> { ... }
+      fn add(self, b: Self) -> Self::Result<Self> {
+          ....
+          let (b, num) = self.to_number()?;
+          ...
+      }
+  ...
+  }
+  ```
 
 ## Language Specification
 
