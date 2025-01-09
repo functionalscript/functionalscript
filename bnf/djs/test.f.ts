@@ -1,4 +1,4 @@
-import { cp, range, remove, type Rule, str } from '../func/module.f.ts'
+import { cp, range, remove, type Rule, set, str } from '../func/module.f.ts'
 import { parser, toRuleMap, type RuleMap } from './module.f.ts'
 import { classic } from '../func/testlib.f.ts'
 import * as j from '../../json/module.f.ts'
@@ -117,6 +117,27 @@ const classicTest = () => {
     return result
 }
 
+type Repeat0Name<T extends string> = `${T}Repeat0`
+
+const repeat0Name = <T extends string>(v: T): Repeat0Name<T> => `${v}Repeat0`
+
+type Repeat0Body<T extends string> = readonly[readonly[], readonly[T, Repeat0Name<T>]]
+
+const repeat0Body = <T extends string>(v: T): Repeat0Body<T> => [
+    [],
+    [v, repeat0Name(v)]
+]
+
+type Repeat0<T extends string> = {
+    readonly[k in Repeat0Name<T>]: Repeat0Body<T>
+}
+
+const repeat0 = <T extends string>(v: T): Repeat0<T> => {
+    const name: Repeat0Name<T> = repeat0Name(v)
+    const body: Repeat0Body<T> = repeat0Body(v)
+    return { [name]: body } as Repeat0<T>
+}
+
 const deterministic = () => {
     const map = {
         json: [
@@ -154,25 +175,15 @@ const deterministic = () => {
             ['value', 'ws'],
         ],
         string: [
-            [cp('"'), 'characters', cp('"')],
+            [cp('"'), 'characterRepeat0', cp('"')],
         ],
-        characters: [
-            [],
-            ['character', 'characters'],
-        ],
+        ...repeat0('character'),
         character: [
             ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
             [cp('\\'), 'escape'], // 92
         ],
         escape: [
-            [cp('"')],
-            [cp('\\')],
-            [cp('/')],
-            [cp('b')],
-            [cp('f')],
-            [cp('n')],
-            [cp('r')],
-            [cp('t')],
+            ...set('"\\/bfnrt'),
             [cp('u'), 'hex', 'hex', 'hex', 'hex'],
         ],
         hex: [
@@ -186,12 +197,9 @@ const deterministic = () => {
         ],
         integer: [
             [cp('0')],
-            ['onenine', 'digits'],
+            ['onenine', 'digitRepeat0'],
         ],
-        digits: [
-            [],
-            ['digit', 'digits'],
-        ],
+        ...repeat0('digit'),
         digit: [
             [cp('0')],
             ['onenine'],
@@ -201,12 +209,12 @@ const deterministic = () => {
         ],
         fraction: [
             [],
-            [cp('.'), 'digit', 'digits'],
+            [cp('.'), 'digit', 'digitRepeat0'],
         ],
         exponent: [
             [],
-            [cp('E'), 'sign', 'digit', 'digits'],
-            [cp('e'), 'sign', 'digit', 'digits'],
+            [cp('E'), 'sign', 'digit', 'digitRepeat0'],
+            [cp('e'), 'sign', 'digit', 'digitRepeat0'],
         ],
         sign: [
             [],
