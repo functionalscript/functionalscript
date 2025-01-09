@@ -9,6 +9,7 @@ import {
     str,
     range,
     remove,
+    set,
 } from './module.f.ts'
 
 const deterministic = () => {
@@ -89,14 +90,7 @@ const deterministic = () => {
 
     // {"empty":false,"map":[[false,33],[true,34],[false,46],[true,47],[false,91],[true,92],[false,97],[true,98],[false,101],[true,102],[false,109],[true,110],[false,113],[true,114],[false,115],[true,117]]}
     const escape: Rule = () => [
-        str('"'),                     //  34
-        str('/'),                     //  47
-        str('\\'),                    //  92
-        str('b'),                     //  98
-        str('f'),                     // 102
-        str('n'),                     // 110
-        str('r'),                     // 114
-        str('t'),                     // 116
+        ...set('"\\/bfnrt'),
         [cp('u'), hex, hex, hex, hex] // 117
     ]
 
