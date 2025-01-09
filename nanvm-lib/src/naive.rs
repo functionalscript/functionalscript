@@ -233,12 +233,4 @@ impl interface::Any for Any {
             Any::Function(complex) => interface::Unpacked::Function(complex),
         }
     }
-
-    fn negate_bigint(i: BigInt) -> BigInt {
-        if i.header == Sign::Positive {
-            BigInt::new(Sign::Negative, i.items.iter().cloned())
-        } else {
-            BigInt::new(Sign::Positive, i.items.iter().cloned())
-        }
-    }
 }

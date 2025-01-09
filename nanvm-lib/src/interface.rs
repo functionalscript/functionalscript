@@ -23,7 +23,14 @@ pub trait String16<U: Any<String16 = Self>>:
 {
 }
 
-pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {}
+pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {
+    fn negate(self) -> Self {
+        match self.header() {
+            Sign::Positive => Self::new(Sign::Negative, self.items().iter().cloned()),
+            Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
+        }
+    }
+}
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
 
@@ -61,8 +68,6 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
 
     fn new_simple(value: Simple) -> Self;
     fn try_to_simple(&self) -> Option<Simple>;
-
-    fn negate_bigint(i: Self::BigInt) -> Self::BigInt;
 
     fn try_to<C: Complex<Self>>(self) -> Result<C, Self> {
         C::try_from_unknown(self)
@@ -141,7 +146,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         // handling BigInt case when the error result of unary_plus indicates that case.
         match Self::to_numeric(v) {
             Numeric::Number(f) => Self::new_simple(Simple::Number(-f)),
-            Numeric::BigInt(i) => Self::pack(Unpacked::BigInt(Self::negate_bigint(i))),
+            Numeric::BigInt(i) => Self::pack(Unpacked::BigInt(i.negate())),
         }
     }
 }
