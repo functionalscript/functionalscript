@@ -44,18 +44,6 @@ pub trait Function<U: Any<Function = Self>>:
 {
 }
 
-#[derive(Debug, PartialEq)]
-pub enum TypeError {
-    BigIntToNumber, // Cannot convert BigInt to number (as in unary plus operation).
-                    // More error variants will be added in the future as needed.
-}
-
-#[derive(Debug, PartialEq)]
-pub enum RuntimeError {
-    TypeError(TypeError),
-    // More error variants will be added in the future as needed.
-}
-
 pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
     type String16: String16<Self>;
     type BigInt: BigInt<Self>;
@@ -132,10 +120,19 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
     }
 
-    fn unary_plus(v: Self) -> Result<Self, RuntimeError> {
+    // For now for internal exception-throwing operations (e.g. unary_plus applied to BigInt) we use
+    // an Any-wrapped string value (a message). Later on we might want to have a schematized
+    // exception Any that would carry file, line, etc. along with the message string.
+    fn exception(c: &str) -> Result<Self, Self> {
+        Err(Self::pack(Unpacked::String16(c.to_string16::<Self>())))
+    }
+
+    fn unary_plus(v: Self) -> Result<Self, Self> {
         match Self::to_numeric(v) {
             Numeric::Number(f) => Ok(Self::new_simple(Simple::Number(f))),
-            Numeric::BigInt(i) => Err(RuntimeError::TypeError(TypeError::BigIntToNumber)),
+            Numeric::BigInt(_) => {
+                Self::exception("TypeError: Cannot convert a BigInt value to a number")
+            }
         }
     }
 
