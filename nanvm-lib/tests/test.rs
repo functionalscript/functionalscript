@@ -223,7 +223,7 @@ fn unary_plus<A: Any>() {
     assert_eq!(
         Any::unary_plus(bigint0.clone()),
         Err(RuntimeError::TypeError(
-            nanvm_lib::interface::TypeError::BigIntToNumber(bigint0)
+            nanvm_lib::interface::TypeError::BigIntToNumber
         ))
     );
 }
