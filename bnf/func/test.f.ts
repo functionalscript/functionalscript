@@ -23,8 +23,7 @@ const deterministic = () => {
     // {"empty":true,"map":[[false,42],[true,43],[false,44],[true,45]]}
     const sign: Rule = () => [
         [],
-        str('+'), // 43
-        str('-'), // 45
+        ...set('+-'), // 43
     ]
 
     // {"empty":false,"map":[[false,48],[true,57]]}
@@ -46,11 +45,12 @@ const deterministic = () => {
         [digit, digits0]
     ]
 
+    const e: Rule = () => set('Ee') // 69, 101
+
     // {"empty":true,"map":[[false,68],[true,69],[false,100],[true,101]]}
     const exponent: Rule = () => [
         [],
-        [cp('E'), sign, digits1], // 69
-        [cp('e'), sign, digits1], // 101
+        [e, sign, digits1], // 69 | 101
     ]
 
     // {"empty":true,"map":[[false,45],[true,46]]}
