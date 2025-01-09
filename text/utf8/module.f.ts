@@ -114,7 +114,7 @@ const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
     let x
     switch (state.length) {
         case 1: {
-            ;[x] = state
+            [x] = state
             break
         }
         case 2: {
