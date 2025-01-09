@@ -8,30 +8,18 @@
 - [ ] [11-fs-load](./11-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 14. Combine `npm run index` and `npm run version`
-- [X] 15. Generate `package.json/exports` instead of `index.f.mjs`.
 - [ ] 16. License in JSR file?
 - [ ] [17-djs-extension](./17-djs-extension.md).
 - [ ] 18. Formatter for `.f.js` and `.f.ts` files.
-- [X] 19. Convert FunctionalScript code using non-default `export`.
 - [ ] 20. Test framework should be able to run a subset of tests.
 - [ ] 21. Test Framework silent mode. Show progress and failed tests only.
-- [x] 22. bit sequences based on bigint
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
-- [ ] 24. create `./main.ts` that supports the same behavior like current NaNVM Rust implementation:
+- [ ] 24. create `./main.ts` that supports the same behavior as current NaNVM Rust implementation:
     - [ ] run `node ./main.ts input.f.mjs output.f.mjs`
     - [ ] run `deno ./main.ts input.f.mjs output.f.mjs`
-- [X] 25. Switch to Deno an `.ts`?
-    1. Deno TypeScript and Microsoft TypeScript are different https://bsky.app/profile/macwright.com/post/3lbrwioa5zs27
-    2. One day we may switch back to `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included into ECMAScript. BTW, we should only use JS with type annotations instead of full TypeScript.
-- [x] 26. Test Framework should recognize `throw` conventions.
-    ```ts
-    export default {
-        'throw': () => { throw }
-    }
-    ```
-- [ ] 27. Test Framework parse non-default export.
-- [ ] 28. Make a distinction between unit tests, examples and API tests.
-    - Unit tests are completely deterministic. They run every time module is loaded so they must be very very simple and check basic hypothesis. They are not available as public interface.
+- [ ] 27. Test Framework parses non-default export.
+- [ ] 28. Make a distinction between unit tests, examples, and API tests.
+    - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
       ```ts
       import { unit } from 'dev/unit-test.f.ts'
       unit({
@@ -40,38 +28,36 @@
         }
       })
       ```
-    - Examples use only public API and located in `*example.f.ts` files.
-    - API tests use only public API and located in `*test.f.ts` files.
-- [ ] 29. Test in a browser. It's important for such browsers as FireFox because we don't have SpiderMonkey as a CLI.
-- [ ] 30. Infra for exception-throwing tests that pass on throw (see point 26 above) should be improved.
+    - Examples use only public API and are located in `*example.f.ts` files.
+    - API tests use only public API and are located in `*test.f.ts` files.
+- [ ] 29. Test in a browser. It's important for such browsers as Firefox because we don't have SpiderMonkey as a CLI.
+- [ ] 30. Infra for exception-throwing tests that pass on the throw should be improved.
 For example, 'throw' field could be not an immediate function but a reference to a helper function that throws
-(e.g. 'test_throw') - in this case the current infra will not recognize the 'throw' as the function name.
+(e.g. 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
-require setting a flag when walking through a test free, as soon as a node has a 'throw' as its name.
+require setting a flag when walking through a test free as soon as a node has a 'throw' as its name.
 - [ ] [31-formal-grammar](./31-formal-grammar.md).
 - [ ] 32. implement a stupid, non-deterministic parser using [31-formal-grammar](./31-formal-grammar.md).
 - [ ] 33. Rust: VM: implement `Any` and other types as wrappers
   ```rust
   struct Any<A: AnyPolicy>(A);
   ```
-  This way we can implement operations on it, such as `+`.
-- [x] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
-logic should be moved to a private free floating helper function (to keep public interface of Any clean).
+  This way, we can implement operations such as `+` on it.
 - [ ] 35. Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
 - [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
-- [ ] 37. Language Design: Currently FS has no way to store references (objects/functions) into a container with fast search. Several options:
+- [ ] 37. Language Design: Currently, FS has no way to store references (objects/functions) in a container with fast search capabilities. Several options:
   - add `Map` to the language
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 - [ ] [./39-radix-encoding.md](./39-radix-encoding.md)
-- [ ] 40. TypeScript doesn't show an error if exported type references non-exported type. We need to find a way to detect such cases.
+- [ ] 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
 
   ```ts
   type A = number
   export type B = A | string
   ```
 
-- [ ] 41. BNF should use byte parsing instead of codePoint. In this case we can parse binary files as well.
+- [ ] 41. BNF should use byte parsing instead of codePoint. In this case, we can parse binary files as well.
 - [ ] 42. Try mixing serializable BNFs.
 - [ ] 43. state-full parser.
 
@@ -100,6 +86,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 45. [nanenum](../nanvm-lib/src/nanenum.rs) should use new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance)
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
+- [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
 
 ## Language Specification
 
