@@ -234,18 +234,11 @@ impl interface::Any for Any {
         }
     }
 
-    fn negate_bigint(self) -> Self {
-        if let Any::BigInt(BigInt { header, items }) = self {
-            match header {
-                Sign::Positive => {
-                    Any::BigInt(BigInt::new(Sign::Negative, items.as_ref().iter().cloned()))
-                }
-                Sign::Negative => {
-                    Any::BigInt(BigInt::new(Sign::Positive, items.as_ref().iter().cloned()))
-                }
-            }
+    fn negate_bigint(i: BigInt) -> BigInt {
+        if i.header == Sign::Positive {
+            BigInt::new(Sign::Negative, i.items.iter().cloned())
         } else {
-            panic!("Expected BigInt, found {:?}", self)
+            BigInt::new(Sign::Positive, i.items.iter().cloned())
         }
     }
 }
