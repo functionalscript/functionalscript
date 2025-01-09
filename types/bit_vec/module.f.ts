@@ -1,11 +1,13 @@
 /**
- * ```
  * MSb is most-significant bit first.
+ * ```
  * - byte: 0x53 = 0b0101_0011
- * -              0123_4567
+ * -                0123_4567
+ * ```
  * LSb is least-significant bit first.
+ * ```
  * - byte: 0x53 = 0b0101_0011
- * -              7654_3210
+ * -                7654_3210
  * ```
 * @module
  */
