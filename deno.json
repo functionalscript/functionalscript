@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "license": "AGPL-3.0-only",
   "exports": {
     "./bnf/djs": "./bnf/djs/module.f.ts",
