@@ -1,12 +1,14 @@
-import { one } from '../../types/range/module.f.ts'
-import { toTerminalRangeSequence } from '../module.f.ts'
-import type { RuleMap } from './module.f.ts'
+import { cp, range, remove, type Rule, str } from '../func/module.f.ts'
+import { parser, toRuleMap, type RuleMap } from './module.f.ts'
+import { classic } from '../func/testlib.f.ts'
+import * as j from '../../json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 
-const s = toTerminalRangeSequence
+const stringify = j.stringify(sort)
 
-const c = (a: string) => one(a.codePointAt(0) as number)
-
-const classic = () => {
+const classicTest = () => {
     const map = {
         json: [
             ['element']
@@ -16,60 +18,58 @@ const classic = () => {
             ['array'],
             ['string'],
             ['number'],
-            s('true'),
-            s('false'),
-            s('null'),
+            str('true'),
+            str('false'),
+            str('null'),
         ],
         object: [
-            [c('{'), 'ws', c('}')],
-            [c('{'), 'members', c('}')],
+            [cp('{'), 'ws', cp('}')],
+            [cp('{'), 'members', cp('}')],
         ],
         members: [
             ['member'],
-            ['member', c(','), 'members'],
+            ['member', cp(','), 'members'],
         ],
         member: [
-            ['ws', 'string', 'ws', c(':'), 'element'],
+            ['ws', 'string', 'ws', cp(':'), 'element'],
         ],
         array: [
-            [c('['), 'ws', c(']')],
-            [c('['), 'elements', c(']')],
+            [cp('['), 'ws', cp(']')],
+            [cp('['), 'elements', cp(']')],
         ],
         elements: [
             ['element'],
-            ['element', c(','), 'elements'],
+            ['element', cp(','), 'elements'],
         ],
         element: [
             ['ws', 'value', 'ws'],
         ],
         string: [
-            [c('"'), 'characters', c('"')],
+            [cp('"'), 'characters', cp('"')],
         ],
         characters: [
             [],
             ['character', 'characters'],
         ],
         character: [
-            [[0x20, 0x21]],      // exclude '"' 0x22
-            [[0x23, 0x5B]],      // exclude '\' 0x5C
-            [[0x5D ,0x10FFFF]],  // 93-1114111
-            [c('\\'), 'escape'], // 92
+            ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
+            [cp('\\'), 'escape'], // 92
         ],
         escape: [
-            [c('"')],
-            [c('\\')],
-            [c('/')],
-            [c('b')],
-            [c('f')],
-            [c('n')],
-            [c('r')],
-            [c('t')],
-            [c('u'), 'hex', 'hex', 'hex', 'hex'],
+            str('"'),
+            str('\\'),
+            str('/'),
+            str('b'),
+            str('f'),
+            str('n'),
+            str('r'),
+            str('t'),
+            [cp('u'), 'hex', 'hex', 'hex', 'hex'],
         ],
         hex: [
             ['digit'],
-            [[0x41, 0x46]], // A-F
-            [[0x61, 0x66]], // a-f
+            [range('AF')], // A-F
+            [range('af')], // a-f
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
@@ -77,43 +77,44 @@ const classic = () => {
         integer: [
             ['digit'],
             ['onenine', 'digits'],
-            [c('-'), 'digit'],
-            [c('-'), 'onenine', 'digits'],
+            [cp('-'), 'digit'],
+            [cp('-'), 'onenine', 'digits'],
         ],
         digits: [
             ['digit'],
             ['digit', 'digits'],
         ],
         digit: [
-            [c('0')],
+            [cp('0')],
             ['onenine'],
         ],
         onenine: [
-            [[0x31, 0x39]], // 1-9
+            [range('19')],
         ],
         fraction: [
             [],
-            [c('.'), 'digits'],
+            [cp('.'), 'digits'],
         ],
         exponent: [
             [],
-            [c('E'), 'sign', 'digits'],
-            [c('e'), 'sign', 'digits'],
+            [cp('E'), 'sign', 'digits'],
+            [cp('e'), 'sign', 'digits'],
         ],
         sign: [
             [],
-            [c('+')],
-            [c('-')],
+            [cp('+')],
+            [cp('-')],
         ],
         ws: [
             [],
-            [c(' '), 'ws'],
-            [c('\n'), 'ws'],
-            [c('\r'), 'ws'],
-            [c('\t'), 'ws'],
+            [cp(' '), 'ws'],
+            [cp('\n'), 'ws'],
+            [cp('\r'), 'ws'],
+            [cp('\t'), 'ws'],
         ],
     } as const
-    const _map: RuleMap<keyof typeof map> = map
+    const result: RuleMap<keyof typeof map> = map
+    return result
 }
 
 const deterministic = () => {
@@ -122,13 +123,13 @@ const deterministic = () => {
             ['ws', 'element']
         ],
         value: [
-            [c('{'), 'ws', 'object', c('}')],
-            [c('['), 'ws', 'array', c(']')],
+            [cp('{'), 'ws', 'object', cp('}')],
+            [cp('['), 'ws', 'array', cp(']')],
             ['string'],
             ['number'],
-            s('true'),
-            s('false'),
-            s('null'),
+            str('true'),
+            str('false'),
+            str('null'),
         ],
         object: [
             [],
@@ -136,10 +137,10 @@ const deterministic = () => {
         ],
         members:[
             [],
-            [c(','), 'ws', 'member', 'members'],
+            [cp(','), 'ws', 'member', 'members'],
         ],
         member: [
-            ['string', 'ws', c(':'), 'ws', 'element'],
+            ['string', 'ws', cp(':'), 'ws', 'element'],
         ],
         array: [
             [],
@@ -147,46 +148,44 @@ const deterministic = () => {
         ],
         elements: [
             [],
-            [c(','), 'ws', 'element', 'elements'],
+            [cp(','), 'ws', 'element', 'elements'],
         ],
         element: [
             ['value', 'ws'],
         ],
         string: [
-            [c('"'), 'characters', c('"')],
+            [cp('"'), 'characters', cp('"')],
         ],
         characters: [
             [],
             ['character', 'characters'],
         ],
         character: [
-            [[0x20, 0x21]],      // exclude '"' 0x22
-            [[0x23, 0x5B]],      // exclude '\' 0x5C
-            [[0x5D ,0x10FFFF]],  // 93-1114111
-            [c('\\'), 'escape'], // 92
+            ...remove([0x20, 0x10FFFF], [cp('"'), cp('\\')]),
+            [cp('\\'), 'escape'], // 92
         ],
         escape: [
-            [c('"')],
-            [c('\\')],
-            [c('/')],
-            [c('b')],
-            [c('f')],
-            [c('n')],
-            [c('r')],
-            [c('t')],
-            [c('u'), 'hex', 'hex', 'hex', 'hex'],
+            [cp('"')],
+            [cp('\\')],
+            [cp('/')],
+            [cp('b')],
+            [cp('f')],
+            [cp('n')],
+            [cp('r')],
+            [cp('t')],
+            [cp('u'), 'hex', 'hex', 'hex', 'hex'],
         ],
         hex: [
             ['digit'],
-            [[0x41, 0x46]], // A-F
-            [[0x61, 0x66]], // a-f
+            [range('AF')],
+            [range('af')],
         ],
         number: [
             ['integer', 'fraction', 'exponent'],
-            [c('-'), 'integer', 'fraction', 'exponent'],
+            [cp('-'), 'integer', 'fraction', 'exponent'],
         ],
         integer: [
-            [c('0')],
+            [cp('0')],
             ['onenine', 'digits'],
         ],
         digits: [
@@ -194,33 +193,93 @@ const deterministic = () => {
             ['digit', 'digits'],
         ],
         digit: [
-            [c('0')],
+            [cp('0')],
             ['onenine'],
         ],
         onenine: [
-            [[0x31, 0x39]], // 1-9
+            [range('19')],
         ],
         fraction: [
             [],
-            [c('.'), 'digit', 'digits'],
+            [cp('.'), 'digit', 'digits'],
         ],
         exponent: [
             [],
-            [c('E'), 'sign', 'digit', 'digits'],
-            [c('e'), 'sign', 'digit', 'digits'],
+            [cp('E'), 'sign', 'digit', 'digits'],
+            [cp('e'), 'sign', 'digit', 'digits'],
         ],
         sign: [
             [],
-            [c('+')],
-            [c('-')],
+            [cp('+')],
+            [cp('-')],
         ],
         ws: [
             [],
-            [c(' '), 'ws'],
-            [c('\n'), 'ws'],
-            [c('\r'), 'ws'],
-            [c('\t'), 'ws'],
+            [cp(' '), 'ws'],
+            [cp('\n'), 'ws'],
+            [cp('\r'), 'ws'],
+            [cp('\t'), 'ws'],
         ],
     } as const
     const _map: RuleMap<keyof typeof map> = map
+    return _map
+}
+
+export default {
+    example: {
+        module: () => {
+            // Define a simple grammar
+            const grammar: Rule = () => [
+                [range('AZ')],          // 'A-Z'
+                [range('az'), grammar], // 'a-z' followed by more grammar
+            ]
+
+            const ruleMap = toRuleMap(grammar)
+            const parse = parser(ruleMap)
+
+            // Parse an input
+            const input = toArray(stringToCodePointList('abcdefgA'))
+            const result = parse(grammar.name, input)
+            if (result === null) { throw result }
+            const [, b] = result
+            if (b?.length !== 0) { throw b }
+        },
+    },
+    classic: () => {
+        const c = classic()
+        const json = stringify(toRuleMap(c.json))
+        const jsonE = stringify(classicTest())
+        if (json !== jsonE) {
+            //console.error(json)
+            //console.error(jsonE)
+            throw [json, jsonE]
+        }
+    },
+    map: () => {
+        const f = parser(deterministic())
+        // console.error(stringify(x))
+        //
+        const isSuccess = (s: readonly CodePoint[]|null) => s?.length === 0
+        const expect = (s: string, success: boolean) => {
+            const [a, r] = f('json', toArray(stringToCodePointList(s)))
+            if (isSuccess(r) !== success) {
+                throw r
+            }
+        }
+
+        //
+        expect('   true   ', true)
+        expect('   tr2ue   ', false)
+        expect('   true"   ', false)
+        expect('   "Hello"   ', true)
+        expect('   "Hello   ', false)
+        expect('   "Hello\\n\\r\\""   ', true)
+        expect('   -56.7e+5  ', true)
+        expect('   h-56.7e+5   ', false)
+        expect('   -56.7e+5   3', false)
+        expect('   [ 12, false, "a"]  ', true)
+        expect('   [ 12, false2, "a"]  ', false)
+        expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+        expect('   { "q": [ 12, false, [}], "a"] }  ', false)
+    }
 }

@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "type": "module",
   "files": [
     "**/*.f.d.ts",
@@ -16,7 +16,8 @@
     "comtest": "node ./com/test/build.ts",
     "index": "node ./dev/index.ts",
     "version": "node ./nodejs/version/main.ts",
-    "fsc": "node ./main.ts"
+    "fsc": "node ./main.ts",
+    "update": "npm run version && npm run index && npm install"
   },
   "repository": {
     "type": "git",
