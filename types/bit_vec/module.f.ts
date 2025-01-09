@@ -9,7 +9,7 @@
  * - byte: 0x53 = 0b0101_0011
  * -                7654_3210
  * ```
-* @module
+ * @module
  */
 import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
