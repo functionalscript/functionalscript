@@ -1,14 +1,12 @@
 /**
- *  Types for defining language grammar using Backus-Naur Form (BNF).
- *
- * @module
- *
- * @description
+ * Types for defining language grammar using Backus-Naur Form (BNF).
  *
  * Utilities for serializing and deserializing BNF grammar
  * and creating a simple LL(1) parser.
  *
  * See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
+ *
+ * @module
  *
  * @example
  *
