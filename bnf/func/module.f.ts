@@ -192,3 +192,20 @@ export const remove = (range: TerminalRange, removeSet: RangeSet): OrRangeSet =>
     }
     return toOr(result)
 }
+
+export const repeat0 = (rule: Rule): Rule => {
+    const result: Rule = () => [
+        [],
+        [rule, result],
+    ]
+    return result
+}
+
+export const join0 = (rule: Rule, separator: Rule): Rule => {
+    const tail = repeat0(() => [[separator, rule]])
+    const result: Rule = () => [
+        [],
+        [rule, tail],
+    ]
+    return result
+}
