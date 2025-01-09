@@ -1,6 +1,6 @@
 import { set, cp, type Rule, str, range } from '../bnf/func/module.f.ts'
 
-const moduleWs: Rule = () => [
+export const moduleWs: Rule = () => [
     [ws, module, ws]
 ]
 
