@@ -87,6 +87,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
+- [ ] 49. Delete [com](./com/) and [commonjs](./commonjs). Bump a minor version to `0.4.0`.
 
 ## Language Specification
 
