@@ -99,6 +99,7 @@ logic should be moved to a private free floating helper function (to keep public
   
 - [ ] 45. [nanenum](../nanvm-lib/src/nanenum.rs) should use new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance)
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
+- [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 
 ## Language Specification
 
