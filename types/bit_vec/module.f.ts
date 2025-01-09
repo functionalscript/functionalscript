@@ -37,10 +37,10 @@ export const length = log2
  * ```
  */
 export const vec = (len: bigint): (ui: bigint) => Vec => {
-    if (len <= 0n) { return () => empty }
+    if (len <= 0n) return () => empty
     const stop = 1n << len
     const mask = stop - 1n
-    return data => stop | (data & mask)
+    return (data) => stop | (data & mask)
 }
 
 /**
@@ -122,7 +122,7 @@ export type BitOrder = {
      * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, 1n]
      * ```
      */
-    readonly popFront: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
+    readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
     /**
      * Concatenates two vectors.
      *
@@ -151,29 +151,29 @@ export type BitOrder = {
  * Usually associated with Little-Endian (LE) byte order.
  */
 export const lsb: BitOrder = {
-    front: len => {
+    front: (len) => {
         const m = mask(len)
-        return v => {
+        return (v) => {
             const result = v & m
             return result === v ? uint(v) : result
         }
     },
-    removeFront: len => v => {
+    removeFront: (len) => (v) => {
         const r = v >> len
         return r === 0n ? empty : r
     },
-    popFront: len => {
+    popFront: (len) => {
         const m = mask(len)
-        return v => {
+        return (v) => {
             const result = v & m
             return result === v ? [uint(v), empty] : [result, v >> len]
         }
     },
-    concat: a => {
+    concat: (a) => {
         const aLen = length(a)
         const m = mask(aLen)
-        return b => (b << aLen) | (a & m)
-    }
+        return (b) => (b << aLen) | (a & m)
+    },
 }
 
 /**
@@ -184,19 +184,19 @@ export const lsb: BitOrder = {
  * Usually associated with Big-Endian (BE) byte order.
  */
 export const msb: BitOrder = {
-    front: len => {
+    front: (len) => {
         const m = mask(len)
-        return v => (v >> (length(v) - len)) & m
+        return (v) => (v >> (length(v) - len)) & m
     },
-    removeFront: len => v => vec(length(v) - len)(v),
-    popFront: len => {
+    removeFront: (len) => (v) => vec(length(v) - len)(v),
+    popFront: (len) => {
         const m = mask(len)
-        return v => {
+        return (v) => {
             const d = length(v) - len
             return [(v >> d) & m, vec(d)(v)]
         }
     },
-    concat: flip(lsb.concat)
+    concat: flip(lsb.concat),
 }
 
 const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)(vec8(BigInt(u8)))
@@ -208,8 +208,7 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
-    fold(appendU8(bo))(empty)
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec => fold(appendU8(bo))(empty)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
@@ -220,7 +219,7 @@ export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
  */
 export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
     const f = (v: Vec) => () => {
-        if (v === empty) { return null }
+        if (v === empty) return null
         const [first, tail] = popFront(8n)(v)
         return { first: Number(first), tail: f(tail) }
     }
