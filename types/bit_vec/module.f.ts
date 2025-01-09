@@ -1,14 +1,15 @@
 /**
- * @module
- * @description
- * ```
  * MSb is most-significant bit first.
- * - byte: 0x53 = 0b0101_0011
- * -              0123_4567
- * LSb is least-significant bit first.
- * - byte: 0x53 = 0b0101_0011
- * -              7654_3210
  * ```
+ * - byte: 0x53 = 0b0101_0011
+ * -                0123_4567
+ * ```
+ * LSb is least-significant bit first.
+ * ```
+ * - byte: 0x53 = 0b0101_0011
+ * -                7654_3210
+ * ```
+ * @module
  */
 import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
