@@ -141,11 +141,11 @@ const repeat0 = <T extends string>(v: T): Repeat0<T> => {
 const deterministic = () => {
     const map = {
         json: [
-            ['ws0', 'element']
+            ['wsRepeat0', 'element']
         ],
         value: [
-            [cp('{'), 'ws0', 'object', cp('}')],
-            [cp('['), 'ws0', 'array', cp(']')],
+            [cp('{'), 'wsRepeat0', 'object', cp('}')],
+            [cp('['), 'wsRepeat0', 'array', cp(']')],
             ['string'],
             ['number'],
             str('true'),
@@ -157,11 +157,11 @@ const deterministic = () => {
             ['member', 'memberTailRepeat0'],
         ],
         memberTail: [
-            [cp(','), 'ws0', 'member']
+            [cp(','), 'wsRepeat0', 'member']
         ],
         ...repeat0('memberTail'),
         member: [
-            ['string', 'ws0', cp(':'), 'ws0', 'element'],
+            ['string', 'wsRepeat0', cp(':'), 'wsRepeat0', 'element'],
         ],
         array: [
             [],
@@ -169,10 +169,10 @@ const deterministic = () => {
         ],
         elements: [
             [],
-            [cp(','), 'ws0', 'element', 'elements'],
+            [cp(','), 'wsRepeat0', 'element', 'elements'],
         ],
         element: [
-            ['value', 'ws0'],
+            ['value', 'wsRepeat0'],
         ],
         string: [
             [cp('"'), 'characterRepeat0', cp('"')],
@@ -224,11 +224,8 @@ const deterministic = () => {
             [cp('+')],
             [cp('-')],
         ],
-        wsSet: set(' \n\r\t'),
-        ws0: [
-            [],
-            ['wsSet', 'ws0']
-        ],
+        ws: set(' \n\r\t'),
+        ...repeat0('ws'),
     } as const
     const _map: RuleMap<keyof typeof map> = map
     return _map
