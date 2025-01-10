@@ -214,10 +214,10 @@ const deterministic = () => {
             [],
             [cp('.'), 'digit', 'digitRepeat0'],
         ],
+        e: set('Ee'),
         exponent: [
             [],
-            [cp('E'), 'sign', 'digit', 'digitRepeat0'],
-            [cp('e'), 'sign', 'digit', 'digitRepeat0'],
+            ['e', 'sign', 'digit', 'digitRepeat0'],
         ],
         sign: [
             [],
