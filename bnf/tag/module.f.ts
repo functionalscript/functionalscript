@@ -55,9 +55,16 @@ export const range = (ab: string): Range => {
     return rangeEncode(...a as readonly[number, number])
 }
 
-export const none: Sequence = []
+export type None = readonly[]
 
-export const option = (some: Rule): Or => ({
+export const none: None = []
+
+export type Option<S extends Rule> = {
+    none: None
+    some: S
+}
+
+export const option = <S extends Rule>(some: S): Option<S> => ({
     none,
     some,
 })

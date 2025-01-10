@@ -1,4 +1,4 @@
-import { none, option, range, repeat0, repeat1, type Rule, set } from './module.f.ts'
+import { join0, none, option, range, repeat0, repeat1, type Rule, set } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -133,46 +133,12 @@ const _deterministic = (): Rule => {
         members: [member, ',', members],
     })
 
-    const member = () => [ws, string, ws, ':', element]
+    const member = () => [ws, string, ws, ':', ws, element]
 
     const array = () => ({
         ws: ['[', ws, ']'],
         elements: ['[', elements, ']'],
     })
-
-    const elements = () => ({
-        element,
-        elements: [element, ',', elements],
-    })
-
-    const element = () => [ws, value, ws]
-
-    const string = () => ['"', characters, '"']
-
-    const characters = () => ({
-        none,
-        characters: [character, characters],
-    })
-
-    const character: Rule = () => ({
-        0: 0x20_000021n,
-        1: 0x23_00005Bn,
-        2: 0x5D_10FFFFn,
-        escape: ['\\', escape],
-    })
-
-    const escape = () => ({
-        ...set('"\\/bfnrt'),
-        u: ['u', hex, hex, hex, hex],
-    })
-
-    const hex = () => ({
-        digit,
-        AF: range('AF'),
-        af: range('af'),
-    })
-
-    const number = () => [integer, fraction, exponent]
 
     const onenine = range('12')
 
@@ -181,11 +147,35 @@ const _deterministic = (): Rule => {
         onenine,
     }
 
-    const digits = repeat1(digit)
+    const hex = {
+        digit,
+        AF: range('AF'),
+        af: range('af'),
+    }
+
+    const escape = {
+        ...set('"\\/bfnrt'),
+        u: ['u', hex, hex, hex, hex],
+    }
+
+    const character: Rule = {
+        0: 0x20_000021n,
+        1: 0x23_00005Bn,
+        2: 0x5D_10FFFFn,
+        escape: ['\\', escape],
+    }
+
+    const characters = repeat0(character)
+
+    const string = ['"', characters, '"']
+
+    const digits0 = repeat0(digit)
+
+    const digits = [digit, digits0]
 
     const integer = [option('-'), {
-        digit,
-        onenine: [onenine, digits],
+        '0': '0',
+        onenine: [onenine, digits0],
     }]
 
     const fraction = option(['.', digits])
@@ -194,9 +184,15 @@ const _deterministic = (): Rule => {
 
     const exponent = option([set('Ee'), sign, digits])
 
+    const number = [integer, fraction, exponent]
+
     const ws = repeat0(set(' \n\r\t'))
 
-    const json = element
+    const element = [value, ws]
+
+    const elements = [ws, join0(element, [',', ws])]
+
+    const json = [ws, element]
 
     return json
 }
