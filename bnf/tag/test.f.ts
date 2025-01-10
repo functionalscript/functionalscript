@@ -1,6 +1,6 @@
 import { range } from '../../text/ascii/module.f.ts'
 import { cp, str } from '../func/module.f.ts'
-import { none, option, repeat0, repeat1, type Sequence, set, type Rule } from './module.f.ts'
+import { none, option, repeat0, repeat1, set, type Rule } from './module.f.ts'
 
 const _classic = (): Rule => {
 
