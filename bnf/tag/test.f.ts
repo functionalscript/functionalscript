@@ -133,13 +133,6 @@ const _deterministic = (): Rule => {
         members: [member, ',', members],
     })
 
-    const member = () => [ws, string, ws, ':', ws, element]
-
-    const array = () => ({
-        ws: ['[', ws, ']'],
-        elements: ['[', elements, ']'],
-    })
-
     const onenine = range('12')
 
     const digit: Rule = {
@@ -190,7 +183,11 @@ const _deterministic = (): Rule => {
 
     const element = [value, ws]
 
-    const elements = [ws, join0(element, [',', ws])]
+    const elements = join0(element, [',', ws])
+
+    const array = ['[', ws, elements, ']']
+
+    const member = [ws, string, ws, ':', ws, element]
 
     const json = [ws, element]
 
