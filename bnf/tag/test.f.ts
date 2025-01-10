@@ -1,4 +1,4 @@
-import { none, option, range, repeat0, type Rule, set } from './module.f.ts'
+import { none, option, range, repeat0, repeat1, type Rule, set } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -174,29 +174,21 @@ const _deterministic = (): Rule => {
 
     const number = () => [integer, fraction, exponent]
 
-    const integer = () => ({
-        digit,
-        onenine: [onenine, digits],
-        negDigit: ['-', digit],
-        negOnenine: ['-', onenine, digits],
-    })
-
-    const digits = () => ({
-        digit,
-        digits: [digit, digits],
-    })
-
-    const digit: Rule = () => ({
-        '0': '0',
-        onenine,
-    })
-
     const onenine = range('12')
 
-    const fraction = () => ({
-        none,
-        digits: ['.', digits],
-    })
+    const digit: Rule = {
+        '0': '0',
+        onenine,
+    }
+
+    const digits = repeat1(digit)
+
+    const integer = [option('-'), {
+        digit,
+        onenine: [onenine, digits],
+    }]
+
+    const fraction = option(['.', digits])
 
     const sign = option(set('+-'))
 
