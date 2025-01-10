@@ -1,25 +1,54 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import type { TerminalRange } from '../func/module.f.ts'
 
-export type Sequence = readonly (Rule|TerminalRange)[]
+// Format
+export type Range = bigint
+
+export type Sequence = readonly Rule[]
 
 export type Or = {
-    readonly[k in string]: Sequence | Rule
+    readonly[k in string]: Rule
 }
 
-export type Rule = () => Or | Sequence
+export type DataRule = Or | Sequence | Range | string
+
+export type LazyRule = () => DataRule
+
+export type Rule = DataRule | LazyRule
 
 const { fromEntries } = Object
 
 const { fromCodePoint } = String
 
+const offset = 24n
+
+const mask = (1n << offset) - 1n
+
+export const rangeEncode = (a: number, b: number): Range => (BigInt(a) << offset) | BigInt(b)
+
+export const oneEncode = (a: number): Range => rangeEncode(a, a)
+
+export const rangeDecode = (r: bigint): readonly[number, number] => [Number(r >> offset), Number(r & mask)]
+
+export const str = (s: string): readonly Range[] | Range => {
+    const x = toArray(stringToCodePointList(s)).map(oneEncode)
+    return x.length === 1 ? x[0] : x
+}
+
 export const set = (s: string): Or =>
-    fromEntries(toArray(stringToCodePointList(s)).map(v => [fromCodePoint(v), [[v, v]]] as const))
+    fromEntries(toArray(stringToCodePointList(s)).map(v => [fromCodePoint(v), oneEncode(v)]))
+
+export const range = (ab: string): Range => {
+    const a = toArray(stringToCodePointList(ab))
+    if (a.length !== 2) {
+        throw `Invalid range ${ab}.`
+    }
+    return rangeEncode(...a as readonly[number, number])
+}
 
 export const none: Sequence = []
 
-export const option = (some: Sequence | Rule): Or => ({
+export const option = (some: Rule): Or => ({
     none,
     some,
 })
@@ -31,5 +60,5 @@ export const repeat0 = (some: Rule): Rule => {
 
 export const repeat1 = (some: Rule): Sequence => [some, repeat0(some)]
 
-export const join0 = (some: Rule, separator: Rule): Or =>
+export const join0 = (some: Rule, separator: Rule): Rule =>
     option([some, repeat0(() => [separator, some])])
