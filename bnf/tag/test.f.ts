@@ -82,7 +82,7 @@ const _classic = (): Rule => {
         onenine,
     })
 
-    const onenine = () => range('12')
+    const onenine = range('12')
 
     const fraction = () => ({
         none,
@@ -95,10 +95,10 @@ const _classic = (): Rule => {
         e: ['e', sign, digits],
     })
 
-    const sign = () => ({
+    const sign = {
         none,
         ...set('+-'),
-    })
+    }
 
     const ws = () => ({
         none,
