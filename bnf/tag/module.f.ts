@@ -17,14 +17,17 @@ const { fromCodePoint } = String
 export const set = (s: string): Or =>
     fromEntries(toArray(stringToCodePointList(s)).map(v => [fromCodePoint(v), [[v, v]]] as const))
 
-export const none = (): Sequence => []
+export const none: Sequence = []
 
-export const option = (some: Sequence | Rule) => () =>({
+export const option = (some: Sequence | Rule): Or => ({
     none,
     some,
 })
 
-export const repeat0 = (some: Rule): Rule => {
-    const f = option(() => [some, f])
-    return f
+export const repeat0 = (some: Rule): Or => {
+    const f = () => or
+    const or = option([some, f])
+    return or
 }
+
+export const repeat1 = (some: Rule): Sequence => [some, () => repeat0(some)]

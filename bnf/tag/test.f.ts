@@ -1,12 +1,12 @@
 import { range } from '../../text/ascii/module.f.ts'
 import { cp, str } from '../func/module.f.ts'
-import { none, option, set, type Rule } from './module.f.ts'
+import { none, option, repeat0, repeat1, type Sequence, set, type Rule } from './module.f.ts'
 
 const _classic = (): Rule => {
 
-    const json = () => [element]
+    const json: Rule = () => element()
 
-    const value = () => ({
+    const value: Rule = () => ({
         object,
         array,
         string,
@@ -38,55 +38,49 @@ const _classic = (): Rule => {
         elements: [element, cp(','), elements],
     })
 
-    const element = () => [ws, value, ws]
+    const element: Rule = () => [ws, value, ws]
 
     const string = () => [cp('"'), characters, cp('"')]
 
-    const characters = () => ({
-        none,
-        characters: [character, characters],
-    })
+    const characters = () => repeat0(character)
 
-    const character = () => ({
-        0: [[0x20, 0x21]],
-        1: [[0x23, 0x5B]],
-        2: [[0x5D, 0x10FFFF]],
+    const character: Rule = () => ({
+        '0': [[0x20, 0x21]],
+        '1': [[0x23, 0x5B]],
+        '2': [[0x5D, 0x10FFFF]],
         escape: [cp('\\'), escape],
     })
 
-    const escape = () => ({
+    const escape: Rule = () => ({
         ...set('"\\/bfnrt'),
         u: [cp('u'), hex, hex, hex, hex],
     })
 
-    const hex = () => ({
+    const hex: Rule = () => ({
         digit,
-        AF: range('AF'),
-        af: range('af'),
+        AF: [range('AF')],
+        af: [range('af')],
     })
 
-    const number = () => [integer, fraction, exponent]
+    const number: Rule = () => [integer, fraction, exponent]
 
-    const integer = () => ({
+    const integer: Rule = () => ({
         digit,
         onenine: [onenine, digits],
         negDigit: [cp('-'), digit],
         negOnenine: [cp('-'), onenine, digits],
     })
 
-    const digits = () => ({
-        digit,
-        digits: [digit, digits],
-    })
+    const digits = () => repeat1(digit)
 
     const digit: Rule = () => ({
         '0': str('0'),
         onenine,
     })
 
-    const onenine = () => ([range('12')])
+    const onenine = () => [range('19')]
 
-    const fraction = option([cp('.'), digits])
+    const fraction = () => option([cp('.'), digits])
 
     const exponent = () => ({
         none,
