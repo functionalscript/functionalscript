@@ -154,12 +154,12 @@ const deterministic = () => {
         ],
         object: [
             [],
-            ['member', 'members'],
+            ['member', 'memberTailRepeat0'],
         ],
-        members:[
-            [],
-            [cp(','), 'ws', 'member', 'members'],
+        memberTail: [
+            [cp(','), 'ws', 'member']
         ],
+        ...repeat0('memberTail'),
         member: [
             ['string', 'ws', cp(':'), 'ws', 'element'],
         ],
