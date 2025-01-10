@@ -24,10 +24,12 @@ export const option = (some: Sequence | Rule): Or => ({
     some,
 })
 
-export const repeat0 = (some: Rule): Or => {
-    const f = () => or
-    const or = option([some, f])
-    return or
+export const repeat0 = (some: Rule): Rule => {
+    const f = () => option([some, f])
+    return f
 }
 
-export const repeat1 = (some: Rule): Sequence => [some, () => repeat0(some)]
+export const repeat1 = (some: Rule): Sequence => [some, repeat0(some)]
+
+export const join0 = (some: Rule, separator: Rule): Or =>
+    option([some, repeat0(() => [separator, some])])
