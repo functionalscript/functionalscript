@@ -141,11 +141,11 @@ const repeat0 = <T extends string>(v: T): Repeat0<T> => {
 const deterministic = () => {
     const map = {
         json: [
-            ['ws', 'element']
+            ['ws0', 'element']
         ],
         value: [
-            [cp('{'), 'ws', 'object', cp('}')],
-            [cp('['), 'ws', 'array', cp(']')],
+            [cp('{'), 'ws0', 'object', cp('}')],
+            [cp('['), 'ws0', 'array', cp(']')],
             ['string'],
             ['number'],
             str('true'),
@@ -157,11 +157,11 @@ const deterministic = () => {
             ['member', 'memberTailRepeat0'],
         ],
         memberTail: [
-            [cp(','), 'ws', 'member']
+            [cp(','), 'ws0', 'member']
         ],
         ...repeat0('memberTail'),
         member: [
-            ['string', 'ws', cp(':'), 'ws', 'element'],
+            ['string', 'ws0', cp(':'), 'ws0', 'element'],
         ],
         array: [
             [],
@@ -169,10 +169,10 @@ const deterministic = () => {
         ],
         elements: [
             [],
-            [cp(','), 'ws', 'element', 'elements'],
+            [cp(','), 'ws0', 'element', 'elements'],
         ],
         element: [
-            ['value', 'ws'],
+            ['value', 'ws0'],
         ],
         string: [
             [cp('"'), 'characterRepeat0', cp('"')],
@@ -191,9 +191,12 @@ const deterministic = () => {
             [range('AF')],
             [range('af')],
         ],
+        numberSign: [
+            [],
+            [cp('-')]
+        ],
         number: [
-            ['integer', 'fraction', 'exponent'],
-            [cp('-'), 'integer', 'fraction', 'exponent'],
+            ['numberSign', 'integer', 'fraction', 'exponent'],
         ],
         integer: [
             [cp('0')],
@@ -221,12 +224,10 @@ const deterministic = () => {
             [cp('+')],
             [cp('-')],
         ],
-        ws: [
+        wsSet: set(' \n\r\t'),
+        ws0: [
             [],
-            [cp(' '), 'ws'],
-            [cp('\n'), 'ws'],
-            [cp('\r'), 'ws'],
-            [cp('\t'), 'ws'],
+            ['wsSet', 'ws0']
         ],
     } as const
     const _map: RuleMap<keyof typeof map> = map
