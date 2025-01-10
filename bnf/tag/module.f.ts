@@ -1,7 +1,8 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.ts'
 
-// Format
+// Types
+
 export type Range = bigint
 
 export type Sequence = readonly Rule[]
@@ -16,6 +17,8 @@ export type LazyRule = () => DataRule
 
 export type Rule = DataRule | LazyRule
 
+//
+
 const { fromEntries } = Object
 
 const { fromCodePoint } = String
@@ -24,19 +27,25 @@ const offset = 24n
 
 const mask = (1n << offset) - 1n
 
-export const rangeEncode = (a: number, b: number): Range => (BigInt(a) << offset) | BigInt(b)
+export const rangeEncode = (a: number, b: number): Range =>
+    (BigInt(a) << offset) | BigInt(b)
 
 export const oneEncode = (a: number): Range => rangeEncode(a, a)
 
-export const rangeDecode = (r: bigint): readonly[number, number] => [Number(r >> offset), Number(r & mask)]
+export const rangeDecode = (r: bigint): readonly[number, number] =>
+    [Number(r >> offset), Number(r & mask)]
+
+const mapOneEncode = map(oneEncode)
 
 export const str = (s: string): readonly Range[] | Range => {
-    const x = toArray(stringToCodePointList(s)).map(oneEncode)
+    const x = toArray(mapOneEncode(stringToCodePointList(s)))
     return x.length === 1 ? x[0] : x
 }
 
+const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
+
 export const set = (s: string): Or =>
-    fromEntries(toArray(stringToCodePointList(s)).map(v => [fromCodePoint(v), oneEncode(v)]))
+    fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
 export const range = (ab: string): Range => {
     const a = toArray(stringToCodePointList(ab))

@@ -1,4 +1,4 @@
-import { none, range, type Rule, set } from './module.f.ts'
+import { none, option, range, repeat0, type Rule, set } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -107,6 +107,104 @@ const _classic = (): Rule => {
         '\r': ['\r', ws],
         '\t': ['\t', ws],
     })
+
+    return json
+}
+
+const _deterministic = (): Rule => {
+
+    const value = () => ({
+        object,
+        array,
+        string,
+        number,
+        true: 'true',
+        false: 'false',
+        null: 'null'
+    })
+
+    const object = () => ({
+        ws: ['{', ws, '}'],
+        members: ['{', members, '}'],
+    })
+
+    const members = () => ({
+        member,
+        members: [member, ',', members],
+    })
+
+    const member = () => [ws, string, ws, ':', element]
+
+    const array = () => ({
+        ws: ['[', ws, ']'],
+        elements: ['[', elements, ']'],
+    })
+
+    const elements = () => ({
+        element,
+        elements: [element, ',', elements],
+    })
+
+    const element = () => [ws, value, ws]
+
+    const string = () => ['"', characters, '"']
+
+    const characters = () => ({
+        none,
+        characters: [character, characters],
+    })
+
+    const character: Rule = () => ({
+        0: 0x20_000021n,
+        1: 0x23_00005Bn,
+        2: 0x5D_10FFFFn,
+        escape: ['\\', escape],
+    })
+
+    const escape = () => ({
+        ...set('"\\/bfnrt'),
+        u: ['u', hex, hex, hex, hex],
+    })
+
+    const hex = () => ({
+        digit,
+        AF: range('AF'),
+        af: range('af'),
+    })
+
+    const number = () => [integer, fraction, exponent]
+
+    const integer = () => ({
+        digit,
+        onenine: [onenine, digits],
+        negDigit: ['-', digit],
+        negOnenine: ['-', onenine, digits],
+    })
+
+    const digits = () => ({
+        digit,
+        digits: [digit, digits],
+    })
+
+    const digit: Rule = () => ({
+        '0': '0',
+        onenine,
+    })
+
+    const onenine = range('12')
+
+    const fraction = () => ({
+        none,
+        digits: ['.', digits],
+    })
+
+    const sign = option(set('+-'))
+
+    const exponent = option([set('Ee'), sign, digits])
+
+    const ws = repeat0(set(' \n\r\t'))
+
+    const json = element
 
     return json
 }
