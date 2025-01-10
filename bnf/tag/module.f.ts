@@ -2,15 +2,29 @@ import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import type { TerminalRange } from '../func/module.f.ts'
 
-export type Sequence = readonly (Or | LazyRule | TerminalRange)[]
+export type Sequence = readonly (Rule|TerminalRange)[]
 
 export type Or = {
-    readonly[k in string]: Sequence | LazyRule
+    readonly[k in string]: Sequence | Rule
 }
 
-export type LazyRule = () => Or | Sequence
+export type Rule = () => Or | Sequence
 
-export type Rule = Sequence | Or | LazyRule
+const { fromEntries } = Object
+
+const { fromCodePoint } = String
 
 export const set = (s: string): Or =>
-    Object.fromEntries(toArray(stringToCodePointList(s)).map(v => [String.fromCodePoint(v), [[v, v]]] as const))
+    fromEntries(toArray(stringToCodePointList(s)).map(v => [fromCodePoint(v), [[v, v]]] as const))
+
+export const none = (): Sequence => []
+
+export const option = (some: Sequence | Rule) => () =>({
+    none,
+    some,
+})
+
+export const repeat0 = (some: Rule): Rule => {
+    const f = option(() => [some, f])
+    return f
+}
