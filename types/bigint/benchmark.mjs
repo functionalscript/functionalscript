@@ -90,7 +90,7 @@ const mathLog2 = v => {
             v = n
         }
     }
-    const x = BigInt(Math.log2(Number(v)))
+    const x = BigInt(Math.log2(Number(v)) | 0)
     return result + x + (v >> x)
 }
 
