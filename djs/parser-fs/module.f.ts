@@ -43,7 +43,7 @@ const foldNextModuleOp
         }
 
         //todo: check for cycles
-        const s = context.fs.readFileSync(path)        
+        const s = context.fs.readFileSync(path)
         const parseModuleResult = parseModule(s)
         const contextWithImports = parseImports(path)(parseModuleResult)(context)
 

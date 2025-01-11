@@ -7,10 +7,6 @@ import { at, setReplace, type Map } from '../../types/map/module.f.ts'
 import type { Fs } from '../io/module.f.ts'
 import { parse } from './module.f.ts'
 
-const tokenizeString
-    : (s: string) => readonly tokenizer.DjsToken[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
-
 const stringifyDjsModule = djsModuleStringify(sort)
 
 const virtualFs = (files: Map<string>): Fs => ({
@@ -19,10 +15,13 @@ const virtualFs = (files: Map<string>): Fs => ({
 })
 
 export default {
-    parse: () => {
-        const map: Map<string> = null
-        setReplace('a')('export default null')(map)
+    parse: () => {        
+        const map = setReplace('a')('export default null')(null)
         const fs = virtualFs(map)
-        const p = parse(fs)('a')
+        const modules = parse(fs)('a')
+        const module = at('a')(modules)
+        if (module === null) { throw module }
+        if (module[0] === 'error') { throw module[1] }
+        if (stringifyDjsModule(module[1]) !== 'export default null') { throw module[1] }
     }
 }
