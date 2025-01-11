@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.3.15",
+  "version": "0.4.0",
   "type": "module",
   "files": [
     "**/*.f.d.ts",
@@ -13,7 +13,6 @@
     "test20": "npm run prepack && node --trace-uncaught ./dev/test.js",
     "test22": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
     "test": "tsc && node --trace-uncaught ./dev/test.ts",
-    "comtest": "node ./com/test/build.ts",
     "index": "node ./dev/index.ts",
     "version": "node ./nodejs/version/main.ts",
     "fsc": "node ./main.ts",
@@ -40,6 +39,6 @@
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.3"
   }
 }
