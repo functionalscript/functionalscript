@@ -53,11 +53,18 @@ export const serialize = (a: bigint): string => `${a}n`
  *    of the most significant bit.
  * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
  *    determining the exact value of the logarithm.
+ * 3. **Remainder Phase:** Using `Math.log2`.
  */
 export const log2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
+
+    //
+    // 1. Fast Doubling.
+    //
+
     let result = -1n
-    // note: 1024 may lead to `Inf`
+    // note: numbers higher than 1023 may lead to `Inf` during conversion `Number(v)`
+    // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`
     let i = 1023n
     while (true) {
         const n = v >> i
@@ -69,6 +76,11 @@ export const log2 = (v: bigint): bigint => {
         result += i
         i <<= 1n
     }
+
+    //
+    // 2. Binary Search.
+    //
+
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
     // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
     while (i !== 1023n) {
@@ -79,9 +91,17 @@ export const log2 = (v: bigint): bigint => {
             v = n
         }
     }
-    const x = BigInt(Math.log2(Number(v)) | 0)
-    // (v >> x) is a correction for Math.log2 rounding.
-    return result + x + (v >> x)
+
+    //
+    // 3. Remainder Phase.
+    //
+
+    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
+    // `Math.log2`.
+    const rem = BigInt(Math.log2(Number(v)) | 0)
+    // (v >> rem) is either `0` or `1`, and it's used as a correction for
+    // Math.log2 rounding.
+    return result + rem + (v >> rem)
 }
 
 /**
@@ -126,3 +146,6 @@ export const bitLength = (v: bigint): bigint => {
  */
 export const mask = (len: bigint): bigint =>
     (1n << len) - 1n
+
+export const min = (a: bigint) => (b: bigint) =>
+    a < b ? a : b

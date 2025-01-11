@@ -1,4 +1,4 @@
-import { sum, abs, serialize, log2, bitLength, mask } from './module.f.ts'
+import { sum, abs, serialize, log2, bitLength, mask, min } from './module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
@@ -31,14 +31,12 @@ const strBinLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
 
 const strHexLog2 = (v: bigint): bigint => {
     const len = (BigInt(v.toString(16).length) - 1n) << 2n
-    const x = v >> len
-    return len + 31n - BigInt(Math.clz32(Number(x)))
+    return len + 31n - BigInt(Math.clz32(Number(v >> len)))
 }
 
 const str32Log2 = (v: bigint): bigint => {
     const len = (BigInt(v.toString(32).length) - 1n) * 5n
-    const x = v >> len
-    return len + 31n - BigInt(Math.clz32(Number(x)))
+    return len + 31n - BigInt(Math.clz32(Number(v >> len)))
 }
 
 export const clz32Log2 = (v: bigint): bigint => {
@@ -68,7 +66,9 @@ export const clz32Log2 = (v: bigint): bigint => {
     return result - BigInt(Math.clz32(Number(v)))
 }
 
-const benchmark = (f: (_: bigint) => bigint) => () => {
+type Benchmark = (f: (_: bigint) => bigint) => () => void
+
+const benchmark: Benchmark = f => () => {
     let e = 1_048_575n
     let c = 1n << e
     for (let i = 0n; i < 1_100; ++i) {
@@ -83,6 +83,24 @@ const benchmark = (f: (_: bigint) => bigint) => () => {
         c >>= 1n
         --e
     }
+}
+
+
+const benchmarkSmall: Benchmark = f => () => {
+    let e = 2_000n
+    let c = 1n << e
+    do {
+        {
+            const x = f(c)
+            if (x !== e) { throw [e, x] }
+        }
+        for (let j = 1n; j < min(c >> 1n)(1000n); ++j) {
+            const x = f(c - j)
+            if (x !== e - 1n) { throw [j, e, x] }
+        }
+        c >>= 1n
+        --e
+    } while (c !== 0n)
 }
 
 export default {
@@ -102,13 +120,21 @@ export default {
         const bitmask = mask(5n) // 31n
         if (bitmask !== 31n) { throw total }
     },
-    benchmark: {
-        strBinLog2: benchmark(strBinLog2),
-        strHexLog2: benchmark(strHexLog2),
-        str32Log2: benchmark(str32Log2),
-        oldLog2: benchmark(oldLog2),
-        clz32Log2: benchmark(clz32Log2),
-        log2: benchmark(log2),
+    benchmark: () => {
+        const list = {
+            strBinLog2,
+            strHexLog2,
+            str32Log2,
+            oldLog2,
+            clz32Log2,
+            log2,
+        }
+        const transform = (b: Benchmark) =>
+            Object.fromEntries(Object.entries(list).map(([k, f]) => [k, b(f)]))
+        return {
+            big: transform(benchmark),
+            small: transform(benchmarkSmall),
+        }
     },
     mask: () => {
         const result = mask(3n) // 7n
