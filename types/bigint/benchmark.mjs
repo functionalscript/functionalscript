@@ -94,8 +94,6 @@ const mathLog2 = v => {
     return result + x + (v >> x)
 }
 
-// const mathLog2 = v => BigInt(Math.log2(Number(v)))
-
 const log = document.getElementById('log')
 
 const benchmark = (s, f) => {
