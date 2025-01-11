@@ -1,11 +1,6 @@
+use crate::{interface, sign::Sign, simple::Simple};
 use core::{fmt, marker::PhantomData};
 use std::rc;
-
-use crate::{
-    interface::{self, Container},
-    sign::Sign,
-    simple::Simple,
-};
 
 pub trait Policy {
     type Header: PartialEq + fmt::Debug + Clone;
@@ -231,14 +226,6 @@ impl interface::Any for Any {
             Any::Array(complex) => interface::Unpacked::Array(complex),
             Any::Object(complex) => interface::Unpacked::Object(complex),
             Any::Function(complex) => interface::Unpacked::Function(complex),
-        }
-    }
-
-    fn negate_bigint(i: BigInt) -> BigInt {
-        if i.header == Sign::Positive {
-            BigInt::new(Sign::Negative, i.items.iter().cloned())
-        } else {
-            BigInt::new(Sign::Positive, i.items.iter().cloned())
         }
     }
 }

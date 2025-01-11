@@ -23,7 +23,14 @@ pub trait String16<U: Any<String16 = Self>>:
 {
 }
 
-pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {}
+pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {
+    fn negate(self) -> Self {
+        match self.header() {
+            Sign::Positive => Self::new(Sign::Negative, self.items().iter().cloned()),
+            Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
+        }
+    }
+}
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
 
@@ -35,18 +42,6 @@ pub trait Object<U: Any<Object = Self>>:
 pub trait Function<U: Any<Function = Self>>:
     Complex<U> + Container<Header = u32, Item = u8>
 {
-}
-
-#[derive(Debug, PartialEq)]
-pub enum TypeError {
-    BigIntToNumber, // Cannot convert BigInt to number (as in unary plus operation).
-                    // More error variants will be added in the future as needed.
-}
-
-#[derive(Debug, PartialEq)]
-pub enum RuntimeError {
-    TypeError(TypeError),
-    // More error variants will be added in the future as needed.
 }
 
 pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
@@ -61,8 +56,6 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
 
     fn new_simple(value: Simple) -> Self;
     fn try_to_simple(&self) -> Option<Simple>;
-
-    fn negate_bigint(i: Self::BigInt) -> Self::BigInt;
 
     fn try_to<C: Complex<Self>>(self) -> Result<C, Self> {
         C::try_from_unknown(self)
@@ -85,56 +78,62 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
-    fn to_number(v: Self) -> (Result<Self, RuntimeError>, Option<Self::BigInt>) {
-        // https://tc39.es/ecma262/#sec-unary-plus-operator - here we effectively implement
-        // ECMAScript logic for an abstract operation ToNumber, see
+    fn to_numeric(v: Self) -> Numeric<Self> {
+        // Here we effectively implement ECMAScript logic for an abstract operation ToNumber, see
         // https://tc39.es/ecma262/#sec-tonumber - with the difference that TypeError exception
-        // is replaced with a correspondent runtime error result.
+        // is replaced with Numeric::BigInt variant of the result type.
         match v.unpack() {
             Unpacked::Nullish(n) => match n {
-                Nullish::Null => (Ok(Self::new_simple(Simple::Number(0.0))), None),
-                Nullish::Undefined => (Ok(Self::new_simple(Simple::Number(f64::NAN))), None),
+                Nullish::Null => Numeric::Number(0.0),
+                Nullish::Undefined => Numeric::Number(f64::NAN),
             },
-            Unpacked::Bool(b) => (
-                Ok(Self::new_simple(Simple::Number(if b { 1.0 } else { 0.0 }))),
-                None,
-            ),
-            Unpacked::Number(n) => (Ok(Self::new_simple(Simple::Number(n))), None),
+            Unpacked::Bool(b) => Numeric::Number(if b { 1.0 } else { 0.0 }),
+            Unpacked::Number(n) => Numeric::Number(n),
             Unpacked::String16(s) => {
                 let items = s.items();
                 if items.is_empty() {
-                    return (Ok(Self::new_simple(Simple::Number(0.0))), None);
+                    return Numeric::Number(0.0);
                 }
                 let string: String = decode_utf16(items.iter().cloned())
                     .map(|r| r.unwrap_or('\u{FFFD}'))
                     .collect();
                 if let Ok(n) = string.parse::<f64>() {
-                    return (Ok(Self::new_simple(Simple::Number(n))), None);
+                    Numeric::Number(n)
+                } else {
+                    Numeric::Number(f64::NAN)
                 }
-                (Ok(Self::new_simple(Simple::Number(f64::NAN))), None)
             }
-            Unpacked::BigInt(i) => (
-                Err(RuntimeError::TypeError(TypeError::BigIntToNumber)),
-                Some(i),
-            ),
+            Unpacked::BigInt(i) => Numeric::BigInt(i),
             Unpacked::Array(a) => {
                 let items = a.items();
                 if items.is_empty() {
-                    return (Ok(Self::new_simple(Simple::Number(0.0))), None);
+                    return Numeric::Number(0.0);
                 }
                 if items.len() > 1 {
-                    return (Ok(Self::new_simple(Simple::Number(f64::NAN))), None);
+                    return Numeric::Number(f64::NAN);
                 }
-                Self::to_number(items[0].clone())
+                Self::to_numeric(items[0].clone())
             }
             // TODO: use valueOf, toString functions for Object when present.
-            Unpacked::Object(_) => (Ok(Self::new_simple(Simple::Number(f64::NAN))), None),
-            Unpacked::Function(_) => (Ok(Self::new_simple(Simple::Number(f64::NAN))), None),
+            Unpacked::Object(_) => Numeric::Number(f64::NAN),
+            Unpacked::Function(_) => Numeric::Number(f64::NAN),
         }
     }
 
-    fn unary_plus(v: Self) -> Result<Self, RuntimeError> {
-        Self::to_number(v).0
+    // For now for internal exception-throwing operations (e.g. unary_plus applied to BigInt) we use
+    // an Any-wrapped string value (a message). Later on we might want to have a schematized
+    // exception Any that would carry file, line, etc. along with the message string.
+    fn exception(c: &str) -> Result<Self, Self> {
+        Err(Self::pack(Unpacked::String16(c.to_string16::<Self>())))
+    }
+
+    fn unary_plus(v: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v) {
+            Numeric::Number(f) => Ok(Self::new_simple(Simple::Number(f))),
+            Numeric::BigInt(_) => {
+                Self::exception("TypeError: Cannot convert a BigInt value to a number")
+            }
+        }
     }
 
     fn unary_minus(v: Self) -> Self {
@@ -142,21 +141,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         // ECMAScript requires throwing TypeError for Symbol arguments; as of now we don't support
         // Symbol, so we don't return error results. We use unary_plus as a helper function here,
         // handling BigInt case when the error result of unary_plus indicates that case.
-        match Self::to_number(v) {
-            (Ok(v), option) => {
-                assert!(option.is_none());
-                match v.unpack() {
-                    Unpacked::Number(f) => Self::new_simple(Simple::Number(-f)),
-                    _ => panic!("unexpected OK result of to_number that is not a number"),
-                }
-            }
-            (Err(err), option) => {
-                assert!(err == RuntimeError::TypeError(TypeError::BigIntToNumber));
-                match option {
-                    None => panic!("unexpected error result of to_number without BigInt"),
-                    Some(i) => Self::pack(Unpacked::BigInt(Self::negate_bigint(i))),
-                }
-            }
+        match Self::to_numeric(v) {
+            Numeric::Number(f) => Self::new_simple(Simple::Number(-f)),
+            Numeric::BigInt(i) => Self::pack(Unpacked::BigInt(i.negate())),
         }
     }
 }
@@ -171,6 +158,11 @@ pub enum Unpacked<U: Any> {
     Array(U::Array),
     Object(U::Object),
     Function(U::Function),
+}
+
+pub enum Numeric<U: Any> {
+    Number(f64),
+    BigInt(U::BigInt),
 }
 
 pub trait Extension: Sized {

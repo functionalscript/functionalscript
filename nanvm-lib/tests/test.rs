@@ -1,7 +1,7 @@
 use core::panic;
 
 use nanvm_lib::{
-    interface::{Any, Complex, Container, Extension, RuntimeError, Unpacked, Utf8},
+    interface::{Any, Complex, Container, Extension, Unpacked, Utf8},
     naive,
     nullish::Nullish,
     sign::Sign,
@@ -221,10 +221,8 @@ fn unary_plus<A: Any>() {
     // bigint
     let bigint0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
     assert_eq!(
-        Any::unary_plus(bigint0.clone()),
-        Err(RuntimeError::TypeError(
-            nanvm_lib::interface::TypeError::BigIntToNumber
-        ))
+        Any::unary_plus(bigint0),
+        A::exception("TypeError: Cannot convert a BigInt value to a number")
     );
 }
 
