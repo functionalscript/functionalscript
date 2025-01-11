@@ -1,5 +1,5 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { type Array2, isArray2, Tuple2 } from '../../types/array/module.f.ts'
+import { type Array2, isArray2 } from '../../types/array/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 
 // Types

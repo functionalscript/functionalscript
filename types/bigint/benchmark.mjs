@@ -66,8 +66,6 @@ const string32Log2 = v => {
     return len + 31n - BigInt(Math.clz32(Number(x)))
 }
 
-const m = 1023n
-
 const mathLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = -1n
