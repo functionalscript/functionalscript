@@ -73,8 +73,14 @@ const benchmark = (f: (_: bigint) => bigint) => () => {
     let e = 1_048_575n
     let c = 1n << e
     for (let i = 0n; i < 1_000; ++i) {
-        const x = f(c)
-        if (x !== e) { throw x }
+        {
+            const x = f(c)
+            if (x !== e) { throw x }
+        }
+        {
+            const x = f(c - 1n)
+            if (x !== e - 1n) { throw [e, x] }
+        }
         c >>= 1n
         --e
     }
