@@ -11,7 +11,10 @@ const stringifyDjsModule = djsModuleStringify(sort)
 
 const virtualFs = (files: Map<string>): Fs => ({
     readFileSync: (path: string) => at(path)(files),
-    writeFileSync: (path: string) => (content: string) => {}
+    writeFileSync: (path: string) => (content: string) => {
+        const map = setReplace(path)(content)(files)
+        return virtualFs(map)
+    }
 })
 
 export default {
