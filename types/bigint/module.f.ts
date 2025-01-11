@@ -110,6 +110,8 @@ export const log2 = (v: bigint): bigint => {
         // Math.log2 rounding.
         return result + rem + (v >> rem)
     } else {
+        // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
+        // `result = -1n`.
         return result + 0x400n
     }
 }
