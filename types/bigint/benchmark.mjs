@@ -96,9 +96,7 @@ const mathLog2 = v => {
 
 const log = document.getElementById('log')
 
-const benchmark = (s, f) => {
-    const start = performance.now()
-    //
+const big = f => {
     let e = 1_048_575n
     let c = 1n << e
     for (let i = 0n; i < 1_000; ++i) {
@@ -115,16 +113,46 @@ const benchmark = (s, f) => {
         c >>= 1n
         --e
     }
-    //
+}
+
+const min = a => b => a < b ? a : b
+
+const small = f => {
+    let e = 2_000n
+    let c = 1n << e
+    do {
+        {
+            const x = f(c)
+            if (x !== e) { throw [e, x] }
+        }
+        for (let j = 1n; j < min(c >> 1n)(1000n); ++j) {
+            const x = f(c - j)
+            if (x !== e - 1n) { throw [j, e, x] }
+        }
+        c >>= 1n
+        --e
+    } while (c !== 0n)
+}
+
+const benchmark = t => (s, f) => {
+    const start = performance.now()
+    t(f)
     const end = performance.now()
     const dif = end - start
     //
     log.innerText += `${s}: ${dif}\n`
 }
 
-benchmark('stringLog2', stringLog2)
-benchmark('stringHexLog2', stringHexLog2)
-benchmark('string32Log2', string32Log2)
-benchmark('oldLog2', oldLog2)
-benchmark('log2', log2)
-benchmark('mathLog2', mathLog2)
+const run = t => {
+    log.innerText += `${t.name}\n`
+    const b = benchmark(t)
+    b('stringLog2', stringLog2)
+    b('stringHexLog2', stringHexLog2)
+    b('string32Log2', string32Log2)
+    b('oldLog2', oldLog2)
+    b('log2', log2)
+    b('mathLog2', mathLog2)
+}
+
+run(big)
+run(small)
