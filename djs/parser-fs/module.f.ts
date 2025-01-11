@@ -46,8 +46,6 @@ const foldNextModuleOp
         const s = context.fs.readFileSync(path)
         const parseModuleResult = parseModule(s)
         const contextWithImports = parseImports(path)(parseModuleResult)(context)
-
-        const c = setReplace(path)(parseModuleResult)(contextWithImports.complete) 
         return { ... contextWithImports, complete: setReplace(path)(parseModuleResult)(contextWithImports.complete) }
 }
 
