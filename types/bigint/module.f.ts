@@ -147,5 +147,8 @@ export const bitLength = (v: bigint): bigint => {
 export const mask = (len: bigint): bigint =>
     (1n << len) - 1n
 
+/**
+ * A minimal value.
+ */
 export const min = (a: bigint) => (b: bigint) =>
     a < b ? a : b
