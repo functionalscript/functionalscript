@@ -138,10 +138,14 @@ const ylog2 = v => {
     // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
     // `Math.log2`.
     const nl = mLog2(Number(v))
-    const rem = isFinite(nl) ? BigInt(nl | 0) : 0x3FFn
-    // (v >> rem) is either `0` or `1`, and it's used as a correction for
-    // Math.log2 rounding.
-    return result + rem + (v >> rem)
+    if (isFinite(nl)) {
+        const rem = BigInt(nl | 0)
+        // (v >> rem) is either `0` or `1`, and it's used as a correction for
+        // Math.log2 rounding.
+        return result + rem + (v >> rem)
+    } else {
+        return result + 0x400n
+    }
 }
 
 const log = document.getElementById('log')
