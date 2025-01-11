@@ -49,10 +49,10 @@ For small numbers, `1 .. 2 ** 2_000`:
 |Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
 |-------|---|----------|----------|---------|-------|---------|-------|
 |Chrome |AMD|      2010|       889|      781|   2295|     1210|**593**|
-|Chrome | M1|
+|Chrome | M1|      1227|       495|      417|   1055|      539|**285**|
 |Firefox|AMD|      2117|       985|     1056|   2467|     1263|**503**|
-|Firefox| M1|
-|Safari | M1|
+|Firefox| M1|      1326|       594|      541|   1967|     1013|**348**|
+|Safari | M1|      1808|       784|      741|   2013|     1108|**466**|
 
 **Note:** the benchmark was changed since 2024 and runs more tests.
 Compare only relative numbers.
