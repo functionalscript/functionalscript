@@ -63,7 +63,7 @@ export const log2 = (v: bigint): bigint => {
     //
 
     let result = -1n
-    // Numbers higher than 1023 may lead to `Inf` during conversion `Number(v)`.
+    // `bigints` higher than 2**1023 may lead to `Inf` during conversion to `number`.
     // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
     let i = 1023n
     while (true) {
@@ -96,7 +96,7 @@ export const log2 = (v: bigint): bigint => {
     // 3. Remainder Phase.
     //
 
-    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
+    // We know that `v` is less than `1n << 1023` so we can calculate a remainder using
     // `Math.log2`.
     const rem = BigInt(Math.log2(Number(v)) | 0)
     // (v >> rem) is either `0` or `1`, and it's used as a correction for
