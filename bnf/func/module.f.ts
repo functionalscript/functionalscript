@@ -1,14 +1,12 @@
 /**
- *  Types for defining language grammar using Backus-Naur Form (BNF).
- *
- * @module
- *
- * @description
+ * Types for defining language grammar using Backus-Naur Form (BNF).
  *
  * Utilities for serializing and deserializing BNF grammar
  * and creating a simple LL(1) parser.
  *
  * See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
+ *
+ * @module
  *
  * @example
  *
@@ -147,6 +145,16 @@ type RangeSet = readonly TerminalRange[]
  */
 export type OrRangeSet = readonly (readonly [TerminalRange])[]
 
+const toOr = (r: RangeSet): OrRangeSet => r.map(v => [v])
+
+/**
+ * Convert a sequence of character into `OrRangeSet`
+ *
+ * @param s a set of code points
+ * @returns A set compatible with `Or`
+ */
+export const set = (s: string): OrRangeSet => toOr(str(s))
+
 const removeOne = (set: RangeSet, [a, b]: TerminalRange): RangeSet => {
     let result: RangeSet = []
     for (const [a0, b0] of set) {
@@ -182,5 +190,22 @@ export const remove = (range: TerminalRange, removeSet: RangeSet): OrRangeSet =>
     for (const r of removeSet) {
         result = removeOne(result, r)
     }
-    return result.map(v => [v])
+    return toOr(result)
+}
+
+export const repeat0 = (rule: Rule): Rule => {
+    const result: Rule = () => [
+        [],
+        [rule, result],
+    ]
+    return result
+}
+
+export const join0 = (rule: Rule, separator: Rule): Rule => {
+    const tail = repeat0(() => [[separator, rule]])
+    const result: Rule = () => [
+        [],
+        [rule, tail],
+    ]
+    return result
 }

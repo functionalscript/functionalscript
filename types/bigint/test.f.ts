@@ -1,4 +1,4 @@
-import { sum, abs, serialize, log2, bitLength, mask } from './module.f.ts'
+import { sum, abs, serialize, log2, bitLength, mask, min } from './module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
@@ -27,23 +27,80 @@ const oldLog2 = (v: bigint): bigint => {
     return result
 }
 
-const stringLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
+const strBinLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
 
-const stringHexLog2 = (v: bigint): bigint => {
+const strHexLog2 = (v: bigint): bigint => {
     const len = (BigInt(v.toString(16).length) - 1n) << 2n
-    const x = v >> len
-    return len + 31n - BigInt(Math.clz32(Number(x)))
+    return len + 31n - BigInt(Math.clz32(Number(v >> len)))
 }
 
-const benchmark = (f: (_: bigint) => bigint) => () => {
+const str32Log2 = (v: bigint): bigint => {
+    const len = (BigInt(v.toString(32).length) - 1n) * 5n
+    return len + 31n - BigInt(Math.clz32(Number(v >> len)))
+}
+
+export const clz32Log2 = (v: bigint): bigint => {
+    if (v <= 0n) { return -1n }
+    let result = 31n
+    let i = 32n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            // overshot
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n
+    }
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 32 before we divide it by 2.
+    while (i !== 32n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+    return result - BigInt(Math.clz32(Number(v)))
+}
+
+type Benchmark = (f: (_: bigint) => bigint) => () => void
+
+const benchmark: Benchmark = f => () => {
     let e = 1_048_575n
     let c = 1n << e
-    for (let i = 0n; i < 1_000; ++i) {
-        const x = f(c)
-        if (x !== e) { throw x }
+    for (let i = 0n; i < 1_100; ++i) {
+        {
+            const x = f(c)
+            if (x !== e) { throw x }
+        }
+        {
+            const x = f(c - 1n)
+            if (x !== e - 1n) { throw [e, x] }
+        }
         c >>= 1n
         --e
     }
+}
+
+
+const benchmarkSmall: Benchmark = f => () => {
+    let e = 2_000n
+    let c = 1n << e
+    do {
+        {
+            const x = f(c)
+            if (x !== e) { throw [e, x] }
+        }
+        for (let j = 1n; j < min(c >> 1n)(1000n); ++j) {
+            const x = f(c - j)
+            if (x !== e - 1n) { throw [j, e, x] }
+        }
+        c >>= 1n
+        --e
+    } while (c !== 0n)
 }
 
 export default {
@@ -52,22 +109,35 @@ export default {
         if (total !== 6n) { throw total }
 
         const absoluteValue = abs(-42n) // 42n
-        if (absoluteValue !== 42n) { throw total }
+        if (absoluteValue !== 42n) { throw absoluteValue }
 
         const logValue = log2(8n) // 3n
-        if (logValue !== 3n) { throw total }
+        if (logValue !== 3n) { throw logValue }
 
         const bitCount = bitLength(255n) // 8n
-        if (bitCount !== 8n) { throw total }
+        if (bitCount !== 8n) { throw bitCount }
 
         const bitmask = mask(5n) // 31n
-        if (bitmask !== 31n) { throw total }
+        if (bitmask !== 31n) { throw benchmark }
+
+        const m = min(3n)(13n) // 3n
+        if (m !== 3n) { throw m }
     },
-    benchmark: {
-        str: benchmark(stringLog2),
-        stringHexLog2: benchmark(stringHexLog2),
-        oldLog2: benchmark(oldLog2),
-        log2: benchmark(log2),
+    benchmark: () => {
+        const list = {
+            strBinLog2,
+            strHexLog2,
+            str32Log2,
+            oldLog2,
+            clz32Log2,
+            log2,
+        }
+        const transform = (b: Benchmark) =>
+            Object.fromEntries(Object.entries(list).map(([k, f]) => [k, b(f)]))
+        return {
+            big: transform(benchmark),
+            small: transform(benchmarkSmall),
+        }
     },
     mask: () => {
         const result = mask(3n) // 7n

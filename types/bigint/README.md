@@ -4,6 +4,61 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ## Benchmarks
 
+### New log2 based on `Math.log2` and str32Log2 (2025/01/10)
+
+See also https://medium.com/@sergeyshandar/improving-the-log2-algorithm-for-bigint-in-javascript-7e5692e7bf0b?sk=9ac18367f61b524704cc8d82707aed3d
+
+For big numbers, about `2 ** 1_000_000`:
+
+|Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
+|---------|----------|----------|---------|-------|---------|-------|
+|Bun      |      2071|       731|  **631**|   1827|     1195|   1110|
+|Deno 2   |      3720|       970|      788|    506|      307|**206**|
+|Deno 1   |      3710|       966|      782|    488|      292|**204**|
+|Node 23  |      3803|      1073|      947|    534|      317|**226**|
+|Node 22  |      3882|      1073|      967|    479|      265|**222**|
+|Node 20  |      3855|      1118|      992|    494|      280|**217**|
+|Node 18  |      3832|      1179|     1058|    514|      280|**229**|
+|Node 16  |      3781|      1118|     1037|    672|      430|**281**|
+
+For small numbers, `1 .. 2 ** 2_000`:
+
+|Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|    log2|
+|---------|----------|----------|---------|-------|---------|--------|
+|Bun      |      2539|      1353|     1293|   3733|     1885| **699**|
+|Deno 2   |      3067|       975|      791|   1662|      877| **452**|
+|Deno 1   |      3052|       988|      828|   1656|      856| **456**|
+|Node 23  |      3046|      1047|      898|   1795|      926| **538**|
+|Node 22  |      3128|      1049|      878|   1845|      932| **500**|
+|Node 20  |      3095|      1088|      935|   1796|      940| **566**|
+|Node 18  |      3399|      1506|     1391|   4497|     2305| **970**|
+|Node 16  |      3368|      1561|     1427|   4916|     2593|**1069**|
+
+**Browser Test**
+
+For big numbers, about `2 ** 1_000_000`:
+
+|Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
+|-------|---|----------|----------|---------|-------|---------|-------|
+|Chrome |AMD|      2360|       715|  **532**|   1190|      807|    551|
+|Chrome | M1|      1235|       349|      283|    324|      226|**171**|
+|Firefox|AMD|      3189|       588|  **529**|   2912|     2165|   1443|
+|Firefox| M1|      1516|       401|  **338**|   1799|     1339|    847|
+|Safari | M1|      1650|       369|      299|    318|      215|**203**|
+
+For small numbers, `1 .. 2 ** 2_000`:
+
+|Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
+|-------|---|----------|----------|---------|-------|---------|-------|
+|Chrome |AMD|      2010|       889|      781|   2295|     1210|**593**|
+|Chrome | M1|      1227|       495|      417|   1055|      539|**285**|
+|Firefox|AMD|      2117|       985|     1056|   2467|     1263|**503**|
+|Firefox| M1|      1326|       594|      541|   1967|     1013|**348**|
+|Safari | M1|      1808|       784|      741|   2013|     1108|**466**|
+
+**Note:** the benchmark was changed since 2024 and runs more tests.
+Compare only relative numbers.
+
 ### newLog2 (32 based) versus others (2024/12/27)
 
 |Framework|str bin  |str hex  |old log2 |log2    |

@@ -1,10 +1,11 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "license": "AGPL-3.0-only",
   "exports": {
     "./bnf/djs": "./bnf/djs/module.f.ts",
     "./bnf/func": "./bnf/func/module.f.ts",
+    "./bnf/tag": "./bnf/tag/module.f.ts",
     "./crypto/prime_field": "./crypto/prime_field/module.f.ts",
     "./crypto/secp": "./crypto/secp/module.f.ts",
     "./crypto/sha2": "./crypto/sha2/module.f.ts",
@@ -66,6 +67,6 @@
     "indentWidth": 4,
     "semiColons": false,
     "singleQuote": true,
-    "lineWidth": 100
+    "lineWidth": 80
   }
 }
