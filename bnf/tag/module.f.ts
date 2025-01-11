@@ -1,4 +1,5 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { type Array2, isArray2, Tuple2 } from '../../types/array/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 
 // Types
@@ -32,7 +33,7 @@ export const rangeEncode = (a: number, b: number): Range =>
 
 export const oneEncode = (a: number): Range => rangeEncode(a, a)
 
-export const rangeDecode = (r: bigint): readonly[number, number] =>
+export const rangeDecode = (r: bigint): Array2<number> =>
     [Number(r >> offset), Number(r & mask)]
 
 const mapOneEncode = map(oneEncode)
@@ -49,17 +50,17 @@ export const set = (s: string): Or =>
 
 export const range = (ab: string): Range => {
     const a = toArray(stringToCodePointList(ab))
-    if (a.length !== 2) {
+    if (!isArray2(a)) {
         throw `Invalid range ${ab}.`
     }
-    return rangeEncode(...a as readonly[number, number])
+    return rangeEncode(...a)
 }
 
 export type None = readonly[]
 
 export const none: None = []
 
-export type Option<S extends Rule> = {
+export type Option<S> = {
     none: None
     some: S
 }
@@ -69,12 +70,24 @@ export const option = <S extends Rule>(some: S): Option<S> => ({
     some,
 })
 
-export const repeat0 = (some: Rule): Rule => {
-    const f = () => option([some, f])
+export type Repeat0<T> = () => Option<readonly[T, Repeat0<T>]>
+
+export const repeat0 = <T extends Rule>(some: T): Repeat0<T> => {
+    const f = () => option([some, f] as const)
     return f
 }
 
-export const repeat1 = (some: Rule): Sequence => [some, repeat0(some)]
+export type Repeat1<T> = readonly[T, Repeat0<T>]
 
-export const join0 = (some: Rule, separator: Rule): Rule =>
-    option([some, repeat0(() => [separator, some])])
+export const repeat1 = <T extends Rule>(some: T): Repeat1<T> =>
+    [some, repeat0(some)]
+
+export type Join1<T, S> = readonly[T, Repeat0<readonly[S, T]>]
+
+export const join1 = <T extends Rule, S extends Rule>(some: T, separator: S): Join1<T, S> =>
+    [some, repeat0([separator, some])]
+
+export type Join0<T, S> = Option<readonly[T, Repeat0<readonly[S, T]>]>
+
+export const join0 = <T extends Rule, S extends Rule>(some: T, separator: S): Rule =>
+    option(join1(some, separator))

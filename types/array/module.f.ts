@@ -12,6 +12,9 @@ export type Index1 = 0
 
 export type Array2<T> = readonly [T, T]
 
+export const isArray2 = <T>(a: readonly T[]): a is Array2<T> =>
+    a.length === 2
+
 export type Tuple2<T0, T1> = readonly [T0, T1]
 
 export type Index2 = 0 | 1

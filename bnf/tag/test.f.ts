@@ -1,4 +1,4 @@
-import { join0, none, option, range, repeat0, repeat1, type Rule, set } from './module.f.ts'
+import { join0, none, option, range, repeat0, type Rule, set } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -113,26 +113,6 @@ const _classic = (): Rule => {
 
 const _deterministic = (): Rule => {
 
-    const value = () => ({
-        object,
-        array,
-        string,
-        number,
-        true: 'true',
-        false: 'false',
-        null: 'null'
-    })
-
-    const object = () => ({
-        ws: ['{', ws, '}'],
-        members: ['{', members, '}'],
-    })
-
-    const members = () => ({
-        member,
-        members: [member, ',', members],
-    })
-
     const onenine = range('12')
 
     const digit: Rule = {
@@ -181,15 +161,26 @@ const _deterministic = (): Rule => {
 
     const ws = repeat0(set(' \n\r\t'))
 
-    const element = [value, ws]
+    const value = () => ({
+        object,
+        array,
+        string,
+        number,
+        true: 'true',
+        false: 'false',
+        null: 'null'
+    })
 
-    const elements = join0(element, [',', ws])
+    const commaJoin0 = ([open, close]: string, a: Rule) =>
+        [open, ws, join0([a, ws], [',', ws]), close]
 
-    const array = ['[', ws, elements, ']']
+    const array = commaJoin0('[]', value)
 
-    const member = [ws, string, ws, ':', ws, element]
+    const member = [string, ws, ':', ws, value]
 
-    const json = [ws, element]
+    const object = commaJoin0('{}', member)
+
+    const json = [ws, value, ws]
 
     return json
 }
