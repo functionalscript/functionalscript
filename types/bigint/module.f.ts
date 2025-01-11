@@ -63,8 +63,8 @@ export const log2 = (v: bigint): bigint => {
     //
 
     let result = -1n
-    // note: numbers higher than 1023 may lead to `Inf` during conversion `Number(v)`
-    // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`
+    // Numbers higher than 1023 may lead to `Inf` during conversion `Number(v)`.
+    // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
     let i = 1023n
     while (true) {
         const n = v >> i

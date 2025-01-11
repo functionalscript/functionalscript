@@ -6,6 +6,8 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ### New log2 based on `Math.log2` and str32Log2 (2025/01/10)
 
+See also https://medium.com/@sergeyshandar/improving-the-log2-algorithm-for-bigint-in-javascript-7e5692e7bf0b?sk=9ac18367f61b524704cc8d82707aed3d
+
 For big numbers, about `2 ** 1_000_000`:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
