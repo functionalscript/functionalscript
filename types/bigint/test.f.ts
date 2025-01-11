@@ -68,6 +68,8 @@ export const clz32Log2 = (v: bigint): bigint => {
 
 const { isFinite } = Number
 
+const mathLog2 = Math.log2
+
 const ylog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
 
@@ -111,7 +113,7 @@ const ylog2 = (v: bigint): bigint => {
 
     // We know that `v` is less than `1n << 1023` so we can calculate a remainder using
     // `Math.log2`.
-    const nl = Math.log2(Number(v))
+    const nl = mathLog2(Number(v))
     const rem = BigInt(isFinite(nl) ? nl | 0 : 0x400)
     // (v >> rem) is either `0` or `1`, and it's used as a correction for
     // Math.log2 rounding.
