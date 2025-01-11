@@ -54,7 +54,7 @@ export const serialize = (a: bigint): string => `${a}n`
  * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
  *    determining the exact value of the logarithm.
  */
-export const log2 = (v: bigint) => {
+export const log2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
     let result = -1n
     // note: 1024 may lead to `Inf`
