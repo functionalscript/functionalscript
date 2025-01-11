@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0
 
-- COM and Commonjs modules are retired.
+- COM and Commonjs modules are retired [PR #367](https://github.com/functionalscript/functionalscript/pull/367).
 
 ## 0.3.13
 
