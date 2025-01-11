@@ -4,6 +4,32 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ## Benchmarks
 
+### mathLog2 and str 32 (2025/01/10)
+
+|Framework|str bin|str hex|str 32|old log2|log2    |math log2|
+|---------|-------|-------|------|--------|--------|---------|
+|Bun      |   2071|    731|   631|    1827|    1195|     1110|
+|Deno 2   |   3720|    970|   788|     506|     307|      206|
+|Deno 1   |   3710|    966|   782|     488|     292|      204|
+|Node 23  |   3803|   1073|   947|     534|     317|      226|
+|Node 22  |   3882|   1073|   967|     479|     265|      222|
+|Node 20  |   3855|   1118|   992|     494|     280|      217|
+|Node 18  |   3832|   1179|  1058|     514|     280|      229|
+|Node 16  |   3781|   1118|  1037|     672|     430|      281|
+
+**Browser Test**
+
+|Browser|CPU|str bin|str hex|str 32|old log2|log2|math log2|
+|-------|---|-------|-------|------|--------|----|---------|
+|Chrome |AMD|   2360|    715|   532|    1190| 807|      551|
+|Chrome | M1|       |       |      |        |    |         |
+|Firefox|AMD|   3189|    588|   529|    2912|2165|     1443|
+|Firefox| M1|       |       |      |        |    |         |
+|Safari | M1|       |       |      |        |    |         |
+
+**Note:** the benchmark was changed since 2024 and runs more tests.
+Compare only relative numbers.
+
 ### newLog2 (32 based) versus others (2024/12/27)
 
 |Framework|str bin  |str hex  |old log2 |log2    |
