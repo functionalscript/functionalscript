@@ -54,10 +54,11 @@ export const serialize = (a: bigint): string => `${a}n`
  * 2. **Binary Search Phase:** Refines the result by halving the step size and incrementally
  *    determining the exact value of the logarithm.
  */
-export const log2 = (v: bigint): bigint => {
+export const log2 = (v: bigint) => {
     if (v <= 0n) { return -1n }
-    let result = 31n
-    let i = 32n
+    let result = -1n
+    // note: 1024 may lead to `Inf`
+    let i = 1023n
     while (true) {
         const n = v >> i
         if (n === 0n) {
@@ -69,8 +70,8 @@ export const log2 = (v: bigint): bigint => {
         i <<= 1n
     }
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
-    // Because of this, We check if `i` is greater than 32 before we divide it by 2.
-    while (i !== 32n) {
+    // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
+    while (i !== 1023n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -78,7 +79,9 @@ export const log2 = (v: bigint): bigint => {
             v = n
         }
     }
-    return result - BigInt(Math.clz32(Number(v)))
+    const x = BigInt(Math.log2(Number(v)) | 0)
+    // (v >> x) is a correction for Math.log2 rounding.
+    return result + x + (v >> x)
 }
 
 /**

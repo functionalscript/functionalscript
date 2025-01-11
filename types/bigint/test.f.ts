@@ -27,24 +27,24 @@ const oldLog2 = (v: bigint): bigint => {
     return result
 }
 
-const stringLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
+const strBinLog2 = (v: bigint): bigint => BigInt(v.toString(2).length) - 1n
 
-const stringHexLog2 = (v: bigint): bigint => {
+const strHexLog2 = (v: bigint): bigint => {
     const len = (BigInt(v.toString(16).length) - 1n) << 2n
     const x = v >> len
     return len + 31n - BigInt(Math.clz32(Number(x)))
 }
 
-const string32Log2 = (v: bigint): bigint => {
+const str32Log2 = (v: bigint): bigint => {
     const len = (BigInt(v.toString(32).length) - 1n) * 5n
     const x = v >> len
     return len + 31n - BigInt(Math.clz32(Number(x)))
 }
 
-const mathLog2 = (v: bigint) => {
+export const clz32Log2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
-    let result = -1n
-    let i = 1023n
+    let result = 31n
+    let i = 32n
     while (true) {
         const n = v >> i
         if (n === 0n) {
@@ -57,7 +57,7 @@ const mathLog2 = (v: bigint) => {
     }
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
     // Because of this, We check if `i` is greater than 32 before we divide it by 2.
-    while (i !== 1023n) {
+    while (i !== 32n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -65,14 +65,13 @@ const mathLog2 = (v: bigint) => {
             v = n
         }
     }
-    const x = BigInt(Math.log2(Number(v)) | 0)
-    return result + x + (v >> x)
+    return result - BigInt(Math.clz32(Number(v)))
 }
 
 const benchmark = (f: (_: bigint) => bigint) => () => {
     let e = 1_048_575n
     let c = 1n << e
-    for (let i = 0n; i < 1_000; ++i) {
+    for (let i = 0n; i < 1_100; ++i) {
         {
             const x = f(c)
             if (x !== e) { throw x }
@@ -104,12 +103,12 @@ export default {
         if (bitmask !== 31n) { throw total }
     },
     benchmark: {
-        str: benchmark(stringLog2),
-        stringHexLog2: benchmark(stringHexLog2),
-        string32Log2: benchmark(string32Log2),
+        strBinLog2: benchmark(strBinLog2),
+        strHexLog2: benchmark(strHexLog2),
+        str32Log2: benchmark(str32Log2),
         oldLog2: benchmark(oldLog2),
+        clz32Log2: benchmark(clz32Log2),
         log2: benchmark(log2),
-        mathLog2: benchmark(mathLog2),
     },
     mask: () => {
         const result = mask(3n) // 7n
