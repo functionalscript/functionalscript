@@ -109,16 +109,19 @@ export default {
         if (total !== 6n) { throw total }
 
         const absoluteValue = abs(-42n) // 42n
-        if (absoluteValue !== 42n) { throw total }
+        if (absoluteValue !== 42n) { throw absoluteValue }
 
         const logValue = log2(8n) // 3n
-        if (logValue !== 3n) { throw total }
+        if (logValue !== 3n) { throw logValue }
 
         const bitCount = bitLength(255n) // 8n
-        if (bitCount !== 8n) { throw total }
+        if (bitCount !== 8n) { throw bitCount }
 
         const bitmask = mask(5n) // 31n
-        if (bitmask !== 31n) { throw total }
+        if (bitmask !== 31n) { throw benchmark }
+
+        const m = min(3n)(13n) // 3n
+        if (m !== 3n) { throw m }
     },
     benchmark: () => {
         const list = {

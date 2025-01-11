@@ -13,6 +13,7 @@
  * const logValue = log2(8n) // 3n
  * const bitCount = bitLength(255n) // 8n
  * const bitmask = mask(5n) // 31n
+ * const m = min(3n)(13n) // 3n
  * ```
  */
 
