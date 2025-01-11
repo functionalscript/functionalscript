@@ -138,7 +138,7 @@ const ylog2 = v => {
     // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
     // `Math.log2`.
     const nl = mLog2(Number(v))
-    const rem = BigInt(isFinite(nl) ? nl | 0 : 0x400)
+    const rem = isFinite(nl) ? BigInt(nl | 0) : 0x3FFn
     // (v >> rem) is either `0` or `1`, and it's used as a correction for
     // Math.log2 rounding.
     return result + rem + (v >> rem)
@@ -196,11 +196,11 @@ const benchmark = t => (s, f) => {
 const run = t => {
     log.innerText += `${t.name}\n`
     const b = benchmark(t)
-    // b('stringLog2', stringLog2)
-    // b('stringHexLog2', stringHexLog2)
+    b('stringLog2', stringLog2)
+    b('stringHexLog2', stringHexLog2)
     b('string32Log2', string32Log2)
-    // b('oldLog2', oldLog2)
-    // b('log2', log2)
+    b('oldLog2', oldLog2)
+    b('log2', log2)
     b('mathLog2', mathLog2)
     b('ylog2', ylog2)
 }

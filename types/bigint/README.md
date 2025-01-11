@@ -4,11 +4,61 @@ Bun has a `bigint` size limitation. It's `1_048_575` bits (`1024 ** 2`) or `131_
 
 ## Benchmarks
 
+### Aligned Shift (2025/01/11)
+
+For big numbers, about $2^{1,000,000}$:
+
+|Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|   log2|
+|---------|----------|----------|---------|-------|---------|---------|-------|
+|Bun      |      2281|       849|      702|   1810|     1000|     1291|**643**|
+|Deno 2   |      4092|      1051|      846|    501|      297|      214|**183**|
+|Deno 1   |      4070|      1062|      858|    522|      312|      222|**186**|
+|Node 23  |      4065|      1152|     1015|    499|      278|      233|**168**|
+|Node 22  |      4208|      1266|     1070|    568|      332|      265|**191**|
+|Node 20  |      4184|      1231|     1083|    624|      333|      261|**185**|
+|Node 18  |      4604|      1401|     1279|    770|      472|      360|**281**|
+|Node 16  |      4143|      1222|     1144|    735|      471|      313|**282**|
+
+For small numbers, about $2^{1,000}$:
+
+|Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|    log2|
+|---------|----------|----------|---------|-------|---------|---------|--------|
+|Bun      |      2256|      1381|     1301|   4019|     1972|      721| **706**|
+|Deno 2   |      2946|       971|      827|   1800|      887|  **471**|     472|
+|Deno 1   |      3004|       962|      798|   1622|      828|      456| **432**|
+|Node 23  |      2975|      1055|      876|   1819|      945|      514| **510**|
+|Node 22  |      3174|      1071|      893|   1812|      933|      495| **477**|
+|Node 20  |      3144|      1098|      905|   1833|     1030|      587| **582**|
+|Node 18  |      4292|      1555|     1432|   4631|     2415| **1003**|    1016|
+|Node 16  |      3360|      1571|     1453|   4759|     2526|     1058|**1051**|
+
+**Browser Test**
+
+For big numbers, about $2^{1,000,000}$:
+
+|Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|    log2|
+|-------|---|----------|----------|---------|-------|---------|---------|--------|
+|Chrome |AMD|      2316|       628|      532|   1173|      798|      525| **514**|
+|Chrome | M1|
+|Firefox|AMD|      3286|       651|  **530**|   3037|     2182|     1432|    1370|
+|Firefox| M1|
+|Safari | M1|
+
+For small numbers, about $2^{1,000}$:
+
+|Browser|CPU|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|m1023log2|   log2|
+|-------|---|----------|----------|---------|-------|---------|---------|-------|
+|Chrome |AMD|      2133|       932|      805|   2170|     1189|      595|**587**|
+|Chrome | M1|
+|Firefox|AMD|      2221|      1007|      928|   2495|     1294|      504|**499**|
+|Firefox| M1|
+|Safari | M1|
+
 ### New log2 based on `Math.log2` and str32Log2 (2025/01/10)
 
 See also https://medium.com/@sergeyshandar/improving-the-log2-algorithm-for-bigint-in-javascript-7e5692e7bf0b?sk=9ac18367f61b524704cc8d82707aed3d
 
-For big numbers, about `2 ** 1_000_000`:
+For big numbers, about $2^{1,000,000}$:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|   log2|
 |---------|----------|----------|---------|-------|---------|-------|
@@ -21,7 +71,7 @@ For big numbers, about `2 ** 1_000_000`:
 |Node 18  |      3832|      1179|     1058|    514|      280|**229**|
 |Node 16  |      3781|      1118|     1037|    672|      430|**281**|
 
-For small numbers, `1 .. 2 ** 2_000`:
+For small numbers, about $2^{1,000}$:
 
 |Framework|strBinLog2|strHexLog2|str32Log2|oldLog2|clz32Log2|    log2|
 |---------|----------|----------|---------|-------|---------|--------|

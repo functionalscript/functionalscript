@@ -101,10 +101,10 @@ export const log2 = (v: bigint): bigint => {
     // 3. Remainder Phase.
     //
 
-    // We know that `v` is less than `1n << 1023` so we can calculate a remainder using
+    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
     // `Math.log2`.
     const nl = mathLog2(Number(v))
-    const rem = BigInt(isFinite(nl) ? nl | 0 : 0x400)
+    const rem = isFinite(nl) ? BigInt(nl | 0) : 0x3FFn
     // (v >> rem) is either `0` or `1`, and it's used as a correction for
     // Math.log2 rounding.
     return result + rem + (v >> rem)
