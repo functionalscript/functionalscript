@@ -97,6 +97,8 @@ logic should be moved to a private free floating helper function (to keep public
   }
   ```
 
+- [ ] 45. Delete old `bigint.log2` benchmark tests. Leave only `str32log2` and `log2`.
+
 ## Language Specification
 
 See [lang/README.md](./lang/README.md).
