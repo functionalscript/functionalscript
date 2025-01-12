@@ -66,6 +66,55 @@ export const clz32Log2 = (v: bigint): bigint => {
     return result - BigInt(Math.clz32(Number(v)))
 }
 
+const m1023log2 = (v: bigint): bigint => {
+    if (v <= 0n) { return -1n }
+
+    //
+    // 1. Fast Doubling.
+    //
+
+    let result = -1n
+    // `bigints` higher than 2**1023 may lead to `Inf` during conversion to `number`.
+    // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
+    let i = 1023n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            // overshot
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n
+    }
+
+    //
+    // 2. Binary Search.
+    //
+
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
+    while (i !== 1023n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+
+    //
+    // 3. Remainder Phase.
+    //
+
+    // We know that `v` is less than `1n << 1023` so we can calculate a remainder using
+    // `Math.log2`.
+    const rem = BigInt(Math.log2(Number(v)) | 0)
+    // (v >> rem) is either `0` or `1`, and it's used as a correction for
+    // Math.log2 rounding.
+    return result + rem + (v >> rem)
+}
+
 type Benchmark = (f: (_: bigint) => bigint) => () => void
 
 const benchmark: Benchmark = f => () => {
@@ -130,6 +179,7 @@ export default {
             str32Log2,
             oldLog2,
             clz32Log2,
+            m1023log2,
             log2,
         }
         const transform = (b: Benchmark) =>

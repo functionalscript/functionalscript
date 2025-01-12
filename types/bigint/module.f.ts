@@ -37,6 +37,10 @@ export const sign = (a: bigint): Sign => unsafeCmp(a)(0n)
 
 export const serialize = (a: bigint): string => `${a}n`
 
+const { isFinite } = Number
+
+const { log2: mathLog2 } = Math
+
 /**
  * Calculates the base-2 logarithm (floor).
  *
@@ -66,7 +70,7 @@ export const log2 = (v: bigint): bigint => {
     let result = -1n
     // `bigints` higher than 2**1023 may lead to `Inf` during conversion to `number`.
     // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
-    let i = 1023n
+    let i = 0x400n
     while (true) {
         const n = v >> i
         if (n === 0n) {
@@ -84,7 +88,7 @@ export const log2 = (v: bigint): bigint => {
 
     // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
     // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
-    while (i !== 1023n) {
+    while (i !== 0x400n) {
         i >>= 1n
         const n = v >> i
         if (n !== 0n) {
@@ -97,12 +101,19 @@ export const log2 = (v: bigint): bigint => {
     // 3. Remainder Phase.
     //
 
-    // We know that `v` is less than `1n << 1023` so we can calculate a remainder using
+    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
     // `Math.log2`.
-    const rem = BigInt(Math.log2(Number(v)) | 0)
-    // (v >> rem) is either `0` or `1`, and it's used as a correction for
-    // Math.log2 rounding.
-    return result + rem + (v >> rem)
+    const nl = mathLog2(Number(v))
+    if (isFinite(nl)) {
+        const rem = BigInt(nl | 0)
+        // (v >> rem) is either `0` or `1`, and it's used as a correction for
+        // Math.log2 rounding.
+        return result + rem + (v >> rem)
+    } else {
+        // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
+        // `result = -1n`.
+        return result + 0x400n
+    }
 }
 
 /**

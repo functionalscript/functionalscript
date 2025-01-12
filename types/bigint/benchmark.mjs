@@ -94,6 +94,62 @@ const mathLog2 = v => {
     return result + x + (v >> x)
 }
 
+const mLog2 = Math.log2
+
+const ylog2 = v => {
+    if (v <= 0n) { return -1n }
+
+    //
+    // 1. Fast Doubling.
+    //
+
+    let result = -1n
+    let i = 0x400n
+    while (true) {
+        const n = v >> i
+        if (n === 0n) {
+            // overshot
+            break
+        }
+        v = n
+        result += i
+        i <<= 1n
+    }
+
+    //
+    // 2. Binary Search.
+    //
+
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 1024 before we divide it by 2.
+    while (i !== 0x400n) {
+        i >>= 1n
+        const n = v >> i
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+
+    //
+    // 3. Remainder Phase.
+    //
+
+    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
+    // `Math.log2`.
+    const nl = mLog2(Number(v))
+    if (isFinite(nl)) {
+        const rem = BigInt(nl | 0)
+        // (v >> rem) is either `0` or `1`, and it's used as a correction for
+        // Math.log2 rounding.
+        return result + rem + (v >> rem)
+    } else {
+        // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
+        // `result = -1n`.
+        return result + 0x400n
+    }
+}
+
 const log = document.getElementById('log')
 
 const big = f => {
@@ -152,6 +208,7 @@ const run = t => {
     b('oldLog2', oldLog2)
     b('log2', log2)
     b('mathLog2', mathLog2)
+    b('ylog2', ylog2)
 }
 
 run(big)
