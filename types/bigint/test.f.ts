@@ -174,12 +174,12 @@ export default {
     },
     benchmark: () => {
         const list = {
-            strBinLog2,
-            strHexLog2,
+            // strBinLog2,
+            // strHexLog2,
             str32Log2,
-            oldLog2,
-            clz32Log2,
-            m1023log2,
+            // oldLog2,
+            // clz32Log2,
+            // m1023log2,
             log2,
         }
         const transform = (b: Benchmark) =>

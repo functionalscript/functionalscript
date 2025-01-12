@@ -90,8 +90,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
 - [X] 49. Delete [com](./com/) and [commonjs](./commonjs). Bump a minor version to `0.4.0`.
-
-- [ ] 50. Delete old `bigint.log2` benchmark tests. Leave only `str32log2` and `log2`.
+- [X] 50. Delete old `bigint.log2` benchmark tests. Leave only `str32log2` and `log2`.
 
 ## Language Specification
 

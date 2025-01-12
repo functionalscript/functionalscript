@@ -202,12 +202,12 @@ const benchmark = t => (s, f) => {
 const run = t => {
     log.innerText += `${t.name}\n`
     const b = benchmark(t)
-    b('stringLog2', stringLog2)
-    b('stringHexLog2', stringHexLog2)
+    // b('stringLog2', stringLog2)
+    // b('stringHexLog2', stringHexLog2)
     b('string32Log2', string32Log2)
-    b('oldLog2', oldLog2)
-    b('log2', log2)
-    b('mathLog2', mathLog2)
+    // b('oldLog2', oldLog2)
+    // b('log2', log2)
+    // b('mathLog2', mathLog2)
     b('ylog2', ylog2)
 }
 
