@@ -23,7 +23,7 @@ type Entries = list.List<Entry>
 type MapEntries = (entries: Entries) => Entries
 
 const djsConstSerialize
-: (mapEntries: MapEntries) => (value: DjsConst) => list.List<string>
+: (sort: MapEntries) => (value: DjsConst) => list.List<string>
 = sort => {
     const propertySerialize
     : (kv: readonly[string, DjsConst]) => list.List<string>
@@ -67,7 +67,7 @@ const djsConstSerialize
 }
 
 export const djsModuleStringify
-: (mapEntries: MapEntries) => (djsModule: DjsModule) => string
+: (sort: MapEntries) => (djsModule: DjsModule) => string
 = sort => djsModule => {
     const importEntries = listEntries(djsModule[0])
     const importSerialize
