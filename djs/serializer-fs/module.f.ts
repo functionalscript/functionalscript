@@ -11,8 +11,8 @@ const { serialize: bigintSerialize } = bi
 import * as j from '../../json/serializer/module.f.ts'
 import type { DjsConst, DjsModule, DjsObject } from '../shared/module.f'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
-import { type Result, error } from '../../types/result/module.f.ts'
-import { setReplace, at, type Map } from '../../types/map/module.f.ts'
+import { type Result, ok, error } from '../../types/result/module.f.ts'
+import { at, type Map } from '../../types/map/module.f.ts'
 
 const colon = [':']
 
@@ -90,9 +90,28 @@ export const djsModuleStringify
     return concat(listConcat(flatMap(importSerialize)(importEntries))(flatMap(moduleEntrySerialize)(constEntries)))
 }
 
-
 export const serializeModules: (root: string) => (sort: MapEntries) => (modules: Map<DjsModule>) => Result<string, string>
-= root => sort => modules => {    
-    return error('error')
+= root => sort => modules => {
+    const rootModule = at(root)(modules)
+    if (rootModule === null)
+        return error('module not found')
+
+    const importEntries = listEntries(rootModule[0])
+    const importSerialize
+    : (entry: list.Entry<string>) => list.List<string>
+    = entry => flat([['import a'], numberSerialize(entry[0]), [' from "', entry[1], '"\n']])
+
+    const len = rootModule[1].length
+    const constEntries = listEntries(rootModule[1])
+    const moduleEntrySerialize
+    : (entry: list.Entry<DjsConst>) => list.List<string>
+    = entry => {
+        if (entry[0] === len - 1) {
+            return listConcat(['export default '])(djsConstSerialize(sort)(entry[1]))
+        }
+        return flat([['const c'], numberSerialize(entry[0]), [' = '], djsConstSerialize(sort)(entry[1]), ['\n']])
+    }
+
+    return ok(concat(listConcat(flatMap(importSerialize)(importEntries))(flatMap(moduleEntrySerialize)(constEntries))))
 }
 
