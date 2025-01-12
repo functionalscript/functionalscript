@@ -5,23 +5,12 @@ import { type DjsToken } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import { type Fs } from '../io/module.f.ts'
+import type { DjsArray, DjsConst, DjsModule, DjsModuleRef } from '../shared/module.f'
 
 export type ParseContext = {    
     readonly fs: Fs
     readonly complete: Map<result.Result<DjsModule, string>>
     readonly stack: List<string>
-}
-
-export type DjsModule = [readonly string[], readonly DjsConst[]]
-
-export type DjsConst = boolean|string|number|null|bigint|undefined|DjsModuleRef|DjsArray|DjsObject
-
-type DjsModuleRef = ['aref' | 'cref', number]
-
-type DjsArray = ['array', readonly DjsConst[]]
-
-export type DjsObject = {
-    readonly [k in string]: DjsConst
 }
 
 type DjsStackArray = ['array', List<DjsConst>]
