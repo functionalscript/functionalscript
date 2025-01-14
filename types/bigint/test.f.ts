@@ -1,4 +1,4 @@
-import { sum, abs, serialize, log2, bitLength, mask, min } from './module.f.ts'
+import { sum, abs, serialize, log2, bitLength, mask, min, combination, factorial } from './module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
@@ -331,5 +331,19 @@ export default {
                 if (s !== 3n) { throw s }
             },
         ]
+    },
+    factorial: () => {
+        {
+            const r = factorial(3n)
+            if (r !== 6n) { throw r }
+        }
+        {
+            const r = factorial(5n)
+            if (r !== 120n) { throw r }
+        }
+    },
+    combination: () => {
+        const r = combination([2n, 3n])
+        if (r != 120n / (2n * 6n)) { throw r }
     }
 }

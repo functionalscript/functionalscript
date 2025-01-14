@@ -19,7 +19,7 @@
 
 import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
 import type * as Operator from '../function/operator/module.f.ts'
-import { reduce, type List } from '../list/module.f.ts'
+import { map, reduce, type List } from '../list/module.f.ts'
 
 export type Unary = Operator.Unary<bigint, bigint>
 
@@ -29,6 +29,11 @@ export const addition: Reduce = a => b => a + b
 
 export const sum: (input: List<bigint>) => bigint
     = reduce(addition)(0n)
+
+export const multiple: Reduce = a => b => a * b
+
+export const product: (input: List<bigint>) => bigint
+    = reduce(multiple)(1n)
 
 export const abs: Unary
     = a => a >= 0 ? a : -a
@@ -162,5 +167,45 @@ export const mask = (len: bigint): bigint =>
 /**
  * A minimal value.
  */
-export const min = (a: bigint) => (b: bigint) =>
+export const min = (a:bigint) => (b: bigint): bigint =>
     a < b ? a : b
+
+export const max = (a: bigint) => (b: bigint): bigint =>
+    a < b ? b : a
+
+/**
+ * `b!/a!`
+ */
+export const partialFactorial = (a: bigint) => (b: bigint): bigint => {
+    let result = b
+    while (true) {
+        --b
+        if (b <= a) { return result }
+        result *= b
+    }
+}
+
+/**
+ * `b!`
+ */
+export const factorial: (b: bigint) => bigint = partialFactorial(1n)
+
+/**
+ * `factorial(sum(a)) / product(a.map(factorial))`
+ *
+ * @param k a list
+ * @returns a number of combinations
+ */
+export const combination = (k: readonly bigint[]): bigint => {
+    let s = 0n
+    let m = 1n
+    let p = 1n
+    for (let i of k) {
+        s += i
+        if (i >= m) {
+            [i, m] = [m, i]
+        }
+        p *= factorial(i)
+    }
+    return partialFactorial(m)(s) / p
+}
