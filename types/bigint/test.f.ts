@@ -115,6 +115,67 @@ const m1023log2 = (v: bigint): bigint => {
     return result + rem + (v >> rem)
 }
 
+const { isFinite } = Number
+
+const { log2: mathLog2 } = Math
+
+export const nLog2 = (v: bigint): bigint => {
+    if (v <= 0n) { return -1n }
+
+    //
+    // 1. Fast Doubling.
+    //
+
+    let result = -1
+    // `bigints` higher than 2**1023 may lead to `Inf` during conversion to `number`.
+    // For example: `Number((1n << 1024n) - (1n << 970n)) === Inf`.
+    let i = 0x400
+    while (true) {
+        const n = v >> BigInt(i)
+        if (n === 0n) {
+            // overshot
+            break
+        }
+        v = n
+        result += i
+        i <<= 1
+    }
+
+    //
+    // 2. Binary Search.
+    //
+
+    // We know that `v` is not 0 so it doesn't make sense to check `n` when `i` is 0.
+    // Because of this, We check if `i` is greater than 1023 before we divide it by 2.
+    while (i !== 0x400) {
+        i >>= 1
+        const n = v >> BigInt(i)
+        if (n !== 0n) {
+            result += i
+            v = n
+        }
+    }
+
+    //
+    // 3. Remainder Phase.
+    //
+
+    // We know that `v` is less than `1n << 1024` so we can calculate a remainder using
+    // `Math.log2`.
+    const nl = mathLog2(Number(v))
+    if (isFinite(nl)) {
+        const rem = nl | 0
+        // (v >> rem) is either `0` or `1`, and it's used as a correction for
+        // Math.log2 rounding.
+        result += rem + Number(v >> BigInt(rem))
+    } else {
+        // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
+        // `result = -1n`.
+        result += 0x400
+    }
+    return BigInt(result)
+}
+
 type Benchmark = (f: (_: bigint) => bigint) => () => void
 
 const benchmark: Benchmark = f => () => {
@@ -181,6 +242,7 @@ export default {
             // clz32Log2,
             // m1023log2,
             log2,
+            nLog2,
         }
         const transform = (b: Benchmark) =>
             Object.fromEntries(Object.entries(list).map(([k, f]) => [k, b(f)]))
