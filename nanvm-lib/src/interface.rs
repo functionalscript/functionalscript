@@ -30,6 +30,26 @@ pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, I
             Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
         }
     }
+    fn multiply(self, other: Self) -> Self {
+        // TODO: implement BigInt multiplication for real.
+        let items = self.items();
+        let other_items = other.items();
+        if (items.len() > 1) || other_items.len() > 1 {
+            panic!("BigInt multiplication for large numbers is not implemented yet");
+        }
+        if items.len() == 0 || other_items.len() == 0 {
+            return Self::new(Sign::Positive, Vec::new());
+        }
+        let result: u128 = items[0] as u128 * other_items[0] as u128;
+        if result > u64::MAX as u128 {
+            panic!("BigInt multiplication for large numbers is not implemented yet");
+        }
+        if (*self.header() == Sign::Positive) == (*other.header() == Sign::Positive) {
+            Self::new(Sign::Positive, vec![result as u64])
+        } else {
+            Self::new(Sign::Negative, vec![result as u64])
+        }
+    }
 }
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
@@ -144,6 +164,23 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         match Self::to_numeric(v) {
             Numeric::Number(f) => Self::new_simple(Simple::Number(-f)),
             Numeric::BigInt(i) => Self::pack(Unpacked::BigInt(i.negate())),
+        }
+    }
+
+    fn multiply_by(v: Self, multiplier: Self::BigInt) -> Result<Self, Self> {
+        match Self::to_numeric(v) {
+            Numeric::Number(_) => Self::exception("TypeError: Cannot convert a BigInt value to a number"),
+            Numeric::BigInt(i) => Ok(Self::pack(Unpacked::BigInt(i.multiply(multiplier))))
+        }
+    }
+
+    fn multiply(v1: Self, v2: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v1) {
+            Numeric::BigInt(i1) => Self::multiply_by(v2, i1.clone()),
+            Numeric::Number(f1) => match Self::to_numeric(v2) {
+                Numeric::BigInt(_) => Self::exception("TypeError: Cannot convert a BigInt value to a number"),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 * f2))),
+            },
         }
     }
 }
