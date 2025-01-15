@@ -27,9 +27,9 @@ const mo: readonly MaskOffset[] = [
 /**
  * Count a number of ones in 32 bit number
  */
-export const countOnes = (x: number): number => {
+export const countOnes = (n: number): number => {
     for (const [mask, offset] of mo) {
-        x = (x & mask) + ((x >> offset) & mask)
+        n = (n & mask) + ((n >> offset) & mask)
     }
-    return x
+    return n
 }
