@@ -216,6 +216,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         },
         end: (hashLength: bigint) => {
             const offset = (bitLength << 3n) - hashLength
+            const result = vec(hashLength)
             return (state: State): bigint => {
                 const { len, remainder } = state
                 let { hash } = state
@@ -226,7 +227,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
                     hash = compress(hash)(u)
                     u = 0n
                 }
-                return fromV8(compress(hash)(u | (len + rLen))) >> offset
+                return result(fromV8(compress(hash)(u | (len + rLen))) >> offset)
             }
         }
     }
