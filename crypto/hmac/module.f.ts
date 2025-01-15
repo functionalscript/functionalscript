@@ -47,15 +47,15 @@ const padRepeat = repeat({ identity: empty, operation: concat })
  * @returns - A function that takes a key and returns another function
  * that takes a message and computes the HMAC.
  */
-export const hmac = (sha2: Sha2) => {
+export const hmac = (sha2: Sha2): (k: Vec) => (m: Vec) => Vec => {
     const { blockLength } = sha2
     const p = flip(padRepeat)(blockLength >> 3n)
     const ip = p(iPad)
     const op = p(oPad)
     const c = computeSync(sha2)
     const vbl = vec(blockLength)
-    const xor = (a: bigint) => (b: bigint) => vbl(a ^ b)
-    return (k: bigint) => (m: bigint) => {
+    const xor = (a: Vec) => (b: Vec) => vbl(a ^ b)
+    return k => m => {
         const k1 = length(k) > blockLength ? c([k]) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
         const xk2 = xor(k2)
