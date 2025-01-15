@@ -8,8 +8,7 @@ import {
     type Vec
 } from '../../types/bit_vec/module.f.ts'
 import { flip } from '../../types/function/module.f.ts'
-import { fold } from '../../types/list/module.f.ts'
-import { List } from '../../types/list/module.f.ts'
+import { fold, type List } from '../../types/list/module.f.ts'
 
 const { concat, popFront, front } = msb
 
