@@ -363,5 +363,13 @@ export default {
             const r = combination([4n, 4n])
             if (r !== 70n) { throw r }
         }
+    },
+    combination3: () => {
+        const r = combination([2n, 3n, 4n, 2n])
+        // 2! * 3! * 4! * 2! : 2! * 2! * 3!
+        // 2+3+4+2 = 5*6*7*8*9*10*11
+        // e = 5 * 6 * 7 * 8 * 9 * 10 * 11 / (2n * 2n * 6n) =
+        // e = 5     * 7 * 2 * 9 * 10 * 11 = 69300
+        if (r !== 69300n) { throw r }
     }
 }
