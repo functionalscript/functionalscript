@@ -19,7 +19,7 @@
 
 import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
 import type * as Operator from '../function/operator/module.f.ts'
-import { map, reduce, type List } from '../list/module.f.ts'
+import { reduce, type List } from '../list/module.f.ts'
 
 export type Unary = Operator.Unary<bigint, bigint>
 
