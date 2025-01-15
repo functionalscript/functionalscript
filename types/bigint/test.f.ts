@@ -345,5 +345,23 @@ export default {
     combination: () => {
         const r = combination([2n, 3n])
         if (r != 120n / (2n * 6n)) { throw r }
+    },
+    combination50x50: () => {
+        {
+            const r = combination([1n, 1n])
+            if (r !== 2n) { throw r }
+        }
+        {
+            const r = combination([2n, 2n])
+            if (r !== 6n) { throw r }
+        }
+        {
+            const r = combination([3n, 3n])
+            if (r !== 20n) { throw r }
+        }
+        {
+            const r = combination([4n, 4n])
+            if (r !== 70n) { throw r }
+        }
     }
 }
