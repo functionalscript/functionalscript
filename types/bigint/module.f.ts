@@ -51,6 +51,7 @@ export const sum: (input: List<bigint>) => bigint
 
 /**
  * Multiplies two `bigint` values.
+ *
  * @param a - The first bigint value.
  * @returns A function that takes the second bigint value and returns the product.
  */
@@ -58,6 +59,7 @@ export const multiple: Reduce = a => b => a * b
 
 /**
  * Calculates the product of a list of `bigint` values.
+ *
  * @param input - A list of bigint values.
  * @returns The product of all values in the list.
  */
@@ -66,6 +68,7 @@ export const product: (input: List<bigint>) => bigint
 
 /**
  * Calculates the absolute value of a `bigint`.
+ *
  * @param a - The bigint value.
  * @returns The absolute value of the input bigint.
  */
@@ -81,6 +84,7 @@ export const sign = (a: bigint): Sign => unsafeCmp(a)(0n)
 
 /**
  * Serializes a `bigint` to a string representation.
+ *
  * @param a - The bigint value.
  * @returns A string representation of the bigint (e.g., '123n').
  */
@@ -210,6 +214,7 @@ export const mask = (len: bigint): bigint =>
 
 /**
  * Returns the smaller of two `bigint` values.
+ *
  * @param a - The first bigint.
  * @returns A function that takes the second bigint and returns the smaller value.
  */
@@ -218,6 +223,7 @@ export const min = (a:bigint) => (b: bigint): bigint =>
 
 /**
  * Returns the larger of two `bigint` values.
+ *
  * @param a - The first bigint.
  * @returns A function that takes the second bigint and returns the larger value.
  */
@@ -226,6 +232,7 @@ export const max = (a: bigint) => (b: bigint): bigint =>
 
 /**
  * Calculates the partial factorial `b!/a!`.
+ *
  * @param a - The starting bigint value.
  * @returns A function that takes `b` and computes `b!/a!`.
  */
@@ -240,6 +247,7 @@ export const partialFactorial = (a: bigint) => (b: bigint): bigint => {
 
 /**
  * Calculates the factorial of a `bigint`.
+ *
  * @param b - The bigint value.
  * @returns The factorial of the input.
  */
@@ -247,6 +255,7 @@ export const factorial: (b: bigint) => bigint = partialFactorial(1n)
 
 /**
  * Calculates the number of combinations for a list of `bigint` values.
+ *
  * @param k - A list of bigint values.
  * @returns The number of combinations.
  */
