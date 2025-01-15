@@ -22,7 +22,8 @@ export const hmac = ({ blockLength, init, append, end }: Sha2) => {
         const k1 = length(k) > blockLength ? end(appendInit(k)) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
         const xk2 = xor(k2)
-        const f = (p: bigint) => (a: bigint) => end(append(appendInit(xk2(p)))(a))
-        return f(op)(f(ip)(m))
+        const f = (p: bigint) => (msg: bigint) => end(append(appendInit(xk2(p)))(msg))
+        const m1 = f(ip)(m)
+        return f(op)(m1)
     }
 }
