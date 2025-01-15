@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.3
+
 - Implementation of HMAC [PR #371](https://github.com/functionalscript/functionalscript/pull/371)
 
 ## 0.4.2
