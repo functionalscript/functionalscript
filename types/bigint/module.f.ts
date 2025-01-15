@@ -1,5 +1,5 @@
 /**
- * A collection of utility functions for working with `bigint` values.
+ * Utility functions for working with `bigint` values.
  *
  * @module
  *
@@ -14,6 +14,7 @@
  * const bitCount = bitLength(255n) // 8n
  * const bitmask = mask(5n) // 31n
  * const m = min(3n)(13n) // 3n
+ * const c = combination([3n, 2n, 1n]) // 60n
  * ```
  */
 
@@ -21,25 +22,68 @@ import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
 import type * as Operator from '../function/operator/module.f.ts'
 import { reduce, type List } from '../list/module.f.ts'
 
+/**
+ * Type representing a unary operation on `bigint`.
+ */
 export type Unary = Operator.Unary<bigint, bigint>
 
+/**
+ * Type representing a reduction operation on `bigint` values.
+ */
 export type Reduce = Operator.Reduce<bigint>
 
+/**
+ * Adds two `bigint` values.
+ *
+ * @param a - The first bigint value.
+ * @returns A function that takes the second bigint value and returns the sum.
+ */
 export const addition: Reduce = a => b => a + b
 
+/**
+ * Calculates the sum of a list of `bigint` values.
+ *
+ * @param input - A list of bigint values.
+ * @returns The sum of all values in the list.
+ */
 export const sum: (input: List<bigint>) => bigint
     = reduce(addition)(0n)
 
+/**
+ * Multiplies two `bigint` values.
+ * @param a - The first bigint value.
+ * @returns A function that takes the second bigint value and returns the product.
+ */
 export const multiple: Reduce = a => b => a * b
 
+/**
+ * Calculates the product of a list of `bigint` values.
+ * @param input - A list of bigint values.
+ * @returns The product of all values in the list.
+ */
 export const product: (input: List<bigint>) => bigint
     = reduce(multiple)(1n)
 
+/**
+ * Calculates the absolute value of a `bigint`.
+ * @param a - The bigint value.
+ * @returns The absolute value of the input bigint.
+ */
 export const abs: Unary
     = a => a >= 0 ? a : -a
 
+/**
+ * Determines the sign of a `bigint`.
+ * @param a - The bigint value.
+ * @returns `1` if positive, `-1` if negative, and `0` if zero.
+ */
 export const sign = (a: bigint): Sign => unsafeCmp(a)(0n)
 
+/**
+ * Serializes a `bigint` to a string representation.
+ * @param a - The bigint value.
+ * @returns A string representation of the bigint (e.g., '123n').
+ */
 export const serialize = (a: bigint): string => `${a}n`
 
 const { isFinite } = Number
@@ -165,16 +209,25 @@ export const mask = (len: bigint): bigint =>
     (1n << len) - 1n
 
 /**
- * A minimal value.
+ * Returns the smaller of two `bigint` values.
+ * @param a - The first bigint.
+ * @returns A function that takes the second bigint and returns the smaller value.
  */
 export const min = (a:bigint) => (b: bigint): bigint =>
     a < b ? a : b
 
+/**
+ * Returns the larger of two `bigint` values.
+ * @param a - The first bigint.
+ * @returns A function that takes the second bigint and returns the larger value.
+ */
 export const max = (a: bigint) => (b: bigint): bigint =>
     a < b ? b : a
 
 /**
- * `b!/a!`
+ * Calculates the partial factorial `b!/a!`.
+ * @param a - The starting bigint value.
+ * @returns A function that takes `b` and computes `b!/a!`.
  */
 export const partialFactorial = (a: bigint) => (b: bigint): bigint => {
     let result = b
@@ -186,17 +239,18 @@ export const partialFactorial = (a: bigint) => (b: bigint): bigint => {
 }
 
 /**
- * `b!`
+ * Calculates the factorial of a `bigint`.
+ * @param b - The bigint value.
+ * @returns The factorial of the input.
  */
 export const factorial: (b: bigint) => bigint = partialFactorial(1n)
 
 /**
- * `factorial(sum(a)) / product(a.map(factorial))`
- *
- * @param k a list
- * @returns a number of combinations
+ * Calculates the number of combinations for a list of `bigint` values.
+ * @param k - A list of bigint values.
+ * @returns The number of combinations.
  */
-export const combination = (k: readonly bigint[]): bigint => {
+export const combination = (...k: readonly bigint[]): bigint => {
     let s = 0n
     let m = 1n
     let p = 1n

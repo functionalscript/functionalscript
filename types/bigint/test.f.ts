@@ -171,6 +171,9 @@ export default {
 
         const m = min(3n)(13n) // 3n
         if (m !== 3n) { throw m }
+
+        const c = combination(3n, 2n, 1n) // 60n
+        if (c !== 60n) { throw c }
     },
     benchmark: () => {
         const list = {
@@ -343,29 +346,29 @@ export default {
         }
     },
     combination: () => {
-        const r = combination([2n, 3n])
+        const r = combination(2n, 3n)
         if (r != 120n / (2n * 6n)) { throw r }
     },
     combination50x50: () => {
         {
-            const r = combination([1n, 1n])
+            const r = combination(1n, 1n)
             if (r !== 2n) { throw r }
         }
         {
-            const r = combination([2n, 2n])
+            const r = combination(2n, 2n)
             if (r !== 6n) { throw r }
         }
         {
-            const r = combination([3n, 3n])
+            const r = combination(3n, 3n)
             if (r !== 20n) { throw r }
         }
         {
-            const r = combination([4n, 4n])
+            const r = combination(4n, 4n)
             if (r !== 70n) { throw r }
         }
     },
     combination3: () => {
-        const r = combination([2n, 3n, 4n, 2n])
+        const r = combination(2n, 3n, 4n, 2n)
         // 2! * 3! * 4! * 2! : 2! * 2! * 3!
         // 2+3+4+2 = 5*6*7*8*9*10*11
         // e = 5 * 6 * 7 * 8 * 9 * 10 * 11 / (2n * 2n * 6n) =
