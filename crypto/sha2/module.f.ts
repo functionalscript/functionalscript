@@ -7,6 +7,9 @@ import {
     msb,
     type Vec
 } from '../../types/bit_vec/module.f.ts'
+import { flip } from '../../types/function/module.f.ts'
+import { fold } from '../../types/list/module.f.ts'
+import { List } from '../../types/list/module.f.ts'
 
 const { concat, popFront, front } = msb
 
@@ -286,6 +289,11 @@ const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint):
     append,
     end: end(hashLength),
 })
+
+export const computeSync = ({ append, init, end }: Sha2): (list: List<Vec>) => Vec => {
+    const f = fold(flip(append))(init)
+    return (list: List<Vec>): Vec => end(f(list))
+}
 
 export const base32: Base = base({
     logBitLen: 5n,

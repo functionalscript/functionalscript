@@ -23,7 +23,7 @@ export type Vec = bigint
 /**
  * An empty vector of bits.
  */
-export const empty = 1n
+export const empty: Vec = 1n
 
 /**
  * Calculates the length of the given vector of bits.

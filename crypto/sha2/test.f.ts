@@ -1,9 +1,11 @@
 import { msbUtf8 } from "../../text/module.f.ts";
 import { empty, msb, vec } from "../../types/bit_vec/module.f.ts"
+import { map } from '../../types/list/module.f.ts'
 import { repeat } from "../../types/monoid/module.f.ts";
 import {
     base32,
     base64,
+    computeSync,
     type Sha2,
     sha224,
     sha256,
@@ -78,17 +80,21 @@ export default {
     },
     utf8: [
         () => {
-            const s = msbUtf8("The quick brown fox jumps over the lazy dog")
-            let state = sha224.init
-            state = sha224.append(state)(s)
-            const h = sha224.end(state)
-            if (h !== 0x1730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n) { throw h }
+            const e = 0x1730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n
+            {
+                const s = msbUtf8("The quick brown fox jumps over the lazy dog")
+                const h = computeSync(sha224)([s])
+                if (h !== e) { throw h }
+            }
+            {
+                const s = ['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog']
+                const h = computeSync(sha224)(map(msbUtf8)(s))
+                if (h !== e) { throw h }
+            }
         },
         () => {
             const s = msbUtf8("The quick brown fox jumps over the lazy dog.")
-            let state = sha224.init
-            state = sha224.append(state)(s)
-            const h = sha224.end(state)
+            const h = computeSync(sha224)([s])
             if (h !== 0x1619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn) { throw h }
         },
         () => {
