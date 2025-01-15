@@ -7,6 +7,8 @@ import {
     msb,
     type Vec
 } from '../../types/bit_vec/module.f.ts'
+import { flip } from '../../types/function/module.f.ts'
+import { fold, type List } from '../../types/list/module.f.ts'
 
 const { concat, popFront, front } = msb
 
@@ -216,6 +218,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         },
         end: (hashLength: bigint) => {
             const offset = (bitLength << 3n) - hashLength
+            const result = vec(hashLength)
             return (state: State): bigint => {
                 const { len, remainder } = state
                 let { hash } = state
@@ -226,7 +229,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
                     hash = compress(hash)(u)
                     u = 0n
                 }
-                return fromV8(compress(hash)(u | (len + rLen))) >> offset
+                return result(fromV8(compress(hash)(u | (len + rLen))) >> offset)
             }
         }
     }
@@ -245,6 +248,14 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
  * ```
  */
 export type Sha2 = {
+    /**
+     * A hash length.
+     */
+    readonly hashLength: bigint
+    /**
+     * An internal block length.
+     */
+    readonly blockLength: bigint
     /**
      * Initial state of the SHA-2 algorithm.
      */
@@ -266,7 +277,9 @@ export type Sha2 = {
     readonly end: (state: State) => bigint
 }
 
-const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 => ({
+const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint): Sha2 => ({
+    hashLength,
+    blockLength: chunkLength,
     init: {
         hash,
         len: 0n,
@@ -275,6 +288,11 @@ const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 => ({
     append,
     end: end(hashLength),
 })
+
+export const computeSync = ({ append, init, end }: Sha2): (list: List<Vec>) => Vec => {
+    const f = fold(flip(append))(init)
+    return (list: List<Vec>): Vec => end(f(list))
+}
 
 export const base32: Base = base({
     logBitLen: 5n,
