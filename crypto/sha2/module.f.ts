@@ -246,6 +246,14 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
  */
 export type Sha2 = {
     /**
+     * A hash length.
+     */
+    readonly hashLength: bigint
+    /**
+     * An internal block length.
+     */
+    readonly blockLength: bigint
+    /**
      * Initial state of the SHA-2 algorithm.
      */
     readonly init: State
@@ -266,7 +274,9 @@ export type Sha2 = {
     readonly end: (state: State) => bigint
 }
 
-const sha2 = ({ append, end }: Base, hash: V8, hashLength: bigint): Sha2 => ({
+const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint): Sha2 => ({
+    hashLength,
+    blockLength: chunkLength,
     init: {
         hash,
         len: 0n,
