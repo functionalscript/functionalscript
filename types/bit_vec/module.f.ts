@@ -30,6 +30,8 @@ export const empty: Vec = 1n
  */
 export const length = log2
 
+const lazyEmpty = () => empty
+
 /**
  * Creates a vector of bits of the given `len` and the given unsigned integer.
  *
@@ -42,7 +44,7 @@ export const length = log2
  * ```
  */
 export const vec = (len: bigint): (ui: bigint) => Vec => {
-    if (len <= 0n) { return () => empty }
+    if (len <= 0n) { return lazyEmpty }
     const stop = 1n << len
     const mask = stop - 1n
     return data => stop | (data & mask)
@@ -204,7 +206,8 @@ export const msb: BitOrder = {
     concat: flip(lsb.concat),
 }
 
-const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)(vec8(BigInt(u8)))
+const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
+    concat(a)(vec8(BigInt(u8)))
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector.
@@ -213,7 +216,8 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec => fold(appendU8(bo))(empty)
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
+    fold(appendU8(bo))(empty)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
