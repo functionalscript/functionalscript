@@ -41,18 +41,18 @@ const iPad = vec8(0x36n)
 const padRepeat = repeat({ identity: empty, operation: concat })
 
 /**
- * Generates an HMAC (Hash-based Message Authentication Code) using the specified SHA-2 hash function.
+ * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
- * @param sha2 - The SHA-2 hash function implementation to use.
+ * @param hashFunc - The hash function implementation to use.
  * @returns - A function that takes a key and returns another function
  * that takes a message and computes the HMAC.
  */
-export const hmac = (sha2: Sha2): (k: Vec) => (m: Vec) => Vec => {
-    const { blockLength } = sha2
+export const hmac = (hashFunc: Sha2): (k: Vec) => (m: Vec) => Vec => {
+    const { blockLength } = hashFunc
     const p = flip(padRepeat)(blockLength >> 3n)
     const ip = p(iPad)
     const op = p(oPad)
-    const c = computeSync(sha2)
+    const c = computeSync(hashFunc)
     const vbl = vec(blockLength)
     const xor = (a: Vec) => (b: Vec) => vbl(a ^ b)
     return k => m => {
