@@ -1,5 +1,5 @@
 import { type Result, error } from '../../types/result/module.f.ts'
-import { fold, drop, map as listMap, type List } from '../../types/list/module.f.ts'
+import { fold, drop, map as listMap, type List, find } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import { tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
@@ -26,12 +26,18 @@ const parseImports
         return context
 }
 
-const parseModule
-    : (content: string | null) => Result<DjsModule, string>
-    = content => {
+const readModule
+    : (path: string) => (context: ParseContext) => Result<DjsModule, string>
+    = path => context => {
+        if (find(null)(x => x === path)(context.stack) !== null) {
+            return error('circular dependency')  
+        }
+
+        const content = context.fs.readFileSync(path)
         if (content === null) {
             return error('file not found')  
         }
+
         const tokens = tokenize(stringToList(content))
         return parseFromTokens(tokens)
 }
@@ -43,9 +49,7 @@ const foldNextModuleOp
             return context
         }
 
-        //todo: check for cycles
-        const s = context.fs.readFileSync(path)
-        const parseModuleResult = parseModule(s)
+        const parseModuleResult = readModule(path)(context)
         const contextWithImports = parseImports(path)(parseModuleResult)(context)
         return { ... contextWithImports, complete: setReplace(path)(parseModuleResult)(contextWithImports.complete) }
 }
