@@ -5,7 +5,7 @@ import { type DjsToken } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import { type Fs } from '../io/module.f.ts'
-import type { DjsArray, DjsConst, DjsModule, DjsModuleRef } from '../shared/module.f'
+import type { DjsArray, DjsConst, DjsModule, DjsModuleRef } from '../shared/module.f.ts'
 
 export type ParseContext = {    
     readonly fs: Fs
