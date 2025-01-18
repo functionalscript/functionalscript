@@ -7,7 +7,7 @@ import { type Fs } from '../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { parseFromTokens } from '../parser/module.f.ts'
-import type { DjsModule } from '../shared/module.f'
+import type { DjsModule } from '../shared/module.f.ts'
 
 export type ParseContext = {    
     readonly fs: Fs
