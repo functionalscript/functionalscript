@@ -1,4 +1,4 @@
-import { at, first, last, head, tail, splitFirst, splitLast } from './module.f.ts'
+import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 
@@ -85,5 +85,12 @@ export default {
             const result = splitLast([])
             if (result !== null) { throw result }
         }
-    ]
+    ],
+    empty: () => {
+        const x = empty
+        const a: readonly number[] = x
+        const b: readonly string[] = x
+        const c = [...a, ...b, ...x]
+        if (c.length !== 0) { throw c }
+    }
 }

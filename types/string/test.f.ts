@@ -2,6 +2,13 @@ import { join, concat, repeat, cmp } from './module.f.ts'
 import { repeat as repeatList } from '../list/module.f.ts'
 
 export default {
+    example: () => {
+        const words = ['hello', 'world']
+        if (join(' ')(words) !== 'hello world') { throw 0 }
+        if (concat(words) !== 'helloworld') { throw 1 }
+        if (repeat('abc')(3) !== 'abcabcabc') { throw 2 }
+        if (cmp('apple')('banana') !== -1) { throw 3 }
+    },
     join: {
         0: () => {
             const result = join('/')([])

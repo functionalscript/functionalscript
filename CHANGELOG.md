@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.4.3
+
+- Implementation of HMAC [PR #371](https://github.com/functionalscript/functionalscript/pull/371)
+
+## 0.4.2
+
+- Faster `types/big_int/log2` algorithm for WebKit (Bun and Safari) [PR #368](https://github.com/functionalscript/functionalscript/pull/368)
+
+## 0.4.1
+
+- Faster `types/big_int/log2` algorithm [PR #365](https://github.com/functionalscript/functionalscript/pull/365)
+
+## 0.4.0
+
+- COM and Commonjs modules are retired [PR #367](https://github.com/functionalscript/functionalscript/pull/367).
+
+## 0.3.13
+
+- First LL(1) parser [PR #356](https://github.com/functionalscript/functionalscript/pull/356)
+
+## 0.3.12
+
+- BNF types and `RangeMapOp` interface [PR #355](https://github.com/functionalscript/functionalscript/pull/355)
+
 ## 0.3.9
 
 - Improved `types/bigint/log2` algorithm [PR #346](https://github.com/functionalscript/functionalscript/pull/346)

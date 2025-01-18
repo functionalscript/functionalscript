@@ -1,4 +1,4 @@
-import { sum, min, max, cmp } from './module.f.ts'
+import { sum, min, max, cmp, countOnes } from './module.f.ts'
 
 export default {
     sum: () => {
@@ -27,7 +27,7 @@ export default {
         const check
             : (a: bigint) => (a: bigint) => void
             = a => b => {
-            if (BigInt(Number(a)) != b) { throw [a, b] }
+            if (BigInt(Number(a)) !== b) { throw [a, b] }
         }
 
         const eq
@@ -189,5 +189,17 @@ export default {
         check
             (0b01_1111_1010_1111_0011_0101_0111_1001_1111_1001_1101_0111_0000_0001_0100n)
             (0b01_1111_1010_1111_0011_0101_0111_1001_1111_1001_1101_0111_0000_0001_0000n)
-    }
+    },
+    countOnes: [
+        () => {
+            //                    1121 2231 = 5 + 8 = 13
+            const r = countOnes(0x1234_5678)
+            if (r !== 13) { throw r }
+        },
+        () => {
+            //                    2232 3340 = 9 + 10 = 19
+            const r = countOnes(0x9ABC_DEF0)
+            if (r !== 19) { throw r }
+        }
+    ]
 }

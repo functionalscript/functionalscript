@@ -23,7 +23,34 @@ pub trait String16<U: Any<String16 = Self>>:
 {
 }
 
-pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {}
+pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {
+    fn negate(self) -> Self {
+        match self.header() {
+            Sign::Positive => Self::new(Sign::Negative, self.items().iter().cloned()),
+            Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
+        }
+    }
+    fn multiply(self, other: Self) -> Self {
+        // Note: BigInt multiplication implementation is incomplete.
+        let items = self.items();
+        let other_items = other.items();
+        if (items.len() > 1) || other_items.len() > 1 {
+            panic!("BigInt multiplication for large numbers is not implemented yet");
+        }
+        if items.is_empty() || other_items.is_empty() {
+            return Self::new(Sign::Positive, Vec::new());
+        }
+        let result: u128 = items[0] as u128 * other_items[0] as u128;
+        if result > u64::MAX as u128 {
+            panic!("BigInt multiplication for large numbers is not implemented yet");
+        }
+        if (*self.header() == Sign::Positive) == (*other.header() == Sign::Positive) {
+            Self::new(Sign::Positive, vec![result as u64])
+        } else {
+            Self::new(Sign::Negative, vec![result as u64])
+        }
+    }
+}
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
 
@@ -71,42 +98,89 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
-    fn unary_plus(v: Self) -> Self {
+    fn to_numeric(v: Self) -> Numeric<Self> {
+        // Here we effectively implement ECMAScript logic for an abstract operation ToNumber, see
+        // https://tc39.es/ecma262/#sec-tonumber - with the difference that TypeError exception
+        // is replaced with Numeric::BigInt variant of the result type.
         match v.unpack() {
             Unpacked::Nullish(n) => match n {
-                Nullish::Null => Self::new_simple(Simple::Number(0.0)),
-                Nullish::Undefined => Self::new_simple(Simple::Number(f64::NAN)),
+                Nullish::Null => Numeric::Number(0.0),
+                Nullish::Undefined => Numeric::Number(f64::NAN),
             },
-            Unpacked::Bool(b) => Self::new_simple(Simple::Number(if b { 1.0 } else { 0.0 })),
-            Unpacked::Number(n) => Self::new_simple(Simple::Number(n)),
+            Unpacked::Bool(b) => Numeric::Number(if b { 1.0 } else { 0.0 }),
+            Unpacked::Number(n) => Numeric::Number(n),
             Unpacked::String16(s) => {
                 let items = s.items();
                 if items.is_empty() {
-                    return Self::new_simple(Simple::Number(0.0));
+                    return Numeric::Number(0.0);
                 }
                 let string: String = decode_utf16(items.iter().cloned())
                     .map(|r| r.unwrap_or('\u{FFFD}'))
                     .collect();
                 if let Ok(n) = string.parse::<f64>() {
-                    return Self::new_simple(Simple::Number(n));
+                    Numeric::Number(n)
+                } else {
+                    Numeric::Number(f64::NAN)
                 }
-                Self::new_simple(Simple::Number(f64::NAN))
             }
-            // TODO: throw TypeError for BigInt when we have a mechanism to throw an error.
-            Unpacked::BigInt(_) => Self::new_simple(Simple::Number(f64::NAN)),
+            Unpacked::BigInt(i) => Numeric::BigInt(i),
             Unpacked::Array(a) => {
                 let items = a.items();
                 if items.is_empty() {
-                    return Self::new_simple(Simple::Number(0.0));
+                    return Numeric::Number(0.0);
                 }
                 if items.len() > 1 {
-                    return Self::new_simple(Simple::Number(f64::NAN));
+                    return Numeric::Number(f64::NAN);
                 }
-                Self::unary_plus(items[0].clone())
+                Self::to_numeric(items[0].clone())
             }
             // TODO: use valueOf, toString functions for Object when present.
-            Unpacked::Object(_) => Self::new_simple(Simple::Number(f64::NAN)),
-            Unpacked::Function(_) => Self::new_simple(Simple::Number(f64::NAN)),
+            Unpacked::Object(_) => Numeric::Number(f64::NAN),
+            Unpacked::Function(_) => Numeric::Number(f64::NAN),
+        }
+    }
+
+    // For now for internal exception-throwing operations (e.g. unary_plus applied to BigInt) we use
+    // an Any-wrapped string value (a message). Later on we might want to have a schematized
+    // exception Any that would carry file, line, etc. along with the message string.
+    fn exception(c: &str) -> Result<Self, Self> {
+        Err(Self::pack(Unpacked::String16(c.to_string16::<Self>())))
+    }
+
+    fn unary_plus(v: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v) {
+            Numeric::Number(f) => Ok(Self::new_simple(Simple::Number(f))),
+            Numeric::BigInt(_) => {
+                Self::exception("TypeError: Cannot convert a BigInt value to a number")
+            }
+        }
+    }
+
+    fn unary_minus(v: Self) -> Self {
+        // https://tc39.es/ecma262/#sec-unary-minus-operator
+        // ECMAScript requires throwing TypeError for Symbol arguments; as of now we don't support
+        // Symbol, so we don't return error results. We use unary_plus as a helper function here,
+        // handling BigInt case when the error result of unary_plus indicates that case.
+        match Self::to_numeric(v) {
+            Numeric::Number(f) => Self::new_simple(Simple::Number(-f)),
+            Numeric::BigInt(i) => Self::pack(Unpacked::BigInt(i.negate())),
+        }
+    }
+
+    fn multiply(v1: Self, v2: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v1) {
+            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
+                Numeric::Number(_) => {
+                    Self::exception("TypeError: Cannot convert a BigInt value to a number")
+                }
+                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.multiply(i2)))),
+            },
+            Numeric::Number(f1) => match Self::to_numeric(v2) {
+                Numeric::BigInt(_) => {
+                    Self::exception("TypeError: Cannot convert a BigInt value to a number")
+                }
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 * f2))),
+            },
         }
     }
 }
@@ -121,6 +195,11 @@ pub enum Unpacked<U: Any> {
     Array(U::Array),
     Object(U::Object),
     Function(U::Function),
+}
+
+pub enum Numeric<U: Any> {
+    Number(f64),
+    BigInt(U::BigInt),
 }
 
 pub trait Extension: Sized {

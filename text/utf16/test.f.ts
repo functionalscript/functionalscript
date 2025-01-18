@@ -1,4 +1,11 @@
-import { toCodePointList, fromCodePointList, stringToList, listToString } from './module.f.ts'
+import {
+    toCodePointList,
+    fromCodePointList,
+    stringToList,
+    listToString,
+    stringToCodePointList,
+    codePointListToString
+} from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
@@ -94,12 +101,16 @@ export default {
             if (result !== "Hello world!😂🚜🚲") { throw result }
         },
         () => {
+            const cpList = stringToCodePointList("Hello world!😂🚜🚲")
+            const result = codePointListToString(cpList)
+            if (result !== "Hello world!😂🚜🚲") { throw result }
+        },
+        () => {
             const a = stringToList("Hello world!😂🚜🚲")
             const b = toCodePointList(a)
             const c = fromCodePointList(b)
             const result = listToString(c)
             if (result !== "Hello world!😂🚜🚲") { throw result }
-
         }
     ]
 }

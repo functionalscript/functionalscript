@@ -1,7 +1,7 @@
 /**
  * A generic function type.
  */
-type Func<I, O> = (_: I) => O
+export type Func<I, O> = (_: I) => O
 
 /**
  * A postfix compose function.
@@ -13,8 +13,7 @@ export const compose
 /**
  * A generic identity function.
  */
-export const identity
-    : <T>(value: T) => T
+export const identity: <T>(value: T) => T
     = value => value
 
 /**

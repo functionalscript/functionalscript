@@ -1,19 +1,12 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.3.10",
+  "version": "0.4.3",
   "license": "AGPL-3.0-only",
   "exports": {
-    "./com/cpp": "./com/cpp/module.f.ts",
-    "./com/cs": "./com/cs/module.f.ts",
-    "./com/rust": "./com/rust/module.f.ts",
-    "./com/types": "./com/types/module.f.ts",
-    "./commonjs/build": "./commonjs/build/module.f.ts",
-    "./commonjs": "./commonjs/module.f.ts",
-    "./commonjs/module/function": "./commonjs/module/function/module.f.ts",
-    "./commonjs/module": "./commonjs/module/module.f.ts",
-    "./commonjs/package/dependencies": "./commonjs/package/dependencies/module.f.ts",
-    "./commonjs/package": "./commonjs/package/module.f.ts",
-    "./commonjs/path": "./commonjs/path/module.f.ts",
+    "./bnf/djs": "./bnf/djs/module.f.ts",
+    "./bnf/func": "./bnf/func/module.f.ts",
+    "./bnf/tag": "./bnf/tag/module.f.ts",
+    "./crypto/hmac": "./crypto/hmac/module.f.ts",
     "./crypto/prime_field": "./crypto/prime_field/module.f.ts",
     "./crypto/secp": "./crypto/secp/module.f.ts",
     "./crypto/sha2": "./crypto/sha2/module.f.ts",
@@ -68,6 +61,13 @@
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
     "test": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test.ts",
-    "fsc": "deno run --allow-read --allow-write ./main.ts"
+    "fsc": "deno run --allow-read --allow-write ./main.ts",
+    "version": "deno --allow-read --allow-write ./nodejs/version/main.ts"
+  },
+  "fmt": {
+    "indentWidth": 4,
+    "semiColons": false,
+    "singleQuote": true,
+    "lineWidth": 80
   }
 }

@@ -15,6 +15,7 @@ FunctionalScript is a safe, purely functional programming language and a strict 
 [A working draft of the FunctionalScript specification](./issues/lang/README.md).
 
 Learn more about
+
 - [Purely Functional Programming in JavaScript](https://blog.bitsrc.io/purely-functional-programming-in-javascript-91114b1b2dff?sk=5f7132e56902f38fcf4c6164bfa681ed),
 - [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376?sk=30b32189a81d1a2dad16c2244f32328d).
 

@@ -1,3 +1,16 @@
+/**
+ * MSb is most-significant bit first.
+ * ```
+ * - byte: 0x53 = 0b0101_0011
+ * -                0123_4567
+ * ```
+ * LSb is least-significant bit first.
+ * ```
+ * - byte: 0x53 = 0b0101_0011
+ * -                7654_3210
+ * ```
+ * @module
+ */
 import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import { fold, type List, type Thunk } from '../list/module.f.ts'
@@ -10,7 +23,7 @@ export type Vec = bigint
 /**
  * An empty vector of bits.
  */
-export const empty = 1n
+export const empty: Vec = 1n
 
 /**
  * Calculates the length of the given vector of bits.
@@ -24,8 +37,8 @@ export const length = log2
  *
  * ```js
  * const vec4 = vec(4n)
- * const v0 = vec4(5n)     // 0x15n
- * const v1 = vec4(0x5FEn) // 0x1En
+ * const v0 = vec4(5n)     // 0x15n = 0b1_0101
+ * const v1 = vec4(0x5FEn) // 0x1En = 0b1_1110
  * ```
  */
 export const vec = (len: bigint): (ui: bigint) => Vec => {
@@ -114,7 +127,7 @@ export type BitOrder = {
      * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, 1n]
      * ```
      */
-    readonly popFront: (len: bigint) => (v: Vec) => readonly[bigint, Vec]
+    readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
     /**
      * Concatenates two vectors.
      *
@@ -165,7 +178,7 @@ export const lsb: BitOrder = {
         const aLen = length(a)
         const m = mask(aLen)
         return b => (b << aLen) | (a & m)
-    }
+    },
 }
 
 /**
@@ -188,7 +201,7 @@ export const msb: BitOrder = {
             return [(v >> d) & m, vec(d)(v)]
         }
     },
-    concat: flip(lsb.concat)
+    concat: flip(lsb.concat),
 }
 
 const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)(vec8(BigInt(u8)))
@@ -200,8 +213,7 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
-    fold(appendU8(bo))(empty)
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec => fold(appendU8(bo))(empty)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.

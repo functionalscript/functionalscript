@@ -1,81 +1,80 @@
-import * as _ from './module.f.ts'
+import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.ts'
 import { every, countdown, map, toArray } from '../list/module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 
-const stringify
-    : (a: readonly json.Unknown[]) => string
+const stringify: (a: readonly json.Unknown[]) => string
     = json.stringify(sort)
 
 export default {
     has: [
         () => {
-            if (_.has(0)(_.empty)) { throw _.empty }
-            if (_.has(1)(_.empty)) { throw _.empty }
-            if (_.has(33)(_.empty)) { throw _.empty }
+            if (has(0)(empty)) { throw empty }
+            if (has(1)(empty)) { throw empty }
+            if (has(33)(empty)) { throw empty }
         },
         () => {
-            const s = _.set(0)(_.empty)
+            const s = set(0)(empty)
             if (s !== 1n) { throw s }
-            if (!_.has(0)(s)) { throw s }
-            if (_.has(1)(s)) { throw s }
-            if (_.has(33)(s)) { throw s }
+            if (!has(0)(s)) { throw s }
+            if (has(1)(s)) { throw s }
+            if (has(33)(s)) { throw s }
         },
         () => {
-            const s = _.set(33)(_.empty)
+            const s = set(33)(empty)
             if (s !== 8589934592n) { throw s }
-            if (_.has(0)(s)) { throw s }
-            if (_.has(1)(s)) { throw s }
-            if (!_.has(33)(s)) { throw s }
+            if (has(0)(s)) { throw s }
+            if (has(1)(s)) { throw s }
+            if (!has(33)(s)) { throw s }
         }
     ],
     setRange: () => {
-        const result = _.setRange([2, 5])(_.empty)
+        const result = setRange([2, 5])(empty)
         if (result !== 60n) { throw result }
     },
     unset: [
         () => {
-            const a = _.set(0)(_.empty)
-            const result = _.unset(0)(a)
+            const a = set(0)(empty)
+            const result = unset(0)(a)
             if (result !== 0n) { throw result }
         },
         () => {
-            const a = _.set(255)(_.empty)
-            const result = _.unset(255)(a)
+            const a = set(255)(empty)
+            const result = unset(255)(a)
             if (result !== 0n) { throw result }
         }
     ],
     universe: () => {
-        const x = every(map((v: any) => _.has(v)(_.universe))(countdown(256)))
+        const x = every(map((v: any) => has(v)(universe))(countdown(256)))
         if (!x) { throw x }
     },
     compliment: {
         empty: () => {
-            const r = _.complement(_.empty)
-            if (r !== _.universe) { throw r }
+            const r = complement(empty)
+            if (r !== universe) { throw r }
         },
         universe: () => {
-            const r = _.complement(_.universe)
-            if (r !== _.empty) { throw r }
+            const r = complement(universe)
+            if (r !== empty) { throw r }
         },
     },
     toRangeMap: [
         () => {
-            const result = stringify(toArray(_.toRangeMap(_.empty)('a')))
+            const result = stringify(toArray(toRangeMap(empty)('a')))
             if (result !== '[]') { throw result }
         },
         () => {
-            const s = _.set(0)(_.empty)
-            const result = stringify(toArray(_.toRangeMap(s)('a')))
+            const s = set(0)(empty)
+            const result = stringify(toArray(toRangeMap(s)('a')))
             if (result !== '[[["a"],0]]') { throw result }
         },
         () => {
-            const s = _.setRange([1,2])(_.empty)
-            const result = stringify(toArray(_.toRangeMap(s)('a')))
+            const s = setRange([1, 2])(empty)
+            const result = stringify(toArray(toRangeMap(s)('a')))
             if (result !== '[[[],0],[["a"],2]]') { throw result }
         },
         () => {
-            const result = stringify(toArray(_.toRangeMap(_.universe)('a')))
+            const result = stringify(toArray(toRangeMap(universe)('a')))
             if (result !== '[[["a"],255]]') { throw result }
         },
     ]

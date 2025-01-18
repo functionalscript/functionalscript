@@ -12,6 +12,5 @@ const tryCatch
     }
 
 export default {
-    /** @readonly */
     tryCatch,
-}
+} as const

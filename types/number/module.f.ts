@@ -13,3 +13,23 @@ export const max: (input: List<number>) => number | null
 
 export const cmp: (a: number) => (b: number) => Sign
     = unsafeCmp
+
+type MaskOffset = readonly [number, number]
+
+const mo: readonly MaskOffset[] = [
+    [0x5555_5555, 1],
+    [0x3333_3333, 2],
+    [0x0F0F_0F0F, 4],
+    [0x00FF_00FF, 8],
+    [0x0000_FFFF, 16],
+]
+
+/**
+ * Count a number of ones in 32 bit number
+ */
+export const countOnes = (n: number): number => {
+    for (const [mask, offset] of mo) {
+        n = (n & mask) + ((n >> offset) & mask)
+    }
+    return n
+}

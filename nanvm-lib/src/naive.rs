@@ -1,11 +1,6 @@
+use crate::{interface, sign::Sign, simple::Simple};
 use core::{fmt, marker::PhantomData};
 use std::rc;
-
-use crate::{
-    interface::{self},
-    sign::Sign,
-    simple::Simple,
-};
 
 pub trait Policy {
     type Header: PartialEq + fmt::Debug + Clone;
