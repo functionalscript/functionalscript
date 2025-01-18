@@ -9,7 +9,7 @@ const { entries } = Object
 import * as bi from '../../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as j from '../../json/serializer/module.f.ts'
-import type { DjsConst, DjsModule, DjsObject } from '../shared/module.f'
+import type { DjsConst, DjsModule, DjsObject } from '../shared/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
 import { type Result, ok, error } from '../../types/result/module.f.ts'
 import { at, type Map } from '../../types/map/module.f.ts'
