@@ -45,5 +45,22 @@ export default {
         if (moduleB[0] === 'error') { throw moduleB[1] }
         const resultB = stringifyDjsModule(moduleB[1])
         if (resultB !== 'export default null') { throw resultB }
+    },
+    parseWithCycle: () => {        
+        const map = setReplace('a')('import a from "b"\nexport default a')(null)
+        const map2 = setReplace('a/b')('import a from ".."\nexport default a')(map)
+        const fs = virtualFs(map2)
+        const modules = parse(fs)('a')
+
+        const moduleA = at('a')(modules)
+        if (moduleA === null) { throw moduleA }
+        if (moduleA[0] === 'error') { throw moduleA[1] }
+        const resultA = stringifyDjsModule(moduleA[1])
+        if (resultA !== 'import a0 from "b"\nexport default a0') { throw resultA }
+
+        const moduleB = at('a/b')(modules)
+        if (moduleB === null) { throw moduleB }
+        if (moduleB[0] !== 'error') { throw moduleB[0] }
+        if (moduleB[1] !== 'circular dependency') { throw moduleB[1] }
     }
 }

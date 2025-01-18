@@ -26,20 +26,32 @@ const parseImports
         return context
 }
 
-const readModule
+const isInStack
+    :(stack: List<string>) => (path: string) => boolean
+    = stack => path => {
+        return find(null)(x => x === path)(stack) !== null
+}
+
+const parseModule
     : (path: string) => (context: ParseContext) => Result<DjsModule, string>
     = path => context => {
-        if (find(null)(x => x === path)(context.stack) !== null) {
-            return error('circular dependency')  
-        }
-
         const content = context.fs.readFileSync(path)
         if (content === null) {
             return error('file not found')  
         }
 
         const tokens = tokenize(stringToList(content))
-        return parseFromTokens(tokens)
+        const result = parseFromTokens(tokens)
+        if (result[0] === 'ok') {
+            const pathsCombine = listMap(pathConcat(path))(result[1][0])
+            const circular = find(null)(isInStack(context.stack))(pathsCombine)
+            if (circular !== null) 
+            {
+                return error('circular dependency')
+            }
+        }
+        
+        return result
 }
 
 const foldNextModuleOp
@@ -49,7 +61,7 @@ const foldNextModuleOp
             return context
         }
 
-        const parseModuleResult = readModule(path)(context)
+        const parseModuleResult = parseModule(path)(context)   
         const contextWithImports = parseImports(path)(parseModuleResult)(context)
         return { ... contextWithImports, complete: setReplace(path)(parseModuleResult)(contextWithImports.complete) }
 }
