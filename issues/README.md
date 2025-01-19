@@ -91,6 +91,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
 - [X] 49. Delete [com](./com/) and [commonjs](./commonjs). Bump a minor version to `0.4.0`.
 - [X] 50. Delete old `bigint.log2` benchmark tests. Leave only `str32log2` and `log2`.
+- [ ] [51-parser-structures.md](./51-parser-structures.md).
 
 ## Language Specification
 
