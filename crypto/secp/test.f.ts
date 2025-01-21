@@ -1,4 +1,60 @@
+import { prime_field } from '../prime_field/module.f.ts'
 import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point } from './module.f.ts'
+
+const poker = (param: Init) => () => {
+    // (c ^ x) ^ y = c ^ (x * y)
+    // c = c ^ 1 = c ^ (x * y) = c ^ (x0 * x1 * y0 * y1), x0 * x1 = 1, y0 * y1 = 1.
+    const { g, n } = param
+    const { mul, y } = curve(param)
+    const f = (m: bigint) => (pList: readonly Point[]) => {
+        let result: readonly Point[] = []
+        for (const i of pList) {
+            const p = mul(i)(m)
+            result = [...result, p]
+        }
+        return result
+    }
+    //
+    const pf = prime_field(n)
+    //           0        1        2        3        4        5        6        7
+    const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEFn % n
+    const sB = 0xFEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98n % n
+    // "22d3ad011aec6aabdb3d3d47636f3e2859de02298c87a496"
+    const rA = pf.reciprocal(sA)
+    // "e1e768c7427cf5bafd58756df9b54b9ec2558201f129f4ab"
+    const rB = pf.reciprocal(sB)
+    //
+    let d: readonly Point[] = []
+    for (let i = 0n; i < 52n; ++i) {
+        let nonce = 0n // can be a random number in a range [`0`, `p >> 6n`).
+        let x = 0n
+        let yi: bigint|null
+        while (true) {
+            x = i | (nonce << 6n)
+            yi = y(x)
+            if (yi !== null) {
+                break
+            }
+            ++nonce
+        }
+        d = [...d, [x, yi]]
+    }
+    //
+    const dA = f(sA)(d)
+    const dAB = f(sB)(dA)
+    const dB = f(rA)(dAB)
+    const dN = f(rB)(dB)
+    //
+    let m = 0n
+    for (const p of dN) {
+        if (p === null) {
+            throw 'null'
+        }
+        const x = p[0] & 0x3Fn
+        if (x !== m) { throw [p[0], x, m] }
+        ++m
+    }
+}
 
 export default {
     example: () => {
@@ -61,5 +117,13 @@ export default {
         test_curve(secp256k1)
         test_curve(secp192r1)
         test_curve(secp256r1)
+    },
+    poker: () => {
+        const c = {
+            secp192r1,
+            secp256k1,
+            secp256r1,
+        }
+        return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, poker(v)]))
     }
 }
