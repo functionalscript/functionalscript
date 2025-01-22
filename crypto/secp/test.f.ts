@@ -10,7 +10,7 @@ const poker = (param: Init) => () => {
     //
     const pf = prime_field(n)
     //           0        1        2        3        4        5        6        7
-    const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEEn % n
+    const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEFn % n
     const sB = 0xFEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98n % n
     // "22d3ad011aec6aabdb3d3d47636f3e2859de02298c87a496"
     // "2b359de5cfb5937a5610d565dceaef2a760ceeaec96e68140757f0c8371534e0"
