@@ -20,8 +20,12 @@ const poker = (param: Init) => () => {
     const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEFn % n
     const sB = 0xFEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98n % n
     // "22d3ad011aec6aabdb3d3d47636f3e2859de02298c87a496"
+    // "2b359de5cfb5937a5610d565dceaef2a760ceeaec96e68140757f0c8371534e0"
+    // "1359162ede91207ccaea1de94afc63c1db5a967c1e6e21f91ef9f077f20a46b6"
     const rA = pf.reciprocal(sA)
     // "e1e768c7427cf5bafd58756df9b54b9ec2558201f129f4ab"
+    // "edaf7ede285c3da723c54fcdaa3b631f626681f884d8f41fae55c4f552bb551e"
+    // "6ca248e88c124478975b57c4c3ca682bd8be0f0d9f11593d01273d9ceebdb735"
     const rB = pf.reciprocal(sB)
     //
     let d: readonly Point[] = []
