@@ -1,4 +1,6 @@
-## Benchmark
+# Elliptic Curves
+
+## Benchmarks
 
 ```
 Bun:
@@ -17,4 +19,8 @@ Node23:
     192r1: 2316
     256k1: 4656
     256r1: 4525
+Node16:
+    192r1: 2976
+    256k1: 5839
+    256r1: 5746
 ```
