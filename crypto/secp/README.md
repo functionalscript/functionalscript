@@ -24,3 +24,7 @@ Node16:
     256k1: 5839
     256r1: 5746
 ```
+
+## Mental Poker
+
+Also see https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf

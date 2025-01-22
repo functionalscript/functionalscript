@@ -3,7 +3,7 @@ import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point } fro
 
 const poker = (param: Init) => () => {
     // (c ^ x) ^ y = c ^ (x * y)
-    // c = c ^ 1 = c ^ (x * y) = c ^ (x0 * x1 * y0 * y1), x0 * x1 = 1, y0 * y1 = 1.
+    // c ^ ((x * y) * (1/x * 1/y)) = c
     const { g, n } = param
     const { mul, y } = curve(param)
     const f = (m: bigint) => (pList: readonly Point[]) => pList.map(i => mul(i)(m))
