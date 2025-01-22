@@ -27,4 +27,8 @@ Node16:
 
 ## Mental Poker
 
-Also see https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf
+Notes:
+
+1. users shouldn't know a multiplier between different cards. For example, if a user know that a card # `0` multiplied by a number `N` becomes a card # `1` then they can find a card number # `1`.
+
+See also https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf
