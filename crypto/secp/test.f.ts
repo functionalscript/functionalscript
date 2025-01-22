@@ -6,14 +6,7 @@ const poker = (param: Init) => () => {
     // c = c ^ 1 = c ^ (x * y) = c ^ (x0 * x1 * y0 * y1), x0 * x1 = 1, y0 * y1 = 1.
     const { g, n } = param
     const { mul, y } = curve(param)
-    const f = (m: bigint) => (pList: readonly Point[]) => {
-        let result: readonly Point[] = []
-        for (const i of pList) {
-            const p = mul(i)(m)
-            result = [...result, p]
-        }
-        return result
-    }
+    const f = (m: bigint) => (pList: readonly Point[]) => pList.map(i => mul(i)(m))
     //
     const pf = prime_field(n)
     //           0        1        2        3        4        5        6        7
@@ -125,8 +118,8 @@ export default {
     poker: () => {
         const c = {
             secp192r1,
-            secp256k1,
-            secp256r1,
+            //secp256k1,
+            //secp256r1,
         }
         return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, poker(v)]))
     }
