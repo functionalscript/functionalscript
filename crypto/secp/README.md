@@ -29,6 +29,10 @@ Node16:
 
 Notes:
 
-1. users should NOT know a multiplier between different cards. For example, if a user know that a card # `0` multiplied by a number `N` becomes a card # `1` then they can find a card number # `1`.
+1. users should NOT know a multiplier (see [discrete logarithm problem](https://en.wikipedia.org/wiki/Discrete_logarithm)) between different cards. For example, if a user know that a card # `0` multiplied by a number `N` becomes a card # `1` then they can find a card number # `1`.
 
-See also https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf
+See also
+
+- https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf
+- https://geometry.xyz/notebook/mental-poker-in-the-age-of-snarks-part-1
+- https://www.cs.purdue.edu/homes/ninghui/courses/Fall05/lectures/355_Fall05_lect25.pdf
