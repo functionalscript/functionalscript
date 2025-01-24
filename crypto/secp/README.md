@@ -36,3 +36,32 @@ See also
 - https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf
 - https://geometry.xyz/notebook/mental-poker-in-the-age-of-snarks-part-1
 - https://www.cs.purdue.edu/homes/ninghui/courses/Fall05/lectures/355_Fall05_lect25.pdf
+
+### API
+
+```ts
+type Game = {
+    me: User
+    // user's public keys.
+    // the list starts with a dealer.
+    userList: readonly bigint[]
+}
+
+type User = {
+    privateKey: PrivateKey
+    gamePrivateKey: PrivateKey
+}
+
+type PrivateKey = {}
+
+type Result = {
+    state: State
+    send: readonly Message[]
+}
+
+const next = (game: Game) => (state: State) => (message: Message) => Result
+
+type State = {
+    
+}
+```
