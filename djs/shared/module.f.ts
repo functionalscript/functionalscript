@@ -1,4 +1,4 @@
-import * as djs from '../module.f.ts'
+import type * as djs from '../module.f.ts'
 import { todo } from "../../dev/module.f.ts"
 
 export type AstModule = [readonly string[], AstBody]
