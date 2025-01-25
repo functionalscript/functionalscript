@@ -9,7 +9,7 @@ const { entries } = Object
 import * as bi from '../../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as j from '../../json/serializer/module.f.ts'
-import type { DjsConst, DjsModule, DjsObject } from '../shared/module.f.ts'
+import type { AstConst, AstModule, AstObject } from '../shared/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
 import { type Result, ok, error } from '../../types/result/module.f.ts'
 import { at, type Map } from '../../types/map/module.f.ts'
@@ -18,17 +18,17 @@ const colon = [':']
 
 export const undefinedSerialize = ['undefined']
 
-type Entry = O.Entry<DjsConst>
+type Entry = O.Entry<AstConst>
 
 type Entries = list.List<Entry>
 
 type MapEntries = (entries: Entries) => Entries
 
 const djsConstSerialize
-: (mapEntries: MapEntries) => (value: DjsConst) => list.List<string>
+: (mapEntries: MapEntries) => (value: AstConst) => list.List<string>
 = sort => {
     const propertySerialize
-    : (kv: readonly[string, DjsConst]) => list.List<string>
+    : (kv: readonly[string, AstConst]) => list.List<string>
     = ([k, v]) => flat([
         stringSerialize(k),
         colon,
@@ -36,14 +36,14 @@ const djsConstSerialize
     ])
     const mapPropertySerialize = map(propertySerialize)
     const objectSerialize
-    : (object: DjsObject) => list.List<string>
+    : (object: AstObject) => list.List<string>
     = fn(entries)
         .then(sort)
         .then(mapPropertySerialize)
         .then(objectWrap)
         .result
     const f
-    : (value: DjsConst) => list.List<string>
+    : (value: AstConst) => list.List<string>
     = value => {
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -69,7 +69,7 @@ const djsConstSerialize
 }
 
 export const djsModuleStringify
-: (sort: MapEntries) => (djsModule: DjsModule) => string
+: (sort: MapEntries) => (djsModule: AstModule) => string
 = sort => djsModule => {
     const importEntries = listEntries(djsModule[0])
     const importSerialize
@@ -79,7 +79,7 @@ export const djsModuleStringify
     const len = djsModule[1].length
     const constEntries = listEntries(djsModule[1])
     const moduleEntrySerialize
-    : (entry: list.Entry<DjsConst>) => list.List<string>
+    : (entry: list.Entry<AstConst>) => list.List<string>
     = entry => {
         if (entry[0] === len - 1) {
             return listConcat(['export default '])(djsConstSerialize(sort)(entry[1]))
@@ -90,7 +90,7 @@ export const djsModuleStringify
     return concat(listConcat(flatMap(importSerialize)(importEntries))(flatMap(moduleEntrySerialize)(constEntries)))
 }
 
-export const serializeModules: (root: string) => (sort: MapEntries) => (modules: Map<DjsModule>) => Result<string, string>
+export const serializeModules: (root: string) => (sort: MapEntries) => (modules: Map<AstModule>) => Result<string, string>
 = root => sort => modules => {
     const rootModule = at(root)(modules)
     if (rootModule === null)
@@ -104,7 +104,7 @@ export const serializeModules: (root: string) => (sort: MapEntries) => (modules:
     const len = rootModule[1].length
     const constEntries = listEntries(rootModule[1])
     const moduleEntrySerialize
-    : (entry: list.Entry<DjsConst>) => list.List<string>
+    : (entry: list.Entry<AstConst>) => list.List<string>
     = entry => {
         if (entry[0] === len - 1) {
             return listConcat(['export default '])(djsConstSerialize(sort)(entry[1]))

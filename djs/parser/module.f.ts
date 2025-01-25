@@ -5,17 +5,17 @@ import { type DjsToken } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import { type Fs } from '../io/module.f.ts'
-import type { DjsArray, DjsConst, DjsModule, DjsModuleRef } from '../shared/module.f.ts'
+import type { AstArray, AstConst, AstModule, AstModuleRef } from '../shared/module.f.ts'
 
 export type ParseContext = {    
     readonly fs: Fs
-    readonly complete: Map<result.Result<DjsModule, string>>
+    readonly complete: Map<result.Result<AstModule, string>>
     readonly stack: List<string>
 }
 
-type DjsStackArray = ['array', List<DjsConst>]
+type DjsStackArray = ['array', List<AstConst>]
 
-type DjsStackObject = ['object', Map<DjsConst>, string]
+type DjsStackObject = ['object', Map<AstConst>, string]
 
 type DjsStackElement = |
     DjsStackArray |
@@ -26,9 +26,9 @@ type DjsStack = List<DjsStackElement>
 type ParserState = InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState
 
 type ModuleState = {
-    readonly refs: Map<DjsModuleRef>
+    readonly refs: Map<AstModuleRef>
     readonly modules: List<string>
-    readonly consts: List<DjsConst>
+    readonly consts: List<AstConst>
 }
 
 type InitialState = {
@@ -145,7 +145,7 @@ const parseConstOp
             if (at(token.value)(state.module.refs) !== null)
                 return { state: 'error', message: 'duplicate id' }
             let cref
-                : DjsModuleRef
+                : AstModuleRef
                 = ['cref', length(state.module.consts)]
             let refs = setReplace(token.value)(cref)(state.module.refs)
             return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
@@ -180,7 +180,7 @@ const parseImportOp
                 return { state: 'error', message: 'duplicate id' }
             }
             let aref
-                : DjsModuleRef
+                : AstModuleRef
                 = ['aref', length(state.module.modules)]
             let refs = setReplace(token.value)(aref)(state.module.refs)
             return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
@@ -225,11 +225,11 @@ const addKeyToObject
     = obj => key => ([ 'object', obj[1], key])
 
 const addValueToObject
-    : (obj: DjsStackObject) => (value: DjsConst) => DjsStackObject
+    : (obj: DjsStackObject) => (value: AstConst) => DjsStackObject
     = obj => value => ([ 'object', setReplace(obj[2])(value)(obj[1]), '' ])
 
 const addToArray
-    : (array: DjsStackArray) => (value: DjsConst) => DjsStackArray
+    : (array: DjsStackArray) => (value: AstConst) => DjsStackArray
     = array => value => ([ 'array', concat(array[1])([value]) ])
 
 const pushKey
@@ -240,7 +240,7 @@ const pushKey
 }
 
 const pushValue
-    : (state: ParseValueState) => (value: DjsConst) => ParserState
+    : (state: ParseValueState) => (value: AstConst) => ParserState
     = state => value => {
     if (state.top === null) {
         let consts = concat(state.module.consts)([value])
@@ -280,7 +280,7 @@ const endArray
     if (top !== null && top[0] === 'array')
     {
         const array
-            : DjsArray
+            : AstArray
             = ['array', toArray(top[1])];
         return pushValue(newState)(array)
     }
@@ -305,7 +305,7 @@ const endObject
 }
 
 const tokenToValue
-    : (token: DjsToken) => DjsConst
+    : (token: DjsToken) => AstConst
     = token => {
     switch (token.kind) {
         case 'null': return null
@@ -492,10 +492,10 @@ const foldOp
     }
 }
 
-export const parseFromTokens = (tokenList: List<DjsToken>): result.Result<DjsModule, string> => {
+export const parseFromTokens = (tokenList: List<DjsToken>): result.Result<AstModule, string> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
-        case 'result': return result.ok<DjsModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
+        case 'result': return result.ok<AstModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
     }

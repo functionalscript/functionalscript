@@ -1,11 +1,13 @@
-export type DjsModule = [readonly string[], readonly DjsConst[]]
+export type AstModule = [readonly string[], AstBody]
 
-export type DjsConst = boolean|string|number|null|bigint|undefined|DjsModuleRef|DjsArray|DjsObject
+export type AstConst = boolean|string|number|null|bigint|undefined|AstModuleRef|AstArray|AstObject
 
-export type DjsModuleRef = ['aref' | 'cref', number]
+export type AstModuleRef = ['aref' | 'cref', number]
 
-export type DjsArray = ['array', readonly DjsConst[]]
+export type AstArray = ['array', readonly AstConst[]]
 
-export type DjsObject = {
-    readonly [k in string]: DjsConst
+export type AstObject = {
+    readonly [k in string]: AstConst
 }
+
+export type AstBody = readonly AstConst[]

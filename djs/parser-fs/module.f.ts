@@ -7,16 +7,16 @@ import { type Fs } from '../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { parseFromTokens } from '../parser/module.f.ts'
-import type { DjsModule } from '../shared/module.f.ts'
+import type { AstModule } from '../shared/module.f.ts'
 
 export type ParseContext = {    
     readonly fs: Fs
-    readonly complete: Map<Result<DjsModule, string>>
+    readonly complete: Map<Result<AstModule, string>>
     readonly stack: List<string>
 }
 
 const parseImports
-    : (path: string) => (parseModuleResult: Result<DjsModule, string>) => (context: ParseContext) => ParseContext
+    : (path: string) => (parseModuleResult: Result<AstModule, string>) => (context: ParseContext) => ParseContext
     = path => parseModuleResult => context => {
         if (parseModuleResult[0] === 'ok') {
             const pathsCombine = listMap(pathConcat(path))(parseModuleResult[1][0])
@@ -33,7 +33,7 @@ const isInStack
 }
 
 const parseModule
-    : (path: string) => (context: ParseContext) => Result<DjsModule, string>
+    : (path: string) => (context: ParseContext) => Result<AstModule, string>
     = path => context => {
         const content = context.fs.readFileSync(path)
         if (content === null) {
@@ -66,7 +66,7 @@ const foldNextModuleOp
         return { ... contextWithImports, complete: setReplace(path)(parseModuleResult)(contextWithImports.complete) }
 }
 
-export const parse: (fs: Fs) => (path: string) => Map<Result<DjsModule, string>>
+export const parse: (fs: Fs) => (path: string) => Map<Result<AstModule, string>>
  = fs => path => {
     const context = foldNextModuleOp(path)({fs, stack: null, complete: null})
     return context.complete
