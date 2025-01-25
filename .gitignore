@@ -129,3 +129,5 @@ _*
 **/*.d.mts
 **/*.d.ts
 **/*.js
+
+deno.lock
