@@ -112,5 +112,11 @@ export default {
             const result = listToString(c)
             if (result !== "Hello world!😂🚜🚲") { throw result }
         }
+    ],
+    stringToList: [
+        () => {
+            const inputString = "Hello, i like js"
+            const utf16List = stringToList(inputString)
+        }
     ]
 }
