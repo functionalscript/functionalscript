@@ -3,7 +3,7 @@ import { fold, drop, map as listMap, type List, find } from '../../types/list/mo
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import { tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
-import { type Fs } from '../io/module.f.ts'
+import type { Fs } from '../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { parseFromTokens } from '../parser/module.f.ts'
