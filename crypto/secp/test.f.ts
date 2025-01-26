@@ -73,9 +73,7 @@ export default {
         = c => {
             const { g } = c
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
-            const point_check
-            : (p: Point) => void
-            = p => {
+            const point_check = (p: Point): void => {
                 if (p === null) { throw 'p === null' }
                 const [x, y] = p
                 const ye = yf(x)
@@ -84,9 +82,7 @@ export default {
             }
             point_check(g)
             point_check(neg(g))
-            const test_mul
-            : (p: Point) => void
-            = p => {
+            const test_mul = (p: Point): void => {
                 if (mul(p)(0n) !== null) { throw 'O' }
                 if (mul(p)(1n) !== p) { throw 'p' }
                 if (mul(p)(n) !== null) { throw 'n' }
