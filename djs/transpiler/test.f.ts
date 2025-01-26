@@ -5,7 +5,7 @@ import * as encoding from '../../text/utf16/module.f.ts'
 import { djsModuleStringify } from '../serializer/module.f.ts'
 import { at, setReplace, type Map } from '../../types/map/module.f.ts'
 import type { Fs } from '../io/module.f.ts'
-import { parse } from './module.f.ts'
+import { transpile } from './module.f.ts'
 
 const stringifyDjsModule = djsModuleStringify(sort)
 
@@ -21,7 +21,7 @@ export default {
     parse: () => {        
         const map = setReplace('a')('export default null')(null)
         const fs = virtualFs(map)
-        const modules = parse(fs)('a')
+        const modules = transpile(fs)('a')
         const module = at('a')(modules)
         if (module === null) { throw module }
         if (module[0] === 'error') { throw module[1] }
@@ -32,7 +32,7 @@ export default {
         const map = setReplace('a')('import a from "b"\nexport default a')(null)
         const map2 = setReplace('a/b')('export default null')(map)
         const fs = virtualFs(map2)
-        const modules = parse(fs)('a')
+        const modules = transpile(fs)('a')
 
         const moduleA = at('a')(modules)
         if (moduleA === null) { throw moduleA }
@@ -50,7 +50,7 @@ export default {
         const map = setReplace('a')('import a from "b"\nexport default a')(null)
         const map2 = setReplace('a/b')('import a from ".."\nexport default a')(map)
         const fs = virtualFs(map2)
-        const modules = parse(fs)('a')
+        const modules = transpile(fs)('a')
 
         const moduleA = at('a')(modules)
         if (moduleA === null) { throw moduleA }

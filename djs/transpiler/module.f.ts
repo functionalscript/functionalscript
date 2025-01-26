@@ -15,7 +15,7 @@ export type ParseContext = {
     readonly stack: List<string>
 }
 
-const parseImports
+const transpileImports
     : (path: string) => (parseModuleResult: Result<AstModule, string>) => (context: ParseContext) => ParseContext
     = path => parseModuleResult => context => {
         if (parseModuleResult[0] === 'ok') {
@@ -32,7 +32,7 @@ const isInStack
         return find(null)(x => x === path)(stack) !== null
 }
 
-const parseModule
+const transpileModule
     : (path: string) => (context: ParseContext) => Result<AstModule, string>
     = path => context => {
         const content = context.fs.readFileSync(path)
@@ -61,12 +61,12 @@ const foldNextModuleOp
             return context
         }
 
-        const parseModuleResult = parseModule(path)(context)   
-        const contextWithImports = parseImports(path)(parseModuleResult)(context)
+        const parseModuleResult = transpileModule(path)(context)   
+        const contextWithImports = transpileImports(path)(parseModuleResult)(context)
         return { ... contextWithImports, complete: setReplace(path)(parseModuleResult)(contextWithImports.complete) }
 }
 
-export const parse: (fs: Fs) => (path: string) => Map<Result<AstModule, string>>
+export const transpile: (fs: Fs) => (path: string) => Map<Result<AstModule, string>>
  = fs => path => {
     const context = foldNextModuleOp(path)({fs, stack: null, complete: null})
     return context.complete
