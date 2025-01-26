@@ -18,5 +18,10 @@ export default {
         const djs = shared.run([1, 2, 3, 4, 5, ['aref', 3]])([11, 12, 13, 14, 15])
         const result = stringify(sort)(djs)
         if (result !== '14') { throw result }
-    }
+    },
+    testArray: () => {
+        const djs = shared.run([1, 2, 3, 4, 5, ['array', [['aref', 3], ['cref', 3]]]])([11, 12, 13, 14, 15])
+        const result = stringify(sort)(djs)
+        if (result !== '[14,4]') { throw result }
+    },
 }

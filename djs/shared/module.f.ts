@@ -1,6 +1,7 @@
 import type * as djs from '../module.f.ts'
 import { todo } from "../../dev/module.f.ts"
-import { type List, concat, drop, first, fold, last, take } from '../../types/list/module.f.ts'
+import { type List, concat, drop, first, fold, last, take, toArray } from '../../types/list/module.f.ts'
+import { map } from '../../types/list/module.f.ts'
 
 export type AstModule = [readonly string[], AstBody]
 
@@ -25,13 +26,13 @@ type RunState = {
 export const foldOp
     :(ast: AstConst) => (state: RunState) => RunState
     = ast => state => {
-        const djs = toDjs(ast)(state)
+        const djs = toDjs(state)(ast)
         return { ... state, consts: concat(state.consts)([djs])}
     }
 
 export const toDjs
-    :(ast: AstConst) => (state: RunState) => djs.Unknown
-    = ast => state => {
+    : (state: RunState) => (ast: AstConst) => djs.Unknown
+    = state => ast => {
         switch (typeof ast) {
             case 'boolean':
             case 'number':
@@ -44,7 +45,7 @@ export const toDjs
                     switch (ast[0]) {
                         case 'aref': { return state.args[ast[1]] }
                         case 'cref': { return last(null)(take(ast[1] + 1)(state.consts)) }
-                        case 'array': { return todo() }
+                        case 'array': { return toArray(map(toDjs(state))(ast[1])) }
                     }
                 }
                 return todo()
