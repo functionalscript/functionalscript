@@ -1,7 +1,7 @@
 import type * as djs from '../module.f.ts'
 import { type List, concat, fold, last, map, take, toArray } from '../../types/list/module.f.ts'
-import { type Entry, fromEntries } from '../../types/map/module.f.ts'
-import { fromMap } from '../../types/object/module.f.ts'
+import { type Entry } from '../../types/map/module.f.ts'
+import { fromEntries } from '../../types/object/module.f.ts'
 const { entries } = Object
 
 export type AstModule = [readonly string[], AstBody]
@@ -62,7 +62,7 @@ const toDjs
                     }
                 }
                 const e = fold(foldAstObjectOp)({ runState: state, entries: null})(entries(ast)).entries
-                return fromMap(fromEntries(e))
+                return fromEntries(e)
             }
         }
     }
