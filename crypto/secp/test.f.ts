@@ -1,5 +1,5 @@
 import { prime_field } from '../prime_field/module.f.ts'
-import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point } from './module.f.ts'
+import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point, secp384r1, secp521r1 } from './module.f.ts'
 
 const poker = (param: Init) => () => {
     // (c ^ x) ^ y = c ^ (x * y)
@@ -110,6 +110,8 @@ export default {
         test_curve(secp256k1)
         test_curve(secp192r1)
         test_curve(secp256r1)
+        test_curve(secp384r1)
+        test_curve(secp521r1)
     },
     poker: () => {
         const c = {
