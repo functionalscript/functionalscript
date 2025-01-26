@@ -144,10 +144,10 @@ const parseConstOp
         case 'id': {
             if (at(token.value)(state.module.refs) !== null)
                 return { state: 'error', message: 'duplicate id' }
-            let cref
+            const cref
                 : AstModuleRef
                 = ['cref', length(state.module.consts)]
-            let refs = setReplace(token.value)(cref)(state.module.refs)
+            const refs = setReplace(token.value)(cref)(state.module.refs)
             return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
         }
         default: return { state: 'error', message: 'unexpected token' }
@@ -179,10 +179,10 @@ const parseImportOp
             if (at(token.value)(state.module.refs) !== null) {
                 return { state: 'error', message: 'duplicate id' }
             }
-            let aref
+            const aref
                 : AstModuleRef
                 = ['aref', length(state.module.modules)]
-            let refs = setReplace(token.value)(aref)(state.module.refs)
+            const refs = setReplace(token.value)(aref)(state.module.refs)
             return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
         }
         default: return { state: 'error', message: 'unexpected token' }
@@ -243,7 +243,7 @@ const pushValue
     : (state: ParseValueState) => (value: AstConst) => ParserState
     = state => value => {
     if (state.top === null) {
-        let consts = concat(state.module.consts)([value])
+        const consts = concat(state.module.consts)([value])
         switch(state.state)
         {
             case 'exportValue': return { ... state, state: 'result', module: { ...state.module, consts: consts }}
