@@ -24,4 +24,9 @@ export default {
         const result = stringify(sort)(djs)
         if (result !== '[14,4]') { throw result }
     },
+    testObj: () => {
+        const djs = shared.run([1, 2, 3, 4, 5, {"key": ['array', [['aref', 3], ['cref', 3]]]}])([11, 12, 13, 14, 15])
+        const result = stringify(sort)(djs)
+        if (result !== '{"key":[14,4]}') { throw result }
+    },
 }
