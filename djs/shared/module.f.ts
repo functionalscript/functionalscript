@@ -42,7 +42,7 @@ export const toDjs
                 if (ast === undefined) { return ast }
                 if (ast instanceof Array) {
                     switch (ast[0]) {
-                        case 'aref': { return todo() }
+                        case 'aref': { return state.args[ast[1]] }
                         case 'cref': { return last(null)(take(ast[1] + 1)(state.consts)) }
                         case 'array': { return todo() }
                     }
