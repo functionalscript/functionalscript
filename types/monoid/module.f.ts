@@ -1,4 +1,4 @@
-import type { Reduce } from "../function/operator/module.f.ts";
+import type { Reduce } from '../function/operator/module.f.ts'
 
 /**
  * Represents a monoid, an algebraic structure with a binary operation
