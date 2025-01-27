@@ -10,13 +10,11 @@ pub trait Container: Clone {
     fn header(&self) -> &Self::Header;
     fn set_header(&mut self, header: Self::Header);
 
-    fn items_len(&self) -> usize;
-    fn item(&self, index: usize) -> Self::Item;
+    fn items(&self) -> std::cell::Ref<Vec<Self::Item>>;
     fn set_item(&mut self, index: usize, item: Self::Item);
-    fn items_iter(&self) -> impl Iterator<Item = Self::Item>;
     fn pop_last_item(&mut self);
 
-    fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self;
+    fn new(header: Self::Header, items: &[Self::Item]) -> Self;
     fn new_sized(header: Self::Header, size: usize) -> Self;
 }
 
@@ -88,10 +86,10 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
             Unpacked::Bool(b) => Numeric::Number(if b { 1.0 } else { 0.0 }),
             Unpacked::Number(n) => Numeric::Number(n),
             Unpacked::String16(s) => {
-                if s.items_len() == 0 {
+                if s.items().len() == 0 {
                     return Numeric::Number(0.0);
                 }
-                let string: String = decode_utf16(s.items_iter())
+                let string: String = decode_utf16(s.items().iter().cloned())
                     .map(|r| r.unwrap_or('\u{FFFD}'))
                     .collect();
                 if let Ok(n) = string.parse::<f64>() {
@@ -102,14 +100,14 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
             }
             Unpacked::BigInt(i) => Numeric::BigInt(i),
             Unpacked::Array(a) => {
-                let items_len = a.items_len();
-                if items_len == 0 {
+                let items = a.items();
+                if items.len() == 0 {
                     return Numeric::Number(0.0);
                 }
-                if items_len > 1 {
+                if items.len() > 1 {
                     return Numeric::Number(f64::NAN);
                 }
-                Self::to_numeric(a.item(0).clone())
+                Self::to_numeric(items[0].clone())
             }
             // TODO: use valueOf, toString functions for Object when present.
             Unpacked::Object(_) => Numeric::Number(f64::NAN),
@@ -184,7 +182,7 @@ pub trait Extension: Sized {
     where
         Self: IntoIterator<Item = C::Item>,
     {
-        C::new((), self)
+        C::new((), &self.into_iter().collect::<Vec<_>>())
     }
 
     fn to_string16_unknown<U: Any>(self) -> U

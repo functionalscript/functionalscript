@@ -84,10 +84,10 @@ fn eq<A: Any>() {
         }
     }
     // bigint
-    let bigint12_0: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
-    let bigint12_1: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
-    let bigint12m: A = A::BigInt::new(Sign::Negative, [12]).to_unknown();
-    let bigint13: A = A::BigInt::new(Sign::Positive, [13]).to_unknown();
+    let bigint12_0: A = A::BigInt::new(Sign::Positive, &[12]).to_unknown();
+    let bigint12_1: A = A::BigInt::new(Sign::Positive, &[12]).to_unknown();
+    let bigint12m: A = A::BigInt::new(Sign::Negative, &[12]).to_unknown();
+    let bigint13: A = A::BigInt::new(Sign::Positive, &[13]).to_unknown();
     {
         assert_eq!(bigint12_0, bigint12_1);
         assert_ne!(bigint12_0, bigint12m);
@@ -205,7 +205,7 @@ fn unary_plus<A: Any>() {
         ([].to_object_unknown(), nan.clone(), "object {{}}"),
         // TODO: decide on testing objects with valueOf, toString functions.
         (
-            A::Function::new(0, [0]).to_unknown(),
+            A::Function::new(0, &[0]).to_unknown(),
             nan.clone(),
             "function",
         ),
@@ -219,7 +219,7 @@ fn unary_plus<A: Any>() {
     }
 
     // bigint
-    let bi0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
+    let bi0: A = A::BigInt::new(Sign::Positive, &[0]).to_unknown();
     assert_eq!(
         Any::unary_plus(bi0),
         A::exception("TypeError: Cannot convert a BigInt value to a number")
@@ -268,8 +268,8 @@ fn unary_minus<A: Any>() {
         ("a".to_unknown(), nan.clone(), "string \"a\""),
         ([].to_array_unknown(), n0.clone(), "array []"),
         (
-            A::BigInt::new(Sign::Positive, [1]).to_unknown(),
-            A::BigInt::new(Sign::Negative, [1]).to_unknown(),
+            A::BigInt::new(Sign::Positive, &[1]).to_unknown(),
+            A::BigInt::new(Sign::Negative, &[1]).to_unknown(),
             "bigint 1n",
         ),
         (
@@ -295,7 +295,7 @@ fn unary_minus<A: Any>() {
         ([].to_object_unknown(), nan.clone(), "object {{}}"),
         // TODO: decide on testing objects with valueOf, toString functions.
         (
-            A::Function::new(0, [0]).to_unknown(),
+            A::Function::new(0, &[0]).to_unknown(),
             nan.clone(),
             "function",
         ),
@@ -315,11 +315,11 @@ fn multiply<A: Any>() {
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
     let true_: A = Simple::Boolean(true).to_unknown();
     let false_: A = Simple::Boolean(false).to_unknown();
-    let bi0: A = A::BigInt::new(Sign::Positive, []).to_unknown();
-    let bi1: A = A::BigInt::new(Sign::Positive, [1]).to_unknown();
-    let bi_minus1: A = A::BigInt::new(Sign::Negative, [1]).to_unknown();
-    let bi10: A = A::BigInt::new(Sign::Positive, [10]).to_unknown();
-    let bi_minus10: A = A::BigInt::new(Sign::Negative, [10]).to_unknown();
+    let bi0: A = A::BigInt::new(Sign::Positive, &[]).to_unknown();
+    let bi1: A = A::BigInt::new(Sign::Positive, &[1]).to_unknown();
+    let bi_minus1: A = A::BigInt::new(Sign::Negative, &[1]).to_unknown();
+    let bi10: A = A::BigInt::new(Sign::Positive, &[10]).to_unknown();
+    let bi_minus10: A = A::BigInt::new(Sign::Negative, &[10]).to_unknown();
     let test_cases: Vec<(A, A, A, &str)> = vec![
         (null.clone(), null.clone(), n0.clone(), "null by null"),
         (null.clone(), n0.clone(), n0.clone(), "null by 0"),
@@ -376,19 +376,19 @@ fn multiply<A: Any>() {
         (
             bi_minus1.clone(),
             bi10.clone(),
-            A::BigInt::new(Sign::Negative, [10]).to_unknown(),
+            A::BigInt::new(Sign::Negative, &[10]).to_unknown(),
             "-1n by 10n",
         ),
         (
             bi10.clone(),
             bi10.clone(),
-            A::BigInt::new(Sign::Positive, [100]).to_unknown(),
+            A::BigInt::new(Sign::Positive, &[100]).to_unknown(),
             "10n by 10n",
         ),
         (
             bi_minus10.clone(),
             bi10.clone(),
-            A::BigInt::new(Sign::Negative, [100]).to_unknown(),
+            A::BigInt::new(Sign::Negative, &[100]).to_unknown(),
             "-10n by 10n",
         ),
         ("".to_unknown(), n1.clone(), n0.clone(), "\"\" by 1"),

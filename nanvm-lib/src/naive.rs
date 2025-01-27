@@ -88,33 +88,19 @@ impl<P: Policy> interface::Container for Complex<P> {
     fn set_header(&mut self, header: Self::Header) {
         self.header = header;
     }
-    fn items_len(&self) -> usize {
-        self.items.borrow().len()
-    }
-    fn item(&self, index: usize) -> P::Item {
-        self.items.borrow()[index].clone()
-    }
     fn set_item(&mut self, index: usize, item: Self::Item) {
         self.items.borrow_mut()[index] = item;
     }
-    fn items_iter(&self) -> impl Iterator<Item = Self::Item> {
-        self.items
-            .borrow()
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>()
-            .into_iter()
+    fn items(&self) -> std::cell::Ref<Vec<Self::Item>> {
+        self.items.borrow()
     }
     fn pop_last_item(&mut self) {
-        let mut items = self.items.borrow_mut();
-        let mut vec = items.to_vec();
-        vec.pop();
-        *items = vec;
+        self.items.borrow_mut().pop();
     }
-    fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self {
+    fn new(header: Self::Header, items: &[Self::Item]) -> Self {
         Self {
             header,
-            items: rc::Rc::new(RefCell::new(items.into_iter().collect::<Vec<_>>())),
+            items: rc::Rc::new(RefCell::new(items.to_vec())),
         }
     }
     fn new_sized(header: Self::Header, size: usize) -> Self {
