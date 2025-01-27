@@ -1,4 +1,57 @@
-import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point } from './module.f.ts'
+import { prime_field } from '../prime_field/module.f.ts'
+import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point, secp384r1, secp521r1 } from './module.f.ts'
+
+const poker = (param: Init) => () => {
+    // (c ^ x) ^ y = c ^ (x * y)
+    // c ^ ((x * y) * (1/x * 1/y)) = c
+    const { g, n } = param
+    const { mul, y } = curve(param)
+    const f = (m: bigint) => (pList: readonly Point[]) => pList.map(i => mul(i)(m))
+    //
+    const pf = prime_field(n)
+    //           0        1        2        3        4        5        6        7
+    const sA = 0x01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEFn % n
+    const sB = 0xFEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98_FEDCBA98n % n
+    // "22d3ad011aec6aabdb3d3d47636f3e2859de02298c87a496"
+    // "2b359de5cfb5937a5610d565dceaef2a760ceeaec96e68140757f0c8371534e0"
+    // "1359162ede91207ccaea1de94afc63c1db5a967c1e6e21f91ef9f077f20a46b6"
+    const rA = pf.reciprocal(sA)
+    // "e1e768c7427cf5bafd58756df9b54b9ec2558201f129f4ab"
+    // "edaf7ede285c3da723c54fcdaa3b631f626681f884d8f41fae55c4f552bb551e"
+    // "6ca248e88c124478975b57c4c3ca682bd8be0f0d9f11593d01273d9ceebdb735"
+    const rB = pf.reciprocal(sB)
+    //
+    let d: readonly Point[] = []
+    for (let i = 0n; i < 52n; ++i) {
+        let nonce = 0n // can be a random number in a range [`0`, `p >> 6n`).
+        let x = 0n
+        let yi: bigint|null
+        while (true) {
+            x = i | (nonce << 6n)
+            yi = y(x)
+            if (yi !== null) {
+                break
+            }
+            ++nonce
+        }
+        d = [...d, [x, yi]]
+    }
+    //
+    const dA = f(sA)(d)
+    const dAB = f(sB)(dA)
+    const dB = f(rA)(dAB)
+    const dN = f(rB)(dB)
+    //
+    let m = 0n
+    for (const p of dN) {
+        if (p === null) {
+            throw 'null'
+        }
+        const x = p[0] & 0x3Fn
+        if (x !== m) { throw [p[0], x, m] }
+        ++m
+    }
+}
 
 export default {
     example: () => {
@@ -20,9 +73,7 @@ export default {
         = c => {
             const { g } = c
             const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
-            const point_check
-            : (p: Point) => void
-            = p => {
+            const point_check = (p: Point): void => {
                 if (p === null) { throw 'p === null' }
                 const [x, y] = p
                 const ye = yf(x)
@@ -31,9 +82,7 @@ export default {
             }
             point_check(g)
             point_check(neg(g))
-            const test_mul
-            : (p: Point) => void
-            = p => {
+            const test_mul = (p: Point): void => {
                 if (mul(p)(0n) !== null) { throw 'O' }
                 if (mul(p)(1n) !== p) { throw 'p' }
                 if (mul(p)(n) !== null) { throw 'n' }
@@ -61,5 +110,15 @@ export default {
         test_curve(secp256k1)
         test_curve(secp192r1)
         test_curve(secp256r1)
+        test_curve(secp384r1)
+        test_curve(secp521r1)
+    },
+    poker: () => {
+        const c = {
+            secp192r1,
+            //secp256k1,
+            //secp256r1,
+        }
+        return Object.fromEntries(Object.entries(c).map(([k, v]) => [k, poker(v)]))
     }
 }
