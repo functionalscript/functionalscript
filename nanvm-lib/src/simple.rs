@@ -10,6 +10,12 @@ pub enum Simple {
     Number(f64),
 }
 
+impl Default for Simple {
+    fn default() -> Self {
+        Simple::Nullish(Nullish::Undefined)
+    }
+}
+
 impl Simple {
     pub fn to_unknown<U: Any>(self) -> U {
         U::new_simple(self)

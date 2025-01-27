@@ -1,38 +1,49 @@
-use crate::{interface, sign::Sign, simple::Simple};
+use crate::{big_int, big_uint, interface, sign::Sign, simple::Simple};
 use core::{fmt, marker::PhantomData};
-use std::rc;
+use std::{cell::RefCell, rc};
 
 pub trait Policy {
-    type Header: PartialEq + fmt::Debug + Clone;
-    type Item: fmt::Debug;
-    fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool;
+    type Header: PartialEq + fmt::Debug + Clone + Default;
+    type Item: fmt::Debug + Clone + Default;
+    fn items_eq(a: &rc::Rc<RefCell<Vec<Self::Item>>>, b: &rc::Rc<RefCell<Vec<Self::Item>>>)
+        -> bool;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ValuePolicy<H, T>(PhantomData<(H, T)>);
 
-impl<H: PartialEq + fmt::Debug + Clone, T: PartialEq + fmt::Debug> Policy for ValuePolicy<H, T> {
+impl<H: PartialEq + fmt::Debug + Clone + Default, T: Clone + PartialEq + fmt::Debug + Default>
+    Policy for ValuePolicy<H, T>
+{
     type Header = H;
     type Item = T;
-    fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
+    fn items_eq(
+        a: &rc::Rc<RefCell<Vec<Self::Item>>>,
+        b: &rc::Rc<RefCell<Vec<Self::Item>>>,
+    ) -> bool {
         a == b
     }
 }
 
 #[derive(Clone)]
-pub struct RefPolicy<H, T>(PhantomData<(H, T)>);
+pub struct RefPolicy<H, T: Clone>(PhantomData<(H, T)>);
 
-impl<H: PartialEq + fmt::Debug + Clone, T: fmt::Debug> Policy for RefPolicy<H, T> {
+impl<H: PartialEq + fmt::Debug + Clone + Default, T: fmt::Debug + Clone + Default> Policy
+    for RefPolicy<H, T>
+{
     type Header = H;
     type Item = T;
-    fn items_eq(a: &[Self::Item], b: &[Self::Item]) -> bool {
+    fn items_eq(
+        a: &rc::Rc<RefCell<Vec<Self::Item>>>,
+        b: &rc::Rc<RefCell<Vec<Self::Item>>>,
+    ) -> bool {
         a.as_ptr() == b.as_ptr()
     }
 }
 
 pub struct Complex<P: Policy> {
     header: P::Header,
-    items: rc::Rc<[P::Item]>,
+    items: rc::Rc<RefCell<Vec<P::Item>>>,
 }
 
 impl<P: Policy> Clone for Complex<P> {
@@ -40,6 +51,15 @@ impl<P: Policy> Clone for Complex<P> {
         Self {
             header: self.header.clone(),
             items: self.items.clone(),
+        }
+    }
+}
+
+impl<P: Policy + Default> Default for Complex<P> {
+    fn default() -> Self {
+        Self {
+            header: P::Header::default(),
+            items: rc::Rc::new(RefCell::new(vec![P::Item::default()])),
         }
     }
 }
@@ -62,16 +82,45 @@ impl<P: Policy> PartialEq for Complex<P> {
 impl<P: Policy> interface::Container for Complex<P> {
     type Header = P::Header;
     type Item = P::Item;
-    fn items(&self) -> &[Self::Item] {
-        &self.items
-    }
     fn header(&self) -> &Self::Header {
         &self.header
+    }
+    fn set_header(&mut self, header: Self::Header) {
+        self.header = header;
+    }
+    fn items_len(&self) -> usize {
+        self.items.borrow().len()
+    }
+    fn item(&self, index: usize) -> P::Item {
+        self.items.borrow()[index].clone()
+    }
+    fn set_item(&mut self, index: usize, item: Self::Item) {
+        self.items.borrow_mut()[index] = item;
+    }
+    fn items_iter(&self) -> impl Iterator<Item = Self::Item> {
+        self.items
+            .borrow()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+    fn pop_last_item(&mut self) {
+        let mut items = self.items.borrow_mut();
+        let mut vec = items.to_vec();
+        vec.pop();
+        *items = vec;
     }
     fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self {
         Self {
             header,
-            items: rc::Rc::from_iter(items),
+            items: rc::Rc::new(RefCell::new(items.into_iter().collect::<Vec<_>>())),
+        }
+    }
+    fn new_sized(header: Self::Header, size: usize) -> Self {
+        Self {
+            header,
+            items: rc::Rc::new(RefCell::new(vec![P::Item::default(); size])),
         }
     }
 }
@@ -112,7 +161,8 @@ impl interface::Complex<Any> for BigInt {
     }
 }
 
-impl interface::BigInt<Any> for BigInt {}
+impl big_uint::BigUint<Sign> for BigInt {}
+impl big_int::BigInt<Any> for BigInt {}
 
 // Array
 
@@ -184,6 +234,12 @@ pub enum Any {
     Function(Function),
 }
 
+impl Default for Any {
+    fn default() -> Self {
+        Any::Simple(Simple::default())
+    }
+}
+
 impl interface::Any for Any {
     type String16 = String16;
     type BigInt = BigInt;
@@ -227,5 +283,9 @@ impl interface::Any for Any {
             Any::Object(complex) => interface::Unpacked::Object(complex),
             Any::Function(complex) => interface::Unpacked::Function(complex),
         }
+    }
+
+    fn try_to<C: interface::Complex<Self>>(self) -> Result<C, Self> {
+        C::try_from_unknown(self)
     }
 }

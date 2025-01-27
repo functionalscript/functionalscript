@@ -1,16 +1,23 @@
 use core::fmt;
 use std::char::decode_utf16;
 
-use crate::{nullish::Nullish, sign::Sign, simple::Simple};
+use crate::{big_int::BigInt, nullish::Nullish, simple::Simple};
 
 pub trait Container: Clone {
     type Header;
     type Item;
+
     fn header(&self) -> &Self::Header;
-    /// For now, we use a slice.
-    /// We may change it in the future to support more sophisticated containers.
-    fn items(&self) -> &[Self::Item];
+    fn set_header(&mut self, header: Self::Header);
+
+    fn items_len(&self) -> usize;
+    fn item(&self, index: usize) -> Self::Item;
+    fn set_item(&mut self, index: usize, item: Self::Item);
+    fn items_iter(&self) -> impl Iterator<Item = Self::Item>;
+    fn pop_last_item(&mut self);
+
     fn new(header: Self::Header, items: impl IntoIterator<Item = Self::Item>) -> Self;
+    fn new_sized(header: Self::Header, size: usize) -> Self;
 }
 
 pub trait Complex<U: Any>: PartialEq + Sized + Container {
@@ -21,35 +28,6 @@ pub trait Complex<U: Any>: PartialEq + Sized + Container {
 pub trait String16<U: Any<String16 = Self>>:
     Complex<U> + Container<Header = (), Item = u16>
 {
-}
-
-pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {
-    fn negate(self) -> Self {
-        match self.header() {
-            Sign::Positive => Self::new(Sign::Negative, self.items().iter().cloned()),
-            Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
-        }
-    }
-    fn multiply(self, other: Self) -> Self {
-        // Note: BigInt multiplication implementation is incomplete.
-        let items = self.items();
-        let other_items = other.items();
-        if (items.len() > 1) || other_items.len() > 1 {
-            panic!("BigInt multiplication for large numbers is not implemented yet");
-        }
-        if items.is_empty() || other_items.is_empty() {
-            return Self::new(Sign::Positive, Vec::new());
-        }
-        let result: u128 = items[0] as u128 * other_items[0] as u128;
-        if result > u64::MAX as u128 {
-            panic!("BigInt multiplication for large numbers is not implemented yet");
-        }
-        if (*self.header() == Sign::Positive) == (*other.header() == Sign::Positive) {
-            Self::new(Sign::Positive, vec![result as u64])
-        } else {
-            Self::new(Sign::Negative, vec![result as u64])
-        }
-    }
 }
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
@@ -110,11 +88,10 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
             Unpacked::Bool(b) => Numeric::Number(if b { 1.0 } else { 0.0 }),
             Unpacked::Number(n) => Numeric::Number(n),
             Unpacked::String16(s) => {
-                let items = s.items();
-                if items.is_empty() {
+                if s.items_len() == 0 {
                     return Numeric::Number(0.0);
                 }
-                let string: String = decode_utf16(items.iter().cloned())
+                let string: String = decode_utf16(s.items_iter())
                     .map(|r| r.unwrap_or('\u{FFFD}'))
                     .collect();
                 if let Ok(n) = string.parse::<f64>() {
@@ -125,14 +102,14 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
             }
             Unpacked::BigInt(i) => Numeric::BigInt(i),
             Unpacked::Array(a) => {
-                let items = a.items();
-                if items.is_empty() {
+                let items_len = a.items_len();
+                if items_len == 0 {
                     return Numeric::Number(0.0);
                 }
-                if items.len() > 1 {
+                if items_len > 1 {
                     return Numeric::Number(f64::NAN);
                 }
-                Self::to_numeric(items[0].clone())
+                Self::to_numeric(a.item(0).clone())
             }
             // TODO: use valueOf, toString functions for Object when present.
             Unpacked::Object(_) => Numeric::Number(f64::NAN),
