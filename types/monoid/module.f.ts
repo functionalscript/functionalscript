@@ -1,4 +1,4 @@
-import type { Reduce } from "../function/operator/module.f.ts";
+import type { Reduce } from '../function/operator/module.f.ts'
 
 /**
  * Represents a monoid, an algebraic structure with a binary operation
@@ -53,6 +53,8 @@ export type Monoid<T> = {
  * @param monoid The monoid structure, including the identity and binary operation.
  * @returns A function that takes an element `a` and a repetition count `n`,
  * and returns the result of applying the operation `n` times.
+ *
+ * See also {@link https://en.wikipedia.org/wiki/Exponentiation_by_squaring}.
  *
  * @example
  *
