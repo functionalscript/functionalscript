@@ -439,6 +439,7 @@ fn test_vm<A: Any>() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test() {
     test_vm::<naive::Any>();
 }
