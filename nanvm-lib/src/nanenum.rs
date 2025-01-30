@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::{marker::PhantomData, mem::forget};
 use std::rc::Rc;
 
