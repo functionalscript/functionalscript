@@ -54,10 +54,12 @@ impl<T: Any> AnyExtension for T {}
 #[cfg(test)]
 mod test {
     mod to_string {
+        use wasm_bindgen_test::wasm_bindgen_test;
+
         use crate::{
             extension::AnyExtension,
             interface::{Complex, Extension},
-            naive::{Any, Array, Object},
+            naive::Any,
             nullish::Nullish::*,
             simple::Simple,
         };
@@ -113,12 +115,14 @@ mod test {
     }
 
     mod own_property {
+        use wasm_bindgen_test::wasm_bindgen_test;
+
         use crate::{
             extension::AnyExtension, interface::Complex, naive::Any, nullish::Nullish::*,
             simple::Simple,
         };
 
-        #[wasm_bindgen_test]
+        // #[wasm_bindgen_test] // #[wasm-bindgen-test] doesn't work with `#[should_panic]`
         #[test]
         #[should_panic]
         fn test_own_property_null() {

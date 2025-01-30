@@ -8,6 +8,8 @@ use nanvm_lib::{
     simple::Simple,
 };
 
+use wasm_bindgen_test::wasm_bindgen_test;
+
 fn eq<A: Any>() {
     // nullish
     let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
@@ -134,7 +136,7 @@ fn test_op<A: Any>(result: A, expected: A, test_case: &str) {
                 assert_eq!(result, expected);
             }
         }
-        Unpacked::BigInt(i) => {
+        Unpacked::BigInt(_) => {
             assert_eq!(result, expected);
         }
         _ => panic!("expected is neither Number nor BigInt in '{}'", test_case),
