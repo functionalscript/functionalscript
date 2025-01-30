@@ -10,9 +10,9 @@ const n
     if (a !== b) { } else { throw [a, '!==', b] }
 }
 const nan_res
-    : (op: (n: any) => any) => (n: any | null) => void
+    : (op: (n: unknown) => unknown) => (n: unknown) => void
     = op => n => {
-    let result = op(n);
+    const result = op(n);
     if (!Number.isNaN(result)) {
         throw result
     }
