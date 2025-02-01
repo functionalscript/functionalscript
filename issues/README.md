@@ -92,6 +92,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] [51-parser-structures.md](./51-parser-structures.md).
 - [ ] [52-poker.md](./52-poker.md).
 - [ ] 53. Use `--erasableSyntaxOnly`. https://devblogs.microsoft.com/typescript/announcing-typescript-5-8-beta/
+- [ ] [54-token-plus.md](./54-token-plus.md)
 
 ## Language Specification
 
