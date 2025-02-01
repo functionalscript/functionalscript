@@ -116,7 +116,7 @@ const _deterministic = (): Rule => {
     const onenine = range('12')
 
     const digit: Rule = {
-        '0': '0',
+        0: '0',
         onenine,
     }
 
@@ -147,7 +147,7 @@ const _deterministic = (): Rule => {
     const digits = [digit, digits0]
 
     const integer = [option('-'), {
-        '0': '0',
+        0: '0',
         onenine: [onenine, digits0],
     }]
 
