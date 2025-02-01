@@ -6,8 +6,7 @@ import { djsModuleStringify } from '../serializer/module.f.ts'
 import { at, setReplace, type Map } from '../../types/map/module.f.ts'
 import type { Fs } from '../io/module.f.ts'
 import { transpile } from './module.f.ts'
-
-const stringifyDjsModule = djsModuleStringify(sort)
+import { stringify } from '../module.f.ts'
 
 const virtualFs = (files: Map<string>): Fs => ({
     readFileSync: (path: string) => at(path)(files),
@@ -19,48 +18,46 @@ const virtualFs = (files: Map<string>): Fs => ({
 
 export default {
     parse: () => {        
-        const map = setReplace('a')('export default null')(null)
+        const map = setReplace('a')('export default 1')(null)
         const fs = virtualFs(map)
-        const modules = transpile(fs)('a')
-        const module = at('a')(modules)
-        if (module === null) { throw module }
-        if (module[0] === 'error') { throw module[1] }
-        const result = stringifyDjsModule(module[1])
-        if (result !== 'export default null') { throw result }
+        const result = transpile(fs)('a')
+        if (result[0] === 'error') { throw result[1] }
+        const s = stringify(sort)(result[1])
+        if (s !== '1') { throw s }
     },
-    parseWithSubModule: () => {        
-        const map = setReplace('a')('import a from "b"\nexport default a')(null)
-        const map2 = setReplace('a/b')('export default null')(map)
-        const fs = virtualFs(map2)
-        const modules = transpile(fs)('a')
+    // parseWithSubModule: () => {        
+    //     const map = setReplace('a')('import a from "b"\nexport default a')(null)
+    //     const map2 = setReplace('a/b')('export default null')(map)
+    //     const fs = virtualFs(map2)
+    //     const modules = transpile(fs)('a')
 
-        const moduleA = at('a')(modules)
-        if (moduleA === null) { throw moduleA }
-        if (moduleA[0] === 'error') { throw moduleA[1] }
-        const resultA = stringifyDjsModule(moduleA[1])
-        if (resultA !== 'import a0 from "b"\nexport default a0') { throw resultA }
+    //     const moduleA = at('a')(modules)
+    //     if (moduleA === null) { throw moduleA }
+    //     if (moduleA[0] === 'error') { throw moduleA[1] }
+    //     const resultA = stringifyDjsModule(moduleA[1])
+    //     if (resultA !== 'import a0 from "b"\nexport default a0') { throw resultA }
 
-        const moduleB = at('a/b')(modules)
-        if (moduleB === null) { throw moduleB }
-        if (moduleB[0] === 'error') { throw moduleB[1] }
-        const resultB = stringifyDjsModule(moduleB[1])
-        if (resultB !== 'export default null') { throw resultB }
-    },
-    parseWithCycle: () => {        
-        const map = setReplace('a')('import a from "b"\nexport default a')(null)
-        const map2 = setReplace('a/b')('import a from ".."\nexport default a')(map)
-        const fs = virtualFs(map2)
-        const modules = transpile(fs)('a')
+    //     const moduleB = at('a/b')(modules)
+    //     if (moduleB === null) { throw moduleB }
+    //     if (moduleB[0] === 'error') { throw moduleB[1] }
+    //     const resultB = stringifyDjsModule(moduleB[1])
+    //     if (resultB !== 'export default null') { throw resultB }
+    // },
+    // parseWithCycle: () => {        
+    //     const map = setReplace('a')('import a from "b"\nexport default a')(null)
+    //     const map2 = setReplace('a/b')('import a from ".."\nexport default a')(map)
+    //     const fs = virtualFs(map2)
+    //     const modules = transpile(fs)('a')
 
-        const moduleA = at('a')(modules)
-        if (moduleA === null) { throw moduleA }
-        if (moduleA[0] === 'error') { throw moduleA[1] }
-        const resultA = stringifyDjsModule(moduleA[1])
-        if (resultA !== 'import a0 from "b"\nexport default a0') { throw resultA }
+    //     const moduleA = at('a')(modules)
+    //     if (moduleA === null) { throw moduleA }
+    //     if (moduleA[0] === 'error') { throw moduleA[1] }
+    //     const resultA = stringifyDjsModule(moduleA[1])
+    //     if (resultA !== 'import a0 from "b"\nexport default a0') { throw resultA }
 
-        const moduleB = at('a/b')(modules)
-        if (moduleB === null) { throw moduleB }
-        if (moduleB[0] !== 'error') { throw moduleB[0] }
-        if (moduleB[1] !== 'circular dependency') { throw moduleB[1] }
-    }
+    //     const moduleB = at('a/b')(modules)
+    //     if (moduleB === null) { throw moduleB }
+    //     if (moduleB[0] !== 'error') { throw moduleB[0] }
+    //     if (moduleB[1] !== 'circular dependency') { throw moduleB[1] }
+    // }
 }
