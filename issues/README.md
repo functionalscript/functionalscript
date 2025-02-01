@@ -91,6 +91,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
 - [ ] [51-parser-structures.md](./51-parser-structures.md).
 - [ ] [52-poker.md](./52-poker.md).
+- [ ] 53. Use `--erasableSyntaxOnly`. https://devblogs.microsoft.com/typescript/announcing-typescript-5-8-beta/
 
 ## Language Specification
 
