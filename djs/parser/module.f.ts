@@ -1,10 +1,10 @@
 import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import { type DjsToken } from '../tokenizer/module.f.ts'
+import type { DjsToken } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
-import { type Fs } from '../io/module.f.ts'
+import type { Fs } from '../io/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../shared/module.f.ts'
 
 export type ParseContext = {    
