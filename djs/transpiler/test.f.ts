@@ -1,8 +1,4 @@
-import * as tokenizer from '../tokenizer/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import * as encoding from '../../text/utf16/module.f.ts'
-import { djsModuleStringify } from '../serializer/module.f.ts'
 import { at, setReplace, type Map } from '../../types/map/module.f.ts'
 import type { Fs } from '../io/module.f.ts'
 import { transpile } from './module.f.ts'
