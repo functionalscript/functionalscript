@@ -45,7 +45,7 @@ const transpileWithImports
             const djs = { djs: run(parseModuleResult[1][1])(args) }
             return { ... contextWithImports, stack: drop(1)(contextWithImports.stack), complete: setReplace(path)(djs)(contextWithImports.complete) }
         }
-        return context
+        return { ...context, error: parseModuleResult[1] }
 }
 
 const parseModule
