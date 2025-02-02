@@ -117,6 +117,28 @@ export default {
         () => {
             const inputString = "Hello, i like js"
             const utf16List = stringToList(inputString)
+        },
+        () => {
+            const inputString = "😇🤬🫥😑🫠"
+            const utf16List = stringToList(inputString)
+        }
+    ],
+    listToString: [
+        () => {
+            const utf16List = [0x0041, 0x0042, 0x0043]
+            const outputString = listToString(utf16List)
+        }
+    ],
+    stringToCodePointList: [
+        () => {
+            const inputString = "Hello, 😀"
+            const codePoints = stringToCodePointList(inputString)
+        }
+    ],
+    codePointListToString: [
+        () => {
+            const codePoints = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
+            const outputString = codePointListToString(codePoints)
         }
     ]
 }
