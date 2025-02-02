@@ -3,3 +3,6 @@ resolver = "2"
 members = [
     "nanvm-lib"
 ]
+
+[workspace.dependencies]
+wasm-bindgen-test = "0.3.50"

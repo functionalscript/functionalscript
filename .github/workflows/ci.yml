@@ -84,9 +84,28 @@ jobs:
       matrix:
         # https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job#choosing-github-hosted-runners
         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
+        type: ['', '--release']
+        target: ['']
+        include:
+          - os: windows-latest
+            target: '--target i686-pc-windows-msvc'
 
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3
     - run: cargo test
+
+  test-wasm:
+    strategy:
+      matrix:
+        type: ['', '--release']
+    runs-on: ubuntu-latest
+    steps:
+      - run: rustup update
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 20
+      - uses: taiki-e/install-action@wasm-pack
+      - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib

@@ -1,18 +1,13 @@
-const e
-    : (a: unknown) => (b: unknown) => void
-    = a => b => {
+const e = (a: unknown) => (b: unknown): void => {
     if (a === b) { } else { throw [a, '===', b] }
 }
 
-const n
-    : (a: unknown) => (b: unknown) => void
-    = a => b => {
+const n = (a: unknown) => (b: unknown): void => {
     if (a !== b) { } else { throw [a, '!==', b] }
 }
-const nan_res
-    : (op: (n: any) => any) => (n: any | null) => void
-    = op => n => {
-    let result = op(n);
+
+const nan_res = (op: (n: unknown) => unknown) => (n: unknown): void => {
+    const result = op(n);
     if (!Number.isNaN(result)) {
         throw result
     }
