@@ -1,26 +1,21 @@
 import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import type * as tokenizerT from '../tokenizer/module.f.ts'
+import type { DjsToken } from '../tokenizer/module.f.ts'
 import { setReplace, at, type Map } from '../../types/map/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { fromMap } = o
+import { fromMap } from '../../types/object/module.f.ts'
+import type { Fs } from '../io/module.f.ts'
+import type { AstArray, AstConst, AstModule, AstModuleRef } from '../shared/module.f.ts'
 
-export type DjsModule = [readonly string[], readonly DjsConst[]]
-
-export type DjsConst = boolean|string|number|null|bigint|undefined|DjsModuleRef|DjsArray|DjsObject
-
-type DjsModuleRef = ['aref' | 'cref', number]
-
-type DjsArray = ['array', readonly DjsConst[]]
-
-export type DjsObject = {
-    readonly [k in string]: DjsConst
+export type ParseContext = {    
+    readonly fs: Fs
+    readonly complete: Map<result.Result<AstModule, string>>
+    readonly stack: List<string>
 }
 
-type DjsStackArray = ['array', List<DjsConst>]
+type DjsStackArray = ['array', List<AstConst>]
 
-type DjsStackObject = ['object', Map<DjsConst>, string]
+type DjsStackObject = ['object', Map<AstConst>, string]
 
 type DjsStackElement = |
     DjsStackArray |
@@ -31,9 +26,9 @@ type DjsStack = List<DjsStackElement>
 type ParserState = InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState
 
 type ModuleState = {
-    readonly refs: Map<DjsModuleRef>
+    readonly refs: Map<AstModuleRef>
     readonly modules: List<string>
-    readonly consts: List<DjsConst>
+    readonly consts: List<AstConst>
 }
 
 type InitialState = {
@@ -80,7 +75,7 @@ type ErrorState = {
 }
 
 const parseInitialOp
-    : (token: tokenizerT.DjsToken) => (state: InitialState) => ParserState
+    : (token: DjsToken) => (state: InitialState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -100,7 +95,7 @@ const parseInitialOp
 }
 
 const parseNewLineRequiredOp
-    : (token: tokenizerT.DjsToken) => (state: NewLineRequiredState) => ParserState
+    : (token: DjsToken) => (state: NewLineRequiredState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -112,7 +107,7 @@ const parseNewLineRequiredOp
 }
 
 const parseExportOp
-    : (token: tokenizerT.DjsToken) => (state: ExportState) => ParserState
+    : (token: DjsToken) => (state: ExportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -127,7 +122,7 @@ const parseExportOp
 }
 
 const parseResultOp
-    : (token: tokenizerT.DjsToken) => (state: ResultState) => ParserState
+    : (token: DjsToken) => (state: ResultState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -139,7 +134,7 @@ const parseResultOp
 }
 
 const parseConstOp
-    : (token: tokenizerT.DjsToken) => (state: ConstState) => ParserState
+    : (token: DjsToken) => (state: ConstState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -149,10 +144,10 @@ const parseConstOp
         case 'id': {
             if (at(token.value)(state.module.refs) !== null)
                 return { state: 'error', message: 'duplicate id' }
-            let cref
-                : DjsModuleRef
+            const cref
+                : AstModuleRef
                 = ['cref', length(state.module.consts)]
-            let refs = setReplace(token.value)(cref)(state.module.refs)
+            const refs = setReplace(token.value)(cref)(state.module.refs)
             return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
         }
         default: return { state: 'error', message: 'unexpected token' }
@@ -160,7 +155,7 @@ const parseConstOp
 }
 
 const parseConstNameOp
-    : (token: tokenizerT.DjsToken) => (state: ConstState) => ParserState
+    : (token: DjsToken) => (state: ConstState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -173,7 +168,7 @@ const parseConstNameOp
 }
 
 const parseImportOp
-    : (token: tokenizerT.DjsToken) => (state: ImportState) => ParserState
+    : (token: DjsToken) => (state: ImportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -184,10 +179,10 @@ const parseImportOp
             if (at(token.value)(state.module.refs) !== null) {
                 return { state: 'error', message: 'duplicate id' }
             }
-            let aref
-                : DjsModuleRef
+            const aref
+                : AstModuleRef
                 = ['aref', length(state.module.modules)]
-            let refs = setReplace(token.value)(aref)(state.module.refs)
+            const refs = setReplace(token.value)(aref)(state.module.refs)
             return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
         }
         default: return { state: 'error', message: 'unexpected token' }
@@ -195,7 +190,7 @@ const parseImportOp
 }
 
 const parseImportNameOp
-    : (token: tokenizerT.DjsToken) => (state: ImportState) => ParserState
+    : (token: DjsToken) => (state: ImportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -210,7 +205,7 @@ const parseImportNameOp
 }
 
 const parseImportFromOp
-    : (token: tokenizerT.DjsToken) => (state: ImportState) => ParserState
+    : (token: DjsToken) => (state: ImportState) => ParserState
     = token => state => {
     switch (token.kind) {
         case 'ws':
@@ -230,11 +225,11 @@ const addKeyToObject
     = obj => key => ([ 'object', obj[1], key])
 
 const addValueToObject
-    : (obj: DjsStackObject) => (value: DjsConst) => DjsStackObject
+    : (obj: DjsStackObject) => (value: AstConst) => DjsStackObject
     = obj => value => ([ 'object', setReplace(obj[2])(value)(obj[1]), '' ])
 
 const addToArray
-    : (array: DjsStackArray) => (value: DjsConst) => DjsStackArray
+    : (array: DjsStackArray) => (value: AstConst) => DjsStackArray
     = array => value => ([ 'array', concat(array[1])([value]) ])
 
 const pushKey
@@ -245,10 +240,10 @@ const pushKey
 }
 
 const pushValue
-    : (state: ParseValueState) => (value: DjsConst) => ParserState
+    : (state: ParseValueState) => (value: AstConst) => ParserState
     = state => value => {
     if (state.top === null) {
-        let consts = concat(state.module.consts)([value])
+        const consts = concat(state.module.consts)([value])
         switch(state.state)
         {
             case 'exportValue': return { ... state, state: 'result', module: { ...state.module, consts: consts }}
@@ -285,7 +280,7 @@ const endArray
     if (top !== null && top[0] === 'array')
     {
         const array
-            : DjsArray
+            : AstArray
             = ['array', toArray(top[1])];
         return pushValue(newState)(array)
     }
@@ -310,7 +305,7 @@ const endObject
 }
 
 const tokenToValue
-    : (token: tokenizerT.DjsToken) => DjsConst
+    : (token: DjsToken) => AstConst
     = token => {
     switch (token.kind) {
         case 'null': return null
@@ -325,7 +320,7 @@ const tokenToValue
 }
 
 const isValueToken
-    : (token: tokenizerT.DjsToken) => boolean
+    : (token: DjsToken) => boolean
     = token => {
     switch (token.kind) {
         case 'null':
@@ -340,7 +335,7 @@ const isValueToken
 }
 
 const parseValueOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
@@ -357,7 +352,7 @@ const parseValueOp
 }
 
 const parseArrayStartOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
@@ -375,7 +370,7 @@ const parseArrayStartOp
 }
 
 const parseArrayValueOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -390,7 +385,7 @@ const parseArrayValueOp
 }
 
 const parseObjectStartOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -405,7 +400,7 @@ const parseObjectStartOp
 }
 
 const parseObjectKeyOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -419,7 +414,7 @@ const parseObjectKeyOp
 }
 
 const parseObjectColonOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
@@ -436,7 +431,7 @@ const parseObjectColonOp
 }
 
 const parseObjectNextOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -451,7 +446,7 @@ const parseObjectNextOp
 }
 
 const parseObjectCommaOp
-    : (token: tokenizerT.DjsToken) => (state: ParseValueState) => ParserState
+    : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
@@ -465,7 +460,7 @@ const parseObjectCommaOp
 }
 
 const foldOp
-    : Operator.Fold<tokenizerT.DjsToken, ParserState>
+    : Operator.Fold<DjsToken, ParserState>
     = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
@@ -497,10 +492,10 @@ const foldOp
     }
 }
 
-export const parse = (tokenList: List<tokenizerT.DjsToken>): result.Result<DjsModule, string> => {
+export const parseFromTokens = (tokenList: List<DjsToken>): result.Result<AstModule, string> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
-        case 'result': return result.ok<DjsModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
+        case 'result': return result.ok<AstModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
         case 'error': return result.error(state.message)
         default: return result.error('unexpected end')
     }

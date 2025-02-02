@@ -11,15 +11,18 @@ const { serialize: bigintSerialize } = bi
 import * as j from '../json/serializer/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
 import * as djs from './serializer/module.f.ts'
+import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 const { undefinedSerialize } = djs
 
-type Object = {
+export type Object = {
    readonly [k in string]: Unknown
 }
 
-type Array = readonly Unknown[]
+export type Array = readonly Unknown[]
 
-type Unknown = Object|boolean|string|number|null|Array|bigint|undefined
+export type Primitive = JsonPrimitive | bigint | undefined
+
+export type Unknown = Primitive | Object | Array
 
 const colon = [':']
 
