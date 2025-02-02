@@ -34,6 +34,17 @@ export default {
         const s = stringify(sort)(result[1])
         if (s !== '2') { throw s }
     },
+    parseWithSubModules: () => {        
+        const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
+        const map2 = setReplace('a/b')('import d from "../d"\nexport default [0,d]')(map)
+        const map3 = setReplace('a/c')('import d from "../d"\nexport default [1,d]')(map2)
+        const map4 = setReplace('a/d')('export default 2')(map3)
+        const fs = virtualFs(map4)
+        const result = transpile(fs)('a')
+        if (result[0] === 'error') { throw result[1] }
+        const s = stringify(sort)(result[1])
+        if (s !== '[[0,2],[1,2],[0,2]]') { throw s }
+    },
     // parseWithCycle: () => {        
     //     const map = setReplace('a')('import a from "b"\nexport default a')(null)
     //     const map2 = setReplace('a/b')('import a from ".."\nexport default a')(map)
