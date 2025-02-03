@@ -25,7 +25,7 @@ type WordOrEof = U16 | null
 type Utf16State = number | null
 
 /**
- * Represent an unsigned utf 16, used to store one word UTF-16 (code unit).
+ * Represent an unsigned UTF16, used to store one word UTF-16 (code unit).
  */
 export type U16 = number
 
