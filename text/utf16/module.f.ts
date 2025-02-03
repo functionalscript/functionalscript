@@ -14,7 +14,7 @@ import { contains } from '../../types/range/module.f.ts'
 import { fn } from '../../types/function/module.f.ts'
 
 /**
- * Optional UTF16 type - represent an unsigned utf 16 integer or null.
+ * Optional UTF16 type - represent an unsigned UTF16 integer or null.
  */
 type WordOrEof = U16 | null
 
