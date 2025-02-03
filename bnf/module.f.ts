@@ -1,10 +1,10 @@
-import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { type Array2, isArray2 } from '../../types/array/module.f.ts'
-import { map, toArray } from '../../types/list/module.f.ts'
+import { stringToCodePointList } from '../text/utf16/module.f.ts'
+import { type Array2, isArray2 } from '../types/array/module.f.ts'
+import { map, toArray } from '../types/list/module.f.ts'
 
 // Types
 
-export type Range = bigint
+export type InputRange = bigint
 
 export type Sequence = readonly Rule[]
 
@@ -12,7 +12,7 @@ export type Or = {
     readonly[k in string]: Rule
 }
 
-export type DataRule = Or | Sequence | Range | string
+export type DataRule = Or | Sequence | InputRange | string
 
 export type LazyRule = () => DataRule
 
@@ -24,21 +24,24 @@ const { fromEntries } = Object
 
 const { fromCodePoint } = String
 
+/**
+ * Two 24 bit numbers can be fit into one JS number (53 bit).
+ */
 const offset = 24n
 
 const mask = (1n << offset) - 1n
 
-export const rangeEncode = (a: number, b: number): Range =>
+export const rangeEncode = (a: number, b: number): InputRange =>
     (BigInt(a) << offset) | BigInt(b)
 
-export const oneEncode = (a: number): Range => rangeEncode(a, a)
+export const oneEncode = (a: number): InputRange => rangeEncode(a, a)
 
 export const rangeDecode = (r: bigint): Array2<number> =>
     [Number(r >> offset), Number(r & mask)]
 
 const mapOneEncode = map(oneEncode)
 
-export const str = (s: string): readonly Range[] | Range => {
+export const str = (s: string): readonly InputRange[] | InputRange => {
     const x = toArray(mapOneEncode(stringToCodePointList(s)))
     return x.length === 1 ? x[0] : x
 }
@@ -48,7 +51,7 @@ const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 export const set = (s: string): Or =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
-export const range = (ab: string): Range => {
+export const range = (ab: string): InputRange => {
     const a = toArray(stringToCodePointList(ab))
     if (!isArray2(a)) {
         throw `Invalid range ${ab}.`
