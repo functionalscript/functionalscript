@@ -46,9 +46,9 @@ const _classic = (): Rule => {
     })
 
     const character: Rule = () => ({
-        0: 0x20_000021n,
-        1: 0x23_00005Bn,
-        2: 0x5D_10FFFFn,
+        0: 0x20_000021,
+        1: 0x23_00005B,
+        2: 0x5D_10FFFF,
         escape: ['\\', escape],
     })
 
@@ -132,9 +132,9 @@ const _deterministic = (): Rule => {
     }
 
     const character: Rule = {
-        0: 0x20_000021n,
-        1: 0x23_00005Bn,
-        2: 0x5D_10FFFFn,
+        0: 0x20_000021,
+        1: 0x23_00005B,
+        2: 0x5D_10FFFF,
         escape: ['\\', escape],
     }
 

@@ -4,7 +4,7 @@ import { map, toArray } from '../types/list/module.f.ts'
 
 // Types
 
-export type InputRange = bigint
+export type InputRange = number
 
 export type Sequence = readonly Rule[]
 
@@ -27,17 +27,17 @@ const { fromCodePoint } = String
 /**
  * Two 24 bit numbers can be fit into one JS number (53 bit).
  */
-const offset = 24n
+const offset = 24
 
-const mask = (1n << offset) - 1n
+const mask = (1 << offset) - 1
 
 export const rangeEncode = (a: number, b: number): InputRange =>
-    (BigInt(a) << offset) | BigInt(b)
+    (a << offset) | b
 
 export const oneEncode = (a: number): InputRange => rangeEncode(a, a)
 
-export const rangeDecode = (r: bigint): Array2<number> =>
-    [Number(r >> offset), Number(r & mask)]
+export const rangeDecode = (r: number): Array2<number> =>
+    [r >> offset, r & mask]
 
 const mapOneEncode = map(oneEncode)
 
