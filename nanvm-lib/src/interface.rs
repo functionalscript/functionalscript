@@ -1,7 +1,7 @@
 use core::fmt;
 use std::char::decode_utf16;
 
-use crate::{nullish::Nullish, sign::Sign, simple::Simple};
+use crate::{big_int::BigInt, nullish::Nullish, simple::Simple};
 
 pub trait Container: Clone {
     type Header;
@@ -21,35 +21,6 @@ pub trait Complex<U: Any>: PartialEq + Sized + Container {
 pub trait String16<U: Any<String16 = Self>>:
     Complex<U> + Container<Header = (), Item = u16>
 {
-}
-
-pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, Item = u64> {
-    fn negate(self) -> Self {
-        match self.header() {
-            Sign::Positive => Self::new(Sign::Negative, self.items().iter().cloned()),
-            Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
-        }
-    }
-    fn multiply(self, other: Self) -> Self {
-        // Note: BigInt multiplication implementation is incomplete.
-        let items = self.items();
-        let other_items = other.items();
-        if (items.len() > 1) || other_items.len() > 1 {
-            panic!("BigInt multiplication for large numbers is not implemented yet");
-        }
-        if items.is_empty() || other_items.is_empty() {
-            return Self::new(Sign::Positive, Vec::new());
-        }
-        let result: u128 = items[0] as u128 * other_items[0] as u128;
-        if result > u64::MAX as u128 {
-            panic!("BigInt multiplication for large numbers is not implemented yet");
-        }
-        if (*self.header() == Sign::Positive) == (*other.header() == Sign::Positive) {
-            Self::new(Sign::Positive, vec![result as u64])
-        } else {
-            Self::new(Sign::Negative, vec![result as u64])
-        }
-    }
 }
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
@@ -173,7 +144,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 Numeric::Number(_) => {
                     Self::exception("TypeError: Cannot convert a BigInt value to a number")
                 }
-                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.multiply(i2)))),
+                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.mul(i2)))),
             },
             Numeric::Number(f1) => match Self::to_numeric(v2) {
                 Numeric::BigInt(_) => {

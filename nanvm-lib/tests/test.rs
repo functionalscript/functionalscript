@@ -317,7 +317,7 @@ fn multiply<A: Any>() {
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
     let true_: A = Simple::Boolean(true).to_unknown();
     let false_: A = Simple::Boolean(false).to_unknown();
-    let bi0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
+    let bi0: A = A::BigInt::new(Sign::Positive, []).to_unknown();
     let bi1: A = A::BigInt::new(Sign::Positive, [1]).to_unknown();
     let bi_minus1: A = A::BigInt::new(Sign::Negative, [1]).to_unknown();
     let bi10: A = A::BigInt::new(Sign::Positive, [10]).to_unknown();

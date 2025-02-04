@@ -1,4 +1,4 @@
-use crate::{interface, sign::Sign, simple::Simple};
+use crate::{big_int, interface, sign::Sign, simple::Simple};
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
@@ -112,7 +112,7 @@ impl interface::Complex<Any> for BigInt {
     }
 }
 
-impl interface::BigInt<Any> for BigInt {}
+impl big_int::BigInt<Any> for BigInt {}
 
 // Array
 
