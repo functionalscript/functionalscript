@@ -1,5 +1,7 @@
 use std::{
-    cmp::Ordering, iter, ops::{Add, Div, Mul, Shl, Shr, Sub}
+    cmp::Ordering,
+    iter,
+    ops::{Add, Div, Mul, Shl, Shr, Sub},
 };
 
 use crate::default::default;
@@ -13,7 +15,9 @@ impl BigUint {
     pub const ZERO: BigUint = BigUint { value: Vec::new() };
 
     pub fn one() -> BigUint {
-        BigUint { value: [1].to_vec() }
+        BigUint {
+            value: [1].to_vec(),
+        }
     }
 
     pub fn normalize(&mut self) {
@@ -41,7 +45,9 @@ impl BigUint {
     }
 
     pub fn from_u64(n: u64) -> Self {
-        BigUint { value: [n].to_vec() }
+        BigUint {
+            value: [n].to_vec(),
+        }
     }
 
     pub fn pow(&self, exp: &BigUint) -> BigUint {
@@ -92,15 +98,20 @@ impl BigUint {
     }
 
     pub fn div_mod(a: &[u64], b: &[u64]) -> (BigUint, BigUint) {
-        if b.len() == 0 {
+        if b.is_empty() {
             panic!("attempt to divide by zero");
         }
 
-        let left = BigUint{ value: a.to_vec() };
-        let right = BigUint{ value: b.to_vec() };
+        let left = BigUint { value: a.to_vec() };
+        let right = BigUint { value: b.to_vec() };
         match left.cmp(&right) {
             Ordering::Less => (default(), left),
-            Ordering::Equal => (BigUint { value: [1].to_vec() }, default()),
+            Ordering::Equal => (
+                BigUint {
+                    value: [1].to_vec(),
+                },
+                default(),
+            ),
             Ordering::Greater => {
                 let mut a = left;
                 let mut result = BigUint::ZERO;
@@ -142,7 +153,7 @@ impl BigUint {
     }
 
     pub fn mul(a: &[u64], b: &[u64]) -> Self {
-        if a.len() == 0 || b.len() == 0 {
+        if a.is_empty() || b.is_empty() {
             return BigUint::ZERO;
         }
 
@@ -376,16 +387,28 @@ mod test {
     #[test]
     #[wasm_bindgen_test]
     fn test_ord() {
-        let a = BigUint { value: [1].to_vec() };
-        let b = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
+        let b = BigUint {
+            value: [1].to_vec(),
+        };
         assert_eq!(a.cmp(&b), Ordering::Equal);
 
-        let a = BigUint { value: [1].to_vec() };
-        let b = BigUint { value: [2].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
+        let b = BigUint {
+            value: [2].to_vec(),
+        };
         assert_eq!(a.cmp(&b), Ordering::Less);
 
-        let a = BigUint { value: [2].to_vec() };
-        let b = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [2].to_vec(),
+        };
+        let b = BigUint {
+            value: [1].to_vec(),
+        };
         assert_eq!(a.cmp(&b), Ordering::Greater);
 
         let a = BigUint {
@@ -400,12 +423,23 @@ mod test {
     #[test]
     #[wasm_bindgen_test]
     fn test_add() {
-        let a = BigUint { value: [1].to_vec() };
-        let b = BigUint { value: [2].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
+        let b = BigUint {
+            value: [2].to_vec(),
+        };
         let result = &a + &b;
-        assert_eq!(&result, &BigUint { value: [3].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [3].to_vec()
+            }
+        );
 
-        let a = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
         let b = BigUint {
             value: [2, 4].to_vec(),
         };
@@ -469,17 +503,28 @@ mod test {
         let result = &a - &b;
         assert_eq!(&result, &BigUint::ZERO);
 
-        let a = BigUint { value: [3].to_vec() };
-        let b = BigUint { value: [2].to_vec() };
+        let a = BigUint {
+            value: [3].to_vec(),
+        };
+        let b = BigUint {
+            value: [2].to_vec(),
+        };
         let result = &a - &b;
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
         let result = &b - &a;
         assert_eq!(&result, &BigUint::ZERO);
 
         let a = BigUint {
             value: [0, 1].to_vec(),
         };
-        let b = BigUint { value: [1].to_vec() };
+        let b = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a - &b;
         assert_eq!(
             &result,
@@ -492,13 +537,17 @@ mod test {
     #[test]
     #[wasm_bindgen_test]
     fn test_mul() {
-        let a = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a * &BigUint::ZERO;
         assert_eq!(&result, &BigUint::ZERO);
         let result = &BigUint::ZERO * &a;
         assert_eq!(&result, &BigUint::ZERO);
 
-        let a = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a * &a;
         assert_eq!(&result, &a);
 
@@ -570,7 +619,9 @@ mod test {
     #[should_panic(expected = "attempt to divide by zero")]
     #[wasm_bindgen_test]
     fn test_div_by_zero() {
-        let a = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
         let _result = &a / &BigUint::ZERO;
     }
 
@@ -584,24 +635,46 @@ mod test {
     #[test]
     #[wasm_bindgen_test]
     fn test_div_simple() {
-        let a = BigUint { value: [2].to_vec() };
-        let b = BigUint { value: [7].to_vec() };
+        let a = BigUint {
+            value: [2].to_vec(),
+        };
+        let b = BigUint {
+            value: [7].to_vec(),
+        };
         let result = &a / &b;
         assert_eq!(&result, &BigUint::ZERO);
 
-        let a = BigUint { value: [7].to_vec() };
+        let a = BigUint {
+            value: [7].to_vec(),
+        };
         let result = &a / &a;
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
-        let a = BigUint { value: [7].to_vec() };
-        let b = BigUint { value: [2].to_vec() };
+        let a = BigUint {
+            value: [7].to_vec(),
+        };
+        let b = BigUint {
+            value: [2].to_vec(),
+        };
         let result = &a / &b;
-        assert_eq!(&result, &BigUint { value: [3].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [3].to_vec()
+            }
+        );
 
         let a = BigUint {
             value: [6, 8].to_vec(),
         };
-        let b = BigUint { value: [2].to_vec() };
+        let b = BigUint {
+            value: [2].to_vec(),
+        };
         let result = &a / &b;
         assert_eq!(
             &result,
@@ -613,7 +686,9 @@ mod test {
         let a = BigUint {
             value: [4, 7].to_vec(),
         };
-        let b = BigUint { value: [2].to_vec() };
+        let b = BigUint {
+            value: [2].to_vec(),
+        };
         let result = &a / &b;
         assert_eq!(
             &result,
@@ -629,12 +704,19 @@ mod test {
             value: [1, 2].to_vec(),
         };
         let result = &a / &b;
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
         let a = BigUint {
             value: [1, 1].to_vec(),
         };
-        let b = BigUint { value: [1].to_vec() };
+        let b = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a / &b;
         assert_eq!(
             &result,
@@ -650,14 +732,23 @@ mod test {
         let result = BigUint::div_mod(&[7], &[2]);
         assert_eq!(
             result,
-            (BigUint { value: [3].to_vec() }, BigUint { value: [1].to_vec() })
+            (
+                BigUint {
+                    value: [3].to_vec()
+                },
+                BigUint {
+                    value: [1].to_vec()
+                }
+            )
         );
 
         let result = BigUint::div_mod(&[7, 5], &[0, 3]);
         assert_eq!(
             result,
             (
-                BigUint { value: [1].to_vec() },
+                BigUint {
+                    value: [1].to_vec()
+                },
                 BigUint {
                     value: [7, 2].to_vec()
                 }
@@ -672,9 +763,16 @@ mod test {
             value: [100].to_vec(),
         };
         let result = a.pow_u64(0);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
-        let a = BigUint { value: [2].to_vec() };
+        let a = BigUint {
+            value: [2].to_vec(),
+        };
         let result = a.pow_u64(7);
         assert_eq!(
             &result,
@@ -683,7 +781,9 @@ mod test {
             }
         );
 
-        let a = BigUint { value: [5].to_vec() };
+        let a = BigUint {
+            value: [5].to_vec(),
+        };
         let result = a.pow_u64(3);
         assert_eq!(
             &result,
@@ -698,15 +798,30 @@ mod test {
 
         let a = BigUint::ZERO;
         let result = a.pow_u64(0);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
         let a = BigUint::one();
         let result = a.pow_u64(0);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
         let a = BigUint::one();
         let result = a.pow_u64(100);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
     }
 
     #[test]
@@ -716,10 +831,19 @@ mod test {
             value: [100].to_vec(),
         };
         let result = a.pow(&BigUint::ZERO);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
-        let a = BigUint { value: [2].to_vec() };
-        let result = a.pow(&BigUint { value: [7].to_vec() });
+        let a = BigUint {
+            value: [2].to_vec(),
+        };
+        let result = a.pow(&BigUint {
+            value: [7].to_vec(),
+        });
         assert_eq!(
             &result,
             &BigUint {
@@ -727,8 +851,12 @@ mod test {
             }
         );
 
-        let a = BigUint { value: [5].to_vec() };
-        let result = a.pow(&BigUint { value: [3].to_vec() });
+        let a = BigUint {
+            value: [5].to_vec(),
+        };
+        let result = a.pow(&BigUint {
+            value: [3].to_vec(),
+        });
         assert_eq!(
             &result,
             &BigUint {
@@ -744,24 +872,41 @@ mod test {
 
         let a = BigUint::ZERO;
         let result = a.pow(&BigUint::ZERO);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
         let a = BigUint::one();
         let result = a.pow(&BigUint::ZERO);
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
 
         let a = BigUint::one();
         let result = a.pow(&BigUint {
             value: [100, 100].to_vec(),
         });
-        assert_eq!(&result, &BigUint { value: [1].to_vec() });
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [1].to_vec()
+            }
+        );
     }
 
     #[test]
     #[should_panic(expected = "Maximum BigUint size exceeded")]
     #[wasm_bindgen_test]
     fn test_pow_overflow() {
-        let a = BigUint { value: [5].to_vec() };
+        let a = BigUint {
+            value: [5].to_vec(),
+        };
         let _result = a.pow(&BigUint {
             value: [100, 100].to_vec(),
         });
@@ -773,7 +918,9 @@ mod test {
         let result = &BigUint::ZERO << &BigUint::ZERO;
         assert_eq!(&result, &BigUint::ZERO);
 
-        let a = BigUint { value: [5].to_vec() };
+        let a = BigUint {
+            value: [5].to_vec(),
+        };
         let result = &a << &BigUint::ZERO;
         assert_eq!(result, a);
 
@@ -784,12 +931,23 @@ mod test {
     #[test]
     #[wasm_bindgen_test]
     fn test_shl() {
-        let a = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a << &a;
-        assert_eq!(result, BigUint { value: [2].to_vec() });
+        assert_eq!(
+            result,
+            BigUint {
+                value: [2].to_vec()
+            }
+        );
 
-        let a = BigUint { value: [5].to_vec() };
-        let b = BigUint { value: [63].to_vec() };
+        let a = BigUint {
+            value: [5].to_vec(),
+        };
+        let b = BigUint {
+            value: [63].to_vec(),
+        };
         let result = &a << &b;
         assert_eq!(
             result,
@@ -801,7 +959,9 @@ mod test {
         let a = BigUint {
             value: [5, 9].to_vec(),
         };
-        let b = BigUint { value: [63].to_vec() };
+        let b = BigUint {
+            value: [63].to_vec(),
+        };
         let result = &a << &b;
         assert_eq!(
             result,
@@ -813,7 +973,9 @@ mod test {
         let a = BigUint {
             value: [5, 9].to_vec(),
         };
-        let b = BigUint { value: [64].to_vec() };
+        let b = BigUint {
+            value: [64].to_vec(),
+        };
         let result = &a << &b;
         assert_eq!(
             result,
@@ -825,7 +987,9 @@ mod test {
         let a = BigUint {
             value: [5, 9].to_vec(),
         };
-        let b = BigUint { value: [65].to_vec() };
+        let b = BigUint {
+            value: [65].to_vec(),
+        };
         let result = &a << &b;
         assert_eq!(
             result,
@@ -852,7 +1016,9 @@ mod test {
         let result = &BigUint::ZERO >> &BigUint::ZERO;
         assert_eq!(&result, &BigUint::ZERO);
 
-        let a = BigUint { value: [5].to_vec() };
+        let a = BigUint {
+            value: [5].to_vec(),
+        };
         let result = &a >> &BigUint::ZERO;
         assert_eq!(result, a);
 
@@ -872,19 +1038,32 @@ mod test {
         let result = &a >> &b;
         assert_eq!(result, BigUint::ZERO);
 
-        let a = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a >> &a;
         assert_eq!(result, BigUint::ZERO);
 
-        let a = BigUint { value: [2].to_vec() };
-        let b = BigUint { value: [1].to_vec() };
+        let a = BigUint {
+            value: [2].to_vec(),
+        };
+        let b = BigUint {
+            value: [1].to_vec(),
+        };
         let result = &a >> &b;
-        assert_eq!(result, BigUint { value: [1].to_vec() });
+        assert_eq!(
+            result,
+            BigUint {
+                value: [1].to_vec()
+            }
+        );
 
         let a = BigUint {
             value: [1, 5, 9].to_vec(),
         };
-        let b = BigUint { value: [65].to_vec() };
+        let b = BigUint {
+            value: [65].to_vec(),
+        };
         let result = &a >> &b;
         assert_eq!(
             result,
