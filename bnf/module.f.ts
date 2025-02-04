@@ -1,6 +1,6 @@
 import { stringToCodePointList } from '../text/utf16/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
-import { map, toArray } from '../types/list/module.f.ts'
+import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 
 // Types
 
@@ -31,8 +31,14 @@ const offset = 24
 
 const mask = (1 << offset) - 1
 
-export const rangeEncode = (a: number, b: number): InputRange =>
-    (a << offset) | b
+const isValid = (r: number): boolean => r >= 0 && r <= mask
+
+export const rangeEncode = (a: number, b: number): InputRange => {
+    if (!isValid(a) || !isValid(b) || a > b) {
+        throw `Invalid range ${a} ${b}.`
+    }
+    return (a << offset) | b
+}
 
 export const oneEncode = (a: number): InputRange => rangeEncode(a, a)
 
@@ -73,24 +79,41 @@ export const option = <S extends Rule>(some: S): Option<S> => ({
     some,
 })
 
-export type Repeat0<T> = () => Option<readonly[T, Repeat0<T>]>
+export type Repeat0Plus<T> = () => Option<readonly[T, Repeat0Plus<T>]>
 
-export const repeat0 = <T extends Rule>(some: T): Repeat0<T> => {
+/**
+ * Repeat zero or more times.
+ *
+ * https://english.stackexchange.com/questions/506480/single-word-quantifiers-for-zero-or-more-like-cardinalities
+ * - zero or more - any
+ * - one or more - several
+ *
+ * Also see: https://arbs.nzcer.org.nz/types-numbers
+ */
+export const repeat0Plus = <T extends Rule>(some: T): Repeat0Plus<T> => {
     const f = () => option([some, f] as const)
     return f
 }
 
-export type Repeat1<T> = readonly[T, Repeat0<T>]
+export type Repeat1Plus<T> = readonly[T, Repeat0Plus<T>]
 
-export const repeat1 = <T extends Rule>(some: T): Repeat1<T> =>
-    [some, repeat0(some)]
+/**
+ * Repeat one or more times.
+ */
+export const repeat1Plus = <T extends Rule>(some: T): Repeat1Plus<T> =>
+    [some, repeat0Plus(some)]
 
-export type Join1<T, S> = readonly[T, Repeat0<readonly[S, T]>]
+export type Join1Plus<T, S> = readonly[T, Repeat0Plus<readonly[S, T]>]
 
-export const join1 = <T extends Rule, S extends Rule>(some: T, separator: S): Join1<T, S> =>
-    [some, repeat0([separator, some])]
+export const join1Plus = <T extends Rule, S extends Rule>(some: T, separator: S): Join1Plus<T, S> =>
+    [some, repeat0Plus([separator, some])]
 
-export type Join0<T, S> = Option<readonly[T, Repeat0<readonly[S, T]>]>
+export type Join0Plus<T, S> = Option<readonly[T, Repeat0Plus<readonly[S, T]>]>
 
-export const join0 = <T extends Rule, S extends Rule>(some: T, separator: S): Rule =>
-    option(join1(some, separator))
+export const join0Plus = <T extends Rule, S extends Rule>(some: T, separator: S): Rule =>
+    option(join1Plus(some, separator))
+
+export type Repeat<T> = readonly T[]
+
+export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
+    toArray(listRepeat(some)(n))

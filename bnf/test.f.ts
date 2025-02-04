@@ -1,4 +1,4 @@
-import { join0, none, option, range, repeat0, type Rule, set } from './module.f.ts'
+import { join0Plus, none, option, range, repeat, repeat0Plus, type Rule, set } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -82,7 +82,7 @@ const _classic = (): Rule => {
         onenine,
     })
 
-    const onenine = range('12')
+    const onenine = range('19')
 
     const fraction = () => ({
         none,
@@ -113,53 +113,49 @@ const _classic = (): Rule => {
 
 const _deterministic = (): Rule => {
 
-    const onenine = range('12')
+    const onenine = range('19')
 
-    const digit: Rule = {
-        0: '0',
-        onenine,
-    }
+    const digit: Rule = range('09')
 
-    const hex = {
-        digit,
-        AF: range('AF'),
-        af: range('af'),
-    }
+    const string = [
+        '"',
+        repeat0Plus({
+            0: 0x20_000021,
+            1: 0x23_00005B,
+            2: 0x5D_10FFFF,
+            escape: [
+                '\\',
+                {
+                    ...set('"\\/bfnrt'),
+                    u: [
+                        'u',
+                        ...repeat(4)({
+                            digit,
+                            AF: range('AF'),
+                            af: range('af'),
+                        })
+                    ],
+                }
+            ],
+        }),
+        '"'
+    ]
 
-    const escape = {
-        ...set('"\\/bfnrt'),
-        u: ['u', hex, hex, hex, hex],
-    }
-
-    const character: Rule = {
-        0: 0x20_000021,
-        1: 0x23_00005B,
-        2: 0x5D_10FFFF,
-        escape: ['\\', escape],
-    }
-
-    const characters = repeat0(character)
-
-    const string = ['"', characters, '"']
-
-    const digits0 = repeat0(digit)
+    const digits0 = repeat0Plus(digit)
 
     const digits = [digit, digits0]
 
-    const integer = [option('-'), {
-        0: '0',
-        onenine: [onenine, digits0],
-    }]
+    const number = [
+        option('-'),
+        {
+            0: '0',
+            onenine: [onenine, digits0],
+        },
+        option(['.', digits]),
+        option([set('Ee'), option(set('+-')), digits])
+    ]
 
-    const fraction = option(['.', digits])
-
-    const sign = option(set('+-'))
-
-    const exponent = option([set('Ee'), sign, digits])
-
-    const number = [integer, fraction, exponent]
-
-    const ws = repeat0(set(' \n\r\t'))
+    const ws = repeat0Plus(set(' \n\r\t'))
 
     const value = () => ({
         object,
@@ -171,14 +167,16 @@ const _deterministic = (): Rule => {
         null: 'null'
     })
 
-    const commaJoin0 = ([open, close]: string, a: Rule) =>
-        [open, ws, join0([a, ws], [',', ws]), close]
+    const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+        open,
+        ws,
+        join0Plus([a, ws], [',', ws]),
+        close
+    ]
 
-    const array = commaJoin0('[]', value)
+    const array = commaJoin0Plus('[]', value)
 
-    const member = [string, ws, ':', ws, value]
-
-    const object = commaJoin0('{}', member)
+    const object = commaJoin0Plus('{}', [string, ws, ':', ws, value])
 
     const json = [ws, value, ws]
 
