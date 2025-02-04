@@ -157,26 +157,22 @@ const _deterministic = (): Rule => {
 
     const ws = repeat0Plus(set(' \n\r\t'))
 
+    const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+        open,
+        ws,
+        join0Plus([a, ws], [',', ws]),
+        close,
+    ]
+
     const value = () => ({
-        object,
-        array,
+        object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
+        array: commaJoin0Plus('[]', value),
         string,
         number,
         true: 'true',
         false: 'false',
         null: 'null'
     })
-
-    const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-        open,
-        ws,
-        join0Plus([a, ws], [',', ws]),
-        close
-    ]
-
-    const array = commaJoin0Plus('[]', value)
-
-    const object = commaJoin0Plus('{}', [string, ws, ':', ws, value])
 
     const json = [ws, value, ws]
 
