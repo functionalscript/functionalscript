@@ -454,6 +454,12 @@ fn big_int_mul<A: Any>() {
     let a = A::BigInt::new(Sign::Negative, [u64::MAX]).to_unknown();
     let expected = A::BigInt::new(Sign::Positive, [1, u64::MAX - 1]).to_unknown();
     assert_eq!(A::multiply(a.clone(), a.clone()).unwrap(), expected);
+
+    let b = A::BigInt::new(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]).to_unknown();
+    let expected =
+        A::BigInt::new(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]).to_unknown();
+    assert_eq!(A::multiply(a.clone(), b.clone()).unwrap(), expected);
+    assert_eq!(A::multiply(b.clone(), a.clone()).unwrap(), expected);
 }
 
 fn test_vm<A: Any>() {
