@@ -1,18 +1,31 @@
+import { type Rule as FRule } from '../module.f.ts'
+
 export type InputRange = number
 
-export type Sequence<K extends string> = readonly Rule<K>[]
+export type Sequence = readonly Rule[]
 
-export type Or<K extends string> = {
-    readonly[k in string]: Rule<K>
+export type Or = {
+    readonly[k in string]: Rule
 }
 
-export type Rule<K extends string> = Or<K> | Sequence<K> | InputRange | K
+export type Rule = Or | Sequence | InputRange | string
 
-export type Set<K extends string> = Record<string, Rule<K>>
+export type RuleSet = Readonly<Record<string, Rule>>
 
-/*
-const a: OneKey<'a'|'b', number> = {
-    a: 1,
-    // b: 2
+type FRuleMap = { readonly[k in string]: FRule }
+
+const find = (map: FRuleMap) => (fr: FRule): string | undefined => {
+    for (const [k, v] of Object.entries(map)) {
+        if (v === fr) {
+            return k
+        }
+    }
+    return undefined
 }
-*/
+
+export const toData = (map: FRuleMap, result: RuleSet) => (fr: FRule): RuleSet => {
+    if (find(map)(fr) === undefined) {
+        return result
+    }
+    return result
+}
