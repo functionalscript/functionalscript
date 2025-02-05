@@ -93,7 +93,8 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] [52-poker.md](./52-poker.md).
 - [ ] 53. Use `--erasableSyntaxOnly`. https://devblogs.microsoft.com/typescript/announcing-typescript-5-8-beta/
 - [ ] [54-token-plus.md](./54-token-plus.md)
-- [ ] Add Carbon advertisements on a web site https://www.carbonads.net/
+- [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
+- [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 
 ## Language Specification
 

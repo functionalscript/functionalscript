@@ -58,9 +58,12 @@ A card for Alice:
 `W^A^B^C` and `V^A^B^C` are cards that left.
 
 Then Alice creates a new deck of cards, excludes `Y` and publishes shuffled [`X^A`, `V^A`, `W^A`].
-Since Alice knows `X^B` she also publishes `X^B^A` for Bob to exclude the card `X`.
+Since Alice knows `X^B` she publishes `X^B^A` for Bob. Then, Bob creates [`X^A^B`, `V^A^B`, `W^A^B`], find and excludes `X^A^B` and publish shuffled [`V^A^B`, `W^A^B`].
 
-Note, that if Charlie's cards and then dropped, the cards are back to the deck, because we don't know which card we should remove from the deck! The question is should we always return cards that folded?
+Notes:
+- there is no reason to shuffle it differently compare to previous shuffle.
+- make sure that the public information about difference in shuffling doesn't reveal information about RND seed.
+- if Charlie's cards and then dropped, the cards are back to the deck, because we don't know which card we should remove from the deck! The question is should we always return cards that folded?
 
 ## Using VDF (Verifiable Delay Function)
 
