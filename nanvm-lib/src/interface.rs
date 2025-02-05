@@ -18,9 +18,8 @@ pub trait Complex<U: Any>: PartialEq + Sized + Container {
     fn try_from_unknown(u: U) -> Result<Self, U>;
 }
 
-pub trait String16<U: Any<String16 = Self>>:
-    Complex<U> + Container<Header = (), Item = u16>
-{
+pub trait String16<U: Any<String16 = Self>>: Complex<U> + Container<Header = (), Item = u16> {
+    fn concat(self, other: Self) -> Self;
 }
 
 pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
@@ -52,6 +51,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         C::try_from_unknown(self)
     }
 
+    fn is_string16(&self) -> bool;
     fn to_string(self) -> Self::String16 {
         if let Some(simple) = self.try_to_simple() {
             return simple.to_string::<Self>();
@@ -138,19 +138,113 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
     }
 
+    fn add(v1: Self, v2: Self) -> Result<Self, Self> {
+        if v1.is_string16() || v2.is_string16() {
+            return Ok(v1.to_string().concat(v2.to_string()).to_unknown());
+        }
+        match Self::to_numeric(v1) {
+            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
+                Numeric::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.add(i2)))),
+            },
+            Numeric::Number(f1) => match Self::to_numeric(v2) {
+                Numeric::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 + f2))),
+            },
+        }
+    }
+
+    fn subtract(v1: Self, v2: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v1) {
+            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
+                Numeric::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.sub(i2)))),
+            },
+            Numeric::Number(f1) => match Self::to_numeric(v2) {
+                Numeric::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 - f2))),
+            },
+        }
+    }
+
     fn multiply(v1: Self, v2: Self) -> Result<Self, Self> {
         match Self::to_numeric(v1) {
             Numeric::BigInt(i1) => match Self::to_numeric(v2) {
-                Numeric::Number(_) => {
-                    Self::exception("TypeError: Cannot convert a BigInt value to a number")
-                }
+                Numeric::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
                 Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.mul(i2)))),
             },
             Numeric::Number(f1) => match Self::to_numeric(v2) {
-                Numeric::BigInt(_) => {
-                    Self::exception("TypeError: Cannot convert a BigInt value to a number")
-                }
+                Numeric::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
                 Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 * f2))),
+            },
+        }
+    }
+
+    fn divide(num: Self, denom: Self) -> Result<Self, Self> {
+        match Self::to_numeric(num) {
+            Numeric::BigInt(inum) => match Self::to_numeric(denom) {
+                Numeric::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::BigInt(idenom) => {
+                    if idenom.is_zero() {
+                        Self::exception("RangeError: Division by zero")
+                    } else {
+                        Ok(Self::pack(Unpacked::BigInt(inum.div(idenom))))
+                    }
+                }
+            },
+            Numeric::Number(fnum) => match Self::to_numeric(denom) {
+                Numeric::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::Number(fdenom) => Ok(Self::new_simple(Simple::Number(fnum / fdenom))),
+            },
+        }
+    }
+
+    fn shl(v1: Self, v2: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v1) {
+            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
+                Numeric::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.shl(i2)))),
+            },
+            Numeric::Number(f1) => match Self::to_numeric(v2) {
+                Numeric::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(((f1 as i128) << ((f2 as i128) & 0x1F)) as f64))),
+            },
+        }
+    }
+
+    fn shr(v1: Self, v2: Self) -> Result<Self, Self> {
+        match Self::to_numeric(v1) {
+            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
+                Numeric::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.shr(i2)))),
+            },
+            Numeric::Number(f1) => match Self::to_numeric(v2) {
+                Numeric::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(((f1 as i128) >> ((f2 as i128) & 0x1F)) as f64))),
             },
         }
     }
