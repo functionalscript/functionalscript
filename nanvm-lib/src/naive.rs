@@ -1,4 +1,9 @@
-use crate::{interface, sign::Sign, simple::Simple};
+use crate::{
+    big_int,
+    interface::{self, Container},
+    sign::Sign,
+    simple::Simple,
+};
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
@@ -93,7 +98,11 @@ impl interface::Complex<Any> for String16 {
     }
 }
 
-impl interface::String16<Any> for String16 {}
+impl interface::String16<Any> for String16 {
+    fn concat(self, other: Self) -> Self {
+        Self::new((), self.items().iter().chain(other.items().iter()).cloned())
+    }
+}
 
 // BigInt
 
@@ -112,7 +121,7 @@ impl interface::Complex<Any> for BigInt {
     }
 }
 
-impl interface::BigInt<Any> for BigInt {}
+impl big_int::BigInt<Any> for BigInt {}
 
 // Array
 
@@ -201,6 +210,10 @@ impl interface::Any for Any {
         } else {
             None
         }
+    }
+
+    fn is_string16(&self) -> bool {
+        matches!(self, Self::String16(_))
     }
 
     fn pack(u: interface::Unpacked<Self>) -> Self {
