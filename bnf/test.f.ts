@@ -1,4 +1,4 @@
-import { join0Plus, none, option, range, repeat, repeat0Plus, type Rule, set } from './module.f.ts'
+import { join0Plus, none, option, range, remove, repeat, repeat0Plus, type Rule, set, max } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -120,9 +120,7 @@ const _deterministic = (): Rule => {
     const string = [
         '"',
         repeat0Plus({
-            0: 0x20_000021,
-            1: 0x23_00005B,
-            2: 0x5D_10FFFF,
+            ...remove(range(` ${max}`), set('"\\')),
             escape: [
                 '\\',
                 {

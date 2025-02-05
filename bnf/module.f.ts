@@ -1,10 +1,10 @@
-import { stringToCodePointList } from '../text/utf16/module.f.ts'
+import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 
 // Types
 
-export type InputRange = number
+export type TerminalRange = number
 
 export type Sequence = readonly Rule[]
 
@@ -12,7 +12,7 @@ export type Or = {
     readonly[k in string]: Rule
 }
 
-export type DataRule = Or | Sequence | InputRange | string
+export type DataRule = Or | Sequence | TerminalRange | string
 
 export type LazyRule = () => DataRule
 
@@ -33,31 +33,38 @@ const mask = (1 << offset) - 1
 
 const isValid = (r: number): boolean => r >= 0 && r <= mask
 
-export const rangeEncode = (a: number, b: number): InputRange => {
+export const max = codePointListToString([0x10FFFF])
+
+export const rangeEncode = (a: number, b: number): TerminalRange => {
     if (!isValid(a) || !isValid(b) || a > b) {
         throw `Invalid range ${a} ${b}.`
     }
     return (a << offset) | b
 }
 
-export const oneEncode = (a: number): InputRange => rangeEncode(a, a)
+export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
 export const rangeDecode = (r: number): Array2<number> =>
     [r >> offset, r & mask]
 
 const mapOneEncode = map(oneEncode)
 
-export const str = (s: string): readonly InputRange[] | InputRange => {
-    const x = toArray(mapOneEncode(stringToCodePointList(s)))
+export const set = (s: string): readonly TerminalRange[] =>
+    toArray(mapOneEncode(stringToCodePointList(s)))
+
+export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
+    const x = set(s)
     return x.length === 1 ? x[0] : x
 }
 
 const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 
-export const set = (s: string): Or =>
+/*
+export const set = (s: string): OrRangeSet =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
+*/
 
-export const range = (ab: string): InputRange => {
+export const range = (ab: string): TerminalRange => {
     const a = toArray(stringToCodePointList(ab))
     if (!isArray2(a)) {
         throw `Invalid range ${ab}.`
@@ -117,3 +124,39 @@ export type Repeat<T> = readonly T[]
 
 export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
     toArray(listRepeat(some)(n))
+
+export type RangeSet = readonly TerminalRange[]
+
+/**
+ * A set of terminal ranges compatible with the `Or` rule.
+ */
+export type OrRangeSet = { readonly [k in string]: TerminalRange }
+
+const toOr = (r: RangeSet): OrRangeSet => fromEntries(r.map(v => [v.toString(), v]))
+
+const removeOne = (set: RangeSet, ab: number): RangeSet => {
+    const [a, b] = rangeDecode(ab)
+    let result: RangeSet = []
+    for (const ab0 of set) {
+        const [a0, b0] = rangeDecode(ab0)
+        if (a0 < a) {
+            // [a0
+            //     ]a
+            result = [...result, rangeEncode(a0, Math.min(b0, a - 1))]
+        }
+        if (b < b0) {
+            //    b0]
+            // b[
+            result = [...result, rangeEncode(Math.max(b + 1, a0), b0)]
+        }
+    }
+    return result
+}
+
+export const remove = (range: TerminalRange, removeSet: RangeSet): OrRangeSet => {
+    let result: RangeSet = [range]
+    for (const r of removeSet) {
+        result = removeOne(result, r)
+    }
+    return toOr(result)
+}

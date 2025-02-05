@@ -38,3 +38,25 @@ type State = {
 
 }
 ```
+
+## Using VDF (Verifiable Delay Function)
+
+Using VDF to open cards even if a player is offline. All players encrypt cards and then decrypt required cards encrypt them with VDF and send to everyone. For example,
+
+1. A, B, C - shuffle cards:
+2. A and B decrypt and encrypt with VDF cards for C
+3. A and C decrypt and encrypt with VDF cards for B
+4. B and C decrypt and encrypt with VDF cards for A
+5. A and B and C decrypt and encrypt with VDF community cards
+
+Decrypt and encrypt with VDF means: a card is decrypted with the original key 'K' and then encrypted with a new unique key 'Ki'. This encrypted card then published for a next player. And the key 'Ki' is published as encrypted with VDF.
+
+Users need to decrypt VDF values only if a player is dropped out.
+
+Alice's keys:
+- 'A' - the original key.
+- 'A0', 'A1' - for Bob.
+- 'A2', 'A3' - for Charlie.
+- 'A4', 'A5', 'A6' - for community.
+
+'A0',...,'A6' are published with different delays.
