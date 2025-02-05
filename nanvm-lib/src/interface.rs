@@ -18,7 +18,9 @@ pub trait Complex<U: Any>: PartialEq + Sized + Container {
     fn try_from_unknown(u: U) -> Result<Self, U>;
 }
 
-pub trait String16<U: Any<String16 = Self>>: Complex<U> + Container<Header = (), Item = u16> {
+pub trait String16<U: Any<String16 = Self>>:
+    Complex<U> + Container<Header = (), Item = u16>
+{
     fn concat(self, other: Self) -> Self;
 }
 
@@ -227,7 +229,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 Numeric::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(((f1 as i128) << ((f2 as i128) & 0x1F)) as f64))),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(
+                    ((f1 as i128) << ((f2 as i128) & 0x1F)) as f64,
+                ))),
             },
         }
     }
@@ -244,7 +248,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 Numeric::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(((f1 as i128) >> ((f2 as i128) & 0x1F)) as f64))),
+                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(
+                    ((f1 as i128) >> ((f2 as i128) & 0x1F)) as f64,
+                ))),
             },
         }
     }

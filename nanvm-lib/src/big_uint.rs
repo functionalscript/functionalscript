@@ -104,12 +104,7 @@ impl BigUint {
             return a_len.cmp(&b_len);
         }
 
-        for (a_digit, b_digit) in a
-            .iter()
-            .copied()
-            .rev()
-            .zip(b.iter().copied().rev())
-        {
+        for (a_digit, b_digit) in a.iter().copied().rev().zip(b.iter().copied().rev()) {
             if a_digit != b_digit {
                 return a_digit.cmp(&b_digit);
             }
@@ -245,35 +240,45 @@ impl BigUint {
     }
 
     pub fn shl(_a: &[u64], _b: &[u64]) -> Self {
-        return BigUint::ZERO;
+        BigUint::ZERO
     }
 
     pub fn shr(_a: &[u64], _b: &[u64]) -> Self {
-        return BigUint::ZERO;
+        BigUint::ZERO
     }
 }
 
 impl Add for &BigUint {
     type Output = BigUint;
-    fn add(self, other: Self) -> Self::Output { BigUint::add(&self.value, &other.value) }
+    fn add(self, other: Self) -> Self::Output {
+        BigUint::add(&self.value, &other.value)
+    }
 }
 
 impl Sub for &BigUint {
     type Output = BigUint;
-    fn sub(self, other: Self) -> Self::Output { BigUint::sub(&self.value, &other.value) }
+    fn sub(self, other: Self) -> Self::Output {
+        BigUint::sub(&self.value, &other.value)
+    }
 }
 
 impl PartialOrd for BigUint {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Ord for BigUint {
-    fn cmp(&self, other: &Self) -> Ordering { BigUint::cmp(&self.value, &other.value) }
+    fn cmp(&self, other: &Self) -> Ordering {
+        BigUint::cmp(&self.value, &other.value)
+    }
 }
 
 impl Mul for &BigUint {
     type Output = BigUint;
-    fn mul(self, other: Self) -> Self::Output { BigUint::mul(&self.value, &other.value) }
+    fn mul(self, other: Self) -> Self::Output {
+        BigUint::mul(&self.value, &other.value)
+    }
 }
 
 impl Div for &BigUint {

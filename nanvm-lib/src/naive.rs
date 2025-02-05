@@ -1,4 +1,9 @@
-use crate::{big_int, interface::{self, Container}, sign::Sign, simple::Simple};
+use crate::{
+    big_int,
+    interface::{self, Container},
+    sign::Sign,
+    simple::Simple,
+};
 use core::{fmt, marker::PhantomData};
 use std::rc;
 

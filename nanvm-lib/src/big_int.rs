@@ -21,12 +21,21 @@ pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, I
     }
     fn add(self, other: Self) -> Self {
         if *self.header() == *other.header() {
-            Self::new(self.header().clone(), BigUint::add(self.items(), other.items()).value)
+            Self::new(
+                self.header().clone(),
+                BigUint::add(self.items(), other.items()).value,
+            )
         } else {
             match self.items().cmp(other.items()) {
                 Ordering::Equal => Self::zero(),
-                Ordering::Greater => Self::new(self.header().clone(), BigUint::sub(self.items(), other.items()).value),
-                Ordering::Less => Self::new(other.header().clone(), BigUint::sub(other.items(), self.items()).value),
+                Ordering::Greater => Self::new(
+                    self.header().clone(),
+                    BigUint::sub(self.items(), other.items()).value,
+                ),
+                Ordering::Less => Self::new(
+                    other.header().clone(),
+                    BigUint::sub(other.items(), self.items()).value,
+                ),
             }
         }
     }
@@ -48,9 +57,15 @@ pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, I
         self.muldiv_result(&other, uint_result)
     }
     fn shl(self, other: Self) -> Self {
-        Self::new(self.header().clone(), BigUint::shl(self.items(), other.items()).value)
+        Self::new(
+            self.header().clone(),
+            BigUint::shl(self.items(), other.items()).value,
+        )
     }
     fn shr(self, other: Self) -> Self {
-        Self::new(self.header().clone(), BigUint::shr(self.items(), other.items()).value)
+        Self::new(
+            self.header().clone(),
+            BigUint::shr(self.items(), other.items()).value,
+        )
     }
 }
