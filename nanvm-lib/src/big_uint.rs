@@ -286,15 +286,15 @@ impl Mul for &BigUint {
 }
 
 impl Div for &BigUint {
-    type Output = BigUint;
+    type Output = Option<BigUint>;
 
     fn div(self, b: Self) -> Self::Output {
         if b.is_zero() {
-            panic!("attempt to divide by zero");
+            return None;
         }
 
         let (res, _) = BigUint::div_mod(self.value.as_slice(), b.value.as_slice());
-        res
+        Some(res)
     }
 }
 
@@ -513,7 +513,7 @@ mod test {
             value: [1 << 63].to_vec(),
         };
         let result = &a - &b;
-        assert_eq!(&result, &BigUint::ZERO);
+        assert_eq!(result, BigUint::ZERO);
 
         let a = BigUint {
             value: [3].to_vec(),
@@ -628,20 +628,20 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "attempt to divide by zero")]
     #[wasm_bindgen_test]
     fn test_div_by_zero() {
         let a = BigUint {
             value: [1].to_vec(),
         };
-        let _result = &a / &BigUint::ZERO;
+        let result = &a / &BigUint::ZERO;
+        assert_eq!(result, None);
     }
 
     #[test]
-    #[should_panic(expected = "attempt to divide by zero")]
     #[wasm_bindgen_test]
     fn test_div_zero_by_zero() {
-        let _result = &BigUint::ZERO / &BigUint::ZERO;
+        let result = &BigUint::ZERO / &BigUint::ZERO;
+        assert_eq!(result, None);
     }
 
     #[test]
@@ -654,14 +654,14 @@ mod test {
             value: [7].to_vec(),
         };
         let result = &a / &b;
-        assert_eq!(&result, &BigUint::ZERO);
+        assert_eq!(&result.unwrap(), &BigUint::ZERO);
 
         let a = BigUint {
             value: [7].to_vec(),
         };
         let result = &a / &a;
         assert_eq!(
-            &result,
+            &result.unwrap(),
             &BigUint {
                 value: [1].to_vec()
             }
@@ -675,7 +675,7 @@ mod test {
         };
         let result = &a / &b;
         assert_eq!(
-            &result,
+            &result.unwrap(),
             &BigUint {
                 value: [3].to_vec()
             }
@@ -689,7 +689,7 @@ mod test {
         };
         let result = &a / &b;
         assert_eq!(
-            &result,
+            &result.unwrap(),
             &BigUint {
                 value: [3, 4].to_vec()
             }
@@ -703,7 +703,7 @@ mod test {
         };
         let result = &a / &b;
         assert_eq!(
-            &result,
+            &result.unwrap(),
             &BigUint {
                 value: [(1 << 63) + 2, 3].to_vec()
             }
@@ -717,7 +717,7 @@ mod test {
         };
         let result = &a / &b;
         assert_eq!(
-            &result,
+            &result.unwrap(),
             &BigUint {
                 value: [1].to_vec()
             }
@@ -731,7 +731,7 @@ mod test {
         };
         let result = &a / &b;
         assert_eq!(
-            &result,
+            &result.unwrap(),
             &BigUint {
                 value: [1, 1].to_vec()
             }
