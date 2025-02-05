@@ -12,7 +12,7 @@ export type Entry<T> = readonly[string, T]
 export const at: (name: string) => <T>(object: Map<T>) => T|null
     = name => object => {
         const r = getOwnPropertyDescriptor(object, name)
-        return r === void 0 ? null : r.value
+        return r === undefined ? null : r.value
     }
 
 export const sort: <T>(e: List<Entry<T>>) => List<Entry<T>>
@@ -23,3 +23,14 @@ export const fromEntries: <T>(e: List<Entry<T>>) => Map<T>
 
 export const fromMap: <T>(m: BtMap<T>) => Map<T>
     = m => fromEntries(mapEntries(m))
+
+/**
+ * A set of objects with a single key.
+ *
+ * See also https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
+ */
+export type OneKey<K extends string, V> = {
+    [P in K]: (Record<P, V> & Partial<Record<Exclude<K, P>, never>>) extends infer O
+        ? { [Q in keyof O]: O[Q] }
+        : never
+}[K];

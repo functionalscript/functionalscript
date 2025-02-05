@@ -176,3 +176,10 @@ const _deterministic = (): Rule => {
 
     return json
 }
+
+export default {
+    test: () => {
+        _classic()
+        _deterministic()
+    }
+}
