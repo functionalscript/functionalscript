@@ -1,3 +1,7 @@
+/**
+ * Initial implementation of BigUint based on https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/big_numbers/big_uint.rs
+ * Credits: https://github.com/Trinidadec
+ */
 use std::{
     cmp::Ordering,
     iter,
