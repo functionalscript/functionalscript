@@ -2,7 +2,7 @@
 
 Notes:
 
-1. users should NOT know a multiplier (see [discrete logarithm problem](https://en.wikipedia.org/wiki/Discrete_logarithm)) between different cards. For example, if a user knows that a card # `0` multiplied by a number `N` becomes a card # `1` then they can find a card # `1`.
+Users should NOT know a multiplier (see [discrete logarithm problem](https://en.wikipedia.org/wiki/Discrete_logarithm)) between different cards. For example, if a user knows that a card # `0` multiplied by a number `N` becomes a card # `1` then they can find a card # `1`.
 
 See also
 
@@ -39,6 +39,29 @@ type State = {
 }
 ```
 
+## Shuffle After Drop
+
+Four cards: `X`, `Y`, `W`, `V`.
+
+Alice's key is `A`.
+Bob's key is `B`.
+Charlie's key is `C`.
+
+A card for Bob: Public information:
+    1. Alice publishes: `X^A^B^C ^Ai = X^C^B`.
+       - Bob knows `X^C`.
+    2. Charlie publishes: `X^B^C ^Ci = X^B`.
+       - Bob knows `X`.
+A card for Alice:
+    `Y^A^B^C^Bi^Ci = Y^A`.
+
+`W^A^B^C` and `V^A^B^C` are cards that left.
+
+Then Alice creates a new deck of cards, excludes `Y` and publishes shuffled [`X^A`, `V^A`, `W^A`].
+Since Alice knows `X^B` she also publishes `X^B^A` for Bob to exclude the card `X`.
+
+Note, that if Charlie's cards and then dropped, the cards are back to the deck, because we don't know which card we should remove from the deck! The question is should we always return cards that folded?
+
 ## Using VDF (Verifiable Delay Function)
 
 Using VDF to open cards even if a player is offline. All players encrypt cards and then decrypt required cards encrypt them with VDF and send to everyone. For example,
@@ -60,3 +83,5 @@ Alice's keys:
 - 'A4', 'A5', 'A6' - for community.
 
 'A0',...,'A6' are published with different delays.
+
+For blockchain implementation: the first observer who reveals VDF values receives a small amount.
