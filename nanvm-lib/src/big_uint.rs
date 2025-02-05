@@ -138,7 +138,7 @@ impl BigUint {
     }
 
     pub fn sub(a: &[u64], b: &[u64]) -> Self {
-        match a.cmp(b) {
+        match BigUint::cmp(a, b) {
             Ordering::Less | Ordering::Equal => BigUint::ZERO,
             Ordering::Greater => {
                 let mut value: Vec<_> = default();
@@ -527,20 +527,19 @@ mod test {
         let result = &b - &a;
         assert_eq!(&result, &BigUint::ZERO);
 
-        // TODO: discuss this test!!!
-        // let a = BigUint {
-        //     value: [0, 1].to_vec(),
-        // };
-        // let b = BigUint {
-        //     value: [1].to_vec(),
-        // };
-        // let result = &a - &b;
-        // assert_eq!(
-        //     &result,
-        //     &BigUint {
-        //         value: [u64::MAX].to_vec()
-        //     }
-        // );
+        let a = BigUint {
+            value: [0, 1].to_vec(),
+        };
+        let b = BigUint {
+            value: [1].to_vec(),
+        };
+        let result = &a - &b;
+        assert_eq!(
+            &result,
+            &BigUint {
+                value: [u64::MAX].to_vec()
+            }
+        );
     }
 
     #[test]
