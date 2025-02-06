@@ -1,4 +1,4 @@
-import { type Rule as FRule } from '../module.f.ts'
+import type { Rule as FRule } from '../module.f.ts'
 
 export type InputRange = number
 
