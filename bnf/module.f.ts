@@ -33,7 +33,7 @@ const mask = (1 << offset) - 1
 
 const isValid = (r: number): boolean => r >= 0 && r <= mask
 
-export const max = codePointListToString([0x10FFFF])
+export const max: string = codePointListToString([0x10FFFF])
 
 export const rangeEncode = (a: number, b: number): TerminalRange => {
     if (!isValid(a) || !isValid(b) || a > b) {
