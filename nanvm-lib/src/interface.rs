@@ -1,7 +1,7 @@
 use core::fmt;
-use std::char::decode_utf16;
+use std::{char::decode_utf16, ops::Add};
 
-use crate::{big_int::BigInt, nullish::Nullish, simple::Simple};
+use crate::{big_int::BigInt, nullish::Nullish, sign::Sign, simple::Simple};
 
 pub trait Container: Clone {
     type Header;
@@ -319,5 +319,26 @@ impl Utf8 for str {
 
     fn to_unknown<U: Any>(&self) -> U {
         self.to_string16::<U>().to_unknown()
+    }
+}
+
+/**
+ *  WAny allows to implement operations on Any types.
+ * */
+#[repr(transparent)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct WAny<T: Any>(T);
+
+impl<T: Any> WAny<T> {
+    pub fn big_int(header: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+        Self(T::BigInt::new(header, items).to_unknown())
+    }
+}
+
+impl<T: Any> Add for WAny<T> {
+    type Output = Result<Self, Self>;
+
+    fn add(self, other: Self) -> Self::Output {
+        T::add(self.0, other.0).map(Self).map_err(Self)
     }
 }
