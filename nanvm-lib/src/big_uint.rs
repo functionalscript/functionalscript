@@ -244,11 +244,11 @@ impl BigUint {
     }
 
     pub fn shl(_a: &[u64], _b: &[u64]) -> Self {
-        BigUint::ZERO
+        todo!() // move Shl trait implementation here
     }
 
     pub fn shr(_a: &[u64], _b: &[u64]) -> Self {
-        BigUint::ZERO
+        todo!() // move Shr trait implementation here
     }
 }
 

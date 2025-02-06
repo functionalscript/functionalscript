@@ -2,7 +2,7 @@ use core::panic;
 
 use nanvm_lib::{
     big_int,
-    interface::{Any, Complex, Container, Extension, Unpacked, Utf8},
+    interface::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
     naive,
     nullish::Nullish,
     sign::Sign,
@@ -434,6 +434,11 @@ fn multiply<A: Any>() {
     }
 }
 
+fn big_int_add<A: Any>() {
+    let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
+    assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
+}
+
 fn big_int_mul<A: Any>() {
     let n0 = A::BigInt::new(Sign::Positive, []).to_unknown();
     let n1 = A::BigInt::new(Sign::Positive, [1]).to_unknown();
@@ -467,6 +472,7 @@ fn test_vm<A: Any>() {
     unary_plus::<A>();
     unary_minus::<A>();
     multiply::<A>();
+    big_int_add::<A>();
     big_int_mul::<A>();
 }
 
