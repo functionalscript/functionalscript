@@ -8,11 +8,11 @@ export type TerminalRange = number
 
 export type Sequence = readonly Rule[]
 
-export type Or = {
+export type Variant = {
     readonly[k in string]: Rule
 }
 
-export type DataRule = Or | Sequence | TerminalRange | string
+export type DataRule = Variant | Sequence | TerminalRange | string
 
 export type LazyRule = () => DataRule
 
@@ -20,7 +20,7 @@ export type Rule = DataRule | LazyRule
 
 //
 
-const { fromEntries } = Object
+const { fromEntries, values } = Object
 
 const { fromCodePoint } = String
 
@@ -49,20 +49,18 @@ export const rangeDecode = (r: number): Array2<number> =>
 
 const mapOneEncode = map(oneEncode)
 
-export const set = (s: string): readonly TerminalRange[] =>
+export const toSequence = (s: string): readonly TerminalRange[] =>
     toArray(mapOneEncode(stringToCodePointList(s)))
 
 export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
-    const x = set(s)
+    const x = toSequence(s)
     return x.length === 1 ? x[0] : x
 }
 
 const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 
-/*
-export const set = (s: string): OrRangeSet =>
+export const set = (s: string): RangeSet =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
-*/
 
 export const range = (ab: string): TerminalRange => {
     const a = toArray(stringToCodePointList(ab))
@@ -125,19 +123,19 @@ export type Repeat<T> = readonly T[]
 export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
     toArray(listRepeat(some)(n))
 
-export type RangeSet = readonly TerminalRange[]
+type RangeList = readonly TerminalRange[]
 
 /**
- * A set of terminal ranges compatible with the `Or` rule.
+ * A set of terminal ranges compatible with the `Variant` rule.
  */
-export type OrRangeSet = { readonly [k in string]: TerminalRange }
+export type RangeSet = { readonly [k in string]: TerminalRange }
 
-const toOr = (r: RangeSet): OrRangeSet => fromEntries(r.map(v => [v.toString(), v]))
+const toVariantRangeSet = (r: RangeList): RangeSet => fromEntries(r.map(v => [v.toString(), v]))
 
-const removeOne = (set: RangeSet, ab: number): RangeSet => {
+const removeOne = (list: RangeList, ab: number): RangeList => {
     const [a, b] = rangeDecode(ab)
-    let result: RangeSet = []
-    for (const ab0 of set) {
+    let result: RangeList = []
+    for (const ab0 of list) {
         const [a0, b0] = rangeDecode(ab0)
         if (a0 < a) {
             // [a0
@@ -153,10 +151,10 @@ const removeOne = (set: RangeSet, ab: number): RangeSet => {
     return result
 }
 
-export const remove = (range: TerminalRange, removeSet: RangeSet): OrRangeSet => {
-    let result: RangeSet = [range]
-    for (const r of removeSet) {
+export const remove = (range: TerminalRange, removeSet: RangeSet): RangeSet => {
+    let result: RangeList = [range]
+    for (const r of values(removeSet)) {
         result = removeOne(result, r)
     }
-    return toOr(result)
+    return toVariantRangeSet(result)
 }
