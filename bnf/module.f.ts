@@ -130,7 +130,13 @@ type RangeList = readonly TerminalRange[]
  */
 export type RangeSet = { readonly [k in string]: TerminalRange }
 
-const toVariantRangeSet = (r: RangeList): RangeSet => fromEntries(r.map(v => [v.toString(), v]))
+const toVariantRangeSet = (r: RangeList): RangeSet =>
+    fromEntries(r.map(v => {
+        const ab = rangeDecode(v)
+        const [a, b] = ab
+        const cp = a === b ? [a] : ab
+        return [fromCodePoint(...cp), v]
+    }))
 
 const removeOne = (list: RangeList, ab: number): RangeList => {
     const [a, b] = rangeDecode(ab)

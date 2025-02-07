@@ -1,4 +1,4 @@
-import { join0Plus, none, option, range, remove, repeat, repeat0Plus, type Rule, toSequence, max, set } from './module.f.ts'
+import { join0Plus, none, option, range, remove, repeat, repeat0Plus, type Rule, max, set } from './module.f.ts'
 
 const _classic = (): Rule => {
 
@@ -53,7 +53,7 @@ const _classic = (): Rule => {
     })
 
     const escape = () => ({
-        ...toSequence('"\\/bfnrt'),
+        ...set('"\\/bfnrt'),
         u: ['u', hex, hex, hex, hex],
     })
 
@@ -97,7 +97,7 @@ const _classic = (): Rule => {
 
     const sign = {
         none,
-        ...toSequence('+-'),
+        ...set('+-'),
     }
 
     const ws = () => ({
@@ -124,7 +124,7 @@ const _deterministic = (): Rule => {
             escape: [
                 '\\',
                 {
-                    ...toSequence('"\\/bfnrt'),
+                    ...set('"\\/bfnrt'),
                     u: [
                         'u',
                         ...repeat(4)({
@@ -150,10 +150,10 @@ const _deterministic = (): Rule => {
             onenine: [onenine, digits0],
         },
         option(['.', digits]),
-        option([toSequence('Ee'), option(toSequence('+-')), digits])
+        option([set('Ee'), option(set('+-')), digits])
     ]
 
-    const ws = repeat0Plus(toSequence(' \n\r\t'))
+    const ws = repeat0Plus(set(' \n\r\t'))
 
     const commaJoin0Plus = ([open, close]: string, a: Rule) => [
         open,
