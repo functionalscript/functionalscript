@@ -1,7 +1,8 @@
 use core::panic;
 
 use nanvm_lib::{
-    interface::{Any, Complex, Container, Extension, Unpacked, Utf8},
+    big_int,
+    interface::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
     naive,
     nullish::Nullish,
     sign::Sign,
@@ -317,7 +318,7 @@ fn multiply<A: Any>() {
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
     let true_: A = Simple::Boolean(true).to_unknown();
     let false_: A = Simple::Boolean(false).to_unknown();
-    let bi0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
+    let bi0: A = A::BigInt::new(Sign::Positive, []).to_unknown();
     let bi1: A = A::BigInt::new(Sign::Positive, [1]).to_unknown();
     let bi_minus1: A = A::BigInt::new(Sign::Negative, [1]).to_unknown();
     let bi10: A = A::BigInt::new(Sign::Positive, [10]).to_unknown();
@@ -433,11 +434,46 @@ fn multiply<A: Any>() {
     }
 }
 
+fn big_int_add<A: Any>() {
+    let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
+    assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
+}
+
+fn big_int_mul<A: Any>() {
+    let n0 = A::BigInt::new(Sign::Positive, []).to_unknown();
+    let n1 = A::BigInt::new(Sign::Positive, [1]).to_unknown();
+    assert_eq!(A::multiply(n1.clone(), n0.clone()).unwrap(), n0);
+    assert_eq!(A::multiply(n0.clone(), n1.clone()).unwrap(), n0);
+
+    let n_minus1 = A::BigInt::new(Sign::Negative, [1]).to_unknown();
+    assert_eq!(A::multiply(n_minus1.clone(), n0.clone()).unwrap(), n0);
+    assert_eq!(A::multiply(n0.clone(), n_minus1.clone()).unwrap(), n0);
+    assert_eq!(A::multiply(n_minus1.clone(), n_minus1.clone()).unwrap(), n1);
+
+    let a = A::BigInt::new(Sign::Positive, [1, 2, 3, 4]).to_unknown();
+    let b = A::BigInt::new(Sign::Positive, [5, 6, 7]).to_unknown();
+    let expected = A::BigInt::new(Sign::Positive, [5, 16, 34, 52, 45, 28]).to_unknown();
+    assert_eq!(A::multiply(a.clone(), b.clone()).unwrap(), expected);
+    assert_eq!(A::multiply(b.clone(), a.clone()).unwrap(), expected);
+
+    let a = A::BigInt::new(Sign::Negative, [u64::MAX]).to_unknown();
+    let expected = A::BigInt::new(Sign::Positive, [1, u64::MAX - 1]).to_unknown();
+    assert_eq!(A::multiply(a.clone(), a.clone()).unwrap(), expected);
+
+    let b = A::BigInt::new(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]).to_unknown();
+    let expected =
+        A::BigInt::new(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]).to_unknown();
+    assert_eq!(A::multiply(a.clone(), b.clone()).unwrap(), expected);
+    assert_eq!(A::multiply(b.clone(), a.clone()).unwrap(), expected);
+}
+
 fn test_vm<A: Any>() {
     eq::<A>();
     unary_plus::<A>();
     unary_minus::<A>();
     multiply::<A>();
+    big_int_add::<A>();
+    big_int_mul::<A>();
 }
 
 #[test]
