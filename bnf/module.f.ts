@@ -59,7 +59,7 @@ export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
 
 const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 
-export const set = (s: string): RangeSet =>
+export const set = (s: string): RangeVariant =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
 export const range = (ab: string): TerminalRange => {
@@ -128,15 +128,17 @@ type RangeList = readonly TerminalRange[]
 /**
  * A set of terminal ranges compatible with the `Variant` rule.
  */
-export type RangeSet = { readonly [k in string]: TerminalRange }
+export type RangeVariant = { readonly [k in string]: TerminalRange }
 
-const toVariantRangeSet = (r: RangeList): RangeSet =>
-    fromEntries(r.map(v => {
-        const ab = rangeDecode(v)
-        const [a, b] = ab
-        const cp = a === b ? [a] : ab
-        return [fromCodePoint(...cp), v]
-    }))
+const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] => {
+    const ab = rangeDecode(r)
+    const [a, b] = ab
+    const cp = a === b ? [a] : ab
+    return [fromCodePoint(...cp), r]
+}
+
+const toVariantRangeSet = (r: RangeList): RangeVariant =>
+    fromEntries(r.map(rangeToEntry))
 
 const removeOne = (list: RangeList, ab: number): RangeList => {
     const [a, b] = rangeDecode(ab)
@@ -157,7 +159,7 @@ const removeOne = (list: RangeList, ab: number): RangeList => {
     return result
 }
 
-export const remove = (range: TerminalRange, removeSet: RangeSet): RangeSet => {
+export const remove = (range: TerminalRange, removeSet: RangeVariant): RangeVariant => {
     let result: RangeList = [range]
     for (const r of values(removeSet)) {
         result = removeOne(result, r)
