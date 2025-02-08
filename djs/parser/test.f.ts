@@ -3,13 +3,13 @@ import * as tokenizer from '../tokenizer/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import * as encoding from '../../text/utf16/module.f.ts'
-import { djsModuleStringify } from '../serializer/module.f.ts'
+import { stringify } from '../serializer/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
     = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringifyDjsModule = djsModuleStringify(sort)
+const stringifyDjsModule = stringify(sort)
 
 export default {
     valid: [
@@ -18,119 +18,119 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default null') { throw result }
+            if (result !== '[[],[null]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default true')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default true') { throw result }
+            if (result !== '[[],[true]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default false')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default false') { throw result }
+            if (result !== '[[],[false]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default undefined')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default undefined') { throw result }
+            if (result !== '[[],[undefined]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 0.1')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default 0.1') { throw result }
+            if (result !== '[[],[0.1]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1.1e+2')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default 110') { throw result }
+            if (result !== '[[],[110]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default "abc"')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default "abc"') { throw result }
+            if (result !== '[[],["abc"]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default []')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default []') { throw result }
+            if (result !== '[[],[["array",[]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [1]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [1]') { throw result }
+            if (result !== '[[],[["array",[1]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [[]]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [[]]') { throw result }
+            if (result !== '[[],[["array",[["array",[]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [0,[1,[2,[]]],3]') { throw result }
+            if (result !== '[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default {}') { throw result }
+            if (result !== '[[],[{}]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [{}]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [{}]') { throw result }
+            if (result !== '[[],[["array",[{}]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default {"a":true,"b":false,"c":null,"d":undefined}') { throw result }
+            if (result !== '[[],[{"a":true,"b":false,"c":null,"d":undefined}]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default {"a":{"b":{"c":["d"]}}}') { throw result }
+            if (result !== '[[],[{"a":{"b":{"c":["array",["d"]]}}}]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default 1234567890n') { throw result }
+            if (result !== '[[],[1234567890n]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [1234567890n]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [1234567890n]') { throw result }
+            if (result !== '[[],[["array",[1234567890n]]]]') { throw result }
         }
     ],
     invalid: [
@@ -285,28 +285,28 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [0,1,2]') { throw result }
+            if (result !== '[[],[["array",[0,1,2]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default {"a":0,"b":1}') { throw result }
+            if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default [0,1,2]') { throw result }
+            if (result !== '[[],[["array",[0,1,2]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default {"a":0,"b":1}') { throw result }
+            if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
         },
     ],
     invalidModule:[
@@ -341,28 +341,28 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'const c0 = 1\nconst c1 = 2\nexport default 3') { throw result }
+            if (result !== '[[],[1,2,3]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default b')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'const c0 = 1\nconst c1 = 2\nexport default c1') { throw result }
+            if (result !== '[[],[1,2,["cref",1]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default [b,a,b]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'const c0 = 1\nconst c1 = 2\nexport default [c1,c0,c1]') { throw result }
+            if (result !== '[[],[1,2,["array",[["cref",1],["cref",0],["cref",1]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default {"1st":b,"2nd":a,"3rd":b}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'const c0 = 1\nconst c1 = 2\nexport default {"1st":c1,"2nd":c0,"3rd":c1}') { throw result }
+            if (result !== '[[],[1,2,{"1st":["cref",1],"2nd":["cref",0],"3rd":["cref",1]}]]') { throw result }
         },
     ],
     invalidWithConst:[
@@ -391,21 +391,21 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'import a0 from "test/test.f.mjs"\nexport default a0') { throw result }
+            if (result !== '[["test/test.f.mjs"],[["aref",0]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs" \n import b from "second/test.f.mjs" \n export default [b, a, b]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'import a0 from "first/test.f.mjs"\nimport a1 from "second/test.f.mjs"\nexport default [a1,a0,a1]') { throw result }
+            if (result !== '[["first/test.f.mjs","second/test.f.mjs"],[["array",[["aref",1],["aref",0],["aref",1]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs" \n const b = null \n export default [b, a, b]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'import a0 from "test/test.f.mjs"\nconst c0 = null\nexport default [c0,a0,c0]') { throw result }
+            if (result !== '[["test/test.f.mjs"],[null,["array",[["cref",0],["aref",0],["cref",0]]]]]') { throw result }
         },
     ],
     invalidWithArgs:[
@@ -452,7 +452,7 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
-            if (result !== 'export default null') { throw result }
+            if (result !== '[[],[null]]') { throw result }
         },
     ]
 }
