@@ -1,6 +1,6 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { type DataRule, oneEncode, rangeToId, type Rule as FRule } from '../module.f.ts'
+import { type DataRule, oneEncode, rangeToId, type Rule as FRule, isEmpty } from '../module.f.ts'
 
 export type TerminalRange = number
 
@@ -44,9 +44,12 @@ const empty: NewRule = m => [m, {}, []]
 type NewRule = (m: FRuleMap) => readonly[FRuleMap, RuleSet, Rule]
 
 const sequence = (first: FRule, tail: FRule): NewRule => map => {
-    const [m1, firstRules, firstId] = toDataAdd(map)(first)
-    const [m2, tailRules, tailId] = toDataAdd(m1)(tail)
-    return [m2, { ...firstRules, ...tailRules }, [firstId, tailId]]
+    const [map1, firstRules, firstId] = toDataAdd(map)(first)
+    if (isEmpty(tail)) {
+        return [map1, firstRules, [firstId]]
+    }
+    const [map2, tailRules, tailId] = toDataAdd(map1)(tail)
+    return [map2, { ...firstRules, ...tailRules }, [firstId, tailId]]
 }
 
 const variant = (fr: FRule): NewRule => map => {
@@ -85,20 +88,15 @@ const data = (dr: DataRule): NewRule => {
 }
 
 const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly[FRuleMap, RuleSet, string] =>  {
-    let id = find(map)(fr)
-    if (id !== undefined) {
-        return [map, {}, id]
+    {
+        const id = find(map)(fr)
+        if (id !== undefined) {
+            return [map, {}, id]
+        }
     }
-    let dr: DataRule
-    if (typeof fr === 'function') {
-        id = fr.name
-        dr = fr()
-    } else {
-        id = ''
-        dr = fr
-    }
+    const [dr, tmpId]: readonly[DataRule, string] = typeof fr === 'function' ? [fr(), fr.name] : [fr, '']
     const newRule = data(dr)
-    id = newName(map, id)
+    const id = newName(map, tmpId)
     const map1 = { ...map, [id]: fr }
     const [map2, set, rule] = newRule(map1)
     return [map2, { ...set, [id]: rule }, id]
