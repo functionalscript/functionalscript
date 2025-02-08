@@ -70,6 +70,55 @@ export const range = (ab: string): TerminalRange => {
     return rangeEncode(...a)
 }
 
+type RangeList = readonly TerminalRange[]
+
+/**
+ * A set of terminal ranges compatible with the `Variant` rule.
+ */
+export type RangeVariant = { readonly [k in string]: TerminalRange }
+
+export const rangeToId = (r: TerminalRange): string => {
+    const ab = rangeDecode(r)
+    const [a, b] = ab
+    const cp = a === b ? [a] : ab
+    return fromCodePoint(...cp)
+}
+
+const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
+    [rangeToId(r), r]
+
+const toVariantRangeSet = (r: RangeList): RangeVariant =>
+    fromEntries(r.map(rangeToEntry))
+
+const removeOne = (list: RangeList, ab: number): RangeList => {
+    const [a, b] = rangeDecode(ab)
+    let result: RangeList = []
+    for (const ab0 of list) {
+        const [a0, b0] = rangeDecode(ab0)
+        if (a0 < a) {
+            // [a0
+            //     ]a
+            result = [...result, rangeEncode(a0, Math.min(b0, a - 1))]
+        }
+        if (b < b0) {
+            //    b0]
+            // b[
+            result = [...result, rangeEncode(Math.max(b + 1, a0), b0)]
+        }
+    }
+    return result
+}
+
+export const remove = (range: TerminalRange, removeSet: RangeVariant): RangeVariant => {
+    let result: RangeList = [range]
+    for (const r of values(removeSet)) {
+        result = removeOne(result, r)
+    }
+    return toVariantRangeSet(result)
+}
+
+//
+
 export type None = readonly[]
 
 export const none: None = []
@@ -122,47 +171,3 @@ export type Repeat<T> = readonly T[]
 
 export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
     toArray(listRepeat(some)(n))
-
-type RangeList = readonly TerminalRange[]
-
-/**
- * A set of terminal ranges compatible with the `Variant` rule.
- */
-export type RangeVariant = { readonly [k in string]: TerminalRange }
-
-const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] => {
-    const ab = rangeDecode(r)
-    const [a, b] = ab
-    const cp = a === b ? [a] : ab
-    return [fromCodePoint(...cp), r]
-}
-
-const toVariantRangeSet = (r: RangeList): RangeVariant =>
-    fromEntries(r.map(rangeToEntry))
-
-const removeOne = (list: RangeList, ab: number): RangeList => {
-    const [a, b] = rangeDecode(ab)
-    let result: RangeList = []
-    for (const ab0 of list) {
-        const [a0, b0] = rangeDecode(ab0)
-        if (a0 < a) {
-            // [a0
-            //     ]a
-            result = [...result, rangeEncode(a0, Math.min(b0, a - 1))]
-        }
-        if (b < b0) {
-            //    b0]
-            // b[
-            result = [...result, rangeEncode(Math.max(b + 1, a0), b0)]
-        }
-    }
-    return result
-}
-
-export const remove = (range: TerminalRange, removeSet: RangeVariant): RangeVariant => {
-    let result: RangeList = [range]
-    for (const r of values(removeSet)) {
-        result = removeOne(result, r)
-    }
-    return toVariantRangeSet(result)
-}
