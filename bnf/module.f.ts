@@ -145,8 +145,8 @@ export type Repeat0Plus<T> = () => Option<readonly[T, Repeat0Plus<T>]>
  * Also see: https://arbs.nzcer.org.nz/types-numbers
  */
 export const repeat0Plus = <T extends Rule>(some: T): Repeat0Plus<T> => {
-    const f = () => option([some, f] as const)
-    return f
+    const r = () => option([some, r] as const)
+    return r
 }
 
 export type Repeat1Plus<T> = readonly[T, Repeat0Plus<T>]

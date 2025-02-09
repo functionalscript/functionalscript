@@ -1,7 +1,13 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { type DataRule, oneEncode, rangeToId, type Rule as FRule, isEmpty } from '../module.f.ts'
-
+import {
+    type DataRule,
+    oneEncode,
+    rangeToId,
+    type Rule as FRule,
+    type Sequence as FSequence,
+    isEmpty
+} from '../module.f.ts'
 export type TerminalRange = number
 
 export type Sequence = readonly string[]
@@ -43,13 +49,16 @@ const empty: NewRule = m => [m, {}, []]
 
 type NewRule = (m: FRuleMap) => readonly[FRuleMap, RuleSet, Rule]
 
-const sequence = (first: FRule, tail: FRule): NewRule => map => {
-    const [map1, firstRules, firstId] = toDataAdd(map)(first)
-    if (isEmpty(tail)) {
-        return [map1, firstRules, [firstId]]
+const sequence = (list: FSequence): NewRule => map => {
+    let result: Sequence = []
+    let set = {}
+    for (const fr of list) {
+        const [map1, set1, id] = toDataAdd(map)(fr)
+        map = map1
+        set = { ...set, ...set1 }
+        result = [...result, id]
     }
-    const [map2, tailRules, tailId] = toDataAdd(map1)(tail)
-    return [map2, { ...firstRules, ...tailRules }, [firstId, tailId]]
+    return [map, set, result]
 }
 
 const variant = (fr: FRule): NewRule => map => {
@@ -67,21 +76,13 @@ const variant = (fr: FRule): NewRule => map => {
 const data = (dr: DataRule): NewRule => {
     switch (typeof dr) {
         case 'string': {
-            if (dr.length === 0) {
-                return empty
-            }
-            const [firstCp, ...tailCp] = toArray(stringToCodePointList(dr))
-            return sequence(oneEncode(firstCp), fromCodePoint(...tailCp))
+            return sequence(toArray(stringToCodePointList(dr)))
         }
         case 'number':
             return m => [m, {}, dr]
         default:
             if (dr instanceof Array) {
-                if (dr.length === 0) {
-                    return empty
-                }
-                const [first, ...tail] = dr
-                return sequence(first, tail)
+                return sequence(dr)
             }
             return variant(dr)
     }
