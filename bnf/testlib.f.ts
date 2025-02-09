@@ -1,4 +1,15 @@
-import { join0Plus, max, none, option, range, remove, repeat, repeat0Plus, set, type Rule } from './module.f.ts'
+import {
+    join0Plus,
+    max,
+    none,
+    option,
+    range,
+    remove,
+    repeat,
+    repeat0Plus,
+    set,
+    type Rule
+} from './module.f.ts'
 
 export const classic = (): Rule => {
 

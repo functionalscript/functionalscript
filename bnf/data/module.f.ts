@@ -94,7 +94,8 @@ const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly[FRuleMap, RuleSet, st
             return [map, {}, id]
         }
     }
-    const [dr, tmpId]: readonly[DataRule, string] = typeof fr === 'function' ? [fr(), fr.name] : [fr, '']
+    const [dr, tmpId]: readonly[DataRule, string] =
+        typeof fr === 'function' ? [fr(), fr.name] : [fr, '']
     const newRule = data(dr)
     const id = newName(map, tmpId)
     const map1 = { ...map, [id]: fr }

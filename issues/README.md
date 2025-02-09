@@ -95,6 +95,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] [54-token-plus.md](./54-token-plus.md)
 - [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
 - [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
+- [ ] 57. https://github.com/Agoric/eslint-config-jessie
 
 ## Language Specification
 
