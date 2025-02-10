@@ -106,17 +106,17 @@ Opening for Bob:
 
 |A                 |         | B                   |
 |------------------|---------|---------------------|
-|                  |    g    |                     |
+|                  |    G    |                     |
 |a                 |         |                     |
-|x = g^a           |  - x -> | x                   |
-|k = rnd(p)        |         |                     |
-|h = g^k           |  - h -> | h                   |
+|X = G^a           |  - X -> | X                   |
+|k = rnd(q)        |         |                     |
+|H = G^k           |  - H -> | H                   |
 |c                 | <- c -  | c = rnd(q)          |
-|s = (a*c + k) % q |  - s -> | check g^s = x^c * h |
+|s = (a*c + k) % q |  - s -> | check G^s = X^c * H |
 
-`g^s = g^(ac + k) = (g^a)^c * g^k = x^c * h`
+`G^s = G^(ac + k) = (G^a)^c * G^k = X^c * H`
 
-Alice should share `g^k` before she knows `c`!
+Alice should share `G^k` before she knows `c`!
 
 o -> oA -> oAB -> oABC
 
@@ -125,3 +125,33 @@ o -> oA -> oAB -> oABC
 | c0, c1, ...     |                 |                   |                |           |
 | c0a = c0^a, ... |  - cIa , ... -> | cIa, ...          |                |           |
 |                 |                 | cJab = cJa^b, ... | - cJab, ... -> | cJab, ... |
+
+o
+|A
+v
+oa   ob B(checks) oc  C(checks)   od   D(checks)
+|B   ^            ^               ^
+v    |A           |A              |A
+oab               oac C(remember) oad  D(remember)
+|C                ^               ^
+v                 |B              |B
+oabc                              oabd D(remember)
+|D                                ^
+v                                 |C
+oabcd
+
+----
+
+o
+| A
+v
+oa
+| B
+v
+oab
+| C
+v
+oabc
+| D
+v
+oabcd
