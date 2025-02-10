@@ -1,8 +1,15 @@
 import { sort } from '../../types/object/module.f.ts'
-import { setReplace } from '../../types/map/module.f.ts'
+import { setReplace, type Map } from '../../types/map/module.f.ts'
 import { transpile } from './module.f.ts'
 import { stringify } from '../serializer/module.f.ts'
-import { virtualFs } from '../../io/virtual-io.f.ts'
+import { createVirtualIo } from '../../io/virtual-io.f.ts'
+import type { Fs } from '../../io/module.f.ts'
+
+const virtualFs
+    :(map: Map<string>) => Fs 
+    = map => {
+        return createVirtualIo(map).fs
+    }
 
 export default {
     parse: () => {        
