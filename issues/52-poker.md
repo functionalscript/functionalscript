@@ -88,3 +88,40 @@ Alice's keys:
 'A0',...,'A6' are published with different delays.
 
 For blockchain implementation: the first observer who reveals VDF values receives a small amount.
+
+## Opening Cards with ZK proof
+
+1. Alice published shuffled `ca`: c^A = ca
+2. Bob published shuffled `cab`: ca^B = cab
+
+Opening for Alice:
+
+1. Bob published `ca` associated with `cab`: cab^BR = ca
+2. Alice unpacked `c` from `ca`: cab^AR = c
+
+Opening for Bob:
+
+1. Alice published `cb` associated with `cab`: cab^AR = cb
+2. Alice unpacked `c` from `ca`: cab^AR = c
+
+|A                 |         | B                   |
+|------------------|---------|---------------------|
+|                  |    g    |                     |
+|a                 |         |                     |
+|x = g^a           |  - x -> | x                   |
+|k = rnd(p)        |         |                     |
+|h = g^k           |  - h -> | h                   |
+|c                 | <- c -  | c = rnd(q)          |
+|s = (a*c + k) % q |  - s -> | check g^s = x^c * h |
+
+`g^s = g^(ac + k) = (g^a)^c * g^k = x^c * h`
+
+Alice should share `g^k` before she knows `c`!
+
+o -> oA -> oAB -> oABC
+
+---
+
+| c0, c1, ...     |                 |                   |                |           |
+| c0a = c0^a, ... |  - cIa , ... -> | cIa, ...          |                |           |
+|                 |                 | cJab = cJa^b, ... | - cJab, ... -> | cJab, ... |
