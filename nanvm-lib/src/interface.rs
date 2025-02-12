@@ -1,5 +1,8 @@
 use core::fmt;
-use std::{char::decode_utf16, ops::Add};
+use std::{
+    char::decode_utf16,
+    ops::{Add, Div, Mul, Shl, Shr, Sub},
+};
 
 use crate::{big_int::BigInt, nullish::Nullish, sign::Sign, simple::Simple};
 
@@ -160,7 +163,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
     }
 
-    fn subtract(v1: Self, v2: Self) -> Result<Self, Self> {
+    fn sub(v1: Self, v2: Self) -> Result<Self, Self> {
         match Self::to_numeric(v1) {
             Numeric::BigInt(i1) => match Self::to_numeric(v2) {
                 Numeric::Number(_) => Self::exception(
@@ -177,7 +180,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
     }
 
-    fn multiply(v1: Self, v2: Self) -> Result<Self, Self> {
+    fn mul(v1: Self, v2: Self) -> Result<Self, Self> {
         match Self::to_numeric(v1) {
             Numeric::BigInt(i1) => match Self::to_numeric(v2) {
                 Numeric::Number(_) => Self::exception(
@@ -194,7 +197,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         }
     }
 
-    fn divide(num: Self, denom: Self) -> Result<Self, Self> {
+    fn div(num: Self, denom: Self) -> Result<Self, Self> {
         match Self::to_numeric(num) {
             Numeric::BigInt(inum) => match Self::to_numeric(denom) {
                 Numeric::Number(_) => Self::exception(
@@ -340,5 +343,45 @@ impl<T: Any> Add for WAny<T> {
 
     fn add(self, other: Self) -> Self::Output {
         T::add(self.0, other.0).map(Self).map_err(Self)
+    }
+}
+
+impl<T: Any> Div for WAny<T> {
+    type Output = Result<Self, Self>;
+
+    fn div(self, other: Self) -> Self::Output {
+        T::div(self.0, other.0).map(Self).map_err(Self)
+    }
+}
+
+impl<T: Any> Mul for WAny<T> {
+    type Output = Result<Self, Self>;
+
+    fn mul(self, other: Self) -> Self::Output {
+        T::mul(self.0, other.0).map(Self).map_err(Self)
+    }
+}
+
+impl<T: Any> Shl for WAny<T> {
+    type Output = Result<Self, Self>;
+
+    fn shl(self, other: Self) -> Self::Output {
+        T::shl(self.0, other.0).map(Self).map_err(Self)
+    }
+}
+
+impl<T: Any> Shr for WAny<T> {
+    type Output = Result<Self, Self>;
+
+    fn shr(self, other: Self) -> Self::Output {
+        T::shr(self.0, other.0).map(Self).map_err(Self)
+    }
+}
+
+impl<T: Any> Sub for WAny<T> {
+    type Output = Result<Self, Self>;
+
+    fn sub(self, other: Self) -> Self::Output {
+        T::sub(self.0, other.0).map(Self).map_err(Self)
     }
 }

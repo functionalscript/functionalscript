@@ -243,12 +243,70 @@ impl BigUint {
         result
     }
 
-    pub fn shl(_a: &[u64], _b: &[u64]) -> Self {
-        todo!() // move Shl trait implementation here
+    pub fn shl(n: &[u64], rhs: &[u64]) -> Self {
+        if n.is_empty() || rhs.is_empty() {
+            return BigUint { value: n.to_vec() };
+        }
+
+        if rhs.len() != 1 {
+            panic!("Maximum BigUint size exceeded")
+        }
+
+        let mut value = n.to_vec();
+        let shift_mod = rhs[0] & ((1 << 6) - 1);
+        if shift_mod > 0 {
+            let len = value.len();
+            value.push(0); //todo: check if it is neccessary?
+            for i in (0..=len - 1).rev() {
+                let mut digit = value[i] as u128;
+                digit <<= shift_mod;
+                value[i + 1] |= (digit >> 64) as u64;
+                value[i] = digit as u64;
+            }
+        }
+
+        let number_of_zeros = (rhs[0] / 64) as usize;
+        if number_of_zeros > 0 {
+            let mut zeros_vector: Vec<_> = new_resize(number_of_zeros);
+            zeros_vector.extend(value);
+            value = zeros_vector;
+        }
+
+        let mut res = BigUint { value };
+        res.normalize();
+        res
     }
 
-    pub fn shr(_a: &[u64], _b: &[u64]) -> Self {
-        todo!() // move Shr trait implementation here
+    pub fn shr(n: &[u64], rhs: &[u64]) -> Self {
+        if n.is_empty() || rhs.is_empty() {
+            return BigUint { value: n.to_vec() };
+        }
+
+        let number_to_remove = (rhs[0] / 64) as usize;
+        if number_to_remove >= n.len() {
+            return BigUint::ZERO;
+        }
+
+        let mut value = n.to_vec();
+        value = value.split_off(number_to_remove);
+        let shift_mod = rhs[0] & ((1 << 6) - 1);
+        if shift_mod > 0 {
+            let len = value.len();
+            let mask = 1 << (shift_mod - 1);
+            let mut i = 0;
+            loop {
+                value[i] >>= shift_mod;
+                i += 1;
+                if i == len {
+                    break;
+                }
+                value[i - 1] |= (value[i] & mask) << (64 - shift_mod);
+            }
+        }
+
+        let mut res = BigUint { value };
+        res.normalize();
+        res
     }
 }
 
@@ -302,37 +360,7 @@ impl Shl for &BigUint {
     type Output = BigUint;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        if self.is_zero() | rhs.is_zero() {
-            return self.clone();
-        }
-
-        if rhs.len() != 1 {
-            panic!("Maximum BigUint size exceeded")
-        }
-
-        let mut value = self.value.clone();
-        let shift_mod = rhs.value[0] & ((1 << 6) - 1);
-        if shift_mod > 0 {
-            let len = value.len();
-            value.push(0); //todo: check if it is neccessary?
-            for i in (0..=len - 1).rev() {
-                let mut digit = value[i] as u128;
-                digit <<= shift_mod;
-                value[i + 1] |= (digit >> 64) as u64;
-                value[i] = digit as u64;
-            }
-        }
-
-        let number_of_zeros = (rhs.value[0] / 64) as usize;
-        if number_of_zeros > 0 {
-            let mut zeros_vector: Vec<_> = new_resize(number_of_zeros);
-            zeros_vector.extend(value);
-            value = zeros_vector;
-        }
-
-        let mut res = BigUint { value };
-        res.normalize();
-        res
+        BigUint::shl(&self.value, &rhs.value)
     }
 }
 
@@ -340,35 +368,7 @@ impl Shr for &BigUint {
     type Output = BigUint;
 
     fn shr(self, rhs: Self) -> Self::Output {
-        if self.is_zero() | rhs.is_zero() {
-            return self.clone();
-        }
-
-        let number_to_remove = (rhs.value[0] / 64) as usize;
-        if number_to_remove >= self.len() {
-            return BigUint::ZERO;
-        }
-
-        let mut value = self.value.clone();
-        value = value.split_off(number_to_remove);
-        let shift_mod = rhs.value[0] & ((1 << 6) - 1);
-        if shift_mod > 0 {
-            let len = value.len();
-            let mask = 1 << (shift_mod - 1);
-            let mut i = 0;
-            loop {
-                value[i] >>= shift_mod;
-                i += 1;
-                if i == len {
-                    break;
-                }
-                value[i - 1] |= (value[i] & mask) << (64 - shift_mod);
-            }
-        }
-
-        let mut res = BigUint { value };
-        res.normalize();
-        res
+        BigUint::shr(&self.value, &rhs.value)
     }
 }
 

@@ -422,12 +422,12 @@ fn multiply<A: Any>() {
     ];
     for (a, b, expected, test_case) in test_cases.iter() {
         test_op::<A>(
-            Any::multiply(a.clone(), b.clone()).unwrap(),
+            Any::mul(a.clone(), b.clone()).unwrap(),
             expected.clone(),
             test_case,
         );
         test_op::<A>(
-            Any::multiply(b.clone(), a.clone()).unwrap(),
+            Any::mul(b.clone(), a.clone()).unwrap(),
             expected.clone(),
             test_case,
         );
@@ -439,32 +439,32 @@ fn big_int_add<A: Any>() {
     assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
 }
 
-fn big_int_mul<A: Any>() {
-    let n0 = A::BigInt::new(Sign::Positive, []).to_unknown();
-    let n1 = A::BigInt::new(Sign::Positive, [1]).to_unknown();
-    assert_eq!(A::multiply(n1.clone(), n0.clone()).unwrap(), n0);
-    assert_eq!(A::multiply(n0.clone(), n1.clone()).unwrap(), n0);
+fn big_int_mul<A: Any>() -> Result<(), WAny<A>> {
+    let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
+    let n1: WAny<A> = WAny::big_int(Sign::Positive, [1]);
+    assert_eq!((n1.clone() * n0.clone())?, n0);
+    assert_eq!((n0.clone() * n1.clone())?, n0);
 
-    let n_minus1 = A::BigInt::new(Sign::Negative, [1]).to_unknown();
-    assert_eq!(A::multiply(n_minus1.clone(), n0.clone()).unwrap(), n0);
-    assert_eq!(A::multiply(n0.clone(), n_minus1.clone()).unwrap(), n0);
-    assert_eq!(A::multiply(n_minus1.clone(), n_minus1.clone()).unwrap(), n1);
+    let n_minus1: WAny<A> = WAny::big_int(Sign::Negative, [1]);
+    assert_eq!((n_minus1.clone() * n0.clone())?, n0);
+    assert_eq!((n0.clone() * n_minus1.clone())?, n0);
+    assert_eq!((n_minus1.clone() * n_minus1.clone())?, n1);
 
-    let a = A::BigInt::new(Sign::Positive, [1, 2, 3, 4]).to_unknown();
-    let b = A::BigInt::new(Sign::Positive, [5, 6, 7]).to_unknown();
-    let expected = A::BigInt::new(Sign::Positive, [5, 16, 34, 52, 45, 28]).to_unknown();
-    assert_eq!(A::multiply(a.clone(), b.clone()).unwrap(), expected);
-    assert_eq!(A::multiply(b.clone(), a.clone()).unwrap(), expected);
+    let a: WAny<A> = WAny::big_int(Sign::Positive, [1, 2, 3, 4]);
+    let b: WAny<A> = WAny::big_int(Sign::Positive, [5, 6, 7]);
+    let expected: WAny<A> = WAny::big_int(Sign::Positive, [5, 16, 34, 52, 45, 28]);
+    assert_eq!((a.clone() * b.clone())?, expected);
+    assert_eq!((b.clone() * a.clone())?, expected);
 
-    let a = A::BigInt::new(Sign::Negative, [u64::MAX]).to_unknown();
-    let expected = A::BigInt::new(Sign::Positive, [1, u64::MAX - 1]).to_unknown();
-    assert_eq!(A::multiply(a.clone(), a.clone()).unwrap(), expected);
+    let a: WAny<A> = WAny::big_int(Sign::Negative, [u64::MAX]);
+    let expected: WAny<A> = WAny::big_int(Sign::Positive, [1, u64::MAX - 1]);
+    assert_eq!((a.clone() * a.clone())?, expected);
 
-    let b = A::BigInt::new(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]).to_unknown();
-    let expected =
-        A::BigInt::new(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]).to_unknown();
-    assert_eq!(A::multiply(a.clone(), b.clone()).unwrap(), expected);
-    assert_eq!(A::multiply(b.clone(), a.clone()).unwrap(), expected);
+    let b: WAny<A> = WAny::big_int(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]);
+    let expected: WAny<A> = WAny::big_int(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]);
+    assert_eq!((a.clone() * b.clone())?, expected);
+    assert_eq!((b.clone() * a.clone())?, expected);
+    Ok(())
 }
 
 fn test_vm<A: Any>() {
@@ -473,7 +473,7 @@ fn test_vm<A: Any>() {
     unary_minus::<A>();
     multiply::<A>();
     big_int_add::<A>();
-    big_int_mul::<A>();
+    big_int_mul::<A>().unwrap();
 }
 
 #[test]
