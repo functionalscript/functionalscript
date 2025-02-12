@@ -93,6 +93,8 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] [51-parser-structures.md](./51-parser-structures.md).
 - [ ] [52-poker.md](./52-poker.md).
 - [ ] 53. Use `--erasableSyntaxOnly`. https://devblogs.microsoft.com/typescript/announcing-typescript-5-8-beta/
+- [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
+          2) Replace panic in BigUint::shl with returning an error code.
 
 ## Language Specification
 
