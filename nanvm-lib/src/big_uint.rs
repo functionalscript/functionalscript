@@ -244,7 +244,7 @@ impl BigUint {
     }
 
     pub fn shl(n: &[u64], rhs: &[u64]) -> Self {
-        if n.is_empty() | rhs.is_empty() {
+        if n.is_empty() || rhs.is_empty() {
             return BigUint { value: n.to_vec() };
         }
 
@@ -278,7 +278,7 @@ impl BigUint {
     }
 
     pub fn shr(n: &[u64], rhs: &[u64]) -> Self {
-        if n.is_empty() | rhs.is_empty() {
+        if n.is_empty() || rhs.is_empty() {
             return BigUint { value: n.to_vec() };
         }
 
