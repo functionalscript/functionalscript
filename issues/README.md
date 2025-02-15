@@ -96,6 +96,8 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
 - [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 - [ ] 57. https://github.com/Agoric/eslint-config-jessie
+- [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
+          2) Replace panic in BigUint::shl with returning an error code.
 
 ## Language Specification
 
