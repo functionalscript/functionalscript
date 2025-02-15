@@ -139,8 +139,8 @@ export type Repeat0Plus<T> = () => Option<readonly[T, Repeat0Plus<T>]>
  * Repeat zero or more times.
  *
  * https://english.stackexchange.com/questions/506480/single-word-quantifiers-for-zero-or-more-like-cardinalities
- * - zero or more - any
- * - one or more - several
+ * - zero or more - any, 0Plus
+ * - one or more - several, 1Plus
  *
  * Also see: https://arbs.nzcer.org.nz/types-numbers
  */

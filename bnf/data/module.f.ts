@@ -1,26 +1,23 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import {
-    type DataRule,
-    oneEncode,
-    rangeToId,
-    type Rule as FRule,
-    type Sequence as FSequence,
-    isEmpty
+import type {
+    DataRule,
+    Rule as FRule,
+    Sequence as FSequence,
 } from '../module.f.ts'
 export type TerminalRange = number
 
 export type Sequence = readonly string[]
 
 export type Variant = {
-    readonly[k in string]: string
+    readonly [k in string]: string
 }
 
 export type Rule = Variant | Sequence | TerminalRange
 
 export type RuleSet = Readonly<Record<string, Rule>>
 
-type FRuleMap = { readonly[k in string]: FRule }
+type FRuleMap = { readonly [k in string]: FRule }
 
 const { entries } = Object
 
@@ -43,11 +40,7 @@ const newName = (map: FRuleMap, name: string) => {
     return result
 }
 
-const { fromCodePoint } = String
-
-const empty: NewRule = m => [m, {}, []]
-
-type NewRule = (m: FRuleMap) => readonly[FRuleMap, RuleSet, Rule]
+type NewRule = (m: FRuleMap) => readonly [FRuleMap, RuleSet, Rule]
 
 const sequence = (list: FSequence): NewRule => map => {
     let result: Sequence = []
@@ -88,14 +81,14 @@ const data = (dr: DataRule): NewRule => {
     }
 }
 
-const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly[FRuleMap, RuleSet, string] =>  {
+const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly [FRuleMap, RuleSet, string] => {
     {
         const id = find(map)(fr)
         if (id !== undefined) {
             return [map, {}, id]
         }
     }
-    const [dr, tmpId]: readonly[DataRule, string] =
+    const [dr, tmpId]: readonly [DataRule, string] =
         typeof fr === 'function' ? [fr(), fr.name] : [fr, '']
     const newRule = data(dr)
     const id = newName(map, tmpId)
@@ -104,7 +97,7 @@ const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly[FRuleMap, RuleSet, st
     return [map2, { ...set, [id]: rule }, id]
 }
 
-export const toData = (fr: FRule): readonly[RuleSet, string] => {
+export const toData = (fr: FRule): readonly [RuleSet, string] => {
     const [, ruleSet, id] = toDataAdd({})(fr)
     return [ruleSet, id]
 }
