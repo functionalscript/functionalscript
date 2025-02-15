@@ -1,6 +1,6 @@
 import { type DjsToken, tokenize } from './djs/tokenizer/module.f.ts'
-import { parse } from './djs/parser/module.f.ts'
-import { djsModuleStringify } from './djs/serializer/module.f.ts'
+import { parseFromTokens } from './djs/parser/module.f.ts'
+import { stringify } from './djs/serializer/module.f.ts'
 import { toArray } from './types/list/module.f.ts'
 import { sort } from './types/object/module.f.ts'
 import { stringToList } from './text/utf16/module.f.ts'
@@ -11,7 +11,7 @@ const tokenizeString
     : (s: string) => readonly DjsToken[]
     = s => toArray(tokenize(stringToList(s)))
 
-const stringifyDjsModule = djsModuleStringify(sort)
+const stringifyDjsModule = stringify(sort)
 
 const args = process.argv.slice(2)
 
@@ -24,7 +24,7 @@ const inputFileName = args[0]
 const outputFileName = args[1]
 const input = fs.readFileSync(inputFileName).toString()
 const tokenList = tokenizeString(input)
-const djsModule = parse(tokenList)
+const djsModule = parseFromTokens(tokenList)
 switch (djsModule[0])
 {
     case 'ok': {

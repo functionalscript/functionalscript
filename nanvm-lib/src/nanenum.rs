@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::{marker::PhantomData, mem::forget};
 use std::rc::Rc;
 
@@ -156,7 +158,7 @@ mod test {
 
         impl Raw64 for P {
             const BIT_SIZE: u64 = 0;
-            unsafe fn from_raw64(v: u64) -> Self {
+            unsafe fn from_raw64(_: u64) -> Self {
                 Self()
             }
             unsafe fn into_raw64(self) -> u64 {
@@ -231,6 +233,6 @@ mod test {
         let x = Rc::new("hello");
         let m = NaNEnum::Else(x);
         let p = NaNEnumPack::pack(m);
-        let p1 = p.clone();
+        let _p1 = p.clone();
     }
 }
