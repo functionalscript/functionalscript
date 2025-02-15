@@ -172,7 +172,7 @@ export type Repeat<T> = readonly T[]
 export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
     toArray(listRepeat(some)(n))
 
-export const isEmpty = (rule: Rule) => {
+export const isEmpty = (rule: Rule): boolean => {
     const d = typeof rule === 'function' ? rule() : rule
     return d === '' || (d instanceof Array && d.length === 0)
 }
