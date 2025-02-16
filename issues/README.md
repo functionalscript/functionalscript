@@ -89,10 +89,15 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
-- [X] 50. Delete old `bigint.log2` benchmark tests. Leave only `str32log2` and `log2`.
 - [ ] [51-parser-structures.md](./51-parser-structures.md).
 - [ ] [52-poker.md](./52-poker.md).
 - [ ] 53. Use `--erasableSyntaxOnly`. https://devblogs.microsoft.com/typescript/announcing-typescript-5-8-beta/
+- [ ] [54-token-plus.md](./54-token-plus.md)
+- [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
+- [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
+- [ ] 57. https://github.com/Agoric/eslint-config-jessie
+- [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
+          2) Replace panic in BigUint::shl with returning an error code.
 
 ## Language Specification
 

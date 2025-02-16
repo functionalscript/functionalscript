@@ -1,6 +1,17 @@
-import { join0, none, option, range, repeat0, type Rule, set } from './module.f.ts'
+import {
+    join0Plus,
+    max,
+    none,
+    option,
+    range,
+    remove,
+    repeat,
+    repeat0Plus,
+    set,
+    type Rule
+} from './module.f.ts'
 
-const _classic = (): Rule => {
+export const classic = (): Rule => {
 
     const json = () => [element]
 
@@ -46,9 +57,9 @@ const _classic = (): Rule => {
     })
 
     const character: Rule = () => ({
-        0: 0x20_000021n,
-        1: 0x23_00005Bn,
-        2: 0x5D_10FFFFn,
+        0: 0x20_000021,
+        1: 0x23_00005B,
+        2: 0x5D_10FFFF,
         escape: ['\\', escape],
     })
 
@@ -82,7 +93,7 @@ const _classic = (): Rule => {
         onenine,
     })
 
-    const onenine = range('12')
+    const onenine = range('19')
 
     const fraction = () => ({
         none,
@@ -111,74 +122,66 @@ const _classic = (): Rule => {
     return json
 }
 
-const _deterministic = (): Rule => {
+export const deterministic = (): Rule => {
 
-    const onenine = range('12')
+    const onenine = range('19')
 
-    const digit: Rule = {
-        '0': '0',
-        onenine,
-    }
+    const digit: Rule = range('09')
 
-    const hex = {
-        digit,
-        AF: range('AF'),
-        af: range('af'),
-    }
+    const string = [
+        '"',
+        repeat0Plus({
+            ...remove(range(` ${max}`), set('"\\')),
+            escape: [
+                '\\',
+                {
+                    ...set('"\\/bfnrt'),
+                    u: [
+                        'u',
+                        ...repeat(4)({
+                            digit,
+                            AF: range('AF'),
+                            af: range('af'),
+                        })
+                    ],
+                }
+            ],
+        }),
+        '"'
+    ]
 
-    const escape = {
-        ...set('"\\/bfnrt'),
-        u: ['u', hex, hex, hex, hex],
-    }
-
-    const character: Rule = {
-        0: 0x20_000021n,
-        1: 0x23_00005Bn,
-        2: 0x5D_10FFFFn,
-        escape: ['\\', escape],
-    }
-
-    const characters = repeat0(character)
-
-    const string = ['"', characters, '"']
-
-    const digits0 = repeat0(digit)
+    const digits0 = repeat0Plus(digit)
 
     const digits = [digit, digits0]
 
-    const integer = [option('-'), {
-        '0': '0',
-        onenine: [onenine, digits0],
-    }]
+    const number = [
+        option('-'),
+        {
+            0: '0',
+            onenine: [onenine, digits0],
+        },
+        option(['.', digits]),
+        option([set('Ee'), option(set('+-')), digits])
+    ]
 
-    const fraction = option(['.', digits])
+    const ws = repeat0Plus(set(' \n\r\t'))
 
-    const sign = option(set('+-'))
-
-    const exponent = option([set('Ee'), sign, digits])
-
-    const number = [integer, fraction, exponent]
-
-    const ws = repeat0(set(' \n\r\t'))
+    const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+        open,
+        ws,
+        join0Plus([a, ws], [',', ws]),
+        close,
+    ]
 
     const value = () => ({
-        object,
-        array,
+        object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
+        array: commaJoin0Plus('[]', value),
         string,
         number,
         true: 'true',
         false: 'false',
         null: 'null'
     })
-
-    const commaJoin0 = ([open, close]: string, a: Rule) =>
-        [open, ws, join0([a, ws], [',', ws]), close]
-
-    const array = commaJoin0('[]', value)
-
-    const member = [string, ws, ':', ws, value]
-
-    const object = commaJoin0('{}', member)
 
     const json = [ws, value, ws]
 
