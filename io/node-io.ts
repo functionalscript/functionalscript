@@ -3,5 +3,5 @@ import fs from 'node:fs'
 
 export default {
     console,
-    fs
+    fs: fs
 } satisfies Io
