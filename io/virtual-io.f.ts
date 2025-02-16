@@ -8,5 +8,6 @@ export const createVirtualIo = (files: Map<string>): Io => ({
     fs: {
         writeFileSync: (_file: string, _data: string) => { },
         readFileSync: (path: string, _options: BufferEncoding) => { return at(path)(files) }
-    }
+    },
+    args: []
 })
