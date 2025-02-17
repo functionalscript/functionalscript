@@ -1,16 +1,15 @@
 import { sort } from '../../types/object/module.f.ts'
-import { at, setReplace, type Map } from '../../types/map/module.f.ts'
-import type { Fs } from '../io/module.f.ts'
+import { setReplace, type Map } from '../../types/map/module.f.ts'
 import { transpile } from './module.f.ts'
 import { stringify } from '../serializer/module.f.ts'
+import { createVirtualIo } from '../../io/virtual-io.f.ts'
+import type { Fs } from '../../io/module.f.ts'
 
-const virtualFs = (files: Map<string>): Fs => ({
-    readFileSync: (path: string) => at(path)(files),
-    writeFileSync: (path: string) => (content: string) => {
-        const map = setReplace(path)(content)(files)
-        return virtualFs(map)
+const virtualFs
+    :(map: Map<string>) => Fs 
+    = map => {
+        return createVirtualIo(map).fs
     }
-})
 
 export default {
     parse: () => {        
