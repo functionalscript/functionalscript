@@ -1,5 +1,6 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
+import { RangeMapArray } from '../../types/range_map/module.f.ts'
 import type {
     DataRule,
     Rule as FRule,
@@ -101,3 +102,14 @@ export const toData = (fr: FRule): readonly [RuleSet, string] => {
     const [, ruleSet, id] = toDataAdd({})(fr)
     return [ruleSet, id]
 }
+
+/**
+ * Either `{ variantItem: id }` or `id`.
+ */
+/*
+type DispatchRule = SingleProperty<> | string
+
+type Dispatch = RangeMapArray<DispatchRule>
+
+type DispatchMap = { readonly[id in string]: Dispatch }
+*/
