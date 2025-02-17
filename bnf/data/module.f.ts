@@ -1,6 +1,5 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { RangeMapArray } from '../../types/range_map/module.f.ts'
 import type {
     DataRule,
     Rule as FRule,
