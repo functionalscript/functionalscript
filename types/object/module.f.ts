@@ -27,10 +27,24 @@ export const fromMap: <T>(m: BtMap<T>) => Map<T>
 /**
  * A set of objects with a single key.
  *
- * See also https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
+ * See also
+ * https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
  */
 export type OneKey<K extends string, V> = {
     [P in K]: (Record<P, V> & Partial<Record<Exclude<K, P>, never>>) extends infer O
         ? { [Q in keyof O]: O[Q] }
         : never
 }[K];
+
+/**
+ * https://stackoverflow.com/questions/61112584/typing-a-single-record-entry
+ */
+export type NotUnion<T, U = T> =
+  T extends unknown ?
+    [U] extends [T] ? T
+    : never
+  : never;
+
+export type SingleProperty<T extends Record<string, never>> =
+  keyof T extends NotUnion<keyof T> ? T
+  : never;

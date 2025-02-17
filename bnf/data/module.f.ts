@@ -101,3 +101,14 @@ export const toData = (fr: FRule): readonly [RuleSet, string] => {
     const [, ruleSet, id] = toDataAdd({})(fr)
     return [ruleSet, id]
 }
+
+/**
+ * Either `{ variantItem: id }` or `id`.
+ */
+/*
+type DispatchRule = SingleProperty<> | string
+
+type Dispatch = RangeMapArray<DispatchRule>
+
+type DispatchMap = { readonly[id in string]: Dispatch }
+*/
