@@ -98,6 +98,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 57. https://github.com/Agoric/eslint-config-jessie
 - [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
           2) Replace panic in BigUint::shl with returning an error code.
+- [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
 
 ## Language Specification
 
