@@ -28,4 +28,22 @@ export const bold: string = sgr(1)
 export const fgRed: string = sgr(31)
 export const fgGreen: string = sgr(32)
 
+const { max } = Math
 
+const replace = (old: string) => (text: string) => {
+    const len = old.length
+    const suffixLength = max(0, len - text.length)
+    return backspace.repeat(len) + text + " ".repeat(suffixLength) + backspace.repeat(suffixLength)
+}
+
+export type Stdout = {
+    readonly write: (s: string) => void
+}
+
+export const createConsoleText = (stdout: Stdout) => {
+    const f = (old: string) => (text: string) => {
+        stdout.write(replace(old)(text))
+        return f(text)
+    }
+    return f('')
+}
