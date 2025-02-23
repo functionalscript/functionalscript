@@ -10,12 +10,13 @@
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
     "prepack": "npm run tsc-emit",
-    "test20": "npm run prepack && node --trace-uncaught ./dev/test.js",
-    "test22": "tsc && node --experimental-strip-types --trace-uncaught ./dev/test.ts",
-    "test": "tsc && node --trace-uncaught ./dev/test.ts",
-    "index": "node ./dev/index.ts",
-    "version": "node ./nodejs/version/main.ts",
-    "fsc": "node ./main.ts",
+    "n": "node --frozen-intrinsics --trace-uncaught",
+    "test20": "npm run prepack && npm run n ./dev/test.js",
+    "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test.ts",
+    "test": "tsc && npm run n ./dev/test.ts",
+    "index": "npm run n ./dev/index.ts",
+    "version": "npm run n ./nodejs/version/main.ts",
+    "fsc": "npm run n ./main.ts",
     "update": "npm run version && npm run index && npm install"
   },
   "repository": {
@@ -38,7 +39,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.13.4",
+    "@types/node": "^22.13.5",
     "typescript": "^5.7.3"
   }
 }
