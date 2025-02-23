@@ -17,6 +17,8 @@ export type Rule = Variant | Sequence | TerminalRange
 
 export type RuleSet = Readonly<Record<string, Rule>>
 
+//
+
 type FRuleMap = { readonly [k in string]: FRule }
 
 const { entries } = Object
@@ -101,3 +103,16 @@ export const toData = (fr: FRule): readonly [RuleSet, string] => {
     const [, ruleSet, id] = toDataAdd({})(fr)
     return [ruleSet, id]
 }
+
+// type Dispatch = RangeMapArray<string>;
+
+/**
+ * Either `{ variantItem: id }` or `id`.
+ */
+/*
+type DispatchRule = SingleProperty<> | string
+
+type Dispatch = RangeMapArray<DispatchRule>
+
+type DispatchMap = { readonly[id in string]: Dispatch }
+*/
