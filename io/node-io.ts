@@ -4,6 +4,6 @@ import process from "node:process";
 
 export default {
     console,
-    fs: fs,
-    args: process.argv
+    fs,
+    process
 } satisfies Io

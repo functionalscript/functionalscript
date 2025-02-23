@@ -18,7 +18,7 @@ const stringifyUnknown = stringify(sort)
 
 export const run: (io: Io) => void
  = io => {
-   const args = io.args.slice(2)
+   const args = io.process.argv.slice(2)
    if (args.length < 2) {
       io.console.log('Error: Requires 2 or more arguments');
       return;

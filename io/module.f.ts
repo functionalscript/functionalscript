@@ -12,5 +12,9 @@ export type Console = {
 export type Io = {
    readonly console: Console,
    readonly fs: Fs,
-   readonly args: string[]
+   readonly process: Process
+}
+
+export type Process = {
+   readonly argv: string[]
 }
