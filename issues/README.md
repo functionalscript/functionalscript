@@ -100,6 +100,7 @@ logic should be moved to a private free floating helper function (to keep public
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
 - [ ] 60. https://nodejs.org/download/release/v13.14.0/docs/api/cli.html#cli_frozen_intrinsics
+- [ ] 61. fix transpile import path
 
 ## Language Specification
 

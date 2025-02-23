@@ -6,10 +6,16 @@ export type Fs = {
 }
 
 export type Console = {
-   readonly log: (...d: unknown[]) => void
+   readonly log: (...d: unknown[]) => void,
+   readonly error: (...d: unknown[]) => void
 }
 
 export type Io = {
    readonly console: Console,
-   readonly fs: Fs
+   readonly fs: Fs,
+   readonly process: Process
+}
+
+export type Process = {
+   readonly argv: string[]
 }

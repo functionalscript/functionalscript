@@ -1,4 +1,4 @@
-import { type Fold } from "../types/function/operator/module.f.ts"
+import type { Fold } from "../types/function/operator/module.f.ts"
 import { type List, fold, last, take, length, concat as listConcat } from '../types/list/module.f.ts'
 import { join } from "../types/string/module.f.ts"
 import { concat as stringConcat } from '../types/string/module.f.ts'
@@ -10,9 +10,9 @@ const foldNormalizeOp: Fold<string, List<string>>
         case '..': {
             switch(last(undefined)(state)) {
                 case undefined:
-                case '..': { return listConcat(state)([input]) }
-                default: { return take(length(state) - 1)(state) }
+                case '..': { return listConcat(state)([input]) }                
             }
+            return take(length(state) - 1)(state)
         }
         default: { return listConcat(state)([input]) }
     }
@@ -20,7 +20,7 @@ const foldNormalizeOp: Fold<string, List<string>>
 
 export const normalize: (path: string) => string
 = path => {
-    const split = path.split('/')    
+    const split = path.replaceAll('\\', '/').split('/')
     const foldResult = fold(foldNormalizeOp)([])(split)
     return join('/')(foldResult)
 }
