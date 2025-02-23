@@ -3,11 +3,14 @@ import { at, type Map } from '../types/map/module.f.ts'
 
 export const createVirtualIo = (files: Map<string>): Io => ({
     console: {
-        log: (..._d: unknown[]) => {}
+        log: (..._d: unknown[]) => {},
+        error: (..._d: unknown[]) => {}
     },
     fs: {
         writeFileSync: (_file: string, _data: string) => { },
         readFileSync: (path: string, _options: BufferEncoding) => { return at(path)(files) }
     },
-    args: []
+    process: {
+        argv: []
+    }
 })
