@@ -109,10 +109,11 @@ File extensions: `.f.js` and `.f.mjs`.
 
 ### 3.3. Priority 3
 
-1. [ ] Regular Expressions
+1. [ ] Regular Expressions.
 2. [ ] [type inference](./3370-type-inference.md)
 3. [ ] [promise](./3380-promise.md)
 4. [ ] [class](./3390-class.md)
+5. [ ] Temporal classes.
 
 ### 3.4. Syntactic Sugar
 
@@ -130,9 +131,10 @@ File extensions: `.f.js` and `.f.mjs`.
    - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2:
-   One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`. 
+   One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`.
 4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
+6. [ ] [Temporal](https://github.com/tc39/proposal-temporal).
 
 ## 5. I/O
 
@@ -192,5 +194,5 @@ enum Value {
 }
 ```
 
-The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack). 
-    
+The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack).
+

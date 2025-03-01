@@ -10,7 +10,7 @@ const foldNormalizeOp: Fold<string, List<string>>
         case '..': {
             switch(last(undefined)(state)) {
                 case undefined:
-                case '..': { return listConcat(state)([input]) }
+                case '..': { return listConcat(state)([input]) }                
             }
             return take(length(state) - 1)(state)
         }
