@@ -21,19 +21,19 @@ export default {
         if (s !== '1') { throw s }
     },
     parseWithSubModule: () => {        
-        const map = setReplace('a')('import b from "b"\nexport default b')(null)
-        const map2 = setReplace('a/b')('export default 2')(map)
+        const map = setReplace('a/b')('import c from "c"\nexport default c')(null)
+        const map2 = setReplace('a/c')('export default 2')(map)
         const fs = virtualFs(map2)
-        const result = transpile(fs)('a')
+        const result = transpile(fs)('a/b')
         if (result[0] === 'error') { throw result[1] }
         const s = stringify(sort)(result[1])
         if (s !== '2') { throw s }
     },
     parseWithSubModules: () => {        
         const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
-        const map2 = setReplace('a/b')('import d from "../d"\nexport default [0,d]')(map)
-        const map3 = setReplace('a/c')('import d from "../d"\nexport default [1,d]')(map2)
-        const map4 = setReplace('a/d')('export default 2')(map3)
+        const map2 = setReplace('b')('import d from "d"\nexport default [0,d]')(map)
+        const map3 = setReplace('c')('import d from "d"\nexport default [1,d]')(map2)
+        const map4 = setReplace('d')('export default 2')(map3)
         const fs = virtualFs(map4)
         const result = transpile(fs)('a')
         if (result[0] === 'error') { throw result[1] }
@@ -49,8 +49,8 @@ export default {
     },
     parseWithCycleError: () => {        
         const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
-        const map2 = setReplace('a/b')('import c from "../c"\nexport default c')(map)
-        const map3 = setReplace('a/c')('import b from "../b"\nexport default b')(map2)        
+        const map2 = setReplace('b')('import c from "c"\nexport default c')(map)
+        const map3 = setReplace('c')('import b from "b"\nexport default b')(map2)        
         const fs = virtualFs(map3)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }
