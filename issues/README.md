@@ -1,6 +1,6 @@
 # Issues
 
-- [ ] [03-djs](./03-djs.md)
+- [X] [03-djs](./03-djs.md)
 - [ ] [05-publish](./05-publish.md)
 - [ ] 08. Move logic from `.ts` files to `.f.ts` files.
 - [ ] 09. Generating a Website.
