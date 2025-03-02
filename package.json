@@ -19,6 +19,7 @@
     "fsc": "npm run n ./main.ts",
     "update": "npm run version && npm run index && npm install"
   },
+  "bin": "main.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/functionalscript/functionalscript.git"
