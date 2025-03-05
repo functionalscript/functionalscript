@@ -39,7 +39,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.13.7",
+    "@types/node": "^22.13.9",
     "typescript": "^5.8.2"
   }
 }
