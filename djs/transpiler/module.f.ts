@@ -36,7 +36,8 @@ const transpileWithImports
     : (path: string) => (parseModuleResult: Result<AstModule, string>) => (context: ParseContext) => ParseContext
     = path => parseModuleResult => context => {
         if (parseModuleResult[0] === 'ok') {
-            const pathsCombine = listMap(pathConcat(path))(parseModuleResult[1][0])
+            const dir = pathConcat(path)('..')
+            const pathsCombine = listMap(pathConcat(dir))(parseModuleResult[1][0])
             const contextWithImports = fold(foldNextModuleOp)({ ... context, stack: { first: path, tail: context.stack } })(pathsCombine)
             if (contextWithImports.error !== null) {
                 return contextWithImports
