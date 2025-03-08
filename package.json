@@ -10,7 +10,7 @@
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
-    "prepare": "npm run tsc-emit",
+    "prepack": "npm run tsc-emit",
     "n": "node --frozen-intrinsics --trace-uncaught",
     "test20": "npm run tsc-emit && npm run n ./dev/test.js",
     "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test.ts",
@@ -40,7 +40,7 @@
     "url": "https://github.com/functionalscript/functionalscript/issues"
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
-  "devDependencies": {
+  "dependencies": {
     "@types/node": "^22.13.5",
     "typescript": "^5.7.3"
   }
