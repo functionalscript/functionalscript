@@ -4,6 +4,7 @@
   "type": "module",
   "files": [
     "main.js",
+    "io/node-io.js",
     "**/*.f.d.ts",
     "**/*.f.js"
   ],
