@@ -65,6 +65,9 @@ jobs:
     - run: npm pack
     - run: npm install -g ./*.tgz
     - run: functionalscript
+    - uses: actions/upload-artifact@v2
+      with:
+        path: ./*.tgz
 
   deno:
 
