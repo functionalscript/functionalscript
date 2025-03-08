@@ -3,15 +3,18 @@
   "version": "0.4.4",
   "type": "module",
   "files": [
+    "main.js",
+    "io/node-io.js",
     "**/*.f.d.ts",
     "**/*.f.js"
   ],
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
-    "prepack": "npm run tsc-emit",
     "n": "node --frozen-intrinsics --trace-uncaught",
-    "test20": "npm run prepack && npm run n ./dev/test.js",
+    "prepack": "npm run tsc-emit",
+    "git-clean": "git clean -xf",
+    "test20": "npm run tsc-emit && npm run n ./dev/test.js",
     "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test.ts",
     "test": "tsc && npm run n ./dev/test.ts",
     "index": "npm run n ./dev/index.ts",
@@ -19,6 +22,7 @@
     "fsc": "npm run n ./main.ts",
     "update": "npm run version && npm run index && npm install"
   },
+  "bin": "main.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/functionalscript/functionalscript.git"
@@ -39,7 +43,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.13.9",
+    "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   }
 }
