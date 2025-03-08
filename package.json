@@ -10,9 +10,9 @@
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
-    "prepack": "npm run tsc-emit",
+    "prepare": "npm run tsc-emit",
     "n": "node --frozen-intrinsics --trace-uncaught",
-    "test20": "npm run prepack && npm run n ./dev/test.js",
+    "test20": "npm run tsc-emit && npm run n ./dev/test.js",
     "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test.ts",
     "test": "tsc && npm run n ./dev/test.ts",
     "index": "npm run n ./dev/index.ts",
