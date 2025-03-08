@@ -3,6 +3,7 @@
   "version": "0.4.4",
   "type": "module",
   "files": [
+    "main.js",
     "**/*.f.d.ts",
     "**/*.f.js"
   ],
