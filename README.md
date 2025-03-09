@@ -31,7 +31,7 @@ FunctionalScript code can be used:
 
 - safely in any JavaScript/TypeScript application or library;
 - as a JSON with expressions, see [DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b);
-- as a query language,
+- as a query language;
 - as a smart contract programming language in DeFi.
 
 ## Design Principles
