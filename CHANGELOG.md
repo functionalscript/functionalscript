@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.5.0
+
+- `fsc` added as an executable into npm package [PR #396](https://github.com/functionalscript/functionalscript/pull/396)
+
 ## 0.4.3
 
 - Implementation of HMAC [PR #371](https://github.com/functionalscript/functionalscript/pull/371)

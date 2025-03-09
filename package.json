@@ -1,9 +1,9 @@
 {
   "name": "functionalscript",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "type": "module",
   "files": [
-    "main.js",
+    "fsc.js",
     "io/node-io.js",
     "**/*.f.d.ts",
     "**/*.f.js"
@@ -19,11 +19,11 @@
     "test": "tsc && npm run n ./dev/test.ts",
     "index": "npm run n ./dev/index.ts",
     "version": "npm run n ./nodejs/version/main.ts",
-    "fsc": "npm run n ./main.ts",
+    "fsc": "npm run n ./fsc.ts",
     "update": "npm run version && npm run index && npm install"
   },
   "bin": {
-    "fsc": "main.js"
+    "fsc": "fsc.js"
   },
   "repository": {
     "type": "git",
