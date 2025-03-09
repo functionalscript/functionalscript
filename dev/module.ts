@@ -113,9 +113,12 @@ export const index = async () => {
     const n = '/module.f.ts'
     const jsr_json = JSON.parse(await readFile(jj, { encoding: 'utf8' }))
     const list = Object.keys(await loadModuleMap()).filter(v => v.endsWith(n))
+    //console.log(list)
     const exportsA = list.filter(v => !v.startsWith('./out')).map(v => [v.replace(n, ''), `./${v.substring(2)}`])
+    // console.log(exportsA)
     const exports = Object.fromEntries(exportsA)
-    await writeFile(
-        jj,
-        JSON.stringify({ ...jsr_json, exports }, null, 2))
+    // console.log(exports)
+    const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
+    // console.log(json)
+    await writeFile(jj, json)
 }
