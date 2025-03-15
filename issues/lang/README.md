@@ -196,3 +196,6 @@ enum Value {
 
 The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack).
 
+## 6. Object Identity
+
+To build custom dictionaries when using functions as a key, we need either an object identifier (for hash map `O(1)`) or a proper comparison operator (for BTree map `O(log(n))`). The best option now is to use `<` and then use an array for items that satisfy `(a !== b) && !(a < b) && !(b > a)`.
