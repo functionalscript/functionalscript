@@ -9,11 +9,10 @@ When we implement features of FunctionalScript, the first priority is a simplifi
 
 File Types:
 
-|File Type|Extension        |Notes       |
-|---------|-----------------|------------|
-|JSON     |`.json`          |Not a graph.|
-|DJS      |`.d.js`, `.d.mjs`|A graph.    |
-|FJS      |`.f.js`, `.f.mjs`|Functions.  |
+|File Type|Extension       |Notes                |
+|---------|----------------|---------------------|
+|JSON     |`.json`         |Tree.                |
+|FJS      |`.f.js`, `.f.ts`|Graph with functions.|
 
 **Note**: An FJS value can't be serialized without additional run-time infrastructure.
 
