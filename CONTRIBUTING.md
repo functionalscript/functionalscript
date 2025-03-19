@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- [Node.JS v23.10](https://nodejs.org/en/download) or later is required for development.
+- [Node.JS](https://nodejs.org/en/download), version 23.10.0 or later is required for development.
 
 ### Installing Dependencies
 
