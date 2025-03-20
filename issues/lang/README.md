@@ -95,8 +95,9 @@ File extensions: `.f.js` and `.f.mjs`.
 ### 3.1. Required
 
 1. [ ] [function](./3110-function.md)
-2. [ ] [parameters](./3120-parameters.md)
-3. [ ] [body-const](./3130-body-const.md)
+2. [ ] [function-frame](./3111-function-frame.md)
+3. [ ] [parameters](./3120-parameters.md)
+4. [ ] [body-const](./3130-body-const.md)
 
 ### 3.2. Priority 2
 
