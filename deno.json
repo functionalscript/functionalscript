@@ -66,8 +66,7 @@
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
     "test": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test.ts",
-    "fsc": "deno run --allow-read --allow-write ./main.ts",
-    "version": "deno --allow-read --allow-write ./nodejs/version/main.ts"
+    "fsc": "deno run --allow-read --allow-write ./main.ts"
   },
   "fmt": {
     "indentWidth": 4,
