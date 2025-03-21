@@ -17,5 +17,5 @@ export type ModuleMap = {
    readonly[k in string]: Module
 }
 
-export const remove_tail = (v: readonly string[]) => (dif: number) =>
+export const remove_tail = (v: readonly string[]) => (dif: number): string[] =>
     v.slice(0, v.length - dif)
