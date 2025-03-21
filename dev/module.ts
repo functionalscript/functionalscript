@@ -1,30 +1,11 @@
 import { existsSync } from 'node:fs'
 import { readdir, writeFile, readFile } from 'node:fs/promises'
 import process from 'node:process'
+import { cmp, remove_tail, type Module, type ModuleMap, type UnknownMap } from './module.f.ts'
 
-type Module = {
-   readonly default?: unknown
+export type MutableModuleMap = {
+    [k in string]: Module
 }
-
-type UnknownMap = {
-   readonly[k in string]: unknown
-}
-
-type Entry<T> = readonly[string, T]
-
-const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>) =>
-    a < b ? -1 : a > b ? 1 : 0
-
-type MutableModuleMap = {
-   [k in string]: Module
-}
-
-type ModuleMap = {
-   readonly[k in string]: Module
-}
-
-const remove_tail = (v: readonly string[]) => (dif: number) =>
-    v.slice(0, v.length - dif)
 
 export const exit
     : (code: number) => never
