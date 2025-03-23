@@ -1,3 +1,5 @@
+import type { Sign } from '../types/function/compare/module.f.ts'
+
 export const todo = (): never => { throw 'not implemented' }
 
 export type Module = {
@@ -10,7 +12,7 @@ export type UnknownMap = {
 
 type Entry<T> = readonly[string, T]
 
-export const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>) =>
+export const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>): Sign =>
     a < b ? -1 : a > b ? 1 : 0
 
 export type ModuleMap = {
