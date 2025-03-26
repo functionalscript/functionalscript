@@ -36,7 +36,7 @@ export const env
                 r.value
     }
 
-export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync }, asyncImport }: Io) => {
+export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync }, asyncImport }: Io): Promise<ModuleMap> => {
     const load = async (): Promise<UnknownMap> => {
         const map
             : (readonly[string, unknown])[]
