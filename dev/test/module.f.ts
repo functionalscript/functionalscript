@@ -1,7 +1,8 @@
 import { entries, fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
 import type * as Result from '../../types/result/module.f.ts'
-
+import type { Io, Performance } from '../../io/module.f.ts'
+import { env, loadModuleMap } from '../module.f.ts'
 type DependencyMap = {
    readonly[k in string]?: Module
 }
@@ -54,7 +55,7 @@ const timeFormat = (a: number) => {
     return `${b}.${e} ms`
 }
 
-export default <T>(input: Input<T>): readonly[number, T] => {
+export const test = <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== void 0
     const f
@@ -123,4 +124,31 @@ export default <T>(input: Input<T>): readonly[number, T] => {
     state = log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)(state)
     state = log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)(state);
     return [ts.fail !== 0 ? 1 : 0, state]
+}
+
+export const anyLog = (f: (s: string) => void) => (s: string) => <T>(state: T): T => {
+    f(s)
+    return state
+}
+
+export const measure = (p: Performance) => <R>(f: () => R) => <T>(state: T): readonly[R, number, T] => {
+    const b = p.now()
+    const r = f()
+    const e = p.now()
+    return [r, e - b, state]
+}
+
+export const main = async(io: Io): Promise<number> => {
+    const moduleMap = await loadModuleMap(io)
+
+    const r = test({
+        moduleMap,
+        log: anyLog(console.log),
+        error: anyLog(console.error),
+        measure: measure(io.performance),
+        tryCatch: io.tryCatch,
+        env: env(io),
+        state: void 0,
+    })
+    return r[0]
 }

@@ -19,6 +19,12 @@ export const createVirtualIo = (files: Map<string>): Io => ({
     process: {
         argv: [],
         env: {},
+        exit: n => { throw n },
     },
-    asyncImport: () => Promise.reject()
+    asyncImport: () => Promise.reject(),
+    performance: {
+        now: () => 0,
+    },
+    tryCatch: f => ['ok', f()],
+    asyncTryCatch: async f => ['ok', await f()],
 })
