@@ -101,7 +101,7 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
     return build()
 }
 
-export const index = async (io: Io) => {
+export const index = async (io: Io): Promise<void> => {
     const jj = './deno.json'
     const n = '/module.f.ts'
     const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))
