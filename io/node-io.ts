@@ -5,5 +5,6 @@ import process from "node:process";
 export default {
     console,
     fs,
-    process
+    process,
+    asyncImport: v => import(v),
 } satisfies Io

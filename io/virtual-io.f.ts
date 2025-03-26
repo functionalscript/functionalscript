@@ -8,9 +8,17 @@ export const createVirtualIo = (files: Map<string>): Io => ({
     },
     fs: {
         writeFileSync: (_file: string, _data: string) => { },
-        readFileSync: (path: string, _options: BufferEncoding) => { return at(path)(files) }
+        readFileSync: (path: string, _options: BufferEncoding) => { return at(path)(files) },
+        existsSync: (path: string) => { return at(path)(files) !== null },
+        promises: {
+            readdir: (_path: string) => Promise.resolve([]),
+            readFile: (_path: string, _options: BufferEncoding) => Promise.resolve(''),
+            writeFile: (_path: string, _data: string, _options: BufferEncoding) => Promise.resolve(),
+        }
     },
     process: {
-        argv: []
-    }
+        argv: [],
+        env: {},
+    },
+    asyncImport: () => Promise.reject()
 })

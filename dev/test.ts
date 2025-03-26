@@ -1,5 +1,7 @@
-import { loadModuleMap, exit, env } from './module.ts'
+import { env, loadModuleMap } from './module.f.ts'
 import test from './test/module.f.ts'
+import { exit } from 'node:process'
+import io from '../io/node-io.ts'
 
 const anyLog = (f: (s: string) => void) => (s: string) => <T>(state: T): T => {
     f(s)
@@ -30,7 +32,7 @@ const measure = <R>(f: () => R) => <T>(state: T): readonly[R, number, T] => {
 
 // test runner.
 const main = async() => {
-    const moduleMap = await loadModuleMap()
+    const moduleMap = await loadModuleMap(io)
 
     const r = test({
         moduleMap,
@@ -38,7 +40,7 @@ const main = async() => {
         error: anyLog(console.error),
         measure,
         tryCatch,
-        env,
+        env: env(io),
         state: void 0,
     })
     exit(r[0])
