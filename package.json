@@ -21,6 +21,9 @@
     "fsc": "npm run n ./fsc.ts",
     "update": "npm run index && npm install"
   },
+  "engines": {
+    "node": ">=16"
+  },
   "bin": {
     "fsc": "fsc.js"
   },
