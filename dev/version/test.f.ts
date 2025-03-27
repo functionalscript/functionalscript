@@ -77,17 +77,12 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-const buffer: (s: string) => _.Buffer
-    = s => ({
-        toString: () => s
-    })
-
 export default () => {
     const node
         : _.Node<string>
         = {
         fs: {
-            readFileSync: n => buffer(JSON.stringify(x[n])),
+            readFileSync: n => JSON.stringify(x[n]),
             writeFileSync: (_, content) => content
         }
     }

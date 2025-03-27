@@ -1,5 +1,7 @@
 import type { Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
+import { updateVersion } from './version/module.f.ts'
+import type { Node } from './version/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -102,6 +104,7 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
 }
 
 export const index = async (io: Io): Promise<void> => {
+    updateVersion(io as Node<void>)
     const jj = './deno.json'
     const n = '/module.f.ts'
     const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))

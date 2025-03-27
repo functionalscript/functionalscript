@@ -1,7 +1,7 @@
 export type Buffer = object
 
 type Fs<T> = {
-   readonly readFileSync: (name: string) => Buffer
+   readonly readFileSync: (name: string, encoding: 'utf8') => string
    readonly writeFileSync: (name: string, content: string) => T
 }
 
@@ -18,7 +18,7 @@ export const getVersion
 const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
 const readJson: <T>(node: Fs<T>) => (name: string) => any
-    = fs => name => parse(fs.readFileSync(jsonFile(name)).toString())
+    = fs => name => parse(fs.readFileSync(jsonFile(name), 'utf8'))
 
 export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
     = ({ fs }) => {
