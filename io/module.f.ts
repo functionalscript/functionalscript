@@ -89,7 +89,7 @@ export type Env = {
  * Runs a function and exits the process with the returned code
  * Handles errors by exiting with code 1
  */
-export const run = async(io: Io, f: (io: Io) => Promise<number>) => {
-   const r = await io.asyncTryCatch(() => f(io))
-   io.process.exit(r[0] === 'error' ? 1 : r[1])
+export const run = async(io: Io, f: (io: Io) => Promise<number>): Promise<never>=> {
+   const [x, b] = await io.asyncTryCatch(() => f(io))
+   io.process.exit(x === 'error' ? 1 : b)
 }
