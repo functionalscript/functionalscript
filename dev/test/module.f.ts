@@ -138,17 +138,12 @@ export const measure = (p: Performance) => <R>(f: () => R) => <T>(state: T): rea
     return [r, e - b, state]
 }
 
-export const main = async(io: Io): Promise<number> => {
-    const moduleMap = await loadModuleMap(io)
-
-    const r = test({
-        moduleMap,
-        log: anyLog(console.log),
-        error: anyLog(console.error),
+export const main = async(io: Io): Promise<number> => test({
+        moduleMap: await loadModuleMap(io),
+        log: anyLog(io.console.log),
+        error: anyLog(io.console.error),
         measure: measure(io.performance),
         tryCatch: io.tryCatch,
         env: env(io),
         state: void 0,
-    })
-    return r[0]
-}
+    })[0]
