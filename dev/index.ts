@@ -1,4 +1,5 @@
 import { index } from "./module.f.ts"
 import io from '../io/node-io.ts'
+import { run } from '../io/module.f.ts'
 
-await index(io)
+await run(io)(index)

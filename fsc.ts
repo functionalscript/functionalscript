@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import io from './io/node-io.ts'
-import { run } from './djs/module.f.ts'
+import { run } from './io/module.f.ts'
+import { compile } from './djs/module.f.ts'
 
-run(io)
+await run(io)(compile)

@@ -103,7 +103,7 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
     return build()
 }
 
-export const index = async (io: Io): Promise<void> => {
+export const index = async (io: Io): Promise<number> => {
     updateVersion(io as Node<void>)
     const jj = './deno.json'
     const n = '/module.f.ts'
@@ -117,4 +117,5 @@ export const index = async (io: Io): Promise<void> => {
     const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
     // console.log(json)
     await io.fs.promises.writeFile(jj, json, 'utf8')
+    return 0
 }
