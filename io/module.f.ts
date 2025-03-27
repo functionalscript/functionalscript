@@ -85,11 +85,13 @@ export type Env = {
    readonly [k: string]: string|undefined
 }
 
+export type Run = (f: (io: Io) => Promise<number>) => Promise<never>
+
 /**
  * Runs a function and exits the process with the returned code
  * Handles errors by exiting with code 1
  */
-export const run = (io: Io) => {
+export const run = (io: Io): Run => {
    const code = ([x, b]: Result<number, unknown>) => {
       if (x === 'error') {
          io.console.error(x[1])
@@ -98,6 +100,5 @@ export const run = (io: Io) => {
          return b
       }
    }
-   return async (f: (io: Io) => Promise<number>): Promise<never>=>
-      io.process.exit(code(await io.asyncTryCatch(() => f(io))))
+   return async f => io.process.exit(code(await io.asyncTryCatch(() => f(io))))
 }
