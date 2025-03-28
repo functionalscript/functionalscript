@@ -18,9 +18,11 @@
     "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test.ts",
     "test": "tsc && npm run n ./dev/test.ts",
     "index": "npm run n ./dev/index.ts",
-    "version": "npm run n ./nodejs/version/main.ts",
     "fsc": "npm run n ./fsc.ts",
-    "update": "npm run version && npm run index && npm install"
+    "update": "npm run index && npm install"
+  },
+  "engines": {
+    "node": ">=16"
   },
   "bin": {
     "fsc": "fsc.js"
@@ -45,7 +47,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.13.10",
+    "@types/node": "^22.13.13",
     "typescript": "^5.8.2"
   }
 }
