@@ -1,5 +1,4 @@
 import { main } from './test/module.f.ts'
-import { run } from '../io/module.f.ts'
-import io from '../io/node-io.ts'
+import node from '../io/node.ts'
 
-await run(io)(main)
+await node(main)

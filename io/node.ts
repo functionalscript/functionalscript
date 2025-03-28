@@ -1,8 +1,8 @@
-import type { Io } from './module.f.ts'
+import { type Io, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from "node:process"
 
-export default {
+export const io: Io = {
     console,
     fs,
     process,
@@ -22,4 +22,6 @@ export default {
             return ['error', e]
         }
     },
-} satisfies Io
+}
+
+export default run(io)
