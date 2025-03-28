@@ -25,7 +25,6 @@ jobs:
         with:
           deno-version: 2
       - run: npm ci
-      - run: npm run version
       - run: npm run index
       - run: npm publish
         continue-on-error: true

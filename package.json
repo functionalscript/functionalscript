@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "files": [
     "fsc.js",
@@ -47,7 +47,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.13.13",
+    "@types/node": "^22.13.14",
     "typescript": "^5.8.2"
   }
 }

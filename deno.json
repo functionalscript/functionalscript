@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "license": "AGPL-3.0-only",
   "exports": {
     "./bnf/data": "./bnf/data/module.f.ts",
