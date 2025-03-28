@@ -1,3 +1,4 @@
-import { index } from "./module.ts"
+import { index } from "./module.f.ts"
+import node from '../io/node.ts'
 
-index()
+await node(index)

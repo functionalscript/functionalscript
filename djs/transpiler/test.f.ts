@@ -2,17 +2,17 @@ import { sort } from '../../types/object/module.f.ts'
 import { setReplace, type Map } from '../../types/map/module.f.ts'
 import { transpile } from './module.f.ts'
 import { stringify } from '../serializer/module.f.ts'
-import { createVirtualIo } from '../../io/virtual-io.f.ts'
+import { createVirtualIo } from '../../io/virtual.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 
 const virtualFs
-    :(map: Map<string>) => Fs 
+    :(map: Map<string>) => Fs
     = map => {
         return createVirtualIo(map).fs
     }
 
 export default {
-    parse: () => {        
+    parse: () => {
         const map = setReplace('a')('export default 1')(null)
         const fs = virtualFs(map)
         const result = transpile(fs)('a')
@@ -20,7 +20,7 @@ export default {
         const s = stringify(sort)(result[1])
         if (s !== '1') { throw s }
     },
-    parseWithSubModule: () => {        
+    parseWithSubModule: () => {
         const map = setReplace('a/b')('import c from "c"\nexport default c')(null)
         const map2 = setReplace('a/c')('export default 2')(map)
         const fs = virtualFs(map2)
@@ -29,7 +29,7 @@ export default {
         const s = stringify(sort)(result[1])
         if (s !== '2') { throw s }
     },
-    parseWithSubModules: () => {        
+    parseWithSubModules: () => {
         const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
         const map2 = setReplace('b')('import d from "d"\nexport default [0,d]')(map)
         const map3 = setReplace('c')('import d from "d"\nexport default [1,d]')(map2)
@@ -40,17 +40,17 @@ export default {
         const s = stringify(sort)(result[1])
         if (s !== '[[0,2],[1,2],[0,2]]') { throw s }
     },
-    parseWithFileNotFoundError: () => {        
+    parseWithFileNotFoundError: () => {
         const map = setReplace('a')('import b from "b"\nexport default b')(null)
         const fs = virtualFs(map)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }
         if (result[1] !== 'file not found') { throw result }
     },
-    parseWithCycleError: () => {        
+    parseWithCycleError: () => {
         const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
         const map2 = setReplace('b')('import c from "c"\nexport default c')(map)
-        const map3 = setReplace('c')('import b from "b"\nexport default b')(map2)        
+        const map3 = setReplace('c')('import b from "b"\nexport default b')(map2)
         const fs = virtualFs(map3)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }
