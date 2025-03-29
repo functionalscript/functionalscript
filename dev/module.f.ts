@@ -9,9 +9,9 @@ export type Module = {
     readonly default?: unknown
 }
 
-export type UnknownMap = {
-    readonly[k in string]: unknown
-}
+//export type UnknownMap = {
+//    readonly[k in string]: unknown
+//}
 
 type Entry<T> = readonly[string, T]
 
@@ -38,10 +38,10 @@ export const env
                 r.value
     }
 
-type ModuleArray = readonly (readonly[string, unknown])[]
+type ModuleArray = readonly (readonly[string, Module])[]
 
 export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync }, asyncImport }: Io): Promise<ModuleMap> => {
-    const load = async (): Promise<UnknownMap> => {
+    const load = async (): Promise<ModuleMap> => {
         const f
             : (path: string) => Promise<ModuleArray>
             = async p => {
@@ -59,7 +59,7 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
                         (name.endsWith('.f.ts') && !existsSync(file.substring(0, file.length - 3) + '.js'))
                     ) {
                         const source = await asyncImport(`../${file}`)
-                        map = [...map, [file, source.default]]
+                        map = [...map, [file, source]]
                     }
                 }
             }
@@ -68,38 +68,7 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
         return Object.fromEntries((await f('.')).toSorted(cmp))
     }
 
-    const map = await load()
-
-    const build = (): ModuleMap => {
-        const d: MutableModuleMap = {}
-        const getModule = (base: readonly string[]) => (k: string): readonly[string, Module] => {
-            const relativePath = k.split('/')
-            const dif = relativePath.filter(v => v === '..').length
-            const path = [remove_tail(base)(dif), relativePath.filter(v => !['..', '.'].includes(v))]
-                .flat()
-            const pathStr = path.join('/')
-            {
-                const module = d[pathStr]
-                if (module !== void 0) {
-                    return [pathStr, module]
-                }
-            }
-            {
-                const module = { default: map[pathStr] }
-                d[pathStr] = module
-                return [pathStr, module]
-            }
-        }
-        {
-            const get = getModule(['.'])
-            for (const k of Object.keys(map)) {
-                get(k)
-            }
-        }
-        return d
-    }
-
-    return build()
+    return await load()
 }
 
 export const index = async (io: Io): Promise<number> => {
