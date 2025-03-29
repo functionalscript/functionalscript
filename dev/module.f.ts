@@ -11,19 +11,15 @@ export type Module = {
 
 type Entry<T> = readonly[string, T]
 
-export const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>): Sign =>
+const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>): Sign =>
     a < b ? -1 : a > b ? 1 : 0
 
 export type ModuleMap = {
    readonly[k in string]: Module
 }
 
-export const remove_tail = (v: readonly string[]) => (dif: number): string[] =>
-    v.slice(0, v.length - dif)
-
-export type MutableModuleMap = {
-    [k in string]: Module
-}
+//const remove_tail = (v: readonly string[]) => (dif: number): string[] =>
+//    v.slice(0, v.length - dif)
 
 export const env
     : (io: Io) => (v: string) => string|undefined
@@ -36,7 +32,13 @@ export const env
 
 type ModuleArray = readonly (readonly[string, Module])[]
 
-export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync }, asyncImport }: Io): Promise<ModuleMap> => {
+export const loadModuleMap = async ({
+    fs: {
+        promises: { readdir },
+        existsSync
+    },
+    asyncImport
+}: Io): Promise<ModuleMap> => {
     const load = async (): Promise<ModuleMap> => {
         const f
             : (path: string) => Promise<ModuleArray>

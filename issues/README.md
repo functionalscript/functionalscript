@@ -99,8 +99,9 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
-- [X] 60. https://nodejs.org/download/release/v13.14.0/docs/api/cli.html#cli_frozen_intrinsics
 - [X] 61. fix transpile import path
+- [ ] 62. `fsc` should be able to detect and parse JSON.
+- [ ] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
 
 ## Language Specification
 
