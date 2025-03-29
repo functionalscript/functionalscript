@@ -9,20 +9,16 @@ on:
     - master
   pull_request:
 
+# See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 jobs:
   node20:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [20]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 20
     - run: npm ci
     - run: npm run test20
 
