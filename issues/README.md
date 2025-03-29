@@ -2,15 +2,15 @@
 
 - [X] [03-djs](./03-djs.md)
 - [ ] [05-publish](./05-publish.md)
-- [ ] 08. Move logic from `.ts` files to `.f.ts` files.
+- [X] 08. Move logic from `.ts` files to `.f.ts` files.
 - [ ] 09. Generating a Website.
 - [ ] 10. Short URL table.
 - [ ] [11-fs-load](./11-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
-- [ ] 14. Combine `npm run index` and `npm run version`
+- [X] 14. Combine `npm run index` and `npm run version`
 - [ ] 16. License in JSR file?
 - [ ] [17-djs-extension](./17-djs-extension.md).
-- [ ] 18. Formatter for `.f.js` and `.f.ts` files.
+- [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] 20. Test framework should be able to run a subset of tests.
 - [ ] 21. Test Framework silent mode. Show progress and failed tests only.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
@@ -91,7 +91,6 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
 - [ ] [51-parser-structures.md](./51-parser-structures.md).
 - [ ] [52-poker.md](./52-poker.md).
-- [X] 53. Use `--erasableSyntaxOnly`. https://devblogs.microsoft.com/typescript/announcing-typescript-5-8-beta/
 - [ ] [54-token-plus.md](./54-token-plus.md)
 - [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
 - [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
