@@ -9,29 +9,24 @@ We are targeting the following systems:
 - Rust:
   - [ ] https://crates.io/
 
-The main principle is that we should be able to install FunctionalScript from Git/GitHub. Currently,
+Currently,
 
-- `NPM` works with Git links and `.mjs` files.
+- FunctionalScript can't be installed from Git using `NPM`.
 - `JSR`. Unfortunately, JSR doesn't support JSDoc type information, see [jsr-io/jsr/issues/494](https://github.com/jsr-io/jsr/issues/494).
 - Browsers. `import * from 'https://...'`.
-
-We have two options:
-
-- Continue to use JavaScript source files and generate JSR package before publishing,
-- Switch to TypeScript source files and write [prepack](https://docs.npmjs.com/cli/v7/using-npm/scripts) script. TS files could be a problem for our parser because it doesn't strip type annotations yet.
 
 This problem will go away as soon as ECMAScript supports for [Type Annotations](https://github.com/tc39/proposal-type-annotations).
 
 ## Updating Packages
 
-Currently, we regenerate `exports` in [./jsr.json](./index.f.mjs) using `npm run index` during CD (publishing) and `version` using `npm run version`. We should combine it into `update` script.
+Currently, we regenerate `exports` in [./jsr.json](./index.f.ts) using `npm run update` during CD (publishing).
 
 We don't check in CI if it was regenerated. The idea is that CI should check if all generated files in Git are updated:
 
-- [package.json](./package.json) `version` property
-- [jsr.json](./jsr.json), `version` and `exports` property.
+- [package.json](./package.json) `version` property.
+- [deno.json](./deno.json), `version` and `exports` property.
 
-`version` property should be the same in `package.json` and `jsr.json`.
+`version` property should be the same in `package.json` and `deno.json`.
 
 We abandoned the idea to publish on every commit on `main`. Instead, we publish only when there is an new version in the `main`. This strategy can also work for Rust packages.
 

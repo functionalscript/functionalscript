@@ -1,6 +1,6 @@
 # Documentation
 
-FunctionalScript files have `.f.mjs` file extensions because it's using the ES module system.
+FunctionalScript files have `.f.js` or `.f.ts` file extensions.
 
 ## 1. Language
 
@@ -23,7 +23,7 @@ export default x => x * x
 #### 1.2.1. Local File
 
 ```js
-import x from './folder/main.f.mjs'
+import x from './folder/main.f.js'
 ```
 
 ### 1.2.2. External Module
@@ -31,7 +31,7 @@ import x from './folder/main.f.mjs'
 Run `npm install -D github:USER/REPO`
 
 ```js
-import x from `REPO/DIR/FILE.f.mjs`
+import x from `REPO/DIR/FILE.f.js`
 ```
 
 ### 1.3. Functions

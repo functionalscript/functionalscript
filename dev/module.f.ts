@@ -9,10 +9,6 @@ export type Module = {
     readonly default?: unknown
 }
 
-//export type UnknownMap = {
-//    readonly[k in string]: unknown
-//}
-
 type Entry<T> = readonly[string, T]
 
 export const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>): Sign =>
@@ -54,8 +50,7 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
                         map = [...map, ...await f(file)]
                         continue
                     }
-                    if (name.endsWith('.f.mjs') ||
-                        name.endsWith('.f.js') ||
+                    if (name.endsWith('.f.js') ||
                         (name.endsWith('.f.ts') && !existsSync(file.substring(0, file.length - 3) + '.js'))
                     ) {
                         const source = await asyncImport(`../${file}`)
