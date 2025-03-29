@@ -29,8 +29,15 @@ const countRefsOp
                 if (djs === null) { return refs }
                 if (djs === undefined) { return refs }
                 if (djs instanceof Array) {
+                    if (refs.has(djs))
+                        return addRef(djs)(refs)
+
                     return fold(countRefsOp)(addRef(djs)(refs))(djs)
                 }
+
+                if (refs.has(djs))
+                    return addRef(djs)(refs)
+
                 return fold(countRefsOp)(addRef(djs)(refs))(map(entryValue)(entries(djs)))
             }
         }
