@@ -12,10 +12,7 @@ type Entry = O.Entry<djs.Unknown>
 
 const entryValue
     : (kv: readonly[string, djs.Unknown]) => djs.Unknown
-    = kv =>
-    {
-        return kv[1]
-    }
+    = kv => kv[1]
 
 const countRefsOp
     :Fold<djs.Unknown, Map<djs.Unknown, RefCounter>>
