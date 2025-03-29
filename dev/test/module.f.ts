@@ -2,17 +2,10 @@ import { entries, fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
 import type * as Result from '../../types/result/module.f.ts'
 import type { Io, Performance } from '../../io/module.f.ts'
-import { env, loadModuleMap } from '../module.f.ts'
+import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
+
 type DependencyMap = {
    readonly[k in string]?: Module
-}
-
-type Module = {
-   readonly default?: unknown
-}
-
-type ModuleMap = {
-   readonly[k in string]: Module
 }
 
 type Log<T> = (v: string) => (state: T) => T
@@ -29,7 +22,7 @@ type Input<T> = {
     readonly env: (n: string) => string|undefined
  }
 
-const isTest = (s: string) => s.endsWith('test.f.mjs') || s.endsWith('test.f.js') || s.endsWith('test.f.ts')
+const isTest = (s: string) => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
 type TestState = {
     readonly time: number,
@@ -57,7 +50,7 @@ const timeFormat = (a: number) => {
 
 export const test = <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
-    const isGitHub = env('GITHUB_ACTION') !== void 0
+    const isGitHub = env('GITHUB_ACTION') !== undefined
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
@@ -145,5 +138,5 @@ export const main = async(io: Io): Promise<number> => test({
         measure: measure(io.performance),
         tryCatch: io.tryCatch,
         env: env(io),
-        state: void 0,
+        state: undefined,
     })[0]

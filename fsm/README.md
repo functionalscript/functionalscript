@@ -99,15 +99,15 @@ const result = [
 
 ## How to Add a Property # 1
 
-```js
+```ts
 const a = { x: 5, y: 6 }
 const b = { ...a, z: 7 }
 ```
 
 ## How to Add a Property # 2
 
-```js
-import map from './types/map/module.f.mjs'
+```ts
+import map from './types/map/module.f.ts'
 const a = map.fromEntries(Object.entries({ x: 5, y: 6 }))
 const b = map.setReplace('z')(7)(a)
 ```

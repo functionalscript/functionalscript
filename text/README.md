@@ -34,14 +34,11 @@ Total error states:
 - 34_432
 - < 2^16
 
-### utf8/module.f.mjs
+### utf8/module.f.ts
 
-```js
-/** @type {(input: List<u8|null>) => List<i32>} */
-const toCodePointList
-
-/** @type {(input: List<i32>) => List<u8>} */
-const fromCodePointList
+```ts
+const toCodePointList: (input: List<u8|null>) => List<i32>
+const fromCodePointList: (input: List<i32>) => List<u8>
 ```
 
 ## UTF-16
@@ -69,20 +66,13 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 
 Total error states: 11 bit
 
-### utf16/module.f.mjs
+### utf16/module.f.ts
 
-```js
-/** @type {(input: List<u16|null>) => List<i32>} */
-const toCodePointList
-
-/** @type {(input: List<i32>) => List<u16>} */
-const fromCodePointList
-
-/** @type {(input: string) => List<u16>} */
-const stringToList
-
-/** @type {(input: List<u16>) => string} */
-const listToString
+```ts
+const toCodePointList : List<u16|null>) => List<i32>
+const fromCodePointList: (input: List<i32>) => List<u16>
+const stringToList: (input: string) => List<u16>
+const listToString: (input: List<u16>) => string
 ```
 
 UTF-16 => CP => UTF-8 => CP = UTF-16

@@ -10,7 +10,7 @@ Principles:
 FunctionalScript uses ESM conventions as a module ecosystem. For example,
 
 ```js
-import thirdPartyModule from 'third-party-package/module'
+import thirdPartyModule from 'third-party-package/module.js'
 
 const result = thirdPartyModule.someFunction('hello')
 ```
@@ -38,9 +38,9 @@ npm install -S github:functionalscript/functionalscript
 
 ## 3. Module Structure
 
-A module is a file with the `.js` extension. It contains three parts: references to other modules, definitions, and exports. For example
+A module is a file with the `.f.js` extension. It contains three parts: references to other modules, definitions, and exports. For example
 
-`./first.f.mjs`
+`./first.f.js`
 ```js
 // 1. references
 import math from 'math'
@@ -60,10 +60,10 @@ export default {
 }
 ```
 
-`./second.f.mjs`
+`./second.f.js`
 ```js
 // 1. references
-import first from './first.f.mjs'
+import first from './first.f.js'
 
 // 2. definitions
 const _42plus7 = first.add42(7)
@@ -81,7 +81,7 @@ The format of references is `import ANYNAME from 'PATH_TO_A_MODULE'`. For exampl
 ```js
 import math from 'math'
 import algebra from 'math/algebra'
-import localFile from '../some-directory/some-file.f.mjs'
+import localFile from '../some-directory/some-file.f.js'
 ```
 
 ## 5. Definitions

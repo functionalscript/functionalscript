@@ -38,8 +38,6 @@ We are introducing new commands in such a way that every new command depends onl
 
 The DJS form a graph of values. It can be serialized without additional run-time information.
 
-File extensions: `.d.js` and `.d.mjs`.
-
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
 |DJS   |const_ref               | 07|u32       |[const](./2120-const.md)                        |
@@ -85,8 +83,6 @@ We need it to use JSDoc and TypeScript.
 ## 3. FJS
 
 The FJS can have functions. The format requires additional run-time information for serialization.
-
-File extensions: `.f.js` and `.f.mjs`.
 
 |format|any     |Tag|    |Notes                           |
 |------|--------|---|----|--------------------------------|
@@ -217,3 +213,39 @@ const my = () => {
 ```
 
 Other stages may include passing mutable objects as parameters.
+
+Implementing IO using mutable objects with ownership tracking:
+
+```ts
+type Io<S> = {
+    readonly consoleLog: (s: S, msg: string) => void
+    // ...
+}
+```
+
+Or immutable
+
+```ts
+type Io<S> = {
+    readonly consoleLog: (s: S, msg: string) => S
+    // ...
+}
+```
+
+With class supports, mutability state can be encapsulate with methods into one class:
+
+```ts
+class VirtualIo {
+   #buffer = []
+   function log(s: string) {
+      this.#buffer.push(s)
+   }
+   function reset(x: readonly string[]) {
+      // note, that we have to do a deep clone.
+      this.#buffer = []
+      for (const i of x) {
+         this.#buffer.push(i)
+      }
+   }
+}
+```
