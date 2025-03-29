@@ -3,12 +3,12 @@
 We need it to import types from other modules.
 
 ```js
-import * as A from './a.d.mjs'
+import * as A from './a.f.js'
 /** @type {A.Type} */
 export default [5]
 ```
 
-Where `./a.d.mjs` may look like this:
+Where `./a.f.js` may look like this:
 
 ```js
 // this type can be used in other modules

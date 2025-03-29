@@ -9,8 +9,7 @@
 
 ## Next steps
 
-- [ ] rename `fjson` to `djs` (data javascript), File extensions: `.d.mjs`, `.d.js`.
-- [x] use JS tokenizer 
+- [x] use JS tokenizer
 - [x] identifiers `{a:5}`
 - [x] big int
 - [ ] `export default ...`
@@ -26,7 +25,7 @@
   ```
 - [ ] import
   ```js
-  import a from 'c.d.mjs'
+  import a from 'c.d.js'
   export default { a: a, b: a}
   ```
 - [ ] short form
@@ -41,7 +40,7 @@ Optional, for fun, syntax sugar:
 - [ ] double/single quote strings
 
 ## Decidable Language
-  
+
 - [ ] using operator and functions
   ```js
   const a = 2+2+Math.abs(5)

@@ -38,8 +38,6 @@ We are introducing new commands in such a way that every new command depends onl
 
 The DJS form a graph of values. It can be serialized without additional run-time information.
 
-File extensions: `.d.js` and `.d.mjs`.
-
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
 |DJS   |const_ref               | 07|u32       |[const](./2120-const.md)                        |
@@ -85,8 +83,6 @@ We need it to use JSDoc and TypeScript.
 ## 3. FJS
 
 The FJS can have functions. The format requires additional run-time information for serialization.
-
-File extensions: `.f.js` and `.f.mjs`.
 
 |format|any     |Tag|    |Notes                           |
 |------|--------|---|----|--------------------------------|

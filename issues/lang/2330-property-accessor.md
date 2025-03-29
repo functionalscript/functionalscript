@@ -195,7 +195,7 @@ struct InstanceMethodCall {
 ```
 
 ```js
-import m from './m.f.mjs'
+import m from './m.f.js'
 const a = [2, 3]
 export default {
     "a": a[0],

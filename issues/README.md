@@ -14,9 +14,9 @@
 - [ ] 20. Test framework should be able to run a subset of tests.
 - [ ] 21. Test Framework silent mode. Show progress and failed tests only.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
-- [ ] 24. create `./main.ts` that supports the same behavior as current NaNVM Rust implementation:
-    - [ ] run `node ./main.ts input.f.mjs output.f.mjs`
-    - [ ] run `deno ./main.ts input.f.mjs output.f.mjs`
+- [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
+    - [ ] run `node ./fsc.ts input.f.js output.f.js`
+    - [ ] run `deno ./fsc.ts input.f.js output.f.js`
 - [ ] 27. Test Framework parses non-default export.
 - [ ] 28. Make a distinction between unit tests, examples, and API tests.
     - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
