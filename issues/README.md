@@ -102,6 +102,12 @@ logic should be moved to a private free floating helper function (to keep public
 - [X] 61. fix transpile import path
 - [ ] 62. `fsc` should be able to detect and parse JSON.
 - [ ] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
+- [ ] 64. Implement IO as mutable
+      ```ts
+      type Io<S> = {
+          readonly log: (s: S, msg: string) => void
+      }
+      ```
 
 ## Language Specification
 
