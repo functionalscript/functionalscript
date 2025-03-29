@@ -38,20 +38,20 @@ export const env
                 r.value
     }
 
+type ModuleArray = readonly (readonly[string, unknown])[]
+
 export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync }, asyncImport }: Io): Promise<ModuleMap> => {
     const load = async (): Promise<UnknownMap> => {
-        const map
-            : (readonly[string, unknown])[]
-            = []
         const f
-            : (path: string) => Promise<void>
+            : (path: string) => Promise<ModuleArray>
             = async p => {
+            let map: ModuleArray = []
             for (const i of await readdir(p, { withFileTypes: true })) {
                 const { name } = i
                 if (!name.startsWith('.')) {
                     const file = `${p}/${name}`
                     if (i.isDirectory()) {
-                        await f(file)
+                        map = [...map, ...await f(file)]
                         continue
                     }
                     if (name.endsWith('.f.mjs') ||
@@ -59,14 +59,13 @@ export const loadModuleMap = async ({ fs: { promises: { readdir }, existsSync },
                         (name.endsWith('.f.ts') && !existsSync(file.substring(0, file.length - 3) + '.js'))
                     ) {
                         const source = await asyncImport(`../${file}`)
-                        map.push([file, source.default])
+                        map = [...map, [file, source.default]]
                     }
                 }
             }
+            return map
         }
-        await f('.')
-        map.sort(cmp)
-        return Object.fromEntries(map)
+        return Object.fromEntries((await f('.')).toSorted(cmp))
     }
 
     const map = await load()
