@@ -31,14 +31,13 @@ const countRefsOp
                 if (djs instanceof Array) {
                     if (refs.has(djs))
                         return addRef(djs)(refs)
-
-                    return fold(countRefsOp)(addRef(djs)(refs))(djs)
+                    return addRef(djs)(fold(countRefsOp)(refs)(djs))
                 }
 
                 if (refs.has(djs))
                     return addRef(djs)(refs)
 
-                return fold(countRefsOp)(addRef(djs)(refs))(map(entryValue)(entries(djs)))
+                return addRef(djs)(fold(countRefsOp)(refs)(map(entryValue)(entries(djs))))
             }
         }
 }
