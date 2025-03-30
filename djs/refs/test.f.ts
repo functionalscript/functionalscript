@@ -1,4 +1,4 @@
-import { countRefs } from './module.f.ts'
+import { countRefs, serializeWithConstants } from './module.f.ts'
 import * as list from '../../types/object/module.f.ts'
 const { sort } = list
 import * as serializer from '../serializer/module.f.ts'
@@ -45,5 +45,11 @@ export default {
         if (refsObj !== '[2,2]') { throw refsObj }
         const refsRoot = stringify(refs.get(djs))
         if (refsRoot !== '[3,1]') { throw refsRoot }    
-    }
+    },
+    testSerialization: () => {
+        const obj = {"a": 1, "b": 2}
+        const djs = [obj, obj, 1]
+        const res = serializeWithConstants(sort)(djs)
+        if (res !== '') { throw res }
+    }    
 }

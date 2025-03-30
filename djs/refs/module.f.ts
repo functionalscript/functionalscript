@@ -11,7 +11,6 @@ const { compose, fn } = f
 import * as bi from '../../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as serializer from '../../json/serializer/module.f.ts'
-import { todo } from '../../dev/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = serializer
 
 const colon = [':']
@@ -153,19 +152,19 @@ export const serializeWithConstants
     : (sort: MapEntries) => (djs: djs.Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)
-        const consts = getConstants(refs)(djs)
-        const constEntries = listEntries(consts)
+        const consts = getConstants(refs)(djs)        
         const constSerialize
-            : (entry: ListEntry<djs.Unknown>) => List<string>
+            : (entry: djs.Unknown) => List<string>
             = entry => {
                 const refCounter = refs.get(entry)
                 if (refCounter === undefined)
                 {
+                    console.log(entry)
                     throw 'unexpected behaviour'                    
                 }
-                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(djs), ['\n']])
+                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(entry), ['\n']])
             }
-        const constStrings = flatMap(constSerialize)(constEntries)
+        const constStrings = flatMap(constSerialize)(consts)
         const rootStrings = listConcat(['export default '])(serialize(sort)(refs)(djs))
         return concat(listConcat(constStrings)(rootStrings))
     }
