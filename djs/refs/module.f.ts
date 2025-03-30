@@ -93,8 +93,8 @@ const serialize
         if (value !== root)
         {
             const refCounter = refs.get(value)
-            if (refCounter !== undefined)
-            {
+            if (refCounter !== undefined && refCounter[1] > 1)
+            {                
                 return [`c${refCounter[0]}`]
             }      
         }
