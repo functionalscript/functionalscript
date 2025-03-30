@@ -2,9 +2,9 @@ import type * as djs from '../module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.ts'
 import type * as O from '../../types/object/module.f.ts'
 import { fold } from '../../types/list/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-import { type List, flat, flatMap } from '../../types/list/module.f.ts'
-const { map } = list
+import * as string from '../../types/string/module.f.ts'
+const { concat } = string
+import { type List, type Entry as ListEntry, flat, flatMap, map, concat as listConcat, entries as listEntries } from '../../types/list/module.f.ts'
 const { entries } = Object
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
@@ -150,11 +150,24 @@ const addRef
     }
 
 export const serializeWithConstants
-    :(djs: djs.Unknown) => string
-    = djs => {
+    : (sort: MapEntries) => (djs: djs.Unknown) => string
+    = sort => djs => {
         const refs = countRefs(djs)
         const consts = getConstants(refs)(djs)
-        return todo()
+        const constEntries = listEntries(consts)
+        const constSerialize
+            : (entry: ListEntry<djs.Unknown>) => List<string>
+            = entry => {
+                const refCounter = refs.get(entry)
+                if (refCounter === undefined)
+                {
+                    throw 'unexpected behaviour'                    
+                }
+                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(djs), ['\n']])
+            }
+        const constStrings = flatMap(constSerialize)(constEntries)
+        const rootStrings = listConcat(['export default '])(serialize(sort)(refs)(djs))
+        return concat(listConcat(constStrings)(rootStrings))
     }
 
 export const countRefs
