@@ -70,8 +70,8 @@ const entryValue
     = kv => kv[1]
 
 const serialize
-    : (sort: MapEntries) => (refs: Refs) => (value: djs.Unknown) => List<string>
-    = sort => refs => {
+    : (sort: MapEntries) => (refs: Refs) => (root: djs.Unknown) => (djs: djs.Unknown) => List<string>
+    = sort => refs => root => {
     const propertySerialize
     :(kv: readonly[string, djs.Unknown]) => List<string>
     = ([k, v]) => flat([
@@ -90,10 +90,13 @@ const serialize
     const f
     : (value: djs.Unknown) => List<string>
     = value => {
-        const refCounter = refs.get(value)
-        if (refCounter !== undefined)
+        if (value !== root)
         {
-            return [`c${refCounter[0]}`]
+            const refCounter = refs.get(value)
+            if (refCounter !== undefined)
+            {
+                return [`c${refCounter[0]}`]
+            }      
         }
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
@@ -152,7 +155,7 @@ export const serializeWithConstants
     : (sort: MapEntries) => (djs: djs.Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)
-        const consts = getConstants(refs)(djs)        
+        const consts = getConstants(refs)(djs)
         const constSerialize
             : (entry: djs.Unknown) => List<string>
             = entry => {
@@ -160,12 +163,12 @@ export const serializeWithConstants
                 if (refCounter === undefined)
                 {
                     console.log(entry)
-                    throw 'unexpected behaviour'                    
+                    throw 'unexpected behaviour'
                 }
-                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(entry), ['\n']])
+                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(entry)(entry), ['\n']])
             }
         const constStrings = flatMap(constSerialize)(consts)
-        const rootStrings = listConcat(['export default '])(serialize(sort)(refs)(djs))
+        const rootStrings = listConcat(['export default '])(serialize(sort)(refs)(djs)(djs))
         return concat(listConcat(constStrings)(rootStrings))
     }
 
