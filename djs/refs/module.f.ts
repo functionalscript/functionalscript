@@ -4,7 +4,7 @@ import type * as O from '../../types/object/module.f.ts'
 import { fold } from '../../types/list/module.f.ts'
 import * as string from '../../types/string/module.f.ts'
 const { concat } = string
-import { type List, type Entry as ListEntry, flat, flatMap, map, concat as listConcat, entries as listEntries } from '../../types/list/module.f.ts'
+import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
 const { entries } = Object
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
@@ -159,6 +159,7 @@ export const serializeWithConstants
         const constSerialize
             : (entry: djs.Unknown) => List<string>
             = entry => {
+                console.log(entry)
                 const refCounter = refs.get(entry)
                 if (refCounter === undefined)
                 {
