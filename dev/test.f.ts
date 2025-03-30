@@ -1,3 +1,5 @@
+import { todo } from './module.f.ts'
+
 export default {
     ctor: () => {
         const c = (() => { })['constructor']
@@ -46,5 +48,8 @@ export default {
         const x = { 'a': 12 }
         const c = Object.getOwnPropertyDescriptor(x, 'constructor')
         const a = Object.getOwnPropertyDescriptor(x, 'a')
+    },
+    throw: () => {
+        todo()
     }
 }

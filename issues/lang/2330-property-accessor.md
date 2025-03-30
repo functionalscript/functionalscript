@@ -61,19 +61,25 @@ const f = () => {}
 
 [Array Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_properties).
 
-| |name    |side-effect|
-|-|--------|-----------|
-|0|`length`|no         |
+|name    |side-effect|
+|--------|-----------|
+|`length`|no         |
 
 [Function Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function#instance_properties)
 
-| |name         |side-effect|run-time |
-|-|-------------|-----------|---------|
-| |`arguments`  |no         |error    |
-| |`caller`     |no         |error    |
-| |`displayName`|no         |         |
-| |`name`       |no         |error    |
-| |`prototype`  |no         |undefined|
+|name         |side-effect|run-time |
+|-------------|-----------|---------|
+|`arguments`  |no         |error    |
+|`caller`     |no         |error    |
+|`displayName`|no         |         |
+|`name`       |no         |error    |
+|`prototype`  |no         |undefined|
+
+[Map Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map#instance_properties)
+
+|name  |side-effect|
+|------|-----------|
+|`size`|no         |
 
 ## Instance Method Call
 
@@ -158,6 +164,20 @@ struct InstanceMethodCall {
 |`bind` |no         |`this` is ignored|
 |`call` |no         |`this` is ignored|
 
+[Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)
+
+|name     |side-effects|notes |
+|---------|------------|------|
+|`clear`  |yes         |mutate|
+|`delete` |yes         |mutate|
+|`entries`|no          |      |
+|`forEach`|no          |      |
+|`get`    |no          |      |
+|`has`    |no          |      |
+|`keys`   |no          |      |
+|`set`    |yes         |mutate|
+|`values` |no          |      |
+
 ## At
 
 ```js
@@ -175,7 +195,7 @@ struct InstanceMethodCall {
 ```
 
 ```js
-import m from './m.f.mjs'
+import m from './m.f.js'
 const a = [2, 3]
 export default {
     "a": a[0],

@@ -3,7 +3,7 @@
 Parse this code
 
 ```js
-import a from 'c.d.mjs'
+import a from 'c.d.js'
 const c = [12, 'x']
 export default { a: a, b: a, c: c}
 ```
@@ -19,7 +19,7 @@ type Module = {
 // the last constant from the array is a return
 type Func = Const[]
 
-type Const = Primitive | CObject | CArray |CRef | ARef 
+type Const = Primitive | CObject | CArray |CRef | ARef
 
 type Primitive = number|string|boolean|null|bigint
 

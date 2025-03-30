@@ -1,17 +1,11 @@
 import { entries, fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
 import type * as Result from '../../types/result/module.f.ts'
+import type { Io, Performance } from '../../io/module.f.ts'
+import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
 
 type DependencyMap = {
    readonly[k in string]?: Module
-}
-
-type Module = {
-   readonly default?: unknown
-}
-
-type ModuleMap = {
-   readonly[k in string]: Module
 }
 
 type Log<T> = (v: string) => (state: T) => T
@@ -28,7 +22,7 @@ type Input<T> = {
     readonly env: (n: string) => string|undefined
  }
 
-const isTest = (s: string) => s.endsWith('test.f.mjs') || s.endsWith('test.f.js') || s.endsWith('test.f.ts')
+const isTest = (s: string) => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
 type TestState = {
     readonly time: number,
@@ -54,9 +48,9 @@ const timeFormat = (a: number) => {
     return `${b}.${e} ms`
 }
 
-export default <T>(input: Input<T>): readonly[number, T] => {
+export const test = <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
-    const isGitHub = env('GITHUB_ACTION') !== void 0
+    const isGitHub = env('GITHUB_ACTION') !== undefined
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
@@ -124,3 +118,25 @@ export default <T>(input: Input<T>): readonly[number, T] => {
     state = log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)(state);
     return [ts.fail !== 0 ? 1 : 0, state]
 }
+
+export const anyLog = (f: (s: string) => void) => (s: string) => <T>(state: T): T => {
+    f(s)
+    return state
+}
+
+export const measure = (p: Performance) => <R>(f: () => R) => <T>(state: T): readonly[R, number, T] => {
+    const b = p.now()
+    const r = f()
+    const e = p.now()
+    return [r, e - b, state]
+}
+
+export const main = async(io: Io): Promise<number> => test({
+        moduleMap: await loadModuleMap(io),
+        log: anyLog(io.console.log),
+        error: anyLog(io.console.error),
+        measure: measure(io.performance),
+        tryCatch: io.tryCatch,
+        env: env(io),
+        state: undefined,
+    })[0]

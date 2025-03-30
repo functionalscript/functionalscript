@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "license": "AGPL-3.0-only",
   "exports": {
     "./bnf/data": "./bnf/data/module.f.ts",
@@ -13,6 +13,7 @@
     "./crypto/sha2": "./crypto/sha2/module.f.ts",
     "./dev": "./dev/module.f.ts",
     "./dev/test": "./dev/test/module.f.ts",
+    "./dev/version": "./dev/version/module.f.ts",
     "./djs/ast": "./djs/ast/module.f.ts",
     "./djs": "./djs/module.f.ts",
     "./djs/parser": "./djs/parser/module.f.ts",
@@ -28,7 +29,6 @@
     "./json/parser": "./json/parser/module.f.ts",
     "./json/serializer": "./json/serializer/module.f.ts",
     "./json/tokenizer": "./json/tokenizer/module.f.ts",
-    "./nodejs/version": "./nodejs/version/module.f.ts",
     "./path": "./path/module.f.ts",
     "./text/ascii": "./text/ascii/module.f.ts",
     "./text": "./text/module.f.ts",
@@ -66,8 +66,7 @@
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
     "test": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test.ts",
-    "fsc": "deno run --allow-read --allow-write ./main.ts",
-    "version": "deno --allow-read --allow-write ./nodejs/version/main.ts"
+    "fsc": "deno run --allow-read --allow-write ./main.ts"
   },
   "fmt": {
     "indentWidth": 4,

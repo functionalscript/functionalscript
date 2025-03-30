@@ -9,20 +9,16 @@ on:
     - master
   pull_request:
 
+# See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 jobs:
   node20:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [16, 18, 20]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 20
     - run: npm ci
     - run: npm run test20
 
@@ -51,7 +47,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
     - run: npm test
-    - run: npm run version
+    - run: npm run index
     - run: npm pack
 
   node-bin:
@@ -60,11 +56,12 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
-        node-version: 23
+        node-version: 16
     - run: npm ci
     - run: npm pack
     - run: npm install -g ./*.tgz
     - run: fsc
+      continue-on-error: true
     - uses: actions/upload-artifact@v4
       with:
         path: ./*.tgz

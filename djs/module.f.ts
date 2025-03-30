@@ -16,26 +16,26 @@ export type Unknown = Primitive | Object | Array
 
 const stringifyUnknown = stringify(sort)
 
-export const run = ({console: {error}, fs, process: {argv}}: Io): void => {
-   const args = argv.slice(2)
-   if (args.length < 2) {
-      error('Error: Requires 2 or more arguments');
-      return;
-   }
+export const compile = ({ console: { error }, fs, process: { argv } }: Io): Promise<number> => {
+    const args = argv.slice(2)
+    if (args.length < 2) {
+        error('Error: Requires 2 or more arguments')
+        return Promise.resolve(1)
+    }
 
-   const inputFileName = args[0]
-   const outputFileName = args[1]
-   const result = transpile(fs)(inputFileName)
-   switch (result[0])
-   {
-      case 'ok': {
-         const output = stringifyUnknown(result[1])
-         fs.writeFileSync(outputFileName, output)
-         break
-      }
-      case 'error': {
-         error(`Parse error: ${result[1]}`);
-         break
-      }
-   }
- }
+    const inputFileName = args[0]
+    const outputFileName = args[1]
+    const result = transpile(fs)(inputFileName)
+    switch (result[0]) {
+        case 'ok': {
+            const output = stringifyUnknown(result[1])
+            fs.writeFileSync(outputFileName, output)
+            break
+        }
+        case 'error': {
+            error(`Parse error: ${result[1]}`)
+            break
+        }
+    }
+    return Promise.resolve(0)
+}

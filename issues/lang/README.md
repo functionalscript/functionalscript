@@ -9,11 +9,10 @@ When we implement features of FunctionalScript, the first priority is a simplifi
 
 File Types:
 
-|File Type|Extension        |Notes       |
-|---------|-----------------|------------|
-|JSON     |`.json`          |Not a graph.|
-|DJS      |`.d.js`, `.d.mjs`|A graph.    |
-|FJS      |`.f.js`, `.f.mjs`|Functions.  |
+|File Type|Extension       |Notes                |
+|---------|----------------|---------------------|
+|JSON     |`.json`         |Tree.                |
+|FJS      |`.f.js`, `.f.ts`|Graph with functions.|
 
 **Note**: An FJS value can't be serialized without additional run-time infrastructure.
 
@@ -38,8 +37,6 @@ We are introducing new commands in such a way that every new command depends onl
 ## 2. DJS
 
 The DJS form a graph of values. It can be serialized without additional run-time information.
-
-File extensions: `.d.js` and `.d.mjs`.
 
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
@@ -86,8 +83,6 @@ We need it to use JSDoc and TypeScript.
 ## 3. FJS
 
 The FJS can have functions. The format requires additional run-time information for serialization.
-
-File extensions: `.f.js` and `.f.mjs`.
 
 |format|any     |Tag|    |Notes                           |
 |------|--------|---|----|--------------------------------|
@@ -199,3 +194,58 @@ The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birth
 ## 6. Object Identity
 
 To build custom dictionaries when using functions as a key, we need either an object identifier (for hash map `O(1)`) or a proper comparison operator (for BTree map `O(log(n))`). The best option now is to use `<` and then use an array for items that satisfy `(a !== b) && !(a < b) && !(b > a)`.
+
+One of the options is to use `Map`. The `Map` type is mutable and requires an object ownership tracking, similar to Rust.
+
+## 7. Mutable Objects and Ownership Tracking
+
+The zero stage is to support `let`.
+
+The first stage is to support mutable objects only as a local variable:
+
+```js
+const my = () => {
+   const map = new Map()
+   map.set("hello", "world!") // we can change `map` here because we've never pass `map` to anything else.
+   f(map) // now `map` is immutable.
+   return map // returns an immutable Map.
+}
+```
+
+Other stages may include passing mutable objects as parameters.
+
+Implementing IO using mutable objects with ownership tracking:
+
+```ts
+type Io<S> = {
+    readonly consoleLog: (s: S, msg: string) => void
+    // ...
+}
+```
+
+Or immutable
+
+```ts
+type Io<S> = {
+    readonly consoleLog: (s: S, msg: string) => S
+    // ...
+}
+```
+
+With class supports, mutability state can be encapsulate with methods into one class:
+
+```ts
+class VirtualIo {
+   #buffer = []
+   function log(s: string) {
+      this.#buffer.push(s)
+   }
+   function reset(x: readonly string[]) {
+      // note, that we have to do a deep clone.
+      this.#buffer = []
+      for (const i of x) {
+         this.#buffer.push(i)
+      }
+   }
+}
+```
