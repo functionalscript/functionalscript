@@ -249,3 +249,52 @@ class VirtualIo {
    }
 }
 ```
+
+## 7.1. Local mutability
+
+```ts
+const ar = () => {
+   const a = [] // a is mutable
+   a.push('hello')
+   return a // now it's immutable
+}
+```
+
+## 7.2. Pass Mutability
+
+```ts
+const ar = a => { // a is marked as mutable because we don't use the object anywhere else.
+   a.push('hello')
+}
+
+const f = () => {
+   const a = []
+   ar(a)
+   return a
+}
+```
+
+Here we consider an object is mutable if it has only one path.
+
+```ts
+const f = a => { // a is not mutable because we return a
+   return a
+}
+
+const f1 = a => {
+   const x = () => {
+      // a is mutable
+      a.push('x')
+   }
+   x()
+}
+
+const f2 = a => {
+   const x = () => {
+      a.push('x')
+   }
+   return x // compilation error.
+}
+```
+
+Should we have a global analysis?
