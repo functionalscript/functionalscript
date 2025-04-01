@@ -3,7 +3,7 @@ import * as list from '../../types/list/module.f.ts'
 const { fold, first, drop, toArray } = list
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import type * as Tokenizer from '../tokenizer/module.f.ts'
-import * as map from '../../types/map/module.f.ts'
+import * as map from '../../types/stringMap/module.f.ts'
 const { setReplace } = map
 import type * as Json from '../module.f.ts'
 import * as o from '../../types/object/module.f.ts'

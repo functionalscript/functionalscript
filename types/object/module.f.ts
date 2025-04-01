@@ -1,5 +1,5 @@
 import { iterable, type List } from '../list/module.f.ts'
-import { entries as mapEntries, fromEntries as mapFromEntries, type Map as BtMap } from '../map/module.f.ts'
+import { entries as mapEntries, fromEntries as mapFromEntries, type Map as BtMap } from '../stringMap/module.f.ts'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
 

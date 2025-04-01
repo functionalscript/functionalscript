@@ -1,5 +1,5 @@
 import type { BufferEncoding, Io } from './module.f.ts'
-import { at, type Map } from '../types/map/module.f.ts'
+import { at, type Map } from '../types/stringMap/module.f.ts'
 
 export const createVirtualIo = (files: Map<string>): Io => ({
     console: {
