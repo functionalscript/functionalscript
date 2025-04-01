@@ -1,30 +1,27 @@
 import * as result from '../../types/result/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { fold, first, drop, toArray } = list
+import { type List, fold, first, drop, toArray, concat } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import type * as Tokenizer from '../tokenizer/module.f.ts'
-import * as map from '../../types/ordered_map/module.f.ts'
-const { setReplace } = map
+import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import type * as Json from '../module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { fromMap } = o
+import { fromMap } from '../../types/object/module.f.ts'
 
 type JsonObject = {
     readonly kind: 'object'
-    readonly values: map.OrderedMap<Json.Unknown>
+    readonly values: OrderedMap<Json.Unknown>
     readonly key: string
 }
 
 type JsonArray = {
     readonly kind: 'array'
-    readonly values: list.List<Json.Unknown>
+    readonly values: List<Json.Unknown>
 }
 
 type JsonStackElement = |
     JsonObject |
     JsonArray
 
-type JsonStack = list.List<JsonStackElement>
+type JsonStack = List<JsonStackElement>
 
 type StateParse = {
     readonly status: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
@@ -57,7 +54,7 @@ const addValueToObject
 
 const addToArray
     : (array: JsonArray) => (value: Json.Unknown) => JsonArray
-    = array => value => ({ kind: 'array', values: list.concat(array.values)([value]) })
+    = array => value => ({ kind: 'array', values: concat(array.values)([value]) })
 
 const pushKey
     : (state: StateParse) => (key: string) => JsonState
@@ -210,7 +207,7 @@ const foldOp
     }
 
 export const parse
-    : (tokenList: list.List<Tokenizer.JsonToken>) => result.Result<Json.Unknown, string>
+    : (tokenList: List<Tokenizer.JsonToken>) => result.Result<Json.Unknown, string>
     = tokenList => {
         const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
         switch (state.status) {
