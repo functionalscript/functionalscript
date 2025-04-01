@@ -3,7 +3,7 @@ import { type Result, error, ok } from '../../types/result/module.f.ts'
 import { fold, drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import { tokenize } from '../tokenizer/module.f.ts'
-import { setReplace, at, type Map } from '../../types/stringMap/module.f.ts'
+import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import type { Fs, BufferEncoding } from '../../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
@@ -12,7 +12,7 @@ import { run, type AstModule } from '../ast/module.f.ts'
 
 export type ParseContext = {
     readonly fs: Fs
-    readonly complete: Map<djsResult>
+    readonly complete: OrderedMap<djsResult>
     readonly stack: List<string>
     readonly error: string | null
 }

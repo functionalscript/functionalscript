@@ -10,25 +10,25 @@ import type { Reduce } from '../function/operator/module.f.ts'
 
 export type Entry<T> = readonly [string, T]
 
-export type Map<T> = Tree<Entry<T>>
+export type OrderedMap<T> = Tree<Entry<T>>
 
 const keyCmp: (a: string) => <T>(b: Entry<T>) => Sign
     = a => ([b]) => cmp(a)(b)
 
 export const at
-    = (name: string) => <T>(map: Map<T>): T | null => {
+    = (name: string) => <T>(map: OrderedMap<T>): T | null => {
         if (map === null) { return null }
         const result = value(find(keyCmp(name))(map).first)
         return result === null ? null : result[1]
     }
 
 const setReduceEntry
-    : <T>(reduce: Reduce<T>) => (entry: Entry<T>) => (map: Map<T>) => Map<T>
+    : <T>(reduce: Reduce<T>) => (entry: Entry<T>) => (map: OrderedMap<T>) => OrderedMap<T>
     = reduce => entry =>
         set(keyCmp(entry[0]))(old => old === null ? entry : [old[0], reduce(old[1])(entry[1])])
 
 export const setReduce
-    : <T>(reduce: Reduce<T>) => (name: string) => (value: T) => (map: Map<T>) => Map<T>
+    : <T>(reduce: Reduce<T>) => (name: string) => (value: T) => (map: OrderedMap<T>) => OrderedMap<T>
     = reduce => name => value => setReduceEntry(reduce)([name, value])
 
 const replace
@@ -36,19 +36,19 @@ const replace
     = () => b => b
 
 export const setReplace
-    : (name: string) => <T>(value: T) => (map: Map<T>) => Map<T>
+    : (name: string) => <T>(value: T) => (map: OrderedMap<T>) => OrderedMap<T>
     = name => value => setReduceEntry(replace)([name, value])
 
 export const entries
-    : <T>(map: Map<T>) => List<Entry<T>>
+    : <T>(map: OrderedMap<T>) => List<Entry<T>>
     = values
 
 export const fromEntries
-    : <T>(entries: List<Entry<T>>) => Map<T>
+    : <T>(entries: List<Entry<T>>) => OrderedMap<T>
     = fold(setReduceEntry(replace))(null)
 
 export const remove
-    : (name: string) => <T>(map: Map<T>) => Map<T>
+    : (name: string) => <T>(map: OrderedMap<T>) => OrderedMap<T>
     = name => btreeRemove(keyCmp(name))
 
 export const empty = null

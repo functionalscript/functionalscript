@@ -1,4 +1,4 @@
-import { at, setReplace, setReduce, empty, entries, remove, type Map } from './module.f.ts'
+import { at, setReplace, setReduce, empty, entries, remove, type OrderedMap } from './module.f.ts'
 import { toArray } from '../list/module.f.ts'
 
 export default {
@@ -57,7 +57,7 @@ export default {
         },
     ],
     stress: () => {
-        let m: Map<number> = empty
+        let m: OrderedMap<number> = empty
         for (let i = 0; i < 100_000; ++i) {
             m = setReplace((i * i).toString())(i)(m)
             /*

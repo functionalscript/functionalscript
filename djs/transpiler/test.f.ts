@@ -1,12 +1,12 @@
 import { sort } from '../../types/object/module.f.ts'
-import { setReplace, type Map } from '../../types/stringMap/module.f.ts'
+import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { transpile } from './module.f.ts'
 import { stringify } from '../serializer/module.f.ts'
 import { createVirtualIo } from '../../io/virtual.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 
 const virtualFs
-    :(map: Map<string>) => Fs
+    :(map: OrderedMap<string>) => Fs
     = map => {
         return createVirtualIo(map).fs
     }
