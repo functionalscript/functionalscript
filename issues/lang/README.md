@@ -197,7 +197,30 @@ To build custom dictionaries when using functions as a key, we need either an ob
 
 One of the options is to use `Map`. The `Map` type is mutable and requires an object ownership tracking, similar to Rust.
 
-## 8.1. Hack For Map
+## 7.1. Hack For Map. Add `ReadonlyMap`
+
+```ts
+type ImmutableMap<K, V> = {
+    readonly set(k: K, v: V): ImmutableMap<K, V>
+    readonly delete(k: K): ImmutableMap<K, V>
+}
+
+const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
+    set: (...kv: readonly[K, V]) => new Map([...map, kv])
+    delete: (k: K) => new Map([...map.filter([k] => k !== k)])
+})
+```
+
+## 7.2. Hack For Map. Special Instructions
+
+```ts
+// a special expression which is converted into one command.
+new Map(a).set(k, v)
+
+// a special expression which is converted into one command.
+const b = new Map(a)
+b.delete(k)
+```
 
 ```ts
 type ImmutableMap<K, V> = {
@@ -213,13 +236,6 @@ const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
         return x
     }
 })
-
-// // a special expression.
-// new Map(x).set(k, v)
-
-// // a special expression:
-//    const x = new Map(x)
-//    x.delete(k)
 ```
 
 ## 8. Mutable Objects and Ownership Tracking
