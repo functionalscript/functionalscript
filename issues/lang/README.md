@@ -191,13 +191,38 @@ enum Value {
 
 The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack).
 
-## 6. Object Identity
+## 7. Object Identity
 
 To build custom dictionaries when using functions as a key, we need either an object identifier (for hash map `O(1)`) or a proper comparison operator (for BTree map `O(log(n))`). The best option now is to use `<` and then use an array for items that satisfy `(a !== b) && !(a < b) && !(b > a)`.
 
 One of the options is to use `Map`. The `Map` type is mutable and requires an object ownership tracking, similar to Rust.
 
-## 7. Mutable Objects and Ownership Tracking
+## 8.1. Hack For Map
+
+```ts
+type ImmutableMap<K, V> = {
+    readonly set(k: K, v: V): ImmutableMap<K, V>
+    readonly delete(k: K): ImmutableMap<K, V>
+}
+
+const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
+    set: (k: K, v: V) => new Map(map).set(k, v)
+    delete: (k: K, v: V) => {
+        const x = new Map(map)
+        x.delete(k)
+        return x
+    }
+})
+
+// // a special expression.
+// new Map(x).set(k, v)
+
+// // a special expression:
+//    const x = new Map(x)
+//    x.delete(k)
+```
+
+## 8. Mutable Objects and Ownership Tracking
 
 The zero stage is to support `let`.
 
@@ -250,7 +275,7 @@ class VirtualIo {
 }
 ```
 
-## 7.1. Local mutability
+## 8.1. Local mutability
 
 ```ts
 const ar = () => {
@@ -260,7 +285,7 @@ const ar = () => {
 }
 ```
 
-## 7.2. Pass Mutability
+## 8.2. Pass Mutability
 
 ```ts
 const ar = a => { // a is marked as mutable because we don't use the object anywhere else.
