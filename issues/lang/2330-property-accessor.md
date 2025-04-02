@@ -287,7 +287,8 @@ If it references an object, FS gives up. FS may try deeper analyses in the futur
 
 ## Iterators
 
-Direct access to an object with the [`Iterator` protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols) is not allowed in FunctionalScript.
+Direct access to an object with the [`Iterator` protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols)
+is not allowed in FS.
 
 ```ts
 type Value<T> = { done: true } | { done?: false, value: T }
@@ -296,7 +297,7 @@ type Iterator<T> = {
 }
 ```
 
-However, FunctionalScript allows access to objects with the `Iterable` protocol.
+However, FS allows access to objects with the `Iterable` protocol.
 
 ```ts
 type Iterable<T> = {
@@ -306,7 +307,8 @@ type Iterable<T> = {
 
 For example, JS Array implements the `Iterable` protocol.
 
-If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) in the FunctionalScript, the generator function has to be wrapped into `Iterable` interface. For example,
+If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) in the FS,
+the generator function has to be wrapped into `Iterable` interface. For example,
 
 ```js
 // compilation error!
