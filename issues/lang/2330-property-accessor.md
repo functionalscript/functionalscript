@@ -133,7 +133,7 @@ an exception in this sample.
 
 ```js
 obj.property(parameters)
-obj['property'](parameters)
+obj['property'](parameters) // where 'property' is a property name well-known at compile time
 ```
 
 It's translated into VM command `instance_method_call`:
