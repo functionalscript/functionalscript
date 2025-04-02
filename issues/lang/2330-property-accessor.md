@@ -166,7 +166,7 @@ struct InstanceMethodCall {
 |`hasOwnProperty`      |no              |
 |`isPrototypeOf`       |no              |
 |`propertyIsEnumerable`|no              |
-|`toLocaleString`      |access to local |
+|`toLocaleString`      |access to locale|
 |`toString`            |no              |
 |`valueOf`             |no              |
 
