@@ -49,6 +49,7 @@
     "./types/function": "./types/function/module.f.ts",
     "./types/function/operator": "./types/function/operator/module.f.ts",
     "./types/list": "./types/list/module.f.ts",
+    "./types/map": "./types/map/module.f.ts",
     "./types/monoid": "./types/monoid/module.f.ts",
     "./types/nibble_set": "./types/nibble_set/module.f.ts",
     "./types/nullable": "./types/nullable/module.f.ts",
