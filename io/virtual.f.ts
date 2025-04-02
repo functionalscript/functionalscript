@@ -1,7 +1,7 @@
 import type { BufferEncoding, Io } from './module.f.ts'
-import { at, type Map } from '../types/map/module.f.ts'
+import { at, type OrderedMap } from '../types/ordered_map/module.f.ts'
 
-export const createVirtualIo = (files: Map<string>): Io => ({
+export const createVirtualIo = (files: OrderedMap<string>): Io => ({
     console: {
         log: (..._d: unknown[]) => {},
         error: (..._d: unknown[]) => {}

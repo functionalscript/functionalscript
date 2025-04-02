@@ -55,6 +55,7 @@
     "./types/nullable": "./types/nullable/module.f.ts",
     "./types/number": "./types/number/module.f.ts",
     "./types/object": "./types/object/module.f.ts",
+    "./types/ordered_map": "./types/ordered_map/module.f.ts",
     "./types/range": "./types/range/module.f.ts",
     "./types/range_map": "./types/range_map/module.f.ts",
     "./types/result": "./types/result/module.f.ts",

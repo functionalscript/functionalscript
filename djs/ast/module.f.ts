@@ -1,6 +1,6 @@
 import type * as djs from '../module.f.ts'
 import { type List, concat, fold, last, map, take, toArray } from '../../types/list/module.f.ts'
-import type { Entry } from '../../types/map/module.f.ts'
+import type { Entry } from '../../types/ordered_map/module.f.ts'
 import { fromEntries } from '../../types/object/module.f.ts'
 const { entries } = Object
 
@@ -18,7 +18,7 @@ export type AstObject = {
 
 export type AstBody = readonly AstConst[]
 
-type RunState = {    
+type RunState = {
     readonly body: AstBody
     readonly args: djs.Array
     readonly consts: List<djs.Unknown>
