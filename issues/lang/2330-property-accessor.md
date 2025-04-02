@@ -16,6 +16,10 @@ be useful to support in FS as well. Note that this is more verbose than obj.fiel
 (discussed below in "Instance Property" section, but protects against unwanted access to
 the prototype chain.
 
+In case a propety has no side effects (see 'no' in 'side effects' columns in tables below)
+FS should implement that property 100%. If a property mentioned at several places has
+at least one side effect, we should prohibit it consistently across the board.
+
 ```js
 const own_property = a => b => Object.getOwnPropertyDescriptor(obj, property)?.value
 // Or
@@ -85,7 +89,7 @@ const f = () => {}
 }
 ```
 
-[Array Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_properties).
+[Array Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_properties)
 
 |name    |side-effect|
 |--------|-----------|
