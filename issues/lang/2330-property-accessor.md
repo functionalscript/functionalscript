@@ -61,10 +61,14 @@ All other property names generate `own_property` commands.
 
 [Object Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_properties): `__proto__` and `consructor`
 
+The current decision is to prohibit both.
+
 |name         |side-effect                   |
 |-------------|------------------------------|
 |`__proto__`  |access to function constructor|
 |`constructor`|access to function constructor|
+
+Examples of how to abuse (in JS) so FS should strictly prohibit (compile-time and, most likely, run-time as well):
 
 ```js
 const f = () => {}
