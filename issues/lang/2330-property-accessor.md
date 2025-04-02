@@ -118,9 +118,22 @@ for the sake of supporting JS legacy in cases when that is FS-safe.
 
 ## Instance Method Call
 
+Instance method call is different from property access in JS because of `this` considerations.
+
+For example:
+```js
+const a = ["bison"]
+a.indexOf("bison") // returns 0
+const p = a.indexOf
+p("bison") // run-time exception in JS, so FS should throw an exception here as well
+```
+In the snippet above a.indexOf("bison") compiles into one VM call ("an instance method call"),
+however the remainder of that snippet compiles in a sequence of commands that finally yields
+an exception in this sample.
+
 ```js
 obj.property(parameters)
-obj.['property'](parameters)
+obj['property'](parameters)
 ```
 
 It's translated into VM command `instance_method_call`:
