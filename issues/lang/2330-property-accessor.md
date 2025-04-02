@@ -38,7 +38,7 @@ struct OwnProperty {
 ## Instance Property
 
 Instance property access is similar to instance method access but there are diffences considered
-below, in "Instant Method" subsection.
+below, in "Instant Method Call" subsection.
 
 ```js
 obj.property
