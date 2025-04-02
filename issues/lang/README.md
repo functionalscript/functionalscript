@@ -359,4 +359,19 @@ const fs = (state: AsyncMap<string, string>) => ({
    readFile: async(name: string): Promise<string> => { /* ? */ }
    writeFile: async(name: string, text: string): Promise<void> => { /* ? */ }
 })
+
+// Another option is to allow access to `let` in `async` functions.
+
+const test = async(f: (fs: Fs) => Promise<void>): Promise<void> => {
+    let x = new Map()
+    const fs = {
+        readFile: async() => {
+            x.get() /* ... */
+        }
+        writeFile: async(k: string, v: string) => { // should writeFile
+            x = new Map(concat(x, [[k, v]]))
+        }
+    }
+    await f(fs)
+}
 ```
