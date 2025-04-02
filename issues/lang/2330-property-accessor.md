@@ -46,7 +46,7 @@ It's translated into the VM command `instance_property`:
 ```rust
 struct InstanceProperty {
     obj: Expression
-    index: u8
+    index: u32
 }
 ```
 
