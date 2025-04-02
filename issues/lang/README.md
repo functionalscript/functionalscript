@@ -339,3 +339,24 @@ const f2 = a => {
 ```
 
 Should we have a global analysis?
+
+## 8.3. Async in Tests
+
+```ts
+type Fs = {
+   readonly readFile: (name: string) => Promise<string>
+   readonly writeFile: (name: string, text: string) => Promise<void>
+}
+
+// Should every test receive a state object, similar to Map?
+
+type AsyncMap<K, V> = {
+   readonly asyncGet: (k: K) => Promise<V|undefined>
+   readonly asyncSet: (k: K, v: V|undefined) => Promise<void>
+}
+
+const fs = (state: AsyncMap<string, string>) => ({
+   readFile: async(name: string): Promise<string> => { /* ? */ }
+   writeFile: async(name: string, text: string): Promise<void> => { /* ? */ }
+})
+```
