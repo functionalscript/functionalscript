@@ -47,7 +47,10 @@ struct InstanceProperty {
 }
 ```
 
-If the property name is one of the implemented property names, it should be translated into `index: u8`.
+If the property name is one of the implemented property names, it should be translated into `index: u32`. We
+consider that case separately from more general `own_property`, since "built-in" property access might
+deserve special (performance-optimized) treatment in bytecode interpreter (consider a command / data access
+within a command that is similar to array indexing).
 
 If a property name is one of the prohibited property names or one of the method names, then it's a compilation error.
 
