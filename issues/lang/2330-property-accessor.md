@@ -20,6 +20,13 @@ In case a propety has no side effects (see 'no' in 'side effects' columns in tab
 FS should implement that property 100%. If a property mentioned at several places has
 at least one side effect, we should prohibit it consistently across the board.
 
+One important detail regading run-time access to instance properties, methods is
+`obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
+in JS that syntax enables possibilities to abuse; on another hand, it's a regular
+syntax for array indexing, legit in FS. Our current approach is to force FS users to
+add '+' in front of <expression> in cases when <expression> type is not known at
+compile time.
+
 ```js
 const own_property = a => b => Object.getOwnPropertyDescriptor(obj, property)?.value
 // Or
