@@ -173,7 +173,7 @@ struct InstanceMethodCall {
 As stated above, all rows that have other than 'no' in side-effect column should be prohibited
 (both at compile time when possible and run-time when the property name got calculated at run time).
 
-TODO: file a separate .md regarding custom `toString`, `valueOf`, and maybe other methods listed here as well.
+TODO: file a separate .md regarding custom `toString`, `valueOf` implementations, and maybe other methods listed here as well.
 
 [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_methods)
 
