@@ -265,7 +265,7 @@ obj[+index]
 It's translated into VM command `at`:
 
 ```rust
-struct InstanceMethodCall {
+struct At {
     obj: Expression
     index: Expression
 }
@@ -281,7 +281,9 @@ export default {
 }
 ```
 
-In `obj[index]`, `index` has to be a `number`. If we don't know what is `index`, `+` requires before `index`. It means the byte code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings). If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
+In `obj[index]`, `index` has to be a `number`. If we don't know what is `index`, `+` requires before `index`. It means the byte
+code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings).
+If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Iterators
 
