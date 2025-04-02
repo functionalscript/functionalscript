@@ -9,6 +9,12 @@ error. In other cases we might decide to provide a limited property access.
 Finally, some JS standard properties / methods are 100% FS-legit and so will be implemented
 in full.
 
+It's important to be able to access instance's own property regardless object properties
+available in JS via object's prototype chain. In FS we plan to not have prototype chains
+at runtime. Here go snippets showing how to access own properites in JS - that code might
+be useful to support in FS as well. Note that this is more verbose than obj.field sintax,
+but protects against unwanted access to the prototype chain.
+
 ```js
 const own_property = a => b => Object.getOwnPropertyDescriptor(obj, property)?.value
 // Or
