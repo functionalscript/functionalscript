@@ -177,6 +177,22 @@ TODO: file a separate .md regarding custom `toString`, `valueOf` implementations
 
 [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_methods)
 
+Why do we want to prohibit 'naked' iterator access? Iterators could be mutated not only via `next`, but also
+implicitly byt `for of` loops:
+
+```js
+const i = ["bison"].entries()
+const f = (j) => {
+   let s = 0
+   for (const k of j) {
+      s += k.length
+   }
+   return s
+}
+f(i) // returns 5
+f(i) // returns 0 thanks to side effects!
+```
+
 |name                  |side-effect|notes   |
 |----------------------|-----------|--------|
 |`at`                  |no         |        |
