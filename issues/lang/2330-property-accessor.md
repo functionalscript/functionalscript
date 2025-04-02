@@ -33,6 +33,9 @@ struct OwnProperty {
 
 ## Instance Property
 
+Instance property access is similar to instance method access but there are diffences considered
+below, in "Instant Method" subsection.
+
 ```js
 obj.property
 obj.['property']
@@ -56,7 +59,7 @@ If a property name is one of the prohibited property names or one of the method 
 
 All other property names generate `own_property` commands.
 
-[Object Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_properties),
+[Object Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_properties): `__proto__` and `consructor`
 
 |name         |side-effect                   |
 |-------------|------------------------------|
