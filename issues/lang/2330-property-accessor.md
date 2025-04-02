@@ -235,11 +235,11 @@ f(i) // returns 0 thanks to side effects!
 
 [Function Instance Methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function#instance_methods)
 
-|name   |side-effect|notes            |
-|-------|-----------|-----------------|
-|`apply`|no         |`this` is ignored|
-|`bind` |no         |`this` is ignored|
-|`call` |no         |`this` is ignored|
+|name   |side-effect|notes                      |
+|-------|-----------|---------------------------|
+|`apply`|no         |`this` needs considerations|
+|`bind` |no         |`this` needs considerations|
+|`call` |no         |`this` needs considerations|
 
 [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)
 
