@@ -42,7 +42,7 @@ below, in "Instant Method Call" subsection.
 
 ```js
 obj.property
-obj.['property']
+obj['property']
 ```
 
 It's translated into the VM command `instance_property`:
