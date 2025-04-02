@@ -1,4 +1,13 @@
-# Get Property
+# Property Accessor
+
+In this note we consider whether or not to support JS's property accessors, maybe also
+considering partial support. A very important aspect is - whether or not accessing
+a given property (in this or that way) might enable side effects - if implemented in
+100% JS-compliant way, such a propety caused violations of FS's design principles.
+So the most straightforward way to deal with such a property in FS could be a compilation
+error. In other cases we might decide to provide a limited property access.
+Finally, some JS standard properties / methods are 100% FS-legit and so will be implemented
+in full.
 
 ```js
 const own_property = a => b => Object.getOwnPropertyDescriptor(obj, property)?.value
