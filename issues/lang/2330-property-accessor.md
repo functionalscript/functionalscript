@@ -183,11 +183,11 @@ implicitly byt `for of` loops:
 ```js
 const i = ["bison"].entries()
 const f = (j) => {
-   let s = 0
-   for (const k of j) {
-      s += k.length
-   }
-   return s
+    let s = 0
+    for (const k of j) {
+        s += k.length
+    }
+    return s
 }
 f(i) // returns 5
 f(i) // returns 0 thanks to side effects!
