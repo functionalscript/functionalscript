@@ -46,11 +46,11 @@ It's translated into the VM command `instance_property`:
 ```rust
 struct InstanceProperty {
     obj: Expression
-    index: u32
+    index: <VM's type for strings known at compile time>
 }
 ```
 
-If the property name is one of the implemented property names, it should be translated into `index: u32`. We
+If the property name is one of the implemented property names, it should be translated into `index`. We
 consider that case separately from more general `own_property`, since "built-in" property access might
 deserve special (performance-optimized) treatment in bytecode interpreter (consider a command / data access
 within a command that is similar to array indexing).
