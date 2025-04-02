@@ -159,9 +159,12 @@ struct InstanceMethodCall {
 |`hasOwnProperty`      |no              |
 |`isPrototypeOf`       |no              |
 |`propertyIsEnumerable`|no              |
-|`toLocaleString`      |access to locale|
+|`toLocaleString`      |access to local |
 |`toString`            |no              |
 |`valueOf`             |no              |
+
+As stated above, all rows that have other than 'no' in side-effect column should be prohibited
+(both at compile time when possible and run-time when the property name got calculated at run time).
 
 [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_methods)
 
