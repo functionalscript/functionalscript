@@ -105,6 +105,11 @@ const f = () => {}
 |`name`       |no         |error    |
 |`prototype`  |no         |undefined|
 
+'Error' in run-time column above means: we plan to have a run-time error in the intial
+implementation for the sake of simplicity, since correspondent functionality has better
+alternatives. However we need to investigate whether or not we want to change that
+for the sake of supporting JS legacy in cases when that is FS-safe.
+
 [Map Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map#instance_properties)
 
 |name  |side-effect|
