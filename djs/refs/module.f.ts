@@ -1,23 +1,25 @@
 import type * as djs from '../module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.ts'
+import type { Fold, StateScan } from '../../types/function/operator/module.f.ts'
 import type * as O from '../../types/object/module.f.ts'
 import { fold } from '../../types/list/module.f.ts'
 import * as string from '../../types/string/module.f.ts'
 const { concat } = string
-import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
+import { type List, flat, flatMap, map, concat as listConcat, stateScan } from '../../types/list/module.f.ts'
 const { entries } = Object
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
 import * as bi from '../../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as serializer from '../../json/serializer/module.f.ts'
+import { todo } from '../../dev/module.f.ts'
+import { tail } from '../../types/array/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = serializer
 
 const colon = [':']
 
 export const undefinedSerialize = ['undefined']
 
-type RefCounter = [number, number]
+type RefCounter = [number, number, boolean]
 
 type Entry = O.Entry<djs.Unknown>
 
@@ -27,42 +29,50 @@ type MapEntries = (entries: Entries) => Entries
 
 type Refs = Map<djs.Unknown, RefCounter>
 
+type GetConstsState = {
+    refs: Refs,
+    consts: List<djs.Unknown>
+}
+
 const getConstantsOp
-    :(refs: Refs) => (djs: djs.Unknown) => List<djs.Unknown>
-    = refs => djs =>
+    :Fold<djs.Unknown, GetConstsState>
+    = djs => state =>
     {        
         switch (typeof djs) {
-            case 'boolean': { return null }
+            case 'boolean': { return state }
             case 'number':
             case 'string':
-            case 'bigint': { return getConstantSelf(refs)(djs) }
+            case 'bigint': { return getConstantSelf(djs)(state) }
             default: {
-                if (djs === null) { return null }
-                if (djs === undefined) { return null }
+                if (djs === null) { return state }
+                if (djs === undefined) { return state }
                 if (djs instanceof Array) {
-                    return { head: flatMap(getConstantsOp(refs))(djs), tail: getConstantSelf(refs)(djs) }
+                    return getConstantSelf(djs)(fold(getConstantsOp)(state)(djs))
                 }
 
-                return { head: flatMap(getConstantsOp(refs))(map(entryValue)(entries(djs))), tail: getConstantSelf(refs)(djs) }
+                return getConstantSelf(djs)(fold(getConstantsOp)(state)(map(entryValue)(entries(djs))))
             }
         }
     }
 
 const getConstantSelf
-    :(refs: Refs) => (djs: djs.Unknown) => List<djs.Unknown>
-    = refs => djs => {
+    :Fold<djs.Unknown, GetConstsState>
+    = djs => state => {
+        const refs = state.refs
         const refCounter = refs.get(djs)
-        if (refCounter !== undefined && refCounter[1] > 1)
+        if (refCounter !== undefined && refCounter[1] > 1 && !refCounter[2])
         {
-            return [djs]
+            refCounter[2] = true
+            refs.set(djs, refCounter)  
+            return { refs, consts: { head: state.consts, tail: [djs] }}
         }
-        return null
+        return state
     }
 
 const getConstants 
-    :(refs: Refs) => (djs: djs.Unknown) => List<djs.Unknown>
-    = refs => djs => {
-        return getConstantsOp(refs)(djs)
+    :Fold<djs.Unknown, GetConstsState>
+    = djs => refs => {
+        return getConstantsOp(djs)(refs)
     }
 
 const entryValue
@@ -146,16 +156,16 @@ const addRef
         const refCounter = refs.get(djs)
         if (refCounter === undefined)
         {
-            return refs.set(djs, [refs.size, 1])
+            return refs.set(djs, [refs.size, 1, false])
         }
-        return refs.set(djs, [refCounter[0], refCounter[1] + 1])
+        return refs.set(djs, [refCounter[0], refCounter[1] + 1, false])
     }
 
 export const serializeWithConstants
     : (sort: MapEntries) => (djs: djs.Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)
-        const consts = getConstants(refs)(djs)
+        const consts = getConstants(djs)({refs, consts: []}).consts
         const constSerialize
             : (entry: djs.Unknown) => List<string>
             = entry => {
