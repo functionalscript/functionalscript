@@ -2,7 +2,7 @@ import * as operator from '../../types/function/operator/module.f.ts'
 import * as range_map from '../../types/range_map/module.f.ts'
 const { merge, fromRange, get } = range_map
 import * as list from '../../types/list/module.f.ts'
-import * as map from '../../types/map/module.f.ts'
+import * as map from '../../types/ordered_map/module.f.ts'
 const { at } = map
 import * as _range from '../../types/range/module.f.ts'
 const { one } = _range

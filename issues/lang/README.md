@@ -191,13 +191,54 @@ enum Value {
 
 The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack).
 
-## 6. Object Identity
+## 7. Object Identity
 
 To build custom dictionaries when using functions as a key, we need either an object identifier (for hash map `O(1)`) or a proper comparison operator (for BTree map `O(log(n))`). The best option now is to use `<` and then use an array for items that satisfy `(a !== b) && !(a < b) && !(b > a)`.
 
 One of the options is to use `Map`. The `Map` type is mutable and requires an object ownership tracking, similar to Rust.
 
-## 7. Mutable Objects and Ownership Tracking
+## 7.1. Hack For Map. Add `ReadonlyMap`
+
+```ts
+type ImmutableMap<K, V> = {
+    readonly set(k: K, v: V): ImmutableMap<K, V>
+    readonly delete(k: K): ImmutableMap<K, V>
+}
+
+const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
+    set: (...kv: readonly[K, V]) => new Map([...map, kv])
+    delete: (k: K) => new Map([...map.filter([k] => k !== k)])
+})
+```
+
+## 7.2. Hack For Map. Special Instructions
+
+```ts
+// a special expression which is converted into one command.
+new Map(a).set(k, v)
+
+// a special expression which is converted into one command.
+const b = new Map(a)
+b.delete(k)
+```
+
+```ts
+type ImmutableMap<K, V> = {
+    readonly set(k: K, v: V): ImmutableMap<K, V>
+    readonly delete(k: K): ImmutableMap<K, V>
+}
+
+const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
+    set: (k: K, v: V) => new Map(map).set(k, v)
+    delete: (k: K, v: V) => {
+        const x = new Map(map)
+        x.delete(k)
+        return x
+    }
+})
+```
+
+## 8. Mutable Objects and Ownership Tracking
 
 The zero stage is to support `let`.
 
@@ -247,5 +288,90 @@ class VirtualIo {
          this.#buffer.push(i)
       }
    }
+}
+```
+
+## 8.1. Local mutability
+
+```ts
+const ar = () => {
+   const a = [] // a is mutable
+   a.push('hello')
+   return a // now it's immutable
+}
+```
+
+## 8.2. Pass Mutability
+
+```ts
+const ar = a => { // a is marked as mutable because we don't use the object anywhere else.
+   a.push('hello')
+}
+
+const f = () => {
+   const a = []
+   ar(a)
+   return a
+}
+```
+
+Here we consider an object is mutable if it has only one path.
+
+```ts
+const f = a => { // a is not mutable because we return a
+   return a
+}
+
+const f1 = a => {
+   const x = () => {
+      // a is mutable
+      a.push('x')
+   }
+   x()
+}
+
+const f2 = a => {
+   const x = () => {
+      a.push('x')
+   }
+   return x // compilation error.
+}
+```
+
+Should we have a global analysis?
+
+## 8.3. Async in Tests
+
+```ts
+type Fs = {
+   readonly readFile: (name: string) => Promise<string>
+   readonly writeFile: (name: string, text: string) => Promise<void>
+}
+
+// Should every test receive a state object, similar to Map?
+
+type AsyncMap<K, V> = {
+   readonly asyncGet: (k: K) => Promise<V|undefined>
+   readonly asyncSet: (k: K, v: V|undefined) => Promise<void>
+}
+
+const fs = (state: AsyncMap<string, string>) => ({
+   readFile: async(name: string): Promise<string> => { /* ? */ }
+   writeFile: async(name: string, text: string): Promise<void> => { /* ? */ }
+})
+
+// Another option is to allow access to `let` in `async` functions.
+
+const test = async(f: (fs: Fs) => Promise<void>): Promise<void> => {
+    let x = new Map()
+    const fs = {
+        readFile: async() => {
+            x.get() /* ... */
+        }
+        writeFile: async(k: string, v: string) => { // should writeFile
+            x = new Map(concat(x, [[k, v]]))
+        }
+    }
+    await f(fs)
 }
 ```

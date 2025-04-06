@@ -2,20 +2,20 @@ import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import type { DjsToken } from '../tokenizer/module.f.ts'
-import { setReplace, at, type Map } from '../../types/map/module.f.ts'
+import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
 
-export type ParseContext = {    
+export type ParseContext = {
     readonly fs: Fs
-    readonly complete: Map<result.Result<AstModule, string>>
+    readonly complete: OrderedMap<result.Result<AstModule, string>>
     readonly stack: List<string>
 }
 
 type DjsStackArray = ['array', List<AstConst>]
 
-type DjsStackObject = ['object', Map<AstConst>, string]
+type DjsStackObject = ['object', OrderedMap<AstConst>, string]
 
 type DjsStackElement = |
     DjsStackArray |
@@ -26,7 +26,7 @@ type DjsStack = List<DjsStackElement>
 type ParserState = InitialState | NewLineRequiredState | ImportState | ConstState | ExportState | ParseValueState | ResultState | ErrorState
 
 type ModuleState = {
-    readonly refs: Map<AstModuleRef>
+    readonly refs: OrderedMap<AstModuleRef>
     readonly modules: List<string>
     readonly consts: List<AstConst>
 }
