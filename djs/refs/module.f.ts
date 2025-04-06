@@ -1,18 +1,16 @@
 import type * as djs from '../module.f.ts'
-import type { Fold, StateScan } from '../../types/function/operator/module.f.ts'
+import type { Fold } from '../../types/function/operator/module.f.ts'
 import type * as O from '../../types/object/module.f.ts'
 import { fold } from '../../types/list/module.f.ts'
 import * as string from '../../types/string/module.f.ts'
 const { concat } = string
-import { type List, flat, flatMap, map, concat as listConcat, stateScan } from '../../types/list/module.f.ts'
+import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
 const { entries } = Object
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
 import * as bi from '../../types/bigint/module.f.ts'
 const { serialize: bigintSerialize } = bi
 import * as serializer from '../../json/serializer/module.f.ts'
-import { todo } from '../../dev/module.f.ts'
-import { tail } from '../../types/array/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = serializer
 
 const colon = [':']
