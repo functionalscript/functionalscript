@@ -14,9 +14,9 @@
     "n": "node --trace-uncaught",
     "prepack": "npm run tsc-emit",
     "git-clean": "git clean -xf",
-    "test20": "npm run tsc-emit && npm run n ./dev/test.js",
-    "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test.ts",
-    "test": "tsc && npm run n ./dev/test.ts",
+    "test20": "npm run tsc-emit && npm run n ./dev/test/module.js",
+    "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test/module.ts",
+    "test": "tsc && npm run n ./dev/test/module.ts",
     "index": "npm run n ./dev/index.ts",
     "fsc": "npm run n ./fsc.ts",
     "update": "npm run index && npm install"
