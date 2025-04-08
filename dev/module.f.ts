@@ -18,9 +18,6 @@ export type ModuleMap = {
    readonly[k in string]: Module
 }
 
-//const remove_tail = (v: readonly string[]) => (dif: number): string[] =>
-//    v.slice(0, v.length - dif)
-
 export const env
     : (io: Io) => (v: string) => string|undefined
     = ({ process: { env } }) => a => {
@@ -75,7 +72,7 @@ export const index = async (io: Io): Promise<number> => {
     const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))
     const list = Object.keys(await loadModuleMap(io)).filter(v => v.endsWith(n))
     //console.log(list)
-    const exportsA = list.filter(v => !v.startsWith('./out')).map(v => [v.replace(n, ''), `./${v.substring(2)}`])
+    const exportsA = list.filter(v => !v.startsWith('./out')).map(v => [v, `./${v.substring(2)}`])
     // console.log(exportsA)
     const exports = Object.fromEntries(exportsA)
     // console.log(exports)
