@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "files": [
     "**/*.js",
@@ -15,12 +15,12 @@
     "test20": "npm run tsc-emit && npm run n ./dev/test/module.js",
     "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test/module.ts",
     "test": "tsc && npm run n ./dev/test/module.ts",
-    "index": "npm run n ./dev/index.ts",
+    "index": "npm run n ./dev/index/module.ts",
     "fsc": "npm run n ./fsc/module.ts",
     "update": "npm run index && npm install"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "bin": {
     "fsc": "fsc/module.js"
