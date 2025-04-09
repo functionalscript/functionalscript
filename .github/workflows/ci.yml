@@ -72,7 +72,7 @@ jobs:
 
     strategy:
       matrix:
-        deno-version: [2]
+        deno-version: [1, 2]
 
     steps:
     - uses: actions/checkout@v2
