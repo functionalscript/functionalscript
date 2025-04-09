@@ -3,11 +3,13 @@ import fs from 'node:fs'
 import process from "node:process"
 import { concat } from '../path/module.f.ts'
 
+const prefix = 'file:///'
+
 export const io: Io = {
     console,
     fs,
     process,
-    asyncImport: (v: string): Promise<Module> => import(`file:///${concat(process.cwd())(v)}`),
+    asyncImport: (v: string): Promise<Module> => import(`${prefix}${concat(process.cwd())(v)}`),
     performance,
     tryCatch: f => {
         try {
