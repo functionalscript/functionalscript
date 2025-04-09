@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.6.2
+
+- Tests can run from a directory [PR 425](https://github.com/functionalscript/functionalscript/pull/425)
+
 ## 0.6.0
 
 - The FunctionalScript JSR package includes `module.ts` files [PR #423](https://github.com/functionalscript/functionalscript/pull/423)
