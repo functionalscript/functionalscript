@@ -1,12 +1,10 @@
 {
   "name": "functionalscript",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "type": "module",
   "files": [
-    "fsc.js",
-    "io/node-io.js",
-    "**/*.f.d.ts",
-    "**/*.f.js"
+    "**/*.js",
+    "**/*.d.ts"
   ],
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
@@ -18,14 +16,14 @@
     "test22": "tsc && npm run n -- --experimental-strip-types ./dev/test/module.ts",
     "test": "tsc && npm run n ./dev/test/module.ts",
     "index": "npm run n ./dev/index.ts",
-    "fsc": "npm run n ./fsc.ts",
+    "fsc": "npm run n ./fsc/module.ts",
     "update": "npm run index && npm install"
   },
   "engines": {
     "node": ">=16"
   },
   "bin": {
-    "fsc": "fsc.js"
+    "fsc": "fsc/module.js"
   },
   "repository": {
     "type": "git",
@@ -47,7 +45,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.13.14",
-    "typescript": "^5.8.2"
+    "@types/node": "^22.14",
+    "typescript": "^5.8.3"
   }
 }

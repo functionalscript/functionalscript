@@ -70,9 +70,8 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
 export const index = async (io: Io): Promise<number> => {
     updateVersion(io as Node<void>)
     const jj = './deno.json'
-    const n = '/module.f.ts'
     const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))
-    const list = (await allFiles(io)).filter(v => v.endsWith(n))
+    const list = (await allFiles(io)).filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
     //console.log(list)
     const exportsA = list.map(v => [v, `./${v.substring(2)}`])
     // console.log(exportsA)
