@@ -40,7 +40,7 @@ export const allFiles = ({ fs: { promises: { readdir }}}: Io): Promise<readonly 
                     result = [...result, ...await load(file)]
                     continue
                 }
-                if (name.endsWith('.f.js') || name.endsWith('.f.ts')) {
+                if (name.endsWith('.js') || name.endsWith('.ts')) {
                     result = [...result, file]
                 }
             }
