@@ -72,7 +72,7 @@ export const index = async (io: Io): Promise<number> => {
     const jj = './deno.json'
     const n = '/module.f.ts'
     const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))
-    const list = Object.keys(await loadModuleMap(io)).filter(v => v.endsWith(n))
+    const list = (await allFiles(io)).filter(v => v.endsWith(n))
     //console.log(list)
     const exportsA = list.filter(v => !v.startsWith('./out')).map(v => [v, `./${v.substring(2)}`])
     // console.log(exportsA)
