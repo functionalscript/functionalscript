@@ -88,6 +88,7 @@ export type Process = {
     readonly argv: string[]
     readonly env: Env
     readonly exit: (code: number) => never
+    readonly cwd: () => string
 }
 
 /**
