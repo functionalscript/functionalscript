@@ -85,7 +85,9 @@ export type Env = {
    readonly [k: string]: string|undefined
 }
 
-export type Run = (f: (io: Io) => Promise<number>) => Promise<never>
+export type App = (io: Io) => Promise<number>
+
+export type Run = (f: App) => Promise<never>
 
 /**
  * Runs a function and exits the process with the returned code
