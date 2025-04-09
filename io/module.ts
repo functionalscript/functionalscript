@@ -8,7 +8,7 @@ export const io: Io = {
     fs,
     process,
     asyncImport: (v: string): Promise<Module> => {
-        const x = `file://${concat(process.cwd())(v)}`
+        const x = `file:///${concat(process.cwd())(v)}`
         console.log('import', x)
         return import(x)
     },
