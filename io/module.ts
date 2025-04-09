@@ -24,6 +24,6 @@ export const io: Io = {
     },
 }
 
-const runDefault = run(io)
+const runDefault: Run = run(io)
 
 export default runDefault
