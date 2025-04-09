@@ -20,7 +20,7 @@
     "update": "npm run index && npm install"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "bin": {
     "fsc": "fsc/module.js"
