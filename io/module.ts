@@ -7,11 +7,7 @@ export const io: Io = {
     console,
     fs,
     process,
-    asyncImport: (v: string): Promise<Module> => {
-        const x = `file:///${concat(process.cwd())(v)}`
-        console.log('import', x)
-        return import(x)
-    },
+    asyncImport: (v: string): Promise<Module> => import(`file:///${concat(process.cwd())(v)}`),
     performance,
     tryCatch: f => {
         try {
