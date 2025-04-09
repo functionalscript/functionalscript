@@ -23,6 +23,7 @@ export const createVirtualIo = (files: OrderedMap<string>): Io => ({
         argv: [],
         env: {},
         exit: n => { throw n },
+        cwd: () => '',
     },
     asyncImport: () => Promise.reject(),
     performance: {

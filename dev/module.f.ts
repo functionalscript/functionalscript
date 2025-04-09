@@ -60,7 +60,7 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
         if (f.endsWith('.f.js') ||
             (f.endsWith('.f.ts') && !existsSync(f.substring(0, f.length - 3) + '.js'))
         ) {
-            const source = await asyncImport(`../${f}`)
+            const source = await asyncImport(f)
             map = [...map, [f, source]]
         }
     }

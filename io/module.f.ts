@@ -11,9 +11,9 @@ export type BufferEncoding = 'utf8'
  * @see https://nodejs.org/api/fs.html#class-fsdirent
  */
 export type Dirent = {
-    readonly name: string,
-    readonly isDirectory: () => boolean,
-    readonly isFile: () => boolean,
+    readonly name: string
+    readonly isDirectory: () => boolean
+    readonly isFile: () => boolean
 }
 
 export type RmOptions = {
@@ -88,6 +88,7 @@ export type Process = {
     readonly argv: string[]
     readonly env: Env
     readonly exit: (code: number) => never
+    readonly cwd: () => string
 }
 
 /**
@@ -108,7 +109,7 @@ export type Run = (f: App) => Promise<never>
 export const run = (io: Io): Run => {
     const code = ([x, b]: Result<number, unknown>) => {
         if (x === 'error') {
-            io.console.error(x[1])
+            io.console.error(b)
             return 1
         } else {
             return b
