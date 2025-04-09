@@ -6,11 +6,11 @@ import { concat as stringConcat } from '../types/string/module.f.ts'
 const foldNormalizeOp: Fold<string, List<string>>
  = input => state => {
     switch(input) {
-        case '': { return state }
+        case '': case '.': { return state }
         case '..': {
             switch(last(undefined)(state)) {
                 case undefined:
-                case '..': { return listConcat(state)([input]) }                
+                case '..': { return listConcat(state)([input]) }
             }
             return take(length(state) - 1)(state)
         }
