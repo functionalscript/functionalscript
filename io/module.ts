@@ -1,4 +1,4 @@
-import { type Io, type Module, run } from './module.f.ts'
+import { type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from "node:process"
 
@@ -24,4 +24,4 @@ export const io: Io = {
     },
 }
 
-export default run(io)
+export default run(io) satisfies Run
