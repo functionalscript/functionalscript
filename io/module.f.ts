@@ -14,6 +14,9 @@ export type Dirent = {
     readonly name: string,
     readonly isDirectory: () => boolean,
     readonly isFile: () => boolean,
+    readonly name: string,
+    readonly isDirectory: () => boolean,
+    readonly isFile: () => boolean,
 }
 
 export type RmOptions = {
