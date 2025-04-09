@@ -29,40 +29,42 @@ export const env
 
 type ModuleArray = readonly (readonly[string, Module])[]
 
-export const loadModuleMap = async ({
-    fs: {
-        promises: { readdir },
-        existsSync
-    },
-    asyncImport
-}: Io): Promise<ModuleMap> => {
-    const load = async (): Promise<ModuleMap> => {
-        const f
-            : (path: string) => Promise<ModuleArray>
-            = async p => {
-            let map: ModuleArray = []
-            for (const i of await readdir(p, { withFileTypes: true })) {
-                const { name } = i
-                if (!name.startsWith('.')) {
-                    const file = `${p}/${name}`
-                    if (i.isDirectory()) {
-                        map = [...map, ...await f(file)]
-                        continue
-                    }
-                    if (name.endsWith('.f.js') ||
-                        (name.endsWith('.f.ts') && !existsSync(file.substring(0, file.length - 3) + '.js'))
-                    ) {
-                        const source = await asyncImport(`../${file}`)
-                        map = [...map, [file, source]]
-                    }
+export const allFiles = ({ fs: { promises: { readdir }}}: Io): Promise<readonly string[]> => {
+    const load = async(p: string): Promise<readonly string[]> => {
+        let result: readonly string[] = []
+        for (const i of await readdir(p, { withFileTypes: true })) {
+            const { name } = i
+            if (!name.startsWith('.')) {
+                const file = `${p}/${name}`
+                if (i.isDirectory()) {
+                    result = [...result, ...await load(file)]
+                    continue
+                }
+                if (name.endsWith('.f.js') || name.endsWith('.f.ts')) {
+                    result = [...result, file]
                 }
             }
-            return map
         }
-        return Object.fromEntries((await f('.')).toSorted(cmp))
+        return result
     }
+    return load('.')
+}
 
-    return await load()
+export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
+    const {
+        fs: { existsSync },
+        asyncImport
+    } = io
+    let map: ModuleArray = []
+    for (const f of await allFiles(io)) {
+        if (f.endsWith('.f.js') ||
+            (f.endsWith('.f.ts') && !existsSync(f.substring(0, f.length - 3) + '.js'))
+        ) {
+            const source = await asyncImport(`../${f}`)
+            map = [...map, [f, source]]
+        }
+    }
+    return Object.fromEntries(map.toSorted(cmp))
 }
 
 export const index = async (io: Io): Promise<number> => {
