@@ -72,13 +72,14 @@ jobs:
 
     strategy:
       matrix:
-        deno-version: [1, 2]
+        deno-version: [2]
 
     steps:
     - uses: actions/checkout@v2
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
+    - run: deno install
     - run: deno task test
     - run: deno publish --dry-run
 
@@ -89,7 +90,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash
-    - run: /home/runner/.bun/bin/bun ./dev/test.ts
+    - run: /home/runner/.bun/bin/bun ./dev/test/module.ts
 
   rust:
     strategy:

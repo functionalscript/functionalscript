@@ -107,6 +107,7 @@ logic should be moved to a private free floating helper function (to keep public
           readonly log: (s: S, msg: string) => void
       }
       ```
+- [ ] 65. Investigate mutability inference
 
 ## Language Specification
 

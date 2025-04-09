@@ -1,4 +1,4 @@
-import { type Io, run } from './module.f.ts'
+import { type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from "node:process"
 
@@ -6,7 +6,7 @@ export const io: Io = {
     console,
     fs,
     process,
-    asyncImport: v => import(v),
+    asyncImport: (v: string): Promise<Module> => import(v),
     performance,
     tryCatch: f => {
         try {
@@ -24,4 +24,6 @@ export const io: Io = {
     },
 }
 
-export default run(io)
+const runDefault: Run = run(io)
+
+export default runDefault

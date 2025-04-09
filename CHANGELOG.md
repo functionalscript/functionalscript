@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.6.0
+
+- The FunctionalScript JSR package includes `module.ts` files [PR #423](https://github.com/functionalscript/functionalscript/pull/423)
+- Dropped support for Node 16, Node 18 and Deno 1.
+
 ## 0.5.0
 
 - `fsc` added as an executable into npm package [PR #396](https://github.com/functionalscript/functionalscript/pull/396)
