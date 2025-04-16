@@ -2,9 +2,10 @@
 
 Call-like bytecode instruction include following groups:
 
-- calls into user-defined functions ("proper calls");
-- calls into host functions - standard language runtime "intrinsics" (including operators);
-- other call-like instructions - mentioned here thanks to similarities to above mentioned groups.
+1. calls into host functions - standard language runtime "intrinsics" (including operators);
+2. calls into statically resolved user-defined functions ("proper calls");
+3. calls into dynamically resolved user-defined functions ("proper calls");
+4. other call-like instructions - mentioned here thanks to similarities to above mentioned groups.
 
 ## 1. Calls into host functions
 
@@ -29,3 +30,6 @@ to the caller stack frame slot allocated for c.
 
 In case when bytecode generator has complete information of a function being called, . . .
 
+## 3. Dynamic calls into user-defined functions
+
+## 4. Other call-like instructions
