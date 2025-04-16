@@ -25,7 +25,7 @@ specifications for a, b and c at the caller stack frame. This allows to execute 
 function without overhead of copying a, b to the top of the stack and then copying the result
 to the caller stack frame slot allocated for c.
 
-## 1. Static calls into user-defined functions
+## 2. Static calls into user-defined functions
 
 In case when bytecode generator has complete information of a function being called, . . .
 
