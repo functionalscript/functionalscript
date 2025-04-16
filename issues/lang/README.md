@@ -389,4 +389,8 @@ arguments of a function call to devoted stack slots (before the proper call inst
 optimization opportunities for calling well-known host (built-in) functions that can be implemented
 without excessive copying / slot allocations.
 
+On the other hand we target for simplicity and speed of bytecode loader, for example, we represent
+number literals as an LSB double floating point (8 bytes - LSB picked here since it's an in-memory
+representation more commonly used in popular processor architectures).
+
 1. [ ] [Call-like instructions](./9100-call-like-instructions.md)
