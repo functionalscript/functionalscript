@@ -2,10 +2,10 @@
 
 Call-like bytecode instruction include following groups:
 
-1. calls into host functions - standard language runtime "intrinsics" (including operators);
-2. calls into statically resolved user-defined functions ("proper calls");
-3. calls into dynamically resolved user-defined functions ("proper calls");
-4. other call-like instructions - mentioned here thanks to similarities to above mentioned groups.
+1. **calls into host functions** (standard language runtime "intrinsics", including operators);
+2. **static calls into user-defined functions**;
+3. **dynamic calls into user-defined functions**;
+4. **other call-like instructions** (mentioned here thanks to similarities to above mentioned groups).
 
 ## 1. Calls into host functions
 
@@ -22,9 +22,9 @@ const c = a + b
 ```
 
 produces bytecode for calling host's implementation of operator plus, followed by slot
-specifications for a, b and c at the caller stack frame. This allows to execute that built-in
-function without overhead of copying a, b to the top of the stack and then copying the result
-to the caller stack frame slot allocated for c.
+specifications for `a`, `b` and `c` at the caller stack frame. This allows to execute that built-in
+function without overhead of copying `a`, `b` to the top of the stack and then copying the result
+to the caller stack frame slot allocated for `c`.
 
 ## 2. Static calls into user-defined functions
 
