@@ -375,3 +375,18 @@ const test = async(f: (fs: Fs) => Promise<void>): Promise<void> => {
     await f(fs)
 }
 ```
+
+# 9. Bytecode
+
+Let's have a concise and relatively stable "external" bytecode model that is fit for representation
+of processed FS code upon serialization (saving in-memory function object) / deserialization
+(loading previously saved function objects). A VM implementation has an option to transform that
+external bytecode into its internal representation on loading.
+
+Looking from that perspective we should design external bytecode in most flexible manner, allowing
+for various kinds of optimizations in VM implementations. For example, bytecode that always copies
+arguments of a function call to devoted stack slots (before the proper call instruction) disallow
+optimization opportunities for calling well-known host (built-in) functions that can be implemented
+without excessive copying / slot allocations.
+
+1. [ ] [Call-like instructions](./3510-call-like-instructions.md)
