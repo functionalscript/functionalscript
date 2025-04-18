@@ -34,15 +34,15 @@ export const allFiles = ({ fs: { promises: { readdir }}}: Io): Promise<readonly 
         let result: readonly string[] = []
         for (const i of await readdir(p, { withFileTypes: true })) {
             const { name } = i
-            if (!name.startsWith('.')) {
-                const file = `${p}/${name}`
-                if (i.isDirectory()) {
-                    result = [...result, ...await load(file)]
-                    continue
-                }
-                if (name.endsWith('.js') || name.endsWith('.ts')) {
-                    result = [...result, file]
-                }
+            if (name.startsWith('.')) { continue }
+            const file = `${p}/${name}`
+            if (i.isDirectory()) {
+                if (name === 'node_modules') { continue}
+                result = [...result, ...await load(file)]
+                continue
+            }
+            if (name.endsWith('.js') || name.endsWith('.ts')) {
+                result = [...result, file]
             }
         }
         return result
