@@ -1,7 +1,7 @@
 import type { Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
-import { stringify } from './serializer/module.f.ts'
+import { stringify } from './serializer-old/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
 export type Object = {
