@@ -47,9 +47,9 @@ export default {
         if (refsRoot !== '[3,1,false]') { throw refsRoot }    
     },
     testSerialization: () => {
-        const obj = {"a": 1, "b": 2}
+        const obj = {"a": 1, "b": 2n, "c": [undefined, null, true, false]}
         const djs = [obj, obj, 1]
         const res = serializeWithConstants(sort)(djs)
-        if (res !== 'const c0 = 1\nconst c2 = {"a":c0,"b":2}\nexport default [c2,c2,c0]') { throw res }
+        if (res !== 'const c0 = 1\nconst c3 = {"a":c0,"b":2n,"c":[undefined,null,true,false]}\nexport default [c3,c3,c0]') { throw res }
     }    
 }

@@ -166,8 +166,7 @@ export const serializeWithConstants
         const consts = getConstants(djs)({refs, consts: []}).consts
         const constSerialize
             : (entry: djs.Unknown) => List<string>
-            = entry => {
-                console.log(entry)
+            = entry => {                
                 const refCounter = refs.get(entry)
                 if (refCounter === undefined)
                 {
