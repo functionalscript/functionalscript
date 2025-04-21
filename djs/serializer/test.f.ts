@@ -2,6 +2,7 @@ import { countRefs, serializeWithConstants } from './module.f.ts'
 import * as list from '../../types/object/module.f.ts'
 const { sort } = list
 import * as serializer from '../serializer-old/module.f.ts'
+import { identity } from '../../types/function/module.f.ts'
 
 const stringify = serializer.stringify(sort)
 
@@ -46,10 +47,16 @@ export default {
         const refsRoot = stringify(refs.get(djs))
         if (refsRoot !== '[3,1,false]') { throw refsRoot }    
     },
-    testSerialization: () => {
-        const obj = {"a": 1, "b": 2n, "c": [undefined, null, true, false]}
+    testSort: () => {
+        const obj = {"a": 1, "c": 2n, "b": [undefined, null, true, false]}
         const djs = [obj, obj, 1]
         const res = serializeWithConstants(sort)(djs)
-        if (res !== 'const c0 = 1\nconst c3 = {"a":c0,"b":2n,"c":[undefined,null,true,false]}\nexport default [c3,c3,c0]') { throw res }
-    }    
+        if (res !== 'const c0 = 1\nconst c3 = {"a":c0,"b":[undefined,null,true,false],"c":2n}\nexport default [c3,c3,c0]') { throw res }
+    },
+    testIdentity: () => {
+        const obj = {"a": 1, "c": 2n, "b": [undefined, null, true, false]}
+        const djs = [obj, obj, 1]
+        const res = serializeWithConstants(identity)(djs)
+        if (res !== 'const c0 = 1\nconst c3 = {"a":c0,"c":2n,"b":[undefined,null,true,false]}\nexport default [c3,c3,c0]') { throw res }
+    }
 }
