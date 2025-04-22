@@ -68,19 +68,6 @@ export type Performance = {
 }
 
 /**
- * Core IO operations interface providing access to system resources
- */
-export type Io = {
-    readonly console: Console,
-    readonly fs: Fs,
-    readonly process: Process
-    readonly asyncImport: (s: string) => Promise<Module>
-    readonly performance: Performance
-    readonly tryCatch: <T>(f: () => T) => Result<T, unknown>
-    readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
-}
-
-/**
  * Node.js Process interface
  * @see https://nodejs.org/api/process.html
  */
@@ -89,6 +76,20 @@ export type Process = {
     readonly env: Env
     readonly exit: (code: number) => never
     readonly cwd: () => string
+}
+
+/**
+ * Core IO operations interface providing access to system resources
+ */
+export type Io = {
+    readonly console: Console,
+    readonly fs: Fs,
+    readonly process: Process
+    readonly asyncImport: (s: string) => Promise<Module>
+    readonly performance: Performance
+    readonly fetch: (url: string) => Promise<Response>
+    readonly tryCatch: <T>(f: () => T) => Result<T, unknown>
+    readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
 }
 
 /**
