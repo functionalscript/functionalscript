@@ -76,13 +76,16 @@ with explicitly defined length>`
 There are instructions that are not host function calls technically since they do not correspond
 to lagnuage's predefined functions and operators. Yet they are provided with a list of argument
 descriptors of a predefined length in the same way as the host function calls. For example,
-copy and move instructions each have exactly two argument descriptors - one for the source and
+copy and move instructions each have exactly two argument descriptors &ndash; one for the source and
 another for the destination (side note: the move instruction nullifies the source, not increasing
 the number of references in case of moving a reference; the copy instruction keeps the source intact
 and thus increases the number of references when copying a reference).
 
 For the sake of symplicity we can use the host function call scheme for these call-like instructions
-- and even consider zero-argument instructions as host function calls. Alternatively we will define
+&ndash; and even consider zero-argument instructions as host function calls. Alternatively, we will
+have a wider set of instruction code and use the following schema for call-like instructions:
+
+`<call-like instruction>  <predefined number of argument descriptors>`
 
 ## 5. Argument descriptors
 
