@@ -28,8 +28,13 @@ to the caller stack frame slot allocated for `c`.
 
 ## 2. Static calls into user-defined functions
 
-In case when bytecode generator has complete information of a function being called, . . .
+In case when bytecode generator has complete information of a function being called, a reference
+to that function is resolved at load time &ndash;
 
 ## 3. Dynamic calls into user-defined functions
 
 ## 4. Other call-like instructions
+
+## 5. Location references
+
+
