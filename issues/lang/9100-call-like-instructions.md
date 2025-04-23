@@ -22,16 +22,16 @@ const c = a + b
 ```
 
 produces bytecode for calling host's implementation of operator plus, followed by slot
-specifications for `a`, `b` and `c` at the caller stack frame. This allows to execute that built-in
+descriptors for `a`, `b` and `c` at the caller stack frame. This allows to execute that built-in
 function without overhead of copying `a`, `b` to the top of the stack and then copying the result
 to the caller stack frame slot allocated for `c`.
 
 A schema for a host function call looks like
 
-`<host call instruction> <predefined host function id> <predefined number of argument specifications>`
+`<host call instruction> <predefined host function id> <predefined number of argument descriptors>`
 
 &ndash regardless how many bits each part takes, we can exeperiment with different encodings,
-including schemes with variable-length function id and argument specification parts. Note that
+including schemes with variable-length function id and argument descriptor parts. Note that
 the number of arguments is predefined for each function id, so this kind of a call instruction
 does not need to carry it.
 
@@ -48,7 +48,7 @@ A schema for a static call differs from the schema for a host function call in t
 a correspondent entry in one of metadata tables produced by the parser alongside with bytecode
 instructions.
 
-- The length of the sequence of argument specifications is specifed in the instruction (unlike
+- The length of the sequence of argument descriptors is specifed in the instruction (unlike
 to that in host function calls that length is predefined for each function id). We can prepend
 that number at the start of the list, or use a special value terminal argument specified
 encoding at the end of the list.
@@ -62,17 +62,28 @@ example, that function object gets retrieved as a property of an object by a dyn
 (with property named not known at parse time but calculated at run time), or as an element of
 an array, or as a result of another function call.
 
-In this case the function object is identified by its location specification akin to to location-
-based argument specifications. That specification is followed by argument specifications in
+In this case the function object is identified by its location descriptor akin to to location-
+based argument descriptors. That descriptor is followed by argument descriptors in
 same way as in the static call instruction. In a way, we can consider the function object
-specification as the first always-existing argument specification, but it makes sense to separate
-it out and then have exactly same argument list specification for zero or more arguments.
+descriptor as the first always-existing argument descriptor, but it makes sense to separate
+it out and then have exactly same argument list descriptor for zero or more arguments.
 
-`<dynamic call instruction> <function object location specification> <list of argument specifications
+`<dynamic call instruction> <function object location descriptor> <list of argument descriptors
 with explicitly defined length>`
 
 ## 4. Other call-like instructions
 
-## 5. Argument specifications
+There are instructions that are not host function calls technically since they do not correspond
+to lagnuage's predefined functions and operators. Yet they are provided with a list of argument
+descriptors of a predefined length in the same way as the host function calls. For example,
+copy and move instructions each have exactly two argument descriptors - one for the source and
+another for the destination (side note: the move instruction nullifies the source, not increasing
+the number of references in case of moving a reference; the copy instruction keeps the source intact
+and thus increases the number of references when copying a reference).
+
+For the sake of symplicity we can use the host function call scheme for these call-like instructions
+- and even consider zero-argument instructions as host function calls. Alternatively we will define
+
+## 5. Argument descriptors
 
 
