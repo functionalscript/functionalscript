@@ -28,7 +28,7 @@ to the caller stack frame slot allocated for `c`.
 
 A schema for a host function call looks like
 
-<host call instruction> <predefined host function id> <predefined number of argument specifications>
+`<host call instruction> <predefined host function id> <predefined number of argument specifications>`
 
 &ndash regardless how many bits each part takes, we can exeperiment with different encodings,
 including schemes with variable-length function id and argument specification parts. Note that
@@ -53,7 +53,7 @@ to that in host function calls that length is predefined for each function id). 
 that number at the start of the list, or use a special value terminal argument specified
 encoding at the end of the list.
 
-<static call instruction> <runtime function id> <list of arguments with explicitly defined length>
+`<static call instruction> <runtime function id> <list of arguments with explicitly defined length>`
 
 ## 3. Dynamic calls into user-defined functions
 
@@ -68,8 +68,8 @@ same way as in the static call instruction. In a way, we can consider the functi
 specification as the first always-existing argument specification, but it makes sense to separate
 it out and then have exactly same argument list specification for zero or more arguments.
 
-<dynamic call instruction> <function object location specification> <list of argument specifications
-with explicitly defined length>
+`<dynamic call instruction> <function object location specification> <list of argument specifications
+with explicitly defined length>`
 
 ## 4. Other call-like instructions
 
