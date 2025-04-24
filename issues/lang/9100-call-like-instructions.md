@@ -22,9 +22,9 @@ const c = a + b
 ```
 
 produces bytecode for calling host's implementation of operator plus, followed by slot
-descriptors for `a`, `b` and `c` at the caller stack frame. This allows to execute that built-in
-function without overhead of copying `a`, `b` to the top of the stack and then copying the result
-to the caller stack frame slot allocated for `c`.
+descriptors for `a`, `b` and `c` at the caller function's stack frame. This allows to execute that
+built-in function without overhead of copying `a`, `b` to the top of the stack and then copying
+the result to the caller stack frame slot allocated for `c`.
 
 A schema for a host function call looks like
 
