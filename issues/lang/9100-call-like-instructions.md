@@ -100,20 +100,20 @@ the descriptor. We can use a variable length encoding here or use a 64-bit value
 scheme of encoding base value type within that value. From the flexibility point of view it makes
 sense to not take dependency on NaNVM's scheme of encoding base values and use the benefit of
 compactness of a variable length encoding scheme here.
-1. **Caller's local values**: that is a kind of location descriptors referring to locations the
+2. **Caller's local values**: that is a kind of location descriptors referring to locations the
 caller function's frame. We don't use this kind of descriptors for other frames in the caller chain,
 nor for the "global frame" - only for locals of the immediate caller. Within that frame, locations
 are indexed by unsigned integers starting from zero. One would say that these locations correspond
 one to one to named locals, but that would prohibit a frame slot reuse optimization that the parser
 can implement, so we don't use this analogy.
-1. **Caller's temporary values**: that is a kind of location used for caller's temporary values,
+3. **Caller's temporary values**: that is a kind of location used for caller's temporary values,
 typically produced dynamically "on the stack" when calculating expressions. These locations are
 zero-based indexes with zero corresponding to the top of the stack and greater unsigned integer
 indexes corresponding to deeper stack locations counting from the top of the stack. The VM might
 decide to combine function's frame of locals with the stack of temporary values, but that is an
 implementation detail of that VM so other implementations can use another approach, completely
 separating two location kinds.
-1. **Captured values**: that kind of location is used when the user-defined caller function refers
+4. **Captured values**: that kind of location is used when the user-defined caller function refers
 to value names that are not locally defined in it, but rather belong to outer contexts. We cannot
 use a scheme that describes a value belonging to the frame "up in the caller chain" because, after
 being defined, a function object can be detached from the call chain context and then passed into
@@ -122,7 +122,7 @@ when detecting a reference to an outer context within a function body, the parse
 a captured value, and captured values are stored in a devoted frame owned by the function object,
 and, naturally, that frame is separate from other location kinds described here. As usually, withing
 that frame locations are indexed by unsigned integers.
-1. **Caller's arguments** (questionable: see the next section, "**a variation on a descriptor for
+5. **Caller's arguments** (questionable: see the next section, "**a variation on a descriptor for
 a callee's argument and dynamic call instruction scheme**"): that kind of location is used when
 the caller passes its argument as an argument of the callee function. As in the case of separate
 location kinds for caller's local values and caller's temporary values, it makes sense to separate
@@ -133,6 +133,17 @@ copy arguments to predefined locations within the caller's local values stack (t
 static calls that makes perfect sense, so the parser can use the previously described local values
 stack location kind, theoretically). As usually, locations are unsigned integers with zero
 corresponding to the first argument and so on.
+6. **Position within a given array**: (questionable) that kind of location is used only in call-like
+instructions and not in proper calls, so we can separate it out from the list of locaction kinds
+of "proper" calls. That descriptor consists of two parts: first, the descriptor of the array
+reference; second, the index index within that array.
+7. **Push to the stack of temporary values** : (questionable) that kind of location is used only in
+call-like instructions and not in proper calls
+
+**Side note**: in case of call-like instructions there could be limitations on argument descriptors
+in certain positions. For example, the destination descriptor of copy and move instructions can be
+only **caller's local values**, **position within a given array**, **push to the stack of temporary
+values**.
 
 ## 6. A variation on a descriptor for a callee's argument and dynamic call instruction scheme
 
@@ -151,6 +162,3 @@ manipulation with the argument array object reference placing at zero index of t
 frame remains behind the scene):
 
 `<dynamic call instruction> <function object location descriptor>`
-
-Besides, with that approach the number of argument descriptor kinds equals 4 that fits nicely into
-2 bits :).
