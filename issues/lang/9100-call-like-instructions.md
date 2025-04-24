@@ -133,17 +133,16 @@ copy arguments to predefined locations within the caller's local values stack (t
 static calls that makes perfect sense, so the parser can use the previously described local values
 stack location kind, theoretically). As usually, locations are unsigned integers with zero
 corresponding to the first argument and so on.
-6. **Position within a given array**: (questionable) that kind of location is used only in call-like
-instructions and not in proper calls, so we can separate it out from the list of locaction kinds
-of "proper" calls. That descriptor consists of two parts: first, the descriptor of the array
-reference; second, the index index within that array.
-7. **Push to the stack of temporary values**: (questionable) that kind of location is used only in
-call-like instructions and not in proper calls
 
-**Side note**: in case of call-like instructions there could be limitations on argument descriptors
-in certain positions. For example, the destination descriptor of copy and move instructions can be
-only **caller's local values**, **position within a given array**, **push to the stack of temporary
-values**.
+**Side note**: it is tempting to introduce argument location kinds specific to certain call-like
+instructions but not to proper calls. For example, a destination of a move or copy instruction
+could be a) "push to the stack of temporary values" or b) "place into the given compound object
+at a key specified in the next argument descriptor". While allowing for more optimizations in
+a VM implementation, that approach increases complexity, so we will use different solutions. For
+a), the parser will first generate an "add one more slot at the stack of temporary values" and
+then move / copy command referring to the newly created top slot as the destination. For b),
+the parser will generate a devoted host function call or a devoted call-like instruction "move
+/ copy into a compound object at a given key" instead of using generic move / copy instructions.
 
 ## 6. A variation on a descriptor for a callee's argument and dynamic call instruction scheme
 
@@ -162,3 +161,6 @@ manipulation with the argument array object reference placing at zero index of t
 frame remains behind the scene):
 
 `<dynamic call instruction> <function object location descriptor>`
+
+In case if we decide to use this approach, the number of argument descriptor kinds shrinks to 4 which
+allows for a compact 2-bite encoding.
