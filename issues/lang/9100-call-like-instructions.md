@@ -137,7 +137,7 @@ corresponding to the first argument and so on.
 instructions and not in proper calls, so we can separate it out from the list of locaction kinds
 of "proper" calls. That descriptor consists of two parts: first, the descriptor of the array
 reference; second, the index index within that array.
-7. **Push to the stack of temporary values** : (questionable) that kind of location is used only in
+7. **Push to the stack of temporary values**: (questionable) that kind of location is used only in
 call-like instructions and not in proper calls
 
 **Side note**: in case of call-like instructions there could be limitations on argument descriptors
