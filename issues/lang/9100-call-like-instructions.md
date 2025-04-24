@@ -1,6 +1,6 @@
 # Call-like instructions
 
-Call-like bytecode instruction include following groups:
+Call-like bytecode instructions include following groups:
 
 1. **calls into host functions** (standard language runtime "intrinsics", including operators);
 2. **static calls into user-defined functions**;
