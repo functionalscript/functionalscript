@@ -5,7 +5,8 @@ Call-like bytecode instructions include following groups:
 1. **calls into host functions** (standard language runtime "intrinsics", including operators);
 2. **static calls into user-defined functions**;
 3. **dynamic calls into user-defined functions**;
-4. **other call-like instructions** (mentioned here thanks to similarities to above mentioned groups).
+4. **other call-like instructions** (mentioned here thanks to similarities to above mentioned
+groups).
 
 ## 1. Calls into host functions
 
@@ -162,5 +163,5 @@ frame remains behind the scene):
 
 `<dynamic call instruction> <function object location descriptor>`
 
-In case if we decide to use this approach, the number of argument descriptor kinds shrinks to 4 which
-allows for a compact 2-bite encoding.
+In case if we decide to use this approach, the number of argument descriptor kinds shrinks to 4,
+which allows for a compact 2-bite encoding.
