@@ -119,7 +119,7 @@ the original caller chain references are not relevant anymore. So, when detectin
 context within a function body, the parser registers it as a captured value, and captured values are stored
 in a devoted frame owned by the function object, and naturally that frame is separate from other localtion
 kinds described here. As usually, withing that frame locations are indexed by unsigned integers.
-5. **Caller's arguments** (questionable: see the next section, "**a variation on descriptor for a callee's
+5. **Caller's arguments** (questionable: see the next section, "**a variation on a descriptor for a callee's
 argument and dynamic call instruction scheme**"): that kind of location is used when the caller passes its
 argument as an argument of the callee function. As in the case of separate location kinds for caller's local
 values and caller's temporary values, it makes sense to separate caller's arguments as yet another kind of
@@ -130,7 +130,7 @@ values stack (though in case of static calls that makes perfect sense, so the pa
 described local values stack location kind, theoretically). As usually, locations are unsigned integers with
 zero corresponding to the first argument and so on.
 
-## 6. A variation on descriptor for a callee's argument and dynamic call instruction scheme
+## 6. A variation on a descriptor for a callee's argument and dynamic call instruction scheme
 
 In JS, function parameters can be referred by names or as elements of `arguments` array. Thus for the sake of
 simplicity we can decide to not have a special location kind for callee's arguments. Instead, in case of
