@@ -1,5 +1,5 @@
-import type { BufferEncoding, Io, MakeDirectoryOptions, RmOptions } from './module.f.ts'
-import { at, type OrderedMap } from '../types/ordered_map/module.f.ts'
+import type { BufferEncoding, Io, MakeDirectoryOptions, RmOptions } from '../module.f.ts'
+import { at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 
 export const createVirtualIo = (files: OrderedMap<string>): Io => ({
     console: {
@@ -29,6 +29,7 @@ export const createVirtualIo = (files: OrderedMap<string>): Io => ({
     performance: {
         now: () => 0,
     },
+    fetch: () => Promise.reject(),
     tryCatch: f => ['ok', f()],
     asyncTryCatch: async f => ['ok', await f()],
 })

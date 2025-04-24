@@ -11,6 +11,7 @@ export const io: Io = {
     process,
     asyncImport: (v: string): Promise<Module> => import(`${prefix}${concat(process.cwd())(v)}`),
     performance,
+    fetch,
     tryCatch: f => {
         try {
             return ['ok', f()]
