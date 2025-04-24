@@ -173,7 +173,6 @@ export const stringify
                 const refCounter = refs.get(entry)
                 if (refCounter === undefined)
                 {
-                    console.log(entry)
                     throw 'unexpected behaviour'
                 }
                 return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(entry)(entry), ['\n']])
