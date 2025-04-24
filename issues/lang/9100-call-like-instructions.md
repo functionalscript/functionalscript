@@ -129,7 +129,7 @@ predefined locations within the caller's local values stack (though in case of s
 sense, so the parser can use the previosly described local values stack location kind, theoretically). As
 usually, locations are unsigned integers with zero corresponding to the first argument and so on.
 
-## Discussion on descriptor of callee's arguments and dynamic call instruction scheme
+## 6 A variation on descriptor of callee's arguments and dynamic call instruction scheme
 
 In JS, function parameters can be referred by names or as elements of `arguments` array. Thus for the sake of
 simplicity we can decide to not have a special location kind for callee's arguments. Instead, in case of
@@ -145,6 +145,6 @@ argument array object reference placing at zero index of the caller function fra
 
 `<dynamic call instruction> <function object location descriptor>
 
-
+Besides, with that approach the number of argument descriptor kinds equals 4 that fits nicely into 2 bits :).
 
 
