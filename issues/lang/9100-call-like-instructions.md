@@ -143,7 +143,7 @@ With this approach, the dynamic function call instruction scheme looks like a ca
 one argument descriptor that specifies the location of the function object (since VM's manipulation with the
 argument array object reference placing at zero index of the caller function frame remains behind the scene):
 
-`<dynamic call instruction> <function object location descriptor>
+`<dynamic call instruction> <function object location descriptor>`
 
 Besides, with that approach the number of argument descriptor kinds equals 4 that fits nicely into 2 bits :).
 
