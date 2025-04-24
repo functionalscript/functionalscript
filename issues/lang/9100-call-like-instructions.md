@@ -119,15 +119,16 @@ the original caller chain references are not relevant anymore. So, when detectin
 context within a function body, the parser registers it as a captured value, and captured values are stored
 in a devoted frame owned by the function object, and naturally that frame is separate from other localtion
 kinds described here. As usually, withing that frame locations are indexed by unsigned integers.
-5. **Caller's arguments** (questionable: see the next section, **discussion on caller's arguments**): that
-kind of location is used when the caller passes its argument as an argument of the callee function. As in
-the case of separate location kinds for caller's local values and caller's temporary values, it makes sense
-to separate caller's arguments as yet another kind of a location. One reason for that is &ndash; in the case
-of a dynamic user-defined function call the parser doesn't know how many arguments the callee expects; besides,
-the callee might support a variable number of arguments (printf-style). Thus the VM cannot copy arguments to
-predefined locations within the caller's local values stack (though in case of static calls that makes perfect
-sense, so the parser can use the previosly described local values stack location kind, theoretically). As
-usually, locations are unsigned integers with zero corresponding to the first argument and so on.
+5. **Caller's arguments** (questionable: see the next section, "**a variation on descriptor of callee's
+arguments and dynamic call instruction scheme**"): that kind of location is used when the caller passes its
+argument as an argument of the callee function. As in the case of separate location kinds for caller's local
+values and caller's temporary values, it makes sense to separate caller's arguments as yet another kind of
+a location. One reason for that is &ndash; in the case of a dynamic user-defined function call the parser
+doesn't know how many arguments the callee expects; besides, the callee might support a variable number of
+arguments (printf-style). Thus the VM cannot copy arguments to predefined locations within the caller's local
+values stack (though in case of static calls that makes perfect sense, so the parser can use the previosly
+described local values stack location kind, theoretically). As usually, locations are unsigned integers with
+zero corresponding to the first argument and so on.
 
 ## 6 A variation on descriptor of callee's arguments and dynamic call instruction scheme
 
