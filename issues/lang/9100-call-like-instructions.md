@@ -130,7 +130,7 @@ values stack (though in case of static calls that makes perfect sense, so the pa
 described local values stack location kind, theoretically). As usually, locations are unsigned integers with
 zero corresponding to the first argument and so on.
 
-## 6 A variation on descriptor of callee's arguments and dynamic call instruction scheme
+## 6. A variation on descriptor of callee's arguments and dynamic call instruction scheme
 
 In JS, function parameters can be referred by names or as elements of `arguments` array. Thus for the sake of
 simplicity we can decide to not have a special location kind for callee's arguments. Instead, in case of
