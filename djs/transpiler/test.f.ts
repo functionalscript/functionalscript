@@ -1,7 +1,7 @@
 import { sort } from '../../types/object/module.f.ts'
 import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { transpile } from './module.f.ts'
-import { stringify } from '../serializer/module.f.ts'
+import { stringify } from '../serializer-old/module.f.ts'
 import { createVirtualIo } from '../../io/virtual/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 
