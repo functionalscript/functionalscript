@@ -127,13 +127,16 @@ const countRefsOp
     :Fold<djs.Unknown, Refs>
     = djs => refs => {
         switch (typeof djs) {
-            case 'boolean': { return refs }
-            case 'number':
+            case 'boolean':
+            case 'number': { return refs }
             case 'string':
             case 'bigint': { return addRef(djs)(refs) }
             default: {
-                if (djs === null) { return refs }
-                if (djs === undefined) { return refs }
+                switch(djs) {
+                    case null:
+                    case undefined: { return refs }
+                }
+                
                 if (djs instanceof Array) {
                     if (refs.has(djs))
                         return addRef(djs)(refs)
@@ -159,7 +162,7 @@ const addRef
         return refs.set(djs, [refCounter[0], refCounter[1] + 1, false])
     }
 
-export const serializeWithConstants
+export const stringify
     : (sort: MapEntries) => (djs: djs.Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)

@@ -1,26 +1,22 @@
-import { countRefs, serializeWithConstants } from './module.f.ts'
+import { countRefs, stringify } from './module.f.ts'
 import * as list from '../../types/object/module.f.ts'
 const { sort } = list
 import * as serializer from '../serializer-old/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 
-const stringify = serializer.stringify(sort)
+const stringifyOld = serializer.stringify(sort)
 
 export default {
     testPrimitives: () => {
         const djs = [1, 2, 2, 2, true, false, undefined, null, 3n, "str"]
         const refs = countRefs(djs)
-        if (refs.size !== 5) { throw refs.size }
-        const refs1 = stringify(refs.get(1))
-        if (refs1 !== '[0,1,false]') { throw refs1 }
-        const refs2 = stringify(refs.get(2))
-        if (refs2 !== '[1,3,false]') { throw refs2 }
-        const refsBigInt = stringify(refs.get(3n))
-        if (refsBigInt !== '[2,1,false]') { throw refsBigInt }
-        const refsString = stringify(refs.get("str"))
-        if (refsString !== '[3,1,false]') { throw refsString }        
-        const refsRoot = stringify(refs.get(djs))
-        if (refsRoot !== '[4,1,false]') { throw refsRoot }
+        if (refs.size !== 3) { throw refs.size }
+        const refsBigInt = stringifyOld(refs.get(3n))
+        if (refsBigInt !== '[0,1,false]') { throw refsBigInt }
+        const refsString = stringifyOld(refs.get("str"))
+        if (refsString !== '[1,1,false]') { throw refsString }        
+        const refsRoot = stringifyOld(refs.get(djs))
+        if (refsRoot !== '[2,1,false]') { throw refsRoot }
         if (refs.get(null) !== undefined) { throw refs.get(null) }
     },
     testArray: () => {
@@ -28,35 +24,31 @@ export default {
         const djs = [array,array,array]
         const refs = countRefs(djs)
         if (refs.size !== 2) { throw refs.size }
-        const refsArray = stringify(refs.get(array))
+        const refsArray = stringifyOld(refs.get(array))
         if (refsArray !== '[0,3,false]') { throw refsArray }
-        const refsRoot = stringify(refs.get(djs))
+        const refsRoot = stringifyOld(refs.get(djs))
         if (refsRoot !== '[1,1,false]') { throw refsRoot }
     },
     testObj: () => {
         const obj = {"a": 1, "b": 2}
         const djs = [obj, obj, 1]
         const refs = countRefs(djs)
-        if (refs.size !== 4) { throw refs.size }    
-        const refs1 = stringify(refs.get(1))
-        if (refs1 !== '[0,2,false]') { throw refs1 }
-        const refs2 = stringify(refs.get(2))
-        if (refs2 !== '[1,1,false]') { throw refs2 }
-        const refsObj = stringify(refs.get(obj))
-        if (refsObj !== '[2,2,false]') { throw refsObj }
-        const refsRoot = stringify(refs.get(djs))
-        if (refsRoot !== '[3,1,false]') { throw refsRoot }    
+        if (refs.size !== 2) { throw refs.size }            
+        const refsObj = stringifyOld(refs.get(obj))
+        if (refsObj !== '[0,2,false]') { throw refsObj }
+        const refsRoot = stringifyOld(refs.get(djs))
+        if (refsRoot !== '[1,1,false]') { throw refsRoot }    
     },
     testSort: () => {
         const obj = {"a": 1, "c": 2n, "b": [undefined, null, true, false]}
         const djs = [obj, obj, 1]
-        const res = serializeWithConstants(sort)(djs)
-        if (res !== 'const c0 = 1\nconst c3 = {"a":c0,"b":[undefined,null,true,false],"c":2n}\nexport default [c3,c3,c0]') { throw res }
+        const res = stringify(sort)(djs)
+        if (res !== 'const c2 = {"a":1,"b":[undefined,null,true,false],"c":2n}\nexport default [c2,c2,1]') { throw res }
     },
     testIdentity: () => {
         const obj = {"a": 1, "c": 2n, "b": [undefined, null, true, false]}
         const djs = [obj, obj, 1]
-        const res = serializeWithConstants(identity)(djs)
-        if (res !== 'const c0 = 1\nconst c3 = {"a":c0,"c":2n,"b":[undefined,null,true,false]}\nexport default [c3,c3,c0]') { throw res }
+        const res = stringify(identity)(djs)
+        if (res !== 'const c2 = {"a":1,"c":2n,"b":[undefined,null,true,false]}\nexport default [c2,c2,1]') { throw res }
     }
 }
