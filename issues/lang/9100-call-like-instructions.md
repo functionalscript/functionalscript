@@ -139,4 +139,12 @@ that if a function that could be treated by the parser as static, uses `argument
 treated as static (losing correspondent optimizations specific static user-defined functions). Thus a static
 user-defined function can use zero index in its frame for one of its locals.
 
+With this approach, the dynamic function call instruction scheme looks like a call-like instruction with exactly
+one argument descriptor that specifies the location of the function object (since VM's manipulation with the
+argument array object reference placing at zero index of the caller function frame remains behind the scene):
+
+`<dynamic call instruction> <function object location descriptor>
+
+
+
 
