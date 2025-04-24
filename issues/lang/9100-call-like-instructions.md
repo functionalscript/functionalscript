@@ -89,4 +89,54 @@ have a wider set of instruction code and use the following schema for call-like 
 
 ## 5. Argument descriptors
 
+For starters, there are two kinds of argument descriptors &ndash; immediate arguments (for constant of basic
+non-refernece types) and non-immediate arguments (for values stored at various run-time locations).
+Considering the fact that there are also several types of run-time locations, it makes sense to have one
+enumeraton of argument kinds that has a special value for immediate arguments and then several values one
+per location type:
+
+1. **Immediate arguments**: that kind of descriptor contains the base type constant value right in the descriptor.
+We can use a variable length encoding here or use a 64-bit value always with NaNVM scheme of encoding
+base value type within that value. From the flexibility point of view it makes sense to not take dependency
+on NaNVM's scheme of encoding base values and use the benefit of compactness of a variable length encoding
+scheme here.
+2. **Caller's local values**: that is a kind of location descriptors referring to locations the caller
+function's frame. We don't use this kind of descriptors for other frames in the caller chain, nor for the
+"global frame" - only for locals of the immediate caller. Within that frame, locations are indexed by unsigned
+integers starting from zero. One would say that these locations correspond one to one to named locals, but that
+would prohibit a frame slot reuse optimization that the parser can implement, so we don't use this analogy.
+3. **Caller's temporary values**: that is a kind of location used for caller's temporary values typically
+produced dynamically "on the stack" when calculating expressions. These locations are zero-based indexes with
+zero corresponding to the top of the stack and greater unsigned integer indexes corresponding to deeper stack
+locations counting from the top of the stack. The VM might decide to combine function's frame of locals with
+the stack of temporary values, but that is an implementation detail of that VM so other implementations can
+use another approach, completely separating two location kinds.
+4. **Captured values**: that kind of location is used when the user-defined caller function refers to value
+names that are not locally defined in it, but rather belong to outer contexts. We cannot use a scheme that
+decribes a value belonging to the frame "up in the caller chain" because, after being defined, a function
+object can be detouched from the call chain context and then passed into another, different context where
+the original caller chain references are not relevant anymore. So, when detecting a reference to an outer
+context within a function body, the parser registers it as a captured value, and captured values are stored
+in a devoted frame owned by the function object, and naturally that frame is separate from other localtion
+kinds described here. As usually, withing that frame locations are indexed by unsigned integers.
+5. **Caller's arguments** (questionable: see the next section, **discussion on caller's arguments**): that
+kind of location is used when the caller passes its argument as an argument of the callee function. As in
+the case of separate location kinds for caller's local values and caller's temporary values, it makes sense
+to separate caller's arguments as yet another kind of a location. One reason for that is &ndash; in the case
+of a dynamic user-defined function call the parser doesn't know how many arguments the callee expects; besides,
+the callee might support a variable number of arguments (printf-style). Thus the VM cannot copy arguments to
+predefined locations within the caller's local values stack (though in case of static calls that makes perfect
+sense, so the parser can use the previosly described local values stack location kind, theoretically). As
+usually, locations are unsigned integers with zero corresponding to the first argument and so on.
+
+## Discussion on descriptor of callee's arguments and dynamic call instruction scheme
+
+In JS, function parameters can be referred by names or as elements of `arguments` array. Thus for the sake of
+simplicity we can decide to not have a special location kind for callee's arguments. Instead, in case of
+a dynamic function call, VM always shapes `arguments` array object and passes it in the callee stack frame
+&ndash at the predefined index (let's say zero). Static user-defined function calls do not need that, given
+that if a function that could be treated by the parser as static, uses `arguments` in its body, cannot be
+treated as static (losing correspondent optimizations specific static user-defined functions). Thus a static
+user-defined function can use zero index in its frame for one of its locals.
+
 
