@@ -143,9 +143,10 @@ use a scheme that describes a value belonging to the frame "up in the caller cha
 being defined, a function object can be detached from the call chain context and then пуе passed
 into another, different context where the original caller chain references are not relevant anymore.
 So, when detecting a reference to an outer context within a function body, the parser registers it
-as a captured value, and captured values are stored in a devoted frame owned by the function object,
-and, naturally, that frame is separate from other location kinds described here. As usually, withing
-that frame locations are indexed by unsigned integers.
+as a captured value. Captured values are stored in a devoted block of slots owned by the function
+object. Naturally, that frame is separate from other location kinds described here: its lifetime
+(coinciding with the function object's lifetime) is different. It gets created and initialized at
+the moment of the owning function object's creation.
 
 It is tempting to introduce also yet another kind of location that corresponds to arguments of
 the caller function. However, each parsed function either has a fixed number of parameters &ndash;
