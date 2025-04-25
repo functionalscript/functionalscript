@@ -237,3 +237,12 @@ calculate a compound stack frame capacity for each rank 1 function, pre-allocati
 rank 0 callees as sub-ranges of stack frames of caller functions of rank 1. Than rank 2 functions
 could be figured out and so on &ndash with a caveat of recursive cases where new stack frame
 allocations are still necessary.
+
+Regarding the stack of temporary values: the parser can track its size at various points while
+analyzing a function body, and reserve some extra slots within the planned stack frame &ndash to
+keep temporary values in the same array of slots (with a correspondent logic implemented on the VM
+side). Alternatively the VM can manage a separate dynamic data structure for temporary values in
+this or that way (e.g. using a list of blocks for a joint stack as described above); in that case
+the parser does not need to track temporary values data. Since we use two different kinds of
+argument descriptor locations for locals and for temporary values, various VM / parser
+implementation decisions are possible for the same bytecode specification.
