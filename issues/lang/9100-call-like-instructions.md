@@ -149,23 +149,24 @@ object. Naturally, that frame is separate from other location kinds described he
 the moment of the owning function object's creation.
 
 It is tempting to introduce also yet another kind of location that corresponds to arguments of
-the caller function. However, each parsed function either has a fixed number of parameters &ndash;
+the caller function. However, each parsed function either has a fixed number of arguments &ndash;
 that occupy first slots of its stack frame &ndash; or a variable number of arguments (addressable
 within that function's body via `arguments` array). In the latter case the VM creates an array
 object referred as `arguments` and places a reference to that object to the zeroth slot of callee's
 stack frame. The VM distinguishes two cases via looking up metadata of the callee function object.
+See details below in the section **behind the scenes of user-defined function calls**.
 
-Thus the list of argument descriptor kinds stays as of now at 4 values (2 bits). Where do we place
+Thus, the list of argument descriptor kinds stays as of now at 4 values (2 bits). Where do we place
 a 2-bit argument descriptor kind value for each argument remains an open question. If we prioritize
 bytecode compactness, it makes sense to merge that 2-bit value with the proper data of an argument
 descriptor.
 
-For example, assuming that indexes of argument slots for 2 location kinds
-are in most cases small numbers, we can use one byte for such an argument descriptor. In that byte
-two leading bits nate location kind while remaining 6 bits allow for an index in the range
-from 0 to 62 (reserving the value 63 for overflow cases of slot indexes larger that 62; in such
-cases that larger index is provided in the following bytes). That scheme can be expanded to the case
-of immediate arguments that we don't dive into here.
+For example, assuming that indexes of argument slots for 2 location kinds are in most cases small
+numbers, we can use one byte for such an argument descriptor. In that byte two leading bits
+designate location kind while remaining 6 bits allow for an index in the range from 0 to 62
+(reserving the value 63 for overflow cases of slot indexes larger that 62; in such cases that
+larger index is provided in the following bytes). That scheme can be expanded to the case of
+immediate arguments that we don't dive into here.
 
 But if we aim for simplicity, it might make sense to provide a sequence of argument desriptor kinds
 upfront, then using simple encoding for each argument descriptor after that.
