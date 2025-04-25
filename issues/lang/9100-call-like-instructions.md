@@ -8,6 +8,9 @@ Call-like bytecode instructions include following groups:
 4. **other call-like instructions** (mentioned here thanks to similarities to above mentioned
 groups).
 
+Call-like instructions use lists of argument descriptors that will be considered later in this
+document.
+
 ## 1. Calls into host functions
 
 Each host function has a stable identification (e.g. a numeric id predefined within a given FS
@@ -29,12 +32,17 @@ the result to the caller stack frame slot allocated for `c`.
 
 A schema for a host function call looks like
 
-`<host call instruction> <predefined host function id> <predefined number of argument descriptors>`
+`<host call instruction> <predefined host function id> <list of argument descriptors>`
 
-&ndash regardless how many bits each part takes, we can experiment with different encodings,
-including schemes with variable-length function id and argument descriptor parts. Note that
-the number of arguments is predefined for each function id, so this kind of a call instruction
-does not need to carry it.
+Most of host functions have a number of arguments predefined for the given functions, thus the VM
+processes exactly that number of argument descriptors one after another; the number of arguments is
+not present in bytecode in these cases. Note that the parser has an option to reject erroneous code
+with incorrect number of arguments passed to such host function - or use a recovery strategy; in
+any case it is guaranteed that the number of arguments in bytecode is always correct.
+
+Remaining host functions have variadic lists of arguments, for example, `Math.max` can take any
+number of arguments. For such calls, the parser prepends the list of argument descriptors with
+the number of arguments passed at the caller side.
 
 ## 2. Static calls into user-defined functions
 
@@ -49,12 +57,17 @@ A schema for a static call differs from the schema for a host function call in t
 a correspondent entry in one of metadata tables produced by the parser alongside with bytecode
 instructions.
 
-- The length of the sequence of argument descriptors is specified in the instruction (unlike
-to that in host function calls that length is predefined for each function id). We can prepend
-that number at the start of the list, or use a special value terminal argument specified
-encoding at the end of the list.
+- The parser explicitly specifies the number of arguments passed at the caller side, providing
+exactly that number of argument descriptors.
 
 `<static call instruction> <runtime function id> <list of arguments with explicitly defined length>`
+
+A generic static call instruction provides the number of arguments right after function's id,
+and then lists exactly that number of argument descriptors. However when we care about bytecode
+compactness, we should consider several special-cased "shorthand" static call instructions &ndash;
+for example, we can have 4 separate instructions for 1) zero argument calls, 2) one argument calls,
+3) two argument calls and 4) three argument calls. Calls with larger number of arguments are backed
+by the generic static call instruction.
 
 ## 3. Dynamic calls into user-defined functions
 
@@ -72,21 +85,31 @@ it out and then have exactly same argument list descriptor for zero or more argu
 `<dynamic call instruction> <function object location descriptor> <list of argument descriptors
 with explicitly defined length>`
 
+As with static call instructions described in the previous section, we can add shorthand dynamic
+call instructions for cases with small number of arguments, using the generic instruction for calls
+with larger number of arguments.
+
 ## 4. Other call-like instructions
 
 There are instructions that are not host function calls technically since they do not correspond
 to language's predefined functions and operators. Yet they are provided with a list of argument
 descriptors of a predefined length in the same way as the host function calls. For example,
-copy and move instructions each have exactly two argument descriptors &ndash; one for the source and
-another for the destination (side note: the move instruction nullifies the source, not increasing
-the number of references in case of moving a reference; the copy instruction keeps the source intact
-and thus increases the number of references when copying a reference).
+the copy instruction and the move instruction each have exactly two argument descriptors &ndash; one
+for the source and another for the destination (side note: the move instruction nullifies
+the source, not increasing the number of references in case of moving a reference; the copy
+instruction keeps the source intact and thus increases the number of references when copying
+a reference).
 
 For the sake of simplicity we can use the host function call scheme for these call-like instructions
 &ndash; and even consider zero-argument instructions as host function calls. Alternatively, we will
 have a wider set of instruction code and use the following schema for call-like instructions:
 
 `<call-like instruction>  <predefined number of argument descriptors>`
+
+Some call-like instructions have variadic argument lists: good examples are instructions that create
+arrays and objects. Such instructions place the number of arguments right after the instruction,
+then providing exact that number of argument descriptors. As before, we might want to consider
+shorthand instructions for cases with small number of elements in the compound object being created.
 
 ## 5. Argument descriptors
 
@@ -123,45 +146,94 @@ when detecting a reference to an outer context within a function body, the parse
 a captured value, and captured values are stored in a devoted frame owned by the function object,
 and, naturally, that frame is separate from other location kinds described here. As usually, withing
 that frame locations are indexed by unsigned integers.
-5. **Caller's arguments** (questionable: see the next section, "**a variation on a descriptor for
-a callee's argument and dynamic call instruction scheme**"): that kind of location is used when
-the caller passes its argument as an argument of the callee function. As in the case of separate
-location kinds for caller's local values and caller's temporary values, it makes sense to separate
-caller's arguments as yet another kind of a location. One reason for that is &ndash; in the case of
-a dynamic user-defined function call the parser doesn't know how many arguments the callee expects;
-besides, the callee might support a variable number of arguments (printf-style). Thus the VM cannot
-copy arguments to predefined locations within the caller's local values stack (though in case of
-static calls that makes perfect sense, so the parser can use the previously described local values
-stack location kind, theoretically). As usually, locations are unsigned integers with zero
-corresponding to the first argument and so on.
 
-**Side note**: it is tempting to introduce argument location kinds specific to certain call-like
-instructions but not to proper calls. For example, a destination of a move or copy instruction
-could be a) "push to the stack of temporary values" or b) "place into the given compound object
-at a key specified in the next argument descriptor". While allowing for more optimizations in
-a VM implementation, that approach increases complexity, so we will use different solutions. For
-a), the parser will first generate an "add one more slot at the stack of temporary values" and
-then move / copy command referring to the newly created top slot as the destination. For b),
-the parser will generate a devoted host function call or a devoted call-like instruction "move
-/ copy into a compound object at a given key" instead of using generic move / copy instructions.
+It is tempting to introduce also yet another kind of location that corresponds to arguments of
+the caller function. However, each parsed function either has a fixed number of parameters &ndash;
+that occupy first slots of its stack frame &ndash; or a variable number of arguments (addressable
+within that function's body via `arguments` array). In the latter case the VM creates an array
+object referred as `arguments` and places a reference to that object to the zeroth slot of callee's
+stack frame. The VM distinguishes two cases via looking up metadata of the callee function object.
 
-## 6. A variation on a descriptor for a callee's argument and dynamic call instruction scheme
+Thus the list of argument descriptor kinds stays as of now at 4 values (2 bits). Where do we place
+a 2-bit argument descriptor kind value for each argument remains an open question. If we prioritize
+bytecode compactness, it makes sense to merge that 2-bit value with the proper data of an argument
+descriptor.
 
-In JS, function parameters can be referred by names or as elements of `arguments` array. Thus for
-the sake of simplicity we can decide to not have a special location kind for callee's arguments.
-Instead, in case of a dynamic function call, VM always shapes `arguments` array object and passes it
-in the callee stack frame &ndash at the predefined index (let's say zero). Static user-defined
-function calls do not need that, given that if a function that could be treated by the parser as
-static, uses `arguments` in its body, cannot be treated as static (losing correspondent
-optimizations specific static user-defined functions). Thus a static user-defined function can use
-zero index in its frame for one of its locals.
+For example, assuming that indexes of argument slots for 2 location kinds
+are in most cases small numbers, we can use one byte for such an argument descriptor. In that byte
+two leading bits nate location kind while remaining 6 bits allow for an index in the range
+from 0 to 62 (reserving the value 63 for overflow cases of slot indexes larger that 62; in such
+cases that larger index is provided in the following bytes). That scheme can be expanded to the case
+of immediate arguments that we don't dive into here.
 
-With this approach, the dynamic function call instruction scheme looks like a call-like instruction
-with exactly one argument descriptor that specifies the location of the function object (since VM's
-manipulation with the argument array object reference placing at zero index of the caller function
-frame remains behind the scene):
+But if we aim for simplicity, it might make sense to provide a sequence of argument desriptor kinds
+upfront, then using simple encoding for each argument descriptor after that.
 
-`<dynamic call instruction> <function object location descriptor>`
+## 6. Behind the scenes of user-defined function calls
 
-In case if we decide to use this approach, the number of argument descriptor kinds shrinks to 4,
-which allows for a compact 2-bite encoding.
+When the parser finalizes processing of a function body, it creates function's metadata that among
+other things indicates, does this function use `arguments` array, or does not? Let's name functions
+that use that array "variadic" and other functions "non-variadic" (note: each non-variadic function
+has its number of parameters in metadata). The VM looks up that flag when it processes a call
+instruction; for non-variadic functions it looks up also function's number of parameter. Let's
+consider several cases here.
+
+### 6.1. Calls into variadic functions
+
+Each variadic function reserves exactly one slot of its stack frame to access arguments - the zeroth
+slot that contains a reference to the `arguments` array. While processing a call to such function
+the VM creates a new array of the size equal to the number of arguments in the call instruction.
+The VM processes argument descriptors, initializing all elements of that newly created array. The
+one and only reference to that array gets moved to the zeroth slot of the callee's stack frame, and
+that is all what needs to be done - all other slots of callee's stack frame are used for callee's
+locals.
+
+### 6.1. Calls into non-variadic functions
+
+Each non-variadic function reserves a given number of its stack frame slots, at the beginning. Other
+stack frame slots are used for locals. When processing a call into such a non-variadic function,
+the VM starts with a state with all callee's parameter stack frame slots being default-initialized
+(by `undefined` values to follow ECMAScript standard). In case when the number of arguments is not
+greater than the number of parameters (that VM looks up in function's metadata), the VM fills out
+correspondent stack frame slots (leaving remaining slots with `undefined` values when the number
+of arguments is less than the number of parameters). When reaching the number of parameters (while
+the number of arguments is greater than the number of parameters) the VM keeps processing remaining
+argument descriptors, doing nothing &ndash; since the callee does not do anything with extra
+arguments. Still the VM has to "skip" remaining arguments to reach the next bytecode instruction
+after the end of the argument descriptor list.
+
+### 6.3. Stack frame allocation strategies
+
+First, let's postpone the idea of placing the stack of function's temporary values in the stack
+frame, focusing on locals only.
+
+A simple VM implementation calculates the size of a function body's stack frame by allocating one
+slot for each local in the body, maybe reusing slots in cases when one local stops being used at
+some well defined pont within the body, so another local defined below that point can safely reuse
+same slot. When finishing body processing, the parser places the required capacity of
+function's stack frame into function's metadata. When processing a call into that function, the VM
+allocates a new array with the given capacity, switching to that array as the current stack frame
+slot, and keeping a reference to caller's stack frame array to switch back when the control flow
+returns from the callee to the caller (at which moment the callee's stack frame gets disposed). This
+simple implementation allows for recursive calls quite naturally, but requires lots of allocations.
+
+That simple scheme does not make difference between calls of static and dynamic user-defined
+functions. Let's make a note that dynamic function calls always require callee's stack frame
+allocation since the identity of the callee is not known at parse time. However, in a codebase with
+rare / absent dynamic calls the parser and the VM can implement a more complicated scheme that
+reduces the number of call stack allocations.
+
+There is a straightforward variation of the simple scheme that tracks the common call stack as
+a list of large continuous fixed-size blocks. When processing a call, the VM compares callee's
+stack frame size with the remainder of unoccupied slots at the end of the current block, and
+allocates the new stack frame within that block if it fits. If the new stack frame does not fit,
+the VM adds a new block to the list and allocates the new stack frame at the beginning of that new
+block. Note that there will be some waste at unused reminders of blocks.
+
+In a more complicated scheme, a user-defined function that does not call other user-defined
+functions (a "leaf" functions of rank 0) has a well-defined stack frame capacity. Now, considering
+the next layer of user-defined functions (of rank 1) that call only rank 0 functions, the parser can
+calculate a compound stack frame capacity for each rank 1 function, pre-allocating stack frames of
+rank 0 callees as sub-ranges of stack frames of caller functions of rank 1. Than rank 2 functions
+could be figured out and so on &ndash with a caveat of recursive cases where new stack frame
+allocations are still necessary.
