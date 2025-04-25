@@ -190,7 +190,7 @@ one and only reference to that array gets moved to the zeroth slot of the callee
 that is all what needs to be done - all other slots of callee's stack frame are used for callee's
 locals.
 
-### 6.1. Calls into non-variadic functions
+### 6.2. Calls into non-variadic functions
 
 Each non-variadic function reserves a given number of its stack frame slots, at the beginning. Other
 stack frame slots are used for locals. When processing a call into such a non-variadic function,
