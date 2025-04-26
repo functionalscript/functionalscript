@@ -91,7 +91,7 @@ const parseInitialOp
             }
         }
     }
-    return { state: 'error', message: 'unexpected token' }
+    return foldOp(token)({ ... state, state: 'exportValue', valueState: '', top: null, stack: null })
 }
 
 const parseNewLineRequiredOp
