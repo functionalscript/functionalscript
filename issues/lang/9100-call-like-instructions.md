@@ -104,7 +104,7 @@ For the sake of simplicity we can use the host function call scheme for these ca
 &ndash; and even consider zero-argument instructions as host function calls. Alternatively, we will
 have a wider set of instruction code and use the following schema for call-like instructions:
 
-`<call-like instruction>  <predefined number of argument descriptors>`
+`<call-like instruction> <predefined number of argument descriptors>`
 
 Some call-like instructions have variadic argument lists: good examples are instructions that create
 arrays and objects. Such instructions place the number of arguments right after the instruction,
