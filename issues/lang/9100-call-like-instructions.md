@@ -157,6 +157,8 @@ as a captured value. Captured values are stored in a devoted block of slots owne
 object. Naturally, that frame is separate from other location kinds described here: its lifetime
 (coinciding with the function object's lifetime) is different. It gets created and initialized at
 the moment of the owning function object's creation.
+TODO: consider a recursive function that captures outer context values, how will that fit into
+the schema described above?
 
 It is tempting to introduce also yet another kind of location that corresponds to arguments of
 the caller function. However, each parsed function either has a fixed number of arguments &ndash;
