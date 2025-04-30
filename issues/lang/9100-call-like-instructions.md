@@ -115,6 +115,12 @@ arrays and objects. Such instructions place the number of arguments right after 
 then providing exact that number of argument descriptors. As before, we might want to consider
 shorthand instructions for cases with small number of elements in the compound object being created.
 
+TODO: we should keep on the table the normal Polish notation idea for instructions, with that
+the example in the previous paragraph does not play well. Wiht the normal Polist notation there is
+a struture of nested commands: e.g. we start with a command to create a new N-element array and that
+command has N nested command specifying element values. As the result of execution of that compound
+we get the newly created and initialized array available.
+
 ## 5. Argument descriptors
 
 For starters, there are two kinds of argument descriptors &ndash; immediate arguments (for constants
