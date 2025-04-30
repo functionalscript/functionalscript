@@ -187,7 +187,7 @@ designate location kind while remaining 6 bits allow for an index in the range f
 larger index is provided in the following bytes). That scheme can be expanded to the case of
 immediate arguments that we don't dive into here.
 
-But if we aim for simplicity, it might make sense to provide a sequence of argument desriptor kinds
+But if we aim for simplicity, it might make sense to provide a sequence of argument descriptor kinds
 upfront, then using simple encoding for each argument descriptor after that.
 
 ## 6. Behind the scenes of user-defined function calls
