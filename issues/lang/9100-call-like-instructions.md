@@ -69,6 +69,8 @@ for example, we can have 4 separate instructions for 1) zero argument calls, 2) 
 3) two argument calls and 4) three argument calls. Calls with larger number of arguments are backed
 by the generic static call instruction.
 
+TODO: provide FS code snippet here.
+
 ## 3. Dynamic calls into user-defined functions
 
 Sometimes the parser cannot determine the callee function object statically (at parse time). For
@@ -88,6 +90,8 @@ with explicitly defined length>`
 As with static call instructions described in the previous section, we can add shorthand dynamic
 call instructions for cases with small number of arguments, using the generic instruction for calls
 with larger number of arguments.
+
+TODO: provide FS code snippet here.
 
 ## 4. Other call-like instructions
 
