@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fsc` can parse json [PR 434](https://github.com/functionalscript/functionalscript/pull/434)
+
 ## 0.6.2
 
 - Tests can run from a directory [PR 425](https://github.com/functionalscript/functionalscript/pull/425)
