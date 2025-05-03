@@ -309,18 +309,42 @@ export default {
             if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
         },
     ],
-    invalidModule:[
+    validJson:[
         () => {
             const tokenList = tokenizeString('null')
             const obj = parser.parseFromTokens(tokenList)
-            if (obj[0] !== 'error') { throw obj }
-            if (obj[1] !== 'unexpected token') { throw obj }
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[null]]') { throw result }
         },
+        () => {
+            const tokenList = tokenizeString('1')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[1]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[]')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[["array",[]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{"valid":"json"}')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[{"valid":"json"}]]') { throw result }
+        }
+    ],
+    invalidModule:[        
         () => {
             const tokenList = tokenizeString('module=null')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1] !== 'unexpected token') { throw obj }
+            if (obj[1] !== 'const not found') { throw obj }
         },
         () => {
             const tokenList = tokenizeString('export null')
