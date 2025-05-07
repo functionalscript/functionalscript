@@ -108,7 +108,7 @@ mod test {
     };
     use std::rc::Rc;
 
-    use crate::nanenum::{Raw64, NEGATIVE, NOT_FINITE};
+    use crate::nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE};
 
     use super::{NaNEnum, NaNEnumPack};
 
@@ -234,5 +234,12 @@ mod test {
         let m = NaNEnum::Else(x);
         let p = NaNEnumPack::pack(m);
         let _p1 = p.clone();
+    }
+
+    // Use INFINITY, NEG_INFINITY in a test to avoid dead code warning
+    #[test]
+    fn test_infinity() {
+        assert_eq!(INFINITY, NOT_FINITE);
+        assert_eq!(NEG_INFINITY, NOT_FINITE | NEGATIVE);
     }
 }
