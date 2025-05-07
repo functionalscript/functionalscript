@@ -108,6 +108,23 @@ logic should be moved to a private free floating helper function (to keep public
       }
       ```
 - [ ] 65. Investigate mutability inference
+- [ ] 66. Only forward objects are visible. Example:
+      ```ts
+      const a = () => 5
+      const b = () => a() + 7 // ok
+      const c = b() // ok
+      const d = d() // error!
+      const e = () => e() // ok
+      // two recursive functions:
+      const f = () => h() // not ok
+      const h = () => f() // ok
+      // how to solve the two recursive functions case:
+      const x = {
+          a: () => x.b()
+          b: () => x.a()
+          c: () => x.rrrr() // ok
+      }
+      ```
 
 ## Language Specification
 
