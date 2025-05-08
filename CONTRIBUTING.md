@@ -8,9 +8,7 @@
 ### Installing Dependencies
 
 ```bash
-# JavaScript dependencies
 npm ci
-# Rust dependencies
 cargo fetch
 ```
 
