@@ -25,9 +25,15 @@ export const compile = ({ console: { error }, fs, process: { argv } }: Io): Prom
 
     const inputFileName = args[0]
     const outputFileName = args[1]
-    const result = transpile(fs)(inputFileName)
+    const result = transpile(fs)(inputFileName)    
     switch (result[0]) {
         case 'ok': {
+            if (outputFileName.endsWith('.json'))
+            {
+                const output = JSON.stringify(result[1])
+                fs.writeFileSync(outputFileName, output)
+                break
+            }
             const output = stringifyUnknown(result[1])
             fs.writeFileSync(outputFileName, output)
             break
