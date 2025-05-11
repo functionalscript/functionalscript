@@ -10,7 +10,7 @@ const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
     = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringify = serializer.stringifyWithoutConst(sort)
+const stringify = serializer.stringifyAsTree(sort)
 
 export default {
     djs: [

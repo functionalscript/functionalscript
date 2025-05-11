@@ -200,7 +200,7 @@ const addRef
         return refs.set(djs, [refCounter[0], refCounter[1] + 1, false])
     }
 
-export const stringifyWithConst
+export const stringify
     : (sort: MapEntries) => (djs: djs.Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)
@@ -220,7 +220,7 @@ export const stringifyWithConst
         return concat(listConcat(constStrings)(rootStrings))
     }
 
-export const stringifyWithoutConst
+export const stringifyAsTree
     : (mapEntries: MapEntries) => (value: djs.Unknown) => string
     = sort => compose(serializeWithoutConst(sort))(concat)
     

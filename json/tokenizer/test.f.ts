@@ -10,7 +10,7 @@ const tokenizeString
     : (s: string) => readonly tokenizer.JsonToken[]
     = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringify = serializer.stringifyWithoutConst(sort)
+const stringify = serializer.stringifyAsTree(sort)
 
 export default {
     json: [

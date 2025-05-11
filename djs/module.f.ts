@@ -1,7 +1,7 @@
 import type { Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
-import { stringifyWithConst, stringifyWithoutConst } from './serializer/module.f.ts'
+import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
 export type Object = {
@@ -28,11 +28,11 @@ export const compile = ({ console: { error }, fs, process: { argv } }: Io): Prom
         case 'ok': {
             if (outputFileName.endsWith('.json'))
             {
-                const output = stringifyWithoutConst(sort)(result[1])
+                const output = stringifyAsTree(sort)(result[1])
                 fs.writeFileSync(outputFileName, output)
                 break
             }
-            const output = stringifyWithConst(sort)(result[1])
+            const output = stringify(sort)(result[1])
             fs.writeFileSync(outputFileName, output)
             break
         }
