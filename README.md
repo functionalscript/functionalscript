@@ -21,6 +21,31 @@ Learn more about
 
 This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and distributted under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](mailto:sergey.oss@proton.me).
 
+## Getting Started
+
+Install FunctionalScript via npm:
+
+```bash
+npm install functionalscript
+```
+
+The FunctionalScript compiler (`fsc`) currently supports:
+
+* `import` statements
+* `const` declarations
+
+It does **not** yet support functions or complex expressions.
+
+Example usage with `fsc`:
+
+```bash
+npx fsc example.f.js output.json
+# or
+npx fsc example.f.js output.f.js
+```
+
+FunctionalScript code can be transformed directly into JavaScript or JSON output.
+
 ## Vision
 
 We aim to create a safe, cross-platform programming language that can work in any JS platform without any build step. There are thousands of programming languages, and we don't want to create another one that others must learn. Instead, we take the opposite approach: we remove everything that makes the most popular and cross-platform language unsafe, insecure, or less portable.
