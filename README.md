@@ -44,7 +44,7 @@ npx fsc example.f.js output.json
 npx fsc example.f.js output.f.js
 ```
 
-FunctionalScript code can be transformed directly into JavaScript or JSON output.
+FunctionalScript code can be compiled directly into either JSON or JavaScript without imports.
 
 ## Vision
 
