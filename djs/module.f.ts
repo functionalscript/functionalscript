@@ -1,7 +1,7 @@
 import type { Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
-import { stringifyWithConst } from './serializer/module.f.ts'
+import { stringifyWithConst, stringifyWithoutConst } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
 export type Object = {
@@ -13,8 +13,6 @@ export type Array = readonly Unknown[]
 export type Primitive = JsonPrimitive | bigint | undefined
 
 export type Unknown = Primitive | Object | Array
-
-const stringifyUnknown = stringifyWithConst(sort)
 
 export const compile = ({ console: { error }, fs, process: { argv } }: Io): Promise<number> => {
     const args = argv.slice(2)
@@ -30,11 +28,11 @@ export const compile = ({ console: { error }, fs, process: { argv } }: Io): Prom
         case 'ok': {
             if (outputFileName.endsWith('.json'))
             {
-                const output = JSON.stringify(result[1])
+                const output = stringifyWithoutConst(sort)(result[1])
                 fs.writeFileSync(outputFileName, output)
                 break
             }
-            const output = stringifyUnknown(result[1])
+            const output = stringifyWithConst(sort)(result[1])
             fs.writeFileSync(outputFileName, output)
             break
         }
