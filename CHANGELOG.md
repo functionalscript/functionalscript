@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.8
+
+- `fsc` can serialize as tree [PR 442](https://github.com/functionalscript/functionalscript/pull/442)
+
 ## 0.6.7
 
 - `fsc` can parse json [PR 434](https://github.com/functionalscript/functionalscript/pull/434)
