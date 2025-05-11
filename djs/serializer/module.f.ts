@@ -8,8 +8,7 @@ import { type List, flat, flatMap, map, concat as listConcat } from '../../types
 const { entries } = Object
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
-import * as bi from '../../types/bigint/module.f.ts'
-const { serialize: bigintSerialize } = bi
+import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
 import * as serializer from '../../json/serializer/module.f.ts'
 const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = serializer
 
