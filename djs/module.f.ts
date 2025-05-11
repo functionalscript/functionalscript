@@ -1,7 +1,7 @@
 import type { Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
-import { stringify } from './serializer/module.f.ts'
+import { stringifyWithConst } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 
 export type Object = {
@@ -14,7 +14,7 @@ export type Primitive = JsonPrimitive | bigint | undefined
 
 export type Unknown = Primitive | Object | Array
 
-const stringifyUnknown = stringify(sort)
+const stringifyUnknown = stringifyWithConst(sort)
 
 export const compile = ({ console: { error }, fs, process: { argv } }: Io): Promise<number> => {
     const args = argv.slice(2)

@@ -3,13 +3,13 @@ import * as tokenizer from '../tokenizer/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import * as encoding from '../../text/utf16/module.f.ts'
-import { stringify } from '../serializer-old/module.f.ts'
+import { stringifyWithoutConst } from '../serializer/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
     = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
-const stringifyDjsModule = stringify(sort)
+const stringifyDjsModule = stringifyWithoutConst(sort)
 
 export default {
     valid: [

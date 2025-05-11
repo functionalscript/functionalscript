@@ -77,7 +77,45 @@ const entryValue
     : (kv: readonly[string, djs.Unknown]) => djs.Unknown
     = kv => kv[1]
 
-const serialize
+export const serializeWithoutConst
+    : (mapEntries: MapEntries) => (value: djs.Unknown) => List<string>
+    = sort => {
+        const propertySerialize
+        : (kv: readonly[string, djs.Unknown]) => List<string>
+        = ([k, v]) => flat([
+            stringSerialize(k),
+            colon,
+            f(v)
+        ])
+        const mapPropertySerialize = map(propertySerialize)
+        const objectSerialize
+            : (object: djs.Object) => List<string>
+            = fn(entries)
+            .then(sort)
+            .then(mapPropertySerialize)
+            .then(objectWrap)
+            .result
+        const f
+            : (value: djs.Unknown) => List<string>
+            = value => {
+            switch (typeof value) {
+                case 'boolean': { return boolSerialize(value) }
+                case 'number': { return numberSerialize(value) }
+                case 'string': { return stringSerialize(value) }
+                case 'bigint': { return [bigintSerialize(value)] }
+                default: {
+                    if (value === null) { return nullSerialize }
+                    if (value === undefined) { return undefinedSerialize }
+                    if (value instanceof Array) { return arraySerialize(value) }
+                    return objectSerialize(value)
+                }
+            }
+        }
+        const arraySerialize = compose(map(f))(arrayWrap)
+        return f
+    }
+
+const serializeWithConst
     : (sort: MapEntries) => (refs: Refs) => (root: djs.Unknown) => (djs: djs.Unknown) => List<string>
     = sort => refs => root => {
     const propertySerialize
@@ -162,7 +200,7 @@ const addRef
         return refs.set(djs, [refCounter[0], refCounter[1] + 1, false])
     }
 
-export const stringify
+export const stringifyWithConst
     : (sort: MapEntries) => (djs: djs.Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)
@@ -175,12 +213,17 @@ export const stringify
                 {
                     throw 'unexpected behaviour'
                 }
-                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serialize(sort)(refs)(entry)(entry), ['\n']])
+                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serializeWithConst(sort)(refs)(entry)(entry), ['\n']])
             }
         const constStrings = flatMap(constSerialize)(consts)
-        const rootStrings = listConcat(['export default '])(serialize(sort)(refs)(djs)(djs))
+        const rootStrings = listConcat(['export default '])(serializeWithConst(sort)(refs)(djs)(djs))
         return concat(listConcat(constStrings)(rootStrings))
     }
+
+export const stringifyWithoutConst
+    : (mapEntries: MapEntries) => (value: djs.Unknown) => string
+    = sort => compose(serializeWithoutConst(sort))(concat)
+    
 
 export const countRefs
     :(djs: djs.Unknown) => Refs

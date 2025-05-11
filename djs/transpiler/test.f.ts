@@ -1,7 +1,7 @@
 import { sort } from '../../types/object/module.f.ts'
 import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { transpile } from './module.f.ts'
-import { stringify } from '../serializer-old/module.f.ts'
+import { stringifyWithoutConst } from '../serializer/module.f.ts'
 import { createVirtualIo } from '../../io/virtual/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 
@@ -17,7 +17,7 @@ export default {
         const fs = virtualFs(map)
         const result = transpile(fs)('a')
         if (result[0] === 'error') { throw result[1] }
-        const s = stringify(sort)(result[1])
+        const s = stringifyWithoutConst(sort)(result[1])
         if (s !== '1') { throw s }
     },
     parseWithSubModule: () => {
@@ -26,7 +26,7 @@ export default {
         const fs = virtualFs(map2)
         const result = transpile(fs)('a/b')
         if (result[0] === 'error') { throw result[1] }
-        const s = stringify(sort)(result[1])
+        const s = stringifyWithoutConst(sort)(result[1])
         if (s !== '2') { throw s }
     },
     parseWithSubModules: () => {
@@ -37,7 +37,7 @@ export default {
         const fs = virtualFs(map4)
         const result = transpile(fs)('a')
         if (result[0] === 'error') { throw result[1] }
-        const s = stringify(sort)(result[1])
+        const s = stringifyWithoutConst(sort)(result[1])
         if (s !== '[[0,2],[1,2],[0,2]]') { throw s }
     },
     parseWithFileNotFoundError: () => {
