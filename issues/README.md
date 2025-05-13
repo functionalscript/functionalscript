@@ -125,6 +125,7 @@ logic should be moved to a private free floating helper function (to keep public
           c: () => x.rrrr() // ok
       }
       ```
+- [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
 
 ## Language Specification
 
