@@ -2,12 +2,10 @@
 
 - [X] [03-djs](./03-djs.md)
 - [ ] [05-publish](./05-publish.md)
-- [X] 08. Move logic from `.ts` files to `.f.ts` files.
 - [ ] 09. Generating a Website.
 - [ ] 10. Short URL table.
 - [ ] [11-fs-load](./11-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
-- [X] 14. Combine `npm run index` and `npm run version`
 - [ ] 16. License in JSR file?
 - [ ] [17-djs-extension](./17-djs-extension.md).
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
@@ -102,29 +100,29 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 62. `fsc` should be able to detect and parse JSON.
 - [ ] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
 - [ ] 64. Implement IO as mutable
-      ```ts
-      type Io<S> = {
-          readonly log: (s: S, msg: string) => void
-      }
-      ```
+  ```ts
+  type Io<S> = {
+      readonly log: (s: S, msg: string) => void
+  }
+  ```
 - [ ] 65. Investigate mutability inference
 - [ ] 66. Only forward objects are visible. Example:
-      ```ts
-      const a = () => 5
-      const b = () => a() + 7 // ok
-      const c = b() // ok
-      const d = d() // error!
-      const e = () => e() // ok
-      // two recursive functions:
-      const f = () => h() // not ok
-      const h = () => f() // ok
-      // how to solve the two recursive functions case:
-      const x = {
-          a: () => x.b()
-          b: () => x.a()
-          c: () => x.rrrr() // ok
-      }
-      ```
+  ```ts
+  const a = () => 5
+  const b = () => a() + 7 // ok
+  const c = b() // ok
+  const d = d() // error!
+  const e = () => e() // ok
+  // two recursive functions:
+  const f = () => h() // not ok
+  const h = () => f() // ok
+  // how to solve the two recursive functions case:
+  const x = {
+      a: () => x.b()
+      b: () => x.a()
+      c: () => x.rrrr() // ok
+  }
+  ```
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
 
 ## Language Specification
