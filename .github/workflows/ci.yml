@@ -118,6 +118,10 @@ jobs:
     runs-on: windows-11-arm
 
     steps:
+    - run: |
+        Invoke-WebRequest -Uri https://win.rustup.rs/ -OutFile rustup-init.exe
+        .\rustup-init.exe -y --default-toolchain stable --profile minimal
+        echo "$env:USERPROFILE\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
     - uses: actions/checkout@v3
     - run: cargo test ${{ matrix.type }} 
 
