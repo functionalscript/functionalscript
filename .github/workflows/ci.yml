@@ -110,7 +110,7 @@ jobs:
     - uses: actions/checkout@v3
     - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
 
-  rust-warm:
+  rust-win-arm:
     strategy:
       matrix:
         type: ['', '--release']
@@ -125,7 +125,7 @@ jobs:
     - uses: actions/checkout@v3
     - run: cargo test ${{ matrix.type }} 
 
-  test-wasm:
+  rust-wasm:
     strategy:
       matrix:
         type: ['', '--release']
