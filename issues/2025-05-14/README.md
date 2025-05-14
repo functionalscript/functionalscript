@@ -81,11 +81,14 @@ npm install --global functionalscript
 Convert `.f.js` files:
 
 ```sh
+# From JSON to FJS
+fsc tree.json _tree.f.js
+
 # To FunctionalScript (FJS)
-fsc data.f.js _output.f.js
+fsc data.f.js _data.f.js
 
 # To JSON
-fsc data.f.js _output.json
+fsc data.f.js _data.json
 ```
 
 ## 5. Test Framework in FunctionalScript
