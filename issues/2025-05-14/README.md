@@ -1,56 +1,62 @@
 # FunctionalScript
 
-## 1. FunctionalScript
+## 1. What is FunctionalScript?
 
-FunctionalScript is a purely functional subset of JavaScript
+FunctionalScript is a **purely functional subset of JavaScript**.
 
-What does it mean?
-- subset: FunctionalScript modules (`.f.js`) can be used in JavaScript or TypeScript modules,
-- functional: functions are the first-class citizens
-- purely: no side effects, deterministic and reproducible:
-  - all objects are immutable
-  - no direct I/O access
+### What does that mean?
 
-## 2. How should it look like?
+* **Subset**: `.f.js` modules can be imported and used in JavaScript or TypeScript code without transpilation.
+* **Functional**: Functions are first-class citizens and support composition and currying.
+* **Purely functional**: No side effects. Execution is deterministic and reproducible:
+
+  * All values are **immutable**.
+  * No direct access to I/O (file system, network, etc.).
+
+## 2. Example
+
+FunctionalScript modules look like this:
 
 ```js
-// `math.f.js`
+// math.f.js
 export default {
-    add: a => b => a + b
-    mul: a => b => a * b
+  add: a => b => a + b,
+  mul: a => b => a * b,
 }
 ```
 
+You can use them from regular JavaScript:
+
 ```js
-// `app.js`
+// app.js
 import math from "./math.f.js"
 
 const add2 = math.add(2)
-console.log("5 === ", add2(3))
+console.log("5 ===", add2(3))
 ```
 
-Parser Status: WiP
+Parser status: Work in Progress (WiP)
 
-## 3. JSON
+## 3. FunctionalScript as a Data Format
 
-JSON is the most popular data format. It's a tree
+### JSON is a Tree
 
 ```json
 {
-    "a": { "name": "shared object" },
-    "b": { "name": "shared object" }
+  "a": { "name": "shared object" },
+  "b": { "name": "shared object" }
 }
 ```
 
-JSON is a subset of JavaScript.
+Note: Although `"a"` and `"b"` reference equal values, they're *not* the same object.
 
-## 4. Using FunctionalScript as data format
+### FunctionalScript is a Graph
 
-Supports `const` and `import` (ECMAScript).
+With `import` and `const`, you can express **shared references** and **identity**:
 
 ```js
 // shared.f.js
-export default { "name": "shared object" }
+export default { name: "shared object" }
 ```
 
 ```js
@@ -58,73 +64,88 @@ export default { "name": "shared object" }
 import shared from "./shared.f.js"
 const s = "hello!"
 export default {
-    a: shared,
-    b: shared,
-    s,
+  a: shared,
+  b: shared,
+  s,
 }
 ```
 
-Now it's a graph.
+Unlike JSON, this structure preserves object identity — turning your data into a graph.
 
-## 5. Demo
+## 4. Getting Started
+
+Install the CLI:
 
 ```sh
 npm install --global functionalscript
 ```
 
+Convert `.f.js` files:
+
 ```sh
-# to FJS
+# To FunctionalScript (FJS)
 fsc data.f.js output.f.js
-# to JSON
+
+# To JSON
 fsc data.f.js output.json
 ```
 
-## 6. What we are working on
-
-- Gradually adding more features, such as
-  - functions,
-  - operators,
-  - statements,
-  - non-default export,
-  - TypeScript type-erasure (`.f.ts`),
-  - and many more.
-- BAST, Binary Abstract Syntax Tree for FunctionalScript.
-- Language Specification (draft).
-- A family of VMs that will accept BAST, including:
-  - Content-Addressable VM written in Rust. Essentially, we are making JavaScript compatible with Web3 and DWeb.
-  - AOT, from BAST to WebAssembly.
-
-## 8. Test Framework Written on FunctionalScript
+## 5. Test Framework in FunctionalScript
 
 ```js
 // test.f.js
 const arrayOfTests: [
-    () => {
-        if (2 + 2 !== 4) {
-            throw "It's the end of the world as we know it!"
-        }
-    },
-    () => {
-        if (2n + 2n !== 4n) {
-            throw "It's the end of the world as we know it!"
-        }
-    }
+  () => {
+    if (2 + 2 !== 4) throw "It's the end of the world as we know it!"
+  },
+  () => {
+    if (2n + 2n !== 4n) throw "It's the end of the world as we know it!"
+  }
 ]
+
 export default {
-    arrayOfTests,
-    generatingTests: () => arrayOfTests,
+  arrayOfTests,
+  generatingTests: () => arrayOfTests,
 }
 ```
+
+Run it with:
 
 ```sh
 fst
 ```
 
-## 7. Links
+## 6. Roadmap
 
-- https://github.com/functionalscript/functionalscript
-  - support the project,
-  - contribute: we have weekly online meetings for contributors.
-- License:
-  - currently, it's AGPL (copyleft) but we may change it in the future, when we have funding,
-  - if you need another license, contact us: sergey.oss@proton.me.
+We are gradually adding more features:
+
+* Language features:
+
+  * Function support
+  * Operators and control flow
+  * Non-default exports
+  * `.f.ts` files (TypeScript type erasure)
+* Tooling:
+
+  * BAST: Binary Abstract Syntax Tree for FunctionalScript
+  * Language specification (draft in progress)
+* Virtual Machines:
+
+  * Content-addressable VM written in Rust — compatible with Web3 and DWeb
+  * AOT compiler: BAST → WebAssembly
+
+---
+
+## 7. Contribute & License
+
+* **GitHub**: [github.com/functionalscript/functionalscript](https://github.com/functionalscript/functionalscript)
+* **Contribute**: We host **weekly contributor meetings** — everyone’s welcome.
+* **License**:
+
+  * Currently: AGPL (copyleft).
+  * Planning to adjust for broader adoption once we receive funding.
+  * Need a custom license? Contact us: `sergey.oss@proton.me`
+
+---
+
+Let me know if you'd like a version for a README, website landing page, or pitch deck.
