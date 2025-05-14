@@ -70,8 +70,6 @@ export default {
 }
 ```
 
-Unlike JSON, this structure preserves object identity — turning your data into a graph.
-
 ## 4. Getting Started
 
 Install the CLI:
@@ -84,17 +82,17 @@ Convert `.f.js` files:
 
 ```sh
 # To FunctionalScript (FJS)
-fsc data.f.js output.f.js
+fsc data.f.js _output.f.js
 
 # To JSON
-fsc data.f.js output.json
+fsc data.f.js _output.json
 ```
 
 ## 5. Test Framework in FunctionalScript
 
 ```js
 // test.f.js
-const arrayOfTests: [
+const arrayOfTests = [
   () => {
     if (2 + 2 !== 4) throw "It's the end of the world as we know it!"
   },
@@ -145,7 +143,3 @@ We are gradually adding more features:
   * Currently: AGPL (copyleft).
   * Planning to adjust for broader adoption once we receive funding.
   * Need a custom license? Contact us: `sergey.oss@proton.me`
-
----
-
-Let me know if you'd like a version for a README, website landing page, or pitch deck.
