@@ -26,7 +26,7 @@ export default {
 import math from "./math.f.js"
 
 const add2 = math.add(2)
-console.log("5 == ", add2(3))
+console.log("5 === ", add2(3))
 ```
 
 State: WiP
@@ -79,18 +79,38 @@ fsc data.f.js output.f.js
 fsc data.f.js output.json
 ```
 
-## 6. Plans
+## 6. What we are working on
 
-- Gradually add more features, such as functions, operators, and
-  TypeScript type-erasure.
-- BAST, Binary Abstract Syntax Tree.
-- Language Specification.
-- Content-Addressable VM.
+- Gradually adding more features, such as
+  - functions,
+  - operators,
+  - statements,
+  - TypeScript type-erasure (`.f.ts`),
+  - and many more.
+- BAST, Binary Abstract Syntax Tree for FunctionalScript.
+- Language Specification (draft).
+- A family of VMs that will accept BAST, including:
+  - Content-Addressable VM written in Rust. Essentially, we are making JavaScript compatible with Web3 and DWeb.
+  - AOT, from BAST to WebAssembly.
+
+## 8. Test Framework Written on FunctionalScript
+
+```js
+// test.f.js
+export default {
+    test2plus2: () => {
+        if (2 + 2 !== 4) {
+            throw "It's the end of the world as we know it!"
+        }
+    },
+}
+```
 
 ## 7. Links
 
 - https://github.com/functionalscript/functionalscript
-  - support the project
+  - support the project,
+  - contribute: we have weekly online meetings for contributors.
 - License:
-  - currently, it's AGPL (copyleft) but we may change it in the future, when we have funding.
+  - currently, it's AGPL (copyleft) but we may change it in the future, when we have funding,
   - if you need another license, contact us: sergey.oss@proton.me.
