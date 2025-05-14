@@ -29,7 +29,7 @@ const add2 = math.add(2)
 console.log("5 === ", add2(3))
 ```
 
-State: WiP
+Parser Status: WiP
 
 ## 3. JSON
 
@@ -85,6 +85,7 @@ fsc data.f.js output.json
   - functions,
   - operators,
   - statements,
+  - non-default export,
   - TypeScript type-erasure (`.f.ts`),
   - and many more.
 - BAST, Binary Abstract Syntax Tree for FunctionalScript.
@@ -97,13 +98,26 @@ fsc data.f.js output.json
 
 ```js
 // test.f.js
-export default {
-    test2plus2: () => {
+const arrayOfTests: [
+    () => {
         if (2 + 2 !== 4) {
             throw "It's the end of the world as we know it!"
         }
     },
+    () => {
+        if (2n + 2n !== 4n) {
+            throw "It's the end of the world as we know it!"
+        }
+    }
+]
+export default {
+    arrayOfTests,
+    generatingTests: () => arrayOfTests,
 }
+```
+
+```sh
+fst
 ```
 
 ## 7. Links
