@@ -130,12 +130,10 @@ We are gradually adding more features:
 
   * BAST: Binary Abstract Syntax Tree for FunctionalScript
   * Language specification (draft in progress)
-* Virtual Machines:
+* Virtual Machines (executes BAST):
 
-  * Content-addressable VM written in Rust — compatible with Web3 and DWeb
-  * AOT compiler: BAST → WebAssembly
-
----
+  * Content-addressable VM written in Rust compatible with Web3 and DWeb
+  * AOT compiler: BAST to WebAssembly
 
 ## 7. Contribute & License
 
