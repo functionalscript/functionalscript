@@ -56,7 +56,7 @@ With `import` and `const`, you can express **shared references** and **identity*
 
 ```js
 // shared.f.js
-export default { name: "shared object" }
+export default { "name": "shared object" }
 ```
 
 ```js
@@ -64,9 +64,9 @@ export default { name: "shared object" }
 import shared from "./shared.f.js"
 const s = "hello!"
 export default {
-  a: shared,
-  b: shared,
-  s,
+  "a": shared,
+  "b": shared,
+  "s": s
 }
 ```
 
@@ -138,7 +138,7 @@ We are gradually adding more features:
 ## 7. Contribute & License
 
 * **GitHub**: [github.com/functionalscript/functionalscript](https://github.com/functionalscript/functionalscript)
-* **Contribute**: We host **weekly contributor meetings** — everyone’s welcome.
+* **Contribute**: We host **weekly contributor meetings**: everyone’s welcome.
 * **License**:
 
   * Currently: AGPL (copyleft).
