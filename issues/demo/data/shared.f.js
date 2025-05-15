@@ -1,1 +1,3 @@
-export default { "name": "shared object" }
+export default {
+    "name": "shared object"
+}
