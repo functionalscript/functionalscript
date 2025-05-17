@@ -291,11 +291,11 @@ pub trait Extension: Sized {
         self.to_complex::<U::String16>().to_unknown()
     }
 
-    fn to_array_unknown(self) -> Self::Item
+    fn to_array_unknown<U: Any>(self) -> U
     where
-        Self: IntoIterator<Item: Any>,
+        Self: IntoIterator<Item = U>,
     {
-        self.to_complex::<<Self::Item as Any>::Array>().to_unknown()
+        self.into_iter().to_complex::<U::Array>().to_unknown()
     }
 
     fn to_object_unknown<U: Any>(self) -> U
