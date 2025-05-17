@@ -150,7 +150,7 @@ separating two location kinds.
 4. **Captured values**: that kind of location is used when the user-defined caller function refers
 to value names that are not locally defined in it, but rather belong to outer contexts. We cannot
 use a scheme that describes a value belonging to the frame "up in the caller chain" because, after
-being defined, a function object can be detached from the call chain context and then пуе passed
+being defined, a function object can be detached from the call chain context and then be passed
 into another, different context where the original caller chain references are not relevant anymore.
 So, when detecting a reference to an outer context within a function body, the parser registers it
 as a captured value. Captured values are stored in a devoted block of slots owned by the function
@@ -158,7 +158,7 @@ object. Naturally, that frame is separate from other location kinds described he
 (coinciding with the function object's lifetime) is different. It gets created and initialized at
 the moment of the owning function object's creation.
 
-TODO: Regarging #4 above: consider a recursive function that captures outer context values, how
+TODO: Regarding #4 above: consider a recursive function that captures outer context values, how
 will that fit into the schema described above?
 ```JS
 const a = () { b() }
