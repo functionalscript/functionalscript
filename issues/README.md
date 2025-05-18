@@ -126,8 +126,8 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
 - [ ] [69-incremental.md](69-incremental.md).
 - [ ] 70. Flags for:
-  - `--ca`: CA deduplication. High priority.
-  - `--mut`: No-dedup mutable objects for JS. strings and bigints are ok. Low priority.
+  - `--ca`: CA deduplication,
+  - `--mut`: No-dedup mutable objects for JS. strings and bigints are ok. Low priority, even questionable value for the task.
 
 ## Language Specification
 
