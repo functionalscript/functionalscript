@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^22.15.17",
+    "@types/node": "^22.15.19",
     "typescript": "^5.8.3"
   }
 }

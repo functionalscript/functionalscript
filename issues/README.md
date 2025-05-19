@@ -118,12 +118,16 @@ logic should be moved to a private free floating helper function (to keep public
   const h = () => f() // ok
   // how to solve the two recursive functions case:
   const x = {
-      a: () => x.b()
-      b: () => x.a()
+      a: () => x.b() // ok
+      b: () => x.a() // ok
       c: () => x.rrrr() // ok
   }
   ```
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
+- [ ] [69-incremental.md](69-incremental.md).
+- [ ] 70. Flags for:
+  - `--ca`: CA deduplication,
+  - `--mut`: No-dedup mutable objects for JS. strings and bigints are ok. Low priority, even questionable value for the task.
 
 ## Language Specification
 
