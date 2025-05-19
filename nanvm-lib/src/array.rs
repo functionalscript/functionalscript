@@ -1,3 +1,7 @@
+use std::io;
+
+use crate::bast::{Collect, Serailizable};
+
 pub trait Array {
     const SIZE: usize;
     type Item;
@@ -26,6 +30,17 @@ pub trait LeBytes: Sized {
     type ByteArray: Array<Item = u8>;
     fn to_le(self) -> Self::ByteArray;
     fn from_le(bytes: Self::ByteArray) -> Self;
+    //
+    fn le_bytes_serialize(self, c: &mut impl Collect) {
+        c.push(self.to_le().as_slice());
+    }
+    fn le_bytes_deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
+        let mut bytes = Self::ByteArray::new();
+        for i in 0..Self::ByteArray::SIZE {
+            bytes.as_mut_slice()[i] = u8::deserialize(data)?;
+        }
+        Ok(Self::from_le(bytes))
+    }
 }
 
 impl LeBytes for u16 {
