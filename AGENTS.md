@@ -1,6 +1,6 @@
 # AGENT Instructions
 
-This repository contains both Node.js (TypeScript) and Rust code.
+This repository contains both Node.js (TypeScript) and Rust code. Check the [./issues/README.md](./issues/README.md) file for existing issues.
 
 ## Requirements
 
