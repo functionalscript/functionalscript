@@ -134,7 +134,7 @@ logic should be moved to a private free floating helper function (to keep public
       - `fsc compile a.f.ts a.json` saves JSON.
       - `fsc compile a.json a.bast` saves BAST.
   - Testing:
-      - `fsc test` recursively finds and tests all `tes.f.ts` and `test.f.js` files.
+      - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 
 ## Language Specification
 
