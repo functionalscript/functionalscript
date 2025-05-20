@@ -97,8 +97,8 @@ logic should be moved to a private free floating helper function (to keep public
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
 - [X] 61. fix transpile import path
-- [ ] 62. `fsc` should be able to detect and parse JSON.
-- [ ] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
+- [X] 62. `fsc` should be able to detect and parse JSON.
+- [X] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
 - [ ] 64. Implement IO as mutable
   ```ts
   type Io<S> = {
