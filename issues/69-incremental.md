@@ -34,13 +34,29 @@ export default {
 }
 ```
 
-## 4. Wish List
+## 4. Identifier properties
+
+```js
+// import
+import a from "./a.f.js"
+// const and bigint
+const c = -24n
+export default {
+    /* properties: */
+    "a": [5.3, false, c],
+    "b": null,
+    c: c
+}
+```
+
+## 5. Wish List
 
 ```js
 import a from "./a.f.js"
 // bigint
 const c: bigint = -24n //< Type erasure
 export default {
+    1e3: c //< identifier properties.
     _: c, /*< identifiers as properties */
     "a": [5.3, false, c],
     "f3": x => { //< function with body
