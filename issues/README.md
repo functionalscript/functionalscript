@@ -128,6 +128,13 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 70. Flags for:
   - `--ca`: CA deduplication,
   - `--mut`: No-dedup mutable objects for JS. strings and bigints are ok. Low priority, even questionable value for the task.
+- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. Examples:
+  - Compiling:
+      - `fsc compile a.f.js` prints FunctionalScript code to stdout.
+      - `fsc compile a.f.ts a.json` saves JSON.
+      - `fsc compile a.json a.bast` saves BAST.
+  - Testing:
+      - `fsc test` recursively finds and tests all `tes.f.ts` and `test.f.js` files.
 
 ## Language Specification
 
