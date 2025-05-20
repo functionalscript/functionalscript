@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{array::LeBytes, interface::Container};
+use crate::{le::Le, interface::Container};
 
 pub trait Collect {
     fn push(&mut self, item: &[u8]);
