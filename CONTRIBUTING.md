@@ -17,6 +17,8 @@ cargo fetch
 ```bash
 npm test
 cargo test
+cargo clippy
+cargo fmt -- --check
 ```
 
 Feel free to open [issues](https://github.com/functionalscript/functionalscript/issues).
