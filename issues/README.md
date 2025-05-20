@@ -97,8 +97,8 @@ logic should be moved to a private free floating helper function (to keep public
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
 - [X] 61. fix transpile import path
-- [ ] 62. `fsc` should be able to detect and parse JSON.
-- [ ] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
+- [X] 62. `fsc` should be able to detect and parse JSON.
+- [X] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
 - [ ] 64. Implement IO as mutable
   ```ts
   type Io<S> = {
@@ -134,7 +134,8 @@ logic should be moved to a private free floating helper function (to keep public
       - `fsc compile a.f.ts a.json` saves JSON.
       - `fsc compile a.json a.bast` saves BAST.
   - Testing:
-      - `fsc test` recursively finds and tests all `tes.f.ts` and `test.f.js` files.
+      - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
+- [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
 
 ## Language Specification
 
