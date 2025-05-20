@@ -1,6 +1,9 @@
 use std::io;
 
-use crate::{array::Array, serializable::{Collect, Serializable}};
+use crate::{
+    array::Array,
+    serializable::{Collect, Serializable},
+};
 
 pub trait Le: Sized {
     type ByteArray: Array<Item = u8>;
