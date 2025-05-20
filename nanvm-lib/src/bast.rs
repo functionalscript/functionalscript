@@ -11,8 +11,7 @@ pub trait Serailizable: Sized {
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self>;
 }
 
-impl<T: Container<Header: Serailizable, Item: Serailizable>> Serailizable for T
-{
+impl<T: Container<Header: Serailizable, Item: Serailizable>> Serailizable for T {
     fn serialize(&self, c: &mut impl Collect) {
         self.header().serialize(c);
         let items = self.items();
@@ -34,10 +33,7 @@ impl<T: Container<Header: Serailizable, Item: Serailizable>> Serailizable for T
 }
 
 fn unexpected_eof() -> io::Error {
-    io::Error::new(
-        io::ErrorKind::UnexpectedEof,
-        "Unexpected end of data",
-    )
+    io::Error::new(io::ErrorKind::UnexpectedEof, "Unexpected end of data")
 }
 
 impl Serailizable for u8 {
