@@ -119,6 +119,13 @@ export default {
             if (result !== '[[],[{"a":{"b":{"c":["array",["d"]]}}}]]') { throw result }
         },
         () => {
+            const tokenList = tokenizeString('export default {a: 1}')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[{"a":1}]]') { throw result }
+        },
+        () => {
             const tokenList = tokenizeString('export default 1234567890n')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'ok') { throw obj }
@@ -387,6 +394,13 @@ export default {
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[1,2,{"1st":["cref",1],"2nd":["cref",0],"3rd":["cref",1]}]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('const a = 5 \n export default { a }')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[5,{"a":["cref",0]}]]') { throw result }
         },
     ],
     invalidWithConst:[

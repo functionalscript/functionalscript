@@ -389,7 +389,9 @@ const parseObjectStartOp
     = token => state => {
     switch (token.kind)
     {
-        case 'string': return pushKey(state)(token.value)
+        case 'string':
+        case 'id':
+            return pushKey(state)(String(token.value))
         case '}': return endObject(state)
         case 'ws':
         case 'nl':
@@ -405,6 +407,17 @@ const parseObjectKeyOp
     switch (token.kind)
     {
         case ':': return { ... state, valueState: '{:', top: state.top, stack: state.stack }
+        case '}': {
+            const next = pushRef(state)(state.top?.[2] ?? '')
+            if (next.state === 'error') return next
+            return endObject(next as ParseValueState)
+        }
+        case ',': {
+            const next = pushRef(state)(state.top?.[2] ?? '')
+            if (next.state === 'error') return next
+            const ps = next as ParseValueState
+            return { ... ps, valueState: '{,', top: ps.top, stack: ps.stack }
+        }
         case 'ws':
         case 'nl':
         case '//':
@@ -450,7 +463,9 @@ const parseObjectCommaOp
     = token => state => {
     switch (token.kind)
     {
-        case 'string': return pushKey(state)(token.value)
+        case 'string':
+        case 'id':
+            return pushKey(state)(String(token.value))
         case 'ws':
         case 'nl':
         case '//':
