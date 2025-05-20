@@ -1,17 +1,17 @@
 use std::io;
 
-use crate::{array::LeBytes, interface::Container};
+use crate::{interface::Container, le::Le};
 
 pub trait Collect {
     fn push(&mut self, item: &[u8]);
 }
 
-pub trait Serailizable: Sized {
+pub trait Serializable: Sized {
     fn serialize(&self, c: &mut impl Collect);
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self>;
 }
 
-impl<T: Container<Header: Serailizable, Item: Serailizable>> Serailizable for T {
+impl<T: Container<Header: Serializable, Item: Serializable>> Serializable for T {
     fn serialize(&self, c: &mut impl Collect) {
         self.header().serialize(c);
         let items = self.items();
@@ -23,7 +23,8 @@ impl<T: Container<Header: Serailizable, Item: Serailizable>> Serailizable for T 
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         let header = T::Header::deserialize(data)?;
         let len = u32::deserialize(data)?;
-        // TODO: build an iterator for the items and pass it to the T:: new constructor.
+        // TODO: build an iterator for the items and pass it to the T::new(),
+        // we don't need another allocation and copy.
         let mut items = Vec::with_capacity(len as usize);
         for _ in 0..len {
             items.push(T::Item::deserialize(data)?);
@@ -36,7 +37,7 @@ fn unexpected_eof() -> io::Error {
     io::Error::new(io::ErrorKind::UnexpectedEof, "Unexpected end of data")
 }
 
-impl Serailizable for u8 {
+impl Serializable for u8 {
     fn serialize(&self, c: &mut impl Collect) {
         c.push(&[*self]);
     }
@@ -45,7 +46,7 @@ impl Serailizable for u8 {
     }
 }
 
-impl Serailizable for u16 {
+impl Serializable for u16 {
     fn serialize(&self, c: &mut impl Collect) {
         self.le_bytes_serialize(c);
     }
@@ -54,7 +55,7 @@ impl Serailizable for u16 {
     }
 }
 
-impl Serailizable for u32 {
+impl Serializable for u32 {
     fn serialize(&self, c: &mut impl Collect) {
         self.le_bytes_serialize(c);
     }
@@ -63,7 +64,7 @@ impl Serailizable for u32 {
     }
 }
 
-impl Serailizable for u64 {
+impl Serializable for u64 {
     fn serialize(&self, c: &mut impl Collect) {
         self.le_bytes_serialize(c);
     }
@@ -72,7 +73,7 @@ impl Serailizable for u64 {
     }
 }
 
-impl Serailizable for f64 {
+impl Serializable for f64 {
     fn serialize(&self, c: &mut impl Collect) {
         self.le_bytes_serialize(c);
     }
