@@ -12,8 +12,8 @@
 - [x] use JS tokenizer
 - [x] identifiers `{a:5}`
 - [x] big int
-- [ ] `export default ...`
-- [ ] constants
+- [x] `export default ...`
+- [x] constants
   ```js
   const a = [3]
   export default = { a: a, b: a }
@@ -23,7 +23,7 @@
   const _0=[3]
   export default {a:_0,b:_0}
   ```
-- [ ] import
+- [x] import
   ```js
   import a from 'c.d.js'
   export default { a: a, b: a}
@@ -36,7 +36,7 @@
 
 Optional, for fun, syntax sugar:
 
-- [ ] comments. Ignore them. Not an error.
+- [x] comments. Ignore them. Not an error.
 - [ ] double/single quote strings
 
 ## Decidable Language
