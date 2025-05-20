@@ -384,12 +384,15 @@ const parseArrayValueOp
     }
 }
 
+// allow identifier property names (#2410)
 const parseObjectStartOp
     : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
     switch (token.kind)
     {
-        case 'string': return pushKey(state)(token.value)
+        case 'string':
+        case 'id':
+            return pushKey(state)(String(token.value))
         case '}': return endObject(state)
         case 'ws':
         case 'nl':
@@ -450,7 +453,9 @@ const parseObjectCommaOp
     = token => state => {
     switch (token.kind)
     {
-        case 'string': return pushKey(state)(token.value)
+        case 'string':
+        case 'id':
+            return pushKey(state)(String(token.value))
         case 'ws':
         case 'nl':
         case '//':
