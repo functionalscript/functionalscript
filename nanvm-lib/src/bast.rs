@@ -24,7 +24,8 @@ impl<T: Container<Header: Serailizable, Item: Serailizable>> Serailizable for T
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         let header = T::Header::deserialize(data)?;
         let len = u32::deserialize(data)?;
-        // TODO: build an iterator for the items and pass it to the T:: new constructor.
+        // TODO: build an iterator for the items and pass it to the T::new(),
+        // we don't need another allocation and copy.
         let mut items = Vec::with_capacity(len as usize);
         for _ in 0..len {
             items.push(T::Item::deserialize(data)?);
