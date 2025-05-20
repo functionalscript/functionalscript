@@ -12,6 +12,8 @@ This repository contains both Node.js (TypeScript) and Rust code.
 - Run `npm test` to test FunctionalScript (`.f.ts`) files with Node 24+.
   If your environment uses Node 22, run `npm run test22` instead so that Node's `--experimental-strip-types` flag is applied.
 - Run `cargo test` to test the Rust crate in `nanvm-lib`.
+- Run `cargo clippy` to lint the Rust crate.
+- Run `cargo fmt -- --check` to verify formatting.
 
 ## Pull Requests
 - Ensure all of the above tests pass before submitting changes.
