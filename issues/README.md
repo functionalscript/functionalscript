@@ -135,6 +135,7 @@ logic should be moved to a private free floating helper function (to keep public
       - `fsc compile a.json a.bast` saves BAST.
   - Testing:
       - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
+- [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
 
 ## Language Specification
 
