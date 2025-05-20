@@ -114,7 +114,7 @@ jobs:
         .\rustup-init.exe -y --default-toolchain stable --profile minimal
         echo "$env:USERPROFILE\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
     - uses: actions/checkout@v3
-    - run: cargo test ${{ matrix.type }} ${{ matrix.target }} 
+    - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
 
   rust-wasm:
     strategy:
@@ -129,3 +129,11 @@ jobs:
           node-version: 20
       - uses: taiki-e/install-action@wasm-pack
       - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
+
+  rust-lints:
+    runs-on: ubuntu-latest
+    steps:
+      - run: rustup update
+      - uses: actions/checkout@v3
+      - run: cargo clippy -- -D warnings
+      - run: cargo fmt -- --check
