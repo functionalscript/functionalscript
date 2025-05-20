@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::bast::{Collect, Serailizable};
+use crate::bast::{Collect, Serializable};
 
 pub trait Array {
     const SIZE: usize;
