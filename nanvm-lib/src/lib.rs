@@ -9,5 +9,6 @@ pub mod le;
 pub mod naive;
 pub mod nanenum;
 pub mod nullish;
+pub mod serializable;
 pub mod sign;
 pub mod simple;
