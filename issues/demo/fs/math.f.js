@@ -1,4 +1,4 @@
 export default {
-  add: a => b => a + b,
-  mul: a => b => a * b,
+  add: /** @type {(_: number) => (_: number) => number} */ a => b => a + b,
+  mul: /** @type {(_: number) => (_: number) => number} */ a => b => a * b,
 }

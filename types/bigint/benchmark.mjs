@@ -1,3 +1,4 @@
+/** @type {(_: any) => any} */
 const log2 = v => {
     if (v <= 0n) { return -1n }
     let result = 31n
@@ -25,6 +26,7 @@ const log2 = v => {
     return result - BigInt(Math.clz32(Number(v)))
 }
 
+/** @type {(_: any) => any} */
 const oldLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = 0n
@@ -52,19 +54,23 @@ const oldLog2 = v => {
     return result
 }
 
+/** @type {(_: any) => any} */
 const stringLog2 = v => BigInt(v.toString(2).length) - 1n
 
+/** @type {(_: any) => any} */
 const stringHexLog2 = v => {
     const len = (BigInt(v.toString(16).length) - 1n) << 2n
     const x = v >> len
     return len + 31n - BigInt(Math.clz32(Number(x)))
 }
 
+/** @type {(_: any) => any} */
 const string32Log2 = n => {
     const i = (BigInt(n.toString(32).length) - 1n) * 5n
     return i + 31n - BigInt(Math.clz32(Number(n >> i)))
 }
 
+/** @type {(v: any) => any} */
 const mathLog2 = v => {
     if (v <= 0n) { return -1n }
     let result = -1n
@@ -95,6 +101,7 @@ const mathLog2 = v => {
 
 const mLog2 = Math.log2
 
+/** @type {(_: any) => any} */
 const ylog2 = n => {
     let i = -1n
     let j = 0x400n
@@ -127,8 +134,10 @@ const ylog2 = n => {
     return i
 }
 
+/** @type {any} */
 const log = document.getElementById('log')
 
+/** @type {(_: any) => any} */
 const big = f => {
     let e = 1_048_575n
     let c = 1n << e
@@ -148,8 +157,10 @@ const big = f => {
     }
 }
 
+/** @type {(_: any) => (_: any) => any} */
 const min = a => b => a < b ? a : b
 
+/** @type {(_: any) => any} */
 const small = f => {
     let e = 2_000n
     let c = 1n << e
@@ -167,6 +178,7 @@ const small = f => {
     } while (c !== 0n)
 }
 
+/** @type {(_: any) => (_: any, f: any) => any} */
 const benchmark = t => (s, f) => {
     const start = performance.now()
     t(f)
@@ -176,6 +188,7 @@ const benchmark = t => (s, f) => {
     log.innerText += `${s}: ${dif}\n`
 }
 
+/** @type {(_: any) => void} */
 const run = t => {
     log.innerText += `${t.name}\n`
     const b = benchmark(t)
