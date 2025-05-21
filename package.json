@@ -21,8 +21,8 @@
     "node": ">=20"
   },
   "bin": {
-    "fsc": "fsc/module.js",
-    "fst": "dev/test/module.js"
+    "fsc": "x/fsc.js",
+    "fst": "x/fst.js"
   },
   "repository": {
     "type": "git",
