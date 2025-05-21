@@ -1,24 +1,21 @@
-use std::io;
+use std::io::{self, Write};
 
 use crate::{interface::Container, le::Le};
 
-pub trait Collect {
-    fn push(&mut self, item: &[u8]);
-}
-
 pub trait Serializable: Sized {
-    fn serialize(&self, c: &mut impl Collect);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()>;
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self>;
 }
 
 impl<T: Container<Header: Serializable, Item: Serializable>> Serializable for T {
-    fn serialize(&self, c: &mut impl Collect) {
-        self.header().serialize(c);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
+        self.header().serialize(c)?;
         let items = self.items();
-        (items.len() as u32).serialize(c);
+        (items.len() as u32).serialize(c)?;
         for item in items {
-            item.serialize(c);
+            item.serialize(c)?;
         }
+        Ok(())
     }
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         let header = T::Header::deserialize(data)?;
@@ -38,8 +35,9 @@ fn unexpected_eof() -> io::Error {
 }
 
 impl Serializable for u8 {
-    fn serialize(&self, c: &mut impl Collect) {
-        c.push(&[*self]);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
+        c.write(&[*self])?;
+        Ok(())
     }
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         data.next().ok_or_else(unexpected_eof)
@@ -47,8 +45,8 @@ impl Serializable for u8 {
 }
 
 impl Serializable for u16 {
-    fn serialize(&self, c: &mut impl Collect) {
-        self.le_bytes_serialize(c);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(c)
     }
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         Self::le_bytes_deserialize(data)
@@ -56,8 +54,8 @@ impl Serializable for u16 {
 }
 
 impl Serializable for u32 {
-    fn serialize(&self, c: &mut impl Collect) {
-        self.le_bytes_serialize(c);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(c)
     }
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         Self::le_bytes_deserialize(data)
@@ -65,8 +63,8 @@ impl Serializable for u32 {
 }
 
 impl Serializable for u64 {
-    fn serialize(&self, c: &mut impl Collect) {
-        self.le_bytes_serialize(c);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(c)
     }
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         Self::le_bytes_deserialize(data)
@@ -74,8 +72,8 @@ impl Serializable for u64 {
 }
 
 impl Serializable for f64 {
-    fn serialize(&self, c: &mut impl Collect) {
-        self.le_bytes_serialize(c);
+    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(c)
     }
     fn deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         Self::le_bytes_deserialize(data)

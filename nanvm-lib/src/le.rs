@@ -1,8 +1,8 @@
-use std::io;
+use std::io::{self, Write};
 
 use crate::{
     array::Array,
-    serializable::{Collect, Serializable},
+    serializable::Serializable,
 };
 
 pub trait Le: Sized {
@@ -10,8 +10,9 @@ pub trait Le: Sized {
     fn to_le(self) -> Self::ByteArray;
     fn from_le(bytes: Self::ByteArray) -> Self;
     //
-    fn le_bytes_serialize(self, c: &mut impl Collect) {
-        c.push(self.to_le().as_slice());
+    fn le_bytes_serialize(self, c: &mut impl Write) -> io::Result<()> {
+        c.write(self.to_le().as_slice())?;
+        Ok(())
     }
     fn le_bytes_deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
         let mut bytes = Self::ByteArray::new();
