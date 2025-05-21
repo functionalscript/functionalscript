@@ -1,6 +1,7 @@
 {
   "name": "functionalscript",
   "version": "0.6.9",
+  "private": true,
   "type": "module",
   "files": [
     "**/*.js",
