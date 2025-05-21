@@ -72,8 +72,8 @@
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
-    "test": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test/module.js",
-    "fsc": "deno run --allow-read --allow-write ./fsc/module.js"
+    "test": "deno run --quiet --allow-read --allow-env --allow-net ./x/fst.js",
+    "fsc": "deno run --allow-read --allow-write ./x/fsc.js"
   },
   "fmt": {
     "indentWidth": 4,
