@@ -17,6 +17,16 @@ pub trait Le: Sized {
     }
 }
 
+impl Le for u8 {
+    type ByteArray = [u8; 1];
+    fn to_le(self) -> Self::ByteArray {
+        [self]
+    }
+    fn from_le(bytes: Self::ByteArray) -> Self {
+        bytes[0]
+    }
+}
+
 impl Le for u16 {
     type ByteArray = [u8; 2];
     fn to_le(self) -> Self::ByteArray {
