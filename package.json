@@ -13,11 +13,11 @@
     "n": "node --trace-uncaught",
     "prepack": "npm run tsc-emit",
     "git-clean": "git clean -xf",
-    "test20": "npm run tsc-emit && npm run n ./bin/fst.js",
-    "test22": "tsc && npm run n -- --experimental-strip-types ./bin/fst.js",
-    "test": "tsc && npm run n ./bin/fst.js",
-    "index": "npm run n ./bin/index.js",
-    "fsc": "npm run n ./bin/fsc.js",
+    "test20": "npm run tsc-emit && npm run n ./x/fst.js",
+    "test22": "tsc && npm run n -- --experimental-strip-types ./x/fst.js",
+    "test": "tsc && npm run n ./x/fst.js",
+    "index": "npm run n ./x/index.js",
+    "fsc": "npm run n ./x/fsc.js",
     "update": "npm run index && npm install"
   },
   "engines": {
