@@ -44,36 +44,36 @@ impl Serializable for u8 {
 
 impl Serializable for u16 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(write)
+        self.le_serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(read)
+        Self::le_deserialize(read)
     }
 }
 
 impl Serializable for u32 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(write)
+        self.le_serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(read)
+        Self::le_deserialize(read)
     }
 }
 
 impl Serializable for u64 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(write)
+        self.le_serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(read)
+        Self::le_deserialize(read)
     }
 }
 
 impl Serializable for f64 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(write)
+        self.le_serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(read)
+        Self::le_deserialize(read)
     }
 }

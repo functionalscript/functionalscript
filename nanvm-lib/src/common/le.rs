@@ -7,11 +7,11 @@ pub trait Le: Sized {
     fn to_le(self) -> Self::ByteArray;
     fn from_le(bytes: Self::ByteArray) -> Self;
     //
-    fn le_bytes_serialize(self, write: &mut impl Write) -> io::Result<()> {
+    fn le_serialize(self, write: &mut impl Write) -> io::Result<()> {
         write.write(self.to_le().as_slice())?;
         Ok(())
     }
-    fn le_bytes_deserialize(read: &mut impl Read) -> io::Result<Self> {
+    fn le_deserialize(read: &mut impl Read) -> io::Result<Self> {
         let mut bytes = Self::ByteArray::new();
         read.read_exact(bytes.as_mut_slice())?;
         Ok(Self::from_le(bytes))
