@@ -1,10 +1,8 @@
-pub mod array;
+pub mod common;
 pub mod big_int;
 pub mod big_uint;
-pub mod default;
 pub mod extension;
 pub mod interface;
-pub mod le;
 pub mod naive;
 pub mod nanenum;
 pub mod nullish;

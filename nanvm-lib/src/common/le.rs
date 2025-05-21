@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 
-use crate::array::Array;
+use super::array::Array;
 
 pub trait Le: Sized {
     type ByteArray: Array<Item = u8>;

@@ -8,7 +8,7 @@ use std::{
     ops::{Add, Div, Mul, Shl, Shr, Sub},
 };
 
-use crate::default::default;
+use super::common::default::default;
 
 #[derive(Debug, PartialEq, Clone, Eq, Default)]
 pub struct BigUint {
