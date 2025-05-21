@@ -8,6 +8,8 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 - Install Node dependencies with `npm ci`.
 - Install Rust dependencies with `cargo fetch`.
 
+If either installation fails, skip all test commands.
+
 ## Testing
 
 - Run `npx tsc` to type-check using the repository's version of TypeScript.
