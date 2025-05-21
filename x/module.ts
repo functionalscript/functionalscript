@@ -1,4 +1,4 @@
-import { type Io, type Module, type Run, run } from './module.f.ts'
+import { type Io, type Module, type Run, run } from '../io/module.f.ts'
 import fs from 'node:fs'
 import process from "node:process"
 import { concat } from '../path/module.f.ts'
