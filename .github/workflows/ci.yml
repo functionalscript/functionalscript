@@ -80,7 +80,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: curl https://bun.sh/install | bash
+<<<<<<< HEAD
     - run: /home/runner/.bun/bin/bun ./x/fst.js
+=======
+    - run: /home/runner/.bun/bin/bun ./x/fst.ts
+>>>>>>> x
 
   rust:
     strategy:
