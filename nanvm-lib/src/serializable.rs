@@ -37,7 +37,7 @@ impl Serializable for u8 {
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         let mut buf = [0];
-        read.read(&mut buf)?;
+        read.read_exact(&mut buf)?;
         Ok(buf[0])
     }
 }
