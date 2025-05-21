@@ -32,8 +32,7 @@ impl<T: Container<Header: Serializable, Item: Serializable>> Serializable for T 
 
 impl Serializable for u8 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        write.write(&[*self])?;
-        Ok(())
+        write.write_all(&[*self])
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         let mut buf = [0];
