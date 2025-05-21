@@ -3,41 +3,41 @@ use std::io::{self, Read, Write};
 use crate::{interface::Container, le::Le};
 
 pub trait Serializable: Sized {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()>;
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()>;
     fn deserialize(data: &mut impl Read) -> io::Result<Self>;
 }
 
 impl<T: Container<Header: Serializable, Item: Serializable>> Serializable for T {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
-        self.header().serialize(c)?;
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.header().serialize(write)?;
         let items = self.items();
-        (items.len() as u32).serialize(c)?;
+        (items.len() as u32).serialize(write)?;
         for item in items {
-            item.serialize(c)?;
+            item.serialize(write)?;
         }
         Ok(())
     }
-    fn deserialize(data: &mut impl Read) -> io::Result<Self> {
-        let header = T::Header::deserialize(data)?;
-        let len = u32::deserialize(data)?;
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        let header = T::Header::deserialize(read)?;
+        let len = u32::deserialize(read)?;
         // TODO: build an iterator for the items and pass it to the T::new(),
         // we don't need another allocation and copy.
         let mut items = Vec::with_capacity(len as usize);
         for _ in 0..len {
-            items.push(T::Item::deserialize(data)?);
+            items.push(T::Item::deserialize(read)?);
         }
         Ok(T::new(header, items))
     }
 }
 
 impl Serializable for u8 {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
-        c.write(&[*self])?;
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        write.write(&[*self])?;
         Ok(())
     }
-    fn deserialize(data: &mut impl Read) -> io::Result<Self> {
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         let mut buf = [0];
-        data.read(&mut buf)?;
+        read.read(&mut buf)?;
         Ok(buf[0])
     }
 }
