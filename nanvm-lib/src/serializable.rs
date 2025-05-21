@@ -4,7 +4,7 @@ use crate::{interface::Container, le::Le};
 
 pub trait Serializable: Sized {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()>;
-    fn deserialize(data: &mut impl Read) -> io::Result<Self>;
+    fn deserialize(read: &mut impl Read) -> io::Result<Self>;
 }
 
 impl<T: Container<Header: Serializable, Item: Serializable>> Serializable for T {
@@ -43,17 +43,17 @@ impl Serializable for u8 {
 }
 
 impl Serializable for u16 {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(c)
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(write)
     }
-    fn deserialize(data: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(data)
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        Self::le_bytes_deserialize(read)
     }
 }
 
 impl Serializable for u32 {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(c)
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(write)
     }
     fn deserialize(data: &mut impl Read) -> io::Result<Self> {
         Self::le_bytes_deserialize(data)
@@ -61,8 +61,8 @@ impl Serializable for u32 {
 }
 
 impl Serializable for u64 {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(c)
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(write)
     }
     fn deserialize(data: &mut impl Read) -> io::Result<Self> {
         Self::le_bytes_deserialize(data)
@@ -70,10 +70,10 @@ impl Serializable for u64 {
 }
 
 impl Serializable for f64 {
-    fn serialize(&self, c: &mut impl Write) -> io::Result<()> {
-        self.le_bytes_serialize(c)
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.le_bytes_serialize(write)
     }
-    fn deserialize(data: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(data)
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        Self::le_bytes_deserialize(read)
     }
 }

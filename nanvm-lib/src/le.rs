@@ -1,24 +1,19 @@
 use std::io::{self, Read, Write};
 
-use crate::{
-    array::Array,
-    serializable::Serializable,
-};
+use crate::array::Array;
 
 pub trait Le: Sized {
     type ByteArray: Array<Item = u8>;
     fn to_le(self) -> Self::ByteArray;
     fn from_le(bytes: Self::ByteArray) -> Self;
     //
-    fn le_bytes_serialize(self, c: &mut impl Write) -> io::Result<()> {
-        c.write(self.to_le().as_slice())?;
+    fn le_bytes_serialize(self, write: &mut impl Write) -> io::Result<()> {
+        write.write(self.to_le().as_slice())?;
         Ok(())
     }
-    fn le_bytes_deserialize(data: &mut impl Read) -> io::Result<Self> {
+    fn le_bytes_deserialize(read: &mut impl Read) -> io::Result<Self> {
         let mut bytes = Self::ByteArray::new();
-        for i in 0..Self::ByteArray::SIZE {
-            bytes.as_mut_slice()[i] = u8::deserialize(data)?;
-        }
+        read.read_exact(bytes.as_mut_slice())?;
         Ok(Self::from_le(bytes))
     }
 }
