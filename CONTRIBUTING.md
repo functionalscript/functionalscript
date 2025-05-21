@@ -1,5 +1,7 @@
 # Contributing to FunctionalScript
 
+Check the [./issues/README.md](./issues/README.md) file for existing issues.
+
 ## Requirements
 
 - [Node.JS](https://nodejs.org/en/download), version **24** or later is required for development.
