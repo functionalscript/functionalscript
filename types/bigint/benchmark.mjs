@@ -135,7 +135,10 @@ const ylog2 = n => {
 }
 
 /** @type {any} */
-const log = document.getElementById('log')
+const gt = globalThis
+
+/** @type {any} */
+const log = gt.document.getElementById('log')
 
 /** @type {(_: any) => any} */
 const big = f => {
