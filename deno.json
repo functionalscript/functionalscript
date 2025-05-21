@@ -11,10 +11,8 @@
     "./crypto/prime_field/module.f.ts": "./crypto/prime_field/module.f.ts",
     "./crypto/secp/module.f.ts": "./crypto/secp/module.f.ts",
     "./crypto/sha2/module.f.ts": "./crypto/sha2/module.f.ts",
-    "./dev/index/module.ts": "./dev/index/module.ts",
     "./dev/module.f.ts": "./dev/module.f.ts",
     "./dev/test/module.f.ts": "./dev/test/module.f.ts",
-    "./dev/test/module.ts": "./dev/test/module.ts",
     "./dev/version/module.f.ts": "./dev/version/module.f.ts",
     "./djs/ast/module.f.ts": "./djs/ast/module.f.ts",
     "./djs/module.f.ts": "./djs/module.f.ts",
@@ -23,11 +21,9 @@
     "./djs/tokenizer/module.f.ts": "./djs/tokenizer/module.f.ts",
     "./djs/transpiler/module.f.ts": "./djs/transpiler/module.f.ts",
     "./fsc/module.f.ts": "./fsc/module.f.ts",
-    "./fsc/module.ts": "./fsc/module.ts",
     "./fsm/module.f.ts": "./fsm/module.f.ts",
     "./html/module.f.ts": "./html/module.f.ts",
     "./io/module.f.ts": "./io/module.f.ts",
-    "./io/module.ts": "./io/module.ts",
     "./io/virtual/module.f.ts": "./io/virtual/module.f.ts",
     "./js/tokenizer/module.f.ts": "./js/tokenizer/module.f.ts",
     "./json/module.f.ts": "./json/module.f.ts",
@@ -68,7 +64,8 @@
     "./types/sorted_list/module.f.ts": "./types/sorted_list/module.f.ts",
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
-    "./types/string_set/module.f.ts": "./types/string_set/module.f.ts"
+    "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
+    "./x/module.ts": "./x/module.ts"
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
