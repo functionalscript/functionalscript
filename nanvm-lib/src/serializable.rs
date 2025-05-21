@@ -55,8 +55,8 @@ impl Serializable for u32 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_bytes_serialize(write)
     }
-    fn deserialize(data: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(data)
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        Self::le_bytes_deserialize(read)
     }
 }
 
@@ -64,8 +64,8 @@ impl Serializable for u64 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_bytes_serialize(write)
     }
-    fn deserialize(data: &mut impl Read) -> io::Result<Self> {
-        Self::le_bytes_deserialize(data)
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        Self::le_bytes_deserialize(read)
     }
 }
 
