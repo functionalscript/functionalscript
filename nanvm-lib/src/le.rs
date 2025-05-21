@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 
 use crate::{
     array::Array,
@@ -14,7 +14,7 @@ pub trait Le: Sized {
         c.write(self.to_le().as_slice())?;
         Ok(())
     }
-    fn le_bytes_deserialize(data: &mut impl Iterator<Item = u8>) -> io::Result<Self> {
+    fn le_bytes_deserialize(data: &mut impl Read) -> io::Result<Self> {
         let mut bytes = Self::ByteArray::new();
         for i in 0..Self::ByteArray::SIZE {
             bytes.as_mut_slice()[i] = u8::deserialize(data)?;
