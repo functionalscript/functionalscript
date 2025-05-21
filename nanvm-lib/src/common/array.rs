@@ -1,6 +1,6 @@
 pub trait Array {
     const SIZE: usize;
-    type Item;
+    type Item: Default;
     fn as_slice(&self) -> &[Self::Item];
     fn as_mut_slice(&mut self) -> &mut [Self::Item];
     // We can't use `Default` here because it would require the array to be of
