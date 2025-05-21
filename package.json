@@ -10,7 +10,7 @@
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
     "n": "node --trace-uncaught",
-    "prepack": "npm run tsc-emit",
+    "prepack": "npm run tsc-emit && cd x/ && npm run tsc-emit",
     "git-clean": "git clean -xf",
     "test20": "npm run tsc-emit && npm run n ./x/fst.js",
     "test22": "tsc && npm run n -- --experimental-strip-types ./x/fst.ts",
