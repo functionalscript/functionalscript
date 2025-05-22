@@ -136,6 +136,7 @@ logic should be moved to a private free floating helper function (to keep public
   - Testing:
       - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
+- [ ] 73. `fst` discovers tests using the current directory. When `npm test` or `npm run test22` is invoked from a subdirectory, npm still runs the script from the repository root. Use the `INIT_CWD` environment variable to limit the search to the directory where npm was called.
 
 ## Language Specification
 
