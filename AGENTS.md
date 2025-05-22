@@ -26,4 +26,5 @@ If either installation fails, skip all test commands.
   - Reuse code,
   - Don't repeat yourself,
   - Avoid side effects and mutability.
+- Prefer CLI parameters over environment variables when adding new features.
 - Ensure all of the above tests pass before submitting changes.
