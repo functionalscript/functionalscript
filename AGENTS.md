@@ -30,3 +30,4 @@ If either installation fails, skip all test commands.
   to built-in or external Node modules such as `node:path` in `.f.ts` files.
 - Prefer CLI parameters over environment variables when adding new features.
 - Ensure all of the above tests pass before submitting changes.
+- Use `let` variables only within the function body where they are declared.
