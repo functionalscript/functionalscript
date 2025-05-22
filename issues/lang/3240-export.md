@@ -34,7 +34,7 @@ type DefaultExport = {
 We don't need to change `import` for now if we implement `import * as X from ...`. For example
 
 ```js
-// types/list/module.d.js
+// types/list/module.f.js
 export const map = ...
 ```
 

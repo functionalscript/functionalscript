@@ -3,7 +3,7 @@
 Parse this code
 
 ```js
-import a from 'c.d.js'
+import a from 'c.f.js'
 const c = [12, 'x']
 export default { a: a, b: a, c: c}
 ```
