@@ -8,10 +8,9 @@
   ],
   "description": "FunctionalScript is a functional subset of JavaScript",
   "scripts": {
-    "tsc-emit": "tsc --NoEmit false",
-    "prepack": "npm run tsc-emit",
+    "prepack": "tsc --NoEmit false",
     "git-clean": "git clean -xf",
-    "test20": "npm run tsc-emit && node ./dev/test/module.js",
+    "test20": "npm run prepack && node ./dev/test/module.js",
     "test22": "tsc && node --experimental-strip-types ./dev/test/module.ts",
     "test": "tsc && node ./dev/test/module.ts",
     "index": "node ./dev/index/module.ts",
