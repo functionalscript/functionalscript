@@ -1,3 +1,4 @@
+import { log } from 'node:console'
 import type { Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
@@ -29,7 +30,8 @@ export const env
 
 type ModuleArray = readonly (readonly[string, Module])[]
 
-export const allFiles = ({ fs: { promises: { readdir }}}: Io): Promise<readonly string[]> => {
+export const allFiles = (io: Io): Promise<readonly string[]> => {
+    const { fs: { promises: { readdir }}} = io
     const load = async(p: string): Promise<readonly string[]> => {
         let result: readonly string[] = []
         for (const i of await readdir(p, { withFileTypes: true })) {
@@ -47,7 +49,11 @@ export const allFiles = ({ fs: { promises: { readdir }}}: Io): Promise<readonly 
         }
         return result
     }
-    return load('.')
+    const initCwd = env(io)('INIT_CWD')
+    console.log(initCwd)
+    const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
+    console.log(s)
+    return load(s)
 }
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {

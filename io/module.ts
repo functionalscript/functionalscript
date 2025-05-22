@@ -9,7 +9,11 @@ export const io: Io = {
     console,
     fs,
     process,
-    asyncImport: (v: string): Promise<Module> => import(`${prefix}${concat(process.cwd())(v)}`),
+    asyncImport: (v: string): Promise<Module> => {
+        const s0 = v.includes(':') ? v : concat(process.cwd())(v)
+        const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
+        return import(s1)
+    },
     performance,
     fetch,
     tryCatch: f => {
