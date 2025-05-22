@@ -1,4 +1,3 @@
-import { log } from 'node:console'
 import type { Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
@@ -50,9 +49,7 @@ export const allFiles = (io: Io): Promise<readonly string[]> => {
         return result
     }
     const initCwd = env(io)('INIT_CWD')
-    console.log(initCwd)
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
-    console.log(s)
     return load(s)
 }
 
