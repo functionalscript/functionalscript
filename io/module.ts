@@ -10,7 +10,7 @@ export const io: Io = {
     fs,
     process,
     asyncImport: (v: string): Promise<Module> => {
-        const s0 = v.includes(':') ? v : concat(process.cwd())(v)
+        const s0 = v.includes(':') || v.startsWith('/') ? v : concat(process.cwd())(v)
         const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
         return import(s1)
     },

@@ -34,11 +34,12 @@ jobs:
     - run: npm run test22
 
   node:
-    runs-on: ubuntu-latest
-
     strategy:
       matrix:
+        os: ['ubuntu-latest', 'windows-latest']
         node-version: [24]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
