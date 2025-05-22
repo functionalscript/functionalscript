@@ -26,8 +26,8 @@ If either installation fails, skip all test commands.
   - Reuse code,
   - Don't repeat yourself,
   - Avoid side effects and mutability.
-- Only import other `.f.ts` files from FunctionalScript modules. Avoid references
-  to built-in or external Node modules such as `node:path` in `.f.ts` files.
-- Prefer CLI parameters over environment variables when adding new features.
-- Ensure all of the above tests pass before submitting changes.
+- Only import other `.f.ts` files from FunctionalScript modules. Avoid references to built-in or external Node modules such as `node:path` in `.f.ts` files.
 - Use `let` variables only within the function body where they are declared.
+- CLI parameters are preferred over environment variables when adding new features.
+- Ensure all of the above tests pass before submitting changes.
+
