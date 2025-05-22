@@ -1,7 +1,7 @@
 # Default Import
 
 ```js
-import a from './a.d.js'
+import a from './a.f.js'
 export default [a]
 ```
 

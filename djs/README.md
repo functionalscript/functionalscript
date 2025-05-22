@@ -25,7 +25,7 @@
   ```
 - [x] import
   ```js
-  import a from 'c.d.js'
+  import a from 'c.f.js'
   export default { a: a, b: a}
   ```
 - [ ] short form

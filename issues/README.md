@@ -7,7 +7,7 @@
 - [ ] [11-fs-load](./11-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 16. License in JSR file?
-- [ ] [17-djs-extension](./17-djs-extension.md).
+- [X] [17-djs-extension](./17-djs-extension.md).
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] 20. Test framework should be able to run a subset of tests.
 - [ ] 21. Test Framework silent mode. Show progress and failed tests only.
