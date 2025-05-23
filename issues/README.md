@@ -148,7 +148,7 @@ logic should be moved to a private free floating helper function (to keep public
     - `0b0000_0110` - `object` JSON
     - `0b0000_0111` - `array` JSON
     - `0b0000_1000` - `bigint`
-  - `0b11XX_XXXX` - commands
+  - `0b1XXX_XXXX` - function calls and operators.
 
 ## Language Specification
 
