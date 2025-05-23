@@ -6,7 +6,7 @@
     "**/*.js",
     "**/*.d.ts"
   ],
-  "description": "FunctionalScript is a functional subset of JavaScript",
+  "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
     "tsc-emit": "tsc --NoEmit false",
     "prepack": "npm run tsc-emit",
