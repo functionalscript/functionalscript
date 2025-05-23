@@ -140,13 +140,13 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 74. BAST tag space.
   - `0b0XXX_XXXX` - types
     - `0b0000_0000` - `undefined`
-    - `0b0000_0001` - `null`
-    - `0b0000_0010` - `false`
-    - `0b0000_0011` - `true`
-    - `0b0000_0100` - `number`
-    - `0b0000_0101` - `string`
-    - `0b0000_0110` - `object`
-    - `0b0000_0111` - `array`
+    - `0b0000_0001` - `null` JSON
+    - `0b0000_0010` - `false` JSON
+    - `0b0000_0011` - `true` JSON
+    - `0b0000_0100` - `number` JSON
+    - `0b0000_0101` - `string` JSON
+    - `0b0000_0110` - `object` JSON
+    - `0b0000_0111` - `array` JSON
     - `0b0000_1000` - `bigint`
   - `0b11XX_XXXX` - command
 
