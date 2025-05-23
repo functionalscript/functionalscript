@@ -9,7 +9,7 @@
 - [ ] 16. License in JSR file?
 - [X] [17-djs-extension](./17-djs-extension.md).
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
-- [ ] 20. Test framework should be able to run a subset of tests.
+- [ ] P5 20. Test framework should be able to run a subset of tests.
 - [ ] [21-test-framework-silent-mode](./21-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
 - [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
