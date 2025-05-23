@@ -25,8 +25,4 @@ pub trait ContainerSerializable: Container<Header: Serializable, Item: Serializa
     }
 }
 
-impl<T> ContainerSerializable for T
-where
-    T: Container<Header: Serializable, Item: Serializable>,
-{
-}
+impl<T> ContainerSerializable for T where T: Container<Header: Serializable, Item: Serializable> {}

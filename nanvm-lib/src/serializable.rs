@@ -51,3 +51,18 @@ impl Serializable for f64 {
         Self::le_deserialize(read)
     }
 }
+
+#[repr(u8)]
+pub enum Tag {
+    Undefined = 0b0000,
+    // JSON:
+    Null = 0b0001,
+    False = 0b0010,
+    True = 0b0011,
+    Number = 0b0100,
+    String = 0b0101,
+    Object = 0b0110,
+    Array = 0b0111,
+    // FJS:
+    BigInt = 0b1000,
+}

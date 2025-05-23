@@ -137,6 +137,18 @@ logic should be moved to a private free floating helper function (to keep public
       - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
 - [X] 73. `fst` discovers tests using the current directory. When `npm test` or `npm run test22` is invoked from a subdirectory, npm still runs the script from the repository root. Use the `INIT_CWD` environment variable to limit the search to the directory where npm was called.
+- [ ] 74. BAST tag space.
+  - `0b0XXX_XXXX` - types
+    - `0b0000_0000` - `undefined`
+    - `0b0000_0001` - `null` JSON
+    - `0b0000_0010` - `false` JSON
+    - `0b0000_0011` - `true` JSON
+    - `0b0000_0100` - `number` JSON
+    - `0b0000_0101` - `string` JSON
+    - `0b0000_0110` - `object` JSON
+    - `0b0000_0111` - `array` JSON
+    - `0b0000_1000` - `bigint`
+  - `0b1XXX_XXXX` - function calls and operators.
 
 ## Language Specification
 
