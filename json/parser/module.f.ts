@@ -134,6 +134,8 @@ const isValueToken
 const parseValueOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
+        if (state.status === '[,' && token.kind === ']') { return endArray(state) }
+        if (state.status === '{,' && token.kind === '}') { return endObject(state) }
         if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
         if (token.kind === '[') { return startArray(state) }
         if (token.kind === '{') { return startObject(state) }
@@ -184,6 +186,7 @@ const parseObjectNextOp
 const parseObjectCommaOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
+        if (token.kind === '}') { return endObject(state) }
         if (token.kind === 'string') { return pushKey(state)(token.value) }
         return { status: 'error', message: 'unexpected token' }
     }

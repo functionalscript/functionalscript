@@ -337,6 +337,8 @@ const isValueToken
 const parseValueOp
     : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
+    if (state.valueState === '[,' && token.kind === ']') { return endArray(state) }
+    if (state.valueState === '{,' && token.kind === '}') { return endObject(state) }
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
     {
@@ -453,6 +455,7 @@ const parseObjectCommaOp
     = token => state => {
     switch (token.kind)
     {
+        case '}': return endObject(state)
         case 'string':
         case 'id':
             return pushKey(state)(String(token.value))
