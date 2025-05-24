@@ -138,6 +138,20 @@ export default {
             if (obj[0] !== 'ok') { throw obj }
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[["array",[1234567890n]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('export default [1,]')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[["array",[1]]]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":1,}')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'ok') { throw obj }
+            const result = stringifyDjsModule(obj[1])
+            if (result !== '[[],[{"a":1}]]') { throw result }
         }
     ],
     invalid: [
@@ -182,12 +196,6 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
             if (obj[1] !== 'unexpected end') { throw obj }
-        },
-        () => {
-            const tokenList = tokenizeString('export default [1,]')
-            const obj = parser.parseFromTokens(tokenList)
-            if (obj[0] !== 'error') { throw obj }
-            if (obj[1] !== 'unexpected token') { throw obj }
         },
         () => {
             const tokenList = tokenizeString('export default [,1]')
@@ -248,12 +256,6 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
             if (obj[1] !== 'unexpected end') { throw obj }
-        },
-        () => {
-            const tokenList = tokenizeString('export default {"1":2,}')
-            const obj = parser.parseFromTokens(tokenList)
-            if (obj[0] !== 'error') { throw obj }
-            if (obj[1] !== 'unexpected token') { throw obj }
         },
         () => {
             const tokenList = tokenizeString('export default {,"1":2}')
