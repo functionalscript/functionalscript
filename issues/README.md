@@ -126,8 +126,10 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
 - [ ] [69-incremental.md](69-incremental.md).
 - [ ] 70. Flags for:
-  - `--ca`: CA deduplication,
-  - `--mut`: No-dedup mutable objects for JS. strings and bigints are ok. Low priority, even questionable value for the task.
+  1. `--tree`: a tree, no constants and references.
+  2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
+  3. `--fjs` (default behavior): deduplication of the same objects.
+  4. `--ca`: content-addressable deduplication.
 - [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. Examples:
   - Compiling:
       - `fsc compile a.f.js` prints FunctionalScript code to stdout.
@@ -136,8 +138,7 @@ logic should be moved to a private free floating helper function (to keep public
   - Testing:
       - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
-- [X] 73. `fst` discovers tests using the current directory. When `npm test` or `npm run test22` is invoked from a subdirectory, npm still runs the script from the repository root. Use the `INIT_CWD` environment variable to limit the search to the directory where npm was called.
-- [ ] 74. BAST tag space.
+- [X] 74. BAST tag space:
   - `0b0XXX_XXXX` - types
     - `0b0000_0000` - `undefined`
     - `0b0000_0001` - `null` JSON

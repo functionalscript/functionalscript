@@ -52,6 +52,8 @@ impl Serializable for f64 {
     }
 }
 
+/// - `0b0XXX_XXXX` - types
+/// - `0b1XXX_XXXX` - function calls and operations
 #[repr(u8)]
 pub enum Tag {
     Undefined = 0b0000,
