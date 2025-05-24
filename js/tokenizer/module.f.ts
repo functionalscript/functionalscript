@@ -805,7 +805,7 @@ const parseWhitespaceStateOp
 
 const parseNewLineDefault
     : (state: ParseNewLineState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]
-    = state => input => {
+    = _ => input => {
         const next = tokenizeOp({ kind: 'initial' })(input)
         return [{ first: { kind: 'nl' }, tail: next[0] }, next[1]]
     }
