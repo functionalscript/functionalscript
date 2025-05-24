@@ -10,6 +10,7 @@ const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 import type * as bigfloatT from '../../types/bigfloat/module.f.ts'
 const { fromCharCode } = String
 import * as ascii from '../../text/ascii/module.f.ts'
+import { contains } from '../../types/range/module.f.ts'
 const { range } = ascii
 const {
     //
@@ -220,6 +221,12 @@ const rangeOpStart = [
 ]
 
 const rangeId = [digitRange, ...rangeIdStart]
+
+type TokenizerStateWithPosition = {
+    readonly state: TokenizerState,
+    readonly line: number,
+    readonly column: number
+}
 
 type TokenizerState = |
     InitialState |
@@ -867,9 +874,23 @@ const tokenizeOp
     : operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsToken>>
     = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
 
-const scanTokenize = stateScan(tokenizeOp)
+const tokenizeWithPositionOp
+    : operator.StateScan<CharCodeOrEof, TokenizerStateWithPosition, list.List<JsToken>>
+    = ({state, line, column}) => input => {
+        if (input == null)
+        {
+            const newState = tokenizeEofOp(state) 
+            return [ newState[0], { state: newState[1], line, column}]
+        }
 
-const initial = scanTokenize({ kind: 'initial' })
+        const newState = tokenizeCharCodeOp(state)(input)
+        const isNewLine = input == lf || input == cr
+        return [ newState[0], { state: newState[1], line: isNewLine ? line + 1 : line, column: isNewLine ? 0 : column + 1}]
+    } 
+
+const scanTokenize = stateScan(tokenizeWithPositionOp)
+
+const initial = scanTokenize({state: { kind: 'initial' }, line: 0, column: 0})
 
 export const tokenize
     = (input: list.List<number>): list.List<JsToken> =>
