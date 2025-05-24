@@ -6,7 +6,7 @@ import * as map from '../../types/ordered_map/module.f.ts'
 const { at } = map
 import * as _range from '../../types/range/module.f.ts'
 const { one } = _range
-const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
+const { empty, stateScan, flat, toArray, reduce: listReduce, scan, map: listMap} = list
 import type * as bigfloatT from '../../types/bigfloat/module.f.ts'
 const { fromCharCode } = String
 import * as ascii from '../../text/ascii/module.f.ts'
@@ -87,6 +87,8 @@ export type BigIntToken = {
 
 export type ErrorToken = {readonly kind: 'error', message: ErrorMessage}
 
+export type ErrorTokenWithPosition = {readonly kind: 'error+', message: ErrorMessage, line: number, column: number}
+
 export type WhitespaceToken = {readonly kind: 'ws'}
 
 export type NewLineToken = {readonly kind: 'nl'}
@@ -140,6 +142,7 @@ export type JsToken = |
     StringToken |
     NumberToken |
     ErrorToken |
+    ErrorTokenWithPosition |
     IdToken |
     BigIntToken |
     UndefinedToken |
@@ -221,6 +224,12 @@ const rangeOpStart = [
 
 const rangeId = [digitRange, ...rangeIdStart]
 
+type TokenizerStateWithPosition = {
+    readonly state: TokenizerState,
+    readonly line: number,
+    readonly column: number
+}
+
 type TokenizerState = |
     InitialState |
     ParseIdState |
@@ -260,8 +269,6 @@ type ParseEscapeCharState = { readonly kind: 'escapeChar', readonly value: strin
 
 type ParseOperatorState = { readonly kind: 'op', readonly value: string}
 
-type ParseMinusState = { readonly kind: '-'}
-
 type ParseCommentState = {
     readonly kind: '//' | '/*' | '/**'
     readonly value: string
@@ -299,8 +306,6 @@ type CharCodeOrEof = number|null
 type ToToken = (input: number) => readonly[list.List<JsToken>, TokenizerState]
 
 type CreateToToken<T> = (state: T) => ToToken
-
-type RangeSet = list.List<_range.Range>
 
 type RangeFunc<T> = (def: CreateToToken<T>) => (RangeMapToToken<T>)
 
@@ -802,7 +807,7 @@ const parseWhitespaceStateOp
 
 const parseNewLineDefault
     : (state: ParseNewLineState) => (input: number) => readonly[list.List<JsToken>, TokenizerState]
-    = state => input => {
+    = _ => input => {
         const next = tokenizeOp({ kind: 'initial' })(input)
         return [{ first: { kind: 'nl' }, tail: next[0] }, next[1]]
     }
@@ -871,9 +876,34 @@ const tokenizeOp
     : operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsToken>>
     = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
 
-const scanTokenize = stateScan(tokenizeOp)
+const mapTokenWithPosition
+    : (line: number) => (column: number) => (token: JsToken) => JsToken
+    = line => column => token => {
+        switch(token.kind) {
+            case 'error':
+                return { kind: 'error+', message: token.message, line, column}
+            default:
+                return token
+        }
+}
 
-const initial = scanTokenize({ kind: 'initial' })
+const tokenizeWithPositionOp
+    : operator.StateScan<CharCodeOrEof, TokenizerStateWithPosition, list.List<JsToken>>
+    = ({state, line, column}) => input => {
+        if (input == null)
+        {
+            const newState = tokenizeEofOp(state) 
+            return [ listMap(mapTokenWithPosition(line)(column))(newState[0]), { state: newState[1], line, column}]
+        }
+
+        const newState = tokenizeCharCodeOp(state)(input)
+        const isNewLine = input == lf || input == cr
+        return [ listMap(mapTokenWithPosition(line)(column))(newState[0]), { state: newState[1], line: isNewLine ? line + 1 : line, column: isNewLine ? 0 : column + 1}]
+    } 
+
+const scanTokenize = stateScan(tokenizeWithPositionOp)
+
+const initial = scanTokenize({state: { kind: 'initial' }, line: 0, column: 0})
 
 export const tokenize
     = (input: list.List<number>): list.List<JsToken> =>
