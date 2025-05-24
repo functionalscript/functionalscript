@@ -337,9 +337,12 @@ const isValueToken
 const parseValueOp
     : (token: DjsToken) => (state: ParseValueState) => ParserState
     = token => state => {
-    if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
     {
+        case ']':
+            return state.valueState === '[,'
+                ? endArray(state)
+                : { state: 'error', message: 'unexpected token' }
         case 'id': return pushRef(state)(token.value)
         case '[': return startArray(state)
         case '{': return startObject(state)
@@ -347,7 +350,9 @@ const parseValueOp
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default:
+            if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+            return { state: 'error', message: 'unexpected token' }
     }
 }
 
@@ -453,6 +458,7 @@ const parseObjectCommaOp
     = token => state => {
     switch (token.kind)
     {
+        case '}': return endObject(state)
         case 'string':
         case 'id':
             return pushKey(state)(String(token.value))
