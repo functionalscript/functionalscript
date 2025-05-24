@@ -98,6 +98,18 @@ export default {
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["ok",{"a":{"b":{"c":["d"]}}}]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('[1,]')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",[1]]') { throw result }
+        },
+        () => {
+            const tokenList = tokenizeString('{"a":1,}')
+            const obj = parser.parse(tokenList)
+            const result = stringify(obj)
+            if (result !== '["ok",{"a":1}]') { throw result }
         }
     ],
     invalid: [
@@ -142,12 +154,6 @@ export default {
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected end"]') { throw result }
-        },
-        () => {
-            const tokenList = tokenizeString('[1,]')
-            const obj = parser.parse(tokenList)
-            const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('[,1]')
@@ -208,12 +214,6 @@ export default {
             const obj = parser.parse(tokenList)
             const result = stringify(obj)
             if (result !== '["error","unexpected end"]') { throw result }
-        },
-        () => {
-            const tokenList = tokenizeString('{"1":2,}')
-            const obj = parser.parse(tokenList)
-            const result = stringify(obj)
-            if (result !== '["error","unexpected token"]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('{,"1":2}')
