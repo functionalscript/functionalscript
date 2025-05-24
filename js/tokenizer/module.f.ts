@@ -260,8 +260,6 @@ type ParseEscapeCharState = { readonly kind: 'escapeChar', readonly value: strin
 
 type ParseOperatorState = { readonly kind: 'op', readonly value: string}
 
-type ParseMinusState = { readonly kind: '-'}
-
 type ParseCommentState = {
     readonly kind: '//' | '/*' | '/**'
     readonly value: string
@@ -299,8 +297,6 @@ type CharCodeOrEof = number|null
 type ToToken = (input: number) => readonly[list.List<JsToken>, TokenizerState]
 
 type CreateToToken<T> = (state: T) => ToToken
-
-type RangeSet = list.List<_range.Range>
 
 type RangeFunc<T> = (def: CreateToToken<T>) => (RangeMapToToken<T>)
 
