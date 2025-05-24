@@ -134,10 +134,17 @@ const isValueToken
 const parseValueOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
-        if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-        if (token.kind === '[') { return startArray(state) }
-        if (token.kind === '{') { return startObject(state) }
-        return { status: 'error', message: 'unexpected token' }
+        switch (token.kind) {
+            case ']':
+                return state.status === '[,'
+                    ? endArray(state)
+                    : { status: 'error', message: 'unexpected token' }
+            case '[': return startArray(state)
+            case '{': return startObject(state)
+            default:
+                if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+                return { status: 'error', message: 'unexpected token' }
+        }
     }
 
 const parseArrayStartOp
@@ -184,6 +191,7 @@ const parseObjectNextOp
 const parseObjectCommaOp
     : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
     = token => state => {
+        if (token.kind === '}') { return endObject(state) }
         if (token.kind === 'string') { return pushKey(state)(token.value) }
         return { status: 'error', message: 'unexpected token' }
     }
