@@ -10,7 +10,6 @@ const { empty, stateScan, flat, toArray, reduce: listReduce, scan } = list
 import type * as bigfloatT from '../../types/bigfloat/module.f.ts'
 const { fromCharCode } = String
 import * as ascii from '../../text/ascii/module.f.ts'
-import { contains } from '../../types/range/module.f.ts'
 const { range } = ascii
 const {
     //
