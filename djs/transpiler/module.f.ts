@@ -2,7 +2,7 @@ import type * as djs from '../module.f.ts'
 import { type Result, error, ok } from '../../types/result/module.f.ts'
 import { fold, drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import { tokenize } from '../tokenizer/module.f.ts'
+import { type DjsToken, type DjsTokenWithMetadata, tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
@@ -57,9 +57,13 @@ const parseModule
             return error('file not found')
         }
 
-        const tokens = tokenize(stringToList(content))
+        const tokens = listMap(withoutMetada)(tokenize(stringToList(content)))
         return parseFromTokens(tokens)
 }
+
+const withoutMetada
+    : (tokenWithMetada: DjsTokenWithMetadata) => DjsToken
+    = tokenWithMetada => { return tokenWithMetada.token }
 
 const foldNextModuleOp
     : Operator.Fold<string, ParseContext>

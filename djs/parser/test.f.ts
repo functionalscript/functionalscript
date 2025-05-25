@@ -1,13 +1,18 @@
 import * as parser from './module.f.ts'
 import * as tokenizer from '../tokenizer/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
+import * as list from '../../types/list/module.f.ts'
+const { toArray } = list
 import { sort } from '../../types/object/module.f.ts'
 import * as encoding from '../../text/utf16/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+    = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))))
+
+const withoutMetada
+    : (tokenWithMetada: tokenizer.DjsTokenWithMetadata) => tokenizer.DjsToken
+    = tokenWithMetada => { return tokenWithMetada.token }
 
 const stringifyDjsModule = stringifyAsTree(sort)
 

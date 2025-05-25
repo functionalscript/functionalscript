@@ -8,9 +8,17 @@ import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+    = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))))
+
+const tokenizeStringWithMetadata
+    : (s: string) => readonly tokenizer.DjsTokenWithMetadata[]
+     = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = serializer.stringifyAsTree(sort)
+
+const withoutMetada
+    : (tokenWithMetada: tokenizer.DjsTokenWithMetadata) => tokenizer.DjsToken
+    = tokenWithMetada => { return tokenWithMetada.token }
 
 export default {
     djs: [
