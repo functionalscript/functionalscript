@@ -19,7 +19,7 @@ export type DjsToken = |
 
 type ScanState = {readonly kind: 'def' | '-' }
 
-type ScanInput = | jsTokenizer.JsToken | null
+type ScanInput = | jsTokenizer.JsTokenWithMetadata | null
 
 const mapToken
     : (input: jsTokenizer.JsToken) => list.List<DjsToken>
@@ -57,10 +57,10 @@ const parseDefaultState
     = input =>
 {
     if (input === null) return [empty, { kind: 'def'}]
-    switch(input.kind)
+    switch(input.token.kind)
     {
         case '-': return [empty, { kind: '-'}]
-        default: return [mapToken(input),  { kind: 'def'}]
+        default: return [mapToken(input.token),  { kind: 'def'}]
     }
 }
 
@@ -69,12 +69,12 @@ const parseMinusState
     = input =>
 {
     if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def'}]
-    switch(input.kind)
+    switch(input.token.kind)
     {
         case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-'}]
-        case 'bigint': return [[{ kind: 'bigint', value: -1n * input.value }], { kind: 'def'}]
-        case 'number': return [[{ kind: 'number', bf: multiply(input.bf)(-1n), value: `-${input.value}` }], { kind: 'def'}]
-        default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapToken(input)},  { kind: 'def'}]
+        case 'bigint': return [[{ kind: 'bigint', value: -1n * input.token.value }], { kind: 'def'}]
+        case 'number': return [[{ kind: 'number', bf: multiply(input.token.bf)(-1n), value: `-${input.token.value}` }], { kind: 'def'}]
+        default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapToken(input.token)},  { kind: 'def'}]
     }
 }
 
