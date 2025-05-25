@@ -340,9 +340,8 @@ const parseValueOp
     switch (token.kind)
     {
         case ']':
-            return state.valueState === '[,'
-                ? endArray(state)
-                : { state: 'error', message: 'unexpected token' }
+            if (state.valueState === '[,') { return endArray(state) }
+            return { state: 'error', message: 'unexpected token' }
         case 'id': return pushRef(state)(token.value)
         case '[': return startArray(state)
         case '{': return startObject(state)
