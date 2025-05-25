@@ -148,7 +148,7 @@ export type JsToken = |
 
 export type TokenMetadata = {readonly line: number, column: number}
 
-export type JsTokenWithMetadata = {readonly token: JsToken, metadata: TokenMetadata}
+export type JsTokenWithMetadata = {readonly token: JsToken,  readonly metadata: TokenMetadata}
 
 const rangeOneNine = range('19')
 
