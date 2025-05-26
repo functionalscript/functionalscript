@@ -1,11 +1,12 @@
 import shared from "./shared.f.js"
 
-// comments
+// comment
 const s = "Hello, world!"
 
-/* ok */
 export default {
   "a": shared,
   "b": shared,
   "s": s,
+  d: -24n,
+  x: undefined,
 }
