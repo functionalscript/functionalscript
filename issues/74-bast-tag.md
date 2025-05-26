@@ -1,36 +1,40 @@
 # BAST tag space
 
-## Data `0`
+## Data
 
-### Value Types `00`
-
-|           |           |JSON|
-|-----------|-----------|----|
-|`00_000000`|`undefined`|    |
-|`00_000001`|`null`     |yes |
-|`00_000010`|`false`    |yes |
-|`00_000011`|`true`     |yes |
-|`00_000100`|`number`   |yes |
-
-### Reference Types `01`
-
-#### Immutable Reference Types `010`
+### Value Types `0000`
 
 |           |           |JSON|
 |-----------|-----------|----|
-|`010_00000`|`string`   |yes |
-|`010_00001`|`bigint`   |    |
+|`0000_0000`|`undefined`|    |
+|`0000_0001`|`null`     |yes |
+|`0000_0010`|`false`    |yes |
+|`0000_0011`|`true`     |yes |
+|`0000_0100`|`number`   |yes |
+|`000X_XXXX`|32-5 = 27  |    |
 
-#### Mutable Reference Types `011`
+### Reference Types `001X`
+
+#### Immutable Reference Types `0010`
 
 |           |           |JSON|
 |-----------|-----------|----|
-|`011_00000`|`object`   |yes |
-|`011_00001`|`array`    |yes |
-|`011_00010`|`function` |    |
-|`011_00011`|`generator`|    |
-|`011_00011`|`Map`      |    |
+|`0010_0000`|`string`   |yes |
+|`0010_0001`|`bigint`   |    |
+|`0010_XXXX`|16-2 = 14  |    |
 
-## Operations `1`
+#### Mutable Reference Types `0011`
+
+|           |           |JSON|
+|-----------|-----------|----|
+|`0011_0000`|`object`   |yes |
+|`0011_0001`|`array`    |yes |
+|`0011_0010`|`function` |    |
+|`0011_0011`|`generator`|    |
+|`0011_0100`|`Map`      |    |
+|`0011_0101`|`Promise`  |    |
+|`0011_XXXX`|16-2 = 10  |    |
+
+## Operations `0100`
 
 Operators and function calls
