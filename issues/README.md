@@ -140,7 +140,9 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
 - [ ] [74-bast-tag.md](./74-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
-  - Node.js (even 24) can't use `.ts` files from `./node-modules`.
+  - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
+  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
+  - Browsers don't support type annotations and `.ts` files.
 
 ## Language Specification
 
