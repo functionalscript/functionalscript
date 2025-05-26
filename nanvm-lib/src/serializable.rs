@@ -56,16 +56,16 @@ impl Serializable for f64 {
 pub enum Tag {
     // Value Types 0b000X_XXXX:
     Undefined = 0b0000_0000,
-    Null      = 0b0000_0001,
-    False     = 0b0000_0010,
-    True      = 0b0000_0011,
-    Number    = 0b0000_0100,
+    Null = 0b0000_0001,
+    False = 0b0000_0010,
+    True = 0b0000_0011,
+    Number = 0b0000_0100,
     // Immutable References 0b0010_XXXX:
-    String    = 0b0010_0000,
-    BigInt    = 0b0010_0001,
+    String = 0b0010_0000,
+    BigInt = 0b0010_0001,
     // Mutable References 0b0011_XXXX:
-    Object    = 0b0011_0000,
-    Array     = 0b0011_0001,
+    Object = 0b0011_0000,
+    Array = 0b0011_0001,
     // Function  = 0b0011_0010,
     // Operations 0b01XX_XXXX:
     // Reserved 0b1XXX_XXXX.
