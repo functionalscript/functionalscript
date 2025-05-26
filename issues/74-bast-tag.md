@@ -2,7 +2,7 @@
 
 ## Data
 
-### Value Types `0000`
+### Value Types `000X`
 
 |           |           |JSON|
 |-----------|-----------|----|
@@ -35,6 +35,6 @@
 |`0011_0101`|`Promise`  |    |
 |`0011_XXXX`|16-2 = 10  |    |
 
-## Operations `0100`
+## Operations `01XX`
 
 Operators and function calls
