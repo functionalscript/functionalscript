@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.9
 
+Import, const, comments, undefined, and bigint.
+
 ```js
-// import
 import a from "./a.f.js"
-// const and bigint
+// const
 const c = -24n
 export default {
     /* properties: */
-    "a": [5.3, false, c, undefined],
-    "b": null
+    "a": [5.3, false, -24n, undefined],
+    "c": c
 }
 ```
 
