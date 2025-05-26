@@ -125,20 +125,21 @@ logic should be moved to a private free floating helper function (to keep public
   ```
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
 - [ ] [69-incremental.md](69-incremental.md).
-- [ ] 70. Flags for:
+- [ ] 70. Flags for `fsc`:
   1. `--tree`: a tree, no constants and references. It looks almost like JSON, except `export default`. This method is also used when the output file extension is `.json`.
   2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
   3. `--fjs` (default behavior): deduplication of the same objects.
   4. `--ca`: content-addressable deduplication.
-- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. Examples:
+- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. rename it to `fjs`?. Examples:
   - Compiling:
-      - `fsc compile a.f.js` prints FunctionalScript code to stdout.
-      - `fsc compile a.f.ts a.json` saves JSON.
-      - `fsc compile a.json a.bast` saves BAST.
+      - `fjs compile a.f.js` prints FunctionalScript code to stdout.
+      - `fjs compile a.f.ts a.json` saves JSON.
+      - `fjs compile a.json a.bast` saves BAST.
   - Testing:
-      - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
+      - `fjs test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
 - [ ] [74-bast-tag.md](./74-bast-tag.md)
+- [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this.
 
 ## Language Specification
 

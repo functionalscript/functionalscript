@@ -53,21 +53,21 @@ The DJS form a graph of values. It can be serialized without additional run-time
 
 ### 2.1. Required
 
-1. [ ] [default-export](./2110-default-export.md),
-2. [ ] [const](./2120-const.md),
-3. [ ] [default-import](./2130-default-import.md).
+1. [x] [default-export](./2110-default-export.md),
+2. [x] [const](./2120-const.md),
+3. [x] [default-import](./2130-default-import.md).
 
 ### 2.2. Priority 1
 
 We need it to use JSDoc and TypeScript.
 
-1. [ ] [block-comment](./2210-block-comment.md),
+1. [x] [block-comment](./2210-block-comment.md),
 2. [ ] [namespace-import](./2220-namespace-import.md).
 
 ### 2.3. Priority 2
 
-1. [ ] [undefined](./2310-undefined.md),
-2. [ ] [bigint](./2320-bigint.md),
+1. [x] [undefined](./2310-undefined.md),
+2. [x] [bigint](./2320-bigint.md),
 3. [ ] [property-accessor](./2330-property-accessor.md),
 4. [ ] [operators](./2340-operators.md),
 5. [ ] [grouping](./2350-grouping.md),
@@ -75,9 +75,9 @@ We need it to use JSDoc and TypeScript.
 
 ### 2.4. Syntactic Sugar
 
-1. [ ] [identifier-property](./2410-identifier-property.md),
-2. [ ] [line-comment](./2420-line-comment.md),
-3. [ ] [trailing-comma](./2430-trailing-comma.md),
+1. [x] [identifier-property](./2410-identifier-property.md),
+2. [x] [line-comment](./2420-line-comment.md),
+3. [x] [trailing-comma](./2430-trailing-comma.md),
 4. [ ] [shorthand](./2440-shorthand.md),
 5. [ ] [destructuring](./2450-destructuring.md).
 
