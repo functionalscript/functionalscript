@@ -108,7 +108,7 @@ impl<T: Any> Serializable for (T::String16, T) {
     }
 }
 
-// Value Types 0b000X_XXXX:
+// Value Types 0b0000_XXXX:
 const UNDEFINED: u8 = 0b0000_0000;
 const NULL: u8 = 0b0000_0001;
 const FALSE: u8 = 0b0000_0010;
@@ -126,12 +126,14 @@ const ARRAY: u8 = 0b0011_0001;
 impl<T: Any> Serializable for T {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         match self.clone().unpack() {
-            Unpacked::Nullish(v) => (if v == Nullish::Undefined {
-                UNDEFINED
-            } else {
-                NULL
-            })
-            .serialize(write),
+            Unpacked::Nullish(v) => {
+                let x = if v == Nullish::Undefined {
+                    UNDEFINED
+                } else {
+                    NULL
+                };
+                x.serialize(write)
+            },
             Unpacked::Bool(v) => (if v { TRUE } else { FALSE }).serialize(write),
             Unpacked::Number(n) => {
                 NUMBER.serialize(write)?;
