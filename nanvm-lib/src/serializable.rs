@@ -54,15 +54,19 @@ impl Serializable for f64 {
 
 #[repr(u8)]
 pub enum Tag {
-    Undefined = 0b0000,
-    // JSON:
-    Null = 0b0001,
-    False = 0b0010,
-    True = 0b0011,
-    Number = 0b0100,
-    String = 0b0101,
-    Object = 0b0110,
-    Array = 0b0111,
-    // FJS:
-    BigInt = 0b1000,
+    // Value Types 0b000X_XXXX:
+    Undefined = 0b0000_0000,
+    Null = 0b0000_0001,
+    False = 0b0000_0010,
+    True = 0b0000_0011,
+    Number = 0b0000_0100,
+    // Immutable References 0b0010_XXXX:
+    String = 0b0010_0000,
+    BigInt = 0b0010_0001,
+    // Mutable References 0b0011_XXXX:
+    Object = 0b0011_0000,
+    Array = 0b0011_0001,
+    // Function  = 0b0011_0010,
+    // Operations 0b01XX_XXXX:
+    // Reserved 0b1XXX_XXXX.
 }

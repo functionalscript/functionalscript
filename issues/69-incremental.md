@@ -18,7 +18,7 @@ export default {
 }
 ```
 
-## 3. `import`, `const`, bigint and comments
+## 3. `import`, `const`, bigint, undefined and comments
 
 Release: 0.6.9.
 
@@ -30,11 +30,15 @@ const c = -24n
 export default {
     /* properties: */
     "a": [5.3, false, c],
-    "b": null
+    "b": null,
+    "c": undefined
 }
 ```
 
-## 4. Identifier properties
+## 4. Next
+
+- identifier properties
+- trailing comma
 
 ```js
 // import
@@ -45,7 +49,7 @@ export default {
     /* properties: */
     "a": [5.3, false, c],
     "b": null,
-    c: c
+    c: c, //< identifier properties and trailing comma
 }
 ```
 
@@ -53,23 +57,23 @@ export default {
 
 ```js
 import a from "./a.f.js"
-// bigint
 const c: bigint = -24n //< Type erasure
 export default {
-    1e3: c //< identifier properties.
+    1e3: c //< number properties.
     _: c, /*< identifiers as properties */
     "a": [5.3, false, c],
-    "f3": x => { //< function with body
+    "f1": x => { //< function with body
         return 7
     },
-    "f31": x => {
+    "f2": x => {
         const m = () => x //< function with constants
         return m
     },
-    "f0": () => c, //< functions w/o parameters
-    "f1": a => b => [a, b], //< functions with parameters
+    "f3": () => c, //< functions w/o parameters
+    "f4": a => b => [a, b], //< functions with parameters
     f11: m => ({ m: 5 }) //< function returns an object
     c, //< property that references a constant with the same name
-    "b": null, //< trailing comma
+    "b": null,
+    'x': 'x', //< single quoted strings.
 }
 ```

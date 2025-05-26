@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+## 0.6.9
+
+Import, const, comments, undefined, and bigint.
+
+```js
+import a from "./a.f.js"
+// const
+const c = -24n
+export default {
+    /* properties: */
+    "a": [5.3, false, -24n, undefined],
+    "c": c
+}
+```
+
 ## 0.6.8
 
 - `fsc` can serialize as tree [PR 442](https://github.com/functionalscript/functionalscript/pull/442)
