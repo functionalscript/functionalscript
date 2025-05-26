@@ -126,7 +126,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
 - [ ] [69-incremental.md](69-incremental.md).
 - [ ] 70. Flags for:
-  1. `--tree`: a tree, no constants and references.
+  1. `--tree`: a tree, no constants and references. It looks almost like JSON, except `export default`. This method is also used when the output file extension is `.json`.
   2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
   3. `--fjs` (default behavior): deduplication of the same objects.
   4. `--ca`: content-addressable deduplication.
@@ -138,18 +138,7 @@ logic should be moved to a private free floating helper function (to keep public
   - Testing:
       - `fsc test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
-- [X] 74. BAST tag space:
-  - `0b0XXX_XXXX` - types
-    - `0b0000_0000` - `undefined`
-    - `0b0000_0001` - `null` JSON
-    - `0b0000_0010` - `false` JSON
-    - `0b0000_0011` - `true` JSON
-    - `0b0000_0100` - `number` JSON
-    - `0b0000_0101` - `string` JSON
-    - `0b0000_0110` - `object` JSON
-    - `0b0000_0111` - `array` JSON
-    - `0b0000_1000` - `bigint`
-  - `0b1XXX_XXXX` - function calls and operators.
+- [ ] [74-bast-tag.md](./74-bast-tag.md)
 
 ## Language Specification
 

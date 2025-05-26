@@ -26,13 +26,14 @@ We are introducing new commands in such a way that every new command depends onl
 
 |format|any           |Tag|          |
 |------|--------------|---|----------|
-|JSON  |null          | 00|          |
-|      |number        | 01|u64       |
+|JSON  |undefined     | 00|          |
+|      |null          | 01|          |
 |      |false         | 02|          |
 |      |true          | 03|          |
-|      |string        | 04|String    |
-|      |array         | 05|Array<Any>|
-|      |object        | 06|Object    |
+|      |number        | 04|u64       |
+|      |string        | 05|String    |
+|      |array         | 06|Array<Any>|
+|      |object        | 07|Object    |
 
 ## 2. DJS
 
@@ -40,14 +41,14 @@ The DJS form a graph of values. It can be serialized without additional run-time
 
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
-|DJS   |const_ref               | 07|u32       |[const](./2120-const.md)                        |
+|DJS   |const_ref               | 80|u32       |[const](./2120-const.md)                        |
 |      |bigint_plus             | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |bigint_minus            | 09|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |undefined               | 0A|          |[undefined](./2310-undefined.md)                |
-|      |own_property            | 0B|          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_property       | 0C|          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_method_call    | 0D|          |[property-accessor](./2330-property-accessor.md)|
-|      |at                      | 0E|          |[property-accessor](./2330-property-accessor.md)|
+|      |bigint_minus            | 0A|Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |undefined               | 0B|          |[undefined](./2310-undefined.md)                |
+|      |own_property            | 0C|          |[property-accessor](./2330-property-accessor.md)|
+|      |instance_property       | 0E|          |[property-accessor](./2330-property-accessor.md)|
+|      |instance_method_call    | 0F|          |[property-accessor](./2330-property-accessor.md)|
+|      |at                      | 10|          |[property-accessor](./2330-property-accessor.md)|
 |      |operators               |   |          |[operators](./2340-operators.md)                |
 
 ### 2.1. Required

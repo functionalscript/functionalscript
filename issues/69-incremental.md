@@ -34,7 +34,10 @@ export default {
 }
 ```
 
-## 4. Identifier properties
+## 4. Next
+
+- identifier properties
+- trailing comma
 
 ```js
 // import
@@ -45,7 +48,7 @@ export default {
     /* properties: */
     "a": [5.3, false, c],
     "b": null,
-    c: c
+    c: c, //< identifier properties and trailing comma
 }
 ```
 
@@ -56,7 +59,7 @@ import a from "./a.f.js"
 // bigint
 const c: bigint = -24n //< Type erasure
 export default {
-    1e3: c //< identifier properties.
+    1e3: c //< number properties.
     _: c, /*< identifiers as properties */
     "a": [5.3, false, c],
     "f3": x => { //< function with body
@@ -70,6 +73,6 @@ export default {
     "f1": a => b => [a, b], //< functions with parameters
     f11: m => ({ m: 5 }) //< function returns an object
     c, //< property that references a constant with the same name
-    "b": null, //< trailing comma
+    "b": null,
 }
 ```
