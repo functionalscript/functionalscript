@@ -130,7 +130,7 @@ logic should be moved to a private free floating helper function (to keep public
   2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
   3. `--fjs` (default behavior): deduplication of the same objects.
   4. `--ca`: content-addressable deduplication.
-- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. rename it to `fjs`?. Examples:
+- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. Rename it to `fjs`?. Examples:
   - Compiling:
       - `fjs compile a.f.js` prints FunctionalScript code to stdout.
       - `fjs compile a.f.ts a.json` saves JSON.
