@@ -79,7 +79,11 @@ impl Serializable for () {
 
 impl Serializable for Sign {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        (*self as u8).serialize(write)
+        let x = match self {
+            Sign::Positive => 0u8,
+            Sign::Negative => 1u8,
+        };
+        x.serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         Ok(match u8::deserialize(read)? {
