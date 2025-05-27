@@ -138,11 +138,24 @@ logic should be moved to a private free floating helper function (to keep public
   - Testing:
       - `fjs test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
-- [x`] [74-bast-tag.md](./74-bast-tag.md)
+- [x] [74-bast-tag.md](./74-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
   - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
   - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
   - Browsers don't support type annotations and `.ts` files.
+- [ ] 76. Serialization mapping should be done only once. For example, instead of
+  ```rust
+  fn serialize(v: bool) => u8 {
+      if v == false { 0 } else { 1 }
+  }
+  fn deserialize(v: u8) -> bool {
+      if v == 0 { false } else { true }
+  }
+  ```
+  we should have something like this
+  ```rust
+  const BOOL_MAP: ... = [(false, 0), (true, 1)];
+  ```
 
 ## Language Specification
 
