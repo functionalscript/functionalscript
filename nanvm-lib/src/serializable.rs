@@ -133,7 +133,7 @@ impl<T: Any> Serializable for T {
                     NULL
                 };
                 x.serialize(write)
-            },
+            }
             Unpacked::Bool(v) => (if v { TRUE } else { FALSE }).serialize(write),
             Unpacked::Number(n) => {
                 NUMBER.serialize(write)?;
