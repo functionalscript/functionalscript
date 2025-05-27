@@ -26,18 +26,18 @@ pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, I
     fn add(self, other: Self) -> Self {
         if *self.header() == *other.header() {
             Self::new(
-                self.header().clone(),
+                *self.header(),
                 BigUint::add(self.items(), other.items()).value,
             )
         } else {
             match self.items().cmp(other.items()) {
                 Ordering::Equal => Self::zero(),
                 Ordering::Greater => Self::new(
-                    self.header().clone(),
+                    *self.header(),
                     BigUint::sub(self.items(), other.items()).value,
                 ),
                 Ordering::Less => Self::new(
-                    other.header().clone(),
+                    *other.header(),
                     BigUint::sub(other.items(), self.items()).value,
                 ),
             }
@@ -62,13 +62,13 @@ pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, I
     }
     fn shl(self, other: Self) -> Self {
         Self::new(
-            self.header().clone(),
+            *self.header(),
             BigUint::shl(self.items(), other.items()).value,
         )
     }
     fn shr(self, other: Self) -> Self {
         Self::new(
-            self.header().clone(),
+            *self.header(),
             BigUint::shr(self.items(), other.items()).value,
         )
     }
