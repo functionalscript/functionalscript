@@ -5,6 +5,7 @@ const { toArray } = list
 import { sort } from '../../types/object/module.f.ts'
 import * as encoding from '../../text/utf16/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
+import { stringify } from '../../json/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsTokenWithMetadata[]
@@ -287,6 +288,15 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
             if (obj[1].message !== 'unexpected token') { throw obj }
+        },
+    ],
+    errorMetadata: [
+        () => {
+            const tokenList = tokenizeString('export default [,]')
+            const obj = parser.parseFromTokens(tokenList)
+            if (obj[0] !== 'error') { throw obj }
+            const errorString = stringify(sort)(obj[1])
+            if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":0}}') { throw errorString }
         },
     ],
     validWhiteSpaces:[
