@@ -136,9 +136,8 @@ const parseValueOp
     = token => state => {
         switch (token.kind) {
             case ']':
-                return state.status === '[,'
-                    ? endArray(state)
-                    : { status: 'error', message: 'unexpected token' }
+                if (state.status === '[,') { return endArray(state) }
+                return { status: 'error', message: 'unexpected token' }
             case '[': return startArray(state)
             case '{': return startObject(state)
             default:

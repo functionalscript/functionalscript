@@ -8,9 +8,17 @@ import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.JsToken[]
+    = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))))
+
+const tokenizeStringWithMetadata
+    : (s: string) => readonly tokenizer.JsTokenWithMetadata[]
     = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
 
 const stringify = serializer.stringifyAsTree(sort)
+
+const withoutMetada
+    : (tokenWithMetada: tokenizer.JsTokenWithMetadata) => tokenizer.JsToken
+    = tokenWithMetada => { return tokenWithMetada.token }
 
 export default {
     djs: [
@@ -612,6 +620,12 @@ export default {
         () => {
             const result = stringify(tokenizeString('/* multiline comment *\n * **/'))
             if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"}]') { throw result }
+        },
+    ],
+    metadata: [
+        () => {
+            const result = stringify(tokenizeStringWithMetadata('[\ntrue,false\n]'))
+            if (result !== '[{"metadata":{"column":1,"line":0},"token":{"kind":"["}},{"metadata":{"column":0,"line":1},"token":{"kind":"nl"}},{"metadata":{"column":4,"line":1},"token":{"kind":"true"}},{"metadata":{"column":5,"line":1},"token":{"kind":","}},{"metadata":{"column":10,"line":1},"token":{"kind":"false"}},{"metadata":{"column":0,"line":2},"token":{"kind":"nl"}},{"metadata":{"column":1,"line":2},"token":{"kind":"]"}}]') { throw result }
         },
     ]
 }

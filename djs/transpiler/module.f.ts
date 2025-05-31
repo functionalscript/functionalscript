@@ -7,7 +7,7 @@ import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.
 import type { Fs } from '../../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
-import { parseFromTokens } from '../parser/module.f.ts'
+import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
 
 export type ParseContext = {
@@ -33,7 +33,7 @@ const mapDjs
     }
 
 const transpileWithImports
-    : (path: string) => (parseModuleResult: Result<AstModule, string>) => (context: ParseContext) => ParseContext
+    : (path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => ParseContext
     = path => parseModuleResult => context => {
         if (parseModuleResult[0] === 'ok') {
             const dir = pathConcat(path)('..')
@@ -46,15 +46,15 @@ const transpileWithImports
             const djs = { djs: run(parseModuleResult[1][1])(args) }
             return { ... contextWithImports, stack: drop(1)(contextWithImports.stack), complete: setReplace(path)(djs)(contextWithImports.complete) }
         }
-        return { ...context, error: parseModuleResult[1] }
+        return { ...context, error: parseModuleResult[1].message }
 }
 
 const parseModule
-    : (path: string) => (context: ParseContext) => Result<AstModule, string>
+    : (path: string) => (context: ParseContext) => Result<AstModule, ParseError>
     = path => context => {
         const content = context.fs.readFileSync(path, 'utf8')
         if (content === null) {
-            return error('file not found')
+            return error({message: 'file not found', metadata: null})
         }
 
         const tokens = tokenize(stringToList(content))
