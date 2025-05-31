@@ -5,7 +5,6 @@ import { fromEntries } from '../../types/object/module.f.ts'
 const { entries } = Object
 
 export type AstModule = [readonly string[], AstBody]
-
 export type AstConst = djs.Primitive|AstModuleRef|AstArray|AstObject
 
 export type AstModuleRef = ['aref' | 'cref', number]

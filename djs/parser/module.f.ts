@@ -1,16 +1,22 @@
 import * as result from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
-import type { DjsToken } from '../tokenizer/module.f.ts'
+import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
+import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
 
 export type ParseContext = {
     readonly fs: Fs
     readonly complete: OrderedMap<result.Result<AstModule, string>>
     readonly stack: List<string>
+}
+
+export type ParseError = {
+    readonly message: string,
+    readonly metadata: TokenMetadata | null
 }
 
 type DjsStackArray = ['array', List<AstConst>]
@@ -71,12 +77,12 @@ type ResultState = {
 
 type ErrorState = {
     readonly state: 'error'
-    readonly message: string
+    readonly error: ParseError
 }
 
 const parseInitialOp
-    : (token: DjsToken) => (state: InitialState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: InitialState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case 'ws':
@@ -91,24 +97,24 @@ const parseInitialOp
             }
         }
     }
-    return foldOp(token)({ ... state, state: 'exportValue', valueState: '', top: null, stack: null })
+    return foldOp({token, metadata})({ ... state, state: 'exportValue', valueState: '', top: null, stack: null })
 }
 
 const parseNewLineRequiredOp
-    : (token: DjsToken) => (state: NewLineRequiredState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: NewLineRequiredState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case '//':
         case '/*': return state
         case 'nl': return { ... state, state: '' }
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseExportOp
-    : (token: DjsToken) => (state: ExportState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ExportState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
@@ -118,24 +124,24 @@ const parseExportOp
             if (token.value === 'default') return { ... state, state: 'exportValue', valueState: '', top: null, stack: null }
         }
     }
-    return { state: 'error', message: 'unexpected token' }
+    return { state: 'error', error: { message: 'unexpected token', metadata} }
 }
 
 const parseResultOp
-    : (token: DjsToken) => (state: ResultState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ResultState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseConstOp
-    : (token: DjsToken) => (state: ConstState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ConstState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
@@ -143,33 +149,33 @@ const parseConstOp
         case '/*': return state
         case 'id': {
             if (at(token.value)(state.module.refs) !== null)
-                return { state: 'error', message: 'duplicate id' }
+                return { state: 'error', error: { message: 'duplicate id', metadata} }
             const cref
                 : AstModuleRef
                 = ['cref', length(state.module.consts)]
             const refs = setReplace(token.value)(cref)(state.module.refs)
             return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
         }
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseConstNameOp
-    : (token: DjsToken) => (state: ConstState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ConstState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
         case '//':
         case '/*': return state
         case '=': return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseImportOp
-    : (token: DjsToken) => (state: ImportState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ImportState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
@@ -177,7 +183,7 @@ const parseImportOp
         case '/*': return state
         case 'id': {
             if (at(token.value)(state.module.refs) !== null) {
-                return { state: 'error', message: 'duplicate id' }
+                return { state: 'error', error: { message: 'duplicate id', metadata} }
             }
             const aref
                 : AstModuleRef
@@ -185,13 +191,13 @@ const parseImportOp
             const refs = setReplace(token.value)(aref)(state.module.refs)
             return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
         }
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseImportNameOp
-    : (token: DjsToken) => (state: ImportState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ImportState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
@@ -201,12 +207,12 @@ const parseImportNameOp
             if (token.value === 'from') return { ... state, state: 'import+from' }
         }
     }
-    return { state: 'error', message: 'unexpected token' }
+    return { state: 'error', error: { message: 'unexpected token', metadata} }
 }
 
 const parseImportFromOp
-    : (token: DjsToken) => (state: ImportState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ImportState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind) {
         case 'ws':
         case 'nl':
@@ -216,7 +222,7 @@ const parseImportFromOp
             const modules = concat(state.module.modules)([token.value])
             return { ... state, state: 'nl', module: { ...state.module, modules: modules } }
         }
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
@@ -233,10 +239,10 @@ const addToArray
     = array => value => ([ 'array', concat(array[1])([value]) ])
 
 const pushKey
-    : (state: ParseValueState) => (key: string) => ParserState
-    = state => key => {
+    : (state: ParseValueState) => (key: string) => (metadata: TokenMetadata) => ParserState
+    = state => key => metadata => {
     if (state.top?.[0] === 'object') { return { ... state, valueState: '{k', top: addKeyToObject(state.top)(key), stack: state.stack } }
-    return { state: 'error', message: 'error' }
+    return { state: 'error', error: { message: 'error', metadata} }
 }
 
 const pushValue
@@ -255,11 +261,11 @@ const pushValue
 }
 
 const pushRef
-    : (state: ParseValueState) => (name: string) => ParserState
-    = state => name => {
+    : (state: ParseValueState) => (name: string) => (metadata: TokenMetadata) => ParserState
+    = state => name => metadata => {
     const ref = at(name)(state.module.refs)
     if (ref === null)
-        return { state: 'error', message: 'const not found' }
+        return { state: 'error', error: { message: 'const not found', metadata} }
     return pushValue(state)(ref)
 }
 
@@ -335,14 +341,14 @@ const isValueToken
 }
 
 const parseValueOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case ']':
             if (state.valueState === '[,') { return endArray(state) }
-            return { state: 'error', message: 'unexpected token' }
-        case 'id': return pushRef(state)(token.value)
+            return { state: 'error', error: { message: 'unexpected token', metadata} }
+        case 'id': return pushRef(state)(token.value)(metadata)
         case '[': return startArray(state)
         case '{': return startObject(state)
         case 'ws':
@@ -351,17 +357,17 @@ const parseValueOp
         case '/*': return state
         default:
             if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-            return { state: 'error', message: 'unexpected token' }
+            return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseArrayStartOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
     {
-        case 'id': return pushRef(state)(token.value)
+        case 'id': return pushRef(state)(token.value)(metadata)
         case '[': return startArray(state)
         case ']': return endArray(state)
         case '{': return startObject(state)
@@ -369,13 +375,13 @@ const parseArrayStartOp
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseArrayValueOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case ']': return endArray(state)
@@ -384,31 +390,31 @@ const parseArrayValueOp
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 // allow identifier property names (#2410)
 const parseObjectStartOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case 'string':
         case 'id':
-            return pushKey(state)(String(token.value))
+            return pushKey(state)(String(token.value))(metadata)
         case '}': return endObject(state)
         case 'ws':
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseObjectKeyOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case ':': return { ... state, valueState: '{:', top: state.top, stack: state.stack }
@@ -416,30 +422,30 @@ const parseObjectKeyOp
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseObjectColonOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
     switch (token.kind)
     {
-        case 'id': return pushRef(state)(token.value)
+        case 'id': return pushRef(state)(token.value)(metadata)
         case '[': return startArray(state)
         case '{': return startObject(state)
         case 'ws':
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseObjectNextOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case '}': return endObject(state)
@@ -448,29 +454,29 @@ const parseObjectNextOp
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const parseObjectCommaOp
-    : (token: DjsToken) => (state: ParseValueState) => ParserState
-    = token => state => {
+    : (token: DjsTokenWithMetadata) => (state: ParseValueState) => ParserState
+    = ({token, metadata}) => state => {
     switch (token.kind)
     {
         case '}': return endObject(state)
         case 'string':
         case 'id':
-            return pushKey(state)(String(token.value))
+            return pushKey(state)(String(token.value))(metadata)
         case 'ws':
         case 'nl':
         case '//':
         case '/*': return state
-        default: return { state: 'error', message: 'unexpected token' }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
 
 const foldOp
-    : Operator.Fold<DjsToken, ParserState>
+    : Operator.Fold<DjsTokenWithMetadata, ParserState>
     = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
@@ -482,7 +488,7 @@ const foldOp
         case 'const+name': return parseConstNameOp(token)(state)
         case 'export': return parseExportOp(token)(state)
         case 'result': return parseResultOp(token)(state)
-        case 'error': return { state: 'error', message: state.message }
+        case 'error': return { state: 'error', error: state.error }
         case 'constValue':
         case 'exportValue':
         {
@@ -502,11 +508,11 @@ const foldOp
     }
 }
 
-export const parseFromTokens = (tokenList: List<DjsToken>): result.Result<AstModule, string> => {
+export const parseFromTokens = (tokenList: List<DjsTokenWithMetadata>): result.Result<AstModule, ParseError> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
         case 'result': return result.ok<AstModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
-        case 'error': return result.error(state.message)
-        default: return result.error('unexpected end')
+        case 'error': return result.error(state.error)
+        default: return result.error({message: 'unexpected end', metadata: null})
     }
 }
