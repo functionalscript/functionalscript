@@ -37,7 +37,7 @@ export const compile = ({ console: { error }, fs, process: { argv } }: Io): Prom
             break
         }
         case 'error': {
-            error(`Parse error: ${result[1]}`)
+            error(`Parse error: ${stringify(sort)(result[1])}`)
             break
         }
     }

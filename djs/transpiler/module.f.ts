@@ -14,7 +14,7 @@ export type ParseContext = {
     readonly fs: Fs
     readonly complete: OrderedMap<djsResult>
     readonly stack: List<string>
-    readonly error: string | null
+    readonly error: ParseError | null
 }
 
 export type djsResult = {
@@ -46,7 +46,7 @@ const transpileWithImports
             const djs = { djs: run(parseModuleResult[1][1])(args) }
             return { ... contextWithImports, stack: drop(1)(contextWithImports.stack), complete: setReplace(path)(djs)(contextWithImports.complete) }
         }
-        return { ...context, error: parseModuleResult[1].message }
+        return { ...context, error: parseModuleResult[1] }
 }
 
 const parseModule
@@ -69,7 +69,7 @@ const foldNextModuleOp
         }
 
         if (includes(path)(context.stack)) {
-            return { ... context, error: 'circular dependency' }
+            return { ... context, error: { message: 'circular dependency', metadata: null} }
         }
 
         if (at(path)(context.complete) !== null) {
@@ -80,7 +80,7 @@ const foldNextModuleOp
         return transpileWithImports(path)(parseModuleResult)(context)
 }
 
-export const transpile: (fs: Fs) => (path: string) => Result<djs.Unknown, string>
+export const transpile: (fs: Fs) => (path: string) => Result<djs.Unknown, ParseError>
  = fs => path => {
     const context = foldNextModuleOp(path)({fs, stack: null, complete: null, error: null})
     if (context.error !== null) {
