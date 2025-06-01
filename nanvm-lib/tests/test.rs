@@ -471,13 +471,7 @@ fn eq_value<A: Any>(a: &A, b: &A) -> bool {
     match (a.clone().unpack(), b.clone().unpack()) {
         (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
         (Unpacked::Bool(a), Unpacked::Bool(b)) => a == b,
-        (Unpacked::Number(a), Unpacked::Number(b)) => {
-            if a.is_nan() && b.is_nan() {
-                true
-            } else {
-                a.to_bits() == b.to_bits()
-            }
-        }
+        (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
         (Unpacked::String16(a), Unpacked::String16(b)) => {
             a.header() == b.header() && a.items() == b.items()
         }
@@ -504,7 +498,7 @@ fn eq_value<A: Any>(a: &A, b: &A) -> bool {
 fn serialization<A: Any>() {
     use std::io::Cursor;
 
-    let values: Vec<A> = vec![
+    let values: Vec<A> = [
         Simple::Nullish(Nullish::Null).to_unknown(),
         Simple::Nullish(Nullish::Undefined).to_unknown(),
         Simple::Boolean(true).to_unknown(),
@@ -519,7 +513,7 @@ fn serialization<A: Any>() {
             ("b".to_string16::<A>(), "c".to_unknown()),
         ]
         .to_object_unknown(),
-    ];
+    ].to_vec();
 
     for value in values.into_iter() {
         let mut buf = Vec::new();
