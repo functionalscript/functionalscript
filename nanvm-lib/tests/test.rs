@@ -513,7 +513,8 @@ fn serialization<A: Any>() {
             ("b".to_string16::<A>(), "c".to_unknown()),
         ]
         .to_object_unknown(),
-    ].to_vec();
+    ]
+    .to_vec();
 
     for value in values.into_iter() {
         let mut buf = Vec::new();
