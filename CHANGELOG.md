@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+Trailing comma and identifier properties.
+
+```js
+export default [
+    {
+        a: "x",
+    },
+]
+```
+
 ## 0.6.9
 
 Import, const, comments, undefined, and bigint.
