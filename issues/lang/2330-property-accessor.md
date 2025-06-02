@@ -28,9 +28,9 @@ add '+' in front of <expression> in cases when <expression> type is not known at
 compile time.
 
 ```js
-const own_property = a => b => Object.getOwnPropertyDescriptor(obj, property)?.value
+const own_property = object => property => Object.getOwnPropertyDescriptor(obj, property)?.value
 // Or
-const own_property = a => b => Object.hasOwn(obj, property) ? obj[property] : void 0
+const own_property = object => property => Object.hasOwn(obj, property) ? obj[property] : undefined
 ```
 
 It's translated into the VM command `own_property`:
@@ -44,7 +44,7 @@ struct OwnProperty {
 
 ## Instance Property
 
-Instance property access is similar to instance method access but there are diffences considered
+Instance property access is similar to instance method access but there are differences considered
 below, in "Instant Method Call" subsection.
 
 ```js

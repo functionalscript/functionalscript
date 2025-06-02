@@ -156,6 +156,14 @@ logic should be moved to a private free floating helper function (to keep public
   ```rust
   const BOOL_MAP: ... = [(false, 0), (true, 1)];
   ```
+- [ ] 77. Support for [./lang/2330-property-accessor.md](./lang/2330-property-accessor.md).
+  ```js
+  const a = { b: 45, c: [3] }
+  const c0 = a.b
+  const c1 = a["b"] // only strings are allowed excluding a list of specific strings.
+  const c2 = a.c[+0] // [+...] is allowed.
+  const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+  ```
 
 ## Language Specification
 
