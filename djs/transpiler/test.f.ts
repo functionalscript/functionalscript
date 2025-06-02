@@ -45,7 +45,7 @@ export default {
         const fs = virtualFs(map)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }
-        if (result[1] !== 'file not found') { throw result }
+        if (result[1].message !== 'file not found') { throw result }
     },
     parseWithCycleError: () => {
         const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
@@ -54,6 +54,6 @@ export default {
         const fs = virtualFs(map3)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }
-        if (result[1] !== 'circular dependency') { throw result }
+        if (result[1].message !== 'circular dependency') { throw result }
     },
 }
