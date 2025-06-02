@@ -159,10 +159,30 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 77. Support for [./lang/2330-property-accessor.md](./lang/2330-property-accessor.md).
   ```js
   const a = { b: 45, c: [3] }
+  // Operator:
+  // `instant_property(a, "b")`
   const c0 = a.b
-  const c1 = a["b"] // only strings are allowed excluding a list of specific strings.
-  const c2 = a.c[+0] // [+...] is allowed.
+  // Only strings are allowed excluding a list of specific strings. Operator:
+  // `instant_property(a, "b")`
+  const c1 = a["c"]
+  // Operator:
+  // `at(c1, +0)`
+  const c2 = c1[+0] // [+...] is allowed.
+  // translated into one operator:
+  // `own_property(a, c2)`
   const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+  ```
+- [ ] 78. Instant Method Call
+  ```js
+  // Operator:
+  // `instant_method_call(a, "b", c)
+  const c4 = a.b(c)
+  // Operator:
+  // `instant_method_call(a, "b", c)
+  const c4 = a["b"](c)
+  // Operator:
+  // `at_call(a, b, c)
+  const c4 = a[+b](c)
   ```
 
 ## Language Specification

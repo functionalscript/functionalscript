@@ -3,7 +3,7 @@
 In this note we consider whether or not to support JS's property accessors, maybe also
 considering partial support. A very important aspect is - whether or not accessing
 a given property (in this or that way) might enable side effects - if implemented in
-100% JS-compliant way, such a propety caused violations of FS's design principles.
+100% JS-compliant way, such a property caused violations of FS's design principles.
 So the most straightforward way to deal with such a property in FS could be a compilation
 error. In other cases we might decide to provide a limited property access.
 Finally, some JS standard properties / methods are 100% FS-legit and so will be implemented
@@ -11,16 +11,16 @@ in full.
 
 It's important to be able to access instance's own property regardless object properties
 available in JS via object's prototype chain. In FS we plan to not have prototype chains
-at runtime. Here go snippets showing how to access own properites in JS - that code might
-be useful to support in FS as well. Note that this is more verbose than obj.field sintax
+at runtime. Here go snippets showing how to access own properties in JS - that code might
+be useful to support in FS as well. Note that this is more verbose than obj.field syntax
 (discussed below in "Instance Property" section, but protects against unwanted access to
 the prototype chain.
 
-In case a propety has no side effects (see 'no' in 'side effects' columns in tables below)
+In case a property has no side effects (see 'no' in 'side effects' columns in tables below)
 FS should implement that property 100%. If a property mentioned at several places has
 at least one side effect, we should prohibit it consistently across the board.
 
-One important detail regading run-time access to instance properties, methods is
+One important detail regarding run-time access to instance properties, methods is
 `obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
 in JS that syntax enables possibilities to abuse; on another hand, it's a regular
 syntax for array indexing, legit in FS. Our current approach is to force FS users to
