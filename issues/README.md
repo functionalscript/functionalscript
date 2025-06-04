@@ -138,7 +138,7 @@ logic should be moved to a private free floating helper function (to keep public
   - Testing:
       - `fjs test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
-- [x] [74-bast-tag.md](./74-bast-tag.md)
+- [x] [./74-bast-tag.md](./74-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
   - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
   - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
@@ -155,6 +155,34 @@ logic should be moved to a private free floating helper function (to keep public
   we should have something like this
   ```rust
   const BOOL_MAP: ... = [(false, 0), (true, 1)];
+  ```
+- [ ] 77. Support for [./lang/2330-property-accessor.md](./lang/2330-property-accessor.md).
+  ```js
+  const a = { b: 45, c: [3] }
+  // Operator:
+  // `instant_property(a, "b")`
+  const c0 = a.b
+  // Only strings are allowed excluding a list of specific strings. Operator:
+  // `instant_property(a, "b")`
+  const c1 = a["c"]
+  // Operator:
+  // `at(c1, +0)`
+  const c2 = c1[+0] // [+...] is allowed.
+  // translated into one operator:
+  // `own_property(a, c2)`
+  const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+  ```
+- [ ] 78. Instant Method Call
+  ```js
+  // Operator:
+  // `instant_method_call(a, "b", c)`
+  const c4 = a.b(c)
+  // Operator:
+  // `instant_method_call(a, "b", c)`
+  const c4 = a["b"](c)
+  // Operator:
+  // `at_call(a, b, c)`
+  const c4 = a[+b](c)
   ```
 
 ## Language Specification
