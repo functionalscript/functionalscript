@@ -184,6 +184,8 @@ logic should be moved to a private free floating helper function (to keep public
   // `at_call(a, b, c)`
   const c4 = a[+b](c)
   ```
+- [ ] 79. Use `importmap` as `package-lock.json`. See https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap#integrity_metadata_map.
+- [ ] 80. Add `CONST_REF` to serialization.
 
 ## Language Specification
 
