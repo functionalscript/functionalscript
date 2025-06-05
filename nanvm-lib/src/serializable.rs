@@ -112,7 +112,7 @@ impl<T: Any> Serializable for (T::String16, T) {
     }
 }
 
-// Value Types 0b0000_XXXX:
+// Value Types 0b000X_XXXX:
 const UNDEFINED: u8 = 0b0000_0000;
 const NULL: u8 = 0b0000_0001;
 const FALSE: u8 = 0b0000_0010;
@@ -126,6 +126,9 @@ const BIG_INT: u8 = 0b0010_0001;
 // Mutable References 0b0011_XXXX:
 const OBJECT: u8 = 0b0011_0000;
 const ARRAY: u8 = 0b0011_0001;
+
+// Operations 0b01XX_XXXX:
+const _CONST_REF: u8 = 0b0100_0000;
 
 impl<T: Any> Serializable for T {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
