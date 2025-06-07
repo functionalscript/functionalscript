@@ -9,7 +9,7 @@ import { stringify } from '../../json/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsTokenWithMetadata[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+    = s => toArray(tokenizer.tokenize(encoding.stringToList(s))(''))
 
 const stringifyDjsModule = stringifyAsTree(sort)
 
@@ -296,7 +296,7 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
             const errorString = stringify(sort)(obj[1])
-            if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":0}}') { throw errorString }
+            if (errorString !== '{"message":"unexpected token","metadata":{"column":18,"line":1,"path":""}}') { throw errorString }
         },
     ],
     validWhiteSpaces:[

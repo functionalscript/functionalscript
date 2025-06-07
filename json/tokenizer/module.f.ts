@@ -76,6 +76,6 @@ export const tokenize
     = (input: list.List<number>): list.List<JsonToken> => {
         const jsTokens
             : list.List<ScanInput>
-            =  jsTokenizer.tokenize(input)
+            =  jsTokenizer.tokenize(input)('')
         return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
     }
