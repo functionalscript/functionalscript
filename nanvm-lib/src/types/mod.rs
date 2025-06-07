@@ -1,3 +1,7 @@
+mod string16;
+
+pub use string16::*;
+
 use std::ops::{Add, Mul};
 
 use crate::{
