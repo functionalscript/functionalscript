@@ -186,7 +186,7 @@ logic should be moved to a private free floating helper function (to keep public
   ```
 - [ ] 79. Use `importmap` as `package-lock.json`. See https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap#integrity_metadata_map.
 - [ ] 80. Add `CONST_REF` to serialization.
-- [ ] 81. Currently, nanvm_lib relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits, for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait.
+- [ ] 81. Currently, nanvm_lib relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits, for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait. It's ok to implement `String16`, `Object` and other container types as type aliases of concrete type `Container`.
 
 ## Language Specification
 
