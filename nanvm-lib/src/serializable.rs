@@ -127,6 +127,9 @@ const BIG_INT: u8 = 0b0010_0001;
 const OBJECT: u8 = 0b0011_0000;
 const ARRAY: u8 = 0b0011_0001;
 
+// Operations 0b01XX_XXXX:
+const CONST_REF: u8 = 0b0100_0000;
+
 impl<T: Any> Serializable for T {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         match self.clone().unpack() {
@@ -164,32 +167,18 @@ impl<T: Any> Serializable for T {
     }
 
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        match u8::deserialize(read)? {
-            UNDEFINED => Ok(Simple::Nullish(Nullish::Undefined).to_unknown()),
-            NULL => Ok(Simple::Nullish(Nullish::Null).to_unknown()),
-            FALSE => Ok(Simple::Boolean(false).to_unknown()),
-            TRUE => Ok(Simple::Boolean(true).to_unknown()),
-            NUMBER => {
-                let n = f64::deserialize(read)?;
-                Ok(Simple::Number(n).to_unknown())
-            }
-            STRING => {
-                let s = T::String16::container_deserialize(read)?;
-                Ok(s.to_unknown())
-            }
-            BIG_INT => {
-                let bi = T::BigInt::container_deserialize(read)?;
-                Ok(bi.to_unknown())
-            }
-            OBJECT => {
-                let obj = T::Object::container_deserialize(read)?;
-                Ok(obj.to_unknown())
-            }
-            ARRAY => {
-                let arr = T::Array::container_deserialize(read)?;
-                Ok(arr.to_unknown())
-            }
-            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Unknown type")),
-        }
+        let x = match u8::deserialize(read)? {
+            UNDEFINED => Simple::Nullish(Nullish::Undefined).to_unknown(),
+            NULL => Simple::Nullish(Nullish::Null).to_unknown(),
+            FALSE => Simple::Boolean(false).to_unknown(),
+            TRUE => Simple::Boolean(true).to_unknown(),
+            NUMBER => Simple::Number(f64::deserialize(read)?).to_unknown(),
+            STRING => T::String16::container_deserialize(read)?.to_unknown(),
+            BIG_INT => T::BigInt::container_deserialize(read)?.to_unknown(),
+            OBJECT => T::Object::container_deserialize(read)?.to_unknown(),
+            ARRAY => T::Array::container_deserialize(read)?.to_unknown(),
+            _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Unknown type")),
+        };
+        Ok(x)
     }
 }
