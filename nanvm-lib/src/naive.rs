@@ -1,6 +1,6 @@
 use crate::{
     big_int,
-    internal::{self, Container},
+    internal,
     sign::Sign,
     simple::Simple,
     types,
