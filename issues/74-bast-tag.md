@@ -1,6 +1,6 @@
 # BAST tag space
 
-## Data
+## Data `00XX`
 
 ### Value Types `000X`
 
@@ -38,3 +38,10 @@
 ## Operations `01XX`
 
 Operators and function calls
+
+|           |           |
+|-----------|-----------|
+|`0100_0000`|`const_ref`|
+|`0100_0001`|`arg_ref`  |
+
+## Reserved `1XXX`
