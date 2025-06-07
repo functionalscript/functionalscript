@@ -242,3 +242,11 @@ impl interface::Any for Any {
         }
     }
 }
+
+use crate::vm::Vm;
+
+pub struct NaiveVm;
+
+impl Vm for NaiveVm {
+    type Any = Any;
+}
