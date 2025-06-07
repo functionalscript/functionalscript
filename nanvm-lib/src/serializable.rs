@@ -3,7 +3,7 @@ use std::io::{self, Read, Write};
 use crate::{
     common::le::Le,
     container_serializable::ContainerSerializable,
-    interface::{Any, Complex, Unpacked},
+    internal::{Any, Complex, Unpacked},
     nullish::Nullish,
     sign::Sign,
     simple::Simple,

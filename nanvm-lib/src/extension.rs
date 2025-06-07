@@ -1,5 +1,5 @@
 use crate::{
-    interface::{Any, Extension, Unpacked},
+    internal::{Any, Extension, Unpacked},
     nullish::Nullish::*,
     simple::Simple,
 };
@@ -58,7 +58,7 @@ mod test {
 
         use crate::{
             extension::AnyExtension,
-            interface::{Complex, Extension},
+            internal::{Complex, Extension},
             naive::Any,
             nullish::Nullish::*,
             simple::Simple,
@@ -118,7 +118,7 @@ mod test {
         use wasm_bindgen_test::wasm_bindgen_test;
 
         use crate::{
-            extension::AnyExtension, interface::Complex, naive::Any, nullish::Nullish::*,
+            extension::AnyExtension, internal::Complex, naive::Any, nullish::Nullish::*,
             simple::Simple,
         };
 

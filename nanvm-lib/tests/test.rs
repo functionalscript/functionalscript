@@ -1,7 +1,7 @@
 use core::panic;
 
 use nanvm_lib::{
-    interface::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
+    internal::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
     naive,
     nullish::Nullish,
     serializable::Serializable,
