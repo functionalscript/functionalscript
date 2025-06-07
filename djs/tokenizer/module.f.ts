@@ -108,11 +108,11 @@ const scanTokenWithMetadata
 }
 
 export const tokenize
-    : (input: list.List<number>) => list.List<DjsTokenWithMetadata>
-    = input =>
+    : (input: list.List<number>) => (path: string) => list.List<DjsTokenWithMetadata>
+    = input => path =>
 {
     const jsTokens
         : list.List<ScanInput>
-        = jsTokenizer.tokenize(input)('')
+        = jsTokenizer.tokenize(input)(path)
     return flat(stateScan(scanTokenWithMetadata)({ kind: 'def' })(list.concat(jsTokens)([null])))
 }

@@ -9,7 +9,7 @@ import { stringify } from '../../json/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.DjsTokenWithMetadata[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+    = s => toArray(tokenizer.tokenize(encoding.stringToList(s))(''))
 
 const stringifyDjsModule = stringifyAsTree(sort)
 
