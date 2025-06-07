@@ -1,10 +1,4 @@
-use crate::{
-    big_int,
-    internal,
-    sign::Sign,
-    simple::Simple,
-    types,
-};
+use crate::{big_int, internal, sign::Sign, simple::Simple, types};
 use core::{fmt, marker::PhantomData};
 use std::rc;
 
