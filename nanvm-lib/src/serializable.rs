@@ -9,12 +9,12 @@ use crate::{
     simple::Simple,
 };
 
-pub trait Serializable: Sized {
+pub trait Serializable<A: Any>: Sized {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()>;
     fn deserialize(read: &mut impl Read) -> io::Result<Self>;
 }
 
-impl Serializable for u8 {
+impl<A: Any> Serializable<A> for u8 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_serialize(write)
     }
@@ -23,7 +23,7 @@ impl Serializable for u8 {
     }
 }
 
-impl Serializable for u16 {
+impl<A: Any> Serializable<A> for u16 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_serialize(write)
     }
@@ -32,7 +32,7 @@ impl Serializable for u16 {
     }
 }
 
-impl Serializable for u32 {
+impl<A: Any> Serializable<A> for u32 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_serialize(write)
     }
@@ -41,7 +41,7 @@ impl Serializable for u32 {
     }
 }
 
-impl Serializable for u64 {
+impl<A: Any> Serializable<A> for u64 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_serialize(write)
     }
@@ -50,7 +50,7 @@ impl Serializable for u64 {
     }
 }
 
-impl Serializable for f64 {
+impl<A: Any> Serializable<A> for f64 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.le_serialize(write)
     }
@@ -59,16 +59,16 @@ impl Serializable for f64 {
     }
 }
 
-impl Serializable for bool {
+impl<A: Any> Serializable<A> for bool {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        (*self as u8).serialize(write)
+        (*self as u8).le_serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        Ok(u8::deserialize(read)? != 0)
+        Ok(u8::le_deserialize(read)? != 0)
     }
 }
 
-impl Serializable for () {
+impl<A: Any> Serializable<A> for () {
     fn serialize(&self, _write: &mut impl Write) -> io::Result<()> {
         Ok(())
     }
@@ -77,16 +77,16 @@ impl Serializable for () {
     }
 }
 
-impl Serializable for Sign {
+impl<A: Any> Serializable<A> for Sign {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        let x = match self {
+        match self {
             Sign::Positive => 0u8,
             Sign::Negative => 1u8,
-        };
-        x.serialize(write)
+        }
+        .le_serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        Ok(match u8::deserialize(read)? {
+        Ok(match u8::le_deserialize(read)? {
             0 => Sign::Positive,
             1 => Sign::Negative,
             _ => {
@@ -99,7 +99,7 @@ impl Serializable for Sign {
     }
 }
 
-impl<T: Any> Serializable for (T::String16, T) {
+impl<T: Any> Serializable<T> for (T::String16, T) {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.0.container_serialize(write)?;
         self.1.serialize(write)
@@ -130,7 +130,7 @@ const ARRAY: u8 = 0b0011_0001;
 // Operations 0b01XX_XXXX:
 const CONST_REF: u8 = 0b0100_0000;
 
-impl<T: Any> Serializable for T {
+impl<T: Any> Serializable<T> for T {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         match self.clone().unpack() {
             Unpacked::Nullish(v) => {
@@ -167,7 +167,7 @@ impl<T: Any> Serializable for T {
     }
 
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        let x = match u8::deserialize(read)? {
+        Ok(match u8::deserialize(read)? {
             UNDEFINED => Simple::Nullish(Nullish::Undefined).to_unknown(),
             NULL => Simple::Nullish(Nullish::Null).to_unknown(),
             FALSE => Simple::Boolean(false).to_unknown(),
@@ -178,7 +178,6 @@ impl<T: Any> Serializable for T {
             OBJECT => T::Object::container_deserialize(read)?.to_unknown(),
             ARRAY => T::Array::container_deserialize(read)?.to_unknown(),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Unknown type")),
-        };
-        Ok(x)
+        })
     }
 }
