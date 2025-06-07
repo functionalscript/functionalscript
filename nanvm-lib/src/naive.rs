@@ -2,7 +2,7 @@ use crate::{
     big_int,
     internal::{self, Container},
     sign::Sign,
-    simple::Simple,
+    simple::Simple, types,
 };
 use core::{fmt, marker::PhantomData};
 use std::rc;
@@ -86,7 +86,7 @@ impl<P: Policy> internal::Container for Complex<P> {
 pub type String16 = Complex<ValuePolicy<(), u16>>;
 
 impl internal::Complex<Any> for String16 {
-    fn to_unknown(self) -> Any {
+    fn to_internal_unknown(self) -> Any {
         Any::String16(self)
     }
     fn try_from_unknown(u: Any) -> Result<Self, Any> {
@@ -109,7 +109,7 @@ impl internal::String16<Any> for String16 {
 pub type BigInt = Complex<ValuePolicy<Sign, u64>>;
 
 impl internal::Complex<Any> for BigInt {
-    fn to_unknown(self) -> Any {
+    fn to_internal_unknown(self) -> Any {
         Any::BigInt(self)
     }
     fn try_from_unknown(u: Any) -> Result<Self, Any> {
@@ -125,10 +125,10 @@ impl big_int::BigInt<Any> for BigInt {}
 
 // Array
 
-pub type Array = Complex<RefPolicy<(), Any>>;
+pub type Array = Complex<RefPolicy<(), types::Any<Any>>>;
 
 impl internal::Complex<Any> for Array {
-    fn to_unknown(self) -> Any {
+    fn to_internal_unknown(self) -> Any {
         Any::Array(self)
     }
     fn try_from_unknown(u: Any) -> Result<Self, Any> {
@@ -144,10 +144,10 @@ impl internal::Array<Any> for Array {}
 
 // Object
 
-pub type Object = Complex<RefPolicy<(), (String16, Any)>>;
+pub type Object = Complex<RefPolicy<(), (String16, types::Any<Any>)>>;
 
 impl internal::Complex<Any> for Object {
-    fn to_unknown(self) -> Any {
+    fn to_internal_unknown(self) -> Any {
         Any::Object(self)
     }
     fn try_from_unknown(u: Any) -> Result<Self, Any> {
@@ -166,7 +166,7 @@ impl internal::Object<Any> for Object {}
 pub type Function = Complex<RefPolicy<u32, u8>>;
 
 impl internal::Complex<Any> for Function {
-    fn to_unknown(self) -> Any {
+    fn to_internal_unknown(self) -> Any {
         Any::Function(self)
     }
 

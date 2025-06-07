@@ -29,7 +29,7 @@ pub trait AnyExtension: Any {
     fn own_property(self, i: Self) -> Self {
         match self.unpack() {
             Unpacked::Nullish(_) => panic!("own_property(\"nullish\")"),
-            Unpacked::Bool(_) => Simple::Nullish(Undefined).to_unknown(),
+            Unpacked::Bool(_) => Simple::Nullish(Undefined).to_unknown().0,
             Unpacked::Number(_) => todo!(),
             Unpacked::String16(_) => todo!(),
             Unpacked::BigInt(_) => todo!(),
@@ -61,14 +61,14 @@ mod test {
             internal::{Complex, Extension},
             naive::Any,
             nullish::Nullish::*,
-            simple::Simple,
+            simple::Simple, types,
         };
 
         #[test]
         #[wasm_bindgen_test]
         fn test_string() {
             let s = Any::string("Hello world!");
-            let xs: Any = s.clone().to_unknown();
+            let xs: Any = s.clone().to_internal_unknown();
             let sxs = xs.to_string();
             assert_eq!(s, sxs);
         }
@@ -77,11 +77,11 @@ mod test {
         #[wasm_bindgen_test]
         fn test_nullish() {
             {
-                let x: Any = Simple::Nullish(Null).to_unknown();
+                let x: Any = Simple::Nullish(Null).to_unknown().0;
                 assert_eq!(Any::string("null"), x.to_string());
             }
             {
-                let x: Any = Simple::Nullish(Undefined).to_unknown();
+                let x: Any = Simple::Nullish(Undefined).to_unknown().0;
                 assert_eq!(Any::string("undefined"), x.to_string());
             }
         }
@@ -90,11 +90,11 @@ mod test {
         #[wasm_bindgen_test]
         fn test_boolean() {
             {
-                let x: Any = Simple::Boolean(true).to_unknown();
+                let x: Any = Simple::Boolean(true).to_unknown().0;
                 assert_eq!(Any::string("true"), x.to_string());
             }
             {
-                let x: Any = Simple::Boolean(false).to_unknown();
+                let x: Any = Simple::Boolean(false).to_unknown().0;
                 assert_eq!(Any::string("false"), x.to_string());
             }
         }
@@ -102,15 +102,15 @@ mod test {
         #[test]
         #[wasm_bindgen_test]
         fn test_object() {
-            let x: Any = [].to_object_unknown();
-            assert_eq!(Any::string("[object Object"), x.to_string());
+            let x: types::Any<Any> = [].to_object_unknown();
+            assert_eq!(Any::string("[object Object"), x.0.to_string());
         }
 
         #[test]
         #[wasm_bindgen_test]
         fn test_array() {
-            let x: Any = [].to_array_unknown();
-            assert_eq!(Any::string(""), x.to_string());
+            let x: types::Any<Any> = [].to_array_unknown();
+            assert_eq!(Any::string(""), x.0.to_string());
         }
     }
 
@@ -126,16 +126,16 @@ mod test {
         #[test]
         #[should_panic]
         fn test_own_property_null() {
-            let x: Any = Simple::Nullish(Null).to_unknown();
-            x.own_property(Any::string("hello").to_unknown());
+            let x: Any = Simple::Nullish(Null).to_unknown().0;
+            x.own_property(Any::string("hello").to_internal_unknown());
         }
 
         #[test]
         #[wasm_bindgen_test]
         fn test_own_property_bool() {
-            let x: Any = Simple::Boolean(true).to_unknown();
-            let undefined: Any = Simple::Nullish(Undefined).to_unknown();
-            assert_eq!(undefined, x.own_property(Any::string("hello").to_unknown()));
+            let x: Any = Simple::Boolean(true).to_unknown().0;
+            let undefined: Any = Simple::Nullish(Undefined).to_unknown().0;
+            assert_eq!(undefined, x.own_property(Any::string("hello").to_internal_unknown()));
         }
     }
 }

@@ -1,19 +1,19 @@
 use core::panic;
 
 use nanvm_lib::{
-    internal::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
+    internal::{Any, Complex, Container, Extension, Unpacked, Utf8},
     naive,
     nullish::Nullish,
     serializable::Serializable,
     sign::Sign,
-    simple::Simple,
+    simple::Simple, types,
 };
 
 use wasm_bindgen_test::wasm_bindgen_test;
 
 fn eq<A: Any>() {
     // nullish
-    let null0: A = Simple::Nullish(Nullish::Null).to_unknown();
+    let null0: types::Any<A> = Simple::Nullish(Nullish::Null).to_unknown();
     let null1 = Simple::Nullish(Nullish::Null).to_unknown();
     let undefined0 = Simple::Nullish(Nullish::Undefined).to_unknown();
     let undefined1 = Simple::Nullish(Nullish::Undefined).to_unknown();
@@ -23,7 +23,7 @@ fn eq<A: Any>() {
         assert_ne!(null1, undefined0);
     }
     // boolean
-    let true0: A = Simple::Boolean(true).to_unknown();
+    let true0: types::Any<A> = Simple::Boolean(true).to_unknown();
     let true1 = Simple::Boolean(true).to_unknown();
     let false0 = Simple::Boolean(false).to_unknown();
     let false1 = Simple::Boolean(false).to_unknown();
@@ -41,16 +41,16 @@ fn eq<A: Any>() {
         }
     }
     // number
-    let number00: A = Simple::Number(2.3).to_unknown();
-    let number01: A = Simple::Number(2.3).to_unknown();
-    let number1: A = Simple::Number(-5.4).to_unknown();
-    let number_nan: A = Simple::Number(f64::NAN).to_unknown();
-    let number_p0: A = Simple::Number(0.0).to_unknown();
-    let number_n0: A = Simple::Number(-0.0).to_unknown();
-    let number_p_inf0: A = Simple::Number(f64::INFINITY).to_unknown();
-    let number_p_inf1: A = Simple::Number(f64::INFINITY).to_unknown();
-    let number_n_inf0: A = Simple::Number(-f64::INFINITY).to_unknown();
-    let number_n_inf1: A = Simple::Number(-f64::INFINITY).to_unknown();
+    let number00: types::Any<A> = Simple::Number(2.3).to_unknown();
+    let number01 = Simple::Number(2.3).to_unknown();
+    let number1 = Simple::Number(-5.4).to_unknown();
+    let number_nan = Simple::Number(f64::NAN).to_unknown();
+    let number_p0 = Simple::Number(0.0).to_unknown();
+    let number_n0 = Simple::Number(-0.0).to_unknown();
+    let number_p_inf0: types::Any<A> = Simple::Number(f64::INFINITY).to_unknown();
+    let number_p_inf1 = Simple::Number(f64::INFINITY).to_unknown();
+    let number_n_inf0 = Simple::Number(-f64::INFINITY).to_unknown();
+    let number_n_inf1 = Simple::Number(-f64::INFINITY).to_unknown();
     {
         // number
         {
@@ -72,10 +72,10 @@ fn eq<A: Any>() {
         }
     }
     // string
-    let string_hello0: A = "Hello!".to_unknown();
-    let string_hello1: A = "Hello!".to_unknown();
-    let string_world0: A = "world!".to_unknown();
-    let string0: A = "0".to_unknown();
+    let string_hello0: types::Any<A> = "Hello!".to_unknown();
+    let string_hello1 = "Hello!".to_unknown();
+    let string_world0 = "world!".to_unknown();
+    let string0 = "0".to_unknown();
     let s0 = "0".to_string16::<A>();
     {
         {
@@ -87,27 +87,27 @@ fn eq<A: Any>() {
         }
     }
     // bigint
-    let bigint12_0: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
-    let bigint12_1: A = A::BigInt::new(Sign::Positive, [12]).to_unknown();
-    let bigint12m: A = A::BigInt::new(Sign::Negative, [12]).to_unknown();
-    let bigint13: A = A::BigInt::new(Sign::Positive, [13]).to_unknown();
+    let bigint12_0: types::Any<A> = A::BigInt::new(Sign::Positive, [12]).to_unknown();
+    let bigint12_1 = A::BigInt::new(Sign::Positive, [12]).to_unknown();
+    let bigint12m = A::BigInt::new(Sign::Negative, [12]).to_unknown();
+    let bigint13 = A::BigInt::new(Sign::Positive, [13]).to_unknown();
     {
         assert_eq!(bigint12_0, bigint12_1);
         assert_ne!(bigint12_0, bigint12m);
         assert_ne!(bigint12_0, bigint13);
     }
     // array
-    let array0: A = [].to_array_unknown();
-    let array1: A = [].to_array_unknown();
-    let array2: A = [string0.clone()].to_array_unknown();
+    let array0: types::Any<A> = [].to_array_unknown();
+    let array1: types::Any<A> = [].to_array_unknown();
+    let array2: types::Any<A> = [string0.clone()].to_array_unknown();
     {
         assert_eq!(array0, array0);
         assert_ne!(array0, array1);
         assert_eq!(array2, array2);
     }
     // object
-    let object0: A = [(s0.clone(), string0.clone())].to_object_unknown();
-    let object1: A = [(s0, string0)].to_object_unknown();
+    let object0: types::Any<A> = [(s0.clone(), string0.clone())].to_object_unknown();
+    let object1: types::Any<A> = [(s0, string0)].to_object_unknown();
     {
         assert_eq!(object0, object0);
         assert_ne!(object0, object1);
@@ -145,10 +145,10 @@ fn test_op<A: Any>(result: A, expected: A, test_case: &str) {
 }
 
 fn unary_plus<A: Any>() {
-    let n0: A = Simple::Number(0.0).to_unknown();
-    let nan: A = Simple::Number(f64::NAN).to_unknown();
-    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let test_cases: Vec<(A, A, &str)> = vec![
+    let n0: types::Any<A> = Simple::Number(0.0).to_unknown();
+    let nan = Simple::Number(f64::NAN).to_unknown();
+    let null = Simple::Nullish(Nullish::Null).to_unknown();
+    let test_cases: Vec<(types::Any<A>, types::Any<A>, &str)> = vec![
         (null.clone(), n0.clone(), "null"),
         (
             Simple::Nullish(Nullish::Undefined).to_unknown(),
@@ -215,14 +215,14 @@ fn unary_plus<A: Any>() {
     ];
     for (a, expected, test_case) in test_cases.iter() {
         test_op::<A>(
-            Any::unary_plus(a.clone()).unwrap(),
-            expected.clone(),
+            Any::unary_plus(a.clone().0).unwrap(),
+            expected.clone().0,
             test_case,
         );
     }
 
     // bigint
-    let bi0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
+    let bi0: A = A::BigInt::new(Sign::Positive, [0]).to_internal_unknown();
     assert_eq!(
         Any::unary_plus(bi0),
         A::exception("TypeError: Cannot convert a BigInt value to a number")
@@ -230,10 +230,10 @@ fn unary_plus<A: Any>() {
 }
 
 fn unary_minus<A: Any>() {
-    let n0: A = Simple::Number(0.0).to_unknown();
-    let nan: A = Simple::Number(f64::NAN).to_unknown();
-    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let test_cases: Vec<(A, A, &str)> = vec![
+    let n0: types::Any<A> = Simple::Number(0.0).to_unknown();
+    let nan = Simple::Number(f64::NAN).to_unknown();
+    let null = Simple::Nullish(Nullish::Null).to_unknown();
+    let test_cases: Vec<(types::Any<A>, types::Any<A>, &str)> = [
         (null.clone(), n0.clone(), "null"),
         (
             Simple::Nullish(Nullish::Undefined).to_unknown(),
@@ -302,28 +302,28 @@ fn unary_minus<A: Any>() {
             nan.clone(),
             "function",
         ),
-    ];
+    ].to_vec();
     for (a, expected, test_case) in test_cases.iter() {
-        test_op::<A>(Any::unary_minus(a.clone()), expected.clone(), test_case);
+        test_op::<A>(Any::unary_minus(a.clone().0), expected.clone().0, test_case);
     }
 }
 
 fn multiply<A: Any>() {
-    let n0: A = Simple::Number(0.0).to_unknown();
-    let n1: A = Simple::Number(1.0).to_unknown();
-    let n_minus1: A = Simple::Number(-1.0).to_unknown();
-    let n10: A = Simple::Number(10.0).to_unknown();
-    let n_minus10: A = Simple::Number(-10.0).to_unknown();
-    let nan: A = Simple::Number(f64::NAN).to_unknown();
-    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let true_: A = Simple::Boolean(true).to_unknown();
-    let false_: A = Simple::Boolean(false).to_unknown();
-    let bi0: A = A::BigInt::new(Sign::Positive, []).to_unknown();
-    let bi1: A = A::BigInt::new(Sign::Positive, [1]).to_unknown();
-    let bi_minus1: A = A::BigInt::new(Sign::Negative, [1]).to_unknown();
-    let bi10: A = A::BigInt::new(Sign::Positive, [10]).to_unknown();
-    let bi_minus10: A = A::BigInt::new(Sign::Negative, [10]).to_unknown();
-    let test_cases: Vec<(A, A, A, &str)> = vec![
+    let n0: types::Any<A> = Simple::Number(0.0).to_unknown();
+    let n1 = Simple::Number(1.0).to_unknown();
+    let n_minus1 = Simple::Number(-1.0).to_unknown();
+    let n10 = Simple::Number(10.0).to_unknown();
+    let n_minus10 = Simple::Number(-10.0).to_unknown();
+    let nan = Simple::Number(f64::NAN).to_unknown();
+    let null = Simple::Nullish(Nullish::Null).to_unknown();
+    let true_ = Simple::Boolean(true).to_unknown();
+    let false_ = Simple::Boolean(false).to_unknown();
+    let bi0 = A::BigInt::new(Sign::Positive, []).to_unknown();
+    let bi1 = A::BigInt::new(Sign::Positive, [1]).to_unknown();
+    let bi_minus1 = A::BigInt::new(Sign::Negative, [1]).to_unknown();
+    let bi10 = A::BigInt::new(Sign::Positive, [10]).to_unknown();
+    let bi_minus10 = A::BigInt::new(Sign::Negative, [10]).to_unknown();
+    let test_cases: Vec<(types::Any<A>, types::Any<A>, types::Any<A>, &str)> = [
         (null.clone(), null.clone(), n0.clone(), "null by null"),
         (null.clone(), n0.clone(), n0.clone(), "null by 0"),
         (
@@ -419,56 +419,56 @@ fn multiply<A: Any>() {
         ),
         ([].to_object_unknown(), n1.clone(), nan.clone(), "{{}} by 1"),
         // TODO: decide on testing objects with valueOf, toString functions.
-    ];
+    ].to_vec();
     for (a, b, expected, test_case) in test_cases.iter() {
         test_op::<A>(
-            Any::mul(a.clone(), b.clone()).unwrap(),
-            expected.clone(),
+            Any::mul(a.clone().0, b.clone().0).unwrap(),
+            expected.clone().0,
             test_case,
         );
         test_op::<A>(
-            Any::mul(b.clone(), a.clone()).unwrap(),
-            expected.clone(),
+            Any::mul(b.clone().0, a.clone().0).unwrap(),
+            expected.clone().0,
             test_case,
         );
     }
 }
 
 fn big_int_add<A: Any>() {
-    let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
+    let n0: types::Any<A> = types::Any::big_int(Sign::Positive, []);
     assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
 }
 
-fn big_int_mul<A: Any>() -> Result<(), WAny<A>> {
-    let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
-    let n1: WAny<A> = WAny::big_int(Sign::Positive, [1]);
+fn big_int_mul<A: Any>() -> Result<(), types::Any<A>> {
+    let n0: types::Any<A> = types::Any::big_int(Sign::Positive, []);
+    let n1: types::Any<A> = types::Any::big_int(Sign::Positive, [1]);
     assert_eq!((n1.clone() * n0.clone())?, n0);
     assert_eq!((n0.clone() * n1.clone())?, n0);
 
-    let n_minus1: WAny<A> = WAny::big_int(Sign::Negative, [1]);
+    let n_minus1: types::Any<A> = types::Any::big_int(Sign::Negative, [1]);
     assert_eq!((n_minus1.clone() * n0.clone())?, n0);
     assert_eq!((n0.clone() * n_minus1.clone())?, n0);
     assert_eq!((n_minus1.clone() * n_minus1.clone())?, n1);
 
-    let a: WAny<A> = WAny::big_int(Sign::Positive, [1, 2, 3, 4]);
-    let b: WAny<A> = WAny::big_int(Sign::Positive, [5, 6, 7]);
-    let expected: WAny<A> = WAny::big_int(Sign::Positive, [5, 16, 34, 52, 45, 28]);
+    let a: types::Any<A> = types::Any::big_int(Sign::Positive, [1, 2, 3, 4]);
+    let b: types::Any<A> = types::Any::big_int(Sign::Positive, [5, 6, 7]);
+    let expected: types::Any<A> = types::Any::big_int(Sign::Positive, [5, 16, 34, 52, 45, 28]);
     assert_eq!((a.clone() * b.clone())?, expected);
     assert_eq!((b.clone() * a.clone())?, expected);
 
-    let a: WAny<A> = WAny::big_int(Sign::Negative, [u64::MAX]);
-    let expected: WAny<A> = WAny::big_int(Sign::Positive, [1, u64::MAX - 1]);
+    let a: types::Any<A> = types::Any::big_int(Sign::Negative, [u64::MAX]);
+    let expected: types::Any<A> = types::Any::big_int(Sign::Positive, [1, u64::MAX - 1]);
     assert_eq!((a.clone() * a.clone())?, expected);
 
-    let b: WAny<A> = WAny::big_int(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]);
-    let expected: WAny<A> = WAny::big_int(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]);
+    let b: types::Any<A> = types::Any::big_int(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]);
+    let expected: types::Any<A> = types::Any::big_int(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]);
     assert_eq!((a.clone() * b.clone())?, expected);
     assert_eq!((b.clone() * a.clone())?, expected);
     Ok(())
 }
 
-fn eq_value<A: Any>(a: &A, b: &A) -> bool {
-    match (a.clone().unpack(), b.clone().unpack()) {
+fn eq_value<A: Any>(a: &types::Any<A>, b: &types::Any<A>) -> bool {
+    match (a.clone().0.unpack(), b.clone().0.unpack()) {
         (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
         (Unpacked::Bool(a), Unpacked::Bool(b)) => a == b,
         (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
@@ -498,7 +498,7 @@ fn eq_value<A: Any>(a: &A, b: &A) -> bool {
 fn serialization<A: Any>() {
     use std::io::Cursor;
 
-    let values: Vec<A> = [
+    let values: Vec<types::Any<A>> = [
         Simple::Nullish(Nullish::Null).to_unknown(),
         Simple::Nullish(Nullish::Undefined).to_unknown(),
         Simple::Boolean(true).to_unknown(),
@@ -520,7 +520,7 @@ fn serialization<A: Any>() {
         let mut buf = Vec::new();
         value.clone().serialize(&mut buf).unwrap();
         let mut cursor = Cursor::new(buf);
-        let result = A::deserialize(&mut cursor).unwrap();
+        let result = types::Any::deserialize(&mut cursor).unwrap();
         assert!(eq_value(&value, &result));
     }
 }
