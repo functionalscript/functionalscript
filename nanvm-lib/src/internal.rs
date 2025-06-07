@@ -24,7 +24,9 @@ pub trait Complex<U: Any>: PartialEq + Sized + Container {
 pub trait String16<U: Any<String16 = Self>>:
     Complex<U> + Container<Header = (), Item = u16>
 {
-    fn concat(self, other: Self) -> Self;
+    fn concat(self, other: Self) -> Self {
+        Self::new((), self.items().iter().chain(other.items().iter()).cloned())
+    }
 }
 
 pub trait Array<U: Any<Array = Self>>:

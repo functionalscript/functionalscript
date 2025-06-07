@@ -99,11 +99,7 @@ impl internal::Complex<Any> for String16 {
     }
 }
 
-impl internal::String16<Any> for String16 {
-    fn concat(self, other: Self) -> Self {
-        Self::new((), self.items().iter().chain(other.items().iter()).cloned())
-    }
-}
+impl internal::String16<Any> for String16 {}
 
 // BigInt
 
