@@ -1,2 +1,4 @@
+use crate::internal;
+
 #[repr(transparent)]
-struct Any<T: interface::Any> (pub T);
+pub struct Any<T: internal::Any> (pub T);
