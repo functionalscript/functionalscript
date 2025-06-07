@@ -10,10 +10,6 @@ const tokenizeString
     : (s: string) => readonly tokenizer.DjsToken[]
     = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))('')))
 
-const tokenizeStringWithMetadata
-    : (s: string) => readonly tokenizer.DjsTokenWithMetadata[]
-     = s => toArray(tokenizer.tokenize(encoding.stringToList(s))(''))
-
 const stringify = serializer.stringifyAsTree(sort)
 
 const withoutMetada
