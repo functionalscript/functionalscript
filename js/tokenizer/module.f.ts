@@ -894,7 +894,7 @@ const tokenizeWithPositionOp
         }
 
         const newState = tokenizeCharCodeOp(state)(input)
-        const isNewLine = input == lf || input == cr
+        const isNewLine = input == lf
         const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 1 : metadata.column + 1}
         return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata: newMetadata}]
     } 
