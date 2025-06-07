@@ -624,8 +624,8 @@ export default {
     ],
     metadata: [
         () => {
-            const result = stringify(tokenizeStringWithMetadata('[\ntrue,false\n]'))
-            if (result !== '[{"metadata":{"column":1,"line":0,"path":""},"token":{"kind":"["}},{"metadata":{"column":0,"line":1,"path":""},"token":{"kind":"nl"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"true"}},{"metadata":{"column":5,"line":1,"path":""},"token":{"kind":","}},{"metadata":{"column":10,"line":1,"path":""},"token":{"kind":"false"}},{"metadata":{"column":0,"line":2,"path":""},"token":{"kind":"nl"}},{"metadata":{"column":1,"line":2,"path":""},"token":{"kind":"]"}}]') { throw result }
+            const result = stringify(tokenizeStringWithMetadata('[\ntrue, false\n]'))
+            if (result !== '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"["}},{"metadata":{"column":1,"line":2,"path":""},"token":{"kind":"nl"}},{"metadata":{"column":5,"line":2,"path":""},"token":{"kind":"true"}},{"metadata":{"column":6,"line":2,"path":""},"token":{"kind":","}},{"metadata":{"column":7,"line":2,"path":""},"token":{"kind":"ws"}},{"metadata":{"column":12,"line":2,"path":""},"token":{"kind":"false"}},{"metadata":{"column":1,"line":3,"path":""},"token":{"kind":"nl"}},{"metadata":{"column":2,"line":3,"path":""},"token":{"kind":"]"}}]') { throw result }
         },
     ]
 }

@@ -296,7 +296,7 @@ export default {
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
             const errorString = stringify(sort)(obj[1])
-            if (errorString !== '{"message":"unexpected token","metadata":{"column":17,"line":0,"path":""}}') { throw errorString }
+            if (errorString !== '{"message":"unexpected token","metadata":{"column":18,"line":1,"path":""}}') { throw errorString }
         },
     ],
     validWhiteSpaces:[

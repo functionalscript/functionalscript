@@ -895,7 +895,7 @@ const tokenizeWithPositionOp
 
         const newState = tokenizeCharCodeOp(state)(input)
         const isNewLine = input == lf || input == cr
-        const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 0 : metadata.column + 1}
+        const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 1 : metadata.column + 1}
         return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata: newMetadata}]
     } 
 
@@ -904,6 +904,6 @@ const scanTokenize = stateScan(tokenizeWithPositionOp)
 export const tokenize
     :(input: list.List<number>) => (path: string) => list.List<JsTokenWithMetadata>
     = input => path => {
-        const scan = scanTokenize({state: { kind: 'initial' }, metadata: {path, line: 0, column: 0}})
+        const scan = scanTokenize({state: { kind: 'initial' }, metadata: {path, line: 1, column: 1}})
         return flat(scan(flat<number|null>([input satisfies list.List<CharCodeOrEof>, [null]])))
     }
