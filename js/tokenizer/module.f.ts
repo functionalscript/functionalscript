@@ -146,7 +146,11 @@ export type JsToken = |
     OperatorToken |
     CommentToken
 
-export type TokenMetadata = {readonly line: number, column: number}
+export type TokenMetadata = {
+    readonly path: string,
+    readonly line: number,
+    readonly column: number,    
+}
 
 export type JsTokenWithMetadata = {readonly token: JsToken,  readonly metadata: TokenMetadata}
 
@@ -891,14 +895,15 @@ const tokenizeWithPositionOp
 
         const newState = tokenizeCharCodeOp(state)(input)
         const isNewLine = input == lf || input == cr
-        const newMetadata = { line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 0 : metadata.column + 1}
+        const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 0 : metadata.column + 1}
         return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata: newMetadata}]
     } 
 
 const scanTokenize = stateScan(tokenizeWithPositionOp)
 
-const initial = scanTokenize({state: { kind: 'initial' }, metadata: {line: 0, column: 0}})
-
 export const tokenize
-    = (input: list.List<number>): list.List<JsTokenWithMetadata> =>
-        flat(initial(flat<number|null>([input satisfies list.List<CharCodeOrEof>, [null]])))
+    :(input: list.List<number>) => (path: string) => list.List<JsTokenWithMetadata>
+    = input => path => {
+        const scan = scanTokenize({state: { kind: 'initial' }, metadata: {path, line: 0, column: 0}})
+        return flat(scan(flat<number|null>([input satisfies list.List<CharCodeOrEof>, [null]])))
+    }

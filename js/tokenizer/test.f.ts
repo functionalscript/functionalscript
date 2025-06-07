@@ -8,11 +8,11 @@ import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly tokenizer.JsToken[]
-    = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))))
+    = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))('')))
 
 const tokenizeStringWithMetadata
     : (s: string) => readonly tokenizer.JsTokenWithMetadata[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+    = s => toArray(tokenizer.tokenize(encoding.stringToList(s))(''))
 
 const stringify = serializer.stringifyAsTree(sort)
 
@@ -625,7 +625,7 @@ export default {
     metadata: [
         () => {
             const result = stringify(tokenizeStringWithMetadata('[\ntrue,false\n]'))
-            if (result !== '[{"metadata":{"column":1,"line":0},"token":{"kind":"["}},{"metadata":{"column":0,"line":1},"token":{"kind":"nl"}},{"metadata":{"column":4,"line":1},"token":{"kind":"true"}},{"metadata":{"column":5,"line":1},"token":{"kind":","}},{"metadata":{"column":10,"line":1},"token":{"kind":"false"}},{"metadata":{"column":0,"line":2},"token":{"kind":"nl"}},{"metadata":{"column":1,"line":2},"token":{"kind":"]"}}]') { throw result }
+            if (result !== '[{"metadata":{"column":1,"line":0,"path":""},"token":{"kind":"["}},{"metadata":{"column":0,"line":1,"path":""},"token":{"kind":"nl"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"true"}},{"metadata":{"column":5,"line":1,"path":""},"token":{"kind":","}},{"metadata":{"column":10,"line":1,"path":""},"token":{"kind":"false"}},{"metadata":{"column":0,"line":2,"path":""},"token":{"kind":"nl"}},{"metadata":{"column":1,"line":2,"path":""},"token":{"kind":"]"}}]') { throw result }
         },
     ]
 }

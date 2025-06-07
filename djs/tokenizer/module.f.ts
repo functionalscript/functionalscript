@@ -98,7 +98,7 @@ const scanTokenWithMetadata
         if (input === null) {
             switch(state.kind)
             {
-                case '-': return [[{token: {kind: 'error', message: 'invalid token' }, metadata: {line: 0, column: 0}}], { kind: 'def'}]
+                case '-': return [[{token: {kind: 'error', message: 'invalid token' }, metadata: {path: '', line: 0, column: 0}}], { kind: 'def'}]
                 default: return [empty, { kind: 'def'}]
             }
         }
@@ -113,6 +113,6 @@ export const tokenize
 {
     const jsTokens
         : list.List<ScanInput>
-        = jsTokenizer.tokenize(input)
+        = jsTokenizer.tokenize(input)('')
     return flat(stateScan(scanTokenWithMetadata)({ kind: 'def' })(list.concat(jsTokens)([null])))
 }
