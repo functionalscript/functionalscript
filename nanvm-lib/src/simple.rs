@@ -1,6 +1,7 @@
 use crate::{
     internal::{Any, Utf8},
-    nullish::Nullish, types,
+    nullish::Nullish,
+    types,
 };
 
 #[derive(PartialEq, Debug, Clone)]

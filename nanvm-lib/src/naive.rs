@@ -2,7 +2,8 @@ use crate::{
     big_int,
     internal::{self, Container},
     sign::Sign,
-    simple::Simple, types,
+    simple::Simple,
+    types,
 };
 use core::{fmt, marker::PhantomData};
 use std::rc;

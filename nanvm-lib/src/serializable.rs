@@ -6,7 +6,8 @@ use crate::{
     internal::{Any, Complex, Unpacked},
     nullish::Nullish,
     sign::Sign,
-    simple::Simple, types,
+    simple::Simple,
+    types,
 };
 
 pub trait Serializable: Sized {

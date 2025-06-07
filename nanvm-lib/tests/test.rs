@@ -6,7 +6,8 @@ use nanvm_lib::{
     nullish::Nullish,
     serializable::Serializable,
     sign::Sign,
-    simple::Simple, types,
+    simple::Simple,
+    types,
 };
 
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -302,7 +303,8 @@ fn unary_minus<A: Any>() {
             nan.clone(),
             "function",
         ),
-    ].to_vec();
+    ]
+    .to_vec();
     for (a, expected, test_case) in test_cases.iter() {
         test_op::<A>(Any::unary_minus(a.clone().0), expected.clone().0, test_case);
     }
@@ -419,7 +421,8 @@ fn multiply<A: Any>() {
         ),
         ([].to_object_unknown(), n1.clone(), nan.clone(), "{{}} by 1"),
         // TODO: decide on testing objects with valueOf, toString functions.
-    ].to_vec();
+    ]
+    .to_vec();
     for (a, b, expected, test_case) in test_cases.iter() {
         test_op::<A>(
             Any::mul(a.clone().0, b.clone().0).unwrap(),
@@ -461,7 +464,8 @@ fn big_int_mul<A: Any>() -> Result<(), types::Any<A>> {
     assert_eq!((a.clone() * a.clone())?, expected);
 
     let b: types::Any<A> = types::Any::big_int(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]);
-    let expected: types::Any<A> = types::Any::big_int(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]);
+    let expected: types::Any<A> =
+        types::Any::big_int(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]);
     assert_eq!((a.clone() * b.clone())?, expected);
     assert_eq!((b.clone() * a.clone())?, expected);
     Ok(())

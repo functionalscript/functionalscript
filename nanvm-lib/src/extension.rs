@@ -61,7 +61,8 @@ mod test {
             internal::{Complex, Extension},
             naive::Any,
             nullish::Nullish::*,
-            simple::Simple, types,
+            simple::Simple,
+            types,
         };
 
         #[test]
@@ -135,7 +136,10 @@ mod test {
         fn test_own_property_bool() {
             let x: Any = Simple::Boolean(true).to_unknown().0;
             let undefined: Any = Simple::Nullish(Undefined).to_unknown().0;
-            assert_eq!(undefined, x.own_property(Any::string("hello").to_internal_unknown()));
+            assert_eq!(
+                undefined,
+                x.own_property(Any::string("hello").to_internal_unknown())
+            );
         }
     }
 }

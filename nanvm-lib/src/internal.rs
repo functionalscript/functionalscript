@@ -1,10 +1,7 @@
 use core::fmt;
-use std::{
-    char::decode_utf16,
-    ops::{Add, Div, Mul, Shl, Shr, Sub},
-};
+use std::char::decode_utf16;
 
-use crate::{big_int::BigInt, nullish::Nullish, sign::Sign, simple::Simple, types};
+use crate::{big_int::BigInt, nullish::Nullish, simple::Simple, types};
 
 pub trait Container: Clone {
     type Header;
@@ -30,7 +27,10 @@ pub trait String16<U: Any<String16 = Self>>:
     fn concat(self, other: Self) -> Self;
 }
 
-pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = types::Any<U>> {}
+pub trait Array<U: Any<Array = Self>>:
+    Complex<U> + Container<Header = (), Item = types::Any<U>>
+{
+}
 
 pub trait Object<U: Any<Object = Self>>:
     Complex<U> + Container<Header = (), Item = (U::String16, types::Any<U>)>
@@ -327,66 +327,3 @@ impl Utf8 for str {
         self.to_string16::<U>().to_unknown()
     }
 }
-
-/*
- *  WAny allows to implement operations on Any types.
- * */
- /*
-#[repr(transparent)]
-#[derive(Clone, Debug, PartialEq)]
-pub struct WAny<T: Any>(T);
-
-impl<T: Any> WAny<T> {
-    pub fn big_int(header: Sign, items: impl IntoIterator<Item = u64>) -> Self {
-        Self(T::BigInt::new(header, items).to_unknown())
-    }
-}
-
-impl<T: Any> Add for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn add(self, other: Self) -> Self::Output {
-        T::add(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Div for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn div(self, other: Self) -> Self::Output {
-        T::div(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Mul for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn mul(self, other: Self) -> Self::Output {
-        T::mul(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Shl for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn shl(self, other: Self) -> Self::Output {
-        T::shl(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Shr for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn shr(self, other: Self) -> Self::Output {
-        T::shr(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Sub for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn sub(self, other: Self) -> Self::Output {
-        T::sub(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-*/
