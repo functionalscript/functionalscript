@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.10
 
-- Trailing comma and identifier properties. [PR 484](https://github.com/functionalscript/functionalscript/pull/484)
-
-- Add file name and position of the symbol in the file to parser and transpiler errors. [PR 493](https://github.com/functionalscript/functionalscript/pull/493)
+- Trailing comma and identifier properties [PR 484](https://github.com/functionalscript/functionalscript/pull/484),
+- Property names as identifiers [PR 466](https://github.com/functionalscript/functionalscript/pull/466),
+- Add file name and position of the symbol in the file to parser and transpiler errors [PR 493](https://github.com/functionalscript/functionalscript/pull/493).
 
 ```js
 export default [
@@ -50,7 +50,7 @@ export default {
 
 ## 0.6.0
 
-- The FunctionalScript JSR package includes `module.ts` files [PR #423](https://github.com/functionalscript/functionalscript/pull/423)
+- The FunctionalScript JSR package includes `module.ts` files [PR #423](https://github.com/functionalscript/functionalscript/pull/423),
 - Dropped support for Node 16, Node 18 and Deno 1.
 
 ## 0.5.0
