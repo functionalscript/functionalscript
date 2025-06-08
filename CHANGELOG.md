@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Trailing comma and identifier properties.
 
+Add file name and position of symbol in file to parser and transpiler errors.
+
 ```js
 export default [
     {
