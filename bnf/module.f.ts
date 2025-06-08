@@ -4,10 +4,18 @@ import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 
 // Types
 
+/** 
+ * A range of symbols (48 bits) 
+ * For example: 0xBBBBBB_EEEEEE
+ * - 0xBBBBBB is the first symbol
+ * - 0xEEEEEE is the last symbol
+ */
 export type TerminalRange = number
 
+/** A sequence of rules. */
 export type Sequence = readonly Rule[]
 
+/** A variant */
 export type Variant = {
     readonly[k in string]: Rule
 }
@@ -18,7 +26,7 @@ export type LazyRule = () => DataRule
 
 export type Rule = DataRule | LazyRule
 
-//
+// Internals:
 
 const { fromEntries, values } = Object
 
