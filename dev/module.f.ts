@@ -48,8 +48,6 @@ export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
         }
         return result
     }
-    // const initCwd = env(io)('INIT_CWD')
-    // const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     return load(s)
 }
 
