@@ -13,6 +13,8 @@ import {
 
 export const classic = (): Rule => {
 
+    // https://www.json.org/json-en.html
+    
     const json = () => [element]
 
     const value = () => ({
