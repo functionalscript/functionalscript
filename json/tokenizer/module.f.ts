@@ -10,7 +10,8 @@ export type JsonToken = |
     {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
     jsTokenizer.StringToken |
     jsTokenizer.NumberToken |
-    jsTokenizer.ErrorToken
+    jsTokenizer.ErrorToken |
+    jsTokenizer.EofToken
 
 type ScanState = {readonly kind: 'def' | '-' }
 
@@ -32,6 +33,7 @@ const mapToken
             case 'null':
             case 'string':
             case 'number':
+            case 'eof':
             case 'error': return [input]
             case 'ws':
             case 'nl': return empty
@@ -76,6 +78,6 @@ export const tokenize
     = (input: list.List<number>): list.List<JsonToken> => {
         const jsTokens
             : list.List<ScanInput>
-            =  jsTokenizer.tokenize(input)
+            =  jsTokenizer.tokenize(input)('')
         return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
     }

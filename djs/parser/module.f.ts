@@ -108,6 +108,7 @@ const parseNewLineRequiredOp
         case '//':
         case '/*': return state
         case 'nl': return { ... state, state: '' }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -120,6 +121,7 @@ const parseExportOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         case 'id': {
             if (token.value === 'default') return { ... state, state: 'exportValue', valueState: '', top: null, stack: null }
         }
@@ -134,7 +136,8 @@ const parseResultOp
         case 'ws':
         case 'nl':
         case '//':
-        case '/*': return state
+        case '/*':
+        case 'eof': return state
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -156,6 +159,7 @@ const parseConstOp
             const refs = setReplace(token.value)(cref)(state.module.refs)
             return { ... state, state: 'const+name', module: { ...state.module, refs: refs } }
         }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -169,6 +173,7 @@ const parseConstNameOp
         case '//':
         case '/*': return state
         case '=': return { ... state, state: 'constValue', valueState: '', top: null, stack: null }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -191,6 +196,7 @@ const parseImportOp
             const refs = setReplace(token.value)(aref)(state.module.refs)
             return { ... state, state: 'import+name', module: { ...state.module, refs: refs } }
         }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -203,6 +209,7 @@ const parseImportNameOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         case 'id': {
             if (token.value === 'from') return { ... state, state: 'import+from' }
         }
@@ -222,6 +229,7 @@ const parseImportFromOp
             const modules = concat(state.module.modules)([token.value])
             return { ... state, state: 'nl', module: { ...state.module, modules: modules } }
         }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -355,6 +363,7 @@ const parseValueOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default:
             if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
             return { state: 'error', error: { message: 'unexpected token', metadata} }
@@ -375,6 +384,7 @@ const parseArrayStartOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -390,6 +400,7 @@ const parseArrayValueOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -408,6 +419,7 @@ const parseObjectStartOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -422,6 +434,7 @@ const parseObjectKeyOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -439,6 +452,7 @@ const parseObjectColonOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -454,6 +468,7 @@ const parseObjectNextOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }
@@ -471,6 +486,7 @@ const parseObjectCommaOp
         case 'nl':
         case '//':
         case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata} }
         default: return { state: 'error', error: { message: 'unexpected token', metadata} }
     }
 }

@@ -198,6 +198,9 @@ const parseObjectCommaOp
 const foldOp
     : Operator.Fold<Tokenizer.JsonToken, JsonState>
     = token => state => {
+        if (token.kind === 'eof')
+            return state
+
         switch (state.status) {
             case 'result': return { status: 'error', message: 'unexpected token' }
             case 'error': return { status: 'error', message: state.message }

@@ -57,7 +57,7 @@ const parseModule
             return error({message: 'file not found', metadata: null})
         }
 
-        const tokens = tokenize(stringToList(content))
+        const tokens = tokenize(stringToList(content))(path)
         return parseFromTokens(tokens)
 }
 
