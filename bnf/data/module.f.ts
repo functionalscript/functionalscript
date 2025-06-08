@@ -5,16 +5,21 @@ import type {
     Rule as FRule,
     Sequence as FSequence,
 } from '../module.f.ts'
+
+// The same as functional TerminalRange
 export type TerminalRange = number
 
+// A sequence of rule names.
 export type Sequence = readonly string[]
 
+/** A variant of rule names. */
 export type Variant = {
     readonly [k in string]: string
 }
 
 export type Rule = Variant | Sequence | TerminalRange
 
+/** The full grammar */
 export type RuleSet = Readonly<Record<string, Rule>>
 
 //

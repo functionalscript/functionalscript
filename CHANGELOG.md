@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-Trailing comma and identifier properties.
+- Trailing comma and identifier properties. [PR 484](https://github.com/functionalscript/functionalscript/pull/484)
+
+- Add file name and position of the symbol in the file to parser and transpiler errors. [PR 493](https://github.com/functionalscript/functionalscript/pull/493)
 
 ```js
 export default [

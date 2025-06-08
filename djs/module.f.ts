@@ -37,7 +37,8 @@ export const compile = ({ console: { error }, fs, process: { argv } }: Io): Prom
             break
         }
         case 'error': {
-            error(`Parse error: ${JSON.stringify(result[1])}`)
+            const metadata = result[1].metadata
+            error(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`)
             break
         }
     }

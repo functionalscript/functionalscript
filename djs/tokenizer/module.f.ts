@@ -15,13 +15,12 @@ export type DjsToken = |
   jsTokenizer.BigIntToken |
   jsTokenizer.WhitespaceToken |
   jsTokenizer.NewLineToken |
-  jsTokenizer.CommentToken
+  jsTokenizer.CommentToken |
+  jsTokenizer.EofToken
 
 export type DjsTokenWithMetadata = {readonly token: DjsToken,  readonly metadata: jsTokenizer.TokenMetadata}
 
 type ScanState = {readonly kind: 'def' | '-' }
-
-type ScanInput = jsTokenizer.JsTokenWithMetadata | null
 
 const mapToken
     : (input: jsTokenizer.JsToken) => list.List<DjsToken>
@@ -49,6 +48,7 @@ const mapToken
         case 'undefined':
         case '//':
         case '/*':
+        case 'eof':
         case 'error': return [input]
         default: return jsTokenizer.isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
     }
@@ -60,6 +60,7 @@ const parseDefaultState
 {
     switch(input.kind)
     {
+        case 'eof': return [[{ kind: 'eof'}], {kind: 'def'}]
         case '-': return [empty, { kind: '-'}]
         default: return [mapToken(input),  { kind: 'def'}]
     }
@@ -71,6 +72,7 @@ const parseMinusState
 {
     switch(input.kind)
     {
+        case 'eof': return [[{kind: 'error', message: 'invalid token' }, { kind: 'eof'}], {kind: 'def'}]
         case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-'}]
         case 'bigint': return [[{ kind: 'bigint', value: -1n * input.value }], { kind: 'def'}]
         case 'number': return [[{ kind: 'number', bf: multiply(input.bf)(-1n), value: `-${input.value}` }], { kind: 'def'}]
@@ -93,26 +95,19 @@ const mapTokenWithMetadata
     = metadata => token => { return{ token, metadata }}
 
 const scanTokenWithMetadata
-    : Operator.StateScan<ScanInput, ScanState, list.List<DjsTokenWithMetadata>>
+    : Operator.StateScan<jsTokenizer.JsTokenWithMetadata, ScanState, list.List<DjsTokenWithMetadata>>
     = state => (input) => {
-        if (input === null) {
-            switch(state.kind)
-            {
-                case '-': return [[{token: {kind: 'error', message: 'invalid token' }, metadata: {line: 0, column: 0}}], { kind: 'def'}]
-                default: return [empty, { kind: 'def'}]
-            }
-        }
         const [djsTokens, newState] = scanToken(state)(input.token)
         const djsTokensWithMetadata = list.map(mapTokenWithMetadata(input.metadata))(djsTokens)
         return [djsTokensWithMetadata, newState]
 }
 
 export const tokenize
-    : (input: list.List<number>) => list.List<DjsTokenWithMetadata>
-    = input =>
+    : (input: list.List<number>) => (path: string) => list.List<DjsTokenWithMetadata>
+    = input => path =>
 {
     const jsTokens
-        : list.List<ScanInput>
-        = jsTokenizer.tokenize(input)
-    return flat(stateScan(scanTokenWithMetadata)({ kind: 'def' })(list.concat(jsTokens)([null])))
+        : list.List<jsTokenizer.JsTokenWithMetadata>
+        = jsTokenizer.tokenize(input)(path)
+    return flat(stateScan(scanTokenWithMetadata)({ kind: 'def' })(jsTokens))
 }
