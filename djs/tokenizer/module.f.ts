@@ -15,7 +15,8 @@ export type DjsToken = |
   jsTokenizer.BigIntToken |
   jsTokenizer.WhitespaceToken |
   jsTokenizer.NewLineToken |
-  jsTokenizer.CommentToken
+  jsTokenizer.CommentToken |
+  jsTokenizer.EofToken
 
 export type DjsTokenWithMetadata = {readonly token: DjsToken,  readonly metadata: jsTokenizer.TokenMetadata}
 
@@ -49,6 +50,7 @@ const mapToken
         case 'undefined':
         case '//':
         case '/*':
+        case 'eof':
         case 'error': return [input]
         default: return jsTokenizer.isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
     }

@@ -130,6 +130,10 @@ export type CommentToken = {
     readonly value: string
 }
 
+export type EofToken = {
+    readonly kind: 'eof'
+}
+
 export type JsToken = |
     KeywordToken |
     TrueToken |
@@ -144,7 +148,8 @@ export type JsToken = |
     BigIntToken |
     UndefinedToken |
     OperatorToken |
-    CommentToken
+    CommentToken |
+    EofToken
 
 export type TokenMetadata = {
     readonly path: string,
@@ -852,27 +857,27 @@ const tokenizeEofOp
     : (state: TokenizerState) => readonly[list.List<JsToken>, TokenizerState]
     = state => {
         switch (state.kind) {
-            case 'initial': return [empty, { kind: 'eof' }]
-            case 'id': return [[idToToken(state.value)], { kind: 'eof' }]
+            case 'initial': return [[{kind: 'eof'}], { kind: 'eof' }]
+            case 'id': return [[idToToken(state.value), {kind: 'eof'}], { kind: 'eof' }]
             case 'string':
             case 'escapeChar':
-            case 'unicodeChar': return [[{ kind: 'error', message: '" are missing' }], { kind: 'eof' }]
-            case 'invalidNumber': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'eof' }]
+            case 'unicodeChar': return [[{ kind: 'error', message: '" are missing' }, {kind: 'eof'}], { kind: 'eof' }]
+            case 'invalidNumber': return [[{ kind: 'error', message: 'invalid number' }, {kind: 'eof'}], { kind: 'eof' }]
             case 'number':
                 switch (state.numberKind) {
                     case '.':
                     case 'e':
                     case 'e+':
-                    case 'e-': return [[{ kind: 'error', message: 'invalid number' }], { kind: 'eof', }]
+                    case 'e-': return [[{ kind: 'error', message: 'invalid number' }, {kind: 'eof'}], { kind: 'eof', }]
                 }
-                return [[bufferToNumberToken(state)], { kind: 'eof' }]
-            case 'op': return [[getOperatorToken(state.value)], { kind: 'eof' }]
-            case '//': return [[{kind: '//', value: state.value}], { kind: 'eof' }]
+                return [[bufferToNumberToken(state), {kind: 'eof'}], { kind: 'eof' }]
+            case 'op': return [[getOperatorToken(state.value), {kind: 'eof'}], { kind: 'eof' }]
+            case '//': return [[{kind: '//', value: state.value}, {kind: 'eof'}], { kind: 'eof' }]
             case '/*':
-            case '/**': return [[{ kind: 'error', message: '*/ expected' }], { kind: 'eof', }]
-            case 'ws': return [[{kind: 'ws'}], { kind: 'eof' }]
-            case 'nl': return [[{kind: 'nl'}], { kind: 'eof' }]
-            case 'eof': return [[{ kind: 'error', message: 'eof' }], state]
+            case '/**': return [[{ kind: 'error', message: '*/ expected' }, {kind: 'eof'}], { kind: 'eof', }]
+            case 'ws': return [[{kind: 'ws'}, {kind: 'eof'}], { kind: 'eof' }]
+            case 'nl': return [[{kind: 'nl'}, {kind: 'eof'}], { kind: 'eof' }]
+            case 'eof': return [[{ kind: 'error', message: 'eof' }, {kind: 'eof'}], state]
         }
     }
 
