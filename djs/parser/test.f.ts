@@ -161,133 +161,133 @@ export default {
             const tokenList = tokenizeString('export default')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected end') { throw obj }
+            if (obj[1].message !== 'unexpected end') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default "123')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default [,]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default [1 2]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default [1,,2]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default []]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default ["a"')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected end') { throw obj }
+            if (obj[1].message !== 'unexpected end') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default [,1]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default [:]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default ]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {,}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {1:2}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {"1"2}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {"1"::2}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {"1":2,,"3":4')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {}}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {"1":2')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected end') { throw obj }
+            if (obj[1].message !== 'unexpected end') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {,"1":2}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default }')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default [{]}')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default {[}]')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
         () => {
             const tokenList = tokenizeString('export default 10-5')
             const obj = parser.parseFromTokens(tokenList)
             if (obj[0] !== 'error') { throw obj }
-            if (obj[1].message !== 'unexpected token') { throw obj }
+            if (obj[1].message !== 'unexpected token') { throw obj[1].message }
         },
     ],
     errorMetadata: [
