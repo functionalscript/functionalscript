@@ -3,10 +3,11 @@ use std::io::{self, Read, Write};
 use crate::{
     common::le::Le,
     container_serializable::ContainerSerializable,
-    interface::{Any, Complex, Unpacked},
+    internal::{Any, Complex, Unpacked},
     nullish::Nullish,
     sign::Sign,
     simple::Simple,
+    types,
 };
 
 pub trait Serializable: Sized {
@@ -99,7 +100,7 @@ impl Serializable for Sign {
     }
 }
 
-impl<T: Any> Serializable for (T::String16, T) {
+impl<T: Any> Serializable for (T::String16, types::Any<T>) {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.0.container_serialize(write)?;
         self.1.serialize(write)
@@ -107,7 +108,7 @@ impl<T: Any> Serializable for (T::String16, T) {
 
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         let key = T::String16::container_deserialize(read)?;
-        let value = T::deserialize(read)?;
+        let value = types::Any::deserialize(read)?;
         Ok((key, value))
     }
 }
@@ -130,9 +131,9 @@ const ARRAY: u8 = 0b0011_0001;
 // Operations 0b01XX_XXXX:
 const _CONST_REF: u8 = 0b0100_0000;
 
-impl<T: Any> Serializable for T {
+impl<T: Any> Serializable for types::Any<T> {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        match self.clone().unpack() {
+        match self.clone().0.unpack() {
             Unpacked::Nullish(v) => {
                 let x = if v == Nullish::Undefined {
                     UNDEFINED

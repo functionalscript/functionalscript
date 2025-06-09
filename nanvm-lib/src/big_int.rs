@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 
 use crate::{
     big_uint::BigUint,
-    interface::{Any, Complex, Container},
+    internal::{Any, Complex, Container},
     sign::Sign,
 };
 

@@ -4,7 +4,7 @@ import { join } from "../types/string/module.f.ts"
 import { concat as stringConcat } from '../types/string/module.f.ts'
 
 const foldNormalizeOp: Fold<string, List<string>>
- = input => state => {
+= input => state => {
     switch(input) {
         case '': case '.': { return state }
         case '..': {

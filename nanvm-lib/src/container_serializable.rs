@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 
-use crate::{interface::Container, serializable::Serializable};
+use crate::{internal::Container, serializable::Serializable};
 
 pub trait ContainerSerializable: Container<Header: Serializable, Item: Serializable> {
     fn container_serialize(&self, write: &mut impl Write) -> io::Result<()> {

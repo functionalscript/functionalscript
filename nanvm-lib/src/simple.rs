@@ -1,6 +1,7 @@
 use crate::{
-    interface::{Any, Utf8},
+    internal::{Any, Utf8},
     nullish::Nullish,
+    types,
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -11,8 +12,8 @@ pub enum Simple {
 }
 
 impl Simple {
-    pub fn to_unknown<U: Any>(self) -> U {
-        U::new_simple(self)
+    pub fn to_unknown<U: Any>(self) -> types::Any<U> {
+        types::Any(U::new_simple(self))
     }
     pub fn to_string<U: Any>(self) -> U::String16 {
         match self {

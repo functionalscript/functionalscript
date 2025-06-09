@@ -1,10 +1,7 @@
 use core::fmt;
-use std::{
-    char::decode_utf16,
-    ops::{Add, Div, Mul, Shl, Shr, Sub},
-};
+use std::char::decode_utf16;
 
-use crate::{big_int::BigInt, nullish::Nullish, sign::Sign, simple::Simple};
+use crate::{big_int::BigInt, nullish::Nullish, simple::Simple, types};
 
 pub trait Container: Clone {
     type Header;
@@ -17,20 +14,28 @@ pub trait Container: Clone {
 }
 
 pub trait Complex<U: Any>: PartialEq + Sized + Container {
-    fn to_unknown(self) -> U;
+    fn to_internal_unknown(self) -> U;
+    fn to_unknown(self) -> types::Any<U> {
+        types::Any(self.to_internal_unknown())
+    }
     fn try_from_unknown(u: U) -> Result<Self, U>;
 }
 
 pub trait String16<U: Any<String16 = Self>>:
     Complex<U> + Container<Header = (), Item = u16>
 {
-    fn concat(self, other: Self) -> Self;
+    fn concat(self, other: Self) -> Self {
+        Self::new((), self.items().iter().chain(other.items().iter()).cloned())
+    }
 }
 
-pub trait Array<U: Any<Array = Self>>: Complex<U> + Container<Header = (), Item = U> {}
+pub trait Array<U: Any<Array = Self>>:
+    Complex<U> + Container<Header = (), Item = types::Any<U>>
+{
+}
 
 pub trait Object<U: Any<Object = Self>>:
-    Complex<U> + Container<Header = (), Item = (U::String16, U)>
+    Complex<U> + Container<Header = (), Item = (U::String16, types::Any<U>)>
 {
 }
 
@@ -108,7 +113,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 if items.len() > 1 {
                     return Numeric::Number(f64::NAN);
                 }
-                Self::to_numeric(items[0].clone())
+                Self::to_numeric(items[0].clone().0)
             }
             // TODO: use valueOf, toString functions for Object when present.
             Unpacked::Object(_) => Numeric::Number(f64::NAN),
@@ -145,7 +150,7 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
 
     fn add(v1: Self, v2: Self) -> Result<Self, Self> {
         if v1.is_string16() || v2.is_string16() {
-            return Ok(v1.to_string().concat(v2.to_string()).to_unknown());
+            return Ok(v1.to_string().concat(v2.to_string()).to_internal_unknown());
         }
         match Self::to_numeric(v1) {
             Numeric::BigInt(i1) => match Self::to_numeric(v2) {
@@ -284,23 +289,23 @@ pub trait Extension: Sized {
         C::new((), self)
     }
 
-    fn to_string16_unknown<U: Any>(self) -> U
+    fn to_string16_unknown<U: Any>(self) -> types::Any<U>
     where
         Self: IntoIterator<Item = u16>,
     {
         self.to_complex::<U::String16>().to_unknown()
     }
 
-    fn to_array_unknown(self) -> Self::Item
+    fn to_array_unknown<U: Any>(self) -> types::Any<U>
     where
-        Self: IntoIterator<Item: Any>,
+        Self: IntoIterator<Item = types::Any<U>>,
     {
-        self.to_complex::<<Self::Item as Any>::Array>().to_unknown()
+        self.to_complex::<U::Array>().to_unknown()
     }
 
-    fn to_object_unknown<U: Any>(self) -> U
+    fn to_object_unknown<U: Any>(self) -> types::Any<U>
     where
-        Self: IntoIterator<Item = (U::String16, U)>,
+        Self: IntoIterator<Item = (U::String16, types::Any<U>)>,
     {
         self.to_complex::<U::Object>().to_unknown()
     }
@@ -312,7 +317,7 @@ impl<T> Extension for T {}
 
 pub trait Utf8 {
     fn to_string16<U: Any>(&self) -> U::String16;
-    fn to_unknown<U: Any>(&self) -> U;
+    fn to_unknown<U: Any>(&self) -> types::Any<U>;
 }
 
 impl Utf8 for str {
@@ -320,68 +325,7 @@ impl Utf8 for str {
         self.encode_utf16().to_complex()
     }
 
-    fn to_unknown<U: Any>(&self) -> U {
+    fn to_unknown<U: Any>(&self) -> types::Any<U> {
         self.to_string16::<U>().to_unknown()
-    }
-}
-
-/**
- *  WAny allows to implement operations on Any types.
- * */
-#[repr(transparent)]
-#[derive(Clone, Debug, PartialEq)]
-pub struct WAny<T: Any>(T);
-
-impl<T: Any> WAny<T> {
-    pub fn big_int(header: Sign, items: impl IntoIterator<Item = u64>) -> Self {
-        Self(T::BigInt::new(header, items).to_unknown())
-    }
-}
-
-impl<T: Any> Add for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn add(self, other: Self) -> Self::Output {
-        T::add(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Div for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn div(self, other: Self) -> Self::Output {
-        T::div(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Mul for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn mul(self, other: Self) -> Self::Output {
-        T::mul(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Shl for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn shl(self, other: Self) -> Self::Output {
-        T::shl(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Shr for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn shr(self, other: Self) -> Self::Output {
-        T::shr(self.0, other.0).map(Self).map_err(Self)
-    }
-}
-
-impl<T: Any> Sub for WAny<T> {
-    type Output = Result<Self, Self>;
-
-    fn sub(self, other: Self) -> Self::Output {
-        T::sub(self.0, other.0).map(Self).map_err(Self)
     }
 }
