@@ -22,43 +22,43 @@ pub struct Any<T: internal::Any>(pub T);
 
 impl<T: internal::Any> From<Nullish> for Any<T> {
     fn from(value: Nullish) -> Self {
-        Any(T::from_nullish(value.into()))
+        T::from_simple(value)
     }
 }
 
 impl<T: internal::Any> From<bool> for Any<T> {
     fn from(value: bool) -> Self {
-        Any(T::from_boolean(value))
+        T::from_simple(value)
     }
 }
 
 impl<T: internal::Any> From<f64> for Any<T> {
     fn from(value: f64) -> Self {
-        Any(T::from_number(value))
+        T::from_simple(value)
     }
 }
 
 impl<T: internal::Any> From<String<T>> for Any<T> {
     fn from(value: String<T>) -> Self {
-        Any(value.0.to_any())
+        value.0.to_any()
     }
 }
 
 impl<T: internal::Any> From<BigInt<T>> for Any<T> {
     fn from(value: BigInt<T>) -> Self {
-        Any(value.0.to_any())
+        value.0.to_any()
     }
 }
 
 impl<T: internal::Any> From<Object<T>> for Any<T> {
     fn from(value: Object<T>) -> Self {
-        Any(value.0.to_any())
+        value.0.to_any()
     }
 }
 
 impl<T: internal::Any> From<Array<T>> for Any<T> {
     fn from(value: Array<T>) -> Self {
-        Any(value.0.to_any())
+        value.0.to_any()
     }
 }
 
