@@ -30,7 +30,7 @@ pub trait Array<A: Any>: Container<A, Header = (), Item = super::Any<A>> {}
 pub trait Simple<A: Any, T> {
     fn to_internal(value: T) -> A;
     // extension:
-    fn from_simple(value: T) -> super::Any<A> {
+    fn to_any(value: T) -> super::Any<A> {
         super::Any(Self::to_internal(value))
     }
 }

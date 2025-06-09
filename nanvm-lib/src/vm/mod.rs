@@ -22,19 +22,19 @@ pub struct Any<T: internal::Any>(pub T);
 
 impl<T: internal::Any> From<Nullish> for Any<T> {
     fn from(value: Nullish) -> Self {
-        T::from_simple(value)
+        T::to_any(value)
     }
 }
 
 impl<T: internal::Any> From<bool> for Any<T> {
     fn from(value: bool) -> Self {
-        T::from_simple(value)
+        T::to_any(value)
     }
 }
 
 impl<T: internal::Any> From<f64> for Any<T> {
     fn from(value: f64) -> Self {
-        T::from_simple(value)
+        T::to_any(value)
     }
 }
 
