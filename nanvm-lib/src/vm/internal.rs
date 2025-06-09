@@ -1,8 +1,8 @@
 use std::io;
 
-use crate::{nullish::Nullish, vm::Unpacked};
+use crate::{nullish::Nullish, sign::Sign, vm::Unpacked};
 
-pub trait Container<A: Any>: Sized {
+pub trait Container<A: Internal>: Sized {
     //
     type Header;
     type Item;
@@ -19,15 +19,15 @@ pub trait Container<A: Any>: Sized {
     }
 }
 
-pub trait String<A: Any>: Container<A, Header = (), Item = u16> {}
+pub trait String<A: Internal>: Container<A, Header = (), Item = u16> {}
 
-pub trait BigInt<A: Any>: Container<A, Header = i64, Item = u64> {}
+pub trait BigInt<A: Internal>: Container<A, Header = Sign, Item = u64> {}
 
-pub trait Object<A: Any>: Container<A, Header = (), Item = super::Property<A>> {}
+pub trait Object<A: Internal>: Container<A, Header = (), Item = super::Property<A>> {}
 
-pub trait Array<A: Any>: Container<A, Header = (), Item = super::Any<A>> {}
+pub trait Array<A: Internal>: Container<A, Header = (), Item = super::Any<A>> {}
 
-pub trait Simple<A: Any, T> {
+pub trait Simple<A: Internal, T> {
     fn to_internal(value: T) -> A;
     // extension:
     fn to_any(value: T) -> super::Any<A> {
@@ -35,12 +35,12 @@ pub trait Simple<A: Any, T> {
     }
 }
 
-pub trait Any: Sized + Simple<Self, Nullish> + Simple<Self, bool> + Simple<Self, f64> {
+pub trait Internal: Sized + Simple<Self, Nullish> + Simple<Self, bool> + Simple<Self, f64> {
     // types
     type String: String<Self>;
     type BigInt: BigInt<Self>;
     type Object: Object<Self>;
     type Array: Array<Self>;
     //
-    fn unpack(&self) -> Unpacked<Self>;
+    fn to_unpacked(&self) -> Unpacked<Self>;
 }

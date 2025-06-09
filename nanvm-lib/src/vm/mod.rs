@@ -1,69 +1,54 @@
-use crate::{nullish::Nullish, vm::internal::Container};
+use crate::{nullish::Nullish, vm::{internal::{Container, Internal}, unpacked::Unpacked}};
 
 pub mod internal;
+pub mod unpacked;
 
-pub enum Unpacked<T: internal::Any> {
-    Nullish(Nullish),
-    Boolean(bool),
-    Number(f64),
-    String(String<T>),
-    BigInt(BigInt<T>),
-    Object(Object<T>),
-    Array(Array<T>),
-}
+pub struct Any<A: Internal>(pub A);
 
-impl<T: internal::Any> From<Any<T>> for Unpacked<T> {
-    fn from(value: Any<T>) -> Self {
-        value.0.unpack()
-    }
-}
-
-pub struct Any<T: internal::Any>(pub T);
-
-impl<T: internal::Any> From<Nullish> for Any<T> {
+impl<A: Internal> From<Nullish> for Any<A> {
     fn from(value: Nullish) -> Self {
-        T::to_any(value)
+        A::to_any(value)
     }
 }
 
-impl<T: internal::Any> From<bool> for Any<T> {
+impl<A: Internal> From<bool> for Any<A> {
     fn from(value: bool) -> Self {
-        T::to_any(value)
+        A::to_any(value)
     }
 }
 
-impl<T: internal::Any> From<f64> for Any<T> {
+impl<A: Internal> From<f64> for Any<A> {
     fn from(value: f64) -> Self {
-        T::to_any(value)
+        A::to_any(value)
     }
 }
 
-impl<T: internal::Any> From<String<T>> for Any<T> {
-    fn from(value: String<T>) -> Self {
+impl<A: Internal> From<String<A>> for Any<A> {
+    fn from(value: String<A>) -> Self {
         value.0.to_any()
     }
 }
 
-impl<T: internal::Any> From<BigInt<T>> for Any<T> {
-    fn from(value: BigInt<T>) -> Self {
+impl<A: Internal> From<BigInt<A>> for Any<A> {
+    fn from(value: BigInt<A>) -> Self {
         value.0.to_any()
     }
 }
 
-impl<T: internal::Any> From<Object<T>> for Any<T> {
-    fn from(value: Object<T>) -> Self {
+impl<A: Internal> From<Object<A>> for Any<A> {
+    fn from(value: Object<A>) -> Self {
         value.0.to_any()
     }
 }
 
-impl<T: internal::Any> From<Array<T>> for Any<T> {
-    fn from(value: Array<T>) -> Self {
+impl<A: Internal> From<Array<A>> for Any<A> {
+    fn from(value: Array<A>) -> Self {
         value.0.to_any()
     }
 }
 
-impl<T: internal::Any> From<Unpacked<T>> for Any<T> {
-    fn from(value: Unpacked<T>) -> Self {
+impl<A: Internal> From<Unpacked<A>> for Any<A> {
+    fn from(value: Unpacked<A>) -> Self {
         match value {
             Unpacked::Nullish(n) => n.into(),
             Unpacked::Boolean(b) => b.into(),
@@ -76,12 +61,12 @@ impl<T: internal::Any> From<Unpacked<T>> for Any<T> {
     }
 }
 
-pub struct String<T: internal::Any>(pub T::String);
+pub struct String<A: Internal>(pub A::String);
 
-pub struct BigInt<T: internal::Any>(pub T::BigInt);
+pub struct BigInt<A: Internal>(pub A::BigInt);
 
-pub struct Object<T: internal::Any>(pub T::Object);
+pub struct Object<A: Internal>(pub A::Object);
 
-pub struct Array<T: internal::Any>(pub T::Array);
+pub struct Array<A: Internal>(pub A::Array);
 
-pub type Property<T> = (String<T>, Any<T>);
+pub type Property<A> = (String<A>, Any<A>);
