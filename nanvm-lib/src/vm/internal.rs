@@ -25,6 +25,10 @@ pub trait Object<A: Internal>: Container<A, Header = (), Item = super::Property<
 
 pub trait Array<A: Internal>: Container<A, Header = (), Item = super::Any<A>> {}
 
+pub type FunctionHeader<A> = (super::String<A>, u32);
+
+pub trait Function<A: Internal>: Container<A, Header = FunctionHeader<A>, Item = u8> {}
+
 pub trait Simple<A: Internal, T> {
     fn to_internal(value: T) -> A;
     // extension:
@@ -39,6 +43,7 @@ pub trait Internal: Sized + Simple<Self, Nullish> + Simple<Self, bool> + Simple<
     type BigInt: BigInt<Self>;
     type Object: Object<Self>;
     type Array: Array<Self>;
+    type Function: Function<Self>;
     //
     fn to_unpacked(&self) -> Unpacked<Self>;
 }
