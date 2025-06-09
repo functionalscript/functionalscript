@@ -1,5 +1,3 @@
-use std::io;
-
 use crate::{nullish::Nullish, sign::Sign, vm::Unpacked};
 
 pub trait Container<A: Internal>: Sized {
@@ -7,7 +5,7 @@ pub trait Container<A: Internal>: Sized {
     type Header;
     type Item;
     //
-    fn new(header: Self::Header, i: impl IntoIterator<Item = io::Result<Self::Item>>) -> io::Result<Self>;
+    fn new<E>(header: Self::Header, i: impl IntoIterator<Item = Result<Self::Item, E>>) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
     fn len(&self) -> usize;
     fn items(&self, i: usize) -> Self::Item;
