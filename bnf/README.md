@@ -15,12 +15,12 @@ const digit = range('09')
 const sequence = () => [space, digit]
 // console.log(sequence.name) // "sequence"
 const spaceOrDigit = {
-    space, // 
+    space, //
     digit, //
 }
 ```
 
-## Serializable Data Representation 
+## Serializable Data Representation
 
 To export.
 
@@ -30,8 +30,8 @@ export default {
     digit: 0x000030_000039,
     sequence: ['space', 'digit'],
     spaceOrDigit: {
-        'space': 'space',
-        'digit': 'digit',
+        space: 'space',
+        digit: 'digit',
     }
 }
 ```
