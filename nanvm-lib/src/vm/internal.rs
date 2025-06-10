@@ -18,14 +18,6 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     }
 }
 
-pub trait IComplex<A: IInternalAny>: IContainer<A> {
-    fn to_internal(self) -> A;
-    // extension:
-    fn to_any(self) -> super::Any<A> {
-        super::Any(self.to_internal())
-    }
-}
-
 pub trait ISimple<A: IInternalAny, T> {
     fn to_internal(value: T) -> A;
     // extension:
@@ -35,14 +27,22 @@ pub trait ISimple<A: IInternalAny, T> {
 }
 
 pub trait IInternalAny:
-    Sized + Clone + ISimple<Self, Nullish> + ISimple<Self, bool> + ISimple<Self, f64>
+    Sized + Clone +
+    ISimple<Self, Nullish> +
+    ISimple<Self, bool> +
+    ISimple<Self, f64> +
+    ISimple<Self, Self::String> +
+    ISimple<Self, Self::BigInt> +
+    ISimple<Self, Self::Object> +
+    ISimple<Self, Self::Array> +
+    ISimple<Self, Self::Function>
 {
     // types
-    type String: IComplex<Self, Header = (), Item = u16>;
-    type BigInt: IComplex<Self, Header = Sign, Item = u64>;
-    type Object: IComplex<Self, Header = (), Item = super::Property<Self>>;
-    type Array: IComplex<Self, Header = (), Item = super::Any<Self>>;
-    type Function: IComplex<Self, Header = FunctionHeader<Self>, Item = u8>;
+    type String: IContainer<Self, Header = (), Item = u16>;
+    type BigInt: IContainer<Self, Header = Sign, Item = u64>;
+    type Object: IContainer<Self, Header = (), Item = super::Property<Self>>;
+    type Array: IContainer<Self, Header = (), Item = super::Any<Self>>;
+    type Function: IContainer<Self, Header = FunctionHeader<Self>, Item = u8>;
     //
     fn to_unpacked(self) -> Unpacked<Self>;
 }

@@ -5,7 +5,7 @@ pub mod unpacked;
 use crate::{
     nullish::Nullish,
     vm::{
-        internal::{IComplex, IInternalAny},
+        internal::IInternalAny,
         unpacked::Unpacked,
     },
 };
@@ -33,31 +33,31 @@ impl<A: IInternalAny> From<f64> for Any<A> {
 
 impl<A: IInternalAny> From<String<A>> for Any<A> {
     fn from(value: String<A>) -> Self {
-        value.0.to_any()
+        A::to_any(value.0)
     }
 }
 
 impl<A: IInternalAny> From<BigInt<A>> for Any<A> {
     fn from(value: BigInt<A>) -> Self {
-        value.0.to_any()
+        A::to_any(value.0)
     }
 }
 
 impl<A: IInternalAny> From<Object<A>> for Any<A> {
     fn from(value: Object<A>) -> Self {
-        value.0.to_any()
+        A::to_any(value.0)
     }
 }
 
 impl<A: IInternalAny> From<Array<A>> for Any<A> {
     fn from(value: Array<A>) -> Self {
-        value.0.to_any()
+        A::to_any(value.0)
     }
 }
 
 impl<A: IInternalAny> From<Function<A>> for Any<A> {
     fn from(value: Function<A>) -> Self {
-        value.0.to_any()
+        A::to_any(value.0)
     }
 }
 
@@ -94,4 +94,3 @@ pub type FunctionHeader<A> = (String<A>, u32);
 
 #[derive(Clone)]
 pub struct Function<A: IInternalAny>(pub A::Function);
-
