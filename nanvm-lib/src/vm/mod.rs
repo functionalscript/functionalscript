@@ -13,51 +13,52 @@ use crate::{
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
 
+
 impl<A: IInternalAny> From<Nullish> for Any<A> {
     fn from(value: Nullish) -> Self {
-        A::to_any(value)
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<bool> for Any<A> {
     fn from(value: bool) -> Self {
-        A::to_any(value)
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<f64> for Any<A> {
     fn from(value: f64) -> Self {
-        A::to_any(value)
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<String<A>> for Any<A> {
     fn from(value: String<A>) -> Self {
-        A::to_any(value.0)
+        Any(value.0.into())
     }
 }
 
 impl<A: IInternalAny> From<BigInt<A>> for Any<A> {
     fn from(value: BigInt<A>) -> Self {
-        A::to_any(value.0)
+        Any(value.0.into())
     }
 }
 
 impl<A: IInternalAny> From<Object<A>> for Any<A> {
     fn from(value: Object<A>) -> Self {
-        A::to_any(value.0)
+        Any(value.0.into())
     }
 }
 
 impl<A: IInternalAny> From<Array<A>> for Any<A> {
     fn from(value: Array<A>) -> Self {
-        A::to_any(value.0)
+        Any(value.0.into())
     }
 }
 
 impl<A: IInternalAny> From<Function<A>> for Any<A> {
     fn from(value: Function<A>) -> Self {
-        A::to_any(value.0)
+        Any(value.0.into())
     }
 }
 

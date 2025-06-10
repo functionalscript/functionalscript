@@ -18,24 +18,16 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     }
 }
 
-pub trait ISimple<A: IInternalAny, T> {
-    fn to_internal(value: T) -> A;
-    // extension:
-    fn to_any(value: T) -> super::Any<A> {
-        super::Any(Self::to_internal(value))
-    }
-}
-
 pub trait IInternalAny:
     Sized + Clone +
-    ISimple<Self, Nullish> +
-    ISimple<Self, bool> +
-    ISimple<Self, f64> +
-    ISimple<Self, Self::String> +
-    ISimple<Self, Self::BigInt> +
-    ISimple<Self, Self::Object> +
-    ISimple<Self, Self::Array> +
-    ISimple<Self, Self::Function>
+    From<Nullish> +
+    From<bool> +
+    From<f64> +
+    From<Self::String> +
+    From<Self::BigInt> +
+    From<Self::Object> +
+    From<Self::Array> +
+    From<Self::Function>
 {
     // types
     type String: IContainer<Self, Header = (), Item = u16>;

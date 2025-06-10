@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     sign::Sign,
     vm::{
-        internal::{IContainer, IInternalAny, ISimple},
+        internal::{IContainer, IInternalAny},
         unpacked::Unpacked,
         Array, BigInt, Function, FunctionHeader, Object, Property, String,
     },
@@ -12,8 +12,8 @@ use crate::{
 #[derive(Clone)]
 struct InternalAny(pub Unpacked<InternalAny>);
 
-impl<T: Into<Unpacked<InternalAny>>> ISimple<InternalAny, T> for InternalAny {
-    fn to_internal(value: T) -> Self {
+impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
+    fn from(value: T) -> Self {
         InternalAny(value.into())
     }
 }
@@ -66,40 +66,40 @@ impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I>
 
 type InternalString = Container<(), u16>;
 
-impl ISimple<InternalAny, InternalString> for InternalAny {
-    fn to_internal(value: InternalString) -> InternalAny {
-        InternalAny(Unpacked::String(String(value)))
+impl From<InternalString> for InternalAny {
+    fn from(value: InternalString) -> Self {
+        InternalAny(String(value).into())
     }
 }
 
 type InternalBigInt = Container<Sign, u64>;
 
-impl ISimple<InternalAny, InternalBigInt> for InternalAny {
-    fn to_internal(value: InternalBigInt) -> InternalAny {
-        InternalAny(Unpacked::BigInt(BigInt(value)))
+impl From<InternalBigInt> for InternalAny {
+    fn from(value: InternalBigInt) -> Self {
+        InternalAny(BigInt(value).into())
     }
 }
 
 type InternalObject = Container<(), Property<InternalAny>>;
 
-impl ISimple<InternalAny, InternalObject> for InternalAny {
-    fn to_internal(value: InternalObject) -> InternalAny {
-        InternalAny(Unpacked::Object(Object(value)))
+impl From<InternalObject> for InternalAny {
+    fn from(value: InternalObject) -> Self {
+        InternalAny(Object(value).into())
     }
 }
 
 type InternalArray = Container<(), super::Any<InternalAny>>;
 
-impl ISimple<InternalAny, InternalArray> for InternalAny {
-    fn to_internal(value: InternalArray) -> InternalAny {
-        InternalAny(Unpacked::Array(Array(value)))
+impl From<InternalArray> for InternalAny {
+    fn from(value: InternalArray) -> Self {
+        InternalAny(Array(value).into())
     }
 }
 
 type InternalFunction = Container<FunctionHeader<InternalAny>, u8>;
 
-impl ISimple<InternalAny, InternalFunction> for InternalAny {
-    fn to_internal(value: InternalFunction) -> InternalAny {
-        InternalAny(Unpacked::Function(Function(value)))
+impl From<InternalFunction> for InternalAny {
+    fn from(value: InternalFunction) -> Self {
+        InternalAny(Function(value).into())
     }
 }
