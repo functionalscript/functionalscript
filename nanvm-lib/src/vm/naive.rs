@@ -5,7 +5,7 @@ use crate::{
     vm::{
         internal::{IContainer, IInternalAny},
         unpacked::Unpacked,
-        Array, BigInt, Function, FunctionHeader, Object, Property, String,
+        Array, BigInt, Function, FunctionHeader, Object, Property
     },
 };
 
@@ -19,11 +19,11 @@ impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
 }
 
 impl IInternalAny for InternalAny {
-    type String = InternalString;
-    type BigInt = InternalBigInt;
-    type Object = InternalObject;
-    type Array = InternalArray;
-    type Function = InternalFunction;
+    type InternalString = InternalString;
+    type InternalBigInt = InternalBigInt;
+    type InternalObject = InternalObject;
+    type InternalArray = InternalArray;
+    type InternalFunction = InternalFunction;
 
     fn to_unpacked(self) -> Unpacked<Self> {
         self.0
@@ -66,40 +66,10 @@ impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I>
 
 type InternalString = Container<(), u16>;
 
-impl From<InternalString> for InternalAny {
-    fn from(value: InternalString) -> Self {
-        InternalAny(String(value).into())
-    }
-}
-
 type InternalBigInt = Container<Sign, u64>;
-
-impl From<InternalBigInt> for InternalAny {
-    fn from(value: InternalBigInt) -> Self {
-        InternalAny(BigInt(value).into())
-    }
-}
 
 type InternalObject = Container<(), Property<InternalAny>>;
 
-impl From<InternalObject> for InternalAny {
-    fn from(value: InternalObject) -> Self {
-        InternalAny(Object(value).into())
-    }
-}
-
 type InternalArray = Container<(), super::Any<InternalAny>>;
 
-impl From<InternalArray> for InternalAny {
-    fn from(value: InternalArray) -> Self {
-        InternalAny(Array(value).into())
-    }
-}
-
 type InternalFunction = Container<FunctionHeader<InternalAny>, u8>;
-
-impl From<InternalFunction> for InternalAny {
-    fn from(value: InternalFunction) -> Self {
-        InternalAny(Function(value).into())
-    }
-}

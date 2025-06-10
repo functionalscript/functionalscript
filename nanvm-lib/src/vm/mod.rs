@@ -33,31 +33,31 @@ impl<A: IInternalAny> From<f64> for Any<A> {
 
 impl<A: IInternalAny> From<String<A>> for Any<A> {
     fn from(value: String<A>) -> Self {
-        Any(value.0.into())
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<BigInt<A>> for Any<A> {
     fn from(value: BigInt<A>) -> Self {
-        Any(value.0.into())
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<Object<A>> for Any<A> {
     fn from(value: Object<A>) -> Self {
-        Any(value.0.into())
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<Array<A>> for Any<A> {
     fn from(value: Array<A>) -> Self {
-        Any(value.0.into())
+        Any(value.into())
     }
 }
 
 impl<A: IInternalAny> From<Function<A>> for Any<A> {
     fn from(value: Function<A>) -> Self {
-        Any(value.0.into())
+        Any(value.into())
     }
 }
 
@@ -81,20 +81,20 @@ pub trait IWrap<T> {
 }
 
 #[derive(Clone)]
-pub struct String<A: IInternalAny>(pub A::String);
+pub struct String<A: IInternalAny>(pub A::InternalString);
 
 #[derive(Clone)]
-pub struct BigInt<A: IInternalAny>(pub A::BigInt);
+pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
 
 pub type Property<A> = (String<A>, Any<A>);
 
 #[derive(Clone)]
-pub struct Object<A: IInternalAny>(pub A::Object);
+pub struct Object<A: IInternalAny>(pub A::InternalObject);
 
 #[derive(Clone)]
-pub struct Array<A: IInternalAny>(pub A::Array);
+pub struct Array<A: IInternalAny>(pub A::InternalArray);
 
 pub type FunctionHeader<A> = (String<A>, u32);
 
 #[derive(Clone)]
-pub struct Function<A: IInternalAny>(pub A::Function);
+pub struct Function<A: IInternalAny>(pub A::InternalFunction);
