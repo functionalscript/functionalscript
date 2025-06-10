@@ -11,29 +11,32 @@ pub trait Container<A: Internal>: Sized + Clone {
     ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
     fn len(&self) -> usize;
-    fn items(&self, i: usize) -> Self::Item;
-    //
-    fn to_internal(self) -> A;
+    fn at(&self, i: usize) -> Self::Item;
     // extension:
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+}
+
+pub trait Complex<A: Internal>: Container<A> {
+    fn to_internal(self) -> A;
+    // extension:
     fn to_any(self) -> super::Any<A> {
         super::Any(self.to_internal())
     }
 }
 
-pub trait String<A: Internal>: Container<A, Header = (), Item = u16> {}
+pub trait String<A: Internal>: Complex<A, Header = (), Item = u16> {}
 
-pub trait BigInt<A: Internal>: Container<A, Header = Sign, Item = u64> {}
+pub trait BigInt<A: Internal>: Complex<A, Header = Sign, Item = u64> {}
 
-pub trait Object<A: Internal>: Container<A, Header = (), Item = super::Property<A>> {}
+pub trait Object<A: Internal>: Complex<A, Header = (), Item = super::Property<A>> {}
 
-pub trait Array<A: Internal>: Container<A, Header = (), Item = super::Any<A>> {}
+pub trait Array<A: Internal>: Complex<A, Header = (), Item = super::Any<A>> {}
 
 pub type FunctionHeader<A> = (super::String<A>, u32);
 
-pub trait Function<A: Internal>: Container<A, Header = FunctionHeader<A>, Item = u8> {}
+pub trait Function<A: Internal>: Complex<A, Header = FunctionHeader<A>, Item = u8> {}
 
 pub trait Simple<A: Internal, T> {
     fn to_internal(value: T) -> A;

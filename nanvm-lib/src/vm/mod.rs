@@ -5,7 +5,7 @@ pub mod unpacked;
 use crate::{
     nullish::Nullish,
     vm::{
-        internal::{Container, Internal},
+        internal::{Complex, Internal},
         unpacked::Unpacked,
     },
 };

@@ -67,16 +67,18 @@ impl<H: Clone, I: Clone> internal::Container<Any> for Container<H, I> {
         self.items.len()
     }
 
-    fn items(&self, i: usize) -> Self::Item {
+    fn at(&self, i: usize) -> Self::Item {
         self.items[i].clone()
-    }
-
-    fn to_internal(self) -> Any {
-        todo!()
     }
 }
 
 type String = Container<(), u16>;
+
+impl internal::Complex<Any> for String {
+    fn to_internal(self) -> Any {
+        Any(Unpacked::String(super::String(self)))
+    }
+}
 
 impl internal::String<Any> for String {}
 
@@ -84,14 +86,38 @@ type BigInt = Container<Sign, u64>;
 
 impl internal::BigInt<Any> for BigInt {}
 
+impl internal::Complex<Any> for BigInt {
+    fn to_internal(self) -> Any {
+        Any(Unpacked::BigInt(super::BigInt(self)))
+    }
+}
+
 type Object = Container<(), Property<Any>>;
 
 impl internal::Object<Any> for Object {}
+
+impl internal::Complex<Any> for Object {
+    fn to_internal(self) -> Any {
+        Any(Unpacked::Object(super::Object(self)))
+    }
+}
 
 type Array = Container<(), super::Any<Any>>;
 
 impl internal::Array<Any> for Array {}
 
+impl internal::Complex<Any> for Array {
+    fn to_internal(self) -> Any {
+        Any(Unpacked::Array(super::Array(self)))
+    }
+}
+
 type Function = Container<internal::FunctionHeader<Any>, u8>;
 
 impl internal::Function<Any> for Function {}
+
+impl internal::Complex<Any> for Function {
+    fn to_internal(self) -> Any {
+        Any(Unpacked::Function(super::Function(self)))
+    }
+}
