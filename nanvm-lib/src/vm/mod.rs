@@ -13,7 +13,6 @@ use crate::{
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
 
-
 impl<A: IInternalAny> From<Nullish> for Any<A> {
     fn from(value: Nullish) -> Self {
         Any(value.into())
@@ -75,6 +74,10 @@ impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
             Unpacked::Function(f) => f.into(),
         }
     }
+}
+
+pub trait IWrap<T> {
+    fn wrap(self) -> T;
 }
 
 #[derive(Clone)]
