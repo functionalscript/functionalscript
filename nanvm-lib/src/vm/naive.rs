@@ -3,36 +3,40 @@ use std::rc::Rc;
 use crate::{
     nullish::Nullish,
     sign::Sign,
-    vm::{internal, unpacked::Unpacked, Property},
+    vm::{
+        internal::{IComplex, IContainer, IInternalAny, ISimple},
+        unpacked::Unpacked,
+        Array, BigInt, Function, FunctionHeader, Object, Property, String,
+    },
 };
 
 #[derive(Clone)]
-struct Any(pub Unpacked<Any>);
+struct InternalAny(pub Unpacked<InternalAny>);
 
-impl internal::Simple<Any, Nullish> for Any {
+impl ISimple<InternalAny, Nullish> for InternalAny {
     fn to_internal(value: Nullish) -> Self {
-        Any(Unpacked::Nullish(value))
+        InternalAny(Unpacked::Nullish(value))
     }
 }
 
-impl internal::Simple<Any, bool> for Any {
+impl ISimple<InternalAny, bool> for InternalAny {
     fn to_internal(value: bool) -> Self {
-        Any(Unpacked::Boolean(value))
+        InternalAny(Unpacked::Boolean(value))
     }
 }
 
-impl internal::Simple<Any, f64> for Any {
+impl ISimple<InternalAny, f64> for InternalAny {
     fn to_internal(value: f64) -> Self {
-        Any(Unpacked::Number(value))
+        InternalAny(Unpacked::Number(value))
     }
 }
 
-impl internal::Internal for Any {
-    type String = String;
-    type BigInt = BigInt;
-    type Object = Object;
-    type Array = Array;
-    type Function = Function;
+impl IInternalAny for InternalAny {
+    type String = InternalString;
+    type BigInt = InternalBigInt;
+    type Object = InternalObject;
+    type Array = InternalArray;
+    type Function = InternalFunction;
 
     fn to_unpacked(self) -> Unpacked<Self> {
         self.0
@@ -45,7 +49,7 @@ struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone, I: Clone> internal::Container<Any> for Container<H, I> {
+impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I> {
     type Header = H;
     type Item = I;
 
@@ -72,52 +76,42 @@ impl<H: Clone, I: Clone> internal::Container<Any> for Container<H, I> {
     }
 }
 
-type String = Container<(), u16>;
+type InternalString = Container<(), u16>;
 
-impl internal::Complex<Any> for String {
-    fn to_internal(self) -> Any {
-        Any(Unpacked::String(super::String(self)))
+impl IComplex<InternalAny> for InternalString {
+    fn to_internal(self) -> InternalAny {
+        InternalAny(Unpacked::String(String(self)))
     }
 }
 
-impl internal::String<Any> for String {}
+type InternalBigInt = Container<Sign, u64>;
 
-type BigInt = Container<Sign, u64>;
-
-impl internal::BigInt<Any> for BigInt {}
-
-impl internal::Complex<Any> for BigInt {
-    fn to_internal(self) -> Any {
-        Any(Unpacked::BigInt(super::BigInt(self)))
+impl IComplex<InternalAny> for InternalBigInt {
+    fn to_internal(self) -> InternalAny {
+        InternalAny(Unpacked::BigInt(BigInt(self)))
     }
 }
 
-type Object = Container<(), Property<Any>>;
+type InternalObject = Container<(), Property<InternalAny>>;
 
-impl internal::Object<Any> for Object {}
-
-impl internal::Complex<Any> for Object {
-    fn to_internal(self) -> Any {
-        Any(Unpacked::Object(super::Object(self)))
+impl IComplex<InternalAny> for InternalObject {
+    fn to_internal(self) -> InternalAny {
+        InternalAny(Unpacked::Object(Object(self)))
     }
 }
 
-type Array = Container<(), super::Any<Any>>;
+type InternalArray = Container<(), super::Any<InternalAny>>;
 
-impl internal::Array<Any> for Array {}
-
-impl internal::Complex<Any> for Array {
-    fn to_internal(self) -> Any {
-        Any(Unpacked::Array(super::Array(self)))
+impl IComplex<InternalAny> for InternalArray {
+    fn to_internal(self) -> InternalAny {
+        InternalAny(Unpacked::Array(Array(self)))
     }
 }
 
-type Function = Container<internal::FunctionHeader<Any>, u8>;
+type InternalFunction = Container<FunctionHeader<InternalAny>, u8>;
 
-impl internal::Function<Any> for Function {}
-
-impl internal::Complex<Any> for Function {
-    fn to_internal(self) -> Any {
-        Any(Unpacked::Function(super::Function(self)))
+impl IComplex<InternalAny> for InternalFunction {
+    fn to_internal(self) -> InternalAny {
+        InternalAny(Unpacked::Function(Function(self)))
     }
 }

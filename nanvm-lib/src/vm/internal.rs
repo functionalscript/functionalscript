@@ -1,6 +1,6 @@
-use crate::{nullish::Nullish, sign::Sign, vm::Unpacked};
+use crate::{nullish::Nullish, sign::Sign, vm::{FunctionHeader, Unpacked}};
 
-pub trait Container<A: Internal>: Sized + Clone {
+pub trait IContainer<A: IInternalAny>: Sized + Clone {
     //
     type Header;
     type Item;
@@ -18,7 +18,7 @@ pub trait Container<A: Internal>: Sized + Clone {
     }
 }
 
-pub trait Complex<A: Internal>: Container<A> {
+pub trait IComplex<A: IInternalAny>: IContainer<A> {
     fn to_internal(self) -> A;
     // extension:
     fn to_any(self) -> super::Any<A> {
@@ -26,19 +26,7 @@ pub trait Complex<A: Internal>: Container<A> {
     }
 }
 
-pub trait String<A: Internal>: Complex<A, Header = (), Item = u16> {}
-
-pub trait BigInt<A: Internal>: Complex<A, Header = Sign, Item = u64> {}
-
-pub trait Object<A: Internal>: Complex<A, Header = (), Item = super::Property<A>> {}
-
-pub trait Array<A: Internal>: Complex<A, Header = (), Item = super::Any<A>> {}
-
-pub type FunctionHeader<A> = (super::String<A>, u32);
-
-pub trait Function<A: Internal>: Complex<A, Header = FunctionHeader<A>, Item = u8> {}
-
-pub trait Simple<A: Internal, T> {
+pub trait ISimple<A: IInternalAny, T> {
     fn to_internal(value: T) -> A;
     // extension:
     fn to_any(value: T) -> super::Any<A> {
@@ -46,15 +34,15 @@ pub trait Simple<A: Internal, T> {
     }
 }
 
-pub trait Internal:
-    Sized + Clone + Simple<Self, Nullish> + Simple<Self, bool> + Simple<Self, f64>
+pub trait IInternalAny:
+    Sized + Clone + ISimple<Self, Nullish> + ISimple<Self, bool> + ISimple<Self, f64>
 {
     // types
-    type String: String<Self>;
-    type BigInt: BigInt<Self>;
-    type Object: Object<Self>;
-    type Array: Array<Self>;
-    type Function: Function<Self>;
+    type String: IComplex<Self, Header = (), Item = u16>;
+    type BigInt: IComplex<Self, Header = Sign, Item = u64>;
+    type Object: IComplex<Self, Header = (), Item = super::Property<Self>>;
+    type Array: IComplex<Self, Header = (), Item = super::Any<Self>>;
+    type Function: IComplex<Self, Header = FunctionHeader<Self>, Item = u8>;
     //
     fn to_unpacked(self) -> Unpacked<Self>;
 }
