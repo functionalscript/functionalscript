@@ -3,7 +3,9 @@ use std::rc::Rc;
 use crate::{
     sign::Sign,
     vm::{
-        internal::{IContainer, IInternalAny}, unpacked::Unpacked, Any, FunctionHeader, Property
+        internal::{IContainer, IInternalAny},
+        unpacked::Unpacked,
+        Any, FunctionHeader, Property,
     },
 };
 
@@ -34,8 +36,7 @@ struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I>
-{
+impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I> {
     type Header = H;
     type Item = I;
 

@@ -8,7 +8,10 @@ use crate::vm::{internal::IInternalAny, unpacked::Unpacked};
 pub struct Any<A: IInternalAny>(pub A);
 
 trait ToAny {
-    fn to_any<A: IInternalAny>(self) -> Any<A> where Self: Into<A> {
+    fn to_any<A: IInternalAny>(self) -> Any<A>
+    where
+        Self: Into<A>,
+    {
         Any(self.into())
     }
 }

@@ -3,13 +3,19 @@
 ## Internal Traits
 
 ```rust
-trait Any;
+trait IContainer;
+trait IInternalAny {
+    type InternalString;
+    // ...
+}
 ```
 
 ## Types
 
-Concrete type.
+Concrete types.
 
 ```rust
-struct Any<T: internal::Any>;
+struct Any<T: IInternalAny>;
+struct String<T: IInternalAny>;
+// ...
 ```

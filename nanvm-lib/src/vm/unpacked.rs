@@ -31,7 +31,6 @@ impl<A: IInternalAny> From<bool> for Unpacked<A> {
     fn from(value: bool) -> Self {
         Unpacked::Boolean(value)
     }
-
 }
 impl<A: IInternalAny> From<f64> for Unpacked<A> {
     fn from(value: f64) -> Self {
