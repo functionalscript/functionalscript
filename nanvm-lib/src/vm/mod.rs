@@ -2,76 +2,30 @@ pub mod internal;
 pub mod naive;
 pub mod unpacked;
 
-use crate::{
-    nullish::Nullish,
-    vm::{
-        internal::IInternalAny,
-        unpacked::Unpacked,
-    },
-};
+use crate::vm::{internal::IInternalAny, unpacked::Unpacked};
 
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
 
-impl<A: IInternalAny> From<Nullish> for Any<A> {
-    fn from(value: Nullish) -> Self {
-        Any(value.into())
+trait ToAny {
+    fn to_any<A: IInternalAny>(self) -> Any<A> where Self: Into<A> {
+        Any(self.into())
     }
 }
 
-impl<A: IInternalAny> From<bool> for Any<A> {
-    fn from(value: bool) -> Self {
-        Any(value.into())
-    }
-}
-
-impl<A: IInternalAny> From<f64> for Any<A> {
-    fn from(value: f64) -> Self {
-        Any(value.into())
-    }
-}
-
-impl<A: IInternalAny> From<String<A>> for Any<A> {
-    fn from(value: String<A>) -> Self {
-        Any(value.into())
-    }
-}
-
-impl<A: IInternalAny> From<BigInt<A>> for Any<A> {
-    fn from(value: BigInt<A>) -> Self {
-        Any(value.into())
-    }
-}
-
-impl<A: IInternalAny> From<Object<A>> for Any<A> {
-    fn from(value: Object<A>) -> Self {
-        Any(value.into())
-    }
-}
-
-impl<A: IInternalAny> From<Array<A>> for Any<A> {
-    fn from(value: Array<A>) -> Self {
-        Any(value.into())
-    }
-}
-
-impl<A: IInternalAny> From<Function<A>> for Any<A> {
-    fn from(value: Function<A>) -> Self {
-        Any(value.into())
-    }
-}
+impl<T> ToAny for T {}
 
 impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
     fn from(value: Unpacked<A>) -> Self {
         match value {
-            Unpacked::Nullish(n) => n.into(),
-            Unpacked::Boolean(b) => b.into(),
-            Unpacked::Number(n) => n.into(),
-            Unpacked::String(s) => s.into(),
-            Unpacked::BigInt(i) => i.into(),
-            Unpacked::Object(o) => o.into(),
-            Unpacked::Array(a) => a.into(),
-            Unpacked::Function(f) => f.into(),
+            Unpacked::Nullish(n) => n.to_any(),
+            Unpacked::Boolean(b) => b.to_any(),
+            Unpacked::Number(n) => n.to_any(),
+            Unpacked::String(s) => s.to_any(),
+            Unpacked::BigInt(i) => i.to_any(),
+            Unpacked::Object(o) => o.to_any(),
+            Unpacked::Array(a) => a.to_any(),
+            Unpacked::Function(f) => f.to_any(),
         }
     }
 }
