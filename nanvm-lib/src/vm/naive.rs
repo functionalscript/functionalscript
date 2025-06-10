@@ -3,9 +3,7 @@ use std::rc::Rc;
 use crate::{
     sign::Sign,
     vm::{
-        internal::{IContainer, IInternalAny},
-        unpacked::Unpacked,
-        Array, BigInt, Function, FunctionHeader, Object, Property
+        internal::{IContainer, IInternalAny}, unpacked::Unpacked, Any, FunctionHeader, Property
     },
 };
 
@@ -19,11 +17,11 @@ impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
 }
 
 impl IInternalAny for InternalAny {
-    type InternalString = InternalString;
-    type InternalBigInt = InternalBigInt;
-    type InternalObject = InternalObject;
-    type InternalArray = InternalArray;
-    type InternalFunction = InternalFunction;
+    type InternalString = Container<(), u16>;
+    type InternalBigInt = Container<Sign, u64>;
+    type InternalObject = Container<(), Property<InternalAny>>;
+    type InternalArray = Container<(), Any<InternalAny>>;
+    type InternalFunction = Container<FunctionHeader<InternalAny>, u8>;
 
     fn to_unpacked(self) -> Unpacked<Self> {
         self.0
@@ -63,13 +61,3 @@ impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I>
         self.items[i].clone()
     }
 }
-
-type InternalString = Container<(), u16>;
-
-type InternalBigInt = Container<Sign, u64>;
-
-type InternalObject = Container<(), Property<InternalAny>>;
-
-type InternalArray = Container<(), super::Any<InternalAny>>;
-
-type InternalFunction = Container<FunctionHeader<InternalAny>, u8>;
