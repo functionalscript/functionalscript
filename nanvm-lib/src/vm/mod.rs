@@ -1,8 +1,16 @@
-use crate::{nullish::Nullish, vm::{internal::{Container, Internal}, unpacked::Unpacked}};
-
 pub mod internal;
+pub mod naive;
 pub mod unpacked;
 
+use crate::{
+    nullish::Nullish,
+    vm::{
+        internal::{Container, Internal},
+        unpacked::Unpacked,
+    },
+};
+
+#[derive(Clone)]
 pub struct Any<A: Internal>(pub A);
 
 impl<A: Internal> From<Nullish> for Any<A> {
@@ -68,14 +76,19 @@ impl<A: Internal> From<Unpacked<A>> for Any<A> {
     }
 }
 
+#[derive(Clone)]
 pub struct String<A: Internal>(pub A::String);
 
+#[derive(Clone)]
 pub struct BigInt<A: Internal>(pub A::BigInt);
 
+#[derive(Clone)]
 pub struct Object<A: Internal>(pub A::Object);
 
+#[derive(Clone)]
 pub struct Array<A: Internal>(pub A::Array);
 
+#[derive(Clone)]
 pub struct Function<A: Internal>(pub A::Function);
 
 pub type Property<A> = (String<A>, Any<A>);

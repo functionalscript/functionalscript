@@ -1,5 +1,9 @@
-use crate::{nullish::Nullish, vm::{internal::Internal, Any, Array, BigInt, Object, String, Function}};
+use crate::{
+    nullish::Nullish,
+    vm::{internal::Internal, Any, Array, BigInt, Function, Object, String},
+};
 
+#[derive(Clone)]
 pub enum Unpacked<A: Internal> {
     Nullish(Nullish),
     Boolean(bool),

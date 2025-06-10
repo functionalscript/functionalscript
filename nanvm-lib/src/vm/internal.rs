@@ -1,17 +1,23 @@
 use crate::{nullish::Nullish, sign::Sign, vm::Unpacked};
 
-pub trait Container<A: Internal>: Sized {
+pub trait Container<A: Internal>: Sized + Clone {
     //
     type Header;
     type Item;
     //
-    fn new<E>(header: Self::Header, i: impl IntoIterator<Item = Result<Self::Item, E>>) -> Result<Self, E>;
+    fn new<E>(
+        header: Self::Header,
+        i: impl IntoIterator<Item = Result<Self::Item, E>>,
+    ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
     fn len(&self) -> usize;
     fn items(&self, i: usize) -> Self::Item;
     //
     fn to_internal(self) -> A;
     // extension:
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     fn to_any(self) -> super::Any<A> {
         super::Any(self.to_internal())
     }
@@ -37,7 +43,9 @@ pub trait Simple<A: Internal, T> {
     }
 }
 
-pub trait Internal: Sized + Simple<Self, Nullish> + Simple<Self, bool> + Simple<Self, f64> {
+pub trait Internal:
+    Sized + Clone + Simple<Self, Nullish> + Simple<Self, bool> + Simple<Self, f64>
+{
     // types
     type String: String<Self>;
     type BigInt: BigInt<Self>;
@@ -45,5 +53,5 @@ pub trait Internal: Sized + Simple<Self, Nullish> + Simple<Self, bool> + Simple<
     type Array: Array<Self>;
     type Function: Function<Self>;
     //
-    fn to_unpacked(&self) -> Unpacked<Self>;
+    fn to_unpacked(self) -> Unpacked<Self>;
 }
