@@ -47,6 +47,12 @@ impl<A: Internal> From<Array<A>> for Any<A> {
     }
 }
 
+impl<A: Internal> From<Function<A>> for Any<A> {
+    fn from(value: Function<A>) -> Self {
+        value.0.to_any()
+    }
+}
+
 impl<A: Internal> From<Unpacked<A>> for Any<A> {
     fn from(value: Unpacked<A>) -> Self {
         match value {
@@ -57,6 +63,7 @@ impl<A: Internal> From<Unpacked<A>> for Any<A> {
             Unpacked::BigInt(i) => i.into(),
             Unpacked::Object(o) => o.into(),
             Unpacked::Array(a) => a.into(),
+            Unpacked::Function(f) => f.into(),
         }
     }
 }
@@ -68,5 +75,7 @@ pub struct BigInt<A: Internal>(pub A::BigInt);
 pub struct Object<A: Internal>(pub A::Object);
 
 pub struct Array<A: Internal>(pub A::Array);
+
+pub struct Function<A: Internal>(pub A::Function);
 
 pub type Property<A> = (String<A>, Any<A>);

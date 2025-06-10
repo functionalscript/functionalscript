@@ -1,4 +1,4 @@
-use crate::{nullish::Nullish, vm::{internal::Internal, Any, Array, BigInt, Object, String}};
+use crate::{nullish::Nullish, vm::{internal::Internal, Any, Array, BigInt, Object, String, Function}};
 
 pub enum Unpacked<A: Internal> {
     Nullish(Nullish),
@@ -8,6 +8,7 @@ pub enum Unpacked<A: Internal> {
     BigInt(BigInt<A>),
     Object(Object<A>),
     Array(Array<A>),
+    Function(Function<A>),
 }
 
 impl<A: Internal> From<Any<A>> for Unpacked<A> {
