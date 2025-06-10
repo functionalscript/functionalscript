@@ -76,10 +76,6 @@ impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
     }
 }
 
-pub trait IWrap<T> {
-    fn wrap(self) -> T;
-}
-
 #[derive(Clone)]
 pub struct String<A: IInternalAny>(pub A::InternalString);
 
