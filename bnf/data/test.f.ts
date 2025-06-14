@@ -19,6 +19,11 @@ export default {
             const terminalRangeRule = range('AF')
             const result = stringify(sort)(toData(terminalRangeRule))
             if (result != '[{"":1090519110},""]') { throw result } //1090519110 = 65 * 2^24 + 70
+        },
+        () => {
+            const sequenceRangeRule = [range('AF'), range('af')]
+            const result = stringify(sort)(toData(sequenceRangeRule))
+            if (result != '[{"":["0","1"],"0":1090519110,"1":1627390054},""]') { throw result }
         }
     ],
     example: () => {
