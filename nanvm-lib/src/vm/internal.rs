@@ -16,9 +16,29 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     fn header(&self) -> &Self::Header;
     fn len(&self) -> usize;
     fn at(&self, i: usize) -> Self::Item;
+    fn ptr_eq(&self, other: &Self) -> bool;
     // extensions
     fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+    fn deep_eq(&self, b: &Self) -> bool
+        where
+            Self::Header: PartialEq,
+            Self::Item: PartialEq,
+    {
+        if self.header() != b.header() {
+            return false;
+        }
+        let len = self.len();
+        if len != b.len() {
+            return false;
+        }
+        for i in 0..len {
+            if self.at(i) != b.at(i) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 

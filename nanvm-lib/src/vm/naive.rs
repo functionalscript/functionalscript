@@ -30,13 +30,13 @@ impl IInternalAny for InternalAny {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 struct Container<H, I> {
     header: H,
     items: Rc<[I]>,
 }
 
-impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I> {
+impl<H: Clone + PartialEq, I: Clone> IContainer<InternalAny> for Container<H, I> {
     type Header = H;
     type Item = I;
 
@@ -60,5 +60,10 @@ impl<H: Clone, I: Clone> IContainer<InternalAny> for Container<H, I> {
 
     fn at(&self, i: usize) -> Self::Item {
         self.items[i].clone()
+    }
+
+    fn ptr_eq(&self, other: &Self) -> bool {
+        self.header == other.header &&
+        Rc::ptr_eq(&self.items, &other.items)
     }
 }
