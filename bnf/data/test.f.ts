@@ -38,11 +38,8 @@ export default {
         },        
         () => {
             const lazyRule = () => 'true'
-            const f = () => {
-                const lazyRule0 = () => 'false'
-                return lazyRule0
-            }
-            const sequence = [lazyRule, f()]
+            const lazyRule0 = () => 'false'
+            const sequence = [lazyRule, lazyRule0]
             const result = stringify(sort)(toData(sequence))
             const expected = '[{"":["lazyRule","lazyRule0"],"0":1946157172,"1":1912602738,"2":1962934389,"3":1694498917,"4":1711276134,"5":1627390049,"6":1811939436,"7":1929379955,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]'
             if (result != expected) { throw [result, expected] }
