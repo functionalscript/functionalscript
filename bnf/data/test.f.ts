@@ -56,6 +56,14 @@ export default {
         const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
         if (result != expected) { throw [result, expected] }                   
     },
+    bunTestFail: () => {
+        const a = () => 'a'
+        const b = () => 'b'
+        const s = [a, b]
+        const result = stringify(sort)(toData(s))
+        const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
+        if (result != expected) { throw [result, expected] }                   
+    },
     example: () => {
         const grammar = {
             space: 0x000020_000020,
