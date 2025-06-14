@@ -1,9 +1,10 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
-import type {
-    DataRule,
-    Rule as FRule,
-    Sequence as FSequence,
+import { map, toArray } from '../../types/list/module.f.ts'
+import {
+oneEncode,
+    type DataRule,
+    type Rule as FRule,
+    type Sequence as FSequence,
 } from '../module.f.ts'
 
 // The same as functional TerminalRange
@@ -76,7 +77,7 @@ const variant = (fr: FRule): NewRule => map => {
 const data = (dr: DataRule): NewRule => {
     switch (typeof dr) {
         case 'string': {
-            return sequence(toArray(stringToCodePointList(dr)))
+            return sequence(toArray(map(oneEncode)(stringToCodePointList(dr))))
         }
         case 'number':
             return m => [m, {}, dr]
