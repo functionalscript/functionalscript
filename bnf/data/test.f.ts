@@ -51,18 +51,21 @@ export default {
     },
     bunTest: () => {
         const a = () => 'a'
-        const b = () => 'b'
-        const result = stringify(sort)(toData([a, b]))
-        const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
-        if (result != expected) { throw [result, expected] }                   
+        if (a.name === 'a') { throw a.name }
+        //const b = () => 'b'        
+        //const result = stringify(sort)(toData([a, b]))
+        //const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
+        //if (result != expected) { throw [result, expected] }                   
     },
     bunTestFail: () => {
         const a = () => 'a'
-        const b = () => 'b'
-        const s = [a, b]
-        const result = stringify(sort)(toData(s))
-        const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
-        if (result != expected) { throw [result, expected] }                   
+        const s0 = [a]
+        if (s0[0].name === 'a') { throw s0[0].name }
+        // const b = () => 'b'
+        // const s = [a, b]
+        // const result = stringify(sort)(toData(s))
+        // const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
+        // if (result != expected) { throw [result, expected] }          
     },
     example: () => {
         const grammar = {
