@@ -5,10 +5,10 @@ use crate::{
 };
 
 pub trait IContainer<A: IInternalAny>: Sized + Clone {
-    //
+    // types
     type Header;
     type Item;
-    //
+    // functions
     fn new<E>(
         header: Self::Header,
         i: impl IntoIterator<Item = Result<Self::Item, E>>,
@@ -16,7 +16,7 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     fn header(&self) -> &Self::Header;
     fn len(&self) -> usize;
     fn at(&self, i: usize) -> Self::Item;
-    // extension:
+    // extensions
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -40,6 +40,6 @@ pub trait IInternalAny:
     type InternalObject: IContainer<Self, Header = (), Item = super::Property<Self>>;
     type InternalArray: IContainer<Self, Header = (), Item = super::Any<Self>>;
     type InternalFunction: IContainer<Self, Header = FunctionHeader<Self>, Item = u8>;
-    //
+    // functions
     fn to_unpacked(self) -> Unpacked<Self>;
 }

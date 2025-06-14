@@ -7,7 +7,7 @@ use crate::vm::{internal::IInternalAny, unpacked::Unpacked};
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
 
-trait ToAny {
+trait AnyEx {
     fn to_any<A: IInternalAny>(self) -> Any<A>
     where
         Self: Into<A>,
@@ -16,7 +16,7 @@ trait ToAny {
     }
 }
 
-impl<T> ToAny for T {}
+impl<T> AnyEx for T {}
 
 impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
     fn from(value: Unpacked<A>) -> Self {
