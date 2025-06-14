@@ -39,8 +39,8 @@ export default {
         () => {
             const lazyRule = () => 'true'
             const f = () => {
-                const lazyRule = () => 'false'
-                return lazyRule
+                const lazyRule2 = () => 'false'
+                return lazyRule2
             }
             const sequence = [lazyRule, f()]
             const result = stringify(sort)(toData(sequence))
