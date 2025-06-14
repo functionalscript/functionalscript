@@ -33,7 +33,8 @@ export default {
         () => {
             const varintRule = { true: 'true', false: 'false'}
             const result = stringify(sort)(toData(varintRule))
-            if (result != '[{"":{"false":"5","true":"0"},"0":["1","2","3","4"],"1":1946157172,"2":1912602738,"3":1962934389,"4":1694498917,"5":["6","7","8","9","4"],"6":1711276134,"7":1627390049,"8":1811939436,"9":1929379955},""]') { throw result }                       
+            const expected = '[{"":{"false":"5","true":"0"},"0":["1","2","3","4"],"1":1946157172,"2":1912602738,"3":1962934389,"4":1694498917,"5":["6","7","8","9","4"],"6":1711276134,"7":1627390049,"8":1811939436,"9":1929379955},""]'
+            if (result != expected) { throw [result, expected] }
         },        
         () => {
             const lazyRule = () => 'true'
@@ -43,7 +44,8 @@ export default {
             }
             const sequence = [lazyRule, f()]
             const result = stringify(sort)(toData(sequence))
-            if (result != '[{"":["lazyRule","lazyRule0"],"0":1946157172,"1":1912602738,"2":1962934389,"3":1694498917,"4":1711276134,"5":1627390049,"6":1811939436,"7":1929379955,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]') { throw result }            
+            const expected = '[{"":["lazyRule","lazyRule0"],"0":1946157172,"1":1912602738,"2":1962934389,"3":1694498917,"4":1711276134,"5":1627390049,"6":1811939436,"7":1929379955,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]'
+            if (result != expected) { throw [result, expected] }
         },
     ],
     variantTest: () => {
