@@ -49,6 +49,13 @@ export default {
         const result = stringify(sort)(toData(varintRule))
         if (result != '[{"":{"a":"0","b":"2"},"0":["1"],"1":1627390049,"2":["3"],"3":1644167266},""]') { throw result }                       
     },
+    bunTest: () => {
+        const a = () => 'a'
+        const b = () => 'b'
+        const result = stringify(sort)(toData([a, b]))
+        const expected = '[{"":["a","b"],"0":1627390049,"1":1644167266,"a":["0"],"b":["1"]},""]'
+        if (result != expected) { throw [result, expected] }                   
+    },
     example: () => {
         const grammar = {
             space: 0x000020_000020,
