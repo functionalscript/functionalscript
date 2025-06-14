@@ -1,7 +1,7 @@
 import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import {
-oneEncode,
+    oneEncode,
     type DataRule,
     type Rule as FRule,
     type Sequence as FSequence,
@@ -74,10 +74,12 @@ const variant = (fr: FRule): NewRule => map => {
     return [map, set, rule]
 }
 
+const mapOneEncode = map(oneEncode)
+
 const data = (dr: DataRule): NewRule => {
     switch (typeof dr) {
         case 'string': {
-            return sequence(toArray(map(oneEncode)(stringToCodePointList(dr))))
+            return sequence(toArray(mapOneEncode(stringToCodePointList(dr))))
         }
         case 'number':
             return m => [m, {}, dr]
