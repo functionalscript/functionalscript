@@ -24,7 +24,22 @@ export default {
             const sequenceRangeRule = [range('AF'), range('af')]
             const result = stringify(sort)(toData(sequenceRangeRule))
             if (result != '[{"":["0","1"],"0":1090519110,"1":1627390054},""]') { throw result }
-        }
+        },
+        () => {
+            const lazyRule = () => 'true'
+            const result = stringify(sort)(toData(lazyRule))
+            if (result != '[{"":116,"0":114,"1":117,"2":101,"lazyRule":["","0","1","2"]},"lazyRule"]') { throw result }
+        },
+        () => {
+            const lazyRule = () => 'true'
+            const f = () => {
+                const lazyRule = () => 'false'
+                return lazyRule
+            }
+            const sequence = [lazyRule, f()]
+            const result = stringify(sort)(toData(sequence))
+            if (result != '[{"":["lazyRule","lazyRule0"],"0":116,"1":114,"2":117,"3":101,"4":102,"5":97,"6":108,"7":115,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]') { throw result }
+        },
     ],
     example: () => {
         const grammar = {
