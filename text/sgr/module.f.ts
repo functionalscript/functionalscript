@@ -1,6 +1,8 @@
 // Co control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
+import type { Io, Writable } from "../../io/module.f.ts"
+
 export const backspace: string = '\x08'
 
 //
@@ -51,3 +53,24 @@ export const createConsoleText = (stdout: Stdout): WriteText => {
     }
     return f('')
 }
+
+export type Console = {
+    readonly text: (s: string) => void
+    readonly csi: (s: string) => void
+}
+
+export const console = ({ fs: { writeSync } }: Io) => (w: Writable): Console => {
+    const { isTTY } = w
+    const text = (s: string) => writeSync(w.fd, s)
+    return isTTY ? {
+        text,
+        csi: text
+    } : {
+        text,
+        csi: () => {}
+    }
+}
+
+export const stdio = (io: Io): Console => console(io)(io.process.stdout)
+
+export const sterr = (io: Io): Console => console(io)(io.process.stderr)
