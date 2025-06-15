@@ -11,6 +11,8 @@ type End = 'm'
 
 type Csi = (code: number | string) => string
 
+const begin = '\x1b['
+
 /**
  * Control Sequence Introducer (CSI) escape sequence.
  * https://en.wikipedia.org/wiki/ANSI_escape_code#Control_Sequence_Introducer_commands
@@ -19,7 +21,7 @@ type Csi = (code: number | string) => string
  * @returns A function that takes a code (number or string) and returns the complete ANSI escape sequence.
  */
 export const csi = (end: End): Csi => code =>
-    `\x1b[${code.toString()}${end}`
+    `${begin}${code.toString()}${end}`
 
 /**
  * Specialization of CSI for Select Graphic Rendition (SGR) sequences.
@@ -54,23 +56,15 @@ export const createConsoleText = (stdout: Stdout): WriteText => {
     return f('')
 }
 
-export type Console = {
-    readonly text: (s: string) => void
-    readonly csi: (s: string) => void
-}
+export type CsiConsole = (s: string) => void
 
-export const console = ({ fs: { writeSync } }: Io) => (w: Writable): Console => {
+export const console = ({ fs: { writeSync } }: Io) => (w: Writable): CsiConsole => {
     const { isTTY } = w
-    const text = (s: string) => writeSync(w.fd, s)
-    return isTTY ? {
-        text,
-        csi: text
-    } : {
-        text,
-        csi: () => {}
-    }
+    return isTTY
+        ? (s: string) => writeSync(w.fd, s + '\n')
+        : (s: string) => writeSync(w.fd, s.replace(/\x1b\[[0-9;]*m/g, '') + '\n')
 }
 
-export const stdio = (io: Io): Console => console(io)(io.process.stdout)
+export const stdio = (io: Io): CsiConsole => console(io)(io.process.stdout)
 
-export const sterr = (io: Io): Console => console(io)(io.process.stderr)
+export const stderr = (io: Io): CsiConsole => console(io)(io.process.stderr)
