@@ -7,6 +7,12 @@ use crate::vm::{internal::{IContainer, IInternalAny}, unpacked::Unpacked};
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
 
+impl<A: IInternalAny> PartialEq for Any<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
+    }
+}
+
 trait AnyEx {
     fn to_any<A: IInternalAny>(self) -> Any<A>
     where
@@ -79,5 +85,15 @@ pub struct Function<A: IInternalAny>(pub A::InternalFunction);
 impl<A: IInternalAny> PartialEq for Function<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::vm::{internal::IInternalAny, Any, AnyEx};
+
+    fn eq_test<A: IInternalAny>() {
+        let x: Any<A> = 0.5.to_any();
+        let _ = x == x;
     }
 }

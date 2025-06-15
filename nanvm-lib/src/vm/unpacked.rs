@@ -15,6 +15,22 @@ pub enum Unpacked<A: IInternalAny> {
     Function(Function<A>),
 }
 
+impl<A: IInternalAny> PartialEq for Unpacked<A> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Nullish(l0), Self::Nullish(r0)) => l0 == r0,
+            (Self::Boolean(l0), Self::Boolean(r0)) => l0 == r0,
+            (Self::Number(l0), Self::Number(r0)) => l0 == r0,
+            (Self::String(l0), Self::String(r0)) => l0 == r0,
+            (Self::BigInt(l0), Self::BigInt(r0)) => l0 == r0,
+            (Self::Object(l0), Self::Object(r0)) => l0 == r0,
+            (Self::Array(l0), Self::Array(r0)) => l0 == r0,
+            (Self::Function(l0), Self::Function(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+}
+
 impl<A: IInternalAny> From<Any<A>> for Unpacked<A> {
     fn from(value: Any<A>) -> Self {
         value.0.to_unpacked()
