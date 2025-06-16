@@ -7,6 +7,7 @@ export const createVirtualIo = (files: OrderedMap<string>): Io => ({
         error: (..._d: unknown[]) => {}
     },
     fs: {
+        writeSync: (fd:number, s: string) => {},
         writeFileSync: (_file: string, _data: string) => { },
         readFileSync: (path: string, _options: BufferEncoding) => { return at(path)(files) },
         existsSync: (path: string) => { return at(path)(files) !== null },
@@ -24,6 +25,8 @@ export const createVirtualIo = (files: OrderedMap<string>): Io => ({
         env: {},
         exit: n => { throw n },
         cwd: () => '',
+        stdout: { fd: 1, isTTY: false },
+        stderr: { fd: 2, isTTY: false },
     },
     asyncImport: () => Promise.reject(),
     performance: {

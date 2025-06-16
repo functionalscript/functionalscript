@@ -1,5 +1,5 @@
 import { entries, fold } from '../../types/list/module.f.ts'
-import { reset, fgGreen, fgRed, bold } from '../../text/sgr/module.f.ts'
+import { reset, fgGreen, fgRed, bold, type CsiConsole, stdio, stderr } from '../../text/sgr/module.f.ts'
 import type * as Result from '../../types/result/module.f.ts'
 import type { Io, Performance } from '../../io/module.f.ts'
 import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
@@ -8,7 +8,9 @@ type DependencyMap = {
    readonly[k in string]?: Module
 }
 
-type Log<T> = (v: string) => (state: T) => T
+// type Log<T> = (v: string) => (state: T) => T
+
+type Log<T> = CsiConsole
 
 type Measure<T> = <R>(f: () => R) => (state: T) => readonly[R, number, T]
 
@@ -69,14 +71,14 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
                             if (isGitHub) {
                                 // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
                                 // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                                state = error(`::error file=${k},line=1,title=[3]['a']()::${r}`)(state)
+                                error(`::error file=${k},line=1,title=[3]['a']()::${r}`)
                             } else {
-                                state = error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)(state)
-                                state = error(`${fgRed}${r}${reset}`)(state)
+                                error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
+                                error(`${fgRed}${r}${reset}`)
                             }
                         } else {
                             ts = addPass(delta)(ts)
-                            state = log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`)(state)
+                            log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`)
                         }
                         [ts, state] = next(r)([ts, state])
                     }
@@ -87,7 +89,7 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
                         const f
                             : (k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>
                             = ([k, v]) => ([time, state]) => {
-                            state = log(`${i}${k}:`)(state);
+                            log(`${i}${k}:`);
                             [time, state] = next(v)([time, state])
                             return [time, state]
                         }
@@ -103,7 +105,7 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
         }
         return ([ts, state]) => {
             if (isTest(k)) {
-                state = log(`testing ${k}`)(state);
+                log(`testing ${k}`);
                 [ts, state] = test('| ')(v.default)([ts, state])
             }
             return [ts, state]
@@ -114,8 +116,8 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
         = { time: 0, pass: 0, fail: 0 };
     [ts, state] = fold(f)([ts, state])(Object.entries(moduleMap))
     const fgFail = ts.fail === 0 ? fgGreen : fgRed
-    state = log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)(state)
-    state = log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)(state);
+    log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)
+    log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)
     return [ts.fail !== 0 ? 1 : 0, state]
 }
 
@@ -133,8 +135,8 @@ export const measure = (p: Performance) => <R>(f: () => R) => <T>(state: T): rea
 
 export const main = async(io: Io): Promise<number> => test({
         moduleMap: await loadModuleMap(io),
-        log: anyLog(io.console.log),
-        error: anyLog(io.console.error),
+        log: stdio(io), // anyLog(io.console.log),
+        error: stderr(io), // anyLog(io.console.error),
         measure: measure(io.performance),
         tryCatch: io.tryCatch,
         env: env(io),
