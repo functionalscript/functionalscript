@@ -66,7 +66,11 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
     fn is_object(&self) -> bool;
     fn is_function(&self) -> bool;
     fn is_primitive(&self) -> bool {
-        self.is_nullish() || self.is_boolean() || self.is_number() || self.is_string16() || self.is_bigint()
+        self.is_nullish()
+            || self.is_boolean()
+            || self.is_number()
+            || self.is_string16()
+            || self.is_bigint()
     }
 
     fn to_string(self) -> Self::String16 {
