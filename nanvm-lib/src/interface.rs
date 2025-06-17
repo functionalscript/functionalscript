@@ -56,7 +56,16 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         C::try_from_unknown(self)
     }
 
+    // Inspection methods - allow to check the type of the value without unpacking it.
+    fn is_nullish(&self) -> bool;
+    fn is_boolean(&self) -> bool;
+    fn is_number(&self) -> bool;
     fn is_string16(&self) -> bool;
+    fn is_bigint(&self) -> bool;
+    fn is_array(&self) -> bool;
+    fn is_object(&self) -> bool;
+    fn is_function(&self) -> bool;
+
     fn to_string(self) -> Self::String16 {
         if let Some(simple) = self.try_to_simple() {
             return simple.to_string::<Self>();
@@ -64,14 +73,59 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         if let Ok(v) = self.clone().try_to::<Self::String16>() {
             return v;
         }
-        if self.clone().try_to::<Self::Array>().is_ok() {
-            return "".to_string16::<Self>();
+        if let Ok(v) = self.clone().try_to::<Self::Array>() {
+            if v.items().is_empty() {
+                return "".to_string16::<Self>();
+            }
+            let mut s = Self::String16::new((), std::iter::empty());
+            for item in v.items() {
+                if !s.items().is_empty() {
+                    s = s.concat(",".to_string16::<Self>());
+                }
+                s = s.concat(item.clone().to_string());
+            }
+            return s;
         }
         if self.clone().try_to::<Self::Object>().is_ok() {
             return "[object Object]".to_string16::<Self>();
         }
         // bigint and function
         todo!()
+    }
+
+    fn coerce_to_primitive(v: Self) -> Result<Self, Self> {
+        // See https://tc39.es/ecma262/multipage/abstract-operations.html#sec-toprimitive,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#primitive_coercion
+
+        // If the value is of a primitive type, we can return it directly.
+        if v.is_nullish() || v.is_boolean() || v.is_number() || v.is_string16() || v.is_bigint() {
+            return Ok(v);
+        }
+
+        // We are here dealing with an "object" (an object, array, or function) that can have
+        // user-defined methods for converting to a primitive value.
+
+        // TODO: inspect if v has [Symbol.toPrimitive] property; if it's not present, skip this block.
+        // If thar property is not a function, return TypeError.
+        // If it is a function, call it with "default" hint and:
+        // - if the result is a primitive value, return it;
+        // - if the result is not a primitive value, return TypeError.
+
+        // TODO: retrieve the valueOf property of v: it always exists in ECMAScript thanks to
+        // Object.prototype.valueOf, but we want to allow user-defined valueOf methods.
+        // In case valueOf is not a function, skip this block.
+        // Call valueOf and:
+        // - if the result is a primitive value, return it;
+        // - if the result is not a primitive value, ignore it, continuing to the next step.
+
+        // TODO: retrieve the toString property of v: it always exists in ECMAScript thanks to
+        // Object.prototype.toString, but we want to allow user-defined toString methods.
+        // In case toString is not a function, return TypeError.
+        // Call toString and:
+        // - if the result is a primitive value, return it (even if it's not a string);
+        // - if the result is not a primitive value, return TypeError.
+        // Here we implement poor man's analogue of this block, calling to_string on the value.
+        Ok(v.to_string().to_unknown())
     }
 
     fn to_numeric(v: Self) -> Numeric<Self> {
@@ -144,6 +198,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
     }
 
     fn add(v1: Self, v2: Self) -> Result<Self, Self> {
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Addition
+        let v1 = Self::coerce_to_primitive(v1)?;
+        let v2 = Self::coerce_to_primitive(v2)?;
         if v1.is_string16() || v2.is_string16() {
             return Ok(v1.to_string().concat(v2.to_string()).to_unknown());
         }
