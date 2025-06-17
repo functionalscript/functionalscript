@@ -65,6 +65,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
     fn is_array(&self) -> bool;
     fn is_object(&self) -> bool;
     fn is_function(&self) -> bool;
+    fn is_primitive(&self) -> bool {
+        self.is_nullish() || self.is_boolean() || self.is_number() || self.is_string16() || self.is_bigint()
+    }
 
     fn to_string(self) -> Self::String16 {
         if let Some(simple) = self.try_to_simple() {
@@ -93,12 +96,12 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
+    // Coerce to primitive value as per ECMAScript rules, returning an error if coercion fails.
     fn coerce_to_primitive(v: Self) -> Result<Self, Self> {
         // See https://tc39.es/ecma262/multipage/abstract-operations.html#sec-toprimitive,
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#primitive_coercion
 
-        // If the value is of a primitive type, we can return it directly.
-        if v.is_nullish() || v.is_boolean() || v.is_number() || v.is_string16() || v.is_bigint() {
+        if v.is_primitive() {
             return Ok(v);
         }
 
