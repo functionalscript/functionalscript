@@ -26,7 +26,7 @@ impl Simple {
                 false => "false",
             })
             .to_string16::<U>(),
-            Simple::Number(_) => todo!(),
+            Simple::Number(v) => v.to_string().to_string16::<U>(),
         }
     }
 }

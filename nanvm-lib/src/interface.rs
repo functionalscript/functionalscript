@@ -1,10 +1,32 @@
-use core::fmt;
+use core::{fmt, panic};
 use std::{
     char::decode_utf16,
     ops::{Add, Div, Mul, Shl, Shr, Sub},
 };
 
 use crate::{big_int::BigInt, nullish::Nullish, sign::Sign, simple::Simple};
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum CoercionHint {
+    Default,
+    String,
+    Number,
+}
+
+impl fmt::Display for CoercionHint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CoercionHint::Default => write!(f, "default"),
+            CoercionHint::String => write!(f, "string"),
+            CoercionHint::Number => write!(f, "number"),
+        }
+    }
+}
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum SymbolProperty {
+    ToPrimitive,
+}
 
 pub trait Container: Clone {
     type Header;
@@ -46,6 +68,13 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
     type Object: Object<Self>;
     type Function: Function<Self>;
 
+    // For now for internal exception-throwing operations (e.g. unary_plus applied to BigInt) we use
+    // an Any-wrapped string value (a message). Later on we might want to have a schematized
+    // exception Any that would carry file, line, etc. along with the message string.
+    fn exception(c: &str) -> Result<Self, Self> {
+        Err(Self::pack(Unpacked::String16(c.to_string16::<Self>())))
+    }
+
     fn pack(u: Unpacked<Self>) -> Self;
     fn unpack(self) -> Unpacked<Self>;
 
@@ -71,6 +100,12 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
             || self.is_number()
             || self.is_string16()
             || self.is_bigint()
+    }
+    fn is_object_like(&self) -> bool {
+        !self.is_primitive()
+    }
+    fn is_numeric(&self) -> bool {
+        self.is_number() || self.is_bigint()
     }
 
     fn to_string(self) -> Self::String16 {
@@ -100,225 +135,351 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
         todo!()
     }
 
-    // Coerce to primitive value as per ECMAScript rules, returning an error if coercion fails.
-    fn coerce_to_primitive(v: Self) -> Result<Self, Self> {
-        // See https://tc39.es/ecma262/multipage/abstract-operations.html#sec-toprimitive,
+    fn to_primitive(v: Self) -> Result<Self, Self> {
+        Self::to_primitive_with_hint(v, CoercionHint::Default)
+    }
+
+    fn to_primitive_with_hint(v: Self, hint: CoercionHint) -> Result<Self, Self> {
+        // See https://tc39.es/ecma262/#sec-toprimitive,
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#primitive_coercion
 
+        // If v is a primitive value already, return it.
         if v.is_primitive() {
             return Ok(v);
         }
 
-        // We are here dealing with an "object" (an object, array, or function) that can have
-        // user-defined methods for converting to a primitive value.
+        // If v has Symbol.toPrimitive:
+        // 1. Return TypeError if that property is not a function.
+        // 2. Call that function with the given hint.
+        // 3. If the result is a primitive value, return it; otherwise, return TypeError.
+        if let Some(symbol_to_primitive) = Self::get_property(&v, "@@toPrimitive") {
+            if !symbol_to_primitive.is_function() {
+                return Self::exception("TypeError: Symbol.toPrimitive is not a function");
+            }
+            let v = Self::call_method(
+                v,
+                symbol_to_primitive,
+                std::iter::once(Self::pack(Unpacked::String16(
+                    hint.to_string().to_string16::<Self>(),
+                ))),
+            )?;
+            if v.is_primitive() {
+                return Ok(v);
+            } else {
+                return Self::exception(
+                    "TypeError: Symbol.toPrimitive did not return a primitive value",
+                );
+            }
+        }
 
-        // TODO: inspect if v has [Symbol.toPrimitive] property; if it's not present, skip this block.
-        // If thar property is not a function, return TypeError.
-        // If it is a function, call it with "default" hint and:
-        // - if the result is a primitive value, return it;
-        // - if the result is not a primitive value, return TypeError.
-
-        // TODO: retrieve the valueOf property of v: it always exists in ECMAScript thanks to
-        // Object.prototype.valueOf, but we want to allow user-defined valueOf methods.
-        // In case valueOf is not a function, skip this block.
-        // Call valueOf and:
-        // - if the result is a primitive value, return it;
-        // - if the result is not a primitive value, ignore it, continuing to the next step.
-
-        // TODO: retrieve the toString property of v: it always exists in ECMAScript thanks to
-        // Object.prototype.toString, but we want to allow user-defined toString methods.
-        // In case toString is not a function, return TypeError.
-        // Call toString and:
-        // - if the result is a primitive value, return it (even if it's not a string);
-        // - if the result is not a primitive value, return TypeError.
-        // Here we implement poor man's analogue of this block, calling to_string on the value.
-        Ok(v.to_string().to_unknown())
+        Self::ordinary_to_primitive(v, hint)
     }
 
-    fn to_numeric(v: Self) -> Numeric<Self> {
-        // Here we effectively implement ECMAScript logic for an abstract operation ToNumber, see
-        // https://tc39.es/ecma262/#sec-tonumber - with the difference that TypeError exception
-        // is replaced with Numeric::BigInt variant of the result type.
-        match v.unpack() {
-            Unpacked::Nullish(n) => match n {
-                Nullish::Null => Numeric::Number(0.0),
-                Nullish::Undefined => Numeric::Number(f64::NAN),
-            },
-            Unpacked::Bool(b) => Numeric::Number(if b { 1.0 } else { 0.0 }),
-            Unpacked::Number(n) => Numeric::Number(n),
-            Unpacked::String16(s) => {
-                let items = s.items();
-                if items.is_empty() {
-                    return Numeric::Number(0.0);
-                }
-                let string: String = decode_utf16(items.iter().cloned())
-                    .map(|r| r.unwrap_or('\u{FFFD}'))
-                    .collect();
-                if let Ok(n) = string.parse::<f64>() {
-                    Numeric::Number(n)
+    fn ordinary_to_primitive(v: Self, hint: CoercionHint) -> Result<Self, Self> {
+        // See https://tc39.es/ecma262/#sec-ordinarytoprimitive
+
+        if !v.is_object_like() {
+            panic!("ordinary_to_primitive called on a non-object-like value");
+        }
+
+        // For "string" hint, we use "toString" method first, then "valueOf". Otherwise, we use
+        // "valueOf" first, then "toString". Let's do that in a for loop over two boolean values.
+        let to_string_calls = if hint == CoercionHint::String {
+            [true, false]
+        } else {
+            [false, true]
+        };
+        for to_string_call in to_string_calls {
+            if to_string_call {
+                let opt_result = Self::call_method_if_present(&v, "toString", std::iter::empty());
+                if opt_result.is_some() {
+                    let unwrapped = opt_result.unwrap()?;
+                    if unwrapped.is_primitive() {
+                        return Ok(unwrapped);
+                    }
                 } else {
-                    Numeric::Number(f64::NAN)
+                    // If the object does not have a user-defined "toString" method, we use the
+                    // prototype's toString.
+                    return Ok(v.to_string().to_unknown());
+                }
+            } else {
+                let opt_result = Self::call_method_if_present(&v, "valueOf", std::iter::empty());
+                if opt_result.is_some() {
+                    let unwrapped = opt_result.unwrap()?;
+                    if unwrapped.is_primitive() {
+                        return Ok(unwrapped);
+                    }
+                }
+                // Unlike to toString sequence, there is no 'else' here: prototype's valueOf returns
+                // the non-primitive object itself, so we don't need to do anything here.
+            }
+        }
+
+        Self::exception("TypeError: Cannot convert ordinary object to primitive value")
+    }
+
+    fn get_property(_v: &Self, _prop_name: &str) -> Option<Self> {
+        // TODO: implement get_property for real.
+        None
+    }
+
+    fn call_method_if_present(
+        v: &Self,
+        method_name: &str,
+        _arguments: impl IntoIterator<Item = Self>,
+    ) -> Option<Result<Self, Self>> {
+        match Self::get_property(v, method_name) {
+            Some(property) => {
+                if property.is_function() {
+                    Some(Self::call_method(v.clone(), property, std::iter::empty()))
+                } else {
+                    None
                 }
             }
-            Unpacked::BigInt(i) => Numeric::BigInt(i),
-            Unpacked::Array(a) => {
-                let items = a.items();
-                if items.is_empty() {
-                    return Numeric::Number(0.0);
-                }
-                if items.len() > 1 {
-                    return Numeric::Number(f64::NAN);
-                }
-                Self::to_numeric(items[0].clone())
-            }
-            // TODO: use valueOf, toString functions for Object when present.
-            Unpacked::Object(_) => Numeric::Number(f64::NAN),
-            Unpacked::Function(_) => Numeric::Number(f64::NAN),
+            None => None,
         }
     }
 
-    // For now for internal exception-throwing operations (e.g. unary_plus applied to BigInt) we use
-    // an Any-wrapped string value (a message). Later on we might want to have a schematized
-    // exception Any that would carry file, line, etc. along with the message string.
-    fn exception(c: &str) -> Result<Self, Self> {
-        Err(Self::pack(Unpacked::String16(c.to_string16::<Self>())))
+    fn call_method(
+        _v: Self,
+        _method: Self,
+        _arguments: impl IntoIterator<Item = Self>,
+    ) -> Result<Self, Self> {
+        // TODO: implement call_method for real.
+        Self::exception("Not implemented: call_method")
+    }
+
+    fn call_symbol_to_primitive(v: Self, _hint: CoercionHint) -> Result<Self, Self> {
+        // TODO: inspect if v has [Symbol.toPrimitive] property; if it's not present, return Ok(v).
+        // If that property is not a function, return TypeError.
+        // Otherwise, call it with the given hint and return the result.
+        Ok(v)
+    }
+
+    fn to_numeric(v: Self) -> Result<Self, Self> {
+        // See https://tc39.es/ecma262/#sec-tonumeric,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#numeric_coercion.
+        let primitive = Self::to_primitive(v)?;
+        if primitive.is_numeric() {
+            Ok(primitive)
+        } else if primitive.is_nullish() {
+            match primitive.unpack() {
+                Unpacked::Nullish(Nullish::Null) => return Ok(Self::pack(Unpacked::Number(0.0))),
+                Unpacked::Nullish(Nullish::Undefined) => {
+                    return Ok(Self::pack(Unpacked::Number(f64::NAN)))
+                }
+                _ => panic!("to_numeric: an unrecognized nullish value"),
+            }
+        } else if primitive.is_boolean() {
+            match primitive.unpack() {
+                Unpacked::Bool(b) => {
+                    return Ok(Self::pack(Unpacked::Number(if b { 1.0 } else { 0.0 })))
+                }
+                _ => panic!("to_numeric: an unrecognized boolean value"),
+            }
+        } else if primitive.is_string16() {
+            match primitive.unpack() {
+                Unpacked::String16(string16) => {
+                    let items = string16.items();
+                    if items.is_empty() {
+                        return Ok(Self::pack(Unpacked::Number(0.0)));
+                    }
+                    let string: String = decode_utf16(items.iter().cloned())
+                        .map(|r| r.unwrap_or('\u{FFFD}'))
+                        .collect();
+                    if let Ok(n) = string.parse::<f64>() {
+                        return Ok(Self::pack(Unpacked::Number(n)));
+                    } else {
+                        return Ok(Self::pack(Unpacked::Number(f64::NAN)));
+                    }
+                }
+                _ => panic!("to_numeric: an unrecognized string16 value"),
+            }
+        } else {
+            panic!("to_numeric: an unrecognized primitive value")
+        }
+    }
+
+    fn to_number(v: Self) -> Result<Self, Self> {
+        // https://tc39.es/ecma262/#sec-tonumber
+        // This is a helper function for unary_plus and unary_minus.
+        if v.is_number() {
+            return Ok(v);
+        }
+        if v.is_bigint() {
+            // TODO: return TypeError for Symbol as well when we implement it.
+            // BigInt cannot be converted to number directly, so we throw an exception.
+            return Self::exception("TypeError: Cannot convert a BigInt value to a number");
+        }
+        // Now when we filtered out BigInt and Symbol, to_numeric will do the job.
+        Self::to_numeric(v)
     }
 
     fn unary_plus(v: Self) -> Result<Self, Self> {
-        match Self::to_numeric(v) {
-            Numeric::Number(f) => Ok(Self::new_simple(Simple::Number(f))),
-            Numeric::BigInt(_) => {
-                Self::exception("TypeError: Cannot convert a BigInt value to a number")
-            }
-        }
+        // https://tc39.es/ecma262/#sec-unary-plus-operator
+        Self::to_number(v)
     }
 
-    fn unary_minus(v: Self) -> Self {
+    fn unary_minus(v: Self) -> Result<Self, Self> {
         // https://tc39.es/ecma262/#sec-unary-minus-operator
-        // ECMAScript requires throwing TypeError for Symbol arguments; as of now we don't support
-        // Symbol, so we don't return error results. We use unary_plus as a helper function here,
-        // handling BigInt case when the error result of unary_plus indicates that case.
-        match Self::to_numeric(v) {
-            Numeric::Number(f) => Self::new_simple(Simple::Number(-f)),
-            Numeric::BigInt(i) => Self::pack(Unpacked::BigInt(i.negate())),
+        let v = Self::to_numeric(v)?;
+        match v.unpack() {
+            Unpacked::Number(v) => Ok(Self::new_simple(Simple::Number(-v))),
+            Unpacked::BigInt(v) => Ok(Self::pack(Unpacked::BigInt(v.negate()))),
+            _ => panic!("unary_minus: an unrecognized numeric value"),
         }
     }
 
     fn add(v1: Self, v2: Self) -> Result<Self, Self> {
-        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Addition
-        let v1 = Self::coerce_to_primitive(v1)?;
-        let v2 = Self::coerce_to_primitive(v2)?;
+        // See https://tc39.es/ecma262/#sec-addition-operator-plus,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Addition.
+        let v1 = Self::to_primitive(v1)?;
+        let v2 = Self::to_primitive(v2)?;
         if v1.is_string16() || v2.is_string16() {
             return Ok(v1.to_string().concat(v2.to_string()).to_unknown());
         }
-        match Self::to_numeric(v1) {
-            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
-                Numeric::Number(_) => Self::exception(
+        let v1 = Self::to_numeric(v1)?;
+        let v2 = Self::to_numeric(v2)?;
+        match v1.unpack() {
+            Unpacked::Number(v1) => match v2.unpack() {
+                Unpacked::Number(v2) => Ok(Self::new_simple(Simple::Number(v1 + v2))),
+                Unpacked::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.add(i2)))),
+                _ => panic!("add: v2 is not a recognized numeric type"),
             },
-            Numeric::Number(f1) => match Self::to_numeric(v2) {
-                Numeric::BigInt(_) => Self::exception(
+            Unpacked::BigInt(v1) => match v2.unpack() {
+                Unpacked::Number(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 + f2))),
+                Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.add(v2)))),
+                _ => panic!("add: v2 is not a recognized numeric type"),
             },
+            _ => panic!("add: v1 is not a recognized numeric type"),
         }
     }
 
     fn sub(v1: Self, v2: Self) -> Result<Self, Self> {
-        match Self::to_numeric(v1) {
-            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
-                Numeric::Number(_) => Self::exception(
+        // See https://tc39.es/ecma262/#sec-subtraction-operator-minus,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Subtraction.
+        let v1 = Self::to_numeric(v1)?;
+        let v2 = Self::to_numeric(v2)?;
+        match v1.unpack() {
+            Unpacked::Number(v1) => match v2.unpack() {
+                Unpacked::Number(v2) => Ok(Self::new_simple(Simple::Number(v1 - v2))),
+                Unpacked::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.sub(i2)))),
+                _ => panic!("sub: v2 is not a recognized numeric type"),
             },
-            Numeric::Number(f1) => match Self::to_numeric(v2) {
-                Numeric::BigInt(_) => Self::exception(
+            Unpacked::BigInt(v1) => match v2.unpack() {
+                Unpacked::Number(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 - f2))),
+                Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.sub(v2)))),
+                _ => panic!("sub: v2 is not a recognized numeric type"),
             },
+            _ => panic!("sub: v1 is not a recognized numeric type"),
         }
     }
 
     fn mul(v1: Self, v2: Self) -> Result<Self, Self> {
-        match Self::to_numeric(v1) {
-            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
-                Numeric::Number(_) => Self::exception(
+        // See https://tc39.es/ecma262/#sec-multiplicative-operators,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Multiplication.
+        let v1 = Self::to_numeric(v1)?;
+        let v2 = Self::to_numeric(v2)?;
+        match v1.unpack() {
+            Unpacked::Number(v1) => match v2.unpack() {
+                Unpacked::Number(v2) => Ok(Self::new_simple(Simple::Number(v1 * v2))),
+                Unpacked::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.mul(i2)))),
+                _ => panic!("mul: v2 is not a recognized numeric type"),
             },
-            Numeric::Number(f1) => match Self::to_numeric(v2) {
-                Numeric::BigInt(_) => Self::exception(
+            Unpacked::BigInt(v1) => match v2.unpack() {
+                Unpacked::Number(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(f1 * f2))),
+                Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.mul(v2)))),
+                _ => panic!("mul: v2 is not a recognized numeric type"),
             },
+            _ => panic!("mul: v1 is not a recognized numeric type"),
         }
     }
 
-    fn div(num: Self, denom: Self) -> Result<Self, Self> {
-        match Self::to_numeric(num) {
-            Numeric::BigInt(inum) => match Self::to_numeric(denom) {
-                Numeric::Number(_) => Self::exception(
+    fn div(v1: Self, v2: Self) -> Result<Self, Self> {
+        // See https://tc39.es/ecma262/#sec-multiplicative-operators,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Division.
+        let v1 = Self::to_numeric(v1)?;
+        let v2 = Self::to_numeric(v2)?;
+        match v1.unpack() {
+            Unpacked::Number(v1) => match v2.unpack() {
+                Unpacked::Number(v2) => Ok(Self::new_simple(Simple::Number(v1 / v2))),
+                Unpacked::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::BigInt(idenom) => {
-                    if idenom.is_zero() {
-                        Self::exception("RangeError: Division by zero")
-                    } else {
-                        Ok(Self::pack(Unpacked::BigInt(inum.div(idenom))))
-                    }
-                }
+                _ => panic!("div: v2 is not a recognized numeric type"),
             },
-            Numeric::Number(fnum) => match Self::to_numeric(denom) {
-                Numeric::BigInt(_) => Self::exception(
+            Unpacked::BigInt(v1) => match v2.unpack() {
+                Unpacked::Number(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                Numeric::Number(fdenom) => Ok(Self::new_simple(Simple::Number(fnum / fdenom))),
+                Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.div(v2)))),
+                _ => panic!("div: v2 is not a recognized numeric type"),
             },
+            _ => panic!("div: v1 is not a recognized numeric type"),
         }
     }
 
     fn shl(v1: Self, v2: Self) -> Result<Self, Self> {
-        match Self::to_numeric(v1) {
-            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
-                Numeric::Number(_) => Self::exception(
-                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
-                ),
-                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.shl(i2)))),
-            },
-            Numeric::Number(f1) => match Self::to_numeric(v2) {
-                Numeric::BigInt(_) => Self::exception(
-                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
-                ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(
-                    ((f1 as i128) << ((f2 as i128) & 0x1F)) as f64,
+        // See https://tc39.es/ecma262/#sec-left-shift-operator,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Left_shift.
+        let v1 = Self::to_numeric(v1)?;
+        let v2 = Self::to_numeric(v2)?;
+        match v1.unpack() {
+            Unpacked::Number(v1) => match v2.unpack() {
+                Unpacked::Number(v2) => Ok(Self::new_simple(Simple::Number(
+                    ((v1 as i128) << ((v2 as i128) & 0x1F)) as f64,
                 ))),
+                Unpacked::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                _ => panic!("shl: v2 is not a recognized numeric type"),
             },
+            Unpacked::BigInt(v1) => match v2.unpack() {
+                Unpacked::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.shl(v2)))),
+                _ => panic!("div: v2 is not a recognized numeric type"),
+            },
+            _ => panic!("div: v1 is not a recognized numeric type"),
         }
     }
 
     fn shr(v1: Self, v2: Self) -> Result<Self, Self> {
-        match Self::to_numeric(v1) {
-            Numeric::BigInt(i1) => match Self::to_numeric(v2) {
-                Numeric::Number(_) => Self::exception(
-                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
-                ),
-                Numeric::BigInt(i2) => Ok(Self::pack(Unpacked::BigInt(i1.shr(i2)))),
-            },
-            Numeric::Number(f1) => match Self::to_numeric(v2) {
-                Numeric::BigInt(_) => Self::exception(
-                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
-                ),
-                Numeric::Number(f2) => Ok(Self::new_simple(Simple::Number(
-                    ((f1 as i128) >> ((f2 as i128) & 0x1F)) as f64,
+        // See https://tc39.es/ecma262/#sec-right-shift-operator,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Right_shift.
+        let v1 = Self::to_numeric(v1)?;
+        let v2 = Self::to_numeric(v2)?;
+        match v1.unpack() {
+            Unpacked::Number(v1) => match v2.unpack() {
+                Unpacked::Number(v2) => Ok(Self::new_simple(Simple::Number(
+                    ((v1 as i128) >> ((v2 as i128) & 0x1F)) as f64,
                 ))),
+                Unpacked::BigInt(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                _ => panic!("shl: v2 is not a recognized numeric type"),
             },
+            Unpacked::BigInt(v1) => match v2.unpack() {
+                Unpacked::Number(_) => Self::exception(
+                    "TypeError: Cannot mix BigInt and other types, use explicit conversions",
+                ),
+                Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.shr(v2)))),
+                _ => panic!("div: v2 is not a recognized numeric type"),
+            },
+            _ => panic!("div: v1 is not a recognized numeric type"),
         }
     }
 }
