@@ -451,9 +451,9 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
                 Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.shl(v2)))),
-                _ => panic!("div: v2 is not a recognized numeric type"),
+                _ => panic!("shl: v2 is not a recognized numeric type"),
             },
-            _ => panic!("div: v1 is not a recognized numeric type"),
+            _ => panic!("shl: v1 is not a recognized numeric type"),
         }
     }
 
@@ -470,16 +470,16 @@ pub trait Any: PartialEq + Sized + Clone + fmt::Debug {
                 Unpacked::BigInt(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
-                _ => panic!("shl: v2 is not a recognized numeric type"),
+                _ => panic!("shr: v2 is not a recognized numeric type"),
             },
             Unpacked::BigInt(v1) => match v2.unpack() {
                 Unpacked::Number(_) => Self::exception(
                     "TypeError: Cannot mix BigInt and other types, use explicit conversions",
                 ),
                 Unpacked::BigInt(v2) => Ok(Self::pack(Unpacked::BigInt(v1.shr(v2)))),
-                _ => panic!("div: v2 is not a recognized numeric type"),
+                _ => panic!("shr: v2 is not a recognized numeric type"),
             },
-            _ => panic!("div: v1 is not a recognized numeric type"),
+            _ => panic!("shr: v1 is not a recognized numeric type"),
         }
     }
 }
