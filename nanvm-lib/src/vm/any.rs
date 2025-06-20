@@ -3,13 +3,7 @@ use crate::vm::{IInternalAny, Unpacked};
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
 
-impl<A: IInternalAny> PartialEq for Any<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
-    }
-}
-
-pub trait AnyEx {
+pub trait ToAnyEx {
     fn to_any<A: IInternalAny>(self) -> Any<A>
     where
         Self: Into<A>,
@@ -18,7 +12,14 @@ pub trait AnyEx {
     }
 }
 
-impl<T> AnyEx for T {}
+impl<T> ToAnyEx for T {}
+
+/// Same as `===` in ECMAScript.
+impl<A: IInternalAny> PartialEq for Any<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
+    }
+}
 
 impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
     fn from(value: Unpacked<A>) -> Self {

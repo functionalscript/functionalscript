@@ -5,7 +5,7 @@
 ```rust
 trait IContainer;
 trait IInternalAny {
-    type InternalString;
+    type String;
     // ...
 }
 ```

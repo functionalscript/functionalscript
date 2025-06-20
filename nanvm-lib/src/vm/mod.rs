@@ -9,7 +9,7 @@ pub mod string;
 pub mod unpacked;
 
 pub use crate::vm::{
-    any::Any,
+    any::{Any, ToAnyEx},
     array::Array,
     bigint::BigInt,
     function::{Function, FunctionHeader},
@@ -21,7 +21,7 @@ pub use crate::vm::{
 
 #[cfg(test)]
 mod test {
-    use crate::vm::{any::AnyEx, internal::IInternalAny, Any};
+    use super::*;
 
     fn _eq_test<A: IInternalAny>() {
         let x: Any<A> = 0.5.to_any();
