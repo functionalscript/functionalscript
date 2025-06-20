@@ -30,6 +30,7 @@ export type MakeDirectoryOptions = {
  * @see https://nodejs.org/api/fs.html
  */
 export type Fs = {
+    readonly writeSync: (fd:number, s: string) => void
     readonly writeFileSync: (file: string, data: string) => void
     readonly readFileSync: (path: string, options: BufferEncoding) => string | null
     readonly existsSync: (path: string) => boolean
@@ -67,6 +68,11 @@ export type Performance = {
     readonly now: () => number
 }
 
+export type Writable = {
+    readonly fd: number
+    readonly isTTY: boolean
+}
+
 /**
  * Node.js Process interface
  * @see https://nodejs.org/api/process.html
@@ -76,6 +82,8 @@ export type Process = {
     readonly env: Env
     readonly exit: (code: number) => never
     readonly cwd: () => string
+    readonly stdout: Writable
+    readonly stderr: Writable
 }
 
 /**
