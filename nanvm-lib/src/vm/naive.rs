@@ -4,8 +4,9 @@ use crate::{
     sign::Sign,
     vm::{
         internal::{IContainer, IInternalAny},
+        object::Property,
         unpacked::Unpacked,
-        Any, FunctionHeader, Property,
+        Any, FunctionHeader,
     },
 };
 
@@ -63,7 +64,6 @@ impl<H: Clone + PartialEq, I: Clone> IContainer<InternalAny> for Container<H, I>
     }
 
     fn ptr_eq(&self, other: &Self) -> bool {
-        self.header == other.header &&
-        Rc::ptr_eq(&self.items, &other.items)
+        self.header == other.header && Rc::ptr_eq(&self.items, &other.items)
     }
 }

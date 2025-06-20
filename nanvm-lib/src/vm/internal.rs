@@ -1,7 +1,10 @@
 use crate::{
     nullish::Nullish,
     sign::Sign,
-    vm::{Array, BigInt, Function, FunctionHeader, Object, String, Unpacked},
+    vm::{
+        any::Any, bigint::BigInt, object::Object, object::Property, string::String, Array,
+        Function, FunctionHeader, Unpacked,
+    },
 };
 
 pub trait IContainer<A: IInternalAny>: Sized + Clone {
@@ -22,9 +25,9 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
         self.len() == 0
     }
     fn deep_eq(&self, b: &Self) -> bool
-        where
-            Self::Header: PartialEq,
-            Self::Item: PartialEq,
+    where
+        Self::Header: PartialEq,
+        Self::Item: PartialEq,
     {
         if self.header() != b.header() {
             return false;
@@ -57,8 +60,8 @@ pub trait IInternalAny:
     // types
     type InternalString: IContainer<Self, Header = (), Item = u16>;
     type InternalBigInt: IContainer<Self, Header = Sign, Item = u64>;
-    type InternalObject: IContainer<Self, Header = (), Item = super::Property<Self>>;
-    type InternalArray: IContainer<Self, Header = (), Item = super::Any<Self>>;
+    type InternalObject: IContainer<Self, Header = (), Item = Property<Self>>;
+    type InternalArray: IContainer<Self, Header = (), Item = Any<Self>>;
     type InternalFunction: IContainer<Self, Header = FunctionHeader<Self>, Item = u8>;
     // functions
     fn to_unpacked(self) -> Unpacked<Self>;
