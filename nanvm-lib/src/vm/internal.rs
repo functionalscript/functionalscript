@@ -1,10 +1,7 @@
 use crate::{
     nullish::Nullish,
     sign::Sign,
-    vm::{
-        any::Any, bigint::BigInt, object::Object, object::Property, string::String, Array,
-        Function, FunctionHeader, Unpacked,
-    },
+    vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String, Unpacked},
 };
 
 pub trait IContainer<A: IInternalAny>: Sized + Clone {

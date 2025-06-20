@@ -2,12 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     sign::Sign,
-    vm::{
-        internal::{IContainer, IInternalAny},
-        object::Property,
-        unpacked::Unpacked,
-        Any, FunctionHeader,
-    },
+    vm::{Any, FunctionHeader, IContainer, IInternalAny, Property, Unpacked},
 };
 
 #[derive(Clone)]

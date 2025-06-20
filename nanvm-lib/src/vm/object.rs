@@ -1,8 +1,4 @@
-use crate::vm::{
-    any::Any,
-    internal::{IContainer, IInternalAny},
-    string::String,
-};
+use crate::vm::{Any, IContainer, IInternalAny, String};
 
 pub type Property<A> = (String<A>, Any<A>);
 

@@ -1,4 +1,4 @@
-use crate::vm::internal::{IContainer, IInternalAny};
+use crate::vm::{IContainer, IInternalAny};
 
 #[derive(Clone)]
 pub struct String<A: IInternalAny>(pub A::InternalString);

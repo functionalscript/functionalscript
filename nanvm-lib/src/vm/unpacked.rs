@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{bigint::BigInt, internal::IInternalAny, object::Object, Any, Array, Function, String},
+    vm::{Any, Array, BigInt, Function, IInternalAny, Object, String},
 };
 
 #[derive(Clone)]
