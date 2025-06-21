@@ -1,5 +1,5 @@
-use crate::vm::{Any, IContainer, IInternalAny, Unpacked};
-use std::fmt::{Debug, Formatter};
+use crate::{sign::Sign, vm::{Any, IContainer, IInternalAny, Unpacked}};
+use std::fmt::{Debug, Formatter, Write};
 
 #[derive(Clone)]
 pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
@@ -23,7 +23,19 @@ impl<A: IInternalAny> TryFrom<Any<A>> for BigInt<A> {
 
 impl<A: IInternalAny> Debug for BigInt<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // TODO: bigint output with `n` suffix.
-        write!(f, "0n")
+        let len = self.0.len();
+        if len == 0 {
+            return f.write_str("0n");
+        }
+        if *self.0.header() == Sign::Negative {
+            f.write_char('-')?;
+        }
+        f.write_str("0x")?;
+        let last = len - 1;
+        write!(f, "{:X}", self.0.at(last))?;
+        for i in (0..last).rev() {
+            write!(f, "_{:016X}", self.0.at(i))?;
+        }
+        f.write_char('n')
     }
 }

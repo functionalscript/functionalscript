@@ -1,5 +1,5 @@
 use crate::vm::{Any, IContainer, IInternalAny, Unpacked};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Write};
 
 #[derive(Clone)]
 pub struct String<A: IInternalAny>(pub A::InternalString);
@@ -12,10 +12,19 @@ impl<A: IInternalAny> PartialEq for String<A> {
 
 impl<A: IInternalAny> Debug for String<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let r = std::string::String::from_utf16(&self.0.collect())
-            .map_err(|_| std::fmt::Error)?;
-        // TODO: escape special characters
-        write!(f, "\"{}\"", r)
+        f.write_char('"')?;
+        for c in std::string::String::from_utf16(&self.0.collect()).map_err(|_| std::fmt::Error)?.chars() {
+            match c {
+                '"' => f.write_str("\\\"")?,
+                '\\' => f.write_str("\\\\")?,
+                '\n' => f.write_str("\\n")?,
+                '\r' => f.write_str("\\r")?,
+                '\t' => f.write_str("\\t")?,
+                '\x00'..='\x1F' | '\x7F' => write!(f, "\\u{:04X}", c as u32)?,
+                _ => f.write_char(c)?,
+            }
+        }
+        f.write_char('"')
     }
 }
 
