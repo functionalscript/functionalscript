@@ -35,3 +35,12 @@ export default {
     }
 }
 ```
+
+## Rules
+
+```ts
+type Rule = {
+    readonly isEmpty: boolean
+    readonly rangeMap: (c: number) => readonly Rule[] | undefined // ???
+}
+```
