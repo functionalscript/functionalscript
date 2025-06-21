@@ -2,10 +2,19 @@ use crate::{
     sign::Sign,
     vm::{Any, IContainer, IInternalAny, Unpacked},
 };
-use std::fmt::{Debug, Formatter, Write};
+use std::{
+    fmt::{Debug, Formatter, Write},
+    iter::empty,
+};
 
 #[derive(Clone)]
 pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
+
+impl<A: IInternalAny> Default for BigInt<A> {
+    fn default() -> Self {
+        Self(A::InternalBigInt::new(Sign::Positive, empty::<Result<_, ()>>()).unwrap())
+    }
+}
 
 impl<A: IInternalAny> PartialEq for BigInt<A> {
     fn eq(&self, other: &Self) -> bool {
