@@ -25,7 +25,7 @@ cargo fmt -- --check
 
 Feel free to open [issues](https://github.com/functionalscript/functionalscript/issues).
 
-## Codex Script
+## Codex Environment
 
 Set Node version to 22. We will switch to 24 as soon as it available in Codex.
 
