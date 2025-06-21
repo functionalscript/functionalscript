@@ -1,6 +1,6 @@
 use nanvm_lib::{
     nullish::Nullish,
-    vm::{naive, Any, String, IInternalAny, ToAnyEx},
+    vm::{naive, Any, IInternalAny, String, ToAnyEx},
 };
 
 fn gen_test<A: IInternalAny>() {
