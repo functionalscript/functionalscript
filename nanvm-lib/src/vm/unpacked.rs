@@ -2,7 +2,7 @@ use crate::{
     nullish::Nullish,
     vm::{Any, Array, BigInt, Function, IInternalAny, Object, String},
 };
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
 #[derive(Clone)]
 pub enum Unpacked<A: IInternalAny> {

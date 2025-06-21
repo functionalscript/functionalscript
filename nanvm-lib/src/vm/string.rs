@@ -4,9 +4,9 @@ use std::fmt::{Debug, Formatter, Write};
 #[derive(Clone)]
 pub struct String<A: IInternalAny>(pub A::InternalString);
 
-impl<A: IInternalAny> Into<std::string::String> for &String<A> {
-    fn into(self) -> std::string::String {
-        std::string::String::from_utf16_lossy(&self.0.collect())
+impl<A: IInternalAny> From<&String<A>> for std::string::String {
+    fn from(value: &String<A>) -> Self {
+        std::string::String::from_utf16_lossy(&value.0.collect())
     }
 }
 

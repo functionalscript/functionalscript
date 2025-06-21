@@ -1,4 +1,7 @@
-use crate::{nullish::Nullish, vm::{IInternalAny, Unpacked}};
+use crate::{
+    nullish::Nullish,
+    vm::{IInternalAny, Unpacked},
+};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]

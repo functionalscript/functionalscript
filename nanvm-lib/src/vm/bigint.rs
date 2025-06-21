@@ -1,4 +1,7 @@
-use crate::{sign::Sign, vm::{Any, IContainer, IInternalAny, Unpacked}};
+use crate::{
+    sign::Sign,
+    vm::{Any, IContainer, IInternalAny, Unpacked},
+};
 use std::fmt::{Debug, Formatter, Write};
 
 #[derive(Clone)]

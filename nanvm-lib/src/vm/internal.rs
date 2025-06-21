@@ -44,7 +44,7 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     fn collect(&self) -> Vec<Self::Item>
