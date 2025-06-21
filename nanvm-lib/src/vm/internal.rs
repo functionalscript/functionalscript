@@ -4,10 +4,13 @@ use crate::{
     vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String, Unpacked},
 };
 
+use std::fmt::{Debug, Formatter, Write};
+
 pub trait IContainer<A: IInternalAny>: Sized + Clone {
     // types
     type Header;
-    type Item;
+    type Item: Debug;
+
     // functions
     fn new<E>(
         header: Self::Header,
@@ -17,10 +20,13 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     fn len(&self) -> usize;
     fn at(&self, i: usize) -> Self::Item;
     fn ptr_eq(&self, other: &Self) -> bool;
+
     // extensions
+
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     fn deep_eq(&self, b: &Self) -> bool
     where
         Self::Header: PartialEq,
@@ -40,13 +46,26 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
         }
         return true;
     }
+
     fn collect(&self) -> Vec<Self::Item>
     where
         Self::Item: Clone,
     {
         (0..self.len()).map(|i| self.at(i)).collect()
     }
-    
+
+    fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_char(open)?;
+        let mut first = true;
+        for i in 0..self.len() {
+            if !first {
+                f.write_char(',')?;
+            }
+            self.at(i).fmt(f)?;
+            first = false;
+        }
+        f.write_char(close)
+    }
 }
 
 pub trait IInternalAny:

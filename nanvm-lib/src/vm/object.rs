@@ -25,15 +25,6 @@ impl<A: IInternalAny> TryFrom<Any<A>> for Object<A> {
 
 impl<A: IInternalAny> Debug for Object<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{")?;
-        let mut first = true;
-        for i in 0..self.0.len() {
-            if !first {
-                write!(f, ",")?;
-            }
-            write!(f, "{:?}", self.0.at(i))?;
-            first = false;
-        }
-        write!(f, "}}")
+        self.0.items_fmt('{', '}', f)
     }
 }

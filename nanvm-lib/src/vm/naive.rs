@@ -32,7 +32,7 @@ struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone + PartialEq, I: Clone> IContainer<InternalAny> for Container<H, I> {
+impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<InternalAny> for Container<H, I> {
     type Header = H;
     type Item = I;
 
