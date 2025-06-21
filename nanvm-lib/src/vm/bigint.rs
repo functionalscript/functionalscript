@@ -2,17 +2,14 @@ use crate::{
     sign::Sign,
     vm::{Any, IContainer, IInternalAny, Unpacked},
 };
-use std::{
-    fmt::{Debug, Formatter, Write},
-    iter::empty,
-};
+use std::fmt::{Debug, Formatter, Write};
 
 #[derive(Clone)]
 pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
 
 impl<A: IInternalAny> Default for BigInt<A> {
     fn default() -> Self {
-        Self(A::InternalBigInt::new::<()>(Sign::Positive, empty()).unwrap())
+        Self(A::InternalBigInt::new_empty(Sign::Positive))
     }
 }
 

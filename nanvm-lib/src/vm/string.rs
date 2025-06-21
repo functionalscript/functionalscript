@@ -1,12 +1,31 @@
-use crate::vm::{Any, IContainer, IInternalAny, Unpacked};
+use crate::vm::{Any, IContainer, IInternalAny, ToAnyEx, Unpacked};
 use std::fmt::{Debug, Formatter, Write};
 
 #[derive(Clone)]
 pub struct String<A: IInternalAny>(pub A::InternalString);
 
+impl<A: IInternalAny> Default for String<A> {
+    fn default() -> Self {
+        String(A::InternalString::new_empty(()))
+    }
+}
+
 impl<A: IInternalAny> From<&String<A>> for std::string::String {
     fn from(value: &String<A>) -> Self {
         std::string::String::from_utf16_lossy(&value.0.collect())
+    }
+}
+
+impl<A: IInternalAny> From<&str> for String<A> {
+    fn from(value: &str) -> Self {
+        String(A::InternalString::new_ok((), value.encode_utf16()))
+    }
+}
+
+impl<A: IInternalAny> From<&str> for Any<A> {
+    fn from(value: &str) -> Self {
+        let s: String<_> = value.into();
+        s.to_any()
     }
 }
 

@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[derive(Clone)]
-struct InternalAny(pub Unpacked<InternalAny>);
+pub struct InternalAny(pub Unpacked<InternalAny>);
 
 impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
     fn from(value: T) -> Self {
@@ -27,7 +27,7 @@ impl IInternalAny for InternalAny {
 }
 
 #[derive(Clone, PartialEq)]
-struct Container<H, I> {
+pub struct Container<H, I> {
     header: H,
     items: Rc<[I]>,
 }

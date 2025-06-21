@@ -27,6 +27,14 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
         self.len() == 0
     }
 
+    fn new_ok(header: Self::Header, i: impl IntoIterator<Item = Self::Item>) -> Self {
+        Self::new::<()>(header, i.into_iter().map(Ok)).unwrap()
+    }
+
+    fn new_empty(header: Self::Header) -> Self {
+        Self::new_ok(header, std::iter::empty())
+    }
+
     fn deep_eq(&self, b: &Self) -> bool
     where
         Self::Header: PartialEq,
