@@ -4,6 +4,12 @@ use std::fmt::{Debug, Formatter, Write};
 #[derive(Clone)]
 pub struct String<A: IInternalAny>(pub A::InternalString);
 
+impl<A: IInternalAny> Into<std::string::String> for &String<A> {
+    fn into(self) -> std::string::String {
+        std::string::String::from_utf16_lossy(&self.0.collect())
+    }
+}
+
 impl<A: IInternalAny> PartialEq for String<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.deep_eq(&other.0)
@@ -13,7 +19,8 @@ impl<A: IInternalAny> PartialEq for String<A> {
 impl<A: IInternalAny> Debug for String<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char('"')?;
-        for c in std::string::String::from_utf16(&self.0.collect()).map_err(|_| std::fmt::Error)?.chars() {
+        let utf8: std::string::String = self.into();
+        for c in utf8.chars() {
             match c {
                 '"' => f.write_str("\\\"")?,
                 '\\' => f.write_str("\\\\")?,
