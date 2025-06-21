@@ -40,6 +40,12 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
         }
         return true;
     }
+    fn collect(&self) -> Vec<Self::Item>
+    where
+        Self::Item: Clone,
+    {
+        (0..self.len()).map(|i| self.at(i)).collect()
+    }
 }
 
 pub trait IInternalAny:

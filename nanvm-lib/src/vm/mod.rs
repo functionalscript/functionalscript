@@ -25,6 +25,11 @@ mod test {
 
     fn _eq_test<A: IInternalAny>() {
         let x: Any<A> = 0.5.to_any();
-        let _ = x == x;
+        assert_eq!(x, x);
+    }
+
+    fn _any_test<A: IInternalAny>() {
+        let x: Any<A> = 0.5.to_any();
+        let _: f64 = x.try_into().unwrap();
     }
 }

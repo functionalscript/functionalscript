@@ -2,6 +2,7 @@ use crate::{
     nullish::Nullish,
     vm::{Any, Array, BigInt, Function, IInternalAny, Object, String},
 };
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub enum Unpacked<A: IInternalAny> {
@@ -13,6 +14,21 @@ pub enum Unpacked<A: IInternalAny> {
     Object(Object<A>),
     Array(Array<A>),
     Function(Function<A>),
+}
+
+impl<A: IInternalAny> Debug for Unpacked<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Nullish(n) => write!(f, "{:?}", n),
+            Self::Boolean(b) => write!(f, "{}", b),
+            Self::Number(n) => write!(f, "{}", n),
+            Self::String(s) => write!(f, "{:?}", s),
+            Self::BigInt(i) => write!(f, "{:?}", i),
+            Self::Object(o) => write!(f, "{:?}", o),
+            Self::Array(a) => write!(f, "{:?}", a),
+            Self::Function(v) => write!(f, "{:?}", v),
+        }
+    }
 }
 
 impl<A: IInternalAny> PartialEq for Unpacked<A> {
