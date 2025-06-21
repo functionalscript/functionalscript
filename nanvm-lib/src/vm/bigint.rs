@@ -12,7 +12,7 @@ pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
 
 impl<A: IInternalAny> Default for BigInt<A> {
     fn default() -> Self {
-        Self(A::InternalBigInt::new(Sign::Positive, empty::<Result<_, ()>>()).unwrap())
+        Self(A::InternalBigInt::new::<()>(Sign::Positive, empty()).unwrap())
     }
 }
 
