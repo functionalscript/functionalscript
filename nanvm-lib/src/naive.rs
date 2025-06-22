@@ -212,8 +212,36 @@ impl interface::Any for Any {
         }
     }
 
+    fn is_nullish(&self) -> bool {
+        matches!(self, Self::Simple(Simple::Nullish(_)))
+    }
+
+    fn is_boolean(&self) -> bool {
+        matches!(self, Self::Simple(Simple::Boolean(_)))
+    }
+
+    fn is_number(&self) -> bool {
+        matches!(self, Self::Simple(Simple::Number(_)))
+    }
+
     fn is_string16(&self) -> bool {
         matches!(self, Self::String16(_))
+    }
+
+    fn is_bigint(&self) -> bool {
+        matches!(self, Self::BigInt(_))
+    }
+
+    fn is_array(&self) -> bool {
+        matches!(self, Self::Array(_))
+    }
+
+    fn is_object(&self) -> bool {
+        matches!(self, Self::Object(_))
+    }
+
+    fn is_function(&self) -> bool {
+        matches!(self, Self::Function(_))
     }
 
     fn pack(u: interface::Unpacked<Self>) -> Self {
