@@ -167,14 +167,12 @@ fn bigint_eq<A: IInternalAny>() {
     {
         let bm: BigInt<A> = 0u64.into();
         let x = format!("{bm:?}");
-        //               0123456789ABCDEF
         assert_eq!(x, "0n");
     }
 
     {
         let bm: BigInt<A> = 0i64.into();
         let x = format!("{bm:?}");
-        //               0123456789ABCDEF
         assert_eq!(x, "0n");
     }
 }
