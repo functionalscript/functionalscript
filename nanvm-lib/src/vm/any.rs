@@ -9,7 +9,7 @@ pub struct Any<A: IInternalAny>(pub A);
 
 impl<A: IInternalAny> Debug for Any<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({:?})", self.0.clone().to_unpacked())
+        self.0.clone().to_unpacked().fmt(f)
     }
 }
 

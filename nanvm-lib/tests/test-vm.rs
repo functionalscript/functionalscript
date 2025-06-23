@@ -2,7 +2,7 @@ use std::i64;
 
 use nanvm_lib::{
     nullish::Nullish,
-    vm::{naive, Any, Array, BigInt, IInternalAny, Object, String, ToAnyEx},
+    vm::{naive, Any, Array, BigInt, IInternalAny, Object, String16, ToAnyEx},
 };
 
 fn nullish_eq<A: IInternalAny>() {
@@ -84,8 +84,8 @@ fn string_eq<A: IInternalAny>() {
     let s2 = "World".into();
     assert_ne!(s0, s2);
 
-    let s: String<A> = s0.try_into().unwrap();
-    assert_eq!(s, String::from("Hello"));
+    let s: String16<A> = s0.try_into().unwrap();
+    assert_eq!(s, String16::from("Hello"));
 
     let x = format!("{s:?}");
     assert_eq!(x, "\"Hello\"");

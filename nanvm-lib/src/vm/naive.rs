@@ -15,7 +15,7 @@ impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
 }
 
 impl IInternalAny for InternalAny {
-    type InternalString = Container<(), u16>;
+    type InternalString16 = Container<(), u16>;
     type InternalBigInt = Container<Sign, u64>;
     type InternalObject = Container<(), Property<InternalAny>>;
     type InternalArray = Container<(), Any<InternalAny>>;

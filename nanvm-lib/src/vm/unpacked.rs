@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IInternalAny, Object, String},
+    vm::{Any, Array, BigInt, Function, IInternalAny, Object, String16, ToString16},
 };
 use std::fmt::Debug;
 
@@ -9,7 +9,7 @@ pub enum Unpacked<A: IInternalAny> {
     Nullish(Nullish),
     Boolean(bool),
     Number(f64),
-    String(String<A>),
+    String(String16<A>),
     BigInt(BigInt<A>),
     Object(Object<A>),
     Array(Array<A>),
@@ -47,6 +47,21 @@ impl<A: IInternalAny> PartialEq for Unpacked<A> {
     }
 }
 
+impl<A: IInternalAny> ToString16<A> for Unpacked<A> {
+    fn to_string16(&self) -> String16<A> {
+        match self {
+            Self::Nullish(n) => n.to_string16(),
+            Self::Boolean(b) => b.to_string16(),
+            Self::Number(n) => n.to_string16(),
+            Self::String(s) => s.to_string16(),
+            Self::BigInt(i) => i.to_string16(),
+            Self::Object(o) => o.to_string16(),
+            Self::Array(a) => a.to_string16(),
+            Self::Function(f) => f.to_string16(),
+        }
+    }
+}
+
 impl<A: IInternalAny> From<Any<A>> for Unpacked<A> {
     fn from(value: Any<A>) -> Self {
         value.0.to_unpacked()
@@ -70,8 +85,8 @@ impl<A: IInternalAny> From<f64> for Unpacked<A> {
     }
 }
 
-impl<A: IInternalAny> From<String<A>> for Unpacked<A> {
-    fn from(value: String<A>) -> Self {
+impl<A: IInternalAny> From<String16<A>> for Unpacked<A> {
+    fn from(value: String16<A>) -> Self {
         Unpacked::String(value)
     }
 }

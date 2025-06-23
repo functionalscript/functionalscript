@@ -1,4 +1,4 @@
-use crate::vm::{Any, IContainer, IInternalAny, Unpacked};
+use crate::{common::default::default, vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked}};
 
 #[derive(Clone)]
 pub struct Array<A: IInternalAny>(pub A::InternalArray);
@@ -29,5 +29,11 @@ impl<A: IInternalAny> TryFrom<Any<A>> for Array<A> {
 impl<A: IInternalAny> std::fmt::Debug for Array<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.items_fmt('[', ']', f)
+    }
+}
+
+impl<A: IInternalAny> ToString16<A> for Array<A> {
+    fn to_string16(&self) -> String16<A> {
+        default()
     }
 }

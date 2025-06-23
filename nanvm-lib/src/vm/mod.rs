@@ -5,8 +5,9 @@ pub mod function;
 pub mod internal;
 pub mod naive;
 pub mod object;
-pub mod string;
+pub mod string16;
 pub mod unpacked;
+pub mod to_string16;
 
 pub use crate::vm::{
     any::{Any, ToAnyEx},
@@ -15,8 +16,9 @@ pub use crate::vm::{
     function::{Function, FunctionHeader},
     internal::{IContainer, IInternalAny},
     object::{Object, Property},
-    string::String,
+    string16::String16,
     unpacked::Unpacked,
+    to_string16::ToString16,
 };
 
 #[cfg(test)]

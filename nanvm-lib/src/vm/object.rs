@@ -1,7 +1,7 @@
-use crate::vm::{Any, IContainer, IInternalAny, String, Unpacked};
+use crate::vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked};
 use std::fmt::{Debug, Formatter};
 
-pub type Property<A> = (String<A>, Any<A>);
+pub type Property<A> = (String16<A>, Any<A>);
 
 #[derive(Clone)]
 pub struct Object<A: IInternalAny>(pub A::InternalObject);
@@ -32,5 +32,11 @@ impl<A: IInternalAny> TryFrom<Any<A>> for Object<A> {
 impl<A: IInternalAny> Debug for Object<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.items_fmt('{', '}', f)
+    }
+}
+
+impl<A: IInternalAny> ToString16<A> for Object<A> {
+    fn to_string16(&self) -> String16<A> {
+        "[object Object]".into()
     }
 }

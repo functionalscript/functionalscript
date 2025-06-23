@@ -1,6 +1,5 @@
 use crate::{
-    sign::Sign,
-    vm::{Any, IContainer, IInternalAny, Unpacked},
+    common::default::default, sign::Sign, vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked}
 };
 use std::fmt::{Debug, Formatter, Write};
 
@@ -74,5 +73,12 @@ impl<A: IInternalAny> Debug for BigInt<A> {
             write!(f, "_{:016X}", self.0.at(i))?;
         }
         f.write_char('n')
+    }
+}
+
+impl<A: IInternalAny> ToString16<A> for BigInt<A> {
+    fn to_string16(&self) -> String16<A> {
+        // TODO: Implement proper conversion to String16
+        default()
     }
 }

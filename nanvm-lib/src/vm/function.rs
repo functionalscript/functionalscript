@@ -1,7 +1,7 @@
-use crate::vm::{Any, IContainer, IInternalAny, String, Unpacked};
+use crate::{common::default::default, vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked}};
 use std::fmt::{Debug, Formatter};
 
-pub type FunctionHeader<A> = (String<A>, u32);
+pub type FunctionHeader<A> = (String16<A>, u32);
 
 #[derive(Clone)]
 pub struct Function<A: IInternalAny>(pub A::InternalFunction);
@@ -36,5 +36,12 @@ impl<A: IInternalAny> Debug for Function<A> {
             write!(f, "{:02X}", self.0.at(i))?;
         }
         f.write_str("}}")
+    }
+}
+
+impl<A: IInternalAny> ToString16<A> for Function<A> {
+    fn to_string16(&self) -> String16<A> {
+        // TODO: Implement proper conversion to String16
+        default()
     }
 }
