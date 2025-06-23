@@ -3,11 +3,11 @@ pub mod array;
 pub mod bigint;
 pub mod function;
 pub mod internal;
+pub mod js;
 pub mod naive;
 pub mod object;
 pub mod string16;
 pub mod unpacked;
-pub mod to_string16;
 
 pub use crate::vm::{
     any::{Any, ToAnyEx},
@@ -15,10 +15,10 @@ pub use crate::vm::{
     bigint::BigInt,
     function::{Function, FunctionHeader},
     internal::{IContainer, IInternalAny},
+    js::Js,
     object::{Object, Property},
     string16::String16,
     unpacked::Unpacked,
-    to_string16::ToString16,
 };
 
 #[cfg(test)]

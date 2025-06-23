@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IInternalAny, Object, String16, ToString16},
+    vm::{Any, Array, BigInt, Function, IInternalAny, Js, Object, String16},
 };
 use std::fmt::Debug;
 
@@ -31,17 +31,17 @@ impl<A: IInternalAny> Debug for Unpacked<A> {
     }
 }
 
-impl<A: IInternalAny> ToString16<A> for Unpacked<A> {
-    fn to_string16(&self) -> String16<A> {
+impl<A: IInternalAny> Js<A> for Unpacked<A> {
+    fn string(&self) -> String16<A> {
         match self {
-            Self::Nullish(n) => n.to_string16(),
-            Self::Boolean(b) => b.to_string16(),
-            Self::Number(n) => n.to_string16(),
-            Self::String(s) => s.to_string16(),
-            Self::BigInt(i) => i.to_string16(),
-            Self::Object(o) => o.to_string16(),
-            Self::Array(a) => a.to_string16(),
-            Self::Function(f) => f.to_string16(),
+            Self::Nullish(n) => n.string(),
+            Self::Boolean(b) => b.string(),
+            Self::Number(n) => n.string(),
+            Self::String(s) => s.string(),
+            Self::BigInt(i) => i.string(),
+            Self::Object(o) => o.string(),
+            Self::Array(a) => a.string(),
+            Self::Function(f) => f.string(),
         }
     }
 }

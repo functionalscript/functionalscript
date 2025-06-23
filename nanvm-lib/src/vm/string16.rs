@@ -1,4 +1,4 @@
-use crate::vm::{ToString16, Any, IContainer, IInternalAny, ToAnyEx, Unpacked};
+use crate::vm::{Any, IContainer, IInternalAny, Js, ToAnyEx, Unpacked};
 use std::fmt::{Debug, Formatter, Write};
 
 #[derive(Clone)]
@@ -35,19 +35,22 @@ impl<A: IInternalAny> PartialEq for String16<A> {
     }
 }
 
+const DOUBLE_QUOTE: u16 = '"' as u16;
+const BACKSLASH: u16 = '\\' as u16;
+
 impl<A: IInternalAny> Debug for String16<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char('"')?;
-        let utf8: String = self.into();
-        for c in utf8.chars() {
-            match c {
-                '"' => f.write_str("\\\"")?,
-                '\\' => f.write_str("\\\\")?,
-                '\n' => f.write_str("\\n")?,
-                '\r' => f.write_str("\\r")?,
-                '\t' => f.write_str("\\t")?,
-                '\x00'..='\x1F' | '\x7F' => write!(f, "\\u{:04X}", c as u32)?,
-                _ => f.write_char(c)?,
+        for i in 0..self.0.len() {
+            match self.0.at(i) {
+                DOUBLE_QUOTE => f.write_str("\\\"")?,
+                BACKSLASH => f.write_str("\\\\")?,
+                c if (0x20..=0x7F).contains(&c) => {
+                    f.write_char(c as u8 as char)?;
+                }
+                c => {
+                    write!(f, "\\u{:04X}", c)?;
+                }
             }
         }
         f.write_char('"')
@@ -65,8 +68,8 @@ impl<A: IInternalAny> TryFrom<Any<A>> for String16<A> {
     }
 }
 
-impl<A: IInternalAny> ToString16<A> for String16<A> {
-    fn to_string16(&self) -> String16<A> {
+impl<A: IInternalAny> Js<A> for String16<A> {
+    fn string(&self) -> String16<A> {
         self.clone()
     }
 }

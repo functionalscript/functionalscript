@@ -1,4 +1,4 @@
-use crate::vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked};
+use crate::vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked};
 use std::fmt::{Debug, Formatter};
 
 pub type Property<A> = (String16<A>, Any<A>);
@@ -35,8 +35,8 @@ impl<A: IInternalAny> Debug for Object<A> {
     }
 }
 
-impl<A: IInternalAny> ToString16<A> for Object<A> {
-    fn to_string16(&self) -> String16<A> {
+impl<A: IInternalAny> Js<A> for Object<A> {
+    fn string(&self) -> String16<A> {
         "[object Object]".into()
     }
 }

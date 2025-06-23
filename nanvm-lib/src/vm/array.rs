@@ -1,4 +1,7 @@
-use crate::{common::default::default, vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked}};
+use crate::{
+    common::default::default,
+    vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
+};
 
 #[derive(Clone)]
 pub struct Array<A: IInternalAny>(pub A::InternalArray);
@@ -32,8 +35,8 @@ impl<A: IInternalAny> std::fmt::Debug for Array<A> {
     }
 }
 
-impl<A: IInternalAny> ToString16<A> for Array<A> {
-    fn to_string16(&self) -> String16<A> {
+impl<A: IInternalAny> Js<A> for Array<A> {
+    fn string(&self) -> String16<A> {
         default()
     }
 }

@@ -1,5 +1,7 @@
 use crate::{
-    common::default::default, sign::Sign, vm::{Any, IContainer, IInternalAny, String16, ToString16, Unpacked}
+    common::default::default,
+    sign::Sign,
+    vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
 };
 use std::fmt::{Debug, Formatter, Write};
 
@@ -76,8 +78,8 @@ impl<A: IInternalAny> Debug for BigInt<A> {
     }
 }
 
-impl<A: IInternalAny> ToString16<A> for BigInt<A> {
-    fn to_string16(&self) -> String16<A> {
+impl<A: IInternalAny> Js<A> for BigInt<A> {
+    fn string(&self) -> String16<A> {
         // TODO: Implement proper conversion to String16
         default()
     }
