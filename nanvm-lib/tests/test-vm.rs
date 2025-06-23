@@ -1,4 +1,7 @@
-use nanvm_lib::{nullish::Nullish, vm::{naive, Any, Array, IInternalAny, Object, String, ToAnyEx}};
+use nanvm_lib::{
+    nullish::Nullish,
+    vm::{naive, Any, Array, IInternalAny, Object, String, ToAnyEx},
+};
 
 fn nullish_eq<A: IInternalAny>() {
     let n0: Any<A> = Nullish::Null.to_any();
