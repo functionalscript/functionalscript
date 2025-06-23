@@ -31,6 +31,21 @@ impl<A: IInternalAny> Debug for Unpacked<A> {
     }
 }
 
+impl<A: IInternalAny> ToString16<A> for Unpacked<A> {
+    fn to_string16(&self) -> String16<A> {
+        match self {
+            Self::Nullish(n) => n.to_string16(),
+            Self::Boolean(b) => b.to_string16(),
+            Self::Number(n) => n.to_string16(),
+            Self::String(s) => s.to_string16(),
+            Self::BigInt(i) => i.to_string16(),
+            Self::Object(o) => o.to_string16(),
+            Self::Array(a) => a.to_string16(),
+            Self::Function(f) => f.to_string16(),
+        }
+    }
+}
+
 impl<A: IInternalAny> PartialEq for Unpacked<A> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -43,21 +58,6 @@ impl<A: IInternalAny> PartialEq for Unpacked<A> {
             (Self::Array(a), Self::Array(b)) => a == b,
             (Self::Function(a), Self::Function(b)) => a == b,
             _ => false,
-        }
-    }
-}
-
-impl<A: IInternalAny> ToString16<A> for Unpacked<A> {
-    fn to_string16(&self) -> String16<A> {
-        match self {
-            Self::Nullish(n) => n.to_string16(),
-            Self::Boolean(b) => b.to_string16(),
-            Self::Number(n) => n.to_string16(),
-            Self::String(s) => s.to_string16(),
-            Self::BigInt(i) => i.to_string16(),
-            Self::Object(o) => o.to_string16(),
-            Self::Array(a) => a.to_string16(),
-            Self::Function(f) => f.to_string16(),
         }
     }
 }
