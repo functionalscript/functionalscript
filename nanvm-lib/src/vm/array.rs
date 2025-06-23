@@ -3,6 +3,12 @@ use crate::vm::{Any, IContainer, IInternalAny, Unpacked};
 #[derive(Clone)]
 pub struct Array<A: IInternalAny>(pub A::InternalArray);
 
+impl<A: IInternalAny> Default for Array<A> {
+    fn default() -> Self {
+        Array(A::InternalArray::new_empty(()))
+    }
+}
+
 impl<A: IInternalAny> PartialEq for Array<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)

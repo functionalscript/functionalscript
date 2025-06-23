@@ -19,14 +19,14 @@ pub enum Unpacked<A: IInternalAny> {
 impl<A: IInternalAny> Debug for Unpacked<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Nullish(n) => write!(f, "{:?}", n),
-            Self::Boolean(b) => write!(f, "{}", b),
-            Self::Number(n) => write!(f, "{}", n),
-            Self::String(s) => write!(f, "{:?}", s),
-            Self::BigInt(i) => write!(f, "{:?}", i),
-            Self::Object(o) => write!(f, "{:?}", o),
-            Self::Array(a) => write!(f, "{:?}", a),
-            Self::Function(v) => write!(f, "{:?}", v),
+            Self::Nullish(x) => x.fmt(f),
+            Self::Boolean(x) => x.fmt(f),
+            Self::Number(x) => x.fmt(f),
+            Self::String(x) => x.fmt(f),
+            Self::BigInt(x) => x.fmt(f),
+            Self::Object(x) => x.fmt(f),
+            Self::Array(x) => x.fmt(f),
+            Self::Function(x) => x.fmt(f),
         }
     }
 }
@@ -34,14 +34,14 @@ impl<A: IInternalAny> Debug for Unpacked<A> {
 impl<A: IInternalAny> PartialEq for Unpacked<A> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Nullish(l0), Self::Nullish(r0)) => l0 == r0,
-            (Self::Boolean(l0), Self::Boolean(r0)) => l0 == r0,
-            (Self::Number(l0), Self::Number(r0)) => l0 == r0,
-            (Self::String(l0), Self::String(r0)) => l0 == r0,
-            (Self::BigInt(l0), Self::BigInt(r0)) => l0 == r0,
-            (Self::Object(l0), Self::Object(r0)) => l0 == r0,
-            (Self::Array(l0), Self::Array(r0)) => l0 == r0,
-            (Self::Function(l0), Self::Function(r0)) => l0 == r0,
+            (Self::Nullish(a), Self::Nullish(b)) => a == b,
+            (Self::Boolean(a), Self::Boolean(b)) => a == b,
+            (Self::Number(a), Self::Number(b)) => a == b,
+            (Self::String(a), Self::String(b)) => a == b,
+            (Self::BigInt(a), Self::BigInt(b)) => a == b,
+            (Self::Object(a), Self::Object(b)) => a == b,
+            (Self::Array(a), Self::Array(b)) => a == b,
+            (Self::Function(a), Self::Function(b)) => a == b,
             _ => false,
         }
     }
