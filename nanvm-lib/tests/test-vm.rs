@@ -1,6 +1,8 @@
+use std::i64;
+
 use nanvm_lib::{
     nullish::Nullish,
-    vm::{naive, Any, Array, IInternalAny, Object, String, ToAnyEx},
+    vm::{naive, Any, Array, BigInt, IInternalAny, Object, String, ToAnyEx},
 };
 
 fn nullish_eq<A: IInternalAny>() {
@@ -119,6 +121,64 @@ fn array_eq<A: IInternalAny>() {
     assert_eq!(x, "[]");
 }
 
+fn bigint_eq<A: IInternalAny>() {
+    let b0: Any<A> = BigInt::default().to_any();
+    let b1 = BigInt::default().to_any();
+    assert_eq!(b0, b1);
+    let z: BigInt<_> = b0.try_into().unwrap();
+    assert_eq!(z, BigInt::default());
+    let x = format!("{z:?}");
+    assert_eq!(x, "0n");
+
+    {
+        let bm: BigInt<A> = i64::MIN.into();
+        let x = format!("{bm:?}");
+        //                0123456789ABCDEF
+        assert_eq!(x, "-0x8000000000000000n");
+        let i: i64 = i64::MIN;
+        let m = i.overflowing_neg().0 as u64;
+        assert_eq!(m, 0x8000000000000000);
+    }
+
+    {
+        let bm: BigInt<A> = (i64::MIN + 1).into();
+        let x = format!("{bm:?}");
+        //                0123456789ABCDEF
+        assert_eq!(x, "-0x7FFFFFFFFFFFFFFFn");
+        let i: i64 = i64::MIN + 1;
+        let m = i.overflowing_neg().0 as u64;
+        assert_eq!(m, 0x7FFFFFFFFFFFFFFF);
+    }
+
+    {
+        let bm: BigInt<A> = i64::MAX.into();
+        let x = format!("{bm:?}");
+        //               0123456789ABCDEF
+        assert_eq!(x, "0x7FFFFFFFFFFFFFFFn");
+    }
+
+    {
+        let bm: BigInt<A> = u64::MAX.into();
+        let x = format!("{bm:?}");
+        //               0123456789ABCDEF
+        assert_eq!(x, "0xFFFFFFFFFFFFFFFFn");
+    }
+
+    {
+        let bm: BigInt<A> = 0u64.into();
+        let x = format!("{bm:?}");
+        //               0123456789ABCDEF
+        assert_eq!(x, "0n");
+    }
+
+    {
+        let bm: BigInt<A> = 0i64.into();
+        let x = format!("{bm:?}");
+        //               0123456789ABCDEF
+        assert_eq!(x, "0n");
+    }
+}
+
 fn gen_test<A: IInternalAny>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -126,6 +186,7 @@ fn gen_test<A: IInternalAny>() {
     string_eq::<A>();
     object_eq::<A>();
     array_eq::<A>();
+    bigint_eq::<A>();
 }
 
 #[test]
