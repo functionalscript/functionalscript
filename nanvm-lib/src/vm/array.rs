@@ -1,8 +1,7 @@
 use std::io;
 
 use crate::{
-    common::default::default,
-    serializable::Serializable,
+    common::{default::default, serializable::Serializable},
     vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
 };
 

@@ -1,6 +1,5 @@
 use crate::{
-    common::default::default,
-    serializable::Serializable,
+    common::{default::default, serializable::Serializable},
     sign::Sign,
     vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
 };

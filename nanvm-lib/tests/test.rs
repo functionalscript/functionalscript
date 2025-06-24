@@ -4,7 +4,6 @@ use nanvm_lib::{
     interface::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
     naive,
     nullish::Nullish,
-    serializable::Serializable,
     sign::Sign,
     simple::Simple,
 };
@@ -465,34 +464,6 @@ fn big_int_mul<A: Any>() -> Result<(), WAny<A>> {
     assert_eq!((a.clone() * b.clone())?, expected);
     assert_eq!((b.clone() * a.clone())?, expected);
     Ok(())
-}
-
-fn eq_value<A: Any>(a: &A, b: &A) -> bool {
-    match (a.clone().unpack(), b.clone().unpack()) {
-        (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
-        (Unpacked::Bool(a), Unpacked::Bool(b)) => a == b,
-        (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
-        (Unpacked::String16(a), Unpacked::String16(b)) => {
-            a.header() == b.header() && a.items() == b.items()
-        }
-        (Unpacked::BigInt(a), Unpacked::BigInt(b)) => {
-            a.header() == b.header() && a.items() == b.items()
-        }
-        (Unpacked::Array(a), Unpacked::Array(b)) => {
-            a.header() == b.header()
-                && a.items().len() == b.items().len()
-                && a.items().iter().zip(b.items()).all(|(x, y)| eq_value(x, y))
-        }
-        (Unpacked::Object(a), Unpacked::Object(b)) => {
-            a.header() == b.header()
-                && a.items().len() == b.items().len()
-                && a.items()
-                    .iter()
-                    .zip(b.items())
-                    .all(|((k1, v1), (k2, v2))| k1.items() == k2.items() && eq_value(v1, v2))
-        }
-        _ => false,
-    }
 }
 
 fn test_vm<A: Any>() {

@@ -1,6 +1,5 @@
 use crate::{
-    serializable::Serializable,
-    vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
+    common::serializable::Serializable, vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked}
 };
 use std::{
     fmt::{Debug, Formatter},

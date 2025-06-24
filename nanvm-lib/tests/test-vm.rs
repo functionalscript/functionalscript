@@ -1,7 +1,12 @@
 use std::i64;
 
 use nanvm_lib::{
-    nullish::Nullish, serializable::Serializable, vm::{naive, Any, Array, BigInt, IInternalAny, Object, String16, ToAnyEx}
+    common::serializable::Serializable,
+    nullish::Nullish,
+    vm::{
+        naive, Any, Array, BigInt, IContainer, IInternalAny, Object, Property, String16, ToAnyEx,
+        Unpacked,
+    },
 };
 
 fn nullish_eq<A: IInternalAny>() {
@@ -176,6 +181,46 @@ fn bigint_eq<A: IInternalAny>() {
     }
 }
 
+fn eq_container<A: IInternalAny, T: IContainer<A>>(
+    a: &T,
+    b: &T,
+    e: fn(a: &T::Item, &T::Item) -> bool,
+) -> bool {
+    if a.header() != b.header() {
+        return false;
+    }
+    let len = a.len();
+    if len != b.len() {
+        return false;
+    }
+    if a.ptr_eq(&b) {
+        return true;
+    }
+    for i in 0..len {
+        if !e(&a.at(i), &b.at(i)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn eq_value<A: IInternalAny>(a: &Any<A>, b: &Any<A>) -> bool {
+    match (a.0.clone().to_unpacked(), b.0.clone().to_unpacked()) {
+        (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
+        (Unpacked::Boolean(a), Unpacked::Boolean(b)) => a == b,
+        (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
+        (Unpacked::String(a), Unpacked::String(b)) => a == b,
+        (Unpacked::BigInt(a), Unpacked::BigInt(b)) => a == b,
+        (Unpacked::Array(a), Unpacked::Array(b)) => eq_container(&a.0, &b.0, eq_value),
+        (Unpacked::Object(a), Unpacked::Object(b)) => {
+            eq_container(&a.0, &b.0, |x: &Property<A>, y: &Property<A>| {
+                x.0 == y.0 && eq_value(&x.1, &y.1)
+            })
+        }
+        _ => false,
+    }
+}
+
 fn serialization<A: IInternalAny>() {
     use std::io::Cursor;
 
@@ -189,11 +234,7 @@ fn serialization<A: IInternalAny>() {
         Into::<BigInt<A>>::into(12u64).to_any(),
         Array::default().to_any(),
         Into::<Array<A>>::into([7.0.to_any()]).to_any(),
-        Into::<Object<A>>::into([
-            ("a".into(), 1.0.to_any()),
-            ("b".into(), "c".into()),
-        ])
-        .to_any(),
+        Into::<Object<A>>::into([("a".into(), 1.0.to_any()), ("b".into(), "c".into())]).to_any(),
     ]
     .to_vec();
 
@@ -202,7 +243,7 @@ fn serialization<A: IInternalAny>() {
         value.clone().serialize(&mut buf).unwrap();
         let mut cursor = Cursor::new(buf);
         let result = Any::deserialize(&mut cursor).unwrap();
-        assert!(&value == &result);
+        assert!(eq_value(&value, &result));
     }
 }
 

@@ -1,8 +1,5 @@
 use crate::{
-    nullish::Nullish,
-    serializable::Serializable,
-    sign::Sign,
-    vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
+    common::serializable::Serializable, nullish::Nullish, sign::Sign, vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked}
 };
 
 use std::{
@@ -12,7 +9,7 @@ use std::{
 
 pub trait IContainer<A: IInternalAny>: Sized + Clone {
     // types
-    type Header: Serializable;
+    type Header: PartialEq + Serializable;
     type Item: Debug + Serializable;
 
     // functions

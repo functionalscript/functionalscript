@@ -1,7 +1,5 @@
 use crate::{
-    nullish::Nullish,
-    serializable::Serializable,
-    vm::{Any, Array, BigInt, Function, IInternalAny, Js, Object, String16},
+    common::serializable::Serializable, nullish::Nullish, vm::{Any, Array, BigInt, Function, IInternalAny, Js, Object, String16}
 };
 use std::{
     fmt::Debug,
