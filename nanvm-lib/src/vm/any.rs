@@ -1,8 +1,12 @@
 use crate::{
     nullish::Nullish,
-    vm::{IInternalAny, Unpacked},
+    serializable::Serializable,
+    vm::{IInternalAny, ToAnyEx, Unpacked},
 };
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    io::{self, Read, Write},
+};
 
 #[derive(Clone)]
 pub struct Any<A: IInternalAny>(pub A);
@@ -12,17 +16,6 @@ impl<A: IInternalAny> Debug for Any<A> {
         self.0.clone().to_unpacked().fmt(f)
     }
 }
-
-pub trait ToAnyEx {
-    fn to_any<A: IInternalAny>(self) -> Any<A>
-    where
-        Self: Into<A>,
-    {
-        Any(self.into())
-    }
-}
-
-impl<T> ToAnyEx for T {}
 
 /// Same as `===` in ECMAScript.
 impl<A: IInternalAny> PartialEq for Any<A> {
@@ -76,5 +69,14 @@ impl<A: IInternalAny> TryFrom<Any<A>> for f64 {
         } else {
             Err(())
         }
+    }
+}
+
+impl<A: IInternalAny> Serializable for Any<A> {
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.0.clone().to_unpacked().serialize(write)
+    }
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        Ok(Unpacked::deserialize(read)?.into())
     }
 }

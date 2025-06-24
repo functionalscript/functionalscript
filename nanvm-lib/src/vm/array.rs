@@ -1,5 +1,8 @@
+use std::io;
+
 use crate::{
     common::default::default,
+    serializable::Serializable,
     vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
 };
 
@@ -38,5 +41,14 @@ impl<A: IInternalAny> std::fmt::Debug for Array<A> {
 impl<A: IInternalAny> Js<A> for Array<A> {
     fn string(&self) -> String16<A> {
         default()
+    }
+}
+
+impl<A: IInternalAny> Serializable for Array<A> {
+    fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(writer)
+    }
+    fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {
+        A::InternalArray::deserialize(reader).map(Self)
     }
 }

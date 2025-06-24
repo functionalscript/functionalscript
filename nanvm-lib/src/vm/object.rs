@@ -1,5 +1,11 @@
-use crate::vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked};
-use std::fmt::{Debug, Formatter};
+use crate::{
+    serializable::Serializable,
+    vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
+};
+use std::{
+    fmt::{Debug, Formatter},
+    io,
+};
 
 pub type Property<A> = (String16<A>, Any<A>);
 
@@ -38,5 +44,27 @@ impl<A: IInternalAny> Debug for Object<A> {
 impl<A: IInternalAny> Js<A> for Object<A> {
     fn string(&self) -> String16<A> {
         "[object Object]".into()
+    }
+}
+
+impl<A: IInternalAny> Serializable for Object<A> {
+    fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(writer)
+    }
+    fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {
+        A::InternalObject::deserialize(reader).map(Self)
+    }
+}
+
+impl<A: IInternalAny> Serializable for Property<A> {
+    fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(writer)?;
+        self.1.serialize(writer)
+    }
+
+    fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {
+        let key = String16::<A>::deserialize(reader)?;
+        let value = Any::<A>::deserialize(reader)?;
+        Ok((key, value))
     }
 }

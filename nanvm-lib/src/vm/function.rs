@@ -1,8 +1,12 @@
 use crate::{
     common::default::default,
+    serializable::Serializable,
     vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
 };
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    io,
+};
 
 pub type FunctionHeader<A> = (String16<A>, u32);
 
@@ -46,5 +50,28 @@ impl<A: IInternalAny> Js<A> for Function<A> {
     fn string(&self) -> String16<A> {
         // TODO: Implement proper conversion to String16
         default()
+    }
+}
+
+impl<A: IInternalAny> Serializable for Function<A> {
+    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(write)
+    }
+
+    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
+        A::InternalFunction::deserialize(read).map(Self)
+    }
+}
+
+impl<A: IInternalAny> Serializable for FunctionHeader<A> {
+    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(write)?;
+        self.1.serialize(write)
+    }
+
+    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
+        let name = String16::deserialize(read)?;
+        let arg_count = u32::deserialize(read)?;
+        Ok((name, arg_count))
     }
 }

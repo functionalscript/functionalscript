@@ -1,6 +1,7 @@
 use std::{fmt::Debug, rc::Rc};
 
 use crate::{
+    serializable::Serializable,
     sign::Sign,
     vm::{Any, FunctionHeader, IContainer, IInternalAny, Property, Unpacked},
 };
@@ -32,7 +33,9 @@ pub struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<InternalAny> for Container<H, I> {
+impl<H: Clone + PartialEq + Serializable, I: Clone + Debug + Serializable> IContainer<InternalAny>
+    for Container<H, I>
+{
     type Header = H;
     type Item = I;
 
@@ -50,12 +53,12 @@ impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<InternalAny> for Contain
         &self.header
     }
 
-    fn len(&self) -> usize {
-        self.items.len()
+    fn len(&self) -> u32 {
+        self.items.len() as u32
     }
 
-    fn at(&self, i: usize) -> Self::Item {
-        self.items[i].clone()
+    fn at(&self, i: u32) -> Self::Item {
+        self.items[i as usize].clone()
     }
 
     fn ptr_eq(&self, other: &Self) -> bool {

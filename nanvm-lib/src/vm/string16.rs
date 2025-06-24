@@ -1,5 +1,11 @@
-use crate::vm::{Any, IContainer, IInternalAny, Js, ToAnyEx, Unpacked};
-use std::fmt::{Debug, Formatter, Write};
+use crate::{
+    serializable::Serializable,
+    vm::{Any, IContainer, IInternalAny, Js, ToAnyEx, Unpacked},
+};
+use std::{
+    fmt::{Debug, Formatter, Write},
+    io,
+};
 
 #[derive(Clone)]
 pub struct String16<A: IInternalAny>(pub A::InternalString16);
@@ -71,5 +77,15 @@ impl<A: IInternalAny> TryFrom<Any<A>> for String16<A> {
 impl<A: IInternalAny> Js<A> for String16<A> {
     fn string(&self) -> String16<A> {
         self.clone()
+    }
+}
+
+impl<A: IInternalAny> Serializable for String16<A> {
+    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(write)
+    }
+
+    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
+        A::InternalString16::deserialize(read).map(Self)
     }
 }

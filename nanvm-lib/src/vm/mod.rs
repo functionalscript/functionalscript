@@ -7,10 +7,11 @@ pub mod js;
 pub mod naive;
 pub mod object;
 pub mod string16;
+pub mod to_any;
 pub mod unpacked;
 
 pub use crate::vm::{
-    any::{Any, ToAnyEx},
+    any::Any,
     array::Array,
     bigint::BigInt,
     function::{Function, FunctionHeader},
@@ -18,6 +19,7 @@ pub use crate::vm::{
     js::Js,
     object::{Object, Property},
     string16::String16,
+    to_any::ToAnyEx,
     unpacked::Unpacked,
 };
 

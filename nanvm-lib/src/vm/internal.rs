@@ -1,15 +1,19 @@
 use crate::{
     nullish::Nullish,
+    serializable::Serializable,
     sign::Sign,
     vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
 };
 
-use std::fmt::{Debug, Formatter, Write};
+use std::{
+    fmt::{Debug, Formatter, Write},
+    io,
+};
 
 pub trait IContainer<A: IInternalAny>: Sized + Clone {
     // types
-    type Header;
-    type Item: Debug;
+    type Header: Serializable;
+    type Item: Debug + Serializable;
 
     // functions
     fn new<E>(
@@ -17,8 +21,8 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
         i: impl IntoIterator<Item = Result<Self::Item, E>>,
     ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
-    fn len(&self) -> usize;
-    fn at(&self, i: usize) -> Self::Item;
+    fn len(&self) -> u32;
+    fn at(&self, i: u32) -> Self::Item;
     fn ptr_eq(&self, other: &Self) -> bool;
 
     // extensions
@@ -73,6 +77,27 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
             first = false;
         }
         f.write_char(close)
+    }
+
+    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+        self.header().serialize(write)?;
+        let len = self.len();
+        len.serialize(write)?;
+        for i in 0..len {
+            self.at(i).serialize(write)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
+        let header = Self::Header::deserialize(read)?;
+        let len = u32::deserialize(read)?;
+        // TODO: remove the allocation
+        let mut items = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            items.push(Self::Item::deserialize(read)?);
+        }
+        Ok(Self::new_ok(header, items))
     }
 }
 

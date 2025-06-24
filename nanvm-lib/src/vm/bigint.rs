@@ -1,9 +1,13 @@
 use crate::{
     common::default::default,
+    serializable::Serializable,
     sign::Sign,
     vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
 };
-use std::fmt::{Debug, Formatter, Write};
+use std::{
+    fmt::{Debug, Formatter, Write},
+    io,
+};
 
 #[derive(Clone)]
 pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
@@ -82,5 +86,15 @@ impl<A: IInternalAny> Js<A> for BigInt<A> {
     fn string(&self) -> String16<A> {
         // TODO: Implement proper conversion to String16
         default()
+    }
+}
+
+impl<A: IInternalAny> Serializable for BigInt<A> {
+    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+        self.0.serialize(write)
+    }
+
+    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
+        A::InternalBigInt::deserialize(read).map(Self)
     }
 }
