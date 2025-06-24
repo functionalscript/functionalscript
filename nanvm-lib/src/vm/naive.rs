@@ -1,7 +1,9 @@
 use std::{fmt::Debug, rc::Rc};
 
 use crate::{
-    common::serializable::Serializable, sign::Sign, vm::{Any, FunctionHeader, IContainer, IInternalAny, Property, Unpacked}
+    common::serializable::Serializable,
+    sign::Sign,
+    vm::{Any, FunctionHeader, IContainer, IInternalAny, Property, Unpacked},
 };
 
 #[derive(Clone)]

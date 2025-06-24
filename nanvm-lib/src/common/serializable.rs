@@ -1,9 +1,6 @@
 use std::io::{self, Read, Write};
 
-use crate::{
-    common::le::Le,
-    sign::Sign,
-};
+use crate::{common::le::Le, sign::Sign};
 
 pub trait Serializable: Sized {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()>;

@@ -1,5 +1,8 @@
 use crate::{
-    common::serializable::Serializable, nullish::Nullish, sign::Sign, vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked}
+    common::serializable::Serializable,
+    nullish::Nullish,
+    sign::Sign,
+    vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
 };
 
 use std::{
@@ -89,7 +92,7 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         let header = Self::Header::deserialize(read)?;
         let len = u32::deserialize(read)?;
-        // TODO: remove the allocation
+        // TODO: remove the allocation by using a custom iterator.
         let mut items = Vec::with_capacity(len as usize);
         for _ in 0..len {
             items.push(Self::Item::deserialize(read)?);
