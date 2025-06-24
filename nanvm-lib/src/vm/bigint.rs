@@ -49,7 +49,7 @@ impl<A: IInternalAny> BigInt<A> {
 
 impl<A: IInternalAny> PartialEq for BigInt<A> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.deep_eq(&other.0)
+        self.0.items_eq(&other.0)
     }
 }
 

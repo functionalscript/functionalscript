@@ -39,7 +39,7 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
         Self::new_ok(header, std::iter::empty())
     }
 
-    fn deep_eq(&self, b: &Self) -> bool
+    fn items_eq(&self, b: &Self) -> bool
     where
         Self::Header: PartialEq,
         Self::Item: PartialEq,
