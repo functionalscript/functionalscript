@@ -1,8 +1,7 @@
 use std::i64;
 
 use nanvm_lib::{
-    nullish::Nullish,
-    vm::{naive, Any, Array, BigInt, IInternalAny, Object, String16, ToAnyEx},
+    nullish::Nullish, serializable::Serializable, vm::{naive, Any, Array, BigInt, IInternalAny, Object, String16, ToAnyEx}
 };
 
 fn nullish_eq<A: IInternalAny>() {
@@ -177,6 +176,36 @@ fn bigint_eq<A: IInternalAny>() {
     }
 }
 
+fn serialization<A: IInternalAny>() {
+    use std::io::Cursor;
+
+    let values: Vec<Any<A>> = [
+        Nullish::Null.to_any(),
+        Nullish::Undefined.to_any(),
+        true.to_any(),
+        false.to_any(),
+        2.3.to_any(),
+        "Hello".into(),
+        Into::<BigInt<A>>::into(12u64).to_any(),
+        Array::default().to_any(),
+        Into::<Array<A>>::into([7.0.to_any()]).to_any(),
+        Into::<Object<A>>::into([
+            ("a".into(), 1.0.to_any()),
+            ("b".into(), "c".into()),
+        ])
+        .to_any(),
+    ]
+    .to_vec();
+
+    for value in values.into_iter() {
+        let mut buf = Vec::new();
+        value.clone().serialize(&mut buf).unwrap();
+        let mut cursor = Cursor::new(buf);
+        let result = Any::deserialize(&mut cursor).unwrap();
+        assert!(&value == &result);
+    }
+}
+
 fn gen_test<A: IInternalAny>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -185,6 +214,7 @@ fn gen_test<A: IInternalAny>() {
     object_eq::<A>();
     array_eq::<A>();
     bigint_eq::<A>();
+    serialization::<A>();
 }
 
 #[test]

@@ -99,6 +99,20 @@ impl Serializable for Sign {
     }
 }
 
+impl<A: Serializable, B: Serializable> Serializable for (A, B) {
+    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+        self.0.serialize(write)?;
+        self.1.serialize(write)
+    }
+
+    fn deserialize(read: &mut impl Read) -> io::Result<Self> {
+        let first = A::deserialize(read)?;
+        let second = B::deserialize(read)?;
+        Ok((first, second))
+    }
+}
+
+/*
 impl<T: Any> Serializable for (T::String16, T) {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.0.container_serialize(write)?;
@@ -111,6 +125,7 @@ impl<T: Any> Serializable for (T::String16, T) {
         Ok((key, value))
     }
 }
+    */
 
 // Value Types 0b000X_XXXX:
 const UNDEFINED: u8 = 0b0000_0000;
@@ -130,6 +145,7 @@ const ARRAY: u8 = 0b0011_0001;
 // Operations 0b01XX_XXXX:
 const _CONST_REF: u8 = 0b0100_0000;
 
+/*
 impl<T: Any> Serializable for T {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         match self.clone().unpack() {
@@ -196,3 +212,4 @@ impl<T: Any> Serializable for T {
         }
     }
 }
+*/

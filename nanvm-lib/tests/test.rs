@@ -495,36 +495,6 @@ fn eq_value<A: Any>(a: &A, b: &A) -> bool {
     }
 }
 
-fn serialization<A: Any>() {
-    use std::io::Cursor;
-
-    let values: Vec<A> = [
-        Simple::Nullish(Nullish::Null).to_unknown(),
-        Simple::Nullish(Nullish::Undefined).to_unknown(),
-        Simple::Boolean(true).to_unknown(),
-        Simple::Boolean(false).to_unknown(),
-        Simple::Number(2.3).to_unknown(),
-        "Hello".to_unknown(),
-        A::BigInt::new(Sign::Positive, [12]).to_unknown(),
-        [].to_array_unknown(),
-        [Simple::Number(7.0).to_unknown()].to_array_unknown(),
-        [
-            ("a".to_string16::<A>(), Simple::Number(1.0).to_unknown()),
-            ("b".to_string16::<A>(), "c".to_unknown()),
-        ]
-        .to_object_unknown(),
-    ]
-    .to_vec();
-
-    for value in values.into_iter() {
-        let mut buf = Vec::new();
-        value.clone().serialize(&mut buf).unwrap();
-        let mut cursor = Cursor::new(buf);
-        let result = A::deserialize(&mut cursor).unwrap();
-        assert!(eq_value(&value, &result));
-    }
-}
-
 fn test_vm<A: Any>() {
     eq::<A>();
     unary_plus::<A>();
@@ -532,7 +502,7 @@ fn test_vm<A: Any>() {
     multiply::<A>();
     big_int_add::<A>();
     big_int_mul::<A>().unwrap();
-    serialization::<A>();
+    // serialization::<A>();
 }
 
 #[test]

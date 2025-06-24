@@ -56,15 +56,8 @@ impl<A: IInternalAny> Serializable for Object<A> {
     }
 }
 
-impl<A: IInternalAny> Serializable for Property<A> {
-    fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
-        self.0.serialize(writer)?;
-        self.1.serialize(writer)
-    }
-
-    fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {
-        let key = String16::<A>::deserialize(reader)?;
-        let value = Any::<A>::deserialize(reader)?;
-        Ok((key, value))
+impl<A: IInternalAny, T: IntoIterator<Item = Property<A>>> From<T> for Object<A> {
+    fn from(iter: T) -> Self {
+        Self(A::InternalObject::new_ok((), iter))
     }
 }

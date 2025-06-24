@@ -62,16 +62,3 @@ impl<A: IInternalAny> Serializable for Function<A> {
         A::InternalFunction::deserialize(read).map(Self)
     }
 }
-
-impl<A: IInternalAny> Serializable for FunctionHeader<A> {
-    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
-        self.0.serialize(write)?;
-        self.1.serialize(write)
-    }
-
-    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
-        let name = String16::deserialize(read)?;
-        let arg_count = u32::deserialize(read)?;
-        Ok((name, arg_count))
-    }
-}

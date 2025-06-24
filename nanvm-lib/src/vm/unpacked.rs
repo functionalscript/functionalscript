@@ -119,16 +119,24 @@ impl<A: IInternalAny> From<Function<A>> for Unpacked<A> {
     }
 }
 
-const UNDEFINED: u8 = 0;
-const NULL: u8 = 1;
-const FALSE: u8 = 2;
-const TRUE: u8 = 3;
-const NUMBER: u8 = 4;
-const STRING: u8 = 5;
-const BIG_INT: u8 = 6;
-const OBJECT: u8 = 7;
-const ARRAY: u8 = 8;
-const FUNCTION: u8 = 9;
+// Value Types 0b000X_XXXX:
+const UNDEFINED: u8 = 0b0000_0000;
+const NULL: u8 = 0b0000_0001;
+const FALSE: u8 = 0b0000_0010;
+const TRUE: u8 = 0b0000_0011;
+const NUMBER: u8 = 0b0000_0100;
+
+// Immutable References 0b0010_XXXX:
+const STRING: u8 = 0b0010_0000;
+const BIG_INT: u8 = 0b0010_0001;
+
+// Mutable References 0b0011_XXXX:
+const OBJECT: u8 = 0b0011_0000;
+const ARRAY: u8 = 0b0011_0001;
+const FUNCTION: u8 = 0b0011_0010;
+
+// Operations 0b01XX_XXXX:
+const _CONST_REF: u8 = 0b0100_0000;
 
 fn serialize(write: &mut impl Write, tag: u8, value: &impl Serializable) -> io::Result<()> {
     write.write_all(&[tag])?;
@@ -143,14 +151,14 @@ impl<A: IInternalAny> Serializable for Unpacked<A> {
                     Nullish::Undefined => UNDEFINED,
                     Nullish::Null => NULL,
                 };
-                serialize(write, tag, &())
+                tag.serialize(write)
             }
             Unpacked::Boolean(v) => {
                 let tag = match v {
                     true => TRUE,
                     false => FALSE,
                 };
-                serialize(write, tag, &())
+                tag.serialize(write)
             }
             Unpacked::Number(v) => serialize(write, NUMBER, v),
             Unpacked::String(v) => serialize(write, STRING, v),

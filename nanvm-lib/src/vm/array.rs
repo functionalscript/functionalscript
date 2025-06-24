@@ -52,3 +52,9 @@ impl<A: IInternalAny> Serializable for Array<A> {
         A::InternalArray::deserialize(reader).map(Self)
     }
 }
+
+impl<A: IInternalAny, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
+    fn from(iter: T) -> Self {
+        Self(A::InternalArray::new_ok((), iter))
+    }
+}
