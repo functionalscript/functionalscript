@@ -4,8 +4,7 @@ use nanvm_lib::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, IContainer, IVm, Object, Property, String16, ToAnyEx,
-        Unpacked,
+        naive, Any, Array, BigInt, IContainer, IVm, Object, Property, String16, ToAnyEx, Unpacked,
     },
 };
 
