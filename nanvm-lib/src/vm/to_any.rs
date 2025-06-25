@@ -1,7 +1,7 @@
-use crate::vm::{Any, IInternalAny};
+use crate::vm::{Any, IVm};
 
 pub trait ToAnyEx {
-    fn to_any<A: IInternalAny>(self) -> Any<A>
+    fn to_any<A: IVm>(self) -> Any<A>
     where
         Self: Into<A>,
     {

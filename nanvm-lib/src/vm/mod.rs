@@ -15,7 +15,7 @@ pub use crate::vm::{
     array::Array,
     bigint::BigInt,
     function::{Function, FunctionHeader},
-    internal::{IContainer, IInternalAny},
+    internal::{IContainer, IVm},
     js::Js,
     object::{Object, Property},
     string16::String16,
@@ -27,12 +27,12 @@ pub use crate::vm::{
 mod test {
     use super::*;
 
-    fn _eq_test<A: IInternalAny>() {
+    fn _eq_test<A: IVm>() {
         let x: Any<A> = 0.5.to_any();
         assert_eq!(x, x);
     }
 
-    fn _any_test<A: IInternalAny>() {
+    fn _any_test<A: IVm>() {
         let x: Any<A> = 0.5.to_any();
         let _: f64 = x.try_into().unwrap();
     }

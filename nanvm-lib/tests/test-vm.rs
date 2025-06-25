@@ -4,12 +4,12 @@ use nanvm_lib::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, IContainer, IInternalAny, Object, Property, String16, ToAnyEx,
+        naive, Any, Array, BigInt, IContainer, IVm, Object, Property, String16, ToAnyEx,
         Unpacked,
     },
 };
 
-fn nullish_eq<A: IInternalAny>() {
+fn nullish_eq<A: IVm>() {
     let n0: Any<A> = Nullish::Null.to_any();
     let n1 = Nullish::Null.to_any();
     assert_eq!(n0, n1);
@@ -22,7 +22,7 @@ fn nullish_eq<A: IInternalAny>() {
     assert_eq!(x, Nullish::Null);
 }
 
-fn bool_eq<A: IInternalAny>() {
+fn bool_eq<A: IVm>() {
     let t0: Any<A> = true.to_any();
     let t1 = true.to_any();
     assert_eq!(t0, t1);
@@ -35,7 +35,7 @@ fn bool_eq<A: IInternalAny>() {
     assert!(x);
 }
 
-fn number_eq<A: IInternalAny>() {
+fn number_eq<A: IVm>() {
     // 0.5
     let a0: Any<A> = 0.5.to_any();
     let a1 = 0.5.to_any();
@@ -81,7 +81,7 @@ fn number_eq<A: IInternalAny>() {
     assert_ne!(i0, nan0);
 }
 
-fn string_eq<A: IInternalAny>() {
+fn string_eq<A: IVm>() {
     let s0: Any<A> = "Hello".into();
     let s1 = "Hello".into();
     assert_eq!(s0, s1);
@@ -95,7 +95,7 @@ fn string_eq<A: IInternalAny>() {
     assert_eq!(x, "\"Hello\"");
 }
 
-fn object_eq<A: IInternalAny>() {
+fn object_eq<A: IVm>() {
     let e0: Any<A> = Object::default().to_any();
     let e1 = Object::default().to_any();
     assert_eq!(e0, e0);
@@ -110,7 +110,7 @@ fn object_eq<A: IInternalAny>() {
     assert_eq!(x, "{}");
 }
 
-fn array_eq<A: IInternalAny>() {
+fn array_eq<A: IVm>() {
     let e0: Any<A> = Array::default().to_any();
     let e1 = Array::default().to_any();
     assert_eq!(e0, e0);
@@ -125,7 +125,7 @@ fn array_eq<A: IInternalAny>() {
     assert_eq!(x, "[]");
 }
 
-fn bigint_eq<A: IInternalAny>() {
+fn bigint_eq<A: IVm>() {
     let b0: Any<A> = BigInt::default().to_any();
     let b1 = BigInt::default().to_any();
     assert_eq!(b0, b1);
@@ -181,7 +181,7 @@ fn bigint_eq<A: IInternalAny>() {
     }
 }
 
-fn eq_container<A: IInternalAny, T: IContainer<A>>(
+fn eq_container<A: IVm, T: IContainer<A>>(
     a: &T,
     b: &T,
     e: fn(a: &T::Item, &T::Item) -> bool,
@@ -204,7 +204,7 @@ fn eq_container<A: IInternalAny, T: IContainer<A>>(
     return true;
 }
 
-fn eq_value<A: IInternalAny>(a: &Any<A>, b: &Any<A>) -> bool {
+fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     match (a.0.clone().to_unpacked(), b.0.clone().to_unpacked()) {
         (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
         (Unpacked::Boolean(a), Unpacked::Boolean(b)) => a == b,
@@ -221,7 +221,7 @@ fn eq_value<A: IInternalAny>(a: &Any<A>, b: &Any<A>) -> bool {
     }
 }
 
-fn serialization<A: IInternalAny>() {
+fn serialization<A: IVm>() {
     use std::io::Cursor;
 
     let values: &[Any<A>] = &[
@@ -246,7 +246,7 @@ fn serialization<A: IInternalAny>() {
     }
 }
 
-fn old_eq<A: IInternalAny>() {
+fn old_eq<A: IVm>() {
     // nullish
     let null0: Any<A> = Nullish::Null.to_any();
     let null1 = Nullish::Null.to_any();
@@ -349,124 +349,7 @@ fn old_eq<A: IInternalAny>() {
     }
 }
 
-/*
-fn old_assert_is_nan<A: IInternalAny>(a: Any<A>, test_case: &str) {
-    let nan = Any::unary_plus(a).unwrap();
-    if let Some(simple) = nan.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of '{}'", test_case),
-        }
-    } else {
-        panic!("expected Simple result of unary_plus of '{}'", test_case);
-    }
-}
-
-fn old_test_op<A: IInternalAny>(result: Any<A>, expected: Any<A>, test_case: &str) {
-    match expected.0.to_unpacked() {
-        Unpacked::Number(f) => {
-            if f.is_nan() {
-                old_assert_is_nan(result, test_case);
-            } else {
-                assert_eq!(result, expected);
-            }
-        }
-        Unpacked::BigInt(_) => {
-            assert_eq!(result, expected);
-        }
-        _ => panic!("expected is neither Number nor BigInt in '{}'", test_case),
-    }
-}
-
-fn old_unary_plus<A: IInternalAny>() {
-    let n0: A = Simple::Number(0.0).to_unknown();
-    let nan: A = Simple::Number(f64::NAN).to_unknown();
-    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let test_cases: Vec<(A, A, &str)> = vec![
-        (null.clone(), n0.clone(), "null"),
-        (
-            Simple::Nullish(Nullish::Undefined).to_unknown(),
-            nan.clone(),
-            "undefined",
-        ),
-        (
-            Simple::Boolean(true).to_unknown(),
-            Simple::Number(1.0).to_unknown(),
-            "boolean true",
-        ),
-        (
-            Simple::Boolean(false).to_unknown(),
-            n0.clone(),
-            "boolean false",
-        ),
-        (n0.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
-        (
-            Simple::Number(2.3).to_unknown(),
-            Simple::Number(2.3).to_unknown(),
-            "number 2.3",
-        ),
-        (
-            Simple::Number(-2.3).to_unknown(),
-            Simple::Number(-2.3).to_unknown(),
-            "number -2.3",
-        ),
-        ("".to_unknown(), n0.clone(), "string \"\""),
-        ("0".to_unknown(), n0.clone(), "string \"0\""),
-        (
-            "2.3e2".to_unknown(),
-            Simple::Number(2.3e2).to_unknown(),
-            "string \"2.3e2\"",
-        ),
-        ("a".to_unknown(), nan.clone(), "string \"a\""),
-        ([].to_array_unknown(), n0.clone(), "array []"),
-        (
-            [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
-            Simple::Number(-0.3).to_unknown(),
-            "array [-0.3]",
-        ),
-        (
-            ["0.3".to_unknown()].to_array_unknown(),
-            Simple::Number(0.3).to_unknown(),
-            "array [\"0.3\"]",
-        ),
-        (
-            [null.clone()].to_array_unknown(),
-            n0.clone(),
-            "array [null]",
-        ),
-        (
-            [null.clone(), null.clone()].to_array_unknown(),
-            nan.clone(),
-            "array [null,null]",
-        ),
-        ([].to_object_unknown(), nan.clone(), "object {{}}"),
-        // TODO: decide on testing objects with valueOf, toString functions.
-        (
-            A::Function::new(0, [0]).to_unknown(),
-            nan.clone(),
-            "function",
-        ),
-    ];
-    for (a, expected, test_case) in test_cases.iter() {
-        test_op::<A>(
-            Any::unary_plus(a.clone()).unwrap(),
-            expected.clone(),
-            test_case,
-        );
-    }
-
-    // bigint
-    let bi0: A = A::BigInt::new(Sign::Positive, [0]).to_unknown();
-    assert_eq!(
-        Any::unary_plus(bi0),
-        A::exception("TypeError: Cannot convert a BigInt value to a number")
-    );
-}
-    */
-
-fn gen_test<A: IInternalAny>() {
+fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
     number_eq::<A>();

@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{IInternalAny, ToAnyEx, Unpacked},
+    vm::{IVm, ToAnyEx, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -9,22 +9,22 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct Any<A: IInternalAny>(pub A);
+pub struct Any<A: IVm>(pub A);
 
-impl<A: IInternalAny> Debug for Any<A> {
+impl<A: IVm> Debug for Any<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.clone().to_unpacked().fmt(f)
     }
 }
 
 /// Same as `===` in ECMAScript.
-impl<A: IInternalAny> PartialEq for Any<A> {
+impl<A: IVm> PartialEq for Any<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
     }
 }
 
-impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
+impl<A: IVm> From<Unpacked<A>> for Any<A> {
     fn from(value: Unpacked<A>) -> Self {
         match value {
             Unpacked::Nullish(n) => n.to_any(),
@@ -39,7 +39,7 @@ impl<A: IInternalAny> From<Unpacked<A>> for Any<A> {
     }
 }
 
-impl<A: IInternalAny> TryFrom<Any<A>> for Nullish {
+impl<A: IVm> TryFrom<Any<A>> for Nullish {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         if let Unpacked::Nullish(result) = value.0.to_unpacked() {
@@ -50,7 +50,7 @@ impl<A: IInternalAny> TryFrom<Any<A>> for Nullish {
     }
 }
 
-impl<A: IInternalAny> TryFrom<Any<A>> for bool {
+impl<A: IVm> TryFrom<Any<A>> for bool {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         if let Unpacked::Boolean(result) = value.0.to_unpacked() {
@@ -61,7 +61,7 @@ impl<A: IInternalAny> TryFrom<Any<A>> for bool {
     }
 }
 
-impl<A: IInternalAny> TryFrom<Any<A>> for f64 {
+impl<A: IVm> TryFrom<Any<A>> for f64 {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         if let Unpacked::Number(result) = value.0.to_unpacked() {
@@ -72,7 +72,7 @@ impl<A: IInternalAny> TryFrom<Any<A>> for f64 {
     }
 }
 
-impl<A: IInternalAny> Serializable for Any<A> {
+impl<A: IVm> Serializable for Any<A> {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         self.0.clone().to_unpacked().serialize(write)
     }

@@ -1,6 +1,6 @@
 use crate::{
     common::{default::default, serializable::Serializable},
-    vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
+    vm::{Any, IContainer, IVm, Js, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -10,15 +10,15 @@ use std::{
 pub type FunctionHeader<A> = (String16<A>, u32);
 
 #[derive(Clone)]
-pub struct Function<A: IInternalAny>(pub A::InternalFunction);
+pub struct Function<A: IVm>(pub A::InternalFunction);
 
-impl<A: IInternalAny> PartialEq for Function<A> {
+impl<A: IVm> PartialEq for Function<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)
     }
 }
 
-impl<A: IInternalAny> TryFrom<Any<A>> for Function<A> {
+impl<A: IVm> TryFrom<Any<A>> for Function<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         if let Unpacked::Function(result) = value.0.to_unpacked() {
@@ -29,7 +29,7 @@ impl<A: IInternalAny> TryFrom<Any<A>> for Function<A> {
     }
 }
 
-impl<A: IInternalAny> Debug for Function<A> {
+impl<A: IVm> Debug for Function<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let header = self.0.header();
         let name: std::string::String = (&header.0).into();
@@ -45,14 +45,14 @@ impl<A: IInternalAny> Debug for Function<A> {
     }
 }
 
-impl<A: IInternalAny> Js<A> for Function<A> {
+impl<A: IVm> Js<A> for Function<A> {
     fn string(&self) -> String16<A> {
         // TODO: Implement proper conversion to String16
         default()
     }
 }
 
-impl<A: IInternalAny> Serializable for Function<A> {
+impl<A: IVm> Serializable for Function<A> {
     fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }

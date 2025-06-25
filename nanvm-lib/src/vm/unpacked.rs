@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IInternalAny, Js, Object, String16},
+    vm::{Any, Array, BigInt, Function, IVm, Js, Object, String16},
 };
 use std::{
     fmt::Debug,
@@ -9,7 +9,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub enum Unpacked<A: IInternalAny> {
+pub enum Unpacked<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
     Number(f64),
@@ -20,7 +20,7 @@ pub enum Unpacked<A: IInternalAny> {
     Function(Function<A>),
 }
 
-impl<A: IInternalAny> Debug for Unpacked<A> {
+impl<A: IVm> Debug for Unpacked<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Nullish(x) => x.fmt(f),
@@ -35,7 +35,7 @@ impl<A: IInternalAny> Debug for Unpacked<A> {
     }
 }
 
-impl<A: IInternalAny> Js<A> for Unpacked<A> {
+impl<A: IVm> Js<A> for Unpacked<A> {
     fn string(&self) -> String16<A> {
         match self {
             Self::Nullish(n) => n.string(),
@@ -50,7 +50,7 @@ impl<A: IInternalAny> Js<A> for Unpacked<A> {
     }
 }
 
-impl<A: IInternalAny> PartialEq for Unpacked<A> {
+impl<A: IVm> PartialEq for Unpacked<A> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Nullish(a), Self::Nullish(b)) => a == b,
@@ -66,54 +66,54 @@ impl<A: IInternalAny> PartialEq for Unpacked<A> {
     }
 }
 
-impl<A: IInternalAny> From<Any<A>> for Unpacked<A> {
+impl<A: IVm> From<Any<A>> for Unpacked<A> {
     fn from(value: Any<A>) -> Self {
         value.0.to_unpacked()
     }
 }
 
-impl<A: IInternalAny> From<Nullish> for Unpacked<A> {
+impl<A: IVm> From<Nullish> for Unpacked<A> {
     fn from(value: Nullish) -> Self {
         Unpacked::Nullish(value)
     }
 }
 
-impl<A: IInternalAny> From<bool> for Unpacked<A> {
+impl<A: IVm> From<bool> for Unpacked<A> {
     fn from(value: bool) -> Self {
         Unpacked::Boolean(value)
     }
 }
-impl<A: IInternalAny> From<f64> for Unpacked<A> {
+impl<A: IVm> From<f64> for Unpacked<A> {
     fn from(value: f64) -> Self {
         Unpacked::Number(value)
     }
 }
 
-impl<A: IInternalAny> From<String16<A>> for Unpacked<A> {
+impl<A: IVm> From<String16<A>> for Unpacked<A> {
     fn from(value: String16<A>) -> Self {
         Unpacked::String(value)
     }
 }
 
-impl<A: IInternalAny> From<BigInt<A>> for Unpacked<A> {
+impl<A: IVm> From<BigInt<A>> for Unpacked<A> {
     fn from(value: BigInt<A>) -> Self {
         Unpacked::BigInt(value)
     }
 }
 
-impl<A: IInternalAny> From<Object<A>> for Unpacked<A> {
+impl<A: IVm> From<Object<A>> for Unpacked<A> {
     fn from(value: Object<A>) -> Self {
         Unpacked::Object(value)
     }
 }
 
-impl<A: IInternalAny> From<Array<A>> for Unpacked<A> {
+impl<A: IVm> From<Array<A>> for Unpacked<A> {
     fn from(value: Array<A>) -> Self {
         Unpacked::Array(value)
     }
 }
 
-impl<A: IInternalAny> From<Function<A>> for Unpacked<A> {
+impl<A: IVm> From<Function<A>> for Unpacked<A> {
     fn from(value: Function<A>) -> Self {
         Unpacked::Function(value)
     }
@@ -143,7 +143,7 @@ fn serialize(write: &mut impl Write, tag: u8, value: &impl Serializable) -> io::
     value.serialize(write)
 }
 
-impl<A: IInternalAny> Serializable for Unpacked<A> {
+impl<A: IVm> Serializable for Unpacked<A> {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
         match self {
             Unpacked::Nullish(v) => {

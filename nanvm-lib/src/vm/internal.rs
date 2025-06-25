@@ -10,7 +10,7 @@ use std::{
     io,
 };
 
-pub trait IContainer<A: IInternalAny>: Sized + Clone {
+pub trait IContainer<A: IVm>: Sized + Clone {
     // types
     type Header: PartialEq + Serializable;
     type Item: Debug + Serializable;
@@ -101,7 +101,7 @@ pub trait IContainer<A: IInternalAny>: Sized + Clone {
     }
 }
 
-pub trait IInternalAny:
+pub trait IVm:
     Sized
     + Clone
     + From<Nullish>

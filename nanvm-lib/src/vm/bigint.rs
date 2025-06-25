@@ -1,7 +1,7 @@
 use crate::{
     common::{default::default, serializable::Serializable},
     sign::Sign,
-    vm::{Any, IContainer, IInternalAny, Js, String16, Unpacked},
+    vm::{Any, IContainer, IVm, Js, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter, Write},
@@ -9,15 +9,15 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct BigInt<A: IInternalAny>(pub A::InternalBigInt);
+pub struct BigInt<A: IVm>(pub A::InternalBigInt);
 
-impl<A: IInternalAny> Default for BigInt<A> {
+impl<A: IVm> Default for BigInt<A> {
     fn default() -> Self {
         Self(A::InternalBigInt::new_empty(Sign::Positive))
     }
 }
 
-impl<A: IInternalAny> From<u64> for BigInt<A> {
+impl<A: IVm> From<u64> for BigInt<A> {
     fn from(value: u64) -> Self {
         if value == 0 {
             return BigInt::default();
@@ -26,7 +26,7 @@ impl<A: IInternalAny> From<u64> for BigInt<A> {
     }
 }
 
-impl<A: IInternalAny> From<i64> for BigInt<A> {
+impl<A: IVm> From<i64> for BigInt<A> {
     fn from(value: i64) -> Self {
         if value == 0 {
             return BigInt::default();
@@ -40,19 +40,19 @@ impl<A: IInternalAny> From<i64> for BigInt<A> {
     }
 }
 
-impl<A: IInternalAny> BigInt<A> {
+impl<A: IVm> BigInt<A> {
     fn is_zero(&self) -> bool {
         self.0.is_empty()
     }
 }
 
-impl<A: IInternalAny> PartialEq for BigInt<A> {
+impl<A: IVm> PartialEq for BigInt<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.items_eq(&other.0)
     }
 }
 
-impl<A: IInternalAny> TryFrom<Any<A>> for BigInt<A> {
+impl<A: IVm> TryFrom<Any<A>> for BigInt<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         if let Unpacked::BigInt(result) = value.0.to_unpacked() {
@@ -63,7 +63,7 @@ impl<A: IInternalAny> TryFrom<Any<A>> for BigInt<A> {
     }
 }
 
-impl<A: IInternalAny> Debug for BigInt<A> {
+impl<A: IVm> Debug for BigInt<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.is_zero() {
             return f.write_str("0n");
@@ -81,14 +81,14 @@ impl<A: IInternalAny> Debug for BigInt<A> {
     }
 }
 
-impl<A: IInternalAny> Js<A> for BigInt<A> {
+impl<A: IVm> Js<A> for BigInt<A> {
     fn string(&self) -> String16<A> {
         // TODO: Implement proper conversion to String16
         default()
     }
 }
 
-impl<A: IInternalAny> Serializable for BigInt<A> {
+impl<A: IVm> Serializable for BigInt<A> {
     fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }

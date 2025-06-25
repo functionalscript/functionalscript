@@ -3,7 +3,7 @@ use std::{fmt::Debug, rc::Rc};
 use crate::{
     common::serializable::Serializable,
     sign::Sign,
-    vm::{Any, FunctionHeader, IContainer, IInternalAny, Property, Unpacked},
+    vm::{Any, FunctionHeader, IContainer, IVm, Property, Unpacked},
 };
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
     }
 }
 
-impl IInternalAny for InternalAny {
+impl IVm for InternalAny {
     type InternalString16 = Container<(), u16>;
     type InternalBigInt = Container<Sign, u64>;
     type InternalObject = Container<(), Property<InternalAny>>;
