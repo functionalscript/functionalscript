@@ -29,6 +29,43 @@ export type RuleSet = Readonly<Record<string, Rule>>
 
 type FRuleMap = { readonly [k in string]: FRule }
 
+type DispatchRule = readonly [boolean, Dispatch]
+
+type Dispatch = RangeMapArray<DispatchRule>
+
+type DispatchMap = { readonly[id in string]: Dispatch }
+
+type RuleMap = { readonly [k in string]: RuleSequenceCollection }
+
+type RuleSequenceCollection = readonly RuleSequence[]
+
+type RuleSequence = readonly Rule[]
+
+/**
+ * Represents a parsed Abstract Syntax Tree (AST) sequence.
+ */
+export type AstSequence = readonly(AstRule|CodePoint)[]
+
+/**
+ * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
+ */
+export type AstRule = readonly[string, AstSequence]
+
+/**
+ * Represents the remaining input after a match attempt, or `null` if no match is possible.
+ */
+export type Remainder = readonly CodePoint[] | null
+
+/**
+ * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
+ */
+export type MatchResult = readonly[AstRule, Remainder]
+
+/**
+ * Represents an LL(1) parser function for matching input against grammar rules.
+ */
+export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
+
 const { entries } = Object
 
 const find = (map: FRuleMap) => (fr: FRule): string | undefined => {
@@ -114,36 +151,34 @@ export const toData = (fr: FRule): readonly [RuleSet, string] => {
     return [ruleSet, id]
 }
 
-type DispatchRule = readonly [boolean, Dispatch]
+const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
 
-type Dispatch = RangeMapArray<DispatchRule>
+    const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
+        let empty = true
+        let result: Dispatch = []
+        for(const item of sequence) {
+            if (typeof item === 'string') {
+                dm = dispatchRule(dm, item)
+            }
+        }
+        return todo()
+    }
 
-type DispatchMap = { readonly[id in string]: Dispatch }
-
-/**
- * Represents a parsed Abstract Syntax Tree (AST) sequence.
- */
-export type AstSequence = readonly(AstRule|CodePoint)[]
-
-/**
- * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
- */
-export type AstRule = readonly[string, AstSequence]
-
-/**
- * Represents the remaining input after a match attempt, or `null` if no match is possible.
- */
-export type Remainder = readonly CodePoint[] | null
-
-/**
- * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
- */
-export type MatchResult = readonly[AstRule, Remainder]
-
-/**
- * Represents an LL(1) parser function for matching input against grammar rules.
- */
-export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
+    const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
+        if (name in dm) { return dm }
+        let empty = false
+        let dispatch: Dispatch = []
+        for (const sequence of ruleMap[name]) {
+            const [newDm, [e, d]] = dispatchSequence(dm, sequence)
+            dm = newDm
+            empty ||= e
+            //
+        }
+        return todo()
+    }
+    
+    return todo()
+}
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
