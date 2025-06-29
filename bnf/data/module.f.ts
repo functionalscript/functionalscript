@@ -5,6 +5,7 @@ import { map, toArray } from '../../types/list/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import {
     oneEncode,
+    rangeDecode,
     type DataRule,
     type Rule as FRule,
     type Sequence as FSequence,
@@ -173,8 +174,24 @@ const dispatchOp = rangeMap<DispatchResult>({
 
 const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
     const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
-
-
+        let empty = true
+        let result: Dispatch = []
+        for (const item of sequence) {
+            if (typeof item === 'string') {
+                dm = dispatchRule(dm, item)
+                const [e, dispatch] = dm[item]
+                result = toArray(dispatchOp.merge
+                    (result)
+                    (dispatch.map(x => [x[0] === null ? null : sequence, x[1]])))
+                if (e) {
+                    continue
+                }
+            } else if (typeof item === 'number') {
+                const rangeDecoded = rangeDecode(item)
+                const dispatch = dispatchOp.fromRange(rangeDecoded)(sequence)
+                result = toArray(dispatchOp.merge(result)(dispatch))
+            }
+        }
         return todo()
     }
 
