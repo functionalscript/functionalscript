@@ -1,7 +1,8 @@
 import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import type { RangeMapArray } from '../../types/range_map/module.f.ts'
+import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import {
     oneEncode,
     type DataRule,
@@ -31,9 +32,14 @@ type FRuleMap = { readonly [k in string]: FRule }
 
 type DispatchRule = readonly [boolean, Dispatch]
 
-type Dispatch = RangeMapArray<DispatchRule>
+type Dispatch = RangeMapArray<DispatchResult>
 
-type DispatchMap = { readonly[id in string]: Dispatch }
+type DispatchMap = { readonly[id in string]: DispatchRule }
+
+/**
+ * Represents the result of dispatch.
+ */
+type DispatchResult = RuleSequence | null
 
 type RuleMap = { readonly [k in string]: RuleSequenceCollection }
 
@@ -151,16 +157,24 @@ export const toData = (fr: FRule): readonly [RuleSet, string] => {
     return [ruleSet, id]
 }
 
-const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
-
-    const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
-        let empty = true
-        let result: Dispatch = []
-        for(const item of sequence) {
-            if (typeof item === 'string') {
-                dm = dispatchRule(dm, item)
-            }
+const dispatchOp = rangeMap<DispatchResult>({
+    union: a => b => {
+        if (a === null) {
+            return b
         }
+        if (b === null) {
+            return a
+        }
+        throw ['can not merge [', a, '][', b, ']']
+    },
+    equal: strictEqual,
+    def: null,
+})
+
+const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
+    const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
+
+
         return todo()
     }
 
@@ -172,9 +186,9 @@ const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
             const [newDm, [e, d]] = dispatchSequence(dm, sequence)
             dm = newDm
             empty ||= e
-            //
+            dispatch = toArray(dispatchOp.merge(dispatch)(d))
         }
-        return todo()
+        return { ...dm, [name]: [empty, dispatch] }
     }
     
     return todo()
