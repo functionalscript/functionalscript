@@ -18,10 +18,11 @@ pub trait BigInt<U: Any<BigInt = Self>>: Complex<U> + Container<Header = Sign, I
         Self::new(Sign::Positive, [])
     }
     fn negate(self) -> Self {
-        match self.header() {
-            Sign::Positive => Self::new(Sign::Negative, self.items().iter().cloned()),
-            Sign::Negative => Self::new(Sign::Positive, self.items().iter().cloned()),
-        }
+        let s = match self.header() {
+            Sign::Positive => Sign::Negative,
+            Sign::Negative => Sign::Positive,
+        };
+        Self::new(s, self.items().iter().cloned())
     }
     fn add(self, other: Self) -> Self {
         if *self.header() == *other.header() {
