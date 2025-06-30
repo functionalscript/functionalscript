@@ -34,7 +34,7 @@ impl<A: IVm> Debug for Function<A> {
         let header = self.0.header();
         let name: std::string::String = (&header.0).into();
         let args = (0..header.1)
-            .map(|i| format!("a{}", i))
+            .map(|i| format!("a{i}"))
             .collect::<Vec<_>>()
             .join(",");
         write!(f, "function {name}({args}) {{")?;

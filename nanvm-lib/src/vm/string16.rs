@@ -55,7 +55,7 @@ impl<A: IVm> Debug for String16<A> {
                     f.write_char(c as u8 as char)?;
                 }
                 c => {
-                    write!(f, "\\u{:04X}", c)?;
+                    write!(f, "\\u{c:04X}")?;
                 }
             }
         }
