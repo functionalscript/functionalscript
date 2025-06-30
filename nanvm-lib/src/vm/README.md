@@ -4,7 +4,7 @@
 
 ```rust
 trait IContainer;
-trait IInternalAny {
+trait IVm {
     type String;
     // ...
 }
@@ -15,7 +15,7 @@ trait IInternalAny {
 Concrete types.
 
 ```rust
-struct Any<T: IInternalAny>;
-struct String<T: IInternalAny>;
+struct Any<T: IVm>;
+struct String<T: IVm>;
 // ...
 ```
