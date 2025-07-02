@@ -11,10 +11,23 @@ docker build -t functionalscript ./docker
 ## Run
 
 ```sh
-docker run --rm -it functionalscript
+docker run -it functionalscript
+```
+
+Or clean version w/o network:
+
+```sh
+docker run --rm -it --network none functionalscript
 ```
 
 ## Container Commands
+
+- `cargo test`
+- `npm test`
+- `deno task test`
+- `bun ./dev/test/module.ts`
+
+## Sccache
 
 To use sccache in a terminal, use `cargo test --no-run > _.txt 2>&1` or
 `cargo test --no-run > >(tee _.txt) 2>&1`.
