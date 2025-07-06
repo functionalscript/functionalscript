@@ -190,6 +190,8 @@ const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
                 const rangeDecoded = rangeDecode(item)
                 const dispatch = dispatchOp.fromRange(rangeDecoded)(sequence)
                 result = toArray(dispatchOp.merge(result)(dispatch))
+            } else {
+                todo() //for variant
             }
         }
         return todo()
