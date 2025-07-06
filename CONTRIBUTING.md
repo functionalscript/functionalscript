@@ -24,3 +24,23 @@ cargo fmt -- --check
 ```
 
 Feel free to open [issues](https://github.com/functionalscript/functionalscript/issues).
+
+## Codex Environment
+
+Set Node.js to 22. Switch to 24 as soon as it's available in Codex.
+
+Setup Script:
+
+```sh
+rustup component add clippy
+rustup component add rustfmt
+
+# Install Node.js dependencies.
+npm ci
+
+# Install Rust dependencies.
+cargo fetch
+
+rustup show
+node -v
+```

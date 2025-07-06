@@ -32,6 +32,56 @@ export default {
     spaceOrDigit: {
         space: 'space',
         digit: 'digit',
+    },
+    twoSequences: ['sequence', 'sequence'],
+}
+```
+
+## DispatchRules
+
+```ts
+type DispatchRule = {
+    readonly isEmpty: boolean
+    readonly rangeMap: RangeMap<{
+        readonly tag: string|undefined
+        readonly rules: DispatchRule[]
+    }>
+}
+```
+
+```ts
+const spaceOrDigit: DispatchRule = {
+    isEmpty: false,
+    rangeMap: {
+        0x20: { tag: 'space', rules: [] },
+        0x30..0x39: { tag: 'digit', rules: [] },
+    }
+}
+
+const digit: DispatchRule = {
+    isEmpty: false,
+    rangeMap: {
+        0x30..0x39: { rules: [] }
+    }
+}
+
+const sequence: DispatchRule = {
+    isEmpty: false,
+    rangeMap: {
+        0x20: { rules: [digit] }
+    }
+}
+
+const twoSequences: DispitchRule = {
+    isEmpty: false,
+    rangeMap: {
+        0x20: [digit, sequence]
     }
 }
 ```
+
+## AST
+
+`" 1"`
+
+`[{space:0x20},{digit:0x31}]`
