@@ -54,13 +54,18 @@ export const hmac = (sha2: Sha2): (k: Vec) => (m: Vec) => Vec => {
     const op = p(oPad)
     const c = computeSync(sha2)
     const vbl = vec(blockLength)
+    // a and b should have the same size
     const xor = (a: Vec) => (b: Vec) => vbl(a ^ b)
-    return k => m => {
+    return k => {
         const k1 = length(k) > blockLength ? c([k]) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
         const xk2 = xor(k2)
-        const f = (p: Vec, msg: Vec) => c([xk2(p), msg])
-        const m1 = f(ip, m)
-        return f(op, m1)
+        const f = (p: Vec) => {
+            const x = xk2(p)
+            return (msg: Vec) => c([x, msg])
+        }
+        const fip = f(ip)
+        const fop = f(op)
+        return m => fop(fip(m))
     }
 }
