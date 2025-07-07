@@ -72,24 +72,24 @@ fn serialization<A: Any>() {
     ]);
 }
 
-#[cfg(test)]
-fn test_nullish() {
+#[test]
+pub fn test_nullish() {
     serialization_test::<naive::Any>(&[
         Simple::Nullish(Nullish::Null).to_unknown(),
         Simple::Nullish(Nullish::Undefined).to_unknown(),
     ]);
 }
 
-#[cfg(test)]
-fn test_boolean() {
+#[test]
+pub fn test_boolean() {
     serialization_test::<naive::Any>(&[
         Simple::Boolean(true).to_unknown(),
         Simple::Boolean(false).to_unknown(),
     ]);
 }
 
-#[cfg(test)]
-fn test_number() {
+#[test]
+pub fn test_number() {
     use std::f64::{INFINITY, NAN};
 
     serialization_test::<naive::Any>(&[
@@ -99,16 +99,16 @@ fn test_number() {
     ]);
 }
 
-#[cfg(test)]
-fn test_string() {
+#[test]
+pub fn test_string() {
     serialization_test::<naive::Any>(&[
         "Hello".to_unknown(),
         "".to_unknown(),
     ]);
 }
 
-#[cfg(test)]
-fn test_bigint() {
+#[test]
+pub fn test_bigint() {
     use nanvm_lib::naive::BigInt;
 
     serialization_test::<naive::Any>(&[
@@ -117,16 +117,16 @@ fn test_bigint() {
     ]);
 }
 
-#[cfg(test)]
-fn test_array() {
+#[test]
+pub fn test_array() {
     serialization_test::<naive::Any>(&[
         [].to_array_unknown(),
         [Simple::Number(7.0).to_unknown()].to_array_unknown(),
     ]);
 }
 
-#[cfg(test)]
-fn test_object() {
+#[test]
+pub fn test_object() {
     serialization_test::<naive::Any>(&[
         [].to_object_unknown(),
         [
