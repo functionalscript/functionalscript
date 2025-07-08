@@ -53,25 +53,6 @@ fn serialization_test<A: Any>(values: &[A]) {
     }
 }
 
-fn serialization<A: Any>() {
-    serialization_test(&[
-        Simple::Nullish(Nullish::Null).to_unknown(),
-        Simple::Nullish(Nullish::Undefined).to_unknown(),
-        Simple::Boolean(true).to_unknown(),
-        Simple::Boolean(false).to_unknown(),
-        Simple::Number(2.3).to_unknown(),
-        "Hello".to_unknown(),
-        A::BigInt::new(Sign::Positive, [12]).to_unknown(),
-        [].to_array_unknown(),
-        [Simple::Number(7.0).to_unknown()].to_array_unknown(),
-        [
-            ("a".to_string16::<A>(), Simple::Number(1.0).to_unknown()),
-            ("b".to_string16::<A>(), "c".to_unknown()),
-        ]
-        .to_object_unknown(),
-    ]);
-}
-
 #[test]
 pub fn test_nullish() {
     serialization_test::<naive::Any>(&[
