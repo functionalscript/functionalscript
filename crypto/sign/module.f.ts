@@ -8,6 +8,12 @@ const concat = listToVec(msb)
 const v00 = vec8(0x00n)
 const v01 = vec8(0x01n)
 
+/**
+ * The size of the result equals the size of the hash.
+ *
+ * @param sha2 SHA2 hash function
+ * @returns A function that accepts a private key, a message hash and returns `k`.
+ */
 const createK = (sha2: Sha2) => {
     const h = hmac(sha2)
     let vs = vec(sha2.hashLength)
@@ -25,12 +31,20 @@ const createK = (sha2: Sha2) => {
     }
 }
 
+export const newPrivateKey = (i: Init) => (random: Vec): Vec => {
+    const { nf } = curve(i)
+    if (length(nf.max) < length(random)) {
+        throw "need more random bits"
+    }
+    return uint(random) % nf.p
+}
+
 export const sign = (sha2: Sha2) => (curveInit: Init) => (privateKey: Vec) => (messageHash: Vec): readonly[bigint, bigint] => {
     const { mul, pf } = curve(curveInit)
     // const curveVec = vec(length(pf.max))
 
     //`k` is a unique for each `z` and secret.
-    const k = createK(sha2)(privateKey)(messageHash)
+    const k = createK(sha2)(privateKey)(messageHash) % pf.p
 
     // `R = G * k`.
     const rp = mul(curveInit.g)(k)
@@ -41,7 +55,7 @@ export const sign = (sha2: Sha2) => (curveInit: Init) => (privateKey: Vec) => (m
     // `s = ((z + r * d) / k)`.
     const d = uint(privateKey)
     const z = uint(messageHash)
-    
+
     const rd = pf.mul(r)(d)
     const zrd = pf.add(z)(rd)
     const kn1 = pf.reciprocal(k)
