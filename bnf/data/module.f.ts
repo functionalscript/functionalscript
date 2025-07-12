@@ -2,7 +2,7 @@ import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
+import { fromRange, rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import {
     oneEncode,
     rangeDecode,
@@ -31,22 +31,21 @@ export type RuleSet = Readonly<Record<string, Rule>>
 
 type FRuleMap = { readonly [k in string]: FRule }
 
-type DispatchRule = readonly [boolean, Dispatch]
+type DispatchRule = {
+    readonly isEmpty: boolean,
+    readonly rangeMap: Dispatch
+}
 
 type Dispatch = RangeMapArray<DispatchResult>
 
+type DispatchResult = DispatchRuleCollection | null
+
+type DispatchRuleCollection = {
+    readonly tag: string | undefined,
+    readonly rules: DispatchRule[]
+}
+
 type DispatchMap = { readonly[id in string]: DispatchRule }
-
-/**
- * Represents the result of dispatch.
- */
-type DispatchResult = RuleSequence | null
-
-type RuleMap = { readonly [k in string]: RuleSequenceCollection }
-
-type RuleSequenceCollection = readonly RuleSequence[]
-
-type RuleSequence = readonly Rule[]
 
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
@@ -172,42 +171,43 @@ const dispatchOp = rangeMap<DispatchResult>({
     def: null,
 })
 
-const dispatchMap = (ruleMap: RuleMap): DispatchMap => {
-    const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
-        let empty = true
-        let result: Dispatch = []
-        for (const item of sequence) {
-            if (typeof item === 'string') {
-                dm = dispatchRule(dm, item)
-                const [e, dispatch] = dm[item]
-                result = toArray(dispatchOp.merge
-                    (result)
-                    (dispatch.map(x => [x[0] === null ? null : sequence, x[1]])))
-                if (e) {
-                    continue
-                }
-            } else if (typeof item === 'number') {
-                const rangeDecoded = rangeDecode(item)
-                const dispatch = dispatchOp.fromRange(rangeDecoded)(sequence)
-                result = toArray(dispatchOp.merge(result)(dispatch))
-            } else {
-                todo() //for variant
-            }
-        }
-        return todo()
-    }
+const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
+    // const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
+    //     let empty = true
+    //     let result: Dispatch = []
+    //     for (const item of sequence) {
+    //         if (typeof item === 'string') {
+    //             dm = dispatchRule(dm, item)
+    //             const [e, dispatch] = dm[item]
+    //             result = toArray(dispatchOp.merge
+    //                 (result)
+    //                 (dispatch.map(x => [x[0] === null ? null : sequence, x[1]])))
+    //             if (e) {
+    //                 continue
+    //             }
+    //         } else if (typeof item === 'number') {
+    //             const rangeDecoded = rangeDecode(item)
+    //             const dispatch = dispatchOp.fromRange(rangeDecoded)(sequence)
+    //             result = toArray(dispatchOp.merge(result)(dispatch))
+    //         } else {
+    //             todo() //for variant
+    //         }
+    //     }
+    //     return todo()
+    // }
 
     const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
         if (name in dm) { return dm }
         let empty = false
         let dispatch: Dispatch = []
-        for (const sequence of ruleMap[name]) {
-            const [newDm, [e, d]] = dispatchSequence(dm, sequence)
-            dm = newDm
-            empty ||= e
-            dispatch = toArray(dispatchOp.merge(dispatch)(d))
+        const rule = ruleSet[name]
+        if (typeof rule === 'number') {
+            const range = rangeDecode(rule)            
+            const dispatch = dispatchOp.fromRange(range)({tag: undefined, rules: []})
+            const dr: DispatchRule = {isEmpty: empty, rangeMap: dispatch}
+            return { ...dm, [name]: dr }
         }
-        return { ...dm, [name]: [empty, dispatch] }
+        return todo()
     }
     
     return todo()
