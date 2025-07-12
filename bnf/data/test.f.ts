@@ -2,7 +2,7 @@ import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { toData } from './module.f.ts'
+import { dispatchMap, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -47,8 +47,17 @@ export default {
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
         const result = stringify(sort)(toData(varintRule))
-        if (result != '[{"":{"a":"0","b":"2"},"0":["1"],"1":1627390049,"2":["3"],"3":1644167266},""]') { throw result }                       
+        if (result != '[{"":{"a":"0","b":"2"},"0":["1"],"1":1627390049,"2":["3"],"3":1644167266},""]') { throw result }
     },
+    dispatch: [
+        () => {
+            const terminalRangeRule = range('AF')
+            const data = toData(terminalRangeRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"":{"isEmpty":false,"rangeMap":[[null,64],[{"rules":[]},70]]}}') { throw result }       
+        }
+    ],
     example: () => {
         const grammar = {
             space: 0x000020_000020,
