@@ -118,8 +118,8 @@ const optionalMap: DispatchRule = {
 
 const iDigit: Dispatch = {
     rangeMap: {
-        0x2D..0x2D: { rules: [digit] }
-        0x30..0x39: { rules: [] }
+        0x2D..0x2D: { output: [{"minus:" ["-"]}], rules: [digit] }
+        0x30..0x39: { output: [{"none": []}], rules: [] }
     }
 }
 ```
