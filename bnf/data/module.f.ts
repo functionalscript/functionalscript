@@ -171,7 +171,7 @@ const dispatchOp = rangeMap<DispatchResult>({
     def: null,
 })
 
-const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
+export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     // const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
     //     let empty = true
     //     let result: Dispatch = []
@@ -209,8 +209,13 @@ const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
         }
         return todo()
     }
+
+    let result: DispatchMap = {}
+    for (const k in ruleSet) {
+        result = dispatchRule(result, k)
+    }
     
-    return todo()
+    return result
 }
 
 export const parser = (fr: FRule): Match => {
