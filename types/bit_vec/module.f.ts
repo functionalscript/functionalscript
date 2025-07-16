@@ -230,3 +230,5 @@ export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
     }
     return f
 }
+
+export const listToVec = (bo: BitOrder): (list: List<Vec>) => Vec => fold(bo.concat)(empty)
