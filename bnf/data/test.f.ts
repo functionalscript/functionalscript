@@ -56,7 +56,14 @@ export default {
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
             if (result != '{"":{"isEmpty":false,"rangeMap":[[null,64],[{"rules":[]},70]]}}') { throw result }       
-        }
+        },
+        () => {
+            const stringRule = 'AB'
+            const data = toData(stringRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '') { throw result }
+        },
     ],
     example: () => {
         const grammar = {

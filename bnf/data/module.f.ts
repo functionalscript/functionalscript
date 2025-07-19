@@ -3,6 +3,7 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { fromRange, rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
+import { isEmpty } from '../module.f.ts'
 import {
     oneEncode,
     rangeDecode,
@@ -32,7 +33,7 @@ export type RuleSet = Readonly<Record<string, Rule>>
 type FRuleMap = { readonly [k in string]: FRule }
 
 type DispatchRule = {
-    readonly isEmpty: boolean,
+    readonly emptyTag: string|true|undefined,
     readonly rangeMap: Dispatch
 }
 
@@ -196,16 +197,34 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     //     return todo()
     // }
 
+    const addRuleToDispatch = (dr: DispatchResult, rule: DispatchRule): DispatchResult => {
+        if (dr === null)
+            return null
+
+        return { tag: dr.tag, rules: [...dr.rules, rule]}
+    }
+
     const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
         if (name in dm) { return dm }
-        let empty = false
-        let dispatch: Dispatch = []
+        let emptyTag = undefined        
         const rule = ruleSet[name]
         if (typeof rule === 'number') {
             const range = rangeDecode(rule)            
             const dispatch = dispatchOp.fromRange(range)({tag: undefined, rules: []})
-            const dr: DispatchRule = {isEmpty: empty, rangeMap: dispatch}
+            const dr: DispatchRule = {emptyTag, rangeMap: dispatch}
             return { ...dm, [name]: dr }
+        } else if (rule instanceof Array) {
+            let result: Dispatch = []
+            for (const item of rule) {
+                dm = dispatchRule(dm, item)
+                const dr = dm[item]
+                if (emptyTag === undefined) {                    
+                    result = toArray(dispatchOp.merge(result)(dr.rangeMap))
+                    emptyTag = dm.emptyTag
+                } else {
+                    result = result.map(x => [addRuleToDispatch(x[0], dr), x[1]])
+                }
+            }
         }
         return todo()
     }
