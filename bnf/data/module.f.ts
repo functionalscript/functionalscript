@@ -32,8 +32,10 @@ export type RuleSet = Readonly<Record<string, Rule>>
 
 type FRuleMap = { readonly [k in string]: FRule }
 
+type EmptyTag = string|true|undefined
+
 type DispatchRule = {
-    readonly emptyTag: string|true|undefined,
+    readonly emptyTag: EmptyTag,
     readonly rangeMap: Dispatch
 }
 
@@ -205,22 +207,22 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     }
 
     const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
-        if (name in dm) { return dm }
-        let emptyTag = undefined        
+        if (name in dm) { return dm }        
         const rule = ruleSet[name]
         if (typeof rule === 'number') {
             const range = rangeDecode(rule)            
             const dispatch = dispatchOp.fromRange(range)({tag: undefined, rules: []})
-            const dr: DispatchRule = {emptyTag, rangeMap: dispatch}
+            const dr: DispatchRule = {emptyTag: undefined, rangeMap: dispatch}
             return { ...dm, [name]: dr }
         } else if (rule instanceof Array) {
+            let emptyTag: EmptyTag = true
             let result: Dispatch = []
             for (const item of rule) {
                 dm = dispatchRule(dm, item)
                 const dr = dm[item]
-                if (emptyTag === undefined) {                    
+                if (emptyTag === true) {
                     result = toArray(dispatchOp.merge(result)(dr.rangeMap))
-                    emptyTag = dr.emptyTag
+                    emptyTag = dr.emptyTag !== undefined ? true : undefined
                 } else {
                     result = result.map(x => [addRuleToDispatch(x[0], dr), x[1]])
                 }
