@@ -57,13 +57,13 @@ export default {
             const result = JSON.stringify(dm)
             if (result != '{"":{"rangeMap":[[null,64],[{"rules":[]},70]]}}') { throw result }       
         },
-        // () => {
-        //     const stringRule = 'AB'
-        //     const data = toData(stringRule)
-        //     const dm = dispatchMap(data[0])
-        //     const result = JSON.stringify(dm)
-        //     if (result != '') { throw result }
-        // },
+        () => {
+            const stringRule = 'AB'
+            const data = toData(stringRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[]},65],[{"rules":[]},66]]}}') { throw result }
+        },
     ],
     example: () => {
         const grammar = {
