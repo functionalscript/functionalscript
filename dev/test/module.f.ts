@@ -24,7 +24,7 @@ type Input<T> = {
     readonly env: (n: string) => string|undefined
  }
 
-export const isTest = (s: string) => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
+export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
 type TestState = {
     readonly time: number,
