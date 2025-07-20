@@ -18,7 +18,7 @@ Operation mapping:
 |find `n` for specific `a` and `b`, such that `a * n = b` |`n = log(a, a ^ n)`                               |
 |for any `n` there is `k = 1/n` such that `a * n * k = a` |`a ^ n ^ k = a`                                   |
 
-The scalar multiplier `n` is defined on a prime `N` field. We can `k` such that `(k * n)%N = 1`. The function that returns `/n` is called `reciprocal`, see [../prime_field/module.f.ts](../prime_field/module.f.ts#L35) and it uses [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division).
+The scalar multiplier `n` is defined on a prime `N` field. We can `k` such that `(k * n)%N = 1`. The function that returns `1/n` is called `reciprocal`, see [../prime_field/module.f.ts](../prime_field/module.f.ts#L35) and it uses [Euclidean division](https://en.wikipedia.org/wiki/Euclidean_division).
 
 `G` is a base point on the elliptic curve. It has `x` and `y`, or a compressed representation has `x` and a boolean.
 
