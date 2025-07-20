@@ -205,6 +205,13 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
         return { tag: dr.tag, rules: [...dr.rules, rule]}
     }
 
+    const addTagToDispatch = (dr: DispatchResult, tag: string): DispatchResult => {
+        if (dr === null)
+            return null
+
+        return { tag, rules: dr.rules}
+    }
+
     const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
         if (name in dm) { return dm }        
         const rule = ruleSet[name]
@@ -232,13 +239,15 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             const entries = Object.entries(rule)
             let result: Dispatch = []
             let emptyTag: EmptyTag = undefined
-            for (const [name, item] of entries) {
+            for (const [tag, item] of entries) {
                 dm = dispatchRule(dm, item)
-                const dr = dm[item]
+                const dr = dm[item]                
                 if (dr.emptyTag !== undefined) {
                     emptyTag = dr.emptyTag
+                } else {                    
+                    const d: Dispatch = dr.rangeMap.map(x => [addTagToDispatch(x[0], tag), x[1]])
+                    result = toArray(dispatchOp.merge(result)(d))
                 }
-                todo()
             }
             const dr: DispatchRule = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}

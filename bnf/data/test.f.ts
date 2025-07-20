@@ -71,6 +71,13 @@ export default {
             const result = JSON.stringify(dm)
             if (result != '{"":{"emptyTag":true,"rangeMap":[]}}') { throw result }
         },
+        () => {
+            const variantRule = { 'a': range('AA'), 'b': range('BB')}
+            const data = toData(variantRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"tag":"a","rules":[]},65],[{"tag":"b","rules":[]},66]]}}') { throw result }
+        },
     ],
     example: () => {
         const grammar = {
