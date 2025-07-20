@@ -43,9 +43,7 @@ const f = (x: Test) => async(t: DenoTestStep) => {
                         }
                         : () => {
                             const r = value()
-                            if (r !== undefined) {
-                                subTests.push([`${name}()`, r])
-                            }
+                            subTests = [...subTests, [`${name}()`, r]]
                         }
                     await t.step(name, g)
                 }
@@ -54,7 +52,7 @@ const f = (x: Test) => async(t: DenoTestStep) => {
             case "object": {
                 for (const [j, y] of Object.entries(value)) {
                     const pr = `${name}/${j}`
-                    subTests.push([pr, y])
+                    subTests = [...subTests, [pr, y]]
                 }
                 break
             }
