@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.6.11
+
+- Support for Deno Test and Coverage.
+
 ## 0.6.10
 
 - Trailing comma and identifier properties [PR 484](https://github.com/functionalscript/functionalscript/pull/484),

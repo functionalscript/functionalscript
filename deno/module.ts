@@ -1,6 +1,6 @@
-import { io } from '../../io/module.ts'
-import { loadModuleMap } from '../module.f.ts'
-import { isTest } from './module.f.ts'
+import { io } from '../io/module.ts'
+import { loadModuleMap } from '../dev/module.f.ts'
+import { isTest } from '../dev/test/module.f.ts'
 
 type DenoTestStep = {
     readonly step: (name: string, f: () => void | Promise<void>) => Promise<void>
