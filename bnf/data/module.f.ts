@@ -2,8 +2,7 @@ import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import { fromRange, rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
-import { isEmpty } from '../module.f.ts'
+import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import {
     oneEncode,
     rangeDecode,
@@ -229,8 +228,21 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             }
             const dr: DispatchRule = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
+        } else {
+            const entries = Object.entries(rule)
+            let result: Dispatch = []
+            let emptyTag: EmptyTag = undefined
+            for (const [name, item] of entries) {
+                dm = dispatchRule(dm, item)
+                const dr = dm[item]
+                if (dr.emptyTag !== undefined) {
+                    emptyTag = dr.emptyTag
+                }
+                todo()
+            }
+            const dr: DispatchRule = {emptyTag, rangeMap: result}
+            return { ...dm, [name]: dr}
         }
-        return todo()
     }
 
     let result: DispatchMap = {}
