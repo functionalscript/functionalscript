@@ -243,7 +243,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                 dm = dispatchRule(dm, item)
                 const dr = dm[item]                
                 if (dr.emptyTag !== undefined) {
-                    emptyTag = dr.emptyTag
+                    emptyTag = tag
                 } else {                    
                     const d: Dispatch = dr.rangeMap.map(x => [addTagToDispatch(x[0], tag), x[1]])
                     result = toArray(dispatchOp.merge(result)(d))
