@@ -24,7 +24,7 @@ type Input<T> = {
     readonly env: (n: string) => string|undefined
  }
 
-const isTest = (s: string) => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
+export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
 type TestState = {
     readonly time: number,
@@ -134,11 +134,11 @@ export const measure = (p: Performance) => <R>(f: () => R) => <T>(state: T): rea
 }
 
 export const main = async(io: Io): Promise<number> => test({
-        moduleMap: await loadModuleMap(io),
-        log: stdio(io), // anyLog(io.console.log),
-        error: stderr(io), // anyLog(io.console.error),
-        measure: measure(io.performance),
-        tryCatch: io.tryCatch,
-        env: env(io),
-        state: undefined,
-    })[0]
+    moduleMap: await loadModuleMap(io),
+    log: stdio(io), // anyLog(io.console.log),
+    error: stderr(io), // anyLog(io.console.error),
+    measure: measure(io.performance),
+    tryCatch: io.tryCatch,
+    env: env(io),
+    state: undefined,
+})[0]
