@@ -60,7 +60,7 @@ const denoTest = (x: Test) => async(t: DenoTestStep) => {
     }
 }
 
-export default async() => {
+export default async(): Promise<void> => {
     const x = await loadModuleMap(io)
 
     for (const [i, v] of Object.entries(x)) {
