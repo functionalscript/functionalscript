@@ -244,7 +244,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
  * const s = msbUtf8("The quick brown fox jumps over the lazy dog.")
  * let state = sha224.init
  * state = sha224.append(state)(s)
- * const h = sha224.end(state) // 0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
+ * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
  * ```
  */
 export type Sha2 = {

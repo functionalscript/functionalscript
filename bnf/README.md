@@ -34,6 +34,13 @@ export default {
         digit: 'digit',
     },
     twoSequences: ['sequence', 'sequence'],
+    empty: [],
+    minus: 0x00002D_00002D,
+    optionalMinus: {
+        none: 'empty',
+        minus: 'minus',
+    },
+    iDigit: [optionalMinus, digit],
 }
 ```
 
@@ -41,9 +48,25 @@ export default {
 
 ```ts
 type DispatchRule = {
-    readonly isEmpty: boolean
+    readonly emptyTag: string|true|undefined  
     readonly rangeMap: RangeMap<{
         readonly tag: string|undefined
+        readonly rules: DispatchRule[]
+    }>
+}
+
+type DispatchSequence = {
+    readonly emptyTag: true|undefined
+    readonly rangeMap: RangeMap<{
+        readonly tag: undefined
+        readonly rules: DispatchRule[]
+    }>
+}
+
+type DispatchVariant = {
+    readonly emptyTag: string|undefined
+    readonly rangeMap: RangeMap<{
+        readonly tag: string
         readonly rules: DispatchRule[]
     }>
 }
@@ -51,7 +74,6 @@ type DispatchRule = {
 
 ```ts
 const spaceOrDigit: DispatchRule = {
-    isEmpty: false,
     rangeMap: {
         0x20: { tag: 'space', rules: [] },
         0x30..0x39: { tag: 'digit', rules: [] },
@@ -59,29 +81,52 @@ const spaceOrDigit: DispatchRule = {
 }
 
 const digit: DispatchRule = {
-    isEmpty: false,
     rangeMap: {
         0x30..0x39: { rules: [] }
     }
 }
 
 const sequence: DispatchRule = {
-    isEmpty: false,
     rangeMap: {
         0x20: { rules: [digit] }
     }
 }
 
 const twoSequences: DispitchRule = {
-    isEmpty: false,
     rangeMap: {
         0x20: [digit, sequence]
+    }
+}
+
+const emtpy: DispatchRule = {
+    emptyTag: true,
+    rangeMap: {}
+}
+
+const minus: DispatchRule = {
+    rangeMap: {
+        0x2D..0x2D: { rules: [] }
+    }
+}
+
+const optionalMap: DispatchRule = {
+    emptyTag: 'none',
+    rangeMap: {
+        0x2D..0x2D: { tag: 'minus', rules: [] }
+    }
+}
+
+const iDigit: Dispatch = {
+    rangeMap: {
+        0x2D..0x2D: { output: [{"minus:" ["-"]}], rules: [digit] }
+        0x30..0x39: { output: [{"none": []}], rules: [] }
     }
 }
 ```
 
 ## AST
 
-`" 1"`
-
-`[{space:0x20},{digit:0x31}]`
+`" 1"` => `[{space:0x20},{digit:0x31}]`
+- optionalMinus:
+  - `"-"` => `{ "minus": ['-'] }`
+  - `""` => `{ "none": [] }`
