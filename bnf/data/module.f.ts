@@ -174,29 +174,6 @@ const dispatchOp = rangeMap<DispatchResult>({
 })
 
 export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
-    // const dispatchSequence = (dm: DispatchMap, sequence: RuleSequence): [DispatchMap, DispatchRule] => {
-    //     let empty = true
-    //     let result: Dispatch = []
-    //     for (const item of sequence) {
-    //         if (typeof item === 'string') {
-    //             dm = dispatchRule(dm, item)
-    //             const [e, dispatch] = dm[item]
-    //             result = toArray(dispatchOp.merge
-    //                 (result)
-    //                 (dispatch.map(x => [x[0] === null ? null : sequence, x[1]])))
-    //             if (e) {
-    //                 continue
-    //             }
-    //         } else if (typeof item === 'number') {
-    //             const rangeDecoded = rangeDecode(item)
-    //             const dispatch = dispatchOp.fromRange(rangeDecoded)(sequence)
-    //             result = toArray(dispatchOp.merge(result)(dispatch))
-    //         } else {
-    //             todo() //for variant
-    //         }
-    //     }
-    //     return todo()
-    // }
 
     const addRuleToDispatch = (dr: DispatchResult, rule: DispatchRule): DispatchResult => {
         if (dr === null)
