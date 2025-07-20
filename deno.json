@@ -72,9 +72,9 @@
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
-    "test": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test/module.ts",
-    "unit": "deno test --allow-read --allow-env",
-    "coverage": "deno test --allow-read --allow-env --coverage=coverage",
+    "fst": "deno run --quiet --allow-read --allow-env --allow-net ./dev/test/module.ts",
+    "test": "deno test --allow-read --allow-env",
+    "coverage": "deno test --allow-read --allow-env --coverage",
     "fsc": "deno run --allow-read --allow-write ./fsc/module.ts"
   },
   "fmt": {
