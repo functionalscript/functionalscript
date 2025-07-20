@@ -2,7 +2,7 @@ import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { toData } from './module.f.ts'
+import { dispatchMap, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -47,8 +47,46 @@ export default {
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
         const result = stringify(sort)(toData(varintRule))
-        if (result != '[{"":{"a":"0","b":"2"},"0":["1"],"1":1627390049,"2":["3"],"3":1644167266},""]') { throw result }                       
+        if (result != '[{"":{"a":"0","b":"2"},"0":["1"],"1":1627390049,"2":["3"],"3":1644167266},""]') { throw result }
     },
+    dispatch: [
+        () => {
+            const terminalRangeRule = range('AF')
+            const data = toData(terminalRangeRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"":{"rangeMap":[[null,64],[{"rules":[]},70]]}}') { throw result }       
+        },
+        () => {
+            const stringRule = 'AB'
+            const data = toData(stringRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const data = toData(emptyRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"":{"emptyTag":true,"rangeMap":[]}}') { throw result }
+        },
+        () => {
+            const variantRule = { 'a': range('AA'), 'b': range('BB')}
+            const data = toData(variantRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"tag":"a","rules":[]},65],[{"tag":"b","rules":[]},66]]}}') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const variantRule = { 'e': emptyRule, 'a': range('AA')}
+            const data = toData(variantRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result != '{"0":{"emptyTag":true,"rangeMap":[]},"1":{"rangeMap":[[null,64],[{"rules":[]},65]]},"":{"emptyTag":"e","rangeMap":[[null,64],[{"tag":"a","rules":[]},65]]}}') { throw result }
+        },
+    ],
     example: () => {
         const grammar = {
             space: 0x000020_000020,
