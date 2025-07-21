@@ -7,6 +7,8 @@ Check the [./issues/README.md](./issues/README.md) file for existing issues.
 - [Node.JS](https://nodejs.org/en/download), version **24** or later is required for development.
 - [Rust](https://www.rust-lang.org/tools/install).
 
+You may also use the [Dockerfile](./docker/Dockerfile).
+
 ### Installing Dependencies
 
 ```bash
