@@ -197,11 +197,13 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 86. Operations for new VM impl:
   ```rust
   // not all types require to implement these traits.
-  trait ToString16 {
+  trait StringCoercion {
+      // link to MDN, optionally to ECMAScript
       fn string(self) -> String16
   }
   // not types required to implement.
-  trait UnaryPlus {
+  trait NumberCoercion {
+      // link to MDN, optionally to ECMAScript
       fn unary_plus(self) -> Result<f64, Any>
   }
   // ```
@@ -211,7 +213,7 @@ logic should be moved to a private free floating helper function (to keep public
   //     let y = -a;
   // }
   // ```
-  trait Js: ToString16 + UnaryPlus + Neg<Output = Any> {}
+  trait Js: StringCoercion + NumberCoercion + Neg<Output = Any> {}
   
   impl Js for Any {}
   impl Js for Unpacked {}
