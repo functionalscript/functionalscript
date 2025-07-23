@@ -50,6 +50,10 @@ impl<A: IVm> Js<A> for Function<A> {
         // TODO: Implement proper conversion to String16
         default()
     }
+
+    fn unary_plus(&self) -> Self {
+        self.clone()
+    }
 }
 
 impl<A: IVm> Serializable for Function<A> {

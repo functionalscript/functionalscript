@@ -48,6 +48,19 @@ impl<A: IVm> Js<A> for Unpacked<A> {
             Self::Function(f) => f.string(),
         }
     }
+
+    fn unary_plus(&self) -> Self {
+        match self {
+            Self::Nullish(n) => <Nullish as Js<A>>::unary_plus(n).into(),
+            Self::Boolean(b) => <bool as Js<A>>::unary_plus(b).into(),
+            Self::Number(n) => <f64 as Js<A>>::unary_plus(n).into(),
+            Self::String(s) => <String16<A> as Js<A>>::unary_plus(s).into(),
+            Self::BigInt(i) => <BigInt<A> as Js<A>>::unary_plus(i).into(),
+            Self::Object(o) => <Object<A> as Js<A>>::unary_plus(o).into(),
+            Self::Array(a) => <Array<A> as Js<A>>::unary_plus(a).into(),
+            Self::Function(f) => <Function<A> as Js<A>>::unary_plus(f).into(),
+        }
+    }
 }
 
 impl<A: IVm> PartialEq for Unpacked<A> {

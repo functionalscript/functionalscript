@@ -45,6 +45,10 @@ impl<A: IVm> Js<A> for Object<A> {
     fn string(&self) -> String16<A> {
         "[object Object]".into()
     }
+
+    fn unary_plus(&self) -> Self {
+        self.clone()
+    }
 }
 
 impl<A: IVm> Serializable for Object<A> {

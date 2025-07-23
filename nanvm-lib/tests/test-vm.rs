@@ -4,7 +4,8 @@ use nanvm_lib::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, IContainer, IVm, Object, Property, String16, ToAnyEx, Unpacked,
+        naive, Any, Array, BigInt, IContainer, IVm, Js, Object, Property, String16, ToAnyEx,
+        Unpacked,
     },
 };
 
@@ -245,6 +246,44 @@ fn serialization<A: IVm>() {
     }
 }
 
+fn assert_is_nan<A: IVm>(_a: Any<A>, _test_case: &str) {
+    // let nan = Any::unary_plus(a);
+    // if let Some(simple) = nan.try_to_simple() {
+    //     match simple {
+    //         Simple::Number(f) => {
+    //             assert!(f.is_nan());
+    //         }
+    //         _ => panic!("expected Number result of unary_plus of '{}'", test_case),
+    //     }
+    // } else {
+    //     panic!("expected Simple result of unary_plus of '{}'", test_case);
+    // }
+}
+
+fn test_op<A: IVm>(result: Any<A>, expected: Any<A>, test_case: &str) {
+    match expected.0.clone().to_unpacked() {
+        Unpacked::Number(f) => {
+            if f.is_nan() {
+                assert_is_nan(result, test_case);
+            } else {
+                assert_eq!(result, expected);
+            }
+        }
+        Unpacked::BigInt(_) => {
+            assert_eq!(result, expected);
+        }
+        _ => panic!("expected is neither Number nor BigInt in '{}'", test_case),
+    }
+}
+
+fn unary_plus<A: IVm>() {
+    let n0 = 0.0.to_any();
+    let test_cases: Vec<(Any<A>, Any<A>, &str)> = vec![(n0.clone(), n0.clone(), "null")];
+    for (a, expected, test_case) in test_cases.iter() {
+        test_op::<A>(Any::unary_plus(&a.clone()), expected.clone(), test_case);
+    }
+}
+
 fn old_eq<A: IVm>() {
     // nullish
     let null0: Any<A> = Nullish::Null.to_any();
@@ -357,6 +396,7 @@ fn gen_test<A: IVm>() {
     array_eq::<A>();
     bigint_eq::<A>();
     serialization::<A>();
+    unary_plus::<A>();
     //
     old_eq::<naive::InternalAny>();
 }

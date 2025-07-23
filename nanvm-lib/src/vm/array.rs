@@ -41,6 +41,10 @@ impl<A: IVm> Js<A> for Array<A> {
     fn string(&self) -> String16<A> {
         default()
     }
+
+    fn unary_plus(&self) -> Self {
+        self.clone()
+    }
 }
 
 impl<A: IVm> Serializable for Array<A> {

@@ -86,6 +86,10 @@ impl<A: IVm> Js<A> for BigInt<A> {
         // TODO: Implement proper conversion to String16
         default()
     }
+
+    fn unary_plus(&self) -> Self {
+        self.clone()
+    }
 }
 
 impl<A: IVm> Serializable for BigInt<A> {
