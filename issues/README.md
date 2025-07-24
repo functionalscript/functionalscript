@@ -199,6 +199,7 @@ logic should be moved to a private free floating helper function (to keep public
   // not all types require to implement these traits.
   trait StringCoercion {
       // link to MDN, optionally to ECMAScript
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion
       fn string(self) -> String16
   }
   // not types required to implement.
