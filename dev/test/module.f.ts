@@ -1,7 +1,7 @@
 import { entries, fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold, type CsiConsole, stdio, stderr } from '../../text/sgr/module.f.ts'
 import type * as Result from '../../types/result/module.f.ts'
-import type { Io, Performance } from '../../io/module.f.ts'
+import type { Io, Performance, TryCatch } from '../../io/module.f.ts'
 import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
 
 type DependencyMap = {
@@ -56,11 +56,22 @@ export const shouldThrow = (v: Test) => v.name === 'throw'
 
 export type TestSet = Test | readonly(readonly[string, unknown])[]
 
-export const parseTestSet = (x: unknown): TestSet => {
+export const parseTestSet = (t: TryCatch) => (x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
-                return x as Test
+                const xt = x as Test
+                if (!shouldThrow(xt)) {
+                    return xt
+                }
+                // Usual tests throw on error, but if the function name is 'throw', then the test passes if it throws.
+                return () => {
+                    const [tag, value] = t(xt)
+                    if (tag === 'ok') {
+                        throw value
+                    }
+                    return value
+                }
             }
             break
         }
@@ -77,6 +88,7 @@ export const parseTestSet = (x: unknown): TestSet => {
 export const test = <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== undefined
+    const parse = parseTestSet(tryCatch)
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
@@ -85,12 +97,11 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
             = i => v => ([ts, state]) => {
             const next = test(`${i}| `)
 
-            const set = parseTestSet(v)
+            const set = parse(v)
             if (typeof set === 'function') {
                 const [[s, r], delta, state0] = measure(() => tryCatch(set))(state)
                 state = state0
-                // Usual tests throw on error, but if the function name is 'throw', then the test passes if it throws.
-                if ((s !== 'error') === shouldThrow(set)) {
+                if (s !== 'ok') {
                     ts = addFail(delta)(ts)
                     if (isGitHub) {
                         // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
@@ -102,9 +113,9 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
                     }
                 } else {
                     ts = addPass(delta)(ts)
-                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`)
+                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
+                    [ts, state] = next(r)([ts, state])
                 }
-                [ts, state] = next(r)([ts, state])
             } else {
                 const f
                     : (k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>

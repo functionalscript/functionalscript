@@ -18,6 +18,8 @@ declare namespace Deno {
     const test: DenoTest
 }
 
+const parse = parseTestSet(io.tryCatch)
+
 const denoTest = (x: Test) => async(t: DenoTestStep) => {
     let subTests = [x]
     while (true) {
@@ -28,19 +30,12 @@ const denoTest = (x: Test) => async(t: DenoTestStep) => {
         subTests = rest
         //
         const [name, value] = first
-        const set = parseTestSet(value)
+        const set = parse(value)
         if (typeof set === 'function') {
-            const g = shouldThrow(set)
-                ? () => {
-                    try {
-                        set()
-                        throw new Error(`Expected ${name} to throw, but it did not.`)
-                    } catch {}
-                }
-                : () => {
-                    const r = set()
-                    subTests = [...subTests, [`${name}()`, r]]
-                }
+            const g = () => {
+                const r = set()
+                subTests = [...subTests, [`${name}()`, r]]
+            }
             await t.step(name, g)
         } else {
             for (const [j, y] of set) {
