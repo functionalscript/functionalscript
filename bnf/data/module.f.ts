@@ -241,17 +241,6 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
-    
+    const dispatch = dispatchMap(data[0])
     return todo()
 }
-
-/**
- * Either `{ variantItem: id }` or `id`.
- */
-/*
-type DispatchRule = SingleProperty<> | string
-
-type Dispatch = RangeMapArray<DispatchRule>
-
-type DispatchMap = { readonly[id in string]: Dispatch }
-*/
