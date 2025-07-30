@@ -41,7 +41,7 @@ export default {
                 const x = { toString: () => 'custom string' }
                 if (stringCoercion(x) !== 'custom string') { throw [x, 'toString', 'custom string'] }
             },
-            funcThrow: {
+            toStringThrow: {
                 throw: () => {
                     const x = { toString: () => { throw new Error('Custom error') } }
                     stringCoercion(x)
@@ -53,7 +53,7 @@ export default {
                     stringCoercion(x)
                 }
             },
-            nonPrimitive: {
+            toStringNonPrimitive: {
                 throw: () => {
                     const x = { toString: () => [] }
                     stringCoercion(x)
