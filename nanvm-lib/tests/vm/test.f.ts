@@ -10,6 +10,7 @@ export default {
             if (stringCoercion(1/(-0)) !== '-Infinity') { throw [0, 'toString', '-Infinity'] }
             if (stringCoercion(Infinity) !== 'Infinity') { throw [Infinity, 'toString', 'Infinity'] }
             if (stringCoercion(-Infinity) !== '-Infinity') { throw [-Infinity, 'toString', '-Infinity'] }
+            if (stringCoercion(1/-Infinity) !== '0') { throw [-Infinity, 'toString', '0'] }
             if (stringCoercion(NaN) !== 'NaN') { throw [NaN, 'toString', 'NaN'] }
         },
         bool: () => {
