@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{IVm, Js, String16, ToAnyEx, Unpacked},
+    vm::{string_coercion::StringCoercion, IVm, Js, String16, ToAnyEx, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -84,5 +84,20 @@ impl<A: IVm> Serializable for Any<A> {
 impl<A: IVm> Js<A> for Any<A> {
     fn string(&self) -> String16<A> {
         self.0.clone().to_unpacked().string()
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for Any<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        match self.0.clone().to_unpacked() {
+            Unpacked::Nullish(n) => n.coerce_to_string(),
+            Unpacked::Boolean(b) => b.coerce_to_string(),
+            Unpacked::Number(n) => n.coerce_to_string(),
+            Unpacked::String(s) => Ok(s),
+            Unpacked::BigInt(i) => i.coerce_to_string(),
+            Unpacked::Object(o) => o.coerce_to_string(),
+            Unpacked::Array(a) => a.coerce_to_string(),
+            Unpacked::Function(f) => f.coerce_to_string(),
+        }
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     common::{default::default, serializable::Serializable},
     sign::Sign,
-    vm::{Any, IContainer, IVm, Js, String16, Unpacked},
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, Js, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter, Write},
@@ -95,5 +95,11 @@ impl<A: IVm> Serializable for BigInt<A> {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalBigInt::deserialize(read).map(Self)
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for BigInt<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        Ok(format!("{self:?}").as_str().into())
     }
 }
