@@ -6,6 +6,8 @@ export default {
             if (stringCoercion(123) !== '123') { throw [123, 'toString', '123'] }
             if (stringCoercion(-456) !== '-456') { throw [-456, 'toString', '-456'] }
             if (stringCoercion(0) !== '0') { throw [0, 'toString', '0'] }
+            if (stringCoercion(-0) !== '0') { throw [0, 'toString', '0'] }
+            if (stringCoercion(1/(-0)) !== '-Infinity') { throw [0, 'toString', '-Infinity'] }
             if (stringCoercion(Infinity) !== 'Infinity') { throw [Infinity, 'toString', 'Infinity'] }
             if (stringCoercion(-Infinity) !== '-Infinity') { throw [-Infinity, 'toString', '-Infinity'] }
             if (stringCoercion(NaN) !== 'NaN') { throw [NaN, 'toString', 'NaN'] }
