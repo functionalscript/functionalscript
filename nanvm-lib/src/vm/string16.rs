@@ -1,6 +1,6 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{Any, IContainer, IVm, Js, ToAnyEx, Unpacked},
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, ToAnyEx, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter, Write},
@@ -74,12 +74,6 @@ impl<A: IVm> TryFrom<Any<A>> for String16<A> {
     }
 }
 
-impl<A: IVm> Js<A> for String16<A> {
-    fn string(&self) -> String16<A> {
-        self.clone()
-    }
-}
-
 impl<A: IVm> Serializable for String16<A> {
     fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
@@ -87,5 +81,11 @@ impl<A: IVm> Serializable for String16<A> {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalString16::deserialize(read).map(Self)
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for String16<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        Ok(self.clone())
     }
 }
