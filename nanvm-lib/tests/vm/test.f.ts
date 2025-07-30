@@ -8,6 +8,7 @@ export default {
             if (stringCoercion(0) !== '0') { throw [0, 'toString', '0'] }
             if (stringCoercion(Infinity) !== 'Infinity') { throw [Infinity, 'toString', 'Infinity'] }
             if (stringCoercion(-Infinity) !== '-Infinity') { throw [-Infinity, 'toString', '-Infinity'] }
+            if (stringCoercion(NaN) !== 'NaN') { throw [NaN, 'toString', 'NaN'] }
         },
         bool: () => {
             if (stringCoercion(true) !== 'true') { throw [true, 'toString', 'true'] }
