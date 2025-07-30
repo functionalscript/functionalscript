@@ -1,7 +1,7 @@
 use crate::{
-    common::{default::default, serializable::Serializable},
+    common::serializable::Serializable,
     sign::Sign,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, Js, String16, Unpacked},
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter, Write},
@@ -78,13 +78,6 @@ impl<A: IVm> Debug for BigInt<A> {
             write!(f, "_{:016X}", self.0.at(i))?;
         }
         f.write_char('n')
-    }
-}
-
-impl<A: IVm> Js<A> for BigInt<A> {
-    fn string(&self) -> String16<A> {
-        // TODO: Implement proper conversion to String16
-        default()
     }
 }
 

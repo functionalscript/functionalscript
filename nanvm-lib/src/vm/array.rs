@@ -1,8 +1,8 @@
 use std::io;
 
 use crate::{
-    common::{default::default, serializable::Serializable},
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, Js, String16, Unpacked},
+    common::serializable::Serializable,
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 
 #[derive(Clone)]
@@ -34,12 +34,6 @@ impl<A: IVm> TryFrom<Any<A>> for Array<A> {
 impl<A: IVm> std::fmt::Debug for Array<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.items_fmt('[', ']', f)
-    }
-}
-
-impl<A: IVm> Js<A> for Array<A> {
-    fn string(&self) -> String16<A> {
-        default()
     }
 }
 

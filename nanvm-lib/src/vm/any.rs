@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{string_coercion::StringCoercion, IVm, Js, String16, ToAnyEx, Unpacked},
+    vm::{string_coercion::StringCoercion, IVm, String16, ToAnyEx, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -78,12 +78,6 @@ impl<A: IVm> Serializable for Any<A> {
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         Ok(Unpacked::deserialize(read)?.into())
-    }
-}
-
-impl<A: IVm> Js<A> for Any<A> {
-    fn string(&self) -> String16<A> {
-        self.0.clone().to_unpacked().string()
     }
 }
 

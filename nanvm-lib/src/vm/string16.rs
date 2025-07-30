@@ -1,6 +1,6 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, Js, ToAnyEx, Unpacked},
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, ToAnyEx, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter, Write},
@@ -71,12 +71,6 @@ impl<A: IVm> TryFrom<Any<A>> for String16<A> {
         } else {
             Err(())
         }
-    }
-}
-
-impl<A: IVm> Js<A> for String16<A> {
-    fn string(&self) -> String16<A> {
-        self.clone()
     }
 }
 

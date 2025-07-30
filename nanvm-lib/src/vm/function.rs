@@ -1,6 +1,6 @@
 use crate::{
-    common::{default::default, serializable::Serializable},
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, Js, String16, Unpacked},
+    common::serializable::Serializable,
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -42,13 +42,6 @@ impl<A: IVm> Debug for Function<A> {
             write!(f, "{:02X}", self.0.at(i))?;
         }
         f.write_str("}}")
-    }
-}
-
-impl<A: IVm> Js<A> for Function<A> {
-    fn string(&self) -> String16<A> {
-        // TODO: Implement proper conversion to String16
-        default()
     }
 }
 

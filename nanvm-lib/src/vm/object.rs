@@ -1,6 +1,6 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, Js, String16, Unpacked},
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -38,12 +38,6 @@ impl<A: IVm> TryFrom<Any<A>> for Object<A> {
 impl<A: IVm> Debug for Object<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.items_fmt('{', '}', f)
-    }
-}
-
-impl<A: IVm> Js<A> for Object<A> {
-    fn string(&self) -> String16<A> {
-        "[object Object]".into()
     }
 }
 
