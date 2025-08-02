@@ -52,8 +52,6 @@ const timeFormat = (a: number) => {
 
 export type Test = () => unknown
 
-export const shouldThrow = (v: Test) => v.name === 'throw'
-
 export type TestSet = Test | readonly(readonly[string, unknown])[]
 
 export const parseTestSet = (t: TryCatch) => (x: unknown): TestSet => {
@@ -61,10 +59,11 @@ export const parseTestSet = (t: TryCatch) => (x: unknown): TestSet => {
         case 'function': {
             if (x.length === 0) {
                 const xt = x as Test
-                if (!shouldThrow(xt)) {
+                if (xt.name !== 'throw') {
                     return xt
                 }
-                // Usual tests throw on error, but if the function name is 'throw', then the test passes if it throws.
+                // Usual tests throw on error, but if the function name is 'throw',
+                // then the test passes if it throws.
                 return () => {
                     const [tag, value] = t(xt)
                     if (tag === 'ok') {
