@@ -1,7 +1,7 @@
 import { entries, fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold, type CsiConsole, stdio, stderr } from '../../text/sgr/module.f.ts'
 import type * as Result from '../../types/result/module.f.ts'
-import type { Io, Performance } from '../../io/module.f.ts'
+import type { Io, Performance, TryCatch } from '../../io/module.f.ts'
 import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
 
 type DependencyMap = {
@@ -50,9 +50,44 @@ const timeFormat = (a: number) => {
     return `${b}.${e} ms`
 }
 
+export type Test = () => unknown
+
+export type TestSet = Test | readonly(readonly[string, unknown])[]
+
+export const parseTestSet = (t: TryCatch) => (x: unknown): TestSet => {
+    switch (typeof x) {
+        case 'function': {
+            if (x.length === 0) {
+                const xt = x as Test
+                if (xt.name !== 'throw') {
+                    return xt
+                }
+                // Usual tests throw on error, but if the function name is 'throw',
+                // then the test passes if it throws.
+                return () => {
+                    const [tag, value] = t(xt)
+                    if (tag === 'ok') {
+                        throw value
+                    }
+                    return value
+                }
+            }
+            break
+        }
+        case 'object': {
+            if (x !== null) {
+                return Object.entries(x)
+            }
+            break
+        }
+    }
+    return []
+}
+
 export const test = <T>(input: Input<T>): readonly[number, T] => {
     let { moduleMap, log, error, measure, tryCatch, env, state } = input
     const isGitHub = env('GITHUB_ACTION') !== undefined
+    const parse = parseTestSet(tryCatch)
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
@@ -60,46 +95,35 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
             : (i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>
             = i => v => ([ts, state]) => {
             const next = test(`${i}| `)
-            switch (typeof v) {
-                case 'function': {
-                    if (v.length === 0) {
-                        const [[s, r], delta, state0] = measure(() => tryCatch(v as () => unknown))(state)
-                        state = state0
-                        // Usual tests throw on error, but if the function name is 'throw', then the test passes if it throws.
-                        if ((s === 'error') === (v.name !== 'throw')) {
-                            ts = addFail(delta)(ts)
-                            if (isGitHub) {
-                                // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
-                                // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                                error(`::error file=${k},line=1,title=[3]['a']()::${r}`)
-                            } else {
-                                error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
-                                error(`${fgRed}${r}${reset}`)
-                            }
-                        } else {
-                            ts = addPass(delta)(ts)
-                            log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`)
-                        }
-                        [ts, state] = next(r)([ts, state])
+
+            const set = parse(v)
+            if (typeof set === 'function') {
+                const [[s, r], delta, state0] = measure(() => tryCatch(set))(state)
+                state = state0
+                if (s !== 'ok') {
+                    ts = addFail(delta)(ts)
+                    if (isGitHub) {
+                        // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+                        // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
+                        error(`::error file=${k},line=1,title=[3]['a']()::${r}`)
+                    } else {
+                        error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
+                        error(`${fgRed}${r}${reset}`)
                     }
-                    break
+                } else {
+                    ts = addPass(delta)(ts)
+                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
+                    [ts, state] = next(r)([ts, state])
                 }
-                case 'object': {
-                    if (v !== null) {
-                        const f
-                            : (k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>
-                            = ([k, v]) => ([time, state]) => {
-                            log(`${i}${k}:`);
-                            [time, state] = next(v)([time, state])
-                            return [time, state]
-                        }
-                        [ts, state] = fold
-                            (f)
-                            ([ts, state])
-                            (v instanceof Array ? entries(v) : Object.entries(v))
-                    }
-                    break
+            } else {
+                const f
+                    : (k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>
+                    = ([k, v]) => ([time, state]) => {
+                    log(`${i}${k}:`);
+                    [time, state] = next(v)([time, state])
+                    return [time, state]
                 }
+                [ts, state] = fold(f)([ts, state])(set)
             }
             return [ts, state]
         }

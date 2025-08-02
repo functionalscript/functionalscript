@@ -1,6 +1,6 @@
 import { io } from '../io/module.ts'
 import { loadModuleMap } from '../dev/module.f.ts'
-import { isTest } from '../dev/test/module.f.ts'
+import { isTest, parseTestSet } from '../dev/test/module.f.ts'
 
 type DenoTestStep = {
     readonly step: (name: string, f: () => void | Promise<void>) => Promise<void>
@@ -18,6 +18,8 @@ declare namespace Deno {
     const test: DenoTest
 }
 
+const parse = parseTestSet(io.tryCatch)
+
 const denoTest = (x: Test) => async(t: DenoTestStep) => {
     let subTests = [x]
     while (true) {
@@ -28,33 +30,17 @@ const denoTest = (x: Test) => async(t: DenoTestStep) => {
         subTests = rest
         //
         const [name, value] = first
-        if (value === null) {
-            continue
-        }
-        switch (typeof value) {
-            case "function": {
-                if (value.length === 0) {
-                    const g = value.name === 'throw'
-                        ? () => {
-                            try {
-                                value()
-                                throw new Error(`Expected ${name} to throw, but it did not.`)
-                            } catch {}
-                        }
-                        : () => {
-                            const r = value()
-                            subTests = [...subTests, [`${name}()`, r]]
-                        }
-                    await t.step(name, g)
-                }
-                break
+        const set = parse(value)
+        if (typeof set === 'function') {
+            const g = () => {
+                const r = set()
+                subTests = [...subTests, [`${name}()`, r]]
             }
-            case "object": {
-                for (const [j, y] of Object.entries(value)) {
-                    const pr = `${name}/${j}`
-                    subTests = [...subTests, [pr, y]]
-                }
-                break
+            await t.step(name, g)
+        } else {
+            for (const [j, y] of set) {
+                const pr = `${name}/${j}`
+                subTests = [...subTests, [pr, y]]
             }
         }
     }
