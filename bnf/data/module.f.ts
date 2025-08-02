@@ -57,7 +57,11 @@ export type AstSequence = readonly(AstRule|CodePoint)[]
 /**
  * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
  */
-export type AstRule = readonly[string, AstSequence]
+type AstRule = {
+    readonly name: string,
+    readonly tag: string | undefined,
+    readonly sequence: AstSequence
+}
 
 /**
  * Represents the remaining input after a match attempt, or `null` if no match is possible.
