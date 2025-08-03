@@ -54,12 +54,14 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
  */
 export type AstSequence = readonly(AstRule|CodePoint)[]
 
+type AstTag = string|true|undefined
+
 /**
  * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
  */
 type AstRule = {
     readonly name: string,
-    readonly tag: string | undefined,
+    readonly tag: AstTag,
     readonly sequence: AstSequence
 }
 
@@ -245,6 +247,15 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
-    const dispatch = dispatchMap(data[0])
-    return todo()
+    const map = dispatchMap(data[0])
+    const f: Match = (name, s): MatchResult => {
+        const mr = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{'name': name, tag, sequence}, r]
+        const mre = (tag: AstTag, sequence: AstSequence) => mr(tag, sequence, null)
+        const {emptyTag, rangeMap} = map[name]        
+        if (s.length === 0) {            
+            return mr(emptyTag, [], emptyTag === undefined ? null : s)
+        }
+        return todo()
+    }
+    return f
 }
