@@ -79,6 +79,8 @@ export type MatchResult = readonly[AstRule, Remainder]
  */
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
+export type MatchRule = (dr: DispatchRule, s: readonly CodePoint[]) => MatchResult
+
 const { entries } = Object
 
 const find = (map: FRuleMap) => (fr: FRule): string | undefined => {
@@ -247,10 +249,11 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
     const map = dispatchMap(data[0])
-    const f: Match = (name, cp): MatchResult => {
+
+    const f: MatchRule = (rule, cp): MatchResult => {
         const mr = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, r]
         const mre = (tag: AstTag, sequence: AstSequence) => mr(tag, sequence, null)
-        const {emptyTag, rangeMap} = map[name]        
+        const {emptyTag, rangeMap} = rule      
         if (cp.length === 0) {            
             return mr(emptyTag, [], emptyTag === undefined ? null : cp)
         }
@@ -261,10 +264,20 @@ export const parser = (fr: FRule): Match => {
         }
         let seq: AstSequence = []
         let r = cp
-        for (const rule of dr.rules) {
-            //
+        for (const i of dr.rules) {
+            const [astRule, newR] = f(i, r)
+            seq = [...seq, astRule]
+            if (newR === null) {
+                return mre(undefined, seq)
+            }
+            r = newR
         }
-        return todo()
+        return mr(undefined, seq, r)
     }
-    return f
+
+    const match: Match = (name, cp): MatchResult => {
+        return f(map[name], cp)
+    }
+    
+    return match
 }
