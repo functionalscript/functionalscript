@@ -264,15 +264,16 @@ export const parser = (fr: FRule): Match => {
         }
         let seq: AstSequence = []
         let r = cp
-        for (const i of dr.rules) {
+        const {tag, rules} = dr
+        for (const i of rules) {
             const [astRule, newR] = f(i, r)
             seq = [...seq, astRule]
             if (newR === null) {
-                return mre(undefined, seq)
+                return mre(tag, seq)
             }
             r = newR
         }
-        return mr(undefined, seq, r)
+        return mr(tag, seq, r)
     }
 
     const match: Match = (name, cp): MatchResult => {
