@@ -60,7 +60,6 @@ type AstTag = string|true|undefined
  * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
  */
 type AstRule = {
-    readonly name: string,
     readonly tag: AstTag,
     readonly sequence: AstSequence
 }
@@ -249,7 +248,7 @@ export const parser = (fr: FRule): Match => {
     const data = toData(fr)
     const map = dispatchMap(data[0])
     const f: Match = (name, cp): MatchResult => {
-        const mr = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{'name': name, tag, sequence}, r]
+        const mr = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, r]
         const mre = (tag: AstTag, sequence: AstSequence) => mr(tag, sequence, null)
         const {emptyTag, rangeMap} = map[name]        
         if (cp.length === 0) {            
