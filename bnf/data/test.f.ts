@@ -102,7 +102,21 @@ export default {
             const mr = m("", [64, 70])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":true,"sequence":[]},[64,70]]') { throw result }
-        }
+        },
+        () => {
+            const terminalRangeRule = range('AF')
+            const m = parser(terminalRangeRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},null]') { throw result }       
+        },
+        () => {
+            const terminalRangeRule = range('AF')
+            const m = parser(terminalRangeRule)
+            const mr = m("", [63])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},[63]]') { throw result }       
+        },
     ],
     example: () => {
         const grammar = {
