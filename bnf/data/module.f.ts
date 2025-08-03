@@ -248,12 +248,22 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
     const map = dispatchMap(data[0])
-    const f: Match = (name, s): MatchResult => {
+    const f: Match = (name, cp): MatchResult => {
         const mr = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{'name': name, tag, sequence}, r]
         const mre = (tag: AstTag, sequence: AstSequence) => mr(tag, sequence, null)
         const {emptyTag, rangeMap} = map[name]        
-        if (s.length === 0) {            
-            return mr(emptyTag, [], emptyTag === undefined ? null : s)
+        if (cp.length === 0) {            
+            return mr(emptyTag, [], emptyTag === undefined ? null : cp)
+        }
+        const cp0 = cp[0]
+        const dr = dispatchOp.get(cp0)(rangeMap)
+        if (dr === null) {
+            return mr(emptyTag, [], emptyTag === undefined ? null : cp)
+        }
+        let seq: AstSequence = []
+        let r = cp
+        for (const rule of dr.rules) {
+            //
         }
         return todo()
     }

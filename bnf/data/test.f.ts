@@ -95,6 +95,13 @@ export default {
             const mr = m("", [])
             const result = JSON.stringify(mr)
             if (result !== '[{"name":"","tag":true,"sequence":[]},[]]') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const m = parser(emptyRule)
+            const mr = m("", [64, 70])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"name":"","tag":true,"sequence":[]},[64,70]]') { throw result }
         }
     ],
     example: () => {
