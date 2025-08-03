@@ -91,9 +91,10 @@ export default {
     parser: [
         () => {
             const emptyRule = ''
-            const match = parser(emptyRule)
-            const result = JSON.stringify(match)
-            //if (result !== '') { throw result }
+            const m = parser(emptyRule)
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"name":"","tag":true,"sequence":[]},[]]') { throw result }
         }
     ],
     example: () => {
