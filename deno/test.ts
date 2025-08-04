@@ -30,15 +30,16 @@ type TestFunc = (f: SubTestRunnerFunc) => Promise<void>
 
 type CommonFramework = (name: string, f: TestFunc) => void | Promise<void>
 
+const createFramework = <N extends string>(step: N, fw: Framework<N>): CommonFramework =>
+    (name, f) => fw.test(name, t => f((name, v) => t[step](name, v)))
+
 const framework = async(): Promise<CommonFramework> => {
     if (isDeno) {
         // Deno
-        const fw = Deno.test
-        return (name, f) => fw(name, t => f((name, v) => t.step(name, v)))
+        return createFramework('step', Deno)
     }
     // Node.js
-    const fw = (await import('node:test')).test
-    return (name, f) => fw(name, t => f((name, v) => t.test(name, v)))
+    return createFramework('test', await import('node:test'))
 }
 
 const parse = parseTestSet(io.tryCatch)
