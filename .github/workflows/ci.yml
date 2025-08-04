@@ -15,10 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
         node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm run test20
     - run: node --test
@@ -27,10 +28,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
         node-version: 22
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm run test22
     - run: node --test --experimental-strip-types
@@ -44,10 +46,11 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm test
     - run: node --test
@@ -58,10 +61,11 @@ jobs:
   node-bin:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
         node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm pack
     - run: npm install -g ./*.tgz
@@ -81,10 +85,11 @@ jobs:
         deno-version: [2]
 
     steps:
-    - uses: actions/checkout@v2
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
+    # checkout
+    - uses: actions/checkout@v2
     - run: deno install
     - run: deno task fst
     - run: deno task test
@@ -95,8 +100,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: oven-sh/setup-bun@v1
     - uses: actions/checkout@v2
-    - uses: oven-sh/setup-bun
     - run: bun ./dev/tf/module.ts
     - run: bun test
 
@@ -130,17 +135,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: rustup update
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v2
         with:
           node-version: 20
       - uses: taiki-e/install-action@wasm-pack
+      # checkout
+      - uses: actions/checkout@v4
       - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
 
   rust-lints:
     runs-on: ubuntu-latest
     steps:
       - run: rustup update
+      # checkout
       - uses: actions/checkout@v3
       - run: cargo clippy -- -D warnings
       - run: cargo fmt -- --check
