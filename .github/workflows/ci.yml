@@ -32,7 +32,7 @@ jobs:
         node-version: 22
     - run: npm ci
     - run: npm run test22
-    - run: npm run node-test
+    - run: node --test --experimental-strip-types
 
   node:
     strategy:
@@ -49,7 +49,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
     - run: npm test
-    - run: npm run node-test
+    - run: node --test
     - run: npx tsgo # check types using TypeScript native-preview
     - run: npm run index
     - run: npm pack
