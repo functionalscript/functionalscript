@@ -85,6 +85,7 @@ jobs:
       with:
         deno-version: ${{ matrix.deno-version }}
     - run: deno install
+    - run: deno task fst
     - run: deno task test
     - run: deno publish --dry-run
 
