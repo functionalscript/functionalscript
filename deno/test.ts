@@ -22,6 +22,10 @@ declare const Deno: Framework<'step'> | undefined
 
 const isDeno = typeof Deno !== 'undefined'
 
+declare const Bun: Object | undefined
+
+const isBun = typeof Bun !== 'undefined'
+
 type Test = readonly[string, unknown]
 
 //
