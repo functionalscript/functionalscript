@@ -96,9 +96,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - run: curl https://bun.sh/install | bash
+    - uses: oven-sh/setup-bun
     - run: bun ./dev/tf/module.ts
-    - run: /home/runner/.bun/bin/bun test
+    - run: bun test
 
   rust:
     strategy:
