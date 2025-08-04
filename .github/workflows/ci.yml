@@ -42,9 +42,7 @@ jobs:
       matrix:
         os: ['ubuntu-latest', 'windows-latest']
         node-version: [24]
-
     runs-on: ${{ matrix.os }}
-
     steps:
     # setup
     - uses: actions/setup-node@v2
@@ -79,13 +77,10 @@ jobs:
         path: ./*.tgz
 
   deno:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         deno-version: [2]
-
     steps:
     # setup
     - uses: denoland/setup-deno@v1
@@ -99,9 +94,7 @@ jobs:
     - run: deno publish --dry-run
 
   bun:
-
     runs-on: ubuntu-latest
-
     steps:
     # setup
     - uses: oven-sh/setup-bun@v1
@@ -118,11 +111,9 @@ jobs:
         type: ['', '--release']
         target: ['']
         include:
-          - os: windows-latest
-            target: '--target i686-pc-windows-msvc'
-
+        - os: windows-latest
+          target: '--target i686-pc-windows-msvc'
     runs-on: ${{ matrix.os }}
-
     steps:
     # setup
     # Windows on ARM has no Rust installed.
@@ -141,22 +132,22 @@ jobs:
         type: ['', '--release']
     runs-on: ubuntu-latest
     steps:
-      # setup
-      - run: rustup update
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
-      - uses: taiki-e/install-action@wasm-pack
-      # checkout
-      - uses: actions/checkout@v4
-      - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
+    # setup
+    - run: rustup update
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 20
+    - uses: taiki-e/install-action@wasm-pack
+    # checkout
+    - uses: actions/checkout@v4
+    - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
 
   rust-lints:
     runs-on: ubuntu-latest
     steps:
-      # setup
-      - run: rustup update
-      # checkout
-      - uses: actions/checkout@v3
-      - run: cargo clippy -- -D warnings
-      - run: cargo fmt -- --check
+    # setup
+    - run: rustup update
+    # checkout
+    - uses: actions/checkout@v3
+    - run: cargo clippy -- -D warnings
+    - run: cargo fmt -- --check
