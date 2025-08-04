@@ -13,8 +13,8 @@ on:
 jobs:
   node20:
     runs-on: ubuntu-latest
-
     steps:
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 20
@@ -26,8 +26,8 @@ jobs:
 
   node22:
     runs-on: ubuntu-latest
-
     steps:
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 22
@@ -46,6 +46,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
@@ -61,6 +62,7 @@ jobs:
   node-bin:
     runs-on: ubuntu-latest
     steps:
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 20
@@ -85,6 +87,7 @@ jobs:
         deno-version: [2]
 
     steps:
+    # setup
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
@@ -100,7 +103,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # setup
     - uses: oven-sh/setup-bun@v1
+    # checkout
     - uses: actions/checkout@v2
     - run: bun ./dev/tf/module.ts
     - run: bun test
@@ -119,12 +124,14 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    # setup
     # Windows on ARM has no Rust installed.
     - if: ${{ matrix.os == 'windows-11-arm' }}
       run: |
         Invoke-WebRequest -Uri https://win.rustup.rs/ -OutFile rustup-init.exe
         .\rustup-init.exe -y --default-toolchain stable --profile minimal
         echo "$env:USERPROFILE\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
+    # checkout
     - uses: actions/checkout@v3
     - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
 
@@ -134,6 +141,7 @@ jobs:
         type: ['', '--release']
     runs-on: ubuntu-latest
     steps:
+      # setup
       - run: rustup update
       - uses: actions/setup-node@v2
         with:
@@ -146,6 +154,7 @@ jobs:
   rust-lints:
     runs-on: ubuntu-latest
     steps:
+      # setup
       - run: rustup update
       # checkout
       - uses: actions/checkout@v3
