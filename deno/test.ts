@@ -2,25 +2,48 @@ import { io } from '../io/module.ts'
 import { loadModuleMap } from '../dev/module.f.ts'
 import { isTest, parseTestSet } from '../dev/tf/module.f.ts'
 
-type DenoTestStep = {
-    readonly step: (name: string, f: () => void | Promise<void>) => Promise<void>
+type SubTestRunnerFunc = (name: string, f: () => void | Promise<void>) => Promise<void>
+
+type SubTestRunner<N extends string> = {
+    readonly [name in N]: SubTestRunnerFunc
 }
 
-type DenoFunc = (t: DenoTestStep) => void | Promise<void>
+type FrameworkTestFunc<N extends string> = (f: SubTestRunner<N>) => Promise<void>
 
-type DenoArg = readonly[string, DenoFunc]
+type FrameworkArg<N extends string> = readonly [name: string, f: FrameworkTestFunc<N>]
 
-export type DenoTest = (...arg: DenoArg) => void
+type FrameworkTest<N extends string> = (...arg: FrameworkArg<N>) => void | Promise<void>
+
+type Framework<N extends string> = {
+    readonly test: FrameworkTest<N>
+}
+
+declare const Deno: Framework<'step'> | undefined
+
+const isDeno = typeof Deno !== 'undefined'
 
 type Test = readonly[string, unknown]
 
-declare namespace Deno {
-    const test: DenoTest
+//
+
+type TestFunc = (f: SubTestRunnerFunc) => Promise<void>
+
+type CommonFramework = (name: string, f: TestFunc) => void | Promise<void>
+
+const framework = async(): Promise<CommonFramework> => {
+    if (isDeno) {
+        // Deno
+        const fw = Deno.test
+        return (name, f) => fw(name, t => f((name, v) => t.step(name, v)))
+    }
+    // Node.js
+    const fw = (await import('node:test')).test
+    return (name, f) => fw(name, t => f((name, v) => t.test(name, v)))
 }
 
 const parse = parseTestSet(io.tryCatch)
 
-const denoTest = (x: Test) => async(t: DenoTestStep) => {
+const test = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc) => {
     let subTests = [x]
     while (true) {
         const [first, ...rest] = subTests
@@ -32,11 +55,10 @@ const denoTest = (x: Test) => async(t: DenoTestStep) => {
         const [name, value] = first
         const set = parse(value)
         if (typeof set === 'function') {
-            const g = () => {
+            await subTestRunner(name, () => {
                 const r = set()
                 subTests = [...subTests, [`${name}()`, r]]
-            }
-            await t.step(name, g)
+            })
         } else {
             for (const [j, y] of set) {
                 const pr = `${name}/${j}`
@@ -47,11 +69,11 @@ const denoTest = (x: Test) => async(t: DenoTestStep) => {
 }
 
 const run = async(): Promise<void> => {
+    const fw = await framework()
     const x = await loadModuleMap(io)
-
     for (const [i, v] of Object.entries(x)) {
         if (isTest(i)) {
-            Deno.test(i, denoTest(['', v.default]))
+            fw(i, test(['', v.default]))
         }
     }
 }
