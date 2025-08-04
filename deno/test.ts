@@ -38,10 +38,10 @@ const createFramework = <N extends string>(step: N, fw: Framework<N>): CommonFra
     (name, f) => fw.test(name, t => f((name, v) => t[step](name, v)))
 
 const framework = async(): Promise<CommonFramework> => {
-    if (isDeno) {
+    /*if (isDeno) {
         // Deno
         return createFramework('step', Deno)
-    }
+    }*/
     // Node.js
     return createFramework('test', await import('node:test'))
 }
