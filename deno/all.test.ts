@@ -22,11 +22,19 @@ declare const Deno: Framework<'step'> | undefined
 
 const isDeno = typeof Deno !== 'undefined'
 
-declare const Bun: Object | undefined
+declare const Bun: object | undefined
 
 const isBun = typeof Bun !== 'undefined'
 
 type Test = readonly[string, unknown]
+
+type BunTest = {
+    readonly describe: (name: string, f: () => Promise<void>|void) => Promise<void>
+    readonly test: (name: string, f: () => Promise<void>|void) => Promise<void>
+}
+
+const createBunFramework = (b: BunTest): CommonFramework =>
+    (name, f) => b.describe(name, () => f((name, v) => b.test(name, v)))
 
 //
 
@@ -38,10 +46,16 @@ const createFramework = <N extends string>(step: N, fw: Framework<N>): CommonFra
     (name, f) => fw.test(name, t => f((name, v) => t[step](name, v)))
 
 const framework = async(): Promise<CommonFramework> => {
-    /*if (isDeno) {
+    if (isDeno) {
         // Deno
         return createFramework('step', Deno)
-    }*/
+    }
+    if (isBun) {
+        // Bun
+        // deno-lint-ignore no-explicit-any
+        const x: BunTest = await import('bun:test' as any)
+        return createBunFramework(x)
+    }
     // Node.js
     return createFramework('test', await import('node:test'))
 }
