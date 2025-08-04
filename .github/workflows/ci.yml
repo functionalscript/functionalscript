@@ -21,6 +21,7 @@ jobs:
         node-version: 20
     - run: npm ci
     - run: npm run test20
+    - run: node --test
 
   node22:
     runs-on: ubuntu-latest
