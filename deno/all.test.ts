@@ -1,6 +1,7 @@
 import { io } from '../io/module.ts'
 import { loadModuleMap } from '../dev/module.f.ts'
 import { isTest, parseTestSet } from '../dev/tf/module.f.ts'
+import * as nodeTest from 'node:test'
 
 type SubTestRunnerFunc = (name: string, f: () => void | Promise<void>) => Promise<void>
 
@@ -46,10 +47,12 @@ const createFramework = <N extends string>(step: N, fw: Framework<N>): CommonFra
     (name, f) => fw.test(name, t => f((name, v) => t[step](name, v)))
 
 const framework = async(): Promise<CommonFramework> => {
+    /*
     if (isDeno) {
         // Deno
         return createFramework('step', Deno)
     }
+    */
     if (isBun) {
         // Bun
         // deno-lint-ignore no-explicit-any
@@ -57,12 +60,12 @@ const framework = async(): Promise<CommonFramework> => {
         return createBunFramework(x)
     }
     // Node.js
-    return createFramework('test', await import('node:test'))
+    return createFramework('test', nodeTest)
 }
 
 const parse = parseTestSet(io.tryCatch)
 
-const test = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc) => {
+const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc) => {
     let subTests = [x]
     while (true) {
         const [first, ...rest] = subTests
@@ -92,7 +95,7 @@ const run = async(): Promise<void> => {
     const x = await loadModuleMap(io)
     for (const [i, v] of Object.entries(x)) {
         if (isTest(i)) {
-            fw(i, test(['', v.default]))
+            fw(i, scanModule(['', v.default]))
         }
     }
 }
