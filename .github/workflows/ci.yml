@@ -32,6 +32,7 @@ jobs:
         node-version: 22
     - run: npm ci
     - run: npm run test22
+    - run: npm run node-test
 
   node:
     strategy:
