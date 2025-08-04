@@ -15,7 +15,8 @@
     "test": "tsc && node ./dev/tf/module.ts",
     "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
-    "update": "npm run index && npm install"
+    "update": "npm run index && npm install",
+    "node-test": "node --test"
   },
   "engines": {
     "node": ">=20"
@@ -44,7 +45,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.2.0",
     "@typescript/native-preview": "^7.0.0-dev.20250802.1",
     "typescript": "^5.9.2"
   }
