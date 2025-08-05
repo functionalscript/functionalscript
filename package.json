@@ -13,9 +13,10 @@
     "test20": "npm run prepack && node --test",
     "test22": "tsc && node --test --experimental-strip-types",
     "test": "tsc && node --test",
+    "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
     "fst": "node ./dev/tf/module.ts",
-    "update": "node ./dev/index/module.ts && npm install"
+    "update": "npm run index && npm install"
   },
   "engines": {
     "node": ">=20"
