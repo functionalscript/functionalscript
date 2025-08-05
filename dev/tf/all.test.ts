@@ -1,6 +1,6 @@
-import { io } from '../io/module.ts'
-import { loadModuleMap } from '../dev/module.f.ts'
-import { isTest, parseTestSet } from '../dev/tf/module.f.ts'
+import { io } from '../../io/module.ts'
+import { loadModuleMap } from '../module.f.ts'
+import { isTest, parseTestSet } from './module.f.ts'
 import * as nodeTest from 'node:test'
 
 //
