@@ -10,13 +10,12 @@
   "scripts": {
     "prepack": "tsc --NoEmit false",
     "git-clean": "git clean -xf",
-    "test20": "npm run prepack && node ./dev/tf/module.js",
-    "test22": "tsc && node --experimental-strip-types ./dev/tf/module.ts",
-    "test": "tsc && node ./dev/tf/module.ts",
-    "index": "node ./dev/index/module.ts",
+    "test20": "npm run prepack && node --test",
+    "test22": "tsc && node --test --experimental-strip-types",
+    "test": "tsc && node --test",
     "fsc": "node ./fsc/module.ts",
-    "update": "npm run index && npm install",
-    "node-test": "node --test"
+    "fst": "node ./dev/tf/module.ts",
+    "update": "node ./dev/index/module.ts && npm install"
   },
   "engines": {
     "node": ">=20"
