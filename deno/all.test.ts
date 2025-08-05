@@ -19,10 +19,6 @@ type Framework<N extends string> = {
     readonly test: FrameworkTest<N>
 }
 
-declare const Deno: Framework<'step'> | undefined
-
-const isDeno = typeof Deno !== 'undefined'
-
 declare const Bun: object | undefined
 
 const isBun = typeof Bun !== 'undefined'
@@ -47,12 +43,6 @@ const createFramework = <N extends string>(step: N, fw: Framework<N>): CommonFra
     (name, f) => fw.test(name, t => f((name, v) => t[step](name, v)))
 
 const framework = async(): Promise<CommonFramework> => {
-    /*
-    if (isDeno) {
-        // Deno
-        return createFramework('step', Deno)
-    }
-    */
     if (isBun) {
         // Bun
         // deno-lint-ignore no-explicit-any
