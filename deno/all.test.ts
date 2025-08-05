@@ -3,55 +3,31 @@ import { loadModuleMap } from '../dev/module.f.ts'
 import { isTest, parseTestSet } from '../dev/tf/module.f.ts'
 import * as nodeTest from 'node:test'
 
-type SubTestRunnerFunc = (name: string, f: () => void | Promise<void>) => Promise<void>
-
-type SubTestRunner<N extends string> = {
-    readonly [name in N]: SubTestRunnerFunc
-}
-
-type FrameworkTestFunc<N extends string> = (f: SubTestRunner<N>) => Promise<void>
-
-type FrameworkArg<N extends string> = readonly [name: string, f: FrameworkTestFunc<N>]
-
-type FrameworkTest<N extends string> = (...arg: FrameworkArg<N>) => void | Promise<void>
-
-type Framework<N extends string> = {
-    readonly test: FrameworkTest<N>
-}
+//
 
 declare const Bun: object | undefined
 
 const isBun = typeof Bun !== 'undefined'
 
-type Test = readonly[string, unknown]
-
-type BunTest = {
-    readonly describe: (name: string, f: () => Promise<void>|void) => Promise<void>
-    readonly test: (name: string, f: () => Promise<void>|void) => Promise<void>
-}
-
-const createBunFramework = (b: BunTest): CommonFramework =>
-    (name, f) => b.describe(name, () => f((name, v) => b.test(name, v)))
-
 //
 
-type TestFunc = (f: SubTestRunnerFunc) => Promise<void>
+type Awaitable<T> = Promise<T> | T
 
-type CommonFramework = (name: string, f: TestFunc) => void | Promise<void>
+type SubTestRunnerFunc = (name: string, f: () => Awaitable<void>) => Awaitable<void>
 
-const createFramework = <N extends string>(step: N, fw: Framework<N>): CommonFramework =>
-    (name, f) => fw.test(name, t => f((name, v) => t[step](name, v)))
+type Test = readonly[string, unknown]
 
-const framework = async(): Promise<CommonFramework> => {
-    if (isBun) {
-        // Bun
-        // deno-lint-ignore no-explicit-any
-        const x: BunTest = await import('bun:test' as any)
-        return createBunFramework(x)
-    }
-    // Node.js
-    return createFramework('test', nodeTest)
-}
+type TestFunc = (f: SubTestRunnerFunc) => Awaitable<void>
+
+type CommonFramework = (name: string, f: TestFunc) => Awaitable<void>
+
+const createFramework = (fw: typeof nodeTest): CommonFramework =>
+    (prefix, f) => fw.test(prefix, t => f((name, v) => t.test(name, v)))
+
+const createBunFramework = (fw: typeof nodeTest): CommonFramework =>
+    (prefix, f) => f((name, v) => fw.test(`${prefix}: ${name}`, v))
+
+const framework = isBun ? createBunFramework(nodeTest) : createFramework(nodeTest)
 
 const parse = parseTestSet(io.tryCatch)
 
@@ -81,11 +57,10 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 }
 
 const run = async(): Promise<void> => {
-    const fw = await framework()
     const x = await loadModuleMap(io)
     for (const [i, v] of Object.entries(x)) {
         if (isTest(i)) {
-            fw(i, scanModule(['', v.default]))
+            framework(i, scanModule(['', v.default]))
         }
     }
 }
