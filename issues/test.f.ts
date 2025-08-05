@@ -12,19 +12,11 @@ export default {
         const m: TemplateType = '<html>Hello</html>'
     },
     ownProperty: {
-        nullish: () => {
-            /* // panic
-            const v = Object.getOwnPropertyDescriptor(null, 0)
-            if (v !== undefined) {
-                throw v
-            }
-            */
-            /* // panic
-            const v = Object.getOwnPropertyDescriptor(undefined, 0)
-            if (v !== undefined) {
-                throw v
-            }
-            */
+        null: {
+            throw: () => Object.getOwnPropertyDescriptor(null, 0),
+        },
+        undefined: {
+            throw: () => Object.getOwnPropertyDescriptor(undefined, 0),
         },
         bool: () => {
             const v = at(true)('x')
