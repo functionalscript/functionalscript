@@ -89,8 +89,8 @@ jobs:
     # checkout
     - uses: actions/checkout@v2
     - run: deno install
-    - run: deno task fst
     - run: deno task test
+    - run: deno task fst
     - run: deno publish --dry-run
 
   bun:
@@ -100,8 +100,8 @@ jobs:
     - uses: oven-sh/setup-bun@v1
     # checkout
     - uses: actions/checkout@v2
-    - run: bun ./dev/tf/module.ts
     - run: bun test
+    - run: bun ./dev/tf/module.ts
 
   rust:
     strategy:
