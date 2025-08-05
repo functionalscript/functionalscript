@@ -86,6 +86,8 @@ export type Process = {
     readonly stderr: Writable
 }
 
+export type TryCatch = <T>(f: () => T) => Result<T, unknown>
+
 /**
  * Core IO operations interface providing access to system resources
  */
@@ -96,7 +98,7 @@ export type Io = {
     readonly asyncImport: (s: string) => Promise<Module>
     readonly performance: Performance
     readonly fetch: (url: string) => Promise<Response>
-    readonly tryCatch: <T>(f: () => T) => Result<T, unknown>
+    readonly tryCatch: TryCatch
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
 }
 

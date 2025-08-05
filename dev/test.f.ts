@@ -17,7 +17,7 @@ export default {
     ctorUndefined: () => {
         /** @type {any} */
         const o = {
-            constructor: void 0
+            constructor: undefined
         }
         const c = o['constructor']
         //console.log(c)
