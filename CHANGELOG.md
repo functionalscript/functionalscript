@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.7.0
+
+- New automatic test runner for `Node.js`, `Deno`, and `Bun` [PR 518](https://github.com/functionalscript/functionalscript/pull/518)
+
 ## 0.6.11
 
 - Support for Deno Test and Coverage.
