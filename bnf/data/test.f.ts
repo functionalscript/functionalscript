@@ -117,6 +117,36 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,[64]]') { throw result }       
         },
+        () => {
+            const variantRule = { 'a': range('AA'), 'b': range('BB')}
+            const m = parser(variantRule)
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"a","sequence":[]},true,[]]') { throw result }
+        },
+        () => {
+            const variantRule = { 'a': range('AA'), 'b': range('BB')}
+            const m = parser(variantRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,[64]]') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const variantRule = { 'e': emptyRule, 'a': range('AA')}
+             const m = parser(variantRule)
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"e","sequence":[]},true,[]]') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const variantRule = { 'e': emptyRule, 'a': range('AA')}
+             const m = parser(variantRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"e","sequence":[]},true,[64]]') { throw result }
+        },
     ],
     example: () => {
         const grammar = {
