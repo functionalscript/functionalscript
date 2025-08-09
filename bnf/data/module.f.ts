@@ -258,8 +258,7 @@ export const parser = (fr: FRule): Match => {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
         const cp0 = cp[0]        
-        const dr = dispatchOp.get(cp0)(rangeMap)        
-        console.log(JSON.stringify(dr))
+        const dr = dispatchOp.get(cp0)(rangeMap)
         if (dr === null) {
             if (emptyTag === undefined) {                
                 return mrFail(emptyTag, [], cp)
