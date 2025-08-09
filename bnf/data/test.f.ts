@@ -94,28 +94,28 @@ export default {
             const m = parser(emptyRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":true,"sequence":[]},[]]') { throw result }
+            if (result !== '[{"tag":true,"sequence":[]},true,[]]') { throw result }
         },
         () => {
             const emptyRule = ''
             const m = parser(emptyRule)
-            const mr = m("", [64, 70])
+            const mr = m("", [65, 70])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":true,"sequence":[]},[64,70]]') { throw result }
+            if (result !== '[{"tag":true,"sequence":[]},true,[65,70]]') { throw result }
+        },
+        () => {
+            const terminalRangeRule = range('AF')
+            const m = parser(terminalRangeRule)
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},true,[]]') { throw result }       
         },
         () => {
             const terminalRangeRule = range('AF')
             const m = parser(terminalRangeRule)
             const mr = m("", [64])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},null]') { throw result }       
-        },
-        () => {
-            const terminalRangeRule = range('AF')
-            const m = parser(terminalRangeRule)
-            const mr = m("", [63])
-            const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},[63]]') { throw result }       
+            if (result !== '[{"sequence":[]},false,[64]]') { throw result }       
         },
     ],
     example: () => {

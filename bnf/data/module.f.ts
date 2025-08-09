@@ -72,7 +72,7 @@ export type Remainder = readonly CodePoint[] | null
 /**
  * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
  */
-export type MatchResult = readonly[AstRule, Remainder]
+export type MatchResult = readonly[AstRule, boolean, Remainder]
 
 /**
  * Represents an LL(1) parser function for matching input against grammar rules.
@@ -251,29 +251,39 @@ export const parser = (fr: FRule): Match => {
     const map = dispatchMap(data[0])
 
     const f: MatchRule = (rule, cp): MatchResult => {
-        const mr = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, r]
-        const mre = (tag: AstTag, sequence: AstSequence) => mr(tag, sequence, null)
+        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
+        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]        
         const {emptyTag, rangeMap} = rule      
         if (cp.length === 0) {            
-            return mr(emptyTag, [], emptyTag === undefined ? null : cp)
+            return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
-        const cp0 = cp[0]
-        const dr = dispatchOp.get(cp0)(rangeMap)
+        const cp0 = cp[0]        
+        const dr = dispatchOp.get(cp0)(rangeMap)        
+        console.log(JSON.stringify(dr))
         if (dr === null) {
-            return mr(emptyTag, [], emptyTag === undefined ? null : cp)
+            if (emptyTag === undefined) {                
+                return mrFail(emptyTag, [], cp)
+            }
+            return mrSuccess(emptyTag, [], cp)
         }
-        let seq: AstSequence = []
+        let seq: AstSequence = []                
         let r = cp
+        const [_, ...restCp] = cp
+        r = restCp
         const {tag, rules} = dr
-        for (const i of rules) {
-            const [astRule, newR] = f(i, r)
+        for (const i of rules) {            
+            const res = f(i, r)
+            const [astRule, success, newR] = res
+            if (success === false) {
+                return res
+            }
             seq = [...seq, astRule]
             if (newR === null) {
-                return mre(tag, seq)
+                return mrSuccess(tag, seq, null)
             }
             r = newR
         }
-        return mr(tag, seq, r)
+        return mrSuccess(tag, seq, r)
     }
 
     const match: Match = (name, cp): MatchResult => {
