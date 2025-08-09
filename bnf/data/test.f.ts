@@ -141,10 +141,24 @@ export default {
         () => {
             const emptyRule = ''
             const variantRule = { 'e': emptyRule, 'a': range('AA')}
-             const m = parser(variantRule)
+            const m = parser(variantRule)
             const mr = m("", [64])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"e","sequence":[]},true,[64]]') { throw result }
+        },
+        () => {
+            const stringRule = 'AB'
+            const m = parser(stringRule)
+            const mr = m("", [65,66])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[{"sequence":[]}]},true,[]]') { throw result }
+        },
+        () => {
+            const stringRule = 'AB'
+            const m = parser(stringRule)
+            const mr = m("", [65,67])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,[67]]') { throw result }
         },
     ],
     example: () => {
