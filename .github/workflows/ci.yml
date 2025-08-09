@@ -13,23 +13,25 @@ on:
 jobs:
   node20:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm run test20
 
   node22:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 22
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm run test22
 
@@ -38,16 +40,17 @@ jobs:
       matrix:
         os: ['ubuntu-latest', 'windows-latest']
         node-version: [24]
-
     runs-on: ${{ matrix.os }}
-
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm test
+    - run: npm run fst
     - run: npx tsgo # check types using TypeScript native-preview
     - run: npm run index
     - run: npm pack
@@ -55,10 +58,12 @@ jobs:
   node-bin:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm pack
     - run: npm install -g ./*.tgz
@@ -70,30 +75,31 @@ jobs:
         path: ./*.tgz
 
   deno:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         deno-version: [2]
-
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
+    # checkout
+    - uses: actions/checkout@v2
     - run: deno install
     - run: deno task test
+    - run: deno task fst
     - run: deno publish --dry-run
 
   bun:
-
     runs-on: ubuntu-latest
-
     steps:
+    # setup
+    - uses: oven-sh/setup-bun@v1
+    # checkout
     - uses: actions/checkout@v2
-    - run: curl https://bun.sh/install | bash
-    - run: /home/runner/.bun/bin/bun ./dev/test/module.ts
+    - run: bun test
+    - run: bun ./dev/tf/module.ts
 
   rust:
     strategy:
@@ -103,18 +109,18 @@ jobs:
         type: ['', '--release']
         target: ['']
         include:
-          - os: windows-latest
-            target: '--target i686-pc-windows-msvc'
-
+        - os: windows-latest
+          target: '--target i686-pc-windows-msvc'
     runs-on: ${{ matrix.os }}
-
     steps:
+    # setup
     # Windows on ARM has no Rust installed.
     - if: ${{ matrix.os == 'windows-11-arm' }}
       run: |
         Invoke-WebRequest -Uri https://win.rustup.rs/ -OutFile rustup-init.exe
         .\rustup-init.exe -y --default-toolchain stable --profile minimal
         echo "$env:USERPROFILE\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
+    # checkout
     - uses: actions/checkout@v3
     - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
 
@@ -124,18 +130,22 @@ jobs:
         type: ['', '--release']
     runs-on: ubuntu-latest
     steps:
-      - run: rustup update
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
-      - uses: taiki-e/install-action@wasm-pack
-      - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
+    # setup
+    - run: rustup update
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 20
+    - uses: taiki-e/install-action@wasm-pack
+    # checkout
+    - uses: actions/checkout@v4
+    - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
 
   rust-lints:
     runs-on: ubuntu-latest
     steps:
-      - run: rustup update
-      - uses: actions/checkout@v3
-      - run: cargo clippy -- -D warnings
-      - run: cargo fmt -- --check
+    # setup
+    - run: rustup update
+    # checkout
+    - uses: actions/checkout@v3
+    - run: cargo clippy -- -D warnings
+    - run: cargo fmt -- --check

@@ -7,6 +7,8 @@ Check the [./issues/README.md](./issues/README.md) file for existing issues.
 - [Node.JS](https://nodejs.org/en/download), version **24** or later is required for development.
 - [Rust](https://www.rust-lang.org/tools/install).
 
+You may also use the [Dockerfile](./docker/Dockerfile).
+
 ### Installing Dependencies
 
 ```bash
@@ -25,9 +27,9 @@ cargo fmt -- --check
 
 Feel free to open [issues](https://github.com/functionalscript/functionalscript/issues).
 
-## Codex Environment
+## OpenAI Codex Environment
 
-Set Node.js to 22. Switch to 24 as soon as it's available in Codex.
+Set Node.js to 22. Switch to 24 as soon as it's available in [Codex](https://chatgpt.com/codex).
 
 Setup Script:
 

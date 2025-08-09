@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.6.11",
+  "version": "0.7.0",
   "type": "module",
   "files": [
     "**/*.js",
@@ -10,11 +10,12 @@
   "scripts": {
     "prepack": "tsc --NoEmit false",
     "git-clean": "git clean -xf",
-    "test20": "npm run prepack && node ./dev/test/module.js",
-    "test22": "tsc && node --experimental-strip-types ./dev/test/module.ts",
-    "test": "tsc && node ./dev/test/module.ts",
+    "test20": "npm run prepack && node --test",
+    "test22": "tsc && node --test --experimental-strip-types",
+    "test": "tsc && node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
+    "fst": "node ./dev/tf/module.ts",
     "update": "npm run index && npm install"
   },
   "engines": {
@@ -22,7 +23,7 @@
   },
   "bin": {
     "fsc": "fsc/module.js",
-    "fst": "dev/test/module.js"
+    "fst": "dev/tf/module.js"
   },
   "repository": {
     "type": "git",
@@ -44,8 +45,8 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@types/node": "^24.0.15",
-    "@typescript/native-preview": "^7.0.0-dev.20250719.1",
-    "typescript": "^5.8.3"
+    "@types/node": "^24.2.0",
+    "@typescript/native-preview": "^7.0.0-dev.20250805.1",
+    "typescript": "^5.9.2"
   }
 }
