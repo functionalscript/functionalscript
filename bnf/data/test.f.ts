@@ -1,4 +1,3 @@
-import { match } from 'assert'
 import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
