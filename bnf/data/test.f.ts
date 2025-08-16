@@ -55,11 +55,20 @@ export default {
             const data = toData(terminalRangeRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"":{"rangeMap":[[null,64],[{"rules":[]},70]]}}') { throw result }       
+            if (result !== '{"":{"rangeMap":[[null,64],[{"rules":[]},70]]}}') { throw result }
         },
         () => {
             const stringRule = 'AB'
             const data = toData(stringRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
+        },        
+        () => {
+            const a = range('AA')
+            const b = range('BB')
+            const ab = [a, b]
+            const data = toData(ab)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
             if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
@@ -86,6 +95,15 @@ export default {
             const result = JSON.stringify(dm)
             if (result !== '{"0":{"emptyTag":true,"rangeMap":[]},"1":{"rangeMap":[[null,64],[{"rules":[]},65]]},"":{"emptyTag":"e","rangeMap":[[null,64],[{"tag":"a","rules":[]},65]]}}') { throw result }
         },
+        // () => {
+        //     const optionalMinusRule = { 'none': '', minusRule: '-'}
+        //     const digitRule = range('09')
+        //     const numberRule = [optionalMinusRule, digitRule]
+        //     const data = toData(numberRule)
+        //     const dm = dispatchMap(data[0])
+        //     const result = JSON.stringify(dm)
+        //     if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minusRule","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,44],[{"rules":[]},45]]},"4":{"rangeMap":') { throw result }
+        // }
     ],
     parser: [
         () => {
@@ -160,6 +178,25 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,[67]]') { throw result }
         },
+        // () => {            
+        //     const optionalMinusRule = { 'none': '', minusRule: '-'}
+        //     const digitRule = range('09')
+        //     const numberRule = [optionalMinusRule, digitRule]
+        //     const m = parser(numberRule)
+        //     const mr = m("", [50])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[50]},true,[]]') { throw result }
+        // },
+        // () => {            
+        //     const optionalMinusRule = { 'none': '', minusRule: '-'}
+        //     const digitRule = range('09')
+        //     const numberRule = [optionalMinusRule, digitRule]
+        //     const m = parser(numberRule)
+
+        //     const mr = m("", [45,50])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"tag":"minusRule","sequence":[45]},true,[50]]') { throw result }
+        // },     
     ],
     example: () => {
         const grammar = {
