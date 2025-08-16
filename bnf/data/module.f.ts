@@ -1,4 +1,3 @@
-import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
@@ -54,10 +53,15 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
  */
 export type AstSequence = readonly(AstRule|CodePoint)[]
 
+type AstTag = string|true|undefined
+
 /**
  * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
  */
-export type AstRule = readonly[string, AstSequence]
+type AstRule = {
+    readonly tag: AstTag,
+    readonly sequence: AstSequence
+}
 
 /**
  * Represents the remaining input after a match attempt, or `null` if no match is possible.
@@ -67,12 +71,14 @@ export type Remainder = readonly CodePoint[] | null
 /**
  * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
  */
-export type MatchResult = readonly[AstRule, Remainder]
+export type MatchResult = readonly[AstRule, boolean, Remainder]
 
 /**
  * Represents an LL(1) parser function for matching input against grammar rules.
  */
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
+
+export type MatchRule = (dr: DispatchRule, s: readonly CodePoint[]) => MatchResult
 
 const { entries } = Object
 
@@ -204,6 +210,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                 dm = dispatchRule(dm, item)
                 const dr = dm[item]
                 if (emptyTag === true) {
+                    result = result.map(x => [addRuleToDispatch(x[0], dr), x[1]])
                     result = toArray(dispatchOp.merge(result)(dr.rangeMap))
                     emptyTag = dr.emptyTag !== undefined ? true : undefined
                 } else {
@@ -241,17 +248,46 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
+    const map = dispatchMap(data[0])
+
+    const f: MatchRule = (rule, cp): MatchResult => {
+        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
+        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]        
+        const {emptyTag, rangeMap} = rule      
+        if (cp.length === 0) {            
+            return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
+        }
+        const cp0 = cp[0]        
+        const dr = dispatchOp.get(cp0)(rangeMap)
+        if (dr === null) {
+            if (emptyTag === undefined) {                
+                return mrFail(emptyTag, [], cp)
+            }
+            return mrSuccess(emptyTag, [], cp)
+        }
+        let seq: AstSequence = [cp0]
+        let r = cp
+        const [_, ...restCp] = cp
+        r = restCp
+        const {tag, rules} = dr
+        for (const i of rules) {            
+            const res = f(i, r)
+            const [astRule, success, newR] = res
+            if (success === false) {
+                return res
+            }
+            seq = [...seq, astRule]
+            if (newR === null) {
+                return mrSuccess(tag, seq, null)
+            }
+            r = newR
+        }
+        return mrSuccess(tag, seq, r)
+    }
+
+    const match: Match = (name, cp): MatchResult => {
+        return f(map[name], cp)
+    }
     
-    return todo()
+    return match
 }
-
-/**
- * Either `{ variantItem: id }` or `id`.
- */
-/*
-type DispatchRule = SingleProperty<> | string
-
-type Dispatch = RangeMapArray<DispatchRule>
-
-type DispatchMap = { readonly[id in string]: Dispatch }
-*/
