@@ -179,7 +179,29 @@ export default {
             const mr = m("", [65,67])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,[67]]') { throw result }
-        }   
+        },
+        () => {
+            const emptyRule = ''            
+            const minursRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const m = parser(numberRule)
+            const mr = m("", [50])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[50]},true,[]]') { throw result }
+        },
+        () => {
+            const emptyRule = ''            
+            const minursRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const m = parser(numberRule)
+            const mr = m("", [45,50])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
+        }
     ],
     example: () => {
         const grammar = {
