@@ -95,15 +95,17 @@ export default {
             const result = JSON.stringify(dm)
             if (result !== '{"0":{"emptyTag":true,"rangeMap":[]},"1":{"rangeMap":[[null,64],[{"rules":[]},65]]},"":{"emptyTag":"e","rangeMap":[[null,64],[{"tag":"a","rules":[]},65]]}}') { throw result }
         },
-        // () => {
-        //     const optionalMinusRule = { 'none': '', minusRule: '-'}
-        //     const digitRule = range('09')
-        //     const numberRule = [optionalMinusRule, digitRule]
-        //     const data = toData(numberRule)
-        //     const dm = dispatchMap(data[0])
-        //     const result = JSON.stringify(dm)
-        //     if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minusRule","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,44],[{"rules":[]},45]]},"4":{"rangeMap":') { throw result }
-        // }
+        () => {
+            const emptyRule = ''            
+            const minursRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const data = toData(numberRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            //if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":[]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+        }
     ],
     parser: [
         () => {
@@ -177,26 +179,7 @@ export default {
             const mr = m("", [65,67])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,[67]]') { throw result }
-        },
-        // () => {            
-        //     const optionalMinusRule = { 'none': '', minusRule: '-'}
-        //     const digitRule = range('09')
-        //     const numberRule = [optionalMinusRule, digitRule]
-        //     const m = parser(numberRule)
-        //     const mr = m("", [50])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[50]},true,[]]') { throw result }
-        // },
-        // () => {            
-        //     const optionalMinusRule = { 'none': '', minusRule: '-'}
-        //     const digitRule = range('09')
-        //     const numberRule = [optionalMinusRule, digitRule]
-        //     const m = parser(numberRule)
-
-        //     const mr = m("", [45,50])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"tag":"minusRule","sequence":[45]},true,[50]]') { throw result }
-        // },     
+        }   
     ],
     example: () => {
         const grammar = {
