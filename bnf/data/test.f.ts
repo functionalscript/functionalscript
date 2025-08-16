@@ -104,7 +104,7 @@ export default {
             const data = toData(numberRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            //if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":[]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
         }
     ],
     parser: [

@@ -1,4 +1,3 @@
-import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
@@ -211,6 +210,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                 dm = dispatchRule(dm, item)
                 const dr = dm[item]
                 if (emptyTag === true) {
+                    result = result.map(x => [addRuleToDispatch(x[0], dr), x[1]])
                     result = toArray(dispatchOp.merge(result)(dr.rangeMap))
                     emptyTag = dr.emptyTag !== undefined ? true : undefined
                 } else {
