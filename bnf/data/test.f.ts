@@ -107,7 +107,7 @@ export default {
             const m = parser(terminalRangeRule)
             const mr = m("", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[]},true,[]]') { throw result }       
+            if (result !== '[{"sequence":[65]},true,[]]') { throw result }       
         },
         () => {
             const terminalRangeRule = range('AF')
@@ -121,7 +121,7 @@ export default {
             const m = parser(variantRule)
             const mr = m("", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"a","sequence":[]},true,[]]') { throw result }
+            if (result !== '[{"tag":"a","sequence":[65]},true,[]]') { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
@@ -151,7 +151,7 @@ export default {
             const m = parser(stringRule)
             const mr = m("", [65,66])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"sequence":[]}]},true,[]]') { throw result }
+            if (result !== '[{"sequence":[65,{"sequence":[66]}]},true,[]]') { throw result }
         },
         () => {
             const stringRule = 'AB'

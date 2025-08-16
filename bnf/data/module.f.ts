@@ -265,7 +265,7 @@ export const parser = (fr: FRule): Match => {
             }
             return mrSuccess(emptyTag, [], cp)
         }
-        let seq: AstSequence = []                
+        let seq: AstSequence = [cp0]
         let r = cp
         const [_, ...restCp] = cp
         r = restCp
