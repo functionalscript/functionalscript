@@ -2,7 +2,7 @@ import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, parser, toData } from './module.f.ts'
+import { dispatchMap, parser, RuleSet, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -41,6 +41,12 @@ export default {
             const lazyRule0 = () => 'false'            
             const result = stringify(sort)(toData([lazyRule, lazyRule0]))
             const expected = '[{"":["lazyRule","lazyRule0"],"0":1946157172,"1":1912602738,"2":1962934389,"3":1694498917,"4":1711276134,"5":1627390049,"6":1811939436,"7":1929379955,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]'
+            if (result !== expected) { throw [result, expected] }
+        },
+        () => {
+            const emptyRule = ''
+            const result = stringify(sort)(toData(emptyRule))
+            const expected = '[{"":[]},""]'
             if (result !== expected) { throw [result, expected] }
         },
     ],
@@ -118,6 +124,11 @@ export default {
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
             if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,31],[{"tag":"space","rules":[]},32]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,31],[{"rules":[]},32]]},"3":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"4":{"rangeMap":[[null,44],[{"rules":[]},45]]},"5":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,31],[{"tag":"space","rules":[{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},{"rangeMap":[[null,47],[{"rules":[]},57]]}]},32],[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+        }
+    ],
+    repeat: [
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
         }
     ],
     parser: [
