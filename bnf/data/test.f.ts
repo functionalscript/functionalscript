@@ -105,6 +105,19 @@ export default {
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
             if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+        },        
+        () => {
+            const emptyRule = ''
+            const spaceRule = range('  ')
+            const optionalSpaceRule = { 'none': emptyRule, 'space': spaceRule}
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+            const digitRule = range('09')
+            const numberRule = [optionalSpaceRule, optionalMinusRule, digitRule]
+            const data = toData(numberRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,31],[{"tag":"space","rules":[]},32]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,31],[{"rules":[]},32]]},"3":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"4":{"rangeMap":[[null,44],[{"rules":[]},45]]},"5":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,31],[{"tag":"space","rules":[{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},{"rangeMap":[[null,47],[{"rules":[]},57]]}]},32],[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
         }
     ],
     parser: [
@@ -193,8 +206,8 @@ export default {
         },
         () => {
             const emptyRule = ''            
-            const minursRule = range('--')
-            const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
             const digitRule = range('09')
             const numberRule = [optionalMinusRule, digitRule]
             const m = parser(numberRule)
