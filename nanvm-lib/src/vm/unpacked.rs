@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Js, Object, String16},
+    vm::{Any, Array, BigInt, Function, IVm, Object, String16},
 };
 use std::{
     fmt::Debug,
@@ -31,21 +31,6 @@ impl<A: IVm> Debug for Unpacked<A> {
             Self::Object(x) => x.fmt(f),
             Self::Array(x) => x.fmt(f),
             Self::Function(x) => x.fmt(f),
-        }
-    }
-}
-
-impl<A: IVm> Js<A> for Unpacked<A> {
-    fn string(&self) -> String16<A> {
-        match self {
-            Self::Nullish(n) => n.string(),
-            Self::Boolean(b) => b.string(),
-            Self::Number(n) => n.string(),
-            Self::String(s) => s.string(),
-            Self::BigInt(i) => i.string(),
-            Self::Object(o) => o.string(),
-            Self::Array(a) => a.string(),
-            Self::Function(f) => f.string(),
         }
     }
 }
