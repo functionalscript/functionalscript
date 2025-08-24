@@ -127,12 +127,12 @@ export default {
         }
     ],
     repeat: [
-        // () => {
-        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        //     const dm = dispatchMap(repeatData[0])
-        //     const result = JSON.stringify(dm)
-        //     if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"tag":"a","rules":[]},65],[{"tag":"b","rules":[]},66]]}}') { throw result }
-        // }
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const dm = dispatchMap(repeatData[0])
+            const result = JSON.stringify(dm)
+            if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
+        }
     ],
     parser: [
         () => {
