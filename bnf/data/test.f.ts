@@ -126,14 +126,6 @@ export default {
             if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,31],[{"tag":"space","rules":[]},32]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,31],[{"rules":[]},32]]},"3":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"4":{"rangeMap":[[null,44],[{"rules":[]},45]]},"5":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,31],[{"tag":"space","rules":["3","5"]},32],[null,44],[{"tag":"minus","rules":["5"]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
         }
     ],
-    repeat: [
-        () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-            const dm = dispatchMap(repeatData[0])
-            const result = JSON.stringify(dm)
-            if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
-        }
-    ],
     parser: [
         () => {
             const emptyRule = ''
@@ -228,6 +220,44 @@ export default {
             const mr = m("", [45,50])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
+        }
+    ],    
+    repeat: [
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const dm = dispatchMap(repeatData[0])
+            const result = JSON.stringify(dm)
+            if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
+        }
+    ],
+    repeatParser: [
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parser(repeatData[0])
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"ws","sequence":[]},true,[]]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parser(repeatData[0])
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"a","sequence":[65]},true,[]]') { throw result }
+        },
+        // () => {
+        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+        //     const m = parser(repeatData[0])
+        //     const mr = m("", [65,65,65])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
+        // },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parser(repeatData[0])
+            const mr = m("", [66])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"ws","sequence":[]},true,[66]]') { throw result }
         }
     ],
     example: () => {
