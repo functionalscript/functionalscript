@@ -85,4 +85,8 @@ impl<A: IVm> Js<A> for Any<A> {
     fn string(&self) -> String16<A> {
         self.0.clone().to_unpacked().string()
     }
+
+    fn unary_plus(&self) -> Self {
+        self.clone()
+    }
 }

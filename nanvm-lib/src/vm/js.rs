@@ -9,6 +9,9 @@ pub trait Js<A: IVm> {
     /// The function has the same meaning as the `String()` function in JavaScript, see
     /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String.
     fn string(&self) -> String16<A>;
+
+    /// Unary plus operator (`+`).
+    fn unary_plus(&self) -> Self;
 }
 
 impl<A: IVm> Js<A> for bool {
@@ -18,6 +21,10 @@ impl<A: IVm> Js<A> for bool {
             false => "false",
         })
         .into()
+    }
+
+    fn unary_plus(&self) -> Self {
+        *self
     }
 }
 
@@ -29,10 +36,18 @@ impl<A: IVm> Js<A> for Nullish {
         })
         .into()
     }
+
+    fn unary_plus(&self) -> Self {
+        *self
+    }
 }
 
 impl<A: IVm> Js<A> for f64 {
     fn string(&self) -> String16<A> {
         self.to_string().as_str().into()
+    }
+
+    fn unary_plus(&self) -> Self {
+        *self
     }
 }
