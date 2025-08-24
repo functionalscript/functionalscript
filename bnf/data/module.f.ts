@@ -41,9 +41,11 @@ type Dispatch = RangeMapArray<DispatchResult>
 
 type DispatchResult = DispatchRuleCollection | null
 
+type DispatchRuleOrName = DispatchRule | string
+
 type DispatchRuleCollection = {
     readonly tag: string | undefined,
-    readonly rules: DispatchRule[]
+    readonly rules: DispatchRuleOrName[]
 }
 
 type DispatchMap = { readonly[id in string]: DispatchRule }
@@ -270,8 +272,9 @@ export const parser = (fr: FRule): Match => {
         const [_, ...restCp] = cp
         r = restCp
         const {tag, rules} = dr
-        for (const i of rules) {            
-            const res = f(i, r)
+        for (const i of rules) {
+            const rule = typeof i === 'string' ? map[i] : i
+            const res = f(rule, r)
             const [astRule, success, newR] = res
             if (success === false) {
                 return res

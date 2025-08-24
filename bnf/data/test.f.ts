@@ -2,7 +2,7 @@ import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, parser, RuleSet, toData } from './module.f.ts'
+import { dispatchMap, parser, type RuleSet, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -127,9 +127,12 @@ export default {
         }
     ],
     repeat: [
-        () => {
-            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        }
+        // () => {
+        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+        //     const dm = dispatchMap(repeatData[0])
+        //     const result = JSON.stringify(dm)
+        //     if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"tag":"a","rules":[]},65],[{"tag":"b","rules":[]},66]]}}') { throw result }
+        // }
     ],
     parser: [
         () => {
