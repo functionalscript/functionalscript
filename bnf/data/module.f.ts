@@ -256,7 +256,11 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
-    const map = dispatchMap(data[0])
+    return parserRuleSet(data[0])
+}
+
+export const parserRuleSet = (ruleSet: RuleSet): Match => {    
+    const map = dispatchMap(ruleSet)
 
     const f: MatchRule = (rule, cp): MatchResult => {
         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]

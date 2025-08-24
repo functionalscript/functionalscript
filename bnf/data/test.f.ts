@@ -2,7 +2,7 @@ import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, parser, type RuleSet, toData } from './module.f.ts'
+import { dispatchMap, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -223,7 +223,7 @@ export default {
         }
     ],    
     repeat: [
-        () => {
+        () => {            
             const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const dm = dispatchMap(repeatData[0])
             const result = JSON.stringify(dm)
@@ -233,31 +233,31 @@ export default {
     repeatParser: [
         () => {
             const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-            const m = parser(repeatData[0])
+            const m = parserRuleSet(repeatData[0])
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"ws","sequence":[]},true,[]]') { throw result }
+            if (result !== '[{"sequence":[]},true,null]') { throw result }
         },
         () => {
             const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-            const m = parser(repeatData[0])
+            const m = parserRuleSet(repeatData[0])
             const mr = m("", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"a","sequence":[65]},true,[]]') { throw result }
+            if (result !== '[{"sequence":[65,{"sequence":[]}]},true,null]') { throw result }
         },
-        // () => {
-        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        //     const m = parser(repeatData[0])
-        //     const mr = m("", [65,65,65])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
-        // },
         () => {
             const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-            const m = parser(repeatData[0])
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [65,65,65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[65,{"sequence":[65,{"sequence":[65,{"sequence":[]}]}]}]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
             const mr = m("", [66])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"ws","sequence":[]},true,[66]]') { throw result }
+            if (result !== '[{"sequence":[]},false,[66]]') { throw result }
         }
     ],
     example: () => {
