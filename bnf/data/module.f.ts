@@ -2,6 +2,7 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
+import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'
 import {
     oneEncode,
     rangeDecode,
@@ -41,9 +42,11 @@ type Dispatch = RangeMapArray<DispatchResult>
 
 type DispatchResult = DispatchRuleCollection | null
 
+type DispatchRuleOrName = DispatchRule | string
+
 type DispatchRuleCollection = {
     readonly tag: string | undefined,
-    readonly rules: DispatchRule[]
+    readonly rules: DispatchRuleOrName[]
 }
 
 type DispatchMap = { readonly[id in string]: DispatchRule }
@@ -181,11 +184,11 @@ const dispatchOp = rangeMap<DispatchResult>({
 
 export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
-    const addRuleToDispatch = (dr: DispatchResult, rule: DispatchRule): DispatchResult => {
+    const addRuleToDispatch = (dr: DispatchResult, name: string): DispatchResult => {
         if (dr === null)
             return null
 
-        return { tag: dr.tag, rules: [...dr.rules, rule]}
+        return { tag: dr.tag, rules: [...dr.rules, name]}
     }
 
     const addTagToDispatch = (dr: DispatchResult, tag: string): DispatchResult => {
@@ -195,8 +198,9 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
         return { tag, rules: dr.rules}
     }
 
-    const dispatchRule = (dm: DispatchMap, name: string): DispatchMap => {
-        if (name in dm) { return dm }        
+    const dispatchRule = (dm: DispatchMap, name: string, current: StringSet): DispatchMap => {
+        if (name in dm) { return dm }
+        const newCurrent = set(name)(current)
         const rule = ruleSet[name]
         if (typeof rule === 'number') {
             const range = rangeDecode(rule)            
@@ -207,15 +211,19 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             let emptyTag: EmptyTag = true
             let result: Dispatch = []
             for (const item of rule) {
-                dm = dispatchRule(dm, item)
-                const dr = dm[item]
-                if (emptyTag === true) {
-                    result = result.map(x => [addRuleToDispatch(x[0], dr), x[1]])
-                    result = toArray(dispatchOp.merge(result)(dr.rangeMap))
-                    emptyTag = dr.emptyTag !== undefined ? true : undefined
+                if (contains(item)(newCurrent)) {
+                    result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                 } else {
-                    result = result.map(x => [addRuleToDispatch(x[0], dr), x[1]])
-                }
+                    dm = dispatchRule(dm, item, newCurrent)
+                    const dr = dm[item]
+                    if (emptyTag === true) {
+                        result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
+                        result = toArray(dispatchOp.merge(result)(dr.rangeMap))
+                        emptyTag = dr.emptyTag !== undefined ? true : undefined
+                    } else {
+                        result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
+                    }
+                }                
             }
             const dr: DispatchRule = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
@@ -224,7 +232,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             let result: Dispatch = []
             let emptyTag: EmptyTag = undefined
             for (const [tag, item] of entries) {
-                dm = dispatchRule(dm, item)
+                dm = dispatchRule(dm, item, newCurrent)
                 const dr = dm[item]                
                 if (dr.emptyTag !== undefined) {
                     emptyTag = tag
@@ -240,7 +248,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
     let result: DispatchMap = {}
     for (const k in ruleSet) {
-        result = dispatchRule(result, k)
+        result = dispatchRule(result, k, null)
     }
     
     return result
@@ -248,7 +256,11 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
-    const map = dispatchMap(data[0])
+    return parserRuleSet(data[0])
+}
+
+export const parserRuleSet = (ruleSet: RuleSet): Match => {    
+    const map = dispatchMap(ruleSet)
 
     const f: MatchRule = (rule, cp): MatchResult => {
         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
@@ -270,8 +282,9 @@ export const parser = (fr: FRule): Match => {
         const [_, ...restCp] = cp
         r = restCp
         const {tag, rules} = dr
-        for (const i of rules) {            
-            const res = f(i, r)
+        for (const i of rules) {
+            const rule = typeof i === 'string' ? map[i] : i
+            const res = f(rule, r)
             const [astRule, success, newR] = res
             if (success === false) {
                 return res
