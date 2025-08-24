@@ -68,7 +68,7 @@ export default {
             const data = toData(stringRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
+            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":["1"]},65]]}}') { throw result }
         },        
         () => {
             const a = range('AA')
@@ -77,7 +77,7 @@ export default {
             const data = toData(ab)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
+            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":["1"]},65]]}}') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -110,7 +110,7 @@ export default {
             const data = toData(numberRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":["3"]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
         },        
         () => {
             const emptyRule = ''
@@ -123,7 +123,7 @@ export default {
             const data = toData(numberRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,31],[{"tag":"space","rules":[]},32]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,31],[{"rules":[]},32]]},"3":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"4":{"rangeMap":[[null,44],[{"rules":[]},45]]},"5":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,31],[{"tag":"space","rules":[{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},{"rangeMap":[[null,47],[{"rules":[]},57]]}]},32],[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,31],[{"tag":"space","rules":[]},32]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,31],[{"rules":[]},32]]},"3":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"4":{"rangeMap":[[null,44],[{"rules":[]},45]]},"5":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,31],[{"tag":"space","rules":["3","5"]},32],[null,44],[{"tag":"minus","rules":["5"]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
         }
     ],
     repeat: [
