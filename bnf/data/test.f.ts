@@ -2,7 +2,7 @@ import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, parser, toData } from './module.f.ts'
+import { dispatchMap, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -43,6 +43,12 @@ export default {
             const expected = '[{"":["lazyRule","lazyRule0"],"0":1946157172,"1":1912602738,"2":1962934389,"3":1694498917,"4":1711276134,"5":1627390049,"6":1811939436,"7":1929379955,"lazyRule":["0","1","2","3"],"lazyRule0":["4","5","6","7","3"]},""]'
             if (result !== expected) { throw [result, expected] }
         },
+        () => {
+            const emptyRule = ''
+            const result = stringify(sort)(toData(emptyRule))
+            const expected = '[{"":[]},""]'
+            if (result !== expected) { throw [result, expected] }
+        },
     ],
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
@@ -62,7 +68,7 @@ export default {
             const data = toData(stringRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
+            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":["1"]},65]]}}') { throw result }
         },        
         () => {
             const a = range('AA')
@@ -71,7 +77,7 @@ export default {
             const data = toData(ab)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":[{"rangeMap":[[null,65],[{"rules":[]},66]]}]},65]]}}') { throw result }
+            if (result !== '{"0":{"rangeMap":[[null,64],[{"rules":[]},65]]},"1":{"rangeMap":[[null,65],[{"rules":[]},66]]},"":{"rangeMap":[[null,64],[{"rules":["1"]},65]]}}') { throw result }
         },
         () => {
             const emptyRule = ''
@@ -104,7 +110,20 @@ export default {
             const data = toData(numberRule)
             const dm = dispatchMap(data[0])
             const result = JSON.stringify(dm)
-            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":[{"rangeMap":[[null,47],[{"rules":[]},57]]}]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,44],[{"rules":[]},45]]},"3":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,44],[{"tag":"minus","rules":["3"]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
+        },        
+        () => {
+            const emptyRule = ''
+            const spaceRule = range('  ')
+            const optionalSpaceRule = { 'none': emptyRule, 'space': spaceRule}
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+            const digitRule = range('09')
+            const numberRule = [optionalSpaceRule, optionalMinusRule, digitRule]
+            const data = toData(numberRule)
+            const dm = dispatchMap(data[0])
+            const result = JSON.stringify(dm)
+            if (result !== '{"0":{"emptyTag":"none","rangeMap":[[null,31],[{"tag":"space","rules":[]},32]]},"1":{"emptyTag":true,"rangeMap":[]},"2":{"rangeMap":[[null,31],[{"rules":[]},32]]},"3":{"emptyTag":"none","rangeMap":[[null,44],[{"tag":"minus","rules":[]},45]]},"4":{"rangeMap":[[null,44],[{"rules":[]},45]]},"5":{"rangeMap":[[null,47],[{"rules":[]},57]]},"":{"rangeMap":[[null,31],[{"tag":"space","rules":["3","5"]},32],[null,44],[{"tag":"minus","rules":["5"]},45],[null,47],[{"rules":[]},57]]}}') { throw result }
         }
     ],
     parser: [
@@ -193,14 +212,52 @@ export default {
         },
         () => {
             const emptyRule = ''            
-            const minursRule = range('--')
-            const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
             const digitRule = range('09')
             const numberRule = [optionalMinusRule, digitRule]
             const m = parser(numberRule)
             const mr = m("", [45,50])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
+        }
+    ],    
+    repeat: [
+        () => {            
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const dm = dispatchMap(repeatData[0])
+            const result = JSON.stringify(dm)
+            if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
+        }
+    ],
+    repeatParser: [
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[65,{"sequence":[]}]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [65,65,65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[65,{"sequence":[65,{"sequence":[65,{"sequence":[]}]}]}]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [66])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,[66]]') { throw result }
         }
     ],
     example: () => {
