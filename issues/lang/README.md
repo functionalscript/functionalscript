@@ -132,13 +132,17 @@ The FJS can have functions. The format requires additional run-time information 
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
 6. [ ] [Temporal](https://github.com/tc39/proposal-temporal).
 
+Wish list:
+
+1. [ ] Utf8 String. Something like `u8"Hello, world"`.
+
 ## 5. I/O
 
 ### 5.1. Isolated I/O
 
 Using dependency injection.
 
-This implementation of VM requires external function implementation.
+This implementation of VM requires the implementation of external functions.
 
 ### 5.2 Isolated Asynchronous I/O
 
