@@ -1,8 +1,10 @@
 import { stringify } from '../../json/module.f.ts'
+import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { range } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
+import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -220,6 +222,32 @@ export default {
             const mr = m("", [45,50])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
+        },
+        () => {
+            const c = toData(deterministic())
+            const m = parser(c)
+
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('json', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
+
+            // expect('   true   ', true)
+            // expect('   tr2ue   ', false)
+            // expect('   true"   ', false)
+            // expect('   "Hello"   ', true)
+            // expect('   "Hello   ', false)
+            // expect('   "Hello\\n\\r\\""   ', true)
+            // expect('   -56.7e+5  ', true)
+            // expect('   h-56.7e+5   ', false)
+            // expect('   -56.7e+5   3', false)
+            // expect('   [ 12, false, "a"]  ', true)
+            // expect('   [ 12, false2, "a"]  ', false)
+            // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+            // expect('   { "q": [ 12, false, [}], "a"] }  ', false)
         }
     ],    
     repeat: [
