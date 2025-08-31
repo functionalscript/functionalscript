@@ -78,6 +78,10 @@ impl<A: IVm> Js<A> for String16<A> {
     fn string(&self) -> String16<A> {
         self.clone()
     }
+
+    fn unary_plus(&self) -> Self {
+        self.clone()
+    }
 }
 
 impl<A: IVm> Serializable for String16<A> {
