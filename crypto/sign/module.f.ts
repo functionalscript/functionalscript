@@ -10,11 +10,12 @@ const v01 = vec8(0x01n)
 
 /**
  * The size of the result equals the size of the hash.
+ * See [RFC6979](https://www.rfc-editor.org/rfc/rfc6979).
  *
  * @param sha2 SHA2 hash function
  * @returns A function that accepts a private key, a message hash and returns `k`.
  */
-const createK = (sha2: Sha2) => {
+export const nonce = (sha2: Sha2) => {
     const h = hmac(sha2)
     let vs = vec(sha2.hashLength)
     let k0 = vs(0x00n)
@@ -44,7 +45,7 @@ export const sign = (sha2: Sha2) => (curveInit: Init) => (privateKey: Vec) => (m
     // const curveVec = vec(length(pf.max))
 
     //`k` is a unique for each `z` and secret.
-    const k = createK(sha2)(privateKey)(messageHash) % pf.p
+    const k = nonce(sha2)(privateKey)(messageHash) % pf.p
 
     // `R = G * k`.
     const rp = mul(curveInit.g)(k)
