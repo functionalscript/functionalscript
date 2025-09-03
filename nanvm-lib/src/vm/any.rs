@@ -83,15 +83,6 @@ impl<A: IVm> Serializable for Any<A> {
 
 impl<A: IVm> StringCoercion<A> for Any<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        match self.0.clone().to_unpacked() {
-            Unpacked::Nullish(n) => n.coerce_to_string(),
-            Unpacked::Boolean(b) => b.coerce_to_string(),
-            Unpacked::Number(n) => n.coerce_to_string(),
-            Unpacked::String(s) => Ok(s),
-            Unpacked::BigInt(i) => i.coerce_to_string(),
-            Unpacked::Object(o) => o.coerce_to_string(),
-            Unpacked::Array(a) => a.coerce_to_string(),
-            Unpacked::Function(f) => f.coerce_to_string(),
-        }
+        self.0.clone().to_unpacked().coerce_to_string()
     }
 }

@@ -221,31 +221,8 @@ fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     }
 }
 
-fn serialization<A: IVm>() {
-    use std::io::Cursor;
-
-    let values: &[Any<A>] = &[
-        Nullish::Null.to_any(),
-        Nullish::Undefined.to_any(),
-        true.to_any(),
-        false.to_any(),
-        2.3.to_any(),
-        "Hello".into(),
-        Into::<BigInt<A>>::into(12u64).to_any(),
-        Array::default().to_any(),
-        Into::<Array<A>>::into([7.0.to_any()]).to_any(),
-        Into::<Object<A>>::into([("a".into(), 1.0.to_any()), ("b".into(), "c".into())]).to_any(),
-    ];
-
-    for value in values.into_iter() {
-        let mut buf = Vec::new();
-        value.serialize(&mut buf).unwrap();
-        let mut cursor = Cursor::new(buf);
-        let result = Any::deserialize(&mut cursor).unwrap();
-        assert!(eq_value(&value, &result));
-    }
-}
-
+// We keep old_eq here despite the fact that it's mostly redundant (most likely). At a better moment
+// we will revisit this test and remove redundant cases here.
 fn old_eq<A: IVm>() {
     // nullish
     let null0: Any<A> = Nullish::Null.to_any();
@@ -349,6 +326,31 @@ fn old_eq<A: IVm>() {
     }
 }
 
+fn serialization<A: IVm>() {
+    use std::io::Cursor;
+
+    let values: &[Any<A>] = &[
+        Nullish::Null.to_any(),
+        Nullish::Undefined.to_any(),
+        true.to_any(),
+        false.to_any(),
+        2.3.to_any(),
+        "Hello".into(),
+        Into::<BigInt<A>>::into(12u64).to_any(),
+        Array::default().to_any(),
+        Into::<Array<A>>::into([7.0.to_any()]).to_any(),
+        Into::<Object<A>>::into([("a".into(), 1.0.to_any()), ("b".into(), "c".into())]).to_any(),
+    ];
+
+    for value in values.into_iter() {
+        let mut buf = Vec::new();
+        value.serialize(&mut buf).unwrap();
+        let mut cursor = Cursor::new(buf);
+        let result = Any::deserialize(&mut cursor).unwrap();
+        assert!(eq_value(&value, &result));
+    }
+}
+
 fn number_coerce_to_string<A: IVm>() {
     let n: Any<A> = 123.0.to_any();
     assert_eq!(n.coerce_to_string(), Ok("123".into()));
@@ -385,10 +387,10 @@ fn gen_test<A: IVm>() {
     object_eq::<A>();
     array_eq::<A>();
     bigint_eq::<A>();
+    old_eq::<naive::InternalAny>();
     serialization::<A>();
     number_coerce_to_string::<A>();
     //
-    old_eq::<naive::InternalAny>();
 }
 
 #[test]
