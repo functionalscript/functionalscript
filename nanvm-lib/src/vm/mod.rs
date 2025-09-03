@@ -4,6 +4,7 @@ pub mod bigint;
 pub mod function;
 pub mod internal;
 pub mod naive;
+pub mod number;
 pub mod object;
 pub mod string16;
 pub mod string_coercion;
