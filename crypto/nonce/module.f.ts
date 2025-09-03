@@ -37,8 +37,6 @@ const bits2octets = (q: bigint) => (v: Vec): Vec => {
     return int2octets(qlen)(z2)
 }
 
-// const bitsToOctets =
-
 /**
  * The size of the result equals the size of the hash.
  * See [RFC6979](https://www.rfc-editor.org/rfc/rfc6979).
