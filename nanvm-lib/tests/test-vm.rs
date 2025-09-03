@@ -4,7 +4,8 @@ use nanvm_lib::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, IContainer, IVm, Object, Property, String16, ToAnyEx, Unpacked,
+        naive, string_coercion::StringCoercion, Any, Array, BigInt, IContainer, IVm, Object,
+        Property, String16, ToAnyEx, Unpacked,
     },
 };
 
@@ -348,6 +349,34 @@ fn old_eq<A: IVm>() {
     }
 }
 
+fn number_coerce_to_string<A: IVm>() {
+    let n: Any<A> = 123.0.to_any();
+    assert_eq!(n.coerce_to_string(), Ok("123".into()));
+
+    let n: Any<A> = (-456.0).to_any();
+    assert_eq!(n.coerce_to_string(), Ok("-456".into()));
+
+    let n: Any<A> = (0.0).to_any();
+    assert_eq!(n.coerce_to_string(), Ok("0".into()));
+
+    // TODO Fix -0.0 coercion - right now it yields "-0", not expected "0".
+    // let n: Any<A> = (-0.0).to_any();
+    // assert_eq!(n.coerce_to_string(), Ok("0".into()));
+
+    // TODO 1/(-0) coerces to "-Infinity" - express in Rust or remove this TODO if not expressible
+
+    // TODO Fix f64::INFINITY coercion - right now it yields "inf", not expected "Infinity".
+    //let n: Any<A> = f64::INFINITY.to_any();
+    //assert_eq!(n.coerce_to_string(), Ok("Infinity".into()));
+
+    // TODO Fix f64::INFINITY coercion - right now it yields "-inf", not expected "-Infinity".
+    // let n: Any<A> = f64::NEG_INFINITY.to_any();
+    // assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
+
+    let n: Any<A> = f64::NAN.to_any();
+    assert_eq!(n.coerce_to_string(), Ok("NaN".into()));
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -357,6 +386,7 @@ fn gen_test<A: IVm>() {
     array_eq::<A>();
     bigint_eq::<A>();
     serialization::<A>();
+    number_coerce_to_string::<A>();
     //
     old_eq::<naive::InternalAny>();
 }
