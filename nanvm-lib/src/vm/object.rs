@@ -1,6 +1,6 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{Any, IContainer, IVm, Js, String16, Unpacked},
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -41,12 +41,6 @@ impl<A: IVm> Debug for Object<A> {
     }
 }
 
-impl<A: IVm> Js<A> for Object<A> {
-    fn string(&self) -> String16<A> {
-        "[object Object]".into()
-    }
-}
-
 impl<A: IVm> Serializable for Object<A> {
     fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(writer)
@@ -59,5 +53,12 @@ impl<A: IVm> Serializable for Object<A> {
 impl<A: IVm, T: IntoIterator<Item = Property<A>>> From<T> for Object<A> {
     fn from(iter: T) -> Self {
         Self(A::InternalObject::new_ok((), iter))
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for Object<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
+        Ok("[object Object]".into())
     }
 }

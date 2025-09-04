@@ -1,8 +1,8 @@
 use std::io;
 
 use crate::{
-    common::{default::default, serializable::Serializable},
-    vm::{Any, IContainer, IVm, Js, String16, Unpacked},
+    common::serializable::Serializable,
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 
 #[derive(Clone)]
@@ -37,12 +37,6 @@ impl<A: IVm> std::fmt::Debug for Array<A> {
     }
 }
 
-impl<A: IVm> Js<A> for Array<A> {
-    fn string(&self) -> String16<A> {
-        default()
-    }
-}
-
 impl<A: IVm> Serializable for Array<A> {
     fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(writer)
@@ -55,5 +49,12 @@ impl<A: IVm> Serializable for Array<A> {
 impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
     fn from(iter: T) -> Self {
         Self(A::InternalArray::new_ok((), iter))
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for Array<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
+        Ok("[object Array]".into())
     }
 }

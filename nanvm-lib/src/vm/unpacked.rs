@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Js, Object, String16},
+    vm::{string_coercion::StringCoercion, Any, Array, BigInt, Function, IVm, Object, String16},
 };
 use std::{
     fmt::Debug,
@@ -31,21 +31,6 @@ impl<A: IVm> Debug for Unpacked<A> {
             Self::Object(x) => x.fmt(f),
             Self::Array(x) => x.fmt(f),
             Self::Function(x) => x.fmt(f),
-        }
-    }
-}
-
-impl<A: IVm> Js<A> for Unpacked<A> {
-    fn string(&self) -> String16<A> {
-        match self {
-            Self::Nullish(n) => n.string(),
-            Self::Boolean(b) => b.string(),
-            Self::Number(n) => n.string(),
-            Self::String(s) => s.string(),
-            Self::BigInt(i) => i.string(),
-            Self::Object(o) => o.string(),
-            Self::Array(a) => a.string(),
-            Self::Function(f) => f.string(),
         }
     }
 }
@@ -182,6 +167,21 @@ impl<A: IVm> Serializable for Unpacked<A> {
             ARRAY => Ok(Array::<A>::deserialize(read)?.into()),
             FUNCTION => Ok(Function::<A>::deserialize(read)?.into()),
             _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Unknown tag")),
+        }
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for Unpacked<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        match self {
+            Unpacked::Nullish(n) => n.coerce_to_string(),
+            Unpacked::Boolean(b) => b.coerce_to_string(),
+            Unpacked::Number(n) => n.coerce_to_string(),
+            Unpacked::String(s) => s.coerce_to_string(),
+            Unpacked::BigInt(i) => i.coerce_to_string(),
+            Unpacked::Object(o) => o.coerce_to_string(),
+            Unpacked::Array(a) => a.coerce_to_string(),
+            Unpacked::Function(f) => f.coerce_to_string(),
         }
     }
 }

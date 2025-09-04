@@ -219,7 +219,7 @@ logic should be moved to a private free floating helper function (to keep public
   impl Js for Any {}
   impl Js for Unpacked {}
   ```
-- [ ] 87. Optiomization. Reduce number of `Rc::clone()`:
+- [ ] 87. Optimization. Reduce number of `Rc::clone()`:
   - Now: 
     ```rust
     type Any = Rc<AnyImpl>;
@@ -241,6 +241,30 @@ logic should be moved to a private free floating helper function (to keep public
     let xy = add(*x, *y);
     let x2 = add(*x, *x);
     ```
+- [ ] [88-python.md](88-python.md).
+- [ ] 89. Rust Unpack dispatch:
+  ```rust
+  trait Unary<Tag> {
+      type Result;
+      fn do(self) -> Self::Result;
+  }
+
+  struct UnaryPlus;
+  impl Unary<UnaryPlus> for f64 {
+      type Result = Any;
+      fn do(self) -> Self::Result;
+  }
+
+  impl<Operation> Unary<Operation> Unpack {
+      type Result = Any;
+      fn do(self) -> Self::Result {
+          match ... {
+              Number(v) => v.do::<Operation>(),
+              ... 
+          }
+      }      
+  }
+  ```    
 
 ## Language Specification
 
