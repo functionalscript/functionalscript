@@ -1,69 +1,58 @@
 ﻿// See https://aka.ms/new-console-template for more information
 Console.WriteLine("Hello, World!");
 
-enum Nullish
+struct Undefined { }
+
+interface IPolicy<T> where T : struct, IPolicy<T>
 {
-    Null,
-    Undefined,
 }
 
-interface IArray
-{
-    int Length { get; }
-    IAny Get(int index);
-}
-
-interface IObject
-{
-    int Length { get; }
-    (string key, IAny value) Get(int index);
-}
-
-interface IVisitor<R>
-{
-    R Nullish(Nullish value);
-    R Boolean(bool value);
-    R Number(double value);
-    R String(string value);
-    R Array(IArray value);
-    R Object(IObject value);
-}
-
-interface IAny
-{
-    R Visit<R>(IVisitor<R> visitor);
-    static abstract IAny From(Nullish value);
-}
-
-struct Naive : IAny
+struct Any<T> where T : struct, IPolicy<T>
 {
     readonly object value;
 
-    public R Visit<R>(IVisitor<R> visitor)
-    {
-        switch (value)
-        {
-            case Nullish n:
-                return visitor.Nullish(n);
-            case bool b:
-                return visitor.Boolean(b);
-            case double d:
-                return visitor.Number(d);
-            case string s:
-                return visitor.String(s);
-            case IArray a:
-                return visitor.Array(a);
-            case IObject o:
-                return visitor.Object(o);
-            default:
-                throw new InvalidCastException();
-        }
-    }
+    public Any(bool value) => this.value = value;
+    public Any(Undefined value) => this.value = value;
+    public Any(double value) => this.value = value;
+    public Any(string value) => this.value = value;
+    public Any(JArray<T> value) => this.value = value.value;
+    public Any(JObject<T> value) => this.value = value.value;
 
-    public static IAny From(Nullish value) => new Naive(value);
-
-    public Naive(Nullish value)
+    public R Accept<R>(IVisitor<T, R> visitor) => value switch
     {
-        this.value = value;
-    }
+        null => visitor.VisitNull(),
+        bool b => visitor.VisitBool(b),
+        Undefined => visitor.VisitUndefined(),
+        double n => visitor.VisitNumber(n),
+        _ => throw new NotImplementedException(),
+    };
+}
+
+interface IVisitor<T, R> where T : struct, IPolicy<T>
+{
+    R VisitNull();
+    R VisitBool(bool value);
+    R VisitUndefined();
+    R VisitNumber(double value);
+    R VisitString(string value);
+    R VisitArray(JArray<T> value);
+    R VisitObject(JObject<T> value);
+}
+
+struct JArray<T> where T : struct, IPolicy<T>
+{
+    internal readonly object value;
+    internal JArray(object value) => this.value = value;
+}
+
+struct JObject<T> where T : struct, IPolicy<T>
+{
+    public readonly object value;
+    public JObject(object value) => this.value = value;
+}
+
+struct JString<T> where T : struct, IPolicy<T>
+{
+    public readonly object value;
+    public JString(object value) => this.value = value;
 }
