@@ -1,6 +1,6 @@
 import { stringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { range, repeat0Plus } from '../module.f.ts'
+import { option, range, repeat0Plus } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
@@ -50,10 +50,9 @@ export default {
             if (result !== expected) { throw [result, expected] }
         },
         () => {
-            const repeatRule = repeat0Plus(' ')
-            const c = toData(repeatRule)
-            const result = stringify(sort)(toData(c))
-            if (result !== '') { throw result }
+            const repeatRule = option('a')
+            const result = stringify(sort)(toData(repeatRule))
+            if (result !== '[{"":{"none":"2","some":"0"},"0":["1"],"1":1627390049,"2":[]},""]') { throw result }
         },
     ],
     variantTest: () => {
