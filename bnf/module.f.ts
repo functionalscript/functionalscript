@@ -132,13 +132,13 @@ export type None = readonly[]
 export const none: None = []
 
 export type Option<S> = {
+    some: S    
     none: None
-    some: S
 }
 
 export const option = <S extends Rule>(some: S): Option<S> => ({
+    some,    
     none,
-    some,
 })
 
 export type Repeat0Plus<T> = () => Option<readonly[T, Repeat0Plus<T>]>
