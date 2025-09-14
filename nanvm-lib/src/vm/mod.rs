@@ -3,10 +3,11 @@ pub mod array;
 pub mod bigint;
 pub mod function;
 pub mod internal;
-pub mod js;
 pub mod naive;
+pub mod number;
 pub mod object;
 pub mod string16;
+pub mod string_coercion;
 pub mod to_any;
 pub mod unpacked;
 
@@ -16,7 +17,6 @@ pub use crate::vm::{
     bigint::BigInt,
     function::{Function, FunctionHeader},
     internal::{IContainer, IVm},
-    js::Js,
     object::{Object, Property},
     string16::String16,
     to_any::ToAnyEx,

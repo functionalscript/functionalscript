@@ -28,13 +28,13 @@ The signature is valid if `v = r`
 
 ## Proof
 
-`X = G * (z * 1/s) + Q * (r * 1/s)`
-`X = G * z * 1/s + G * d * r * 1/s`
-`G * z * 1/s + d * r * 1/s = G * k`
-`z * 1/s + d * r * 1/s) = k`
-`z + d * r = k * s`
-`z + d * r = k * (z + r * d) / k`
-`z + d * r = z + r * d`
+1. `X = G * (z * 1/s) + Q * (r * 1/s)`
+2. `X = G * z * 1/s + G * d * r * 1/s`
+3. `G * z * 1/s + d * r * 1/s = G * k`
+4. `z * 1/s + d * r * 1/s) = k`
+5. `z + d * r = k * s`
+6. `z + d * r = k * (z + r * d) / k`
+7. `z + d * r = z + r * d`
 
 ## Selecting `k`
 

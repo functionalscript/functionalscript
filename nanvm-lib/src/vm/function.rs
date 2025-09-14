@@ -1,6 +1,6 @@
 use crate::{
-    common::{default::default, serializable::Serializable},
-    vm::{Any, IContainer, IVm, Js, String16, Unpacked},
+    common::serializable::Serializable,
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -45,13 +45,6 @@ impl<A: IVm> Debug for Function<A> {
     }
 }
 
-impl<A: IVm> Js<A> for Function<A> {
-    fn string(&self) -> String16<A> {
-        // TODO: Implement proper conversion to String16
-        default()
-    }
-}
-
 impl<A: IVm> Serializable for Function<A> {
     fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
@@ -59,5 +52,12 @@ impl<A: IVm> Serializable for Function<A> {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalFunction::deserialize(read).map(Self)
+    }
+}
+
+impl<A: IVm> StringCoercion<A> for Function<A> {
+    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
+        Ok("[object Function]".into())
     }
 }
