@@ -1,8 +1,6 @@
 import { stringify } from '../../json/module.f.ts'
-import { stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { range } from '../module.f.ts'
+import { range, repeat0Plus } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
@@ -50,6 +48,12 @@ export default {
             const result = stringify(sort)(toData(emptyRule))
             const expected = '[{"":[]},""]'
             if (result !== expected) { throw [result, expected] }
+        },
+        () => {
+            const repeatRule = repeat0Plus(' ')
+            const c = toData(repeatRule)
+            const result = stringify(sort)(toData(c))
+            if (result !== '') { throw result }
         },
     ],
     variantTest: () => {
@@ -222,18 +226,19 @@ export default {
             const mr = m("", [45,50])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
-        },
+        },        
         () => {
-            const c = toData(deterministic())
-            const m = parser(c)
+            // const c = toData(deterministic())
+            // const result = stringify(sort)(toData(c))
+            // const m = parser(c)
 
-            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-            const expect = (s: string, success: boolean) => {
-                const mr = m('json', toArray(stringToCodePointList(s)))
-                if (isSuccess(mr) !== success) {
-                    throw mr
-                }
-            }
+            // const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            // const expect = (s: string, success: boolean) => {
+            //     const mr = m('json', toArray(stringToCodePointList(s)))
+            //     if (isSuccess(mr) !== success) {
+            //         throw mr
+            //     }
+            // }
 
             // expect('   true   ', true)
             // expect('   tr2ue   ', false)
