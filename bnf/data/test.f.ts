@@ -1,4 +1,5 @@
 import { stringify } from '../../json/module.f.ts'
+import { identity } from '../../types/function/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { option, range, repeat0Plus } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
@@ -51,8 +52,8 @@ export default {
         },
         () => {
             const repeatRule = option('a')
-            const result = stringify(sort)(toData(repeatRule))
-            if (result !== '[{"":{"none":"2","some":"0"},"0":["1"],"1":1627390049,"2":[]},""]') { throw result }
+            const result = stringify(identity)(toData(repeatRule))
+            if (result !== '[{"0":["1"],"1":1627390049,"2":[],"":{"some":"0","none":"2"}},""]') { throw result }
         },
     ],
     variantTest: () => {
