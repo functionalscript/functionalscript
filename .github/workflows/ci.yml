@@ -136,7 +136,7 @@ jobs:
     # - run: rustup target add wasm32-wasip1
     - uses: dtolnay/rust-toolchain@stable
       with:
-        targets: wasm32-wasip1
+        targets: ${{ matrix.target }}
     # - run: cargo install wasmtime-cli
     - uses: bytecodealliance/actions/wasmtime/setup@v1
     - run: cargo test --target ${{ matrix.target }} ${{ matrix.type }}
