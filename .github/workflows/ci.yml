@@ -140,6 +140,18 @@ jobs:
     - uses: actions/checkout@v4
     - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
 
+  rust-wasm32:
+    strategy:
+      matrix:
+        type: ['', '--release']
+    runs-on: ubuntu-latest
+    steps:
+    # checkout
+    - uses: actions/checkout@v4
+    - run: rusup target add wasm32-wasip1
+    - run: cargo install wasmtime-cli
+    - run: cargo test --target wasm32-wasip1 ${{ matrix.type }}
+
   rust-lints:
     runs-on: ubuntu-latest
     steps:
