@@ -133,7 +133,7 @@ jobs:
     steps:
     # checkout
     - uses: actions/checkout@v4
-    # - run: rustup target add wasm32-wasip1
+    # - run: rustup target add ${{ matrix.target }}
     - uses: dtolnay/rust-toolchain@stable
       with:
         targets: ${{ matrix.target }}
