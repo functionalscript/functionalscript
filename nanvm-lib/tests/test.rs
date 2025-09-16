@@ -8,8 +8,6 @@ use nanvm_lib::{
     simple::Simple,
 };
 
-use wasm_bindgen_test::wasm_bindgen_test;
-
 fn assert_is_nan<A: Any>(a: A, test_case: &str) {
     let nan = Any::unary_plus(a).unwrap();
     if let Some(simple) = nan.try_to_simple() {
@@ -372,7 +370,6 @@ fn test_vm<A: Any>() {
 }
 
 #[test]
-#[wasm_bindgen_test]
 fn test() {
     test_vm::<naive::Any>();
 }

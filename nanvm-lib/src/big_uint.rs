@@ -392,12 +392,9 @@ fn add_to_vec(mut vec: Vec<u64>, index: usize, add: u128) -> Vec<u64> {
 mod test {
     use std::cmp::Ordering;
 
-    use wasm_bindgen_test::wasm_bindgen_test;
-
     use super::BigUint;
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_ord() {
         let a = BigUint {
             value: [1].to_vec(),
@@ -433,7 +430,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_add() {
         let a = BigUint {
             value: [1].to_vec(),
@@ -479,7 +475,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_add_overflow() {
         let a = BigUint {
             value: [u64::MAX, 0, 1].to_vec(),
@@ -504,7 +499,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_sub() {
         let a = BigUint {
             value: [1 << 63].to_vec(),
@@ -547,7 +541,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_mul() {
         let a = BigUint {
             value: [1].to_vec(),
@@ -628,7 +621,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_div_by_zero() {
         let a = BigUint {
             value: [1].to_vec(),
@@ -638,14 +630,12 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_div_zero_by_zero() {
         let result = &BigUint::ZERO / &BigUint::ZERO;
         assert_eq!(result, None);
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_div_simple() {
         let a = BigUint {
             value: [2].to_vec(),
@@ -739,7 +729,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_div_mod() {
         let result = BigUint::div_mod(&[7], &[2]);
         assert_eq!(
@@ -769,7 +758,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_pow_u64() {
         let a = BigUint {
             value: [100].to_vec(),
@@ -837,7 +825,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_pow() {
         let a = BigUint {
             value: [100].to_vec(),
@@ -914,7 +901,6 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Maximum BigUint size exceeded")]
-    #[wasm_bindgen_test]
     fn test_pow_overflow() {
         let a = BigUint {
             value: [5].to_vec(),
@@ -925,7 +911,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_shl_zero() {
         let result = &BigUint::ZERO << &BigUint::ZERO;
         assert_eq!(&result, &BigUint::ZERO);
@@ -941,7 +926,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_shl() {
         let a = BigUint {
             value: [1].to_vec(),
@@ -1013,7 +997,6 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Maximum BigUint size exceeded")]
-    #[wasm_bindgen_test]
     fn test_shl_overflow() {
         let a = BigUint::one();
         let b = BigUint {
@@ -1023,7 +1006,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_shr_zero() {
         let result = &BigUint::ZERO >> &BigUint::ZERO;
         assert_eq!(&result, &BigUint::ZERO);
@@ -1039,7 +1021,6 @@ mod test {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_shr() {
         let a = BigUint {
             value: [1, 1, 1, 1].to_vec(),
