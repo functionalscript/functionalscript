@@ -148,8 +148,12 @@ jobs:
     steps:
     # checkout
     - uses: actions/checkout@v4
-    - run: rustup target add wasm32-wasip1
-    - run: cargo install wasmtime-cli
+    # - run: rustup target add wasm32-wasip1
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-wasip1
+    # - run: cargo install wasmtime-cli
+    - uses: bytecodealliance/actions/wasmtime/setup@v1
     - run: cargo test --target wasm32-wasip1 ${{ matrix.type }}
 
   rust-lints:
