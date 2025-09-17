@@ -128,17 +128,18 @@ jobs:
     strategy:
       matrix:
         type: ['', '--release']
+        target: ['wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
     runs-on: ubuntu-latest
     steps:
-    # setup
-    - run: rustup update
-    - uses: actions/setup-node@v2
-      with:
-        node-version: 20
-    - uses: taiki-e/install-action@wasm-pack
     # checkout
     - uses: actions/checkout@v4
-    - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
+    # - run: rustup target add ${{ matrix.target }}
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    # - run: cargo install wasmtime-cli
+    - uses: bytecodealliance/actions/wasmtime/setup@v1
+    - run: cargo test --target ${{ matrix.target }} ${{ matrix.type }}
 
   rust-lints:
     runs-on: ubuntu-latest
