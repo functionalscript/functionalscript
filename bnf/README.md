@@ -40,7 +40,7 @@ export default {
         none: 'empty',
         minus: 'minus',
     },
-    iDigit: [optionalMinus, digit],
+    iDigit: ['optionalMinus', 'digit'],
 }
 ```
 
