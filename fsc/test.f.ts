@@ -43,5 +43,27 @@ export default {
         //
         const a = function x() { return undefined }
         if (a.name !== "x") { throw a.name }
+    },
+    //
+    f1: () => {
+        const m1 = () => undefined
+        if (m1.name !== "m1") { throw m1.name }
+    },
+    //
+    f2: () => {
+        const m11 = (() => undefined)
+        if (m11.name !== "m11") { throw m11.name }
+    },
+    //
+    f3: () => {
+        const m2: any = true ? () => undefined : () => undefined
+        // for `bun` it is `m2`:
+        // if (m2.name !== "") { throw m2.name }
+    },
+    f4: () => {
+        const id = <T>(i: T): T => i
+        const f: any = id(() => undefined)
+        // for `bun` it is `m2`:
+        if (f.name !== "") { throw f.name }
     }
 }
