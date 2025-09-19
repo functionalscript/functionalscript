@@ -15,6 +15,14 @@ const f
 export default {
     a: () => {
         const x = f('1')
-        if (x != '["1"]') { throw x }
+        if (x !== '["1"]') { throw x }
+    },
+    fn: () => {
+        const o = {
+            ["hello world!"]: () => undefined
+        }
+        const f = o["hello world!"]
+        const { name } = f
+        if (name !== "hello world!") { throw name }
     }
 }
