@@ -12,6 +12,13 @@ const f
     return s(_.init(n)[0])
 }
 
+// this doesn't change a name of the function
+const fn = (f: () => undefined, name: string) => ({[name]: f}[name])
+
+const withName = (name: string): () => undefined =>
+    // translated into one command: define a `function [name]() { return undefined }`
+    (Object.getOwnPropertyDescriptor({[name]: () => undefined}, name) as any).value
+
 export default {
     a: () => {
         const x = f('1')
@@ -24,5 +31,17 @@ export default {
         const f = o["hello world!"]
         const { name } = f
         if (name !== "hello world!") { throw name }
+        //
+        const f1 = { ["boring"]: () => undefined }["boring"]
+        if (f1.name !== "boring") { throw f1.name }
+        //
+        const x = fn(() => undefined, "hello").name
+        if (x !== "") { throw x }
+        //
+        const m = withName("boring2").name
+        if (m !== "boring2") { throw m }
+        //
+        const a = function x() { return undefined }
+        if (a.name !== "x") { throw a.name }
     }
 }

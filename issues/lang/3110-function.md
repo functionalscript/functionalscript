@@ -10,6 +10,18 @@ Depends on [default export](./2110-default-export.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions.
 
+Full function definition command:
+
+```js
+const name = "Hello!"
+// translated into one command which accepts `name` and `bytecode`.
+const f = Object.getOwnPropertyDescriptor({[name]: () => undefined}, name).value // f.name === "Hello!"
+// alternatives:
+const f1 = { something: () => undefined}.something.value // f1.name === "Hello!" // if the function name is safe to use as property
+const v = { ok: () => undefined } // v.hello.name === "ok" // if the function name matches the property name
+const hello = () => undefined // hell.name === "hello" // if the function name is the same as a variable name
+```
+
 ## Recursive Functions
 
 ```js
