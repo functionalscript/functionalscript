@@ -59,6 +59,7 @@ export default {
         const m2: any = true ? () => undefined : () => undefined
         // for `bun` it is `m2`:
         // if (m2.name !== "") { throw m2.name }
+        // see also https://github.com/oven-sh/bun/issues/20398
     },
     f4: () => {
         const id = <T>(i: T): T => i

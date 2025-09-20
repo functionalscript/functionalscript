@@ -17,8 +17,10 @@ const name = "Hello!"
 // translated into one command which accepts `name` and `bytecode`.
 const f = Object.getOwnPropertyDescriptor({[name]: () => undefined}, name).value // f.name === "Hello!"
 // alternatives:
-const f1 = { some: () => undefined}.some.value // f1.name === "some" // if the function name is safe to use as property
-const f2 = function something() { return undefined } // f2.name === "something" // if the function name is safe to use as property
+const f1 = { some: () => undefined}.some.value // f1.name === "some" // if the function name is known and safe to use as property
+const f1 = { '#$': () => undefined}['#$'].value // f1.name === "#$" // if the function name is known
+const f1 = { constructor: () => }
+const f2 = function something() { return undefined } // f2.name === "something" // if the function name is a valid identifier
 const v = { ok: () => undefined } // v.hello.name === "ok" // if the function name matches the property name
 const hello = () => undefined // hell.name === "hello" // if the function name is the same as a variable name
 
@@ -48,4 +50,5 @@ fn b(frame: Array<Any>, param: Array<Any>) {
   }
 }
 ```
-[ ] [function-frame](./3111-function-frame.md)
+
+- [ ] [function-frame](./3111-function-frame.md)
