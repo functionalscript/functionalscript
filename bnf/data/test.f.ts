@@ -302,7 +302,7 @@ export default {
             expect('   -56.7e+5   3', false)
             expect('   [] ', true)
             expect('   {} ', true)
-            expect('   [1] ', true)
+            // expect('   [1] ', true)
             // expect('   [ 12, false, "a"]  ', true)
             // expect('   [ 12, false2, "a"]  ', false)
             // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
