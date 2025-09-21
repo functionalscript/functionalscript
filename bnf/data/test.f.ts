@@ -1,8 +1,11 @@
 import { stringify } from '../../json/module.f.ts'
+import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { identity } from '../../types/function/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { range } from '../module.f.ts'
+import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
+import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
 export default {
     toData: [
@@ -49,6 +52,21 @@ export default {
             const expected = '[{"":[]},""]'
             if (result !== expected) { throw [result, expected] }
         },
+        () => {
+            const optionRule = option('a')
+            const result = stringify(identity)(toData(optionRule))
+            if (result !== '[{"0":["1"],"1":1627390049,"2":[],"":{"some":"0","none":"2"}},""]') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(option('a'))
+            const result = stringify(identity)(toData(repeatRule))
+            if (result !== '[{"0":{"some":"1","none":"3"},"1":["2"],"2":1627390049,"3":[],"":["0","r"],"r":{"some":"","none":"3"}},"r"]') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(set(' \n\r\t'))
+            const result = stringify(identity)(toData(repeatRule))
+            if (result !== '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"5":[],"":["0","r"],"r":{"some":"","none":"5"}},"r"]') { throw result }
+        }
     ],
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
@@ -220,6 +238,83 @@ export default {
             const mr = m("", [45,50])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
+        },
+        () => {                        
+            const m = parser(option('a'))
+
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
+
+            expect('a', true)
+            expect('', true)
+            expect('aa', false)
+            expect('b', false)
+        },
+        () => {            
+            const onenine = range('19')
+            const t = 'true'
+            const digitOrTrue = {
+                onenine,
+                t
+            }
+            const ws = repeat0Plus(set(' '))
+            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+                    open,
+                    ws,
+                    join0Plus([a, ws], [',', ws]),
+                    close,
+                ]
+            const array = commaJoin0Plus('[]', digitOrTrue)
+            const m = parser(array)
+
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
+            
+            expect('[]', true)
+            expect('[1]', true)
+            expect('[true,true]', true)
+            expect('[1,2]', true)
+            expect('[1,2,]', false)
+            expect('[,]', false)
+        },
+        () => {            
+            
+            const m = parser(deterministic())
+
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
+
+            expect('   true   ', true)
+            expect('   tr2ue   ', false)
+            expect('   true"   ', false)
+            expect('   "Hello"   ', true)
+            expect('   "Hello   ', false)
+            expect('   "Hello\\n\\r\\""   ', true)
+            expect('   -56.7e+5  ', true)
+            expect('   h-56.7e+5   ', false)
+            expect('   -56.7e+5   3', false)
+            expect('   [] ', true)
+            expect('   {} ', true)
+            // expect('   [1] ', true)
+            // expect('   [ 12, false, "a"]  ', true)
+            // expect('   [ 12, false2, "a"]  ', false)
+            // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+            // expect('   { "q": [ 12, false, [}], "a"] }  ', false)
         }
     ],    
     repeat: [
