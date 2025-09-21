@@ -1,7 +1,7 @@
 import { stringify } from '../../json/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { option, range, repeat0Plus } from '../module.f.ts'
+import { option, range, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
@@ -51,10 +51,20 @@ export default {
             if (result !== expected) { throw [result, expected] }
         },
         () => {
-            const repeatRule = option('a')
-            const result = stringify(identity)(toData(repeatRule))
+            const optionRule = option('a')
+            const result = stringify(identity)(toData(optionRule))
             if (result !== '[{"0":["1"],"1":1627390049,"2":[],"":{"some":"0","none":"2"}},""]') { throw result }
         },
+        () => {
+            const repeatRule = repeat0Plus(option('a'))
+            const result = stringify(identity)(toData(repeatRule))
+            if (result !== '[{"0":{"some":"1","none":"3"},"1":["2"],"2":1627390049,"3":[],"":["0","r"],"r":{"some":"","none":"3"}},"r"]') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(set(' \n\r\t'))
+            const result = stringify(identity)(toData(repeatRule))
+            if (result !== '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"5":[],"":["0","r"],"r":{"some":"","none":"5"}},"r"]') { throw result }
+        }
     ],
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
@@ -226,7 +236,7 @@ export default {
             const mr = m("", [45,50])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
-        },        
+        },
         () => {
             // const c = toData(deterministic())
             // const result = stringify(sort)(toData(c))
