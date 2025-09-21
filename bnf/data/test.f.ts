@@ -241,7 +241,6 @@ export default {
         },
         () => {                        
             const m = parser(option('a'))
-            console.log(JSON.stringify(m))
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
@@ -259,24 +258,25 @@ export default {
         () => {            
             
             const m = parser(deterministic())
+            //const result = stringify(identity)(toData(deterministic()))
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
-                const mr = m('json', toArray(stringToCodePointList(s)))
+                const mr = m('', toArray(stringToCodePointList(s)))
                 if (isSuccess(mr) !== success) {
                     throw mr
                 }
             }
 
-            //expect('   true   ', true)
-            // expect('   tr2ue   ', false)
-            // expect('   true"   ', false)
-            // expect('   "Hello"   ', true)
-            // expect('   "Hello   ', false)
-            // expect('   "Hello\\n\\r\\""   ', true)
-            // expect('   -56.7e+5  ', true)
-            // expect('   h-56.7e+5   ', false)
-            // expect('   -56.7e+5   3', false)
+            expect('   true   ', true)
+            expect('   tr2ue   ', false)
+            expect('   true"   ', false)
+            expect('   "Hello"   ', true)
+            expect('   "Hello   ', false)
+            expect('   "Hello\\n\\r\\""   ', true)
+            expect('   -56.7e+5  ', true)
+            expect('   h-56.7e+5   ', false)
+            expect('   -56.7e+5   3', false)
             // expect('   [ 12, false, "a"]  ', true)
             // expect('   [ 12, false2, "a"]  ', false)
             // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
