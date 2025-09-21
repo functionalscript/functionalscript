@@ -3,7 +3,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { option, range, repeat0Plus, set } from '../module.f.ts'
+import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
@@ -256,9 +256,32 @@ export default {
             expect('b', false)
         },
         () => {            
+            const onenine = range('19')
+            const ws = repeat0Plus(set(' '))
+            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+                    open,
+                    ws,
+                    join0Plus([a, ws], [',', ws]),
+                    close,
+                ]
+            const array = commaJoin0Plus('[]', onenine)
+            const m = parser(array)
+
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
+            
+            expect('   [] ', true)
+            expect('   {} ', true)
+            expect('   [1] ', true)
+        },
+        () => {            
             
             const m = parser(deterministic())
-            //const result = stringify(identity)(toData(deterministic()))
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
@@ -279,6 +302,7 @@ export default {
             expect('   -56.7e+5   3', false)
             expect('   [] ', true)
             expect('   {} ', true)
+            //expect('   [1] ', true)
             // expect('   [ 12, false, "a"]  ', true)
             // expect('   [ 12, false2, "a"]  ', false)
             // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
