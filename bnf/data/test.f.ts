@@ -278,6 +278,8 @@ export default {
             expect('[]', true)
             expect('[1]', true)
             expect('[1,2]', true)
+            expect('[1,2,]', false)
+            expect('[,]', false)
         },
         () => {            
             
