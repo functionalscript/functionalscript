@@ -257,6 +257,11 @@ export default {
         },
         () => {            
             const onenine = range('19')
+            const t = 'true'
+            const digitOrTrue = {
+                onenine,
+                t
+            }
             const ws = repeat0Plus(set(' '))
             const commaJoin0Plus = ([open, close]: string, a: Rule) => [
                     open,
@@ -264,7 +269,7 @@ export default {
                     join0Plus([a, ws], [',', ws]),
                     close,
                 ]
-            const array = commaJoin0Plus('[]', onenine)
+            const array = commaJoin0Plus('[]', digitOrTrue)
             const m = parser(array)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
@@ -277,6 +282,7 @@ export default {
             
             expect('[]', true)
             expect('[1]', true)
+            expect('[true,true]', true)
             expect('[1,2]', true)
             expect('[1,2,]', false)
             expect('[,]', false)
