@@ -320,34 +320,34 @@ export default {
         }
     ],
     repeatParser: [
-        // () => {
-        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        //     const m = parserRuleSet(repeatData[0])
-        //     const mr = m("", [])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[]},true,null]') { throw result }
-        // },
-        // () => {
-        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        //     const m = parserRuleSet(repeatData[0])
-        //     const mr = m("", [65])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[65,{"sequence":[]}]},true,null]') { throw result }
-        // },
-        // () => {
-        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        //     const m = parserRuleSet(repeatData[0])
-        //     const mr = m("", [65,65,65])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[65,{"sequence":[65,{"sequence":[65,{"sequence":[]}]}]}]},true,null]') { throw result }
-        // },
-        // () => {
-        //     const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
-        //     const m = parserRuleSet(repeatData[0])
-        //     const mr = m("", [66])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[]},false,[66]]') { throw result }
-        // }
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[65,{"sequence":[]}]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [65,65,65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[65,{"sequence":[65,{"sequence":[65,{"sequence":[]}]}]}]},true,null]') { throw result }
+        },
+        () => {
+            const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
+            const m = parserRuleSet(repeatData[0])
+            const mr = m("", [66])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,[66]]') { throw result }
+        }
     ],
     example: () => {
         const grammar = {
