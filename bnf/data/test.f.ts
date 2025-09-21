@@ -1,5 +1,7 @@
 import { stringify } from '../../json/module.f.ts'
+import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { option, range, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
@@ -237,20 +239,36 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
         },
-        () => {
-            // const c = toData(deterministic())
-            // const result = stringify(sort)(toData(c))
-            // const m = parser(c)
+        () => {                        
+            const m = parser(option('a'))
+            console.log(JSON.stringify(m))
 
-            // const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-            // const expect = (s: string, success: boolean) => {
-            //     const mr = m('json', toArray(stringToCodePointList(s)))
-            //     if (isSuccess(mr) !== success) {
-            //         throw mr
-            //     }
-            // }
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
 
-            // expect('   true   ', true)
+            expect('a', true)
+            expect('', true)
+            expect('aa', false)
+            expect('b', false)
+        },
+        () => {            
+            
+            const m = parser(deterministic())
+
+            const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+            const expect = (s: string, success: boolean) => {
+                const mr = m('json', toArray(stringToCodePointList(s)))
+                if (isSuccess(mr) !== success) {
+                    throw mr
+                }
+            }
+
+            //expect('   true   ', true)
             // expect('   tr2ue   ', false)
             // expect('   true"   ', false)
             // expect('   "Hello"   ', true)
