@@ -25,7 +25,7 @@ const spaceOrDigit = {
 To export.
 
 ```js
-export default {
+export default [{
     space: 0x000020_000020,
     digit: 0x000030_000039,
     sequence: ['space', 'digit'],
@@ -40,8 +40,8 @@ export default {
         none: 'empty',
         minus: 'minus',
     },
-    iDigit: [optionalMinus, digit],
-}
+    iDigit: ['optionalMinus', 'digit'],
+}, 'spaceOrDigit']
 ```
 
 ## DispatchRules
