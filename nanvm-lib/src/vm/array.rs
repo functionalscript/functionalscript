@@ -2,7 +2,7 @@ use std::io;
 
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked}, // Ensure Container trait is in scope
+    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
 
 #[derive(Clone)]
