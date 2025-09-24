@@ -379,6 +379,25 @@ fn number_coerce_to_string<A: IVm>() {
     assert_eq!(n.coerce_to_string(), Ok("NaN".into()));
 }
 
+fn array_coerce_to_string<A: IVm>() {
+    let a: Any<A> = Into::<Array<_>>::into([]).to_any();
+    assert_eq!(a.coerce_to_string(), Ok("".into()));
+
+    let a: Any<A> = Into::<Array<_>>::into([1.0.to_any()]).to_any();
+    assert_eq!(a.coerce_to_string(), Ok("1".into()));
+
+    let a: Any<A> = Into::<Array<_>>::into([1.0.to_any(), 2.0.to_any(), 3.0.to_any()]).to_any();
+    assert_eq!(a.coerce_to_string(), Ok("1,2,3".into()));
+
+    let a: Any<A> = Into::<Array<_>>::into([
+        1.0.to_any(),
+        Into::<Array<_>>::into([2.0.to_any(), 3.0.to_any()]).to_any(),
+        4.0.to_any(),
+    ])
+    .to_any();
+    assert_eq!(a.coerce_to_string(), Ok("1,2,3,4".into()));
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -390,6 +409,7 @@ fn gen_test<A: IVm>() {
     old_eq::<naive::InternalAny>();
     serialization::<A>();
     number_coerce_to_string::<A>();
+    array_coerce_to_string::<A>();
     //
 }
 

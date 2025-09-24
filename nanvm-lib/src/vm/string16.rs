@@ -5,6 +5,7 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter, Write},
     io,
+    ops::Add,
 };
 
 #[derive(Clone)]
@@ -87,5 +88,14 @@ impl<A: IVm> Serializable for String16<A> {
 impl<A: IVm> StringCoercion<A> for String16<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
         Ok(self.clone())
+    }
+}
+
+impl<A: IVm> Add for String16<A> {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        let a = (0..self.0.len()).map(|i| self.0.at(i));
+        let b = (0..rhs.0.len()).map(|i| rhs.0.at(i));
+        String16(A::InternalString16::new_ok((), a.chain(b)))
     }
 }
