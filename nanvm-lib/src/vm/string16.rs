@@ -19,7 +19,7 @@ impl<A: IVm> Default for String16<A> {
 
 impl<A: IVm> From<&String16<A>> for std::string::String {
     fn from(value: &String16<A>) -> Self {
-        String::from_utf16_lossy(&value.0.collect())
+        String::from_utf16_lossy(&value.0.items_iter().collect::<Vec<_>>())
     }
 }
 
@@ -94,8 +94,9 @@ impl<A: IVm> StringCoercion<A> for String16<A> {
 impl<A: IVm> Add for String16<A> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        let a = (0..self.0.len()).map(|i| self.0.at(i));
-        let b = (0..rhs.0.len()).map(|i| rhs.0.at(i));
-        String16(A::InternalString16::new_ok((), a.chain(b)))
+        String16(A::InternalString16::new_ok(
+            (),
+            self.0.items_iter().chain(rhs.0.items_iter()),
+        ))
     }
 }
