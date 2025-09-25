@@ -33,7 +33,7 @@ pub struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone + PartialEq + Serializable, I: Clone + Debug + Serializable> IContainer<InternalAny>
+impl<H: Clone + PartialEq + Serializable + 'static, I: Clone + Debug + Serializable + 'static> IContainer<InternalAny>
     for Container<H, I>
 {
     type Header = H;

@@ -32,7 +32,7 @@ impl<A: IVm> TryFrom<Any<A>> for Function<A> {
 impl<A: IVm> Debug for Function<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let header = self.0.header();
-        let name: std::string::String = (&header.0).into();
+        let name: String = (&header.0).clone().into();
         let args = (0..header.1)
             .map(|i| format!("a{i}"))
             .collect::<Vec<_>>()

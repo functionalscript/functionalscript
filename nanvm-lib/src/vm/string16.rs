@@ -4,7 +4,7 @@ use crate::{
 };
 use std::{
     fmt::{Debug, Formatter, Write},
-    io, iter,
+    io, iter::{self, once},
     ops::{Add, AddAssign},
 };
 
@@ -25,8 +25,8 @@ impl<A: IVm> Default for String16<A> {
     }
 }
 
-impl<A: IVm> From<&String16<A>> for String {
-    fn from(value: &String16<A>) -> Self {
+impl<A: IVm> From<String16<A>> for String {
+    fn from(value: String16<A>) -> Self {
         String::from_utf16_lossy(&value.0.items_iter().collect::<Vec<_>>())
     }
 }
@@ -112,9 +112,43 @@ impl<A: IVm> AddAssign for String16<A> {
     }
 }
 
+enum Either<L, R> {
+    Left(L),
+    Right(R),
+}
+
+impl<L, R, T> Iterator for Either<L, R>
+where
+    L: Iterator<Item = T>,
+    R: Iterator<Item = T>,
+{
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
+        match self {
+            Either::Left(l) => l.next(),
+            Either::Right(r) => r.next(),
+        }
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Either::Left(l) => l.size_hint(),
+            Either::Right(r) => r.size_hint(),
+        }
+    }
+}
+
 pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
-    fn join(self, separator: &String16<A>) -> Result<String16<A>, Any<A>> {
-        self.reduce_or_default(|a, b| a + separator.clone() + b)
+    fn join(self, separator: String16<A>) -> Result<String16<A>, Any<A>> {
+        let x = self.intersperse(Ok(separator));
+        let y = x.flat_map(|v| {
+            match v {
+                Err(e) => Either::Left(once(Err(e))),
+                Ok(i) => Either::Right(i.0.items_iter().map(|v| Ok(v))),
+            }
+        });
+        //self.reduce_or_default(|a, b| a + separator.clone() + b)
+        let m = A::InternalString16::new((), y)?;
+        Ok(String16(m))
     }
 }
 

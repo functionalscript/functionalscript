@@ -10,7 +10,7 @@ use std::{
     io, iter,
 };
 
-pub trait IContainer<A: IVm>: Sized + Clone {
+pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
     type Header: PartialEq + Serializable;
     type Item: Debug + Serializable;
@@ -59,11 +59,11 @@ pub trait IContainer<A: IVm>: Sized + Clone {
         true
     }
 
-    fn items_iter(&self) -> impl Iterator<Item = Self::Item>
+    fn items_iter(self) -> impl Iterator<Item = Self::Item>
     where
         Self::Item: Clone,
     {
-        (0..self.len()).map(|i| self.at(i))
+        (0..self.len()).map(move|i| self.at(i))
     }
 
     fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {
