@@ -53,6 +53,7 @@ fn serialization_test<A: Any>(values: &[A]) {
     }
 }
 
+/*
 fn serialization<A: Any>() {
     serialization_test(&[
         Simple::Nullish(Nullish::Null).to_unknown(),
@@ -71,6 +72,7 @@ fn serialization<A: Any>() {
         .to_object_unknown(),
     ]);
 }
+*/
 
 #[test]
 pub fn test_nullish() {
