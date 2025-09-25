@@ -112,7 +112,7 @@ impl<A: IVm> AddAssign for String16<A> {
 
 pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
     fn join(self, separator: &String16<A>) -> Result<String16<A>, Any<A>> {
-        self.reduce_or_default(|a, b| Ok(a + separator.clone() + b))
+        self.reduce_or_default(|a, b| a + separator.clone() + b)
     }
 }
 
