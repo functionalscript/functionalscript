@@ -110,16 +110,24 @@ impl<A: IVm> AddAssign for String16<A> {
     }
 }
 
-pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
-    fn join(mut self, separator: &String16<A>) -> Result<String16<A>, Any<A>> {
+pub trait TryReduce<A: IVm, I>: Sized + Iterator<Item = Result<I, Any<A>>> {
+    fn try_reduce(mut self, o: impl Fn(I, I) -> Result<I, Any<A>>) -> Result<Option<I>, Any<A>> {
         let mut res = match self.next() {
-            None => return Ok(String16::default()),
+            None => return Ok(None),
             Some(res) => res?
         };
         while let Some(v) = self.next() {
-            res += separator.clone() + v?
+            res = o(res, v?)?
         }
-        Ok(res)
+        Ok(Some(res))
+    }
+}
+
+impl<A: IVm, I, T: Sized + Iterator<Item = Result<I, Any<A>>>> TryReduce<A, I> for T {}
+
+pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
+    fn join(self, separator: &String16<A>) -> Result<String16<A>, Any<A>> {
+        Ok(self.try_reduce(|a, b| Ok(a + separator.clone() + b))?.unwrap_or(String16::default()))
     }
 }
 
