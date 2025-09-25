@@ -5,7 +5,7 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter, Write},
     io,
-    ops::Add,
+    ops::{Add, AddAssign},
 };
 
 #[derive(Clone)]
@@ -98,5 +98,11 @@ impl<A: IVm> Add for String16<A> {
             (),
             self.0.items_iter().chain(rhs.0.items_iter()),
         ))
+    }
+}
+
+impl<A: IVm> AddAssign for String16<A> {
+    fn add_assign(&mut self, other: Self) {
+        *self = self.clone() + other;
     }
 }
