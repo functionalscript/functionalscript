@@ -3,17 +3,21 @@ use crate::{
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, ToAnyEx, Unpacked},
 };
 use std::{
-    fmt::{Debug, Formatter, Write},
-    io,
-    ops::{Add, AddAssign},
+    fmt::{Debug, Formatter, Write}, io, iter, ops::{Add, AddAssign}
 };
 
 #[derive(Clone)]
 pub struct String16<A: IVm>(pub A::InternalString16);
 
+impl<A: IVm> String16<A> {
+    fn new(i: impl IntoIterator<Item = u16>) -> Self {
+        String16(A::InternalString16::new_ok((), i))
+    }
+}
+
 impl<A: IVm> Default for String16<A> {
     fn default() -> Self {
-        String16(A::InternalString16::new_empty(()))
+        Self::new(iter::empty())
     }
 }
 
@@ -25,7 +29,7 @@ impl<A: IVm> From<&String16<A>> for std::string::String {
 
 impl<A: IVm> From<&str> for String16<A> {
     fn from(value: &str) -> Self {
-        String16(A::InternalString16::new_ok((), value.encode_utf16()))
+        String16::new(value.encode_utf16())
     }
 }
 
@@ -94,10 +98,7 @@ impl<A: IVm> StringCoercion<A> for String16<A> {
 impl<A: IVm> Add for String16<A> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        String16(A::InternalString16::new_ok(
-            (),
-            self.0.items_iter().chain(rhs.0.items_iter()),
-        ))
+        String16::new(self.0.items_iter().chain(rhs.0.items_iter()))
     }
 }
 

@@ -54,9 +54,8 @@ impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
         let comma: String16<A> = ",".into();
-        let len = self.0.len();
         let mut res = String16::default();
-        for i in 0..len {
+        for i in 0..self.0.len() {
             if i != 0 {
                 res += comma.clone();
             }

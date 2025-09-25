@@ -7,7 +7,7 @@ use crate::{
 
 use std::{
     fmt::{Debug, Formatter, Write},
-    io,
+    io, iter,
 };
 
 pub trait IContainer<A: IVm>: Sized + Clone {
@@ -36,7 +36,7 @@ pub trait IContainer<A: IVm>: Sized + Clone {
     }
 
     fn new_empty(header: Self::Header) -> Self {
-        Self::new_ok(header, std::iter::empty())
+        Self::new_ok(header, iter::empty())
     }
 
     fn items_eq(&self, b: &Self) -> bool
