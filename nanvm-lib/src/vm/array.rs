@@ -2,7 +2,9 @@ use std::io;
 
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
+    vm::{
+        string16::Join, string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked,
+    },
 };
 
 #[derive(Clone)]
@@ -53,14 +55,9 @@ impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
 }
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        let comma: String16<A> = ",".into();
-        let mut res = String16::default();
-        for i in 0..self.0.len() {
-            if i != 0 {
-                res += comma.clone();
-            }
-            res += self.0.at(i).coerce_to_string()?;
-        }
-        Ok(res)
+        self.0
+            .items_iter()
+            .map(|v| v.coerce_to_string())
+            .join(&",".into())
     }
 }
