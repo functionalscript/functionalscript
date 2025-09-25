@@ -12,31 +12,28 @@ pub trait Serializable: Sized {
     fn deserialize(read: &mut impl Read) -> io::Result<Self>;
 }
 
-fn serialize_container<C>(c: &C, write: &mut impl Write) -> io::Result<()>
-where
-    C: Container<Header: Serializable, Item: Serializable>,
-{
-    c.header().serialize(write)?;
-    let items = c.items();
-    (items.len() as u32).serialize(write)?;
-    for item in items {
-        item.serialize(write)?;
+trait SerializableContainer: Container<Header: Serializable, Item: Serializable> {
+    fn serialize_container(&self, write: &mut impl Write) -> io::Result<()> {
+        self.header().serialize(write)?;
+        let items = self.items();
+        (items.len() as u32).serialize(write)?;
+        for item in items {
+            item.serialize(write)?;
+        }
+        Ok(())
     }
-    Ok(())
+    fn deserialize_container(read: &mut impl Read) -> io::Result<Self> {
+        let header = Self::Header::deserialize(read)?;
+        let len = u32::deserialize(read)?;
+        let items = (0..len)
+            .into_iter()
+            .map(|_| Self::Item::deserialize(read))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self::new(header, items))
+    }
 }
 
-fn deserialize_container<C>(read: &mut impl Read) -> io::Result<C>
-where
-    C: Container<Header: Serializable, Item: Serializable>,
-{
-    let header = C::Header::deserialize(read)?;
-    let len = u32::deserialize(read)?;
-    let mut items = Vec::with_capacity(len as usize);
-    for _ in 0..len {
-        items.push(C::Item::deserialize(read)?);
-    }
-    Ok(C::new(header, items))
-}
+impl<T: Container<Header: Serializable, Item: Serializable>> SerializableContainer for T {}
 
 impl Serializable for u8 {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
@@ -116,12 +113,12 @@ impl Serializable for Sign {
 
 impl<T: Any> Serializable for (T::String16, T) {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        serialize_container(&self.0, write)?;
+        self.0.serialize_container(write)?;
         self.1.serialize(write)
     }
 
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
-        let a = deserialize_container(read)?;
+        let a = T::String16::deserialize_container(read)?;
         let b = T::deserialize(read)?;
         Ok((a, b))
     }
@@ -151,19 +148,19 @@ impl<T: Any> Serializable for T {
             }
             Unpacked::String16(s) => {
                 STRING.serialize(write)?;
-                serialize_container(&s, write)
+                s.serialize_container(write)
             }
             Unpacked::Array(arr) => {
                 ARRAY.serialize(write)?;
-                serialize_container(&arr, write)
+                arr.serialize_container(write)
             }
             Unpacked::Object(obj) => {
                 OBJECT.serialize(write)?;
-                serialize_container(&obj, write)
+                obj.serialize_container(write)
             }
             Unpacked::BigInt(bi) => {
                 BIGINT.serialize(write)?;
-                serialize_container(&bi, write)
+                bi.serialize_container(write)
             }
             Unpacked::Function(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -183,19 +180,19 @@ impl<T: Any> Serializable for T {
                 Ok(Self::pack(Unpacked::Number(n)))
             }
             STRING => {
-                let s: T::String16 = deserialize_container(read)?;
+                let s = T::String16::deserialize_container(read)?;
                 Ok(Self::pack(Unpacked::String16(s)))
             }
             ARRAY => {
-                let arr: T::Array = deserialize_container(read)?;
+                let arr = T::Array::deserialize_container(read)?;
                 Ok(Self::pack(Unpacked::Array(arr)))
             }
             OBJECT => {
-                let obj: T::Object = deserialize_container(read)?;
+                let obj = T::Object::deserialize_container(read)?;
                 Ok(Self::pack(Unpacked::Object(obj)))
             }
             BIGINT => {
-                let bi: T::BigInt = deserialize_container(read)?;
+                let bi = T::BigInt::deserialize_container(read)?;
                 Ok(Self::pack(Unpacked::BigInt(bi)))
             }
             _ => Err(io::Error::new(
