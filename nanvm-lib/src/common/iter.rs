@@ -1,8 +1,9 @@
 use crate::common::default::default;
 
-pub trait Iter<I, E>: Sized + Iterator<Item = Result<I, E>> {
-    fn reduce_or_default(mut self, o: impl Fn(I, I) -> I) -> Result<I, E>
+pub trait Iter: Sized + Iterator {
+    fn reduce_or_default<I, E>(mut self, o: impl Fn(I, I) -> I) -> Result<I, E>
     where
+        Self: Iterator<Item = Result<I, E>>,
         I: Default,
     {
         let mut i = match self.next() {
@@ -14,13 +15,13 @@ pub trait Iter<I, E>: Sized + Iterator<Item = Result<I, E>> {
         }
         Ok(i)
     }
-    fn intersperse(self, sep: I) -> impl Iterator<Item = Result<I, E>>
+    fn intersperse(self, sep: Self::Item) -> impl Iterator<Item = Self::Item>
     where
-        I: Clone,
+        Self::Item: Clone,
     {
-        self.flat_map(move |x| [Ok(sep.clone()), x])
+        self.flat_map(move |x| [sep.clone(), x])
             .skip(1)
     }
 }
 
-impl<I, E, T: Sized + Iterator<Item = Result<I, E>>> Iter<I, E> for T {}
+impl<T: Sized + Iterator> Iter for T {}
