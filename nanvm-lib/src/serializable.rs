@@ -89,20 +89,22 @@ impl Serializable for () {
     }
 }
 
+const POSITIVE: u8 = 0;
+const NEGATIVE: u8 = 1;
+
 impl Serializable for Sign {
     fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        // encode as 0 = Positive, 1 = Negative
         let tag: u8 = match self {
-            Sign::Positive => 0,
-            Sign::Negative => 1,
+            Sign::Positive => POSITIVE,
+            Sign::Negative => NEGATIVE,
         };
         tag.serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         let tag = u8::deserialize(read)?;
         match tag {
-            0 => Ok(crate::sign::Sign::Positive),
-            1 => Ok(crate::sign::Sign::Negative),
+            POSITIVE => Ok(Sign::Positive),
+            NEGATIVE => Ok(Sign::Negative),
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("invalid sign tag {}", tag),
