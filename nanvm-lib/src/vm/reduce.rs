@@ -1,16 +1,32 @@
-use crate::{common::default::default, vm::{Any, IVm}};
+use std::iter::once;
 
-pub trait Reduce<A: IVm, I: Default>: Sized + Iterator<Item = Result<I, Any<A>>> {
-    fn reduce_or_default(mut self, o: impl Fn(I, I) -> I) -> Result<I, Any<A>> {
+use crate::common::default::default;
+
+pub trait Iter<I, E>: Sized + Iterator<Item = Result<I, E>> {
+    fn reduce_or_default(mut self, o: impl Fn(I, I) -> I) -> Result<I, E>
+    where
+        I: Default,
+    {
         let mut res = match self.next() {
             None => return Ok(default()),
-            Some(res) => res?
+            Some(res) => res?,
         };
-        while let Some(v) = self.next() {
+        for v in self {
             res = o(res, v?)
         }
         Ok(res)
     }
+    fn intersperse(mut self, sep: I) -> impl Iterator<Item = Result<I, E>>
+    where
+        I: Clone,
+    {
+        // Take the first element separately so we can avoid prefixing with sep
+        let first = self.next();
+
+        first
+            .into_iter()
+            .chain(self.flat_map(move |x| once(Ok(sep.clone())).chain(once(x))))
+    }
 }
 
-impl<A: IVm, I: Default, T: Sized + Iterator<Item = Result<I, Any<A>>>> Reduce<A, I> for T {}
+impl<I, E, T: Sized + Iterator<Item = Result<I, E>>> Iter<I, E> for T {}

@@ -108,7 +108,10 @@ mod test {
     };
     use std::rc::Rc;
 
-    use crate::{common::default::default, nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE}};
+    use crate::{
+        common::default::default,
+        nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE},
+    };
 
     use super::{NaNEnum, NaNEnumPack};
 
