@@ -6,7 +6,6 @@ pub mod internal;
 pub mod naive;
 pub mod number;
 pub mod object;
-pub mod reduce;
 pub mod string16;
 pub mod string_coercion;
 pub mod to_any;
@@ -19,7 +18,6 @@ pub use crate::vm::{
     function::{Function, FunctionHeader},
     internal::{IContainer, IVm},
     object::{Object, Property},
-    reduce::Iter,
     string16::String16,
     to_any::ToAnyEx,
     unpacked::Unpacked,

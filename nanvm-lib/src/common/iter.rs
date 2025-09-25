@@ -1,5 +1,3 @@
-use std::iter::once;
-
 use crate::common::default::default;
 
 pub trait Iter<I, E>: Sized + Iterator<Item = Result<I, E>> {
@@ -7,25 +5,21 @@ pub trait Iter<I, E>: Sized + Iterator<Item = Result<I, E>> {
     where
         I: Default,
     {
-        let mut res = match self.next() {
+        let mut i = match self.next() {
             None => return Ok(default()),
             Some(res) => res?,
         };
         for v in self {
-            res = o(res, v?)
+            i = o(i, v?)
         }
-        Ok(res)
+        Ok(i)
     }
-    fn intersperse(mut self, sep: I) -> impl Iterator<Item = Result<I, E>>
+    fn intersperse(self, sep: I) -> impl Iterator<Item = Result<I, E>>
     where
         I: Clone,
     {
-        // Take the first element separately so we can avoid prefixing with sep
-        let first = self.next();
-
-        first
-            .into_iter()
-            .chain(self.flat_map(move |x| once(Ok(sep.clone())).chain(once(x))))
+        self.flat_map(move |x| [Ok(sep.clone()), x])
+            .skip(1)
     }
 }
 
