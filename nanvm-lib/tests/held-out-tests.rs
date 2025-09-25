@@ -101,10 +101,7 @@ pub fn test_number() {
 
 #[test]
 pub fn test_string() {
-    serialization_test::<naive::Any>(&[
-        "Hello".to_unknown(),
-        "".to_unknown(),
-    ]);
+    serialization_test::<naive::Any>(&["Hello".to_unknown(), "".to_unknown()]);
 }
 
 #[test]
@@ -130,7 +127,10 @@ pub fn test_object() {
     serialization_test::<naive::Any>(&[
         [].to_object_unknown(),
         [
-            ("a".to_string16::<naive::Any>(), Simple::Number(1.0).to_unknown()),
+            (
+                "a".to_string16::<naive::Any>(),
+                Simple::Number(1.0).to_unknown(),
+            ),
             ("b".to_string16::<naive::Any>(), "c".to_unknown()),
         ]
         .to_object_unknown(),
