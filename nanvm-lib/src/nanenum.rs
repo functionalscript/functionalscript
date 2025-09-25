@@ -108,7 +108,7 @@ mod test {
     };
     use std::rc::Rc;
 
-    use crate::nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE};
+    use crate::{common::default::default, nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE}};
 
     use super::{NaNEnum, NaNEnumPack};
 
@@ -146,7 +146,7 @@ mod test {
 
         impl Clone for P {
             fn clone(&self) -> Self {
-                Self::default()
+                default()
             }
         }
 

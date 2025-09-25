@@ -1,5 +1,5 @@
 use crate::{
-    common::serializable::Serializable,
+    common::{default::default, serializable::Serializable},
     sign::Sign,
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
@@ -20,7 +20,7 @@ impl<A: IVm> Default for BigInt<A> {
 impl<A: IVm> From<u64> for BigInt<A> {
     fn from(value: u64) -> Self {
         if value == 0 {
-            return BigInt::default();
+            return default();
         }
         BigInt(A::InternalBigInt::new_ok(Sign::Positive, [value]))
     }
@@ -29,7 +29,7 @@ impl<A: IVm> From<u64> for BigInt<A> {
 impl<A: IVm> From<i64> for BigInt<A> {
     fn from(value: i64) -> Self {
         if value == 0 {
-            return BigInt::default();
+            return default();
         }
         let (sign, v) = if value < 0 {
             (Sign::Negative, value.overflowing_neg().0 as u64)

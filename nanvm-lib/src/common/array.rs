@@ -1,3 +1,5 @@
+use crate::common::default::default;
+
 pub trait Array {
     const SIZE: usize;
     type Item: Default;
@@ -18,6 +20,6 @@ impl<T: Default + Copy, const SIZE: usize> Array for [T; SIZE] {
         self
     }
     fn new() -> Self {
-        [Default::default(); SIZE]
+        [default(); SIZE]
     }
 }
