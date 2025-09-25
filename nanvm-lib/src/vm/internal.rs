@@ -59,11 +59,11 @@ pub trait IContainer<A: IVm>: Sized + Clone {
         true
     }
 
-    fn collect(&self) -> Vec<Self::Item>
+    fn items_iter(&self) -> impl Iterator<Item = Self::Item>
     where
         Self::Item: Clone,
     {
-        (0..self.len()).map(|i| self.at(i)).collect()
+        (0..self.len()).map(|i| self.at(i))
     }
 
     fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {

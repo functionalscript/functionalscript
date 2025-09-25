@@ -51,10 +51,17 @@ impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
         Self(A::InternalArray::new_ok((), iter))
     }
 }
-
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        Ok("[object Array]".into())
+        let comma: String16<A> = ",".into();
+        let len = self.0.len();
+        let mut res = String16::default();
+        for i in 0..len {
+            if i != 0 {
+                res += comma.clone();
+            }
+            res += self.0.at(i).coerce_to_string()?;
+        }
+        Ok(res)
     }
 }

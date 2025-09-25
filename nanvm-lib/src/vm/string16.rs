@@ -5,6 +5,7 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter, Write},
     io,
+    ops::{Add, AddAssign},
 };
 
 #[derive(Clone)]
@@ -18,7 +19,7 @@ impl<A: IVm> Default for String16<A> {
 
 impl<A: IVm> From<&String16<A>> for std::string::String {
     fn from(value: &String16<A>) -> Self {
-        String::from_utf16_lossy(&value.0.collect())
+        String::from_utf16_lossy(&value.0.items_iter().collect::<Vec<_>>())
     }
 }
 
@@ -87,5 +88,21 @@ impl<A: IVm> Serializable for String16<A> {
 impl<A: IVm> StringCoercion<A> for String16<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
         Ok(self.clone())
+    }
+}
+
+impl<A: IVm> Add for String16<A> {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        String16(A::InternalString16::new_ok(
+            (),
+            self.0.items_iter().chain(rhs.0.items_iter()),
+        ))
+    }
+}
+
+impl<A: IVm> AddAssign for String16<A> {
+    fn add_assign(&mut self, other: Self) {
+        *self = self.clone() + other;
     }
 }
