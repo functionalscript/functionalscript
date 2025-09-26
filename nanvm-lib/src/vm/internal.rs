@@ -10,6 +10,27 @@ use std::{
     io, iter,
 };
 
+use std::marker::PhantomData;
+
+pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
+    container: C,
+    i: u32,
+    _p: PhantomData<A>,
+}
+
+impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
+    type Item = C::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        let i = self.i;
+        if i < self.container.len() {
+            self.i += 1;
+            Some(self.container.at(i))
+        } else {
+            None
+        }
+    }
+}
+
 pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
     type Header: PartialEq + Serializable;
@@ -59,11 +80,15 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         true
     }
 
-    fn items_iter(self) -> impl Iterator<Item = Self::Item>
+    fn items_iter(self) -> ContainerIterator<A, Self>
     where
         Self::Item: Clone,
     {
-        (0..self.len()).map(move|i| self.at(i))
+        ContainerIterator {
+            container: self,
+            i: 0,
+            _p: PhantomData,
+        }
     }
 
     fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {

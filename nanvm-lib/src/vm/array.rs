@@ -55,7 +55,8 @@ impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
 }
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        self.clone().0
+        self.clone()
+            .0
             .items_iter()
             .map(|v| v.coerce_to_string())
             .join(",".into())

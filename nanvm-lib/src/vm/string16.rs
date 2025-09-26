@@ -1,10 +1,13 @@
 use crate::{
     common::{iter::Iter, serializable::Serializable},
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, ToAnyEx, Unpacked},
+    vm::{
+        internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer, IVm,
+        ToAnyEx, Unpacked,
+    },
 };
 use std::{
     fmt::{Debug, Formatter, Write},
-    io, iter::{self, once},
+    io, iter,
     ops::{Add, AddAssign},
 };
 
@@ -83,6 +86,14 @@ impl<A: IVm> TryFrom<Any<A>> for String16<A> {
     }
 }
 
+impl<A: IVm> IntoIterator for String16<A> {
+    type Item = u16;
+    type IntoIter = ContainerIterator<A, A::InternalString16>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.items_iter()
+    }
+}
+
 impl<A: IVm> Serializable for String16<A> {
     fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
@@ -112,43 +123,10 @@ impl<A: IVm> AddAssign for String16<A> {
     }
 }
 
-enum Either<L, R> {
-    Left(L),
-    Right(R),
-}
-
-impl<L, R, T> Iterator for Either<L, R>
-where
-    L: Iterator<Item = T>,
-    R: Iterator<Item = T>,
-{
-    type Item = T;
-    fn next(&mut self) -> Option<T> {
-        match self {
-            Either::Left(l) => l.next(),
-            Either::Right(r) => r.next(),
-        }
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Either::Left(l) => l.size_hint(),
-            Either::Right(r) => r.size_hint(),
-        }
-    }
-}
-
 pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
     fn join(self, separator: String16<A>) -> Result<String16<A>, Any<A>> {
-        let x = self.intersperse(Ok(separator));
-        let y = x.flat_map(|v| {
-            match v {
-                Err(e) => Either::Left(once(Err(e))),
-                Ok(i) => Either::Right(i.0.items_iter().map(|v| Ok(v))),
-            }
-        });
-        //self.reduce_or_default(|a, b| a + separator.clone() + b)
-        let m = A::InternalString16::new((), y)?;
-        Ok(String16(m))
+        let i = self.intersperse_(Ok(separator)).try_flatten();
+        Ok(String16(A::InternalString16::new((), i)?))
     }
 }
 
