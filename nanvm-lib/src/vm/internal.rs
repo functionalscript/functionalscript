@@ -8,7 +8,7 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter, Write},
     io, iter,
-    marker::PhantomData
+    marker::PhantomData,
 };
 
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
