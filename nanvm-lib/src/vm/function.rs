@@ -41,7 +41,7 @@ impl<A: IVm> Debug for Function<A> {
         for i in 0..self.0.len() {
             write!(f, "{:02X}", self.0.at(i))?;
         }
-        f.write_str("}}")
+        f.write_str("}")
     }
 }
 
