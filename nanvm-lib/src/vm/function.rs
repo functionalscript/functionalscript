@@ -2,7 +2,7 @@ use crate::{
     common::serializable::Serializable,
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
-use core::fmt::{Debug, Formatter};
+use core::fmt::{Debug, Formatter, Write};
 use std::io;
 
 pub type FunctionHeader<A> = (String16<A>, u32);
@@ -39,7 +39,7 @@ impl<A: IVm> Debug for Function<A> {
         for i in 0..self.0.len() {
             write!(f, "{:02X}", self.0.at(i))?;
         }
-        f.write_str("}")
+        f.write_char('}')
     }
 }
 
@@ -47,7 +47,6 @@ impl<A: IVm> Serializable for Function<A> {
     fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }
-
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalFunction::deserialize(read).map(Self)
     }
