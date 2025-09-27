@@ -114,7 +114,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         let header = Self::Header::deserialize(read)?;
         let mut rem = u32::deserialize(read)?;
-        let x = iter::from_fn(|| {
+        let i = iter::from_fn(|| {
             if rem > 0 {
                 rem -= 1;
                 Some(Self::Item::deserialize(read))
@@ -122,7 +122,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
                 None
             }
         });
-        Self::new(header, x)
+        Self::new(header, i)
     }
 }
 
