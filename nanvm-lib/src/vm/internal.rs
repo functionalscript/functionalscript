@@ -8,9 +8,8 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter, Write},
     io, iter,
+    marker::PhantomData
 };
-
-use std::marker::PhantomData;
 
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
     container: C,
@@ -93,13 +92,11 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
 
     fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char(open)?;
-        let mut first = true;
         for i in 0..self.len() {
-            if !first {
+            if i > 0 {
                 f.write_char(',')?;
             }
             self.at(i).fmt(f)?;
-            first = false;
         }
         f.write_char(close)
     }
