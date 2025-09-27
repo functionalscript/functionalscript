@@ -82,7 +82,7 @@ impl<A: IVm> Debug for BigInt<A> {
 }
 
 impl<A: IVm> Serializable for BigInt<A> {
-    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }
 

@@ -46,7 +46,7 @@ impl<A: IVm> Debug for Function<A> {
 }
 
 impl<A: IVm> Serializable for Function<A> {
-    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }
 

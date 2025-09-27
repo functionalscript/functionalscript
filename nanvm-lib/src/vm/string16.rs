@@ -95,7 +95,7 @@ impl<A: IVm> IntoIterator for String16<A> {
 }
 
 impl<A: IVm> Serializable for String16<A> {
-    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }
 

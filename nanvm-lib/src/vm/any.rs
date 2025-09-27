@@ -73,8 +73,8 @@ impl<A: IVm> TryFrom<Any<A>> for f64 {
 }
 
 impl<A: IVm> Serializable for Any<A> {
-    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        self.0.clone().to_unpacked().serialize(write)
+    fn serialize(self, write: &mut impl Write) -> io::Result<()> {
+        self.0.to_unpacked().serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         Ok(Unpacked::deserialize(read)?.into())

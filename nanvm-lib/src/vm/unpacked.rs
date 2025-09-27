@@ -123,13 +123,13 @@ const FUNCTION: u8 = 0b0011_0010;
 // Operations 0b01XX_XXXX:
 const _CONST_REF: u8 = 0b0100_0000;
 
-fn serialize(write: &mut impl Write, tag: u8, value: &impl Serializable) -> io::Result<()> {
+fn serialize(write: &mut impl Write, tag: u8, value: impl Serializable) -> io::Result<()> {
     write.write_all(&[tag])?;
     value.serialize(write)
 }
 
 impl<A: IVm> Serializable for Unpacked<A> {
-    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl Write) -> io::Result<()> {
         match self {
             Unpacked::Nullish(v) => {
                 let tag = match v {

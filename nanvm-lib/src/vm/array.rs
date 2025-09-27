@@ -40,7 +40,7 @@ impl<A: IVm> std::fmt::Debug for Array<A> {
 }
 
 impl<A: IVm> Serializable for Array<A> {
-    fn serialize(&self, writer: &mut impl io::Write) -> io::Result<()> {
+    fn serialize(self, writer: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(writer)
     }
     fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {

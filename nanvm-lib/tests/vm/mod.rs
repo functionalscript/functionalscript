@@ -344,7 +344,7 @@ fn serialization<A: IVm>() {
 
     for value in values.into_iter() {
         let mut buf = Vec::new();
-        value.serialize(&mut buf).unwrap();
+        value.clone().serialize(&mut buf).unwrap();
         let mut cursor = Cursor::new(buf);
         let result = Any::deserialize(&mut cursor).unwrap();
         assert!(eq_value(&value, &result));
