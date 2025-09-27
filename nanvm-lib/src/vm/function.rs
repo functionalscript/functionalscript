@@ -2,10 +2,8 @@ use crate::{
     common::serializable::Serializable,
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
-use std::{
-    fmt::{Debug, Formatter},
-    io,
-};
+use core::fmt::{Debug, Formatter};
+use std::io;
 
 pub type FunctionHeader<A> = (String16<A>, u32);
 

@@ -1,4 +1,4 @@
-use crate::common::default::default;
+use super::default::default;
 
 pub trait Array {
     const SIZE: usize;

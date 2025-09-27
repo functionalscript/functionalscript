@@ -3,10 +3,8 @@ use crate::{
     sign::Sign,
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
-use std::{
-    fmt::{Debug, Formatter, Write},
-    io,
-};
+use core::fmt::{Debug, Formatter, Write};
+use std::io;
 
 #[derive(Clone)]
 pub struct BigInt<A: IVm>(pub A::InternalBigInt);

@@ -1,4 +1,5 @@
-use std::{fmt::Debug, rc::Rc};
+use core::fmt::Debug;
+use std::rc::Rc;
 
 use crate::{
     common::serializable::Serializable,

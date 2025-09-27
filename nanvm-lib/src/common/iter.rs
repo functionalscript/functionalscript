@@ -1,6 +1,6 @@
-use std::iter::once;
+use core::iter::once;
 
-use crate::common::default::default;
+use super::default::default;
 
 pub enum Either<L, R> {
     Left(L),

@@ -3,10 +3,8 @@ use crate::{
     nullish::Nullish,
     vm::{string_coercion::StringCoercion, Any, Array, BigInt, Function, IVm, Object, String16},
 };
-use std::{
-    fmt::Debug,
-    io::{self, Read, Write},
-};
+use core::fmt::Debug;
+use std::io::{self, Read, Write};
 
 #[derive(Clone)]
 pub enum Unpacked<A: IVm> {

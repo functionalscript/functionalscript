@@ -5,11 +5,12 @@ use crate::{
     vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
 };
 
-use std::{
+use core::{
     fmt::{Debug, Formatter, Write},
-    io, iter,
+    iter,
     marker::PhantomData,
 };
+use std::io;
 
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
     container: C,

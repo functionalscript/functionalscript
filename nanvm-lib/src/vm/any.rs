@@ -3,10 +3,8 @@ use crate::{
     nullish::Nullish,
     vm::{string_coercion::StringCoercion, IVm, String16, ToAnyEx, Unpacked},
 };
-use std::{
-    fmt::{Debug, Formatter},
-    io::{self, Read, Write},
-};
+use core::fmt::{Debug, Formatter};
+use std::io::{self, Read, Write};
 
 #[derive(Clone)]
 pub struct Any<A: IVm>(pub A);

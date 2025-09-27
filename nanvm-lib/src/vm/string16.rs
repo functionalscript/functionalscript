@@ -5,11 +5,12 @@ use crate::{
         ToAnyEx, Unpacked,
     },
 };
-use std::{
+use core::{
     fmt::{Debug, Formatter, Write},
-    io, iter,
+    iter,
     ops::{Add, AddAssign},
 };
+use std::io;
 
 #[derive(Clone)]
 pub struct String16<A: IVm>(pub A::InternalString16);
