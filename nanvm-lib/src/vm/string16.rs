@@ -1,35 +1,43 @@
 use crate::{
-    common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, ToAnyEx, Unpacked},
+    common::{iter::Iter, serializable::Serializable},
+    vm::{
+        internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer, IVm,
+        ToAnyEx, Unpacked,
+    },
 };
-use std::{
-    fmt::{Debug, Formatter, Write}, io, iter, ops::{Add, AddAssign}
+use core::{
+    fmt::{Debug, Formatter, Write},
+    iter,
+    ops::{Add, AddAssign},
 };
+use std::io;
 
 #[derive(Clone)]
 pub struct String16<A: IVm>(pub A::InternalString16);
 
-impl<A: IVm> String16<A> {
-    fn new(i: impl IntoIterator<Item = u16>) -> Self {
-        String16(A::InternalString16::new_ok((), i))
+pub trait ToString16<A: IVm>: Sized + IntoIterator<Item = u16> {
+    fn to_string16(self) -> String16<A> {
+        String16(A::InternalString16::new_ok((), self))
     }
 }
+
+impl<T: Sized + IntoIterator<Item = u16>, A: IVm> ToString16<A> for T {}
 
 impl<A: IVm> Default for String16<A> {
     fn default() -> Self {
-        Self::new(iter::empty())
+        iter::empty().to_string16()
     }
 }
 
-impl<A: IVm> From<&String16<A>> for std::string::String {
-    fn from(value: &String16<A>) -> Self {
-        String::from_utf16_lossy(&value.0.items_iter().collect::<Vec<_>>())
+impl<A: IVm> From<String16<A>> for String {
+    fn from(value: String16<A>) -> Self {
+        String::from_utf16_lossy(&value.into_iter().collect::<Vec<_>>())
     }
 }
 
 impl<A: IVm> From<&str> for String16<A> {
     fn from(value: &str) -> Self {
-        String16::new(value.encode_utf16())
+        value.encode_utf16().to_string16()
     }
 }
 
@@ -79,8 +87,16 @@ impl<A: IVm> TryFrom<Any<A>> for String16<A> {
     }
 }
 
+impl<A: IVm> IntoIterator for String16<A> {
+    type Item = u16;
+    type IntoIter = ContainerIterator<A, A::InternalString16>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.items_iter()
+    }
+}
+
 impl<A: IVm> Serializable for String16<A> {
-    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }
 
@@ -98,7 +114,7 @@ impl<A: IVm> StringCoercion<A> for String16<A> {
 impl<A: IVm> Add for String16<A> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        String16::new(self.0.items_iter().chain(rhs.0.items_iter()))
+        self.into_iter().chain(rhs).to_string16()
     }
 }
 
@@ -107,3 +123,12 @@ impl<A: IVm> AddAssign for String16<A> {
         *self = self.clone() + other;
     }
 }
+
+pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
+    fn join(self, separator: String16<A>) -> Result<String16<A>, Any<A>> {
+        let i = self.intersperse_(Ok(separator)).try_flatten();
+        Ok(String16(A::InternalString16::new((), i)?))
+    }
+}
+
+impl<A: IVm, T: Sized + Iterator<Item = Result<String16<A>, Any<A>>>> Join<A> for T {}

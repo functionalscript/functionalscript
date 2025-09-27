@@ -1,6 +1,6 @@
-use core::fmt;
-use std::{
+use core::{
     char::decode_utf16,
+    fmt,
     ops::{Add, Div, Mul, Shl, Shr, Sub},
 };
 

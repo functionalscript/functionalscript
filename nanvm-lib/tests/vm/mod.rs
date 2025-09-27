@@ -1,7 +1,5 @@
-use std::i64;
-
 use nanvm_lib::{
-    common::serializable::Serializable,
+    common::{default::default, serializable::Serializable},
     nullish::Nullish,
     vm::{
         naive, string_coercion::StringCoercion, Any, Array, BigInt, IContainer, IVm, Object,
@@ -130,7 +128,7 @@ fn bigint_eq<A: IVm>() {
     let b1 = BigInt::default().to_any();
     assert_eq!(b0, b1);
     let z: BigInt<_> = b0.try_into().unwrap();
-    assert_eq!(z, BigInt::default());
+    assert_eq!(z, default());
     let x = format!("{z:?}");
     assert_eq!(x, "0n");
 
@@ -344,7 +342,7 @@ fn serialization<A: IVm>() {
 
     for value in values.into_iter() {
         let mut buf = Vec::new();
-        value.serialize(&mut buf).unwrap();
+        value.clone().serialize(&mut buf).unwrap();
         let mut cursor = Cursor::new(buf);
         let result = Any::deserialize(&mut cursor).unwrap();
         assert!(eq_value(&value, &result));

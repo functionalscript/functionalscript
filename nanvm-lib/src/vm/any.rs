@@ -3,10 +3,8 @@ use crate::{
     nullish::Nullish,
     vm::{string_coercion::StringCoercion, IVm, String16, ToAnyEx, Unpacked},
 };
-use std::{
-    fmt::{Debug, Formatter},
-    io::{self, Read, Write},
-};
+use core::fmt::{Debug, Formatter};
+use std::io::{self, Read, Write};
 
 #[derive(Clone)]
 pub struct Any<A: IVm>(pub A);
@@ -73,8 +71,8 @@ impl<A: IVm> TryFrom<Any<A>> for f64 {
 }
 
 impl<A: IVm> Serializable for Any<A> {
-    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
-        self.0.clone().to_unpacked().serialize(write)
+    fn serialize(self, write: &mut impl Write) -> io::Result<()> {
+        self.0.to_unpacked().serialize(write)
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         Ok(Unpacked::deserialize(read)?.into())
