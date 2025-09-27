@@ -116,13 +116,16 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         let header = Self::Header::deserialize(read)?;
-        let len = u32::deserialize(read)?;
-        // TODO: remove the allocation by using a custom iterator.
-        let mut items = Vec::with_capacity(len as usize);
-        for _ in 0..len {
-            items.push(Self::Item::deserialize(read)?);
-        }
-        Ok(Self::new_ok(header, items))
+        let mut rem = u32::deserialize(read)?;
+        let x = iter::from_fn(|| {
+            if rem > 0 {
+                rem -= 1;
+                Some(Self::Item::deserialize(read))
+            } else {
+                None
+            }
+        });
+        Self::new(header, x)
     }
 }
 
