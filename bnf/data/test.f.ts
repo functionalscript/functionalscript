@@ -256,19 +256,17 @@ export default {
             expect('b', false)
         },
         () => {            
-            const onenine = range('19')   
-
-            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-                    open,
-                    join0Plus(a, ','),
-                    close,
-                ]
+            const onenine = range('19')
              
             const value = () => ({                
-                array: commaJoin0Plus('[]', value),
-                object: commaJoin0Plus('{}', [onenine, ':', value]),                
+                object: ['{', onenine],
+                array: ['[', onenine],
                 onenine
             })
+
+            //  const data = toData(value)
+            // const dm = dispatchMap(data[0])
+            // console.log(JSON.stringify(dm))
 
             const m = parser(value)
 
@@ -280,12 +278,9 @@ export default {
                 }
             }
             
-            expect('[]', true)
-            expect('[1]', true)
-            // expect('[true,true]', true)
-            // expect('[1,2]', true)
-            // expect('[1,2,]', false)
-            // expect('[,]', false)
+            
+            expect('[1', true) //fail, if array after object
+            expect('{1', true) //fail, if object after array
         },
         () => {            
             
