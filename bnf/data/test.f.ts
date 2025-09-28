@@ -305,9 +305,9 @@ export default {
                     close,
                 ]              
              
-            const value = () => ({
-                //object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
+            const value = () => ({                
                 array: commaJoin0Plus('[]', value),
+                object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
                 string,
                 number,
                 true: 'true',
@@ -356,7 +356,7 @@ export default {
             expect('   h-56.7e+5   ', false)
             expect('   -56.7e+5   3', false)
             expect('   [] ', true)
-            //expect('   {} ', true)
+            expect('   {} ', true)
             expect('   [1] ', true)
             expect('   [ 12, false, "a"]  ', true)
             expect('   [ 12, false2, "a"]  ', false)
