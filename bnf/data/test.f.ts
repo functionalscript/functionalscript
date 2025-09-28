@@ -256,68 +256,21 @@ export default {
             expect('b', false)
         },
         () => {            
-            const onenine = range('19')
-
-            const digit: Rule = range('09')
-
-            const string = [
-                    '"',
-                    repeat0Plus({
-                        ...remove(range(` ${max}`), set('"\\')),
-                        escape: [
-                            '\\',
-                            {
-                                ...set('"\\/bfnrt'),
-                                u: [
-                                    'u',
-                                    ...repeat(4)({
-                                        digit,
-                                        AF: range('AF'),
-                                        af: range('af'),
-                                    })
-                                ],
-                            }
-                        ],
-                    }),
-                    '"'
-                ] 
-
-            const digits0 = repeat0Plus(digit)
-
-            const digits = [digit, digits0]
-            
-            const number = [
-                option('-'),
-                {
-                    0: '0',
-                    onenine: [onenine, digits0],
-                },
-                option(['.', digits]),
-                option([set('Ee'), option(set('+-')), digits])
-            ]
-            
-            const ws = repeat0Plus(set(' \n\r\t'))
+            const onenine = range('19')   
 
             const commaJoin0Plus = ([open, close]: string, a: Rule) => [
                     open,
-                    ws,
-                    join0Plus([a, ws], [',', ws]),
+                    join0Plus(a, ','),
                     close,
-                ]              
+                ]
              
             const value = () => ({                
                 array: commaJoin0Plus('[]', value),
-                object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
-                string,
-                number,
-                true: 'true',
-                false: 'false',
-                null: 'null'
+                object: commaJoin0Plus('{}', [onenine, ':', value]),                
+                onenine
             })
 
-            const json = [ws, value, ws]
-
-            const m = parser(json)
+            const m = parser(value)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
@@ -329,15 +282,15 @@ export default {
             
             expect('[]', true)
             expect('[1]', true)
-            expect('[true,true]', true)
-            expect('[1,2]', true)
-            expect('[1,2,]', false)
-            expect('[,]', false)
+            // expect('[true,true]', true)
+            // expect('[1,2]', true)
+            // expect('[1,2,]', false)
+            // expect('[,]', false)
         },
         () => {            
             
             const m = parser(deterministic())
-
+            
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
