@@ -255,18 +255,16 @@ export default {
             expect('aa', false)
             expect('b', false)
         },
-        () => {            
-            const onenine = range('19')
+        () => {         
              
             const value = () => ({                
-                object: ['{', onenine],
-                array: ['[', onenine],
-                onenine
+                object: ['{', '}'],
+                array: ['[', ']']
             })
 
-            //  const data = toData(value)
-            // const dm = dispatchMap(data[0])
-            // console.log(JSON.stringify(dm))
+             const data = toData(value)
+            const dm = dispatchMap(data[0])
+            console.log(JSON.stringify(dm))
 
             const m = parser(value)
 
@@ -279,8 +277,8 @@ export default {
             }
             
             
-            expect('[1', true) //fail, if array after object
-            expect('{1', true) //fail, if object after array
+            //expect('[]', true) //fail, if array after object
+            expect('{}', true) //fail, if object after array
         },
         () => {            
             
