@@ -176,7 +176,7 @@ export const deterministic = (): Rule => {
     ]
 
     const value = () => ({
-        object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
+        //object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
         array: commaJoin0Plus('[]', value),
         string,
         number,

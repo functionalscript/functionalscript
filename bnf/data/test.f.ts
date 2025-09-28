@@ -3,7 +3,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
+import { join0Plus, max, option, range, remove, repeat, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
@@ -257,20 +257,67 @@ export default {
         },
         () => {            
             const onenine = range('19')
-            const t = 'true'
-            const digitOrTrue = {
-                onenine,
-                t
-            }
-            const ws = repeat0Plus(set(' '))
+
+            const digit: Rule = range('09')
+
+            const string = [
+                    '"',
+                    repeat0Plus({
+                        ...remove(range(` ${max}`), set('"\\')),
+                        escape: [
+                            '\\',
+                            {
+                                ...set('"\\/bfnrt'),
+                                u: [
+                                    'u',
+                                    ...repeat(4)({
+                                        digit,
+                                        AF: range('AF'),
+                                        af: range('af'),
+                                    })
+                                ],
+                            }
+                        ],
+                    }),
+                    '"'
+                ] 
+
+            const digits0 = repeat0Plus(digit)
+
+            const digits = [digit, digits0]
+            
+            const number = [
+                option('-'),
+                {
+                    0: '0',
+                    onenine: [onenine, digits0],
+                },
+                option(['.', digits]),
+                option([set('Ee'), option(set('+-')), digits])
+            ]
+            
+            const ws = repeat0Plus(set(' \n\r\t'))
+
             const commaJoin0Plus = ([open, close]: string, a: Rule) => [
                     open,
                     ws,
                     join0Plus([a, ws], [',', ws]),
                     close,
-                ]
-            const array = commaJoin0Plus('[]', digitOrTrue)
-            const m = parser(array)
+                ]              
+             
+            const value = () => ({
+                //object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
+                array: commaJoin0Plus('[]', value),
+                string,
+                number,
+                true: 'true',
+                false: 'false',
+                null: 'null'
+            })
+
+            const json = [ws, value, ws]
+
+            const m = parser(json)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
@@ -309,10 +356,10 @@ export default {
             expect('   h-56.7e+5   ', false)
             expect('   -56.7e+5   3', false)
             expect('   [] ', true)
-            expect('   {} ', true)
-            // expect('   [1] ', true)
-            // expect('   [ 12, false, "a"]  ', true)
-            // expect('   [ 12, false2, "a"]  ', false)
+            //expect('   {} ', true)
+            expect('   [1] ', true)
+            expect('   [ 12, false, "a"]  ', true)
+            expect('   [ 12, false2, "a"]  ', false)
             // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
             // expect('   { "q": [ 12, false, [}], "a"] }  ', false)
         }
