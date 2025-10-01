@@ -1,4 +1,4 @@
-use crate::vm::{Any, IVm};
+use super::{Any, IVm};
 
 pub trait ToAnyEx {
     fn to_any<A: IVm>(self) -> Any<A>
