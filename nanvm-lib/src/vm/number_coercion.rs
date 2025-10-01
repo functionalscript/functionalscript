@@ -26,4 +26,3 @@ impl<A: IVm> NumberCoercion<A> for Nullish {
         })
     }
 }
-

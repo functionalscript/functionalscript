@@ -2,10 +2,8 @@ use crate::{
     common::serializable::Serializable,
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
 };
-use std::{
-    fmt::{Debug, Formatter},
-    io,
-};
+use core::fmt::{Debug, Formatter, Write};
+use std::io;
 
 pub type FunctionHeader<A> = (String16<A>, u32);
 
@@ -32,7 +30,7 @@ impl<A: IVm> TryFrom<Any<A>> for Function<A> {
 impl<A: IVm> Debug for Function<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let header = self.0.header();
-        let name: std::string::String = (&header.0).into();
+        let name: String = header.0.clone().into();
         let args = (0..header.1)
             .map(|i| format!("a{i}"))
             .collect::<Vec<_>>()
@@ -41,15 +39,14 @@ impl<A: IVm> Debug for Function<A> {
         for i in 0..self.0.len() {
             write!(f, "{:02X}", self.0.at(i))?;
         }
-        f.write_str("}}")
+        f.write_char('}')
     }
 }
 
 impl<A: IVm> Serializable for Function<A> {
-    fn serialize(&self, write: &mut impl io::Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.0.serialize(write)
     }
-
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalFunction::deserialize(read).map(Self)
     }
