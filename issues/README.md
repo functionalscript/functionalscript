@@ -264,7 +264,8 @@ logic should be moved to a private free floating helper function (to keep public
           }
       }      
   }
-  ```    
+  ```
+- [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers    
 
 ## Language Specification
 
