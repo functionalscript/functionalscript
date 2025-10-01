@@ -3,7 +3,9 @@ use crate::{
     vm::{string_coercion::StringCoercion, Any, IContainer, IVm, ToAnyEx, Unpacked},
 };
 use std::{
-    fmt::{Debug, Formatter, Write}, io, iter, ops::{Add, AddAssign}
+    fmt::{Debug, Formatter, Write},
+    io, iter,
+    ops::{Add, AddAssign},
 };
 
 #[derive(Clone)]
