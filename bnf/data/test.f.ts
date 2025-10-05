@@ -270,6 +270,8 @@ export default {
                 array: commaJoin0Plus('[]', 'a')
             })
 
+            value.name //bun will fail if no usage of name found
+
             const m = parser(value)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
