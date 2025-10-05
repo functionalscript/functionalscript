@@ -3,7 +3,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
+import { join0Plus, max, option, range, remove, repeat, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
 
@@ -255,42 +255,41 @@ export default {
             expect('aa', false)
             expect('b', false)
         },
-        () => {            
-            const onenine = range('19')
-            const t = 'true'
-            const digitOrTrue = {
-                onenine,
-                t
-            }
-            const ws = repeat0Plus(set(' '))
+        () => {       
+            const ws = repeat0Plus(set(' \n\r\t'))
+
             const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-                    open,
-                    ws,
-                    join0Plus([a, ws], [',', ws]),
-                    close,
-                ]
-            const array = commaJoin0Plus('[]', digitOrTrue)
-            const m = parser(array)
+                open,
+                ws,
+                join0Plus([a, ws], [',', ws]),
+                close,
+            ]
+             
+            const value = () => ({                
+                object: commaJoin0Plus('{}', 'a'),
+                array: commaJoin0Plus('[]', 'a')
+            })
+
+            value.name //bun will fail if no usage of name found
+
+            const m = parser(value)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
-                const mr = m('', toArray(stringToCodePointList(s)))
+                const mr = m('value', toArray(stringToCodePointList(s)))
                 if (isSuccess(mr) !== success) {
                     throw mr
                 }
-            }
+            }            
             
             expect('[]', true)
-            expect('[1]', true)
-            expect('[true,true]', true)
-            expect('[1,2]', true)
-            expect('[1,2,]', false)
-            expect('[,]', false)
+            expect('[a]', true)            
+            expect('[a, a]', true)            
+            expect('{a}', true)
         },
-        () => {            
-            
+        () => {
             const m = parser(deterministic())
-
+            
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
@@ -310,11 +309,15 @@ export default {
             expect('   -56.7e+5   3', false)
             expect('   [] ', true)
             expect('   {} ', true)
-            // expect('   [1] ', true)
-            // expect('   [ 12, false, "a"]  ', true)
-            // expect('   [ 12, false2, "a"]  ', false)
-            // expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-            // expect('   { "q": [ 12, false, [}], "a"] }  ', false)
+            expect('   [[[]]] ', true)
+            expect('   [1] ', true)
+            expect('   [ 12, false, "a"]  ', true)
+            expect('   [ 12, false2, "a"]  ', false)
+            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
+            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+            expect('   { "q": [ 12, false, [}], "a"] }  ', false)
+            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
+            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
     ],    
     repeat: [
