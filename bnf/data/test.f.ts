@@ -261,7 +261,7 @@ export default {
             const commaJoin0Plus = ([open, close]: string, a: Rule) => [
                 open,
                 ws,
-                //join0Plus([a, ws], [',', ws]),
+                join0Plus([a, ws], [',', ws]),
                 close,
             ]
              
@@ -283,8 +283,8 @@ export default {
                 }
             }            
             
-            expect('[]', true)
-            expect('{}', true)
+            expect('[a]', true)
+            expect('{a}', true)
         },
         () => {
             const m = parser(deterministic())
