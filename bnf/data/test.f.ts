@@ -255,11 +255,19 @@ export default {
             expect('aa', false)
             expect('b', false)
         },
-        () => {         
+        () => {       
+            const ws = repeat0Plus(set(' \n\r\t'))
+
+            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+                open,
+                ws,
+                //join0Plus([a, ws], [',', ws]),
+                close,
+            ]
              
             const value = () => ({                
-                object: ['{', '}'],
-                array:['[', ']']
+                object: commaJoin0Plus('{}', 'a'),
+                array: commaJoin0Plus('[]', 'a')
             })
             
             const data = toData(value)
