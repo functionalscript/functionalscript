@@ -258,8 +258,8 @@ export default {
         () => {         
              
             const value = () => ({                
-                object: ['{', '}'],
-                array: ['[', ']']
+                object: '{',
+                array:'['
             })
 
              const data = toData(value)
@@ -277,8 +277,8 @@ export default {
             }
             
             
-            //expect('[]', true) //fail, if array after object
-            expect('{}', true) //fail, if object after array
+            expect('[', true) //fail, if array after object
+            expect('{', true) //fail, if object after array
         },
         () => {            
             
