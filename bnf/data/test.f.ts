@@ -261,27 +261,21 @@ export default {
                 object: '{',
                 array:'['
             })
-
-             const data = toData(value)
-            const dm = dispatchMap(data[0])
-            console.log(JSON.stringify(dm))
-
+            
             const m = parser(value)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
             const expect = (s: string, success: boolean) => {
-                const mr = m('', toArray(stringToCodePointList(s)))
+                const mr = m('value', toArray(stringToCodePointList(s)))
                 if (isSuccess(mr) !== success) {
                     throw mr
                 }
-            }
+            }            
             
-            
-            expect('[', true) //fail, if array after object
-            expect('{', true) //fail, if object after array
+            expect('[', true)
+            expect('{', true)
         },
-        () => {            
-            
+        () => {
             const m = parser(deterministic())
             
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
