@@ -258,10 +258,13 @@ export default {
         () => {         
              
             const value = () => ({                
-                object: '{',
-                array:'['
+                object: ['{', '}'],
+                array:['[', ']']
             })
             
+            const data = toData(value)
+            const dm = dispatchMap(data[0])
+            console.log(JSON.stringify(dm))
             const m = parser(value)
 
             const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
@@ -272,8 +275,8 @@ export default {
                 }
             }            
             
-            expect('[', true)
-            expect('{', true)
+            expect('[]', true)
+            expect('{}', true)
         },
         () => {
             const m = parser(deterministic())
