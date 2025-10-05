@@ -311,6 +311,7 @@ export default {
             expect('   [1] ', true)
             expect('   [ 12, false, "a"]  ', true)
             expect('   [ 12, false2, "a"]  ', false)
+            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
             expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
             expect('   { "q": [ 12, false, [}], "a"] }  ', false)
             expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
