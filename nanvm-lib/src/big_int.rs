@@ -2,7 +2,7 @@
  * Initial implementation of BigInt based on https://github.com/functionalscript/nanvm/tree/main/nanvm-lib/src/big_numbers/big_int.rs
  * Credits: https://github.com/Trinidadec
  */
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 use crate::{
     big_uint::BigUint,

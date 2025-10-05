@@ -1,4 +1,5 @@
-use std::{fmt::Debug, rc::Rc};
+use core::fmt::Debug;
+use std::rc::Rc;
 
 use crate::{
     common::serializable::Serializable,
@@ -33,8 +34,8 @@ pub struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone + PartialEq + Serializable, I: Clone + Debug + Serializable> IContainer<InternalAny>
-    for Container<H, I>
+impl<H: Clone + PartialEq + Serializable + 'static, I: Clone + Debug + Serializable + 'static>
+    IContainer<InternalAny> for Container<H, I>
 {
     type Header = H;
     type Item = I;
