@@ -2,8 +2,8 @@ use nanvm_lib::{
     common::{default::default, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        naive, string_coercion::StringCoercion, Any, Array, BigInt, IContainer, IVm, Object,
-        Property, String16, ToAnyEx, Unpacked,
+        naive, string_coercion::StringCoercion, Any, Array, BigInt, Function, IContainer, IVm,
+        Object, Property, String16, ToAnyEx, Unpacked,
     },
 };
 
@@ -396,6 +396,15 @@ fn array_coerce_to_string<A: IVm>() {
     assert_eq!(a.coerce_to_string(), Ok("1,2,3,4".into()));
 }
 
+fn format_fn<A: IVm>() {
+    let f = Function::<A>(A::InternalFunction::new_ok(
+        ("myfunc".into(), 2),
+        [0xDE, 0xAD, 0xBE, 0xEF],
+    ));
+    let x = format!("{f:?}");
+    assert_eq!(x, "function myfunc(a0,a1) {DEADBEEF}");
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -409,6 +418,7 @@ fn gen_test<A: IVm>() {
     number_coerce_to_string::<A>();
     array_coerce_to_string::<A>();
     //
+    format_fn::<A>();
 }
 
 #[test]

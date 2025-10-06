@@ -1,6 +1,9 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked},
+    vm::{
+        string_coercion::{StringCoercion, ToString16Result},
+        Any, IContainer, IVm, String16, Unpacked,
+    },
 };
 use core::fmt::{self, Debug, Formatter};
 use std::io;

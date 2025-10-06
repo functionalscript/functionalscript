@@ -1,6 +1,9 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked},
+    vm::{
+        string_coercion::{StringCoercion, ToString16Result},
+        Any, IContainer, IVm, String16, Unpacked,
+    },
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
@@ -31,6 +34,7 @@ impl<A: IVm> Debug for Function<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let header = self.0.header();
         let name: String = header.0.clone().into();
+        // TODO: remove `collect`.
         let args = (0..header.1)
             .map(|i| format!("a{i}"))
             .collect::<Vec<_>>()

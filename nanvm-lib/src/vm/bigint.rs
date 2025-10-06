@@ -1,7 +1,10 @@
 use crate::{
     common::{default::default, serializable::Serializable},
     sign::Sign,
-    vm::{string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked},
+    vm::{
+        string_coercion::{StringCoercion, ToString16Result},
+        Any, IContainer, IVm, String16, Unpacked,
+    },
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
