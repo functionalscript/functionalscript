@@ -1,6 +1,6 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
+    vm::{string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked},
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
@@ -55,6 +55,6 @@ impl<A: IVm> Serializable for Function<A> {
 impl<A: IVm> StringCoercion<A> for Function<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        Ok("[object Function]".into())
+        "[object Function]".to_string16_result()
     }
 }

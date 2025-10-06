@@ -1,8 +1,8 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
+    vm::{string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked},
 };
-use core::fmt::{Debug, Formatter};
+use core::fmt::{self, Debug, Formatter};
 use std::io;
 
 pub type Property<A> = (String16<A>, Any<A>);
@@ -34,7 +34,7 @@ impl<A: IVm> TryFrom<Any<A>> for Object<A> {
 }
 
 impl<A: IVm> Debug for Object<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.items_fmt('{', '}', f)
     }
 }
@@ -57,6 +57,6 @@ impl<A: IVm, T: IntoIterator<Item = Property<A>>> From<T> for Object<A> {
 impl<A: IVm> StringCoercion<A> for Object<A> {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        Ok("[object Object]".into())
+        "[object Object]".to_string16_result()
     }
 }

@@ -16,20 +16,30 @@ pub trait StringCoercion<A: IVm> {
 
 impl<A: IVm> StringCoercion<A> for bool {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        Ok((match self {
+        match self {
             true => "true",
             false => "false",
-        })
-        .into())
+        }
+        .to_string16_result()
     }
 }
 
 impl<A: IVm> StringCoercion<A> for Nullish {
     fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        Ok((match self {
+        match self {
             Nullish::Null => "null",
             Nullish::Undefined => "undefined",
-        })
-        .into())
+        }
+        .to_string16_result()
+    }
+}
+
+pub trait ToString16Result<A: IVm> {
+    fn to_string16_result(self) -> Result<String16<A>, Any<A>>;
+}
+
+impl<A: IVm> ToString16Result<A> for &str {
+    fn to_string16_result(self) -> Result<String16<A>, Any<A>> {
+        Ok(self.into())
     }
 }
