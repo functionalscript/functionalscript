@@ -4,11 +4,12 @@ import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 
 // Types
 
-/** 
- * A range of symbols (48 bits) 
+/**
+ * A range of symbols. Two 24-bit numbers are stored in one JS number (48 bits).
+ *
  * For example: 0xBBBBBB_EEEEEE
- * - 0xBBBBBB is the first symbol
- * - 0xEEEEEE is the last symbol
+ * - 0xBBBBBB is the first symbol (24 bits)
+ * - 0xEEEEEE is the last symbol (24 bits)
  */
 export type TerminalRange = number
 
@@ -132,12 +133,12 @@ export type None = readonly[]
 export const none: None = []
 
 export type Option<S> = {
-    some: S    
+    some: S
     none: None
 }
 
 export const option = <S extends Rule>(some: S): Option<S> => ({
-    some,    
+    some,
     none,
 })
 
