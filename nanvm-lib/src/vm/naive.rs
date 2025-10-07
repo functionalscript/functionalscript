@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Index};
 use std::rc::Rc;
 
 use crate::{
@@ -36,6 +36,13 @@ pub struct Container<H, I> {
     items: Rc<[I]>,
 }
 
+impl<H, I> Index<u32> for Container<H, I> {
+    type Output = I;
+    fn index(&self, index: u32) -> &Self::Output {
+        &self.items[index as usize]
+    }
+}
+
 impl<H: Clone + PartialEq + Serializable + 'static, I: Clone + Debug + Serializable + 'static>
     IContainer<InternalAny> for Container<H, I>
 {
@@ -58,10 +65,6 @@ impl<H: Clone + PartialEq + Serializable + 'static, I: Clone + Debug + Serializa
 
     fn len(&self) -> u32 {
         self.items.len() as u32
-    }
-
-    fn at(&self, i: u32) -> Self::Item {
-        self.items[i as usize].clone()
     }
 
     fn ptr_eq(&self, other: &Self) -> bool {

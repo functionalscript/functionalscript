@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use core::fmt::{Debug, Formatter, Write};
-use std::io;
+use std::{io, ops::Index};
 
 #[derive(Clone)]
 pub struct BigInt<A: IVm>(A::InternalBigInt);
@@ -74,9 +74,9 @@ impl<A: IVm> Debug for BigInt<A> {
         }
         f.write_str("0x")?;
         let last = self.0.len() - 1;
-        write!(f, "{:X}", self.0.at(last))?;
+        write!(f, "{:X}", self.0.index(last))?;
         for i in (0..last).rev() {
-            write!(f, "_{:016X}", self.0.at(i))?;
+            write!(f, "_{:016X}", self.0[i])?;
         }
         f.write_char('n')
     }

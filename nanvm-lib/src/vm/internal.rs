@@ -9,6 +9,7 @@ use core::{
     fmt::{Debug, Formatter, Write},
     iter,
     marker::PhantomData,
+    ops::Index,
 };
 use std::io;
 
@@ -24,14 +25,14 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
         let i = self.i;
         if i < self.container.len() {
             self.i += 1;
-            Some(self.container.at(i))
+            Some(self.container[i].clone())
         } else {
             None
         }
     }
 }
 
-pub trait IContainer<A: IVm>: Sized + Clone + 'static {
+pub trait IContainer<A: IVm>: Sized + Clone + Index<u32, Output = Self::Item> + 'static {
     // types
     type Header: PartialEq + Serializable + Clone;
     type Item: Debug + Serializable + Clone;
@@ -43,7 +44,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
     fn len(&self) -> u32;
-    fn at(&self, i: u32) -> Self::Item;
     fn ptr_eq(&self, other: &Self) -> bool;
 
     // extensions
@@ -73,7 +73,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
             return false;
         }
         for i in 0..len {
-            if self.at(i) != b.at(i) {
+            if self[i] != b[i] {
                 return false;
             }
         }
@@ -97,7 +97,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
             if i != 0 {
                 f.write_char(',')?;
             }
-            self.at(i).fmt(f)?;
+            self[i].fmt(f)?;
         }
         f.write_char(close)
     }
