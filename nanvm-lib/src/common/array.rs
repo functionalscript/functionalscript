@@ -26,8 +26,7 @@ impl<T: Default + Copy, const SIZE: usize> Array for [T; SIZE] {
     }
 }
 
-pub trait RandomAccess: Index<usize>
-{
+pub trait RandomAccess: Index<usize> {
     fn length(&self) -> usize;
 }
 
