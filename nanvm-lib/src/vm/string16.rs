@@ -31,7 +31,9 @@ impl<A: IVm> Default for String16<A> {
 
 impl<A: IVm> From<String16<A>> for String {
     fn from(value: String16<A>) -> Self {
-        String::from_utf16_lossy(&value.into_iter().collect::<Vec<_>>())
+        char::decode_utf16(value.into_iter())
+            .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER))
+            .collect()
     }
 }
 
