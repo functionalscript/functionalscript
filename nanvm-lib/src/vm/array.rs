@@ -54,6 +54,7 @@ impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
         Self(A::InternalArray::new_ok((), iter))
     }
 }
+
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         self.0
