@@ -10,7 +10,7 @@ use std::io;
 pub type Property<A> = (String16<A>, Any<A>);
 
 #[derive(Clone)]
-pub struct Object<A: IVm>(pub A::InternalObject);
+pub struct Object<A: IVm>(A::InternalObject);
 
 impl<A: IVm> Default for Object<A> {
     fn default() -> Self {

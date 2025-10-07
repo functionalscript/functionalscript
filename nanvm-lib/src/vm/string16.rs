@@ -12,7 +12,7 @@ use core::{
 use std::io;
 
 #[derive(Clone)]
-pub struct String16<A: IVm>(pub A::InternalString16);
+pub struct String16<A: IVm>(A::InternalString16);
 
 pub trait ToString16<A: IVm>: Sized + IntoIterator<Item = u16> {
     fn to_string16(self) -> String16<A> {

@@ -10,7 +10,7 @@ use core::fmt::{Debug, Formatter, Write};
 use std::io;
 
 #[derive(Clone)]
-pub struct BigInt<A: IVm>(pub A::InternalBigInt);
+pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> Default for BigInt<A> {
     fn default() -> Self {
