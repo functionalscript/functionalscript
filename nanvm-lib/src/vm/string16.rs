@@ -106,8 +106,8 @@ impl<A: IVm> Serializable for String16<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for String16<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        Ok(self.clone())
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        Ok(self)
     }
 }
 

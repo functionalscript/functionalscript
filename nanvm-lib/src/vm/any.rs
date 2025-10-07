@@ -80,7 +80,7 @@ impl<A: IVm> Serializable for Any<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for Any<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        self.0.clone().to_unpacked().coerce_to_string()
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        self.0.to_unpacked().coerce_to_string()
     }
 }

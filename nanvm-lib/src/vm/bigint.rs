@@ -93,7 +93,7 @@ impl<A: IVm> Serializable for BigInt<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for BigInt<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         // TODO: we should use different algorithm for large numbers.
         format!("{self:?}").to_string16_result()
     }

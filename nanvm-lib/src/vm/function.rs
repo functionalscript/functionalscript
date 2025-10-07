@@ -67,7 +67,7 @@ impl<A: IVm> Serializable for Function<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for Function<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
         "[object Function]".to_string16_result()
     }

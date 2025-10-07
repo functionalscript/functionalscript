@@ -11,11 +11,11 @@ pub trait StringCoercion<A: IVm> {
     ///
     /// Notes:
     /// 1. It can throw an error. For example: `{ toString: () => { throw 0 } } + ''`
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>>;
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>>;
 }
 
 impl<A: IVm> StringCoercion<A> for bool {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         match self {
             true => "true",
             false => "false",
@@ -25,7 +25,7 @@ impl<A: IVm> StringCoercion<A> for bool {
 }
 
 impl<A: IVm> StringCoercion<A> for Nullish {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         match self {
             Nullish::Null => "null",
             Nullish::Undefined => "undefined",

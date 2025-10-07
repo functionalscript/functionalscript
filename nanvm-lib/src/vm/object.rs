@@ -58,7 +58,7 @@ impl<A: IVm, T: IntoIterator<Item = Property<A>>> From<T> for Object<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for Object<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
         "[object Object]".to_string16_result()
     }
