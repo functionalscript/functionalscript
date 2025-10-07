@@ -34,12 +34,14 @@ impl<A: IVm> Debug for Function<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let header = self.0.header();
         let name: String = header.0.clone().into();
-        // TODO: remove `collect`.
-        let args = (0..header.1)
-            .map(|i| format!("a{i}"))
-            .collect::<Vec<_>>()
-            .join(",");
-        write!(f, "function {name}({args}) {{")?;
+        write!(f, "function {name}(")?;
+        for i in 0..header.1 {
+            if i != 0 {
+                f.write_char(',')?;
+            }
+            write!(f, "a{i}")?;
+        }
+        f.write_str(") {")?;
         for i in 0..self.0.len() {
             write!(f, "{:02X}", self.0.at(i))?;
         }
