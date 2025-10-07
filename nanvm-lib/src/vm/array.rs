@@ -1,3 +1,4 @@
+use core::fmt;
 use std::io;
 
 use crate::{
@@ -33,8 +34,8 @@ impl<A: IVm> TryFrom<Any<A>> for Array<A> {
     }
 }
 
-impl<A: IVm> std::fmt::Debug for Array<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<A: IVm> fmt::Debug for Array<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.items_fmt('[', ']', f)
     }
 }

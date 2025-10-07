@@ -13,6 +13,15 @@ pub type FunctionHeader<A> = (String16<A>, u32);
 #[derive(Clone)]
 pub struct Function<A: IVm>(pub A::InternalFunction);
 
+impl<A: IVm> Function<A> {
+    pub fn name(&self) -> &String16<A> {
+        &self.0.header().0
+    }
+    pub fn length(&self) -> u32 {
+        self.0.header().1
+    }
+}
+
 impl<A: IVm> PartialEq for Function<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)
@@ -32,10 +41,9 @@ impl<A: IVm> TryFrom<Any<A>> for Function<A> {
 
 impl<A: IVm> Debug for Function<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let header = self.0.header();
-        let name: String = header.0.clone().into();
+        let name: String = self.name().clone().into();
         write!(f, "function {name}(")?;
-        for i in 0..header.1 {
+        for i in 0..self.length() {
             if i != 0 {
                 f.write_char(',')?;
             }
