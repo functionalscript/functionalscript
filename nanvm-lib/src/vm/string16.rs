@@ -1,5 +1,5 @@
 use crate::{
-    common::{iter::Iter, serializable::Serializable},
+    common::{array::RandomAccess, iter::Iter, serializable::Serializable},
     vm::{
         any::ToAny, internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer,
         IVm, Unpacked,
@@ -62,8 +62,9 @@ const BACKSLASH: u16 = '\\' as u16;
 impl<A: IVm> Debug for String16<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char('"')?;
-        for i in 0..self.0.len() {
-            match self.0.index(i) {
+        let items = self.0.items();
+        for i in 0..items.length() {
+            match items[i] {
                 DOUBLE_QUOTE => f.write_str("\\\"")?,
                 BACKSLASH => f.write_str("\\\\")?,
                 c if (0x20..=0x7F).contains(&c) => {

@@ -1,5 +1,5 @@
 use crate::{
-    common::serializable::Serializable,
+    common::{array::RandomAccess, serializable::Serializable},
     vm::{
         string_coercion::{StringCoercion, ToString16Result},
         Any, IContainer, IVm, String16, Unpacked,
@@ -50,8 +50,9 @@ impl<A: IVm> Debug for Function<A> {
             write!(f, "a{i}")?;
         }
         f.write_str(") {")?;
-        for i in 0..self.0.len() {
-            write!(f, "{:02X}", self.0.index(i))?;
+        let items = self.0.items();
+        for i in 0..items.length() {
+            write!(f, "{:02X}", items[i])?;
         }
         f.write_char('}')
     }

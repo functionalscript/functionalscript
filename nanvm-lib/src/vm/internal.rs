@@ -14,7 +14,7 @@ use std::io;
 
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
     container: C,
-    i: u32,
+    i: usize,
     _p: PhantomData<A>,
 }
 
@@ -22,9 +22,10 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
     type Item = C::Item;
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.i;
-        if i < self.container.len() {
+        let items = self.container.items();
+        if i < items.length() {
             self.i += 1;
-            Some(self.container.index(i).clone())
+            Some(items[i].clone())
         } else {
             None
         }
@@ -48,14 +49,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static
     fn ptr_eq(&self, other: &Self) -> bool;
 
     // extensions
-
-    fn len(&self) -> u32 {
-        self.items().length() as u32
-    }
-
-    fn index(&self, i: u32) -> Self::Item {
-        self.items()[i as usize].clone()
-    }
 
     fn is_empty(&self) -> bool {
         self.items().length() == 0
@@ -104,18 +97,19 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static
 
     fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char(open)?;
-        for i in 0..self.len() {
+        let items = self.items();
+        for i in 0..items.length() {
             if i != 0 {
                 f.write_char(',')?;
             }
-            self.index(i).fmt(f)?;
+            items[i].fmt(f)?;
         }
         f.write_char(close)
     }
 
     fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.header().clone().serialize(write)?;
-        self.len().serialize(write)?;
+        (self.items().length() as u32).serialize(write)?;
         for i in self.items_iter() {
             i.serialize(write)?;
         }
