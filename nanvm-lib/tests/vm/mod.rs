@@ -181,24 +181,6 @@ fn bigint_eq<A: IVm>() {
 
 fn eq_container<T: IntoIterator>(a: T, b: T, e: fn(a: &T::Item, &T::Item) -> bool) -> bool {
     a.into_iter().eq_by_(b.into_iter(), e)
-    /*
-    if a.header() != b.header() {
-        return false;
-    }
-    let len = a.len();
-    if len != b.len() {
-        return false;
-    }
-    if a.ptr_eq(&b) {
-        return true;
-    }
-    for i in 0..len {
-        if !e(&a.at(i), &b.at(i)) {
-            return false;
-        }
-    }
-    return true;
-    */
 }
 
 fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
