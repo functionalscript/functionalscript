@@ -28,7 +28,7 @@ impl<A: IVm> PartialEq for Object<A> {
 impl<A: IVm> TryFrom<Any<A>> for Object<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::Object(result) = value.0.to_unpacked() {
+        if let Unpacked::Object(result) = value.into() {
             Ok(result)
         } else {
             Err(())

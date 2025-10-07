@@ -2,8 +2,7 @@ use nanvm_lib::{
     common::{default::default, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        naive, string_coercion::StringCoercion, Any, Array, BigInt, Function, IContainer, IVm,
-        Object, Property, String16, ToAnyEx, Unpacked,
+        any::ToAny, naive, string_coercion::StringCoercion, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, Unpacked
     },
 };
 
@@ -203,7 +202,7 @@ fn eq_container<A: IVm, T: IContainer<A>>(
 }
 
 fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
-    match (a.0.clone().to_unpacked(), b.0.clone().to_unpacked()) {
+    match (a.clone().into(), b.clone().into()) {
         (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
         (Unpacked::Boolean(a), Unpacked::Boolean(b)) => a == b,
         (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),

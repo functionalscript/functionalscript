@@ -49,12 +49,6 @@ impl<A: IVm> PartialEq for Unpacked<A> {
     }
 }
 
-impl<A: IVm> From<Any<A>> for Unpacked<A> {
-    fn from(value: Any<A>) -> Self {
-        value.0.to_unpacked()
-    }
-}
-
 impl<A: IVm> From<Nullish> for Unpacked<A> {
     fn from(value: Nullish) -> Self {
         Unpacked::Nullish(value)

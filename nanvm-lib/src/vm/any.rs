@@ -1,24 +1,41 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{string_coercion::StringCoercion, IVm, String16, ToAnyEx, Unpacked},
+    vm::{string_coercion::StringCoercion, IVm, String16, Unpacked},
 };
-use core::fmt::{Debug, Formatter};
+use core::fmt::{self, Debug, Formatter};
 use std::io::{self, Read, Write};
 
 #[derive(Clone)]
-pub struct Any<A: IVm>(pub A);
+pub struct Any<A: IVm>(A);
 
 impl<A: IVm> Debug for Any<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.clone().to_unpacked().fmt(f)
     }
 }
+
+pub trait ToAny {
+    fn to_any<A: IVm>(self) -> Any<A>
+    where
+        Self: Into<A>,
+    {
+        Any(self.into())
+    }
+}
+
+impl<T> ToAny for T {}
 
 /// Same as `===` in ECMAScript.
 impl<A: IVm> PartialEq for Any<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
+    }
+}
+
+impl<A: IVm> From<Any<A>> for Unpacked<A> {
+    fn from(value: Any<A>) -> Self {
+        value.0.to_unpacked()
     }
 }
 

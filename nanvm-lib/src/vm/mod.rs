@@ -19,12 +19,13 @@ pub use crate::vm::{
     internal::{IContainer, IVm},
     object::{Object, Property},
     string16::String16,
-    to_any::ToAnyEx,
     unpacked::Unpacked,
 };
 
 #[cfg(test)]
 mod test {
+    use crate::vm::any::ToAny;
+
     use super::*;
 
     fn _eq_test<A: IVm>() {

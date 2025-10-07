@@ -1,8 +1,7 @@
 use crate::{
     common::{iter::Iter, serializable::Serializable},
     vm::{
-        internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer, IVm,
-        ToAnyEx, Unpacked,
+        any::ToAny, internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer, IVm, Unpacked
     },
 };
 use core::{
@@ -81,7 +80,7 @@ impl<A: IVm> Debug for String16<A> {
 impl<A: IVm> TryFrom<Any<A>> for String16<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::String(result) = value.0.to_unpacked() {
+        if let Unpacked::String(result) = value.into() {
             Ok(result)
         } else {
             Err(())
