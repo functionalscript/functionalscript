@@ -70,7 +70,11 @@ pub trait Iter: Sized + Iterator {
     ) -> bool {
         loop {
             match (self.next(), j.next()) {
-                (Some(x), Some(y)) if cmp(&x, &y) => continue,
+                (Some(x), Some(y)) => {
+                    if !cmp(&x, &y) {
+                        return false;
+                    }
+                }
                 (None, None) => return true,
                 _ => return false,
             }
