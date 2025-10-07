@@ -1,8 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     vm::{
-        string_coercion::{StringCoercion, ToString16Result},
-        Any, IContainer, IVm, String16, Unpacked,
+        internal::ContainerIterator, string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked
     },
 };
 use core::fmt::{self, Debug, Formatter};
@@ -22,6 +21,14 @@ impl<A: IVm> Default for Object<A> {
 impl<A: IVm> PartialEq for Object<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)
+    }
+}
+
+impl<A: IVm> IntoIterator for Object<A> {
+    type Item = Property<A>;
+    type IntoIter = ContainerIterator<A, A::InternalObject>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.items_iter()
     }
 }
 
@@ -51,11 +58,21 @@ impl<A: IVm> Serializable for Object<A> {
     }
 }
 
+pub trait ToObject<A: IVm>: Sized + IntoIterator<Item = Property<A>> {
+    fn to_object(self) -> Object<A> {
+        Object(A::InternalObject::new_ok((), self))
+    }
+}
+
+impl<A: IVm, T: IntoIterator<Item = Property<A>>> ToObject<A> for T {}
+
+/*
 impl<A: IVm, T: IntoIterator<Item = Property<A>>> From<T> for Object<A> {
     fn from(iter: T) -> Self {
         Self(A::InternalObject::new_ok((), iter))
     }
 }
+*/
 
 impl<A: IVm> StringCoercion<A> for Object<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {

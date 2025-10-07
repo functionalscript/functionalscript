@@ -4,16 +4,24 @@ use std::io;
 use crate::{
     common::serializable::Serializable,
     vm::{
-        string16::Join, string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked,
+        internal::ContainerIterator, string16::Join, string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked
     },
 };
 
 #[derive(Clone)]
-pub struct Array<A: IVm>(pub A::InternalArray);
+pub struct Array<A: IVm>(A::InternalArray);
 
 impl<A: IVm> Default for Array<A> {
     fn default() -> Self {
         Array(A::InternalArray::new_empty(()))
+    }
+}
+
+impl<A: IVm> IntoIterator for Array<A> {
+    type Item = Any<A>;
+    type IntoIter = ContainerIterator<A, A::InternalArray>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.items_iter()
     }
 }
 
@@ -49,11 +57,13 @@ impl<A: IVm> Serializable for Array<A> {
     }
 }
 
-impl<A: IVm, T: IntoIterator<Item = Any<A>>> From<T> for Array<A> {
-    fn from(iter: T) -> Self {
-        Self(A::InternalArray::new_ok((), iter))
+pub trait ToArray<A: IVm>: Sized + IntoIterator<Item = Any<A>> {
+    fn to_array(self) -> Array<A> {
+        Array(A::InternalArray::new_ok((), self))
     }
 }
+
+impl<A: IVm, T: IntoIterator<Item = Any<A>>> ToArray<A> for T {}
 
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {

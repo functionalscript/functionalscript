@@ -1,8 +1,8 @@
 use nanvm_lib::{
-    common::{default::default, serializable::Serializable},
+    common::{default::default, iter::Iter, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        any::ToAny, naive, string_coercion::StringCoercion, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, Unpacked
+        any::ToAny, array::ToArray, naive, object::ToObject, string_coercion::StringCoercion, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, Unpacked
     },
 };
 
@@ -178,11 +178,13 @@ fn bigint_eq<A: IVm>() {
     }
 }
 
-fn eq_container<A: IVm, T: IContainer<A>>(
-    a: &T,
-    b: &T,
+fn eq_container<T: IntoIterator>(
+    a: T,
+    b: T,
     e: fn(a: &T::Item, &T::Item) -> bool,
 ) -> bool {
+    a.into_iter().eq_by_(b.into_iter(), e)
+    /*
     if a.header() != b.header() {
         return false;
     }
@@ -199,6 +201,7 @@ fn eq_container<A: IVm, T: IContainer<A>>(
         }
     }
     return true;
+    */
 }
 
 fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
@@ -208,9 +211,9 @@ fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
         (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
         (Unpacked::String(a), Unpacked::String(b)) => a == b,
         (Unpacked::BigInt(a), Unpacked::BigInt(b)) => a == b,
-        (Unpacked::Array(a), Unpacked::Array(b)) => eq_container(&a.0, &b.0, eq_value),
+        (Unpacked::Array(a), Unpacked::Array(b)) => eq_container(a, b, eq_value),
         (Unpacked::Object(a), Unpacked::Object(b)) => {
-            eq_container(&a.0, &b.0, |x: &Property<A>, y: &Property<A>| {
+            eq_container(a, b, |x: &Property<A>, y: &Property<A>| {
                 x.0 == y.0 && eq_value(&x.1, &y.1)
             })
         }
@@ -308,15 +311,15 @@ fn old_eq<A: IVm>() {
     // array
     let array0: Any<A> = Array::default().to_any();
     let array1 = Array::default().to_any();
-    let array2: Any<A> = Into::<Array<_>>::into([string0.clone()]).to_any();
+    let array2: Any<A> = [string0.clone()].to_array().to_any();
     {
         assert_eq!(array0, array0);
         assert_ne!(array0, array1);
         assert_eq!(array2, array2);
     }
     // object
-    let object0: Any<A> = Into::<Object<_>>::into([(s0.clone(), string0.clone())]).to_any();
-    let object1 = Into::<Object<_>>::into([(s0, string0)]).to_any();
+    let object0: Any<A> = [(s0.clone(), string0.clone())].to_object().to_any();
+    let object1 = [(s0, string0)].to_object().to_any();
     {
         assert_eq!(object0, object0);
         assert_ne!(object0, object1);
@@ -335,8 +338,8 @@ fn serialization<A: IVm>() {
         "Hello".into(),
         Into::<BigInt<A>>::into(12u64).to_any(),
         Array::default().to_any(),
-        Into::<Array<A>>::into([7.0.to_any()]).to_any(),
-        Into::<Object<A>>::into([("a".into(), 1.0.to_any()), ("b".into(), "c".into())]).to_any(),
+        [7.0.to_any()].to_array().to_any(),
+        [("a".into(), 1.0.to_any()), ("b".into(), "c".into())].to_object().to_any(),
     ];
 
     for value in values.into_iter() {
@@ -377,20 +380,21 @@ fn number_coerce_to_string<A: IVm>() {
 }
 
 fn array_coerce_to_string<A: IVm>() {
-    let a: Any<A> = Into::<Array<_>>::into([]).to_any();
+    let a: Any<A> = [].to_array().to_any();
     assert_eq!(a.coerce_to_string(), Ok("".into()));
 
-    let a: Any<A> = Into::<Array<_>>::into([1.0.to_any()]).to_any();
+    let a: Any<A> = [1.0.to_any()].to_array().to_any();
     assert_eq!(a.coerce_to_string(), Ok("1".into()));
 
-    let a: Any<A> = Into::<Array<_>>::into([1.0.to_any(), 2.0.to_any(), 3.0.to_any()]).to_any();
+    let a: Any<A> = [1.0.to_any(), 2.0.to_any(), 3.0.to_any()].to_array().to_any();
     assert_eq!(a.coerce_to_string(), Ok("1,2,3".into()));
 
-    let a: Any<A> = Into::<Array<_>>::into([
+    let a: Any<A> = [
         1.0.to_any(),
-        Into::<Array<_>>::into([2.0.to_any(), 3.0.to_any()]).to_any(),
+        [2.0.to_any(), 3.0.to_any()].to_array().to_any(),
         4.0.to_any(),
-    ])
+    ]
+    .to_array()
     .to_any();
     assert_eq!(a.coerce_to_string(), Ok("1,2,3,4".into()));
 }
