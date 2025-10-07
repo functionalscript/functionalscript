@@ -2,7 +2,8 @@ use nanvm_lib::{
     common::{default::default, iter::Iter, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        any::ToAny, array::ToArray, naive, object::ToObject, string_coercion::StringCoercion, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, Unpacked
+        any::ToAny, array::ToArray, naive, object::ToObject, string_coercion::StringCoercion, Any,
+        Array, BigInt, Function, IContainer, IVm, Object, Property, String16, Unpacked,
     },
 };
 
@@ -178,11 +179,7 @@ fn bigint_eq<A: IVm>() {
     }
 }
 
-fn eq_container<T: IntoIterator>(
-    a: T,
-    b: T,
-    e: fn(a: &T::Item, &T::Item) -> bool,
-) -> bool {
+fn eq_container<T: IntoIterator>(a: T, b: T, e: fn(a: &T::Item, &T::Item) -> bool) -> bool {
     a.into_iter().eq_by_(b.into_iter(), e)
     /*
     if a.header() != b.header() {
@@ -339,7 +336,9 @@ fn serialization<A: IVm>() {
         Into::<BigInt<A>>::into(12u64).to_any(),
         Array::default().to_any(),
         [7.0.to_any()].to_array().to_any(),
-        [("a".into(), 1.0.to_any()), ("b".into(), "c".into())].to_object().to_any(),
+        [("a".into(), 1.0.to_any()), ("b".into(), "c".into())]
+            .to_object()
+            .to_any(),
     ];
 
     for value in values.into_iter() {
@@ -386,7 +385,9 @@ fn array_coerce_to_string<A: IVm>() {
     let a: Any<A> = [1.0.to_any()].to_array().to_any();
     assert_eq!(a.coerce_to_string(), Ok("1".into()));
 
-    let a: Any<A> = [1.0.to_any(), 2.0.to_any(), 3.0.to_any()].to_array().to_any();
+    let a: Any<A> = [1.0.to_any(), 2.0.to_any(), 3.0.to_any()]
+        .to_array()
+        .to_any();
     assert_eq!(a.coerce_to_string(), Ok("1,2,3".into()));
 
     let a: Any<A> = [

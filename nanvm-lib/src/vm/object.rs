@@ -1,7 +1,9 @@
 use crate::{
     common::serializable::Serializable,
     vm::{
-        internal::ContainerIterator, string_coercion::{StringCoercion, ToString16Result}, Any, IContainer, IVm, String16, Unpacked
+        internal::ContainerIterator,
+        string_coercion::{StringCoercion, ToString16Result},
+        Any, IContainer, IVm, String16, Unpacked,
     },
 };
 use core::fmt::{self, Debug, Formatter};

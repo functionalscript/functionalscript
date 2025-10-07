@@ -4,7 +4,8 @@ use std::io;
 use crate::{
     common::serializable::Serializable,
     vm::{
-        internal::ContainerIterator, string16::Join, string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked
+        internal::ContainerIterator, string16::Join, string_coercion::StringCoercion, Any,
+        IContainer, IVm, String16, Unpacked,
     },
 };
 
