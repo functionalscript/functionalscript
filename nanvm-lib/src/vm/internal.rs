@@ -1,5 +1,5 @@
 use crate::{
-    common::serializable::Serializable,
+    common::{array::RandomAccess, serializable::Serializable},
     nullish::Nullish,
     sign::Sign,
     vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
@@ -9,7 +9,6 @@ use core::{
     fmt::{Debug, Formatter, Write},
     iter,
     marker::PhantomData,
-    ops::Index,
 };
 use std::io;
 
@@ -25,17 +24,19 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
         let i = self.i;
         if i < self.container.len() {
             self.i += 1;
-            Some(self.container[i].clone())
+            Some(self.container.index(i).clone())
         } else {
             None
         }
     }
 }
 
-pub trait IContainer<A: IVm>: Sized + Clone + Index<u32, Output = Self::Item> + 'static {
+pub trait IContainer<A: IVm>: Sized + Clone + 'static
+{
     // types
     type Header: PartialEq + Serializable + Clone;
     type Item: Debug + Serializable + Clone;
+    type Items: RandomAccess<Output = Self::Item> + ?Sized;
 
     // functions
     fn new<E>(
@@ -43,13 +44,21 @@ pub trait IContainer<A: IVm>: Sized + Clone + Index<u32, Output = Self::Item> + 
         i: impl IntoIterator<Item = Result<Self::Item, E>>,
     ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
-    fn len(&self) -> u32;
+    fn items(&self) -> &Self::Items;
     fn ptr_eq(&self, other: &Self) -> bool;
 
     // extensions
 
+    fn len(&self) -> u32 {
+        self.items().length() as u32
+    }
+
+    fn index(&self, i: u32) -> Self::Item {
+        self.items()[i as usize].clone()
+    }
+
     fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.items().length() == 0
     }
 
     fn new_ok(header: Self::Header, i: impl IntoIterator<Item = Self::Item>) -> Self {
@@ -68,12 +77,14 @@ pub trait IContainer<A: IVm>: Sized + Clone + Index<u32, Output = Self::Item> + 
         if self.header() != b.header() {
             return false;
         }
-        let len = self.len();
-        if len != b.len() {
+        let a = self.items();
+        let b = b.items();
+        let len = a.length();
+        if len != b.length() {
             return false;
         }
         for i in 0..len {
-            if self[i] != b[i] {
+            if a[i] != b[i] {
                 return false;
             }
         }
@@ -97,7 +108,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + Index<u32, Output = Self::Item> + 
             if i != 0 {
                 f.write_char(',')?;
             }
-            self[i].fmt(f)?;
+            self.index(i).fmt(f)?;
         }
         f.write_char(close)
     }

@@ -63,7 +63,7 @@ impl<A: IVm> Debug for String16<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char('"')?;
         for i in 0..self.0.len() {
-            match self.0[i] {
+            match self.0.index(i) {
                 DOUBLE_QUOTE => f.write_str("\\\"")?,
                 BACKSLASH => f.write_str("\\\\")?,
                 c if (0x20..=0x7F).contains(&c) => {

@@ -1,5 +1,5 @@
 use crate::{
-    common::{default::default, serializable::Serializable},
+    common::{array::RandomAccess, default::default, serializable::Serializable},
     sign::Sign,
     vm::{
         string_coercion::{StringCoercion, ToString16Result},
@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use core::fmt::{Debug, Formatter, Write};
-use std::{io, ops::Index};
+use std::io;
 
 #[derive(Clone)]
 pub struct BigInt<A: IVm>(A::InternalBigInt);
@@ -73,10 +73,11 @@ impl<A: IVm> Debug for BigInt<A> {
             f.write_char('-')?;
         }
         f.write_str("0x")?;
-        let last = self.0.len() - 1;
-        write!(f, "{:X}", self.0.index(last))?;
+        let items = self.0.items();
+        let last = items.length() - 1;
+        write!(f, "{:X}", items[last])?;
         for i in (0..last).rev() {
-            write!(f, "_{:016X}", self.0[i])?;
+            write!(f, "_{:016X}", items[i])?;
         }
         f.write_char('n')
     }

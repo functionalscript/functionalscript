@@ -1,3 +1,5 @@
+use core::ops::Index;
+
 use super::default::default;
 
 pub trait Array {
@@ -21,5 +23,16 @@ impl<T: Default + Copy, const SIZE: usize> Array for [T; SIZE] {
     }
     fn new() -> Self {
         [default(); SIZE]
+    }
+}
+
+pub trait RandomAccess: Index<usize>
+{
+    fn length(&self) -> usize;
+}
+
+impl<O> RandomAccess for [O] {
+    fn length(&self) -> usize {
+        self.len()
     }
 }

@@ -68,14 +68,6 @@ pub trait ToObject<A: IVm>: Sized + IntoIterator<Item = Property<A>> {
 
 impl<A: IVm, T: IntoIterator<Item = Property<A>>> ToObject<A> for T {}
 
-/*
-impl<A: IVm, T: IntoIterator<Item = Property<A>>> From<T> for Object<A> {
-    fn from(iter: T) -> Self {
-        Self(A::InternalObject::new_ok((), iter))
-    }
-}
-*/
-
 impl<A: IVm> StringCoercion<A> for Object<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
