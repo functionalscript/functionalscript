@@ -1,4 +1,4 @@
-use core::ops::Index;
+use core::{ops::Index, slice};
 
 use super::default::default;
 
@@ -28,10 +28,14 @@ impl<T: Default + Copy, const SIZE: usize> Array for [T; SIZE] {
 
 pub trait RandomAccess: Index<usize> {
     fn length(&self) -> usize;
+    fn iter(&self) -> impl Iterator<Item = &Self::Output>;
 }
 
 impl<O> RandomAccess for [O] {
     fn length(&self) -> usize {
         self.len()
+    }
+    fn iter(&self) -> impl Iterator<Item = &Self::Output> {
+        self.into_iter()
     }
 }
