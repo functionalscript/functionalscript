@@ -7,6 +7,8 @@ use crate::{
     vm::{Any, FunctionHeader, IContainer, IVm, Property, Unpacked},
 };
 
+/// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
+/// recursive type aliases.
 #[derive(Clone)]
 pub struct InternalAny(pub Unpacked<InternalAny>);
 
