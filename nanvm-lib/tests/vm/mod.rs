@@ -360,19 +360,17 @@ fn number_coerce_to_string<A: IVm>() {
     let n: Any<A> = (0.0).to_any();
     assert_eq!(n.coerce_to_string(), Ok("0".into()));
 
-    // TODO Fix -0.0 coercion - right now it yields "-0", not expected "0".
-    // let n: Any<A> = (-0.0).to_any();
-    // assert_eq!(n.coerce_to_string(), Ok("0".into()));
+    let n: Any<A> = (-0.0).to_any();
+    assert_eq!(n.coerce_to_string(), Ok("0".into()));
 
-    // TODO 1/(-0) coerces to "-Infinity" - express in Rust or remove this TODO if not expressible
+    let n: Any<A> = (1.0 / -0.0).to_any();
+    assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
 
-    // TODO Fix f64::INFINITY coercion - right now it yields "inf", not expected "Infinity".
-    //let n: Any<A> = f64::INFINITY.to_any();
-    //assert_eq!(n.coerce_to_string(), Ok("Infinity".into()));
+    let n: Any<A> = f64::INFINITY.to_any();
+    assert_eq!(n.coerce_to_string(), Ok("Infinity".into()));
 
-    // TODO Fix f64::INFINITY coercion - right now it yields "-inf", not expected "-Infinity".
-    // let n: Any<A> = f64::NEG_INFINITY.to_any();
-    // assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
+    let n: Any<A> = f64::NEG_INFINITY.to_any();
+    assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
 
     let n: Any<A> = f64::NAN.to_any();
     assert_eq!(n.coerce_to_string(), Ok("NaN".into()));
