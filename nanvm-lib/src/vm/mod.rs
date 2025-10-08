@@ -18,7 +18,7 @@ pub use crate::vm::{
     function::{Function, FunctionHeader},
     internal::{IContainer, IVm},
     object::{Object, Property, ToObject},
-    string16::String16,
+    string16::{String16, ToString16},
     string_coercion::StringCoercion,
     unpacked::Unpacked,
 };

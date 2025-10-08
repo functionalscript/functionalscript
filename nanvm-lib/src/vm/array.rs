@@ -12,7 +12,7 @@ use crate::{
 /// ```
 /// use nanvm_lib::vm::{ToArray, IVm, Array, Any, ToAny};
 /// fn array<A: IVm>() {
-///   let b: Array<A> = [1.0.to_any()].to_array();
+///   let b: Array<A> = [1.0.to_any(), true.to_any()].to_array();
 /// }
 /// ```
 #[derive(Clone)]

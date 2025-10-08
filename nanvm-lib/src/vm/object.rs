@@ -11,6 +11,12 @@ use std::io;
 
 pub type Property<A> = (String16<A>, Any<A>);
 
+/// ```
+/// use nanvm_lib::vm::{Object, ToObject, IVm, Array, Any, ToAny};
+/// fn object<A: IVm>() {
+///   let b: Object<A> = [("a".into(), true.to_any())].to_object();
+/// }
+/// ```
 #[derive(Clone)]
 pub struct Object<A: IVm>(A::InternalObject);
 

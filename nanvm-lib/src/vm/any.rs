@@ -6,6 +6,25 @@ use crate::{
 use core::fmt::{self, Debug, Formatter};
 use std::io::{self, Read, Write};
 
+/// ```
+/// use nanvm_lib::{
+///     vm::{Any, IVm, ToAny, String16, Array, ToArray, ToObject, Object, BigInt},
+///     nullish::Nullish
+/// };
+/// fn any_test<A: IVm>() {
+///     let b: Any<A> = true.to_any();
+///     let n: Any<A> = Nullish::Null.to_any();
+///     let n: Any<A> = 42.0.to_any();
+///     let c: String16<A> = "Hello".into();
+///     let m: Any<A> = c.to_any();
+///     let a: Array<A> = [].to_array();
+///     let o: Any<A> = a.to_any();
+///     let x: Object<A> = [].to_object();
+///     let p: Any<A> = x.to_any();
+///     let u: BigInt<A> = 123u64.into();
+///     let q: Any<A> = u.to_any();
+/// }
+/// ```
 #[derive(Clone)]
 pub struct Any<A: IVm>(A);
 
