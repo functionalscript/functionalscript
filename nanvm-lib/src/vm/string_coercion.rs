@@ -6,8 +6,8 @@ use crate::{
 /// ECMAScript functions.
 pub trait StringCoercion<A: IVm> {
     /// Coerces the value to a `String16<A>`, possibly producing an error result.
-    /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion
-    /// https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tostring
+    /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion>
+    /// <https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tostring>
     ///
     /// Notes:
     /// 1. It can throw an error. For example: `{ toString: () => { throw 0 } } + ''`

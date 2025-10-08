@@ -1,5 +1,5 @@
 use crate::{
-    common::{array::RandomAccess, serializable::Serializable},
+    common::{array::SizedIndex, serializable::Serializable},
     vm::{
         string_coercion::{StringCoercion, ToString16Result},
         Any, IContainer, IVm, String16, Unpacked,

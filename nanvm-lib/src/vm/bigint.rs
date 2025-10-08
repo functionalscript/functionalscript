@@ -1,5 +1,5 @@
 use crate::{
-    common::{array::RandomAccess, default::default, serializable::Serializable},
+    common::{array::SizedIndex, default::default, serializable::Serializable},
     sign::Sign,
     vm::{
         string_coercion::{StringCoercion, ToString16Result},

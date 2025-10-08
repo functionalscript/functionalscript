@@ -1,5 +1,5 @@
 use crate::{
-    common::{array::RandomAccess, iter::Iter, serializable::Serializable},
+    common::{array::SizedIndex, iter::Iter, serializable::Serializable},
     vm::{
         any::ToAny, internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer,
         IVm, Unpacked,
@@ -27,13 +27,16 @@ use std::io;
 #[derive(Clone)]
 pub struct String16<A: IVm>(A::InternalString16);
 
-pub trait ToString16<A: IVm>: Sized + IntoIterator<Item = u16> {
-    fn to_string16(self) -> String16<A> {
+pub trait ToString16 {
+    fn to_string16<A: IVm>(self) -> String16<A>
+    where
+        Self: Sized + IntoIterator<Item = u16>,
+    {
         String16(A::InternalString16::new_ok((), self))
     }
 }
 
-impl<T: Sized + IntoIterator<Item = u16>, A: IVm> ToString16<A> for T {}
+impl<T> ToString16 for T {}
 
 impl<A: IVm> Default for String16<A> {
     fn default() -> Self {

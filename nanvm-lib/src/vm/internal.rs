@@ -1,5 +1,8 @@
 use crate::{
-    common::{array::RandomAccess, serializable::Serializable},
+    common::{
+        array::{RandomAccess, SizedIndex},
+        serializable::Serializable,
+    },
     nullish::Nullish,
     sign::Sign,
     vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
@@ -73,18 +76,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         let a = self.items();
         let b = b.items();
         a.to_iter().eq(b.to_iter())
-        /*
-        let len = a.length();
-        if len != b.length() {
-            return false;
-        }
-        for i in 0..len {
-            if a[i] != b[i] {
-                return false;
-            }
-        }
-        true
-        */
     }
 
     fn items_iter(self) -> ContainerIterator<A, Self>
