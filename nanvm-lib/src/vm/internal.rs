@@ -32,7 +32,8 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
     }
 }
 
-pub trait IContainer<A: IVm>: Sized + Clone + 'static {
+pub trait IContainer<A: IVm>: Sized + Clone + 'static
+{
     // types
     type Header: PartialEq + Serializable + Clone;
     type Item: Debug + Serializable + Clone;
