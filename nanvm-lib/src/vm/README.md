@@ -27,7 +27,7 @@ Byte code is a VM agnostic.
 ```rust
 /// ```
 /// let t = true.to_expression();
-/// let n = n.to_expression();
+/// let n = 5.0.to_expression();
 /// let m = t + n;
 /// ```
 struct Expression {}
