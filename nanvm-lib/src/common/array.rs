@@ -1,4 +1,4 @@
-use core::ops::{Deref, Index};
+use core::ops::Index;
 
 use super::default::default;
 
@@ -26,20 +26,19 @@ impl<T: Default + Copy, const SIZE: usize> Array for [T; SIZE] {
     }
 }
 
-pub trait RandomAccess: Index<usize>
-{
+pub trait RandomAccess: Index<usize> {
     fn length(&self) -> usize;
     /// Note: using `IntoIterator` would require complicated lifetime bounds,
     /// which has to be used in all other places.
     /// `where for<'a> &'a Self: IntoIterator<Item = &'a Self::Output>`
-    fn iter(&self) -> impl Iterator<Item = &Self::Output>;
+    fn to_iter(&self) -> impl Iterator<Item = &Self::Output>;
 }
 
 impl<O> RandomAccess for [O] {
     fn length(&self) -> usize {
         self.len()
     }
-    fn iter(&self) -> impl Iterator<Item = &Self::Output> {
-        self.into_iter()
+    fn to_iter(&self) -> impl Iterator<Item = &Self::Output> {
+        self.iter()
     }
 }
