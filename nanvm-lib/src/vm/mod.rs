@@ -1,23 +1,25 @@
-pub mod any;
-pub mod array;
-pub mod bigint;
-pub mod function;
-pub mod internal;
+mod any;
+mod array;
+mod bigint;
+mod function;
+mod internal;
+mod number;
+mod object;
+mod string16;
+mod string_coercion;
+mod unpacked;
+
 pub mod naive;
-pub mod number;
-pub mod object;
-pub mod string16;
-pub mod string_coercion;
-pub mod unpacked;
 
 pub use crate::vm::{
-    any::Any,
-    array::Array,
+    any::{Any, ToAny},
+    array::{Array, ToArray},
     bigint::BigInt,
     function::{Function, FunctionHeader},
     internal::{IContainer, IVm},
-    object::{Object, Property},
+    object::{Object, Property, ToObject},
     string16::String16,
+    string_coercion::StringCoercion,
     unpacked::Unpacked,
 };
 

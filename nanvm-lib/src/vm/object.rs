@@ -60,13 +60,16 @@ impl<A: IVm> Serializable for Object<A> {
     }
 }
 
-pub trait ToObject<A: IVm>: Sized + IntoIterator<Item = Property<A>> {
-    fn to_object(self) -> Object<A> {
+pub trait ToObject {
+    fn to_object<A: IVm>(self) -> Object<A>
+    where
+        Self: Sized + IntoIterator<Item = Property<A>>,
+    {
         Object(A::InternalObject::new_ok((), self))
     }
 }
 
-impl<A: IVm, T: IntoIterator<Item = Property<A>>> ToObject<A> for T {}
+impl<T> ToObject for T {}
 
 impl<A: IVm> StringCoercion<A> for Object<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {

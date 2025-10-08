@@ -9,6 +9,12 @@ use crate::{
     },
 };
 
+/// ```
+/// use nanvm_lib::vm::{ToArray, IVm, Array, Any, ToAny};
+/// fn array<A: IVm>() {
+///   let b: Array<A> = [1.0.to_any()].to_array();
+/// }
+/// ```
 #[derive(Clone)]
 pub struct Array<A: IVm>(A::InternalArray);
 
@@ -58,13 +64,16 @@ impl<A: IVm> Serializable for Array<A> {
     }
 }
 
-pub trait ToArray<A: IVm>: Sized + IntoIterator<Item = Any<A>> {
-    fn to_array(self) -> Array<A> {
+pub trait ToArray {
+    fn to_array<A: IVm>(self) -> Array<A>
+    where
+        Self: Sized + IntoIterator<Item = Any<A>>,
+    {
         Array(A::InternalArray::new_ok((), self))
     }
 }
 
-impl<A: IVm, T: IntoIterator<Item = Any<A>>> ToArray<A> for T {}
+impl<T> ToArray for T {}
 
 impl<A: IVm> StringCoercion<A> for Array<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
