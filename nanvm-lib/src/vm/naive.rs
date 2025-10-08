@@ -10,7 +10,7 @@ use crate::{
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
 /// recursive type aliases.
 #[derive(Clone)]
-pub struct InternalAny(pub Unpacked<InternalAny>);
+pub struct InternalAny(Unpacked<InternalAny>);
 
 impl<T: Into<Unpacked<InternalAny>>> From<T> for InternalAny {
     fn from(value: T) -> Self {
