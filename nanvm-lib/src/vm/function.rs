@@ -10,6 +10,7 @@ use std::io;
 
 pub type FunctionHeader<A> = (String16<A>, u32);
 
+// TODO: remove `pub` from the field when bytecode generator is implemented.
 #[derive(Clone)]
 pub struct Function<A: IVm>(pub A::InternalFunction);
 
