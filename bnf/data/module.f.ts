@@ -259,7 +259,7 @@ export const parser = (fr: FRule): Match => {
     return parserRuleSet(data[0])
 }
 
-export const parserRuleSet = (ruleSet: RuleSet): Match => {    
+export const parserRuleSet = (ruleSet: RuleSet): Match => {
     const map = dispatchMap(ruleSet)
 
     const f: MatchRule = (rule, cp): MatchResult => {
