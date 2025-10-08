@@ -13,10 +13,13 @@ use core::{
 use std::io;
 
 /// ```
-/// use nanvm_lib::vm::{String16, IVm, ToString16, naive::Naive};
+/// use nanvm_lib::vm::{String16, IVm, Any, ToString16, naive::Naive, ToAny};
 /// fn string_test<A: IVm>() {
-///     let b: String16<A> = "Hello, world!".into();
-///     let s: String16<A> = ['H' as u16, 'i' as u16, '!' as u16].to_string16();
+///     let a: String16<A> = "Hello, world!".into();
+///     let b: String16<A> = ['H' as u16, 'i' as u16, '!' as u16].to_string16();
+///     let c = a + b;
+///     let ac: Any<A> = c.to_any();
+///     let d: String16<A> = ac.try_into().unwrap();
 /// }
 ///
 /// string_test::<Naive>();
