@@ -1,8 +1,8 @@
 use core::fmt;
-use std::io;
+use std::{io, ops::Index};
 
 use crate::{
-    common::serializable::Serializable,
+    common::{array::SizedIndex, serializable::Serializable},
     vm::{
         internal::ContainerIterator, string16::Join, string_coercion::StringCoercion, Any,
         IContainer, IVm, String16, Unpacked,
@@ -31,6 +31,19 @@ impl<A: IVm> IntoIterator for Array<A> {
     type IntoIter = ContainerIterator<A, A::InternalArray>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.items_iter()
+    }
+}
+
+impl<A: IVm> Index<u32> for Array<A> {
+    type Output = Any<A>;
+    fn index(&self, index: u32) -> &Self::Output {
+        self.0.items().index(index as usize)
+    }
+}
+
+impl<A: IVm> SizedIndex<u32> for Array<A> {
+    fn length(&self) -> u32 {
+        self.0.items().length() as u32
     }
 }
 

@@ -1,5 +1,9 @@
 use crate::{
-    common::{array::SizedIndex, iter::Iter, serializable::Serializable},
+    common::{
+        array::{RandomAccess, SizedIndex},
+        iter::Iter,
+        serializable::Serializable,
+    },
     vm::{
         any::ToAny, internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer,
         IVm, Unpacked,
@@ -10,16 +14,24 @@ use core::{
     iter,
     ops::{Add, AddAssign},
 };
-use std::io;
+use std::{io, ops::Index};
 
 /// ```
-/// use nanvm_lib::vm::{String16, IVm, Any, ToString16, naive::Naive, ToAny};
+/// use nanvm_lib::{
+///     vm::{String16, IVm, Any, ToString16, naive::Naive, ToAny},
+///     common::array::SizedIndex,
+/// };
 /// fn string_test<A: IVm>() {
 ///     let a: String16<A> = "Hello, world!".into();
+///     assert_eq!(a.length(), 13);
+///     assert_eq!(a[12], '!' as u16);
 ///     let b: String16<A> = ['H' as u16, 'i' as u16, '!' as u16].to_string16();
 ///     let c = a + b;
 ///     let ac: Any<A> = c.to_any();
 ///     let d: String16<A> = ac.try_into().unwrap();
+///     assert_eq!(d.length(), 16);
+///     assert_eq!(format!("{d:?}"), r#""Hello, world!Hi!""#);
+///     assert_eq!(char::decode_utf16(d.clone()).map(Result::unwrap).collect::<String>(), "Hello, world!Hi!");
 /// }
 ///
 /// string_test::<Naive>();
@@ -77,9 +89,8 @@ const BACKSLASH: u16 = '\\' as u16;
 impl<A: IVm> Debug for String16<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char('"')?;
-        let items = self.0.items();
-        for i in 0..items.length() {
-            match items[i] {
+        for &i in self.0.items().to_iter() {
+            match i {
                 DOUBLE_QUOTE => f.write_str("\\\"")?,
                 BACKSLASH => f.write_str("\\\\")?,
                 c => {
@@ -111,6 +122,19 @@ impl<A: IVm> IntoIterator for String16<A> {
     type IntoIter = ContainerIterator<A, A::InternalString16>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.items_iter()
+    }
+}
+
+impl<A: IVm> Index<u32> for String16<A> {
+    type Output = u16;
+    fn index(&self, index: u32) -> &Self::Output {
+        self.0.items().index(index as usize)
+    }
+}
+
+impl<A: IVm> SizedIndex<u32> for String16<A> {
+    fn length(&self) -> u32 {
+        self.0.items().length() as u32
     }
 }
 
