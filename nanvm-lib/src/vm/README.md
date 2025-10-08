@@ -62,7 +62,7 @@ impl Expression {
     // ...
 }
 
-struct Args(n: u32);
+struct Args(u32);
 
 trait ToArgs {
     fn to_args(self) -> Args;
@@ -71,6 +71,7 @@ trait ToArgs {
 impl ToArgs for u32 {}
 
 impl Index<u32> for Args {
-    fn index(i: u32) -> Expression;
+    // This will panic if `self.0 <= i`.
+    fn index(self, i: u32) -> Expression;
 }
 ```
