@@ -397,7 +397,7 @@ fn gen_test<A: IVm>() {
     object_eq::<A>();
     array_eq::<A>();
     bigint_eq::<A>();
-    old_eq::<naive::InternalAny>();
+    old_eq::<naive::Naive>();
     serialization::<A>();
     number_coerce_to_string::<A>();
     array_coerce_to_string::<A>();
@@ -407,5 +407,5 @@ fn gen_test<A: IVm>() {
 
 #[test]
 fn test() {
-    gen_test::<naive::InternalAny>();
+    gen_test::<naive::Naive>();
 }

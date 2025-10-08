@@ -8,7 +8,7 @@ use std::io::{self, Read, Write};
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String16, Array, ToArray, ToObject, Object, BigInt},
+///     vm::{Any, IVm, ToAny, String16, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
 ///     nullish::Nullish
 /// };
 /// fn any_test<A: IVm>() {
@@ -24,6 +24,8 @@ use std::io::{self, Read, Write};
 ///     let u: BigInt<A> = 123u64.into();
 ///     let q: Any<A> = u.to_any();
 /// }
+///
+/// any_test::<Naive>();
 /// ```
 #[derive(Clone)]
 pub struct Any<A: IVm>(A);

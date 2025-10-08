@@ -9,6 +9,15 @@ use crate::{
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
 
+/// ```
+/// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
+/// fn bigint_test<A: IVm>() {
+///     let a: BigInt<A> = 12345678901234567890u64.into();
+///     let b: BigInt<A> = (-1234567890123456789i64).into();
+/// }
+///
+/// bigint_test::<Naive>();
+/// ```
 #[derive(Clone)]
 pub struct BigInt<A: IVm>(A::InternalBigInt);
 

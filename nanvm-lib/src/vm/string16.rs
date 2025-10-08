@@ -13,11 +13,13 @@ use core::{
 use std::io;
 
 /// ```
-/// use nanvm_lib::vm::{String16, IVm, ToString16};
+/// use nanvm_lib::vm::{String16, IVm, ToString16, naive::Naive};
 /// fn string_test<A: IVm>() {
 ///     let b: String16<A> = "Hello, world!".into();
 ///     let s: String16<A> = ['H' as u16, 'i' as u16, '!' as u16].to_string16();
 /// }
+///
+/// string_test::<Naive>();
 /// ```
 #[derive(Clone)]
 pub struct String16<A: IVm>(A::InternalString16);
