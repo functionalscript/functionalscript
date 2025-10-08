@@ -1,24 +1,62 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{string_coercion::StringCoercion, IVm, String16, ToAnyEx, Unpacked},
+    vm::{string_coercion::StringCoercion, IVm, String16, Unpacked},
 };
-use core::fmt::{Debug, Formatter};
+use core::fmt::{self, Debug, Formatter};
 use std::io::{self, Read, Write};
 
+/// ```
+/// use nanvm_lib::{
+///     vm::{Any, IVm, ToAny, String16, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
+///     nullish::Nullish
+/// };
+/// fn any_test<A: IVm>() {
+///     let b: Any<A> = true.to_any();
+///     let n: Any<A> = Nullish::Null.to_any();
+///     let n: Any<A> = 42.0.to_any();
+///     let c: String16<A> = "Hello".into();
+///     let m: Any<A> = c.to_any();
+///     let a: Array<A> = [].to_array();
+///     let o: Any<A> = a.to_any();
+///     let x: Object<A> = [].to_object();
+///     let p: Any<A> = x.to_any();
+///     let u: BigInt<A> = 123u64.into();
+///     let q: Any<A> = u.to_any();
+/// }
+///
+/// any_test::<Naive>();
+/// ```
 #[derive(Clone)]
-pub struct Any<A: IVm>(pub A);
+pub struct Any<A: IVm>(A);
 
 impl<A: IVm> Debug for Any<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.clone().to_unpacked().fmt(f)
     }
 }
+
+pub trait ToAny {
+    fn to_any<A: IVm>(self) -> Any<A>
+    where
+        Self: Into<A>,
+    {
+        Any(self.into())
+    }
+}
+
+impl<T> ToAny for T {}
 
 /// Same as `===` in ECMAScript.
 impl<A: IVm> PartialEq for Any<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
+    }
+}
+
+impl<A: IVm> From<Any<A>> for Unpacked<A> {
+    fn from(value: Any<A>) -> Self {
+        value.0.to_unpacked()
     }
 }
 
@@ -80,7 +118,7 @@ impl<A: IVm> Serializable for Any<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for Any<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        self.0.clone().to_unpacked().coerce_to_string()
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        self.0.to_unpacked().coerce_to_string()
     }
 }

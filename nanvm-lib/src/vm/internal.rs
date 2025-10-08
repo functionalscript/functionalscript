@@ -1,5 +1,8 @@
 use crate::{
-    common::serializable::Serializable,
+    common::{
+        array::{RandomAccess, SizedIndex},
+        serializable::Serializable,
+    },
     nullish::Nullish,
     sign::Sign,
     vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String16, Unpacked},
@@ -14,7 +17,7 @@ use std::io;
 
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
     container: C,
-    i: u32,
+    i: usize,
     _p: PhantomData<A>,
 }
 
@@ -22,9 +25,10 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
     type Item = C::Item;
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.i;
-        if i < self.container.len() {
+        let items = self.container.items();
+        if i < items.length() {
             self.i += 1;
-            Some(self.container.at(i))
+            Some(items[i].clone())
         } else {
             None
         }
@@ -35,6 +39,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
     type Header: PartialEq + Serializable + Clone;
     type Item: Debug + Serializable + Clone;
+    type Items: RandomAccess<Output = Self::Item> + ?Sized;
 
     // functions
     fn new<E>(
@@ -42,14 +47,13 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         i: impl IntoIterator<Item = Result<Self::Item, E>>,
     ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
-    fn len(&self) -> u32;
-    fn at(&self, i: u32) -> Self::Item;
+    fn items(&self) -> &Self::Items;
     fn ptr_eq(&self, other: &Self) -> bool;
 
     // extensions
 
     fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.items().length() == 0
     }
 
     fn new_ok(header: Self::Header, i: impl IntoIterator<Item = Self::Item>) -> Self {
@@ -68,16 +72,10 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         if self.header() != b.header() {
             return false;
         }
-        let len = self.len();
-        if len != b.len() {
-            return false;
-        }
-        for i in 0..len {
-            if self.at(i) != b.at(i) {
-                return false;
-            }
-        }
-        true
+
+        let a = self.items();
+        let b = b.items();
+        a.to_iter().eq(b.to_iter())
     }
 
     fn items_iter(self) -> ContainerIterator<A, Self>
@@ -93,18 +91,19 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
 
     fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_char(open)?;
-        for i in 0..self.len() {
+        let items = self.items();
+        for i in 0..items.length() {
             if i != 0 {
                 f.write_char(',')?;
             }
-            self.at(i).fmt(f)?;
+            items[i].fmt(f)?;
         }
         f.write_char(close)
     }
 
     fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.header().clone().serialize(write)?;
-        self.len().serialize(write)?;
+        (self.items().length() as u32).serialize(write)?;
         for i in self.items_iter() {
             i.serialize(write)?;
         }

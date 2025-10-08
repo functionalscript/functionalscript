@@ -1,9 +1,9 @@
 use nanvm_lib::{
-    common::{default::default, serializable::Serializable},
+    common::{default::default, iter::Iter, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        naive, string_coercion::StringCoercion, Any, Array, BigInt, IContainer, IVm, Object,
-        Property, String16, ToAnyEx, Unpacked,
+        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16,
+        StringCoercion, ToAny, ToArray, ToObject, Unpacked,
     },
 };
 
@@ -179,39 +179,20 @@ fn bigint_eq<A: IVm>() {
     }
 }
 
-fn eq_container<A: IVm, T: IContainer<A>>(
-    a: &T,
-    b: &T,
-    e: fn(a: &T::Item, &T::Item) -> bool,
-) -> bool {
-    if a.header() != b.header() {
-        return false;
-    }
-    let len = a.len();
-    if len != b.len() {
-        return false;
-    }
-    if a.ptr_eq(&b) {
-        return true;
-    }
-    for i in 0..len {
-        if !e(&a.at(i), &b.at(i)) {
-            return false;
-        }
-    }
-    return true;
+fn eq_container<T: IntoIterator>(a: T, b: T, e: fn(a: &T::Item, &T::Item) -> bool) -> bool {
+    a.into_iter().eq_by_(b.into_iter(), e)
 }
 
 fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
-    match (a.0.clone().to_unpacked(), b.0.clone().to_unpacked()) {
+    match (a.clone().into(), b.clone().into()) {
         (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
         (Unpacked::Boolean(a), Unpacked::Boolean(b)) => a == b,
         (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
         (Unpacked::String(a), Unpacked::String(b)) => a == b,
         (Unpacked::BigInt(a), Unpacked::BigInt(b)) => a == b,
-        (Unpacked::Array(a), Unpacked::Array(b)) => eq_container(&a.0, &b.0, eq_value),
+        (Unpacked::Array(a), Unpacked::Array(b)) => eq_container(a, b, eq_value),
         (Unpacked::Object(a), Unpacked::Object(b)) => {
-            eq_container(&a.0, &b.0, |x: &Property<A>, y: &Property<A>| {
+            eq_container(a, b, |x: &Property<A>, y: &Property<A>| {
                 x.0 == y.0 && eq_value(&x.1, &y.1)
             })
         }
@@ -309,15 +290,15 @@ fn old_eq<A: IVm>() {
     // array
     let array0: Any<A> = Array::default().to_any();
     let array1 = Array::default().to_any();
-    let array2: Any<A> = Into::<Array<_>>::into([string0.clone()]).to_any();
+    let array2: Any<A> = [string0.clone()].to_array().to_any();
     {
         assert_eq!(array0, array0);
         assert_ne!(array0, array1);
         assert_eq!(array2, array2);
     }
     // object
-    let object0: Any<A> = Into::<Object<_>>::into([(s0.clone(), string0.clone())]).to_any();
-    let object1 = Into::<Object<_>>::into([(s0, string0)]).to_any();
+    let object0: Any<A> = [(s0.clone(), string0.clone())].to_object().to_any();
+    let object1 = [(s0, string0)].to_object().to_any();
     {
         assert_eq!(object0, object0);
         assert_ne!(object0, object1);
@@ -336,8 +317,10 @@ fn serialization<A: IVm>() {
         "Hello".into(),
         Into::<BigInt<A>>::into(12u64).to_any(),
         Array::default().to_any(),
-        Into::<Array<A>>::into([7.0.to_any()]).to_any(),
-        Into::<Object<A>>::into([("a".into(), 1.0.to_any()), ("b".into(), "c".into())]).to_any(),
+        [7.0.to_any()].to_array().to_any(),
+        [("a".into(), 1.0.to_any()), ("b".into(), "c".into())]
+            .to_object()
+            .to_any(),
     ];
 
     for value in values.into_iter() {
@@ -359,41 +342,51 @@ fn number_coerce_to_string<A: IVm>() {
     let n: Any<A> = (0.0).to_any();
     assert_eq!(n.coerce_to_string(), Ok("0".into()));
 
-    // TODO Fix -0.0 coercion - right now it yields "-0", not expected "0".
-    // let n: Any<A> = (-0.0).to_any();
-    // assert_eq!(n.coerce_to_string(), Ok("0".into()));
+    let n: Any<A> = (-0.0).to_any();
+    assert_eq!(n.coerce_to_string(), Ok("0".into()));
 
-    // TODO 1/(-0) coerces to "-Infinity" - express in Rust or remove this TODO if not expressible
+    let n: Any<A> = (1.0 / -0.0).to_any();
+    assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
 
-    // TODO Fix f64::INFINITY coercion - right now it yields "inf", not expected "Infinity".
-    //let n: Any<A> = f64::INFINITY.to_any();
-    //assert_eq!(n.coerce_to_string(), Ok("Infinity".into()));
+    let n: Any<A> = f64::INFINITY.to_any();
+    assert_eq!(n.coerce_to_string(), Ok("Infinity".into()));
 
-    // TODO Fix f64::INFINITY coercion - right now it yields "-inf", not expected "-Infinity".
-    // let n: Any<A> = f64::NEG_INFINITY.to_any();
-    // assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
+    let n: Any<A> = f64::NEG_INFINITY.to_any();
+    assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
 
     let n: Any<A> = f64::NAN.to_any();
     assert_eq!(n.coerce_to_string(), Ok("NaN".into()));
 }
 
 fn array_coerce_to_string<A: IVm>() {
-    let a: Any<A> = Into::<Array<_>>::into([]).to_any();
+    let a: Any<A> = [].to_array().to_any();
     assert_eq!(a.coerce_to_string(), Ok("".into()));
 
-    let a: Any<A> = Into::<Array<_>>::into([1.0.to_any()]).to_any();
+    let a: Any<A> = [1.0.to_any()].to_array().to_any();
     assert_eq!(a.coerce_to_string(), Ok("1".into()));
 
-    let a: Any<A> = Into::<Array<_>>::into([1.0.to_any(), 2.0.to_any(), 3.0.to_any()]).to_any();
+    let a: Any<A> = [1.0.to_any(), 2.0.to_any(), 3.0.to_any()]
+        .to_array()
+        .to_any();
     assert_eq!(a.coerce_to_string(), Ok("1,2,3".into()));
 
-    let a: Any<A> = Into::<Array<_>>::into([
+    let a: Any<A> = [
         1.0.to_any(),
-        Into::<Array<_>>::into([2.0.to_any(), 3.0.to_any()]).to_any(),
+        [2.0.to_any(), 3.0.to_any()].to_array().to_any(),
         4.0.to_any(),
-    ])
+    ]
+    .to_array()
     .to_any();
     assert_eq!(a.coerce_to_string(), Ok("1,2,3,4".into()));
+}
+
+fn format_fn<A: IVm>() {
+    let f = Function::<A>(A::InternalFunction::new_ok(
+        ("myfunc".into(), 2),
+        [0xDE, 0xAD, 0xBE, 0xEF],
+    ));
+    let x = format!("{f:?}");
+    assert_eq!(x, "function myfunc(a0,a1) {DEADBEEF}");
 }
 
 fn gen_test<A: IVm>() {
@@ -404,14 +397,15 @@ fn gen_test<A: IVm>() {
     object_eq::<A>();
     array_eq::<A>();
     bigint_eq::<A>();
-    old_eq::<naive::InternalAny>();
+    old_eq::<naive::Naive>();
     serialization::<A>();
     number_coerce_to_string::<A>();
     array_coerce_to_string::<A>();
     //
+    format_fn::<A>();
 }
 
 #[test]
 fn test() {
-    gen_test::<naive::InternalAny>();
+    gen_test::<naive::Naive>();
 }
