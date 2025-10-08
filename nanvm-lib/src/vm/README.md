@@ -60,6 +60,9 @@ impl Expression {
     /// `?:`
     fn if_(self, a: Expression, b: Expression) -> Expression;
     // ...
+
+    /// Creates a function from the expression.
+    fn function<A: IVm>(self, name: String16<A>) -> Function<A>;
 }
 
 struct Args(u32);
