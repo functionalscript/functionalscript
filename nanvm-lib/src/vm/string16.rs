@@ -67,11 +67,12 @@ impl<A: IVm> Debug for String16<A> {
             match items[i] {
                 DOUBLE_QUOTE => f.write_str("\\\"")?,
                 BACKSLASH => f.write_str("\\\\")?,
-                c if (0x20..=0x7F).contains(&c) => {
-                    f.write_char(c as u8 as char)?;
-                }
                 c => {
-                    write!(f, "\\u{c:04X}")?;
+                    if (0x20..=0x7F).contains(&c) {
+                        f.write_char(c as u8 as char)?;
+                    } else {
+                        write!(f, "\\u{c:04X}")?;
+                    }
                 }
             }
         }
