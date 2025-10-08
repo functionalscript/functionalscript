@@ -1,4 +1,4 @@
-use core::{ops::Index, slice};
+use core::ops::{Deref, Index};
 
 use super::default::default;
 
@@ -37,5 +37,15 @@ impl<O> RandomAccess for [O] {
     }
     fn iter(&self) -> impl Iterator<Item = &Self::Output> {
         self.into_iter()
+    }
+}
+
+pub trait RefRandomAccess: Deref<Target: Index<usize>> + IntoIterator {
+    fn length(self) -> usize;
+}
+
+impl<'a, O> RefRandomAccess for &'a [O] {
+    fn length(self) -> usize {
+        self.len()
     }
 }
