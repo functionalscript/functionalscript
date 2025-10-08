@@ -26,8 +26,12 @@ impl<T: Default + Copy, const SIZE: usize> Array for [T; SIZE] {
     }
 }
 
-pub trait RandomAccess: Index<usize> {
+pub trait RandomAccess: Index<usize>
+{
     fn length(&self) -> usize;
+    /// Note: using `IntoIterator` would require complicated lifetime bounds,
+    /// which has to be used in all other places.
+    /// `where for<'a> &'a Self: IntoIterator<Item = &'a Self::Output>`
     fn iter(&self) -> impl Iterator<Item = &Self::Output>;
 }
 
@@ -37,15 +41,5 @@ impl<O> RandomAccess for [O] {
     }
     fn iter(&self) -> impl Iterator<Item = &Self::Output> {
         self.into_iter()
-    }
-}
-
-pub trait RefRandomAccess: Deref<Target: Index<usize>> + IntoIterator {
-    fn length(self) -> usize;
-}
-
-impl<'a, O> RefRandomAccess for &'a [O] {
-    fn length(self) -> usize {
-        self.len()
     }
 }
