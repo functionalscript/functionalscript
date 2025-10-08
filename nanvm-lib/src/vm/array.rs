@@ -15,16 +15,16 @@ use crate::{
 ///     common::array::SizedIndex,
 /// };
 /// fn array_test<A: IVm>() {
-///   let b: Array<A> = [1.0.to_any(), true.to_any()].to_array();
-///   assert_eq!(b.length(), 2);
-///   assert_eq!(b[0], 1.0.to_any());
-///   assert_eq!(b[1], true.to_any());
-///   let b1: Array<A> = [1.0.to_any(), true.to_any()].to_array();
-///   assert_eq!(b, b);
-///   assert_ne!(b, b1);
-///   let ac: Any<A> = b.clone().to_any();
-///   let d: Array<A> = ac.try_into().unwrap();
-///   assert_eq!(d, b);
+///     let b: Array<A> = [1.0.to_any(), true.to_any()].to_array();
+///     assert_eq!(b.length(), 2);
+///     assert_eq!(b[0], 1.0.to_any());
+///     assert_eq!(b[1], true.to_any());
+///     let b1: Array<A> = [1.0.to_any(), true.to_any()].to_array();
+///     assert_eq!(b, b);
+///     assert_ne!(b, b1);
+///     let ac: Any<A> = b.clone().to_any();
+///     let d: Array<A> = ac.try_into().unwrap();
+///     assert_eq!(d, b);
 /// }
 ///
 /// array_test::<Naive>();
