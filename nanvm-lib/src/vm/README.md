@@ -54,6 +54,7 @@ impl Mul for Expression {}
 // ...
 
 impl Expression {
+    fn arg(n: u32) -> Expression;
     /// `===`
     /// Note: we can't use `trait PartialEq` because it returns `bool` but we need Expression.
     fn eq(self, b: Expression) -> Expression;
@@ -62,7 +63,10 @@ impl Expression {
     // ...
 
     /// Creates a function from the expression.
-    fn function<A: IVm>(self, name: String16<A>) -> Function<A>;
+    fn function(self, length: u32, name: Expression) -> Expression;
+
+    ///
+    fn compute<A: IVm>(self) -> Any<IVm>;
 }
 
 struct Args(u32);
