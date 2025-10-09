@@ -30,4 +30,3 @@ If either installation fails, skip all test commands.
 - Use `let` variables only within the function body where they are declared.
 - CLI parameters are preferred over environment variables when adding new features.
 - Ensure all of the above tests pass before submitting changes.
-

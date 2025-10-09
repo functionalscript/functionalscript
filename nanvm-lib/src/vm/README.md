@@ -68,17 +68,4 @@ impl Expression {
     ///
     fn compute<A: IVm>(self) -> Any<IVm>;
 }
-
-struct Args(u32);
-
-trait ToArgs {
-    fn to_args(self) -> Args;
-}
-
-impl ToArgs for u32 {}
-
-impl Index<u32> for Args {
-    // This will panic if `self.0 <= i`.
-    fn index(self, i: u32) -> Expression;
-}
 ```
