@@ -130,3 +130,16 @@ const iDigit: Dispatch = {
 - optionalMinus:
   - `"-"` => `{ "minus": ['-'] }`
   - `""` => `{ "none": [] }`
+
+## Common Patterns
+
+Repeat `a`:
+
+```json
+{
+  "a": {
+     "some": ["b", "a"],
+     "none": [],
+  }
+}
+```
