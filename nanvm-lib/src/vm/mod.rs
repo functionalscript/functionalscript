@@ -10,6 +10,7 @@ mod string_coercion;
 mod unpacked;
 
 pub mod naive;
+pub mod number_coercion;
 
 pub use crate::vm::{
     any::{Any, ToAny},
