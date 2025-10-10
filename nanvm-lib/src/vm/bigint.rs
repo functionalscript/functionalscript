@@ -1,13 +1,25 @@
 use crate::{
-    common::{default::default, serializable::Serializable},
+    common::{array::SizedIndex, default::default, serializable::Serializable},
     sign::Sign,
-    vm::{string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked},
+    vm::{
+        string_coercion::{StringCoercion, ToString16Result},
+        Any, IContainer, IVm, String16, Unpacked,
+    },
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
 
+/// ```
+/// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
+/// fn bigint_test<A: IVm>() {
+///     let a: BigInt<A> = 12345678901234567890u64.into();
+///     let b: BigInt<A> = (-1234567890123456789i64).into();
+/// }
+///
+/// bigint_test::<Naive>();
+/// ```
 #[derive(Clone)]
-pub struct BigInt<A: IVm>(pub A::InternalBigInt);
+pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> Default for BigInt<A> {
     fn default() -> Self {
@@ -53,7 +65,7 @@ impl<A: IVm> PartialEq for BigInt<A> {
 impl<A: IVm> TryFrom<Any<A>> for BigInt<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::BigInt(result) = value.0.to_unpacked() {
+        if let Unpacked::BigInt(result) = value.into() {
             Ok(result)
         } else {
             Err(())
@@ -70,10 +82,11 @@ impl<A: IVm> Debug for BigInt<A> {
             f.write_char('-')?;
         }
         f.write_str("0x")?;
-        let last = self.0.len() - 1;
-        write!(f, "{:X}", self.0.at(last))?;
+        let items = self.0.items();
+        let last = items.length() - 1;
+        write!(f, "{:X}", items[last])?;
         for i in (0..last).rev() {
-            write!(f, "_{:016X}", self.0.at(i))?;
+            write!(f, "_{:016X}", items[i])?;
         }
         f.write_char('n')
     }
@@ -90,7 +103,8 @@ impl<A: IVm> Serializable for BigInt<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for BigInt<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
-        Ok(format!("{self:?}").as_str().into())
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        // TODO: we should use different algorithm for large numbers.
+        format!("{self:?}").to_string16_result()
     }
 }

@@ -19,3 +19,62 @@ struct Any<T: IVm>;
 struct String<T: IVm>;
 // ...
 ```
+
+## ByteCode
+
+Byte code is a VM agnostic.
+
+```rust
+/// ```
+/// let t = true.to_expression();
+/// let n = 5.0.to_expression();
+/// let m = t + n;
+/// ```
+struct Expression {}
+
+trait ToExpression {
+    fn to_expression(self) -> Expression;
+}
+
+impl ToExpression for bool {}
+impl ToExpression for f64 {}
+
+impl ToExpression for &[u16] {}
+impl ToExpression for &str {}
+
+impl ToExpression for &[Expression] {}
+impl ToExpression for &[(Expression, Expression)] {}
+
+//...
+
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
+
+impl Add for Expression {}
+impl Mul for Expression {}
+// ...
+
+impl Expression {
+    /// `===`
+    /// Note: we can't use `trait PartialEq` because it returns `bool` but we need Expression.
+    fn eq(self, b: Expression) -> Expression;
+    /// `?:`
+    fn if_(self, a: Expression, b: Expression) -> Expression;
+    // ...
+
+    /// Creates a function from the expression.
+    fn function<A: IVm>(self, name: String16<A>) -> Function<A>;
+}
+
+struct Args(u32);
+
+trait ToArgs {
+    fn to_args(self) -> Args;
+}
+
+impl ToArgs for u32 {}
+
+impl Index<u32> for Args {
+    // This will panic if `self.0 <= i`.
+    fn index(self, i: u32) -> Expression;
+}
+```

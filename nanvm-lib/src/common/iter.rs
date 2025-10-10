@@ -62,6 +62,24 @@ pub trait Iter: Sized + Iterator {
             Ok(i) => Either::Right(i.into_iter().map(Result::Ok)),
         })
     }
+
+    fn eq_by_<J: Iterator, F: FnMut(&Self::Item, &J::Item) -> bool>(
+        mut self,
+        mut j: J,
+        mut cmp: F,
+    ) -> bool {
+        loop {
+            match (self.next(), j.next()) {
+                (Some(x), Some(y)) => {
+                    if !cmp(&x, &y) {
+                        return false;
+                    }
+                }
+                (None, None) => return true,
+                _ => return false,
+            }
+        }
+    }
 }
 
 impl<T: Sized + Iterator> Iter for T {}

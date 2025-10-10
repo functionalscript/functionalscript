@@ -49,12 +49,6 @@ impl<A: IVm> PartialEq for Unpacked<A> {
     }
 }
 
-impl<A: IVm> From<Any<A>> for Unpacked<A> {
-    fn from(value: Any<A>) -> Self {
-        value.0.to_unpacked()
-    }
-}
-
 impl<A: IVm> From<Nullish> for Unpacked<A> {
     fn from(value: Nullish) -> Self {
         Unpacked::Nullish(value)
@@ -170,7 +164,7 @@ impl<A: IVm> Serializable for Unpacked<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for Unpacked<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         match self {
             Unpacked::Nullish(n) => n.coerce_to_string(),
             Unpacked::Boolean(b) => b.coerce_to_string(),

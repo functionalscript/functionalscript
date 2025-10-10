@@ -75,4 +75,5 @@ In FunctionalScript:
 ## Sponsors
 
 - [KirillOsenkov](https://github.com/KirillOsenkov),
-- [antkmsft](https://github.com/antkmsft).
+- [antkmsft](https://github.com/antkmsft),
+- [Mark Heyman](https://opencollective.com/body-count).
