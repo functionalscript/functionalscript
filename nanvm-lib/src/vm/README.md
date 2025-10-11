@@ -60,12 +60,17 @@ impl Expression {
     fn eq(self, b: Expression) -> Expression;
     /// `?:`
     fn if_(self, a: Expression, b: Expression) -> Expression;
+    ///
+    fn property(self, name: Expression) -> Expression;
+    /// call
+    fn call(self, a: impl IntoIterator<Item = Expression>) -> Expression;
+    fn propertyCall(self, property: Expression, a: impl IntoIterator<Item = Expression>);
     // ...
 
     /// Creates a function from the expression.
     fn function(self, length: u32, name: Expression) -> Expression;
 
-    ///
+    /// Should panic if the expression is not computable, for example, if it depends on arg
     fn compute<A: IVm>(self) -> Any<IVm>;
 }
 ```
