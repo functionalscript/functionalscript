@@ -356,7 +356,7 @@ export default {
             const mr = m("", [66])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,[66]]') { throw result }
-        },
+        }
     ],
     example: () => {
         const grammar = {
