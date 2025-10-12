@@ -4,7 +4,6 @@
   "license": "AGPL-3.0-only",
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
-    "./bnf/djs/module.f.ts": "./bnf/djs/module.f.ts",
     "./bnf/func/module.f.ts": "./bnf/func/module.f.ts",
     "./bnf/module.f.ts": "./bnf/module.f.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
