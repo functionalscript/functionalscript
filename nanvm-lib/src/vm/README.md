@@ -55,15 +55,16 @@ impl Mul for Expression {}
 
 impl Expression {
     fn arg(n: u32) -> Expression;
-    /// `===`
+    /// `self === b`
     /// Note: we can't use `trait PartialEq` because it returns `bool` but we need Expression.
     fn eq(self, b: Expression) -> Expression;
-    /// `?:`
+    /// `self ? a : b`
     fn if_(self, a: Expression, b: Expression) -> Expression;
-    ///
+    /// `self[name]`
     fn property(self, name: Expression) -> Expression;
-    /// call
+    /// `self(...a)`
     fn call(self, a: impl IntoIterator<Item = Expression>) -> Expression;
+    /// `self[property](...a)`
     fn propertyCall(self, property: Expression, a: impl IntoIterator<Item = Expression>);
     // ...
 
