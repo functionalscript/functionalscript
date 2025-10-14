@@ -70,6 +70,8 @@ impl Expression {
 
     /// Creates a function from the expression.
     fn function(self, length: u32, name: Expression) -> Expression;
+    /// 
+    fn recursive(f: FnOnce(self) -> Expression) -> Expression;
 
     /// Should panic if the expression is not computable, for example, if it depends on arg
     fn compute<A: IVm>(self) -> Any<IVm>;
