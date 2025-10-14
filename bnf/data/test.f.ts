@@ -319,7 +319,7 @@ export default {
             expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
-    ],    
+    ],
     repeat: [
         () => {            
             const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
