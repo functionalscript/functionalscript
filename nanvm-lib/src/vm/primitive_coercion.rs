@@ -22,18 +22,23 @@ pub trait PrimitiveCoercion<A: IVm> {
     /// <https://tc39.es/ecma262/#sec-toprimitive>
     fn coerce_to_primitive(
         &self,
-        preferred_type: ToPrimitivePreferredType,
+        preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>>;
 }
 
 impl<A: IVm> PrimitiveCoercion<A> for bool {
     fn coerce_to_primitive(
         &self,
-        preferred_type: ToPrimitivePreferredType,
+        preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
         match preferred_type {
-            ToPrimitivePreferredType::Number => Ok(Primitive::Number(self.coerce_to_number()?)),
-            ToPrimitivePreferredType::String => Ok(Primitive::String(self.coerce_to_string()?)),
+            Some(ToPrimitivePreferredType::Number) => {
+                Ok(Primitive::Number(self.coerce_to_number()?))
+            }
+            Some(ToPrimitivePreferredType::String) => {
+                Ok(Primitive::String(self.coerce_to_string()?))
+            }
+            None => Ok(Primitive::Boolean(*self)),
         }
     }
 }
@@ -41,11 +46,16 @@ impl<A: IVm> PrimitiveCoercion<A> for bool {
 impl<A: IVm> PrimitiveCoercion<A> for Nullish {
     fn coerce_to_primitive(
         &self,
-        preferred_type: ToPrimitivePreferredType,
+        preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
         match preferred_type {
-            ToPrimitivePreferredType::Number => Ok(Primitive::Number(self.coerce_to_number()?)),
-            ToPrimitivePreferredType::String => Ok(Primitive::String(self.coerce_to_string()?)),
+            Some(ToPrimitivePreferredType::Number) => {
+                Ok(Primitive::Number(self.coerce_to_number()?))
+            }
+            Some(ToPrimitivePreferredType::String) => {
+                Ok(Primitive::String(self.coerce_to_string()?))
+            }
+            None => Ok(Primitive::Nullish(*self)),
         }
     }
 }
