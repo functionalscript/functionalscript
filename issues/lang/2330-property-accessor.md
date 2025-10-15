@@ -13,7 +13,7 @@ It's important to be able to access instance's own property regardless object pr
 available in JS via object's prototype chain. In FS we plan to not have prototype chains
 at runtime. Here go snippets showing how to access own properties in JS - that code might
 be useful to support in FS as well. Note that this is more verbose than obj.field syntax
-(discussed below in "Instance Property" section, but protects against unwanted access to
+discussed below in "Instance Property" section, but protects against unwanted access to
 the prototype chain.
 
 In case a property has no side effects (see 'no' in 'side effects' columns in tables below)

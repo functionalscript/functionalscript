@@ -54,27 +54,26 @@ impl Mul for Expression {}
 // ...
 
 impl Expression {
-    /// `===`
+    fn arg(n: u32) -> Expression;
+    /// `self === b`
     /// Note: we can't use `trait PartialEq` because it returns `bool` but we need Expression.
     fn eq(self, b: Expression) -> Expression;
-    /// `?:`
+    /// `self ? a : b`
     fn if_(self, a: Expression, b: Expression) -> Expression;
+    /// `self[name]`
+    fn property(self, name: Expression) -> Expression;
+    /// `self(...a)`
+    fn call(self, a: impl IntoIterator<Item = Expression>) -> Expression;
+    /// `self[property](...a)`
+    fn propertyCall(self, property: Expression, a: impl IntoIterator<Item = Expression>);
     // ...
 
     /// Creates a function from the expression.
-    fn function<A: IVm>(self, name: String16<A>) -> Function<A>;
-}
+    fn function(self, length: u32, name: Expression) -> Expression;
+    /// 
+    fn recursive(f: FnOnce(self) -> Expression) -> Expression;
 
-struct Args(u32);
-
-trait ToArgs {
-    fn to_args(self) -> Args;
-}
-
-impl ToArgs for u32 {}
-
-impl Index<u32> for Args {
-    // This will panic if `self.0 <= i`.
-    fn index(self, i: u32) -> Expression;
+    /// Should panic if the expression is not computable, for example, if it depends on arg
+    fn compute<A: IVm>(self) -> Any<IVm>;
 }
 ```

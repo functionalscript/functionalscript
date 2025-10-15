@@ -41,3 +41,19 @@ Use `SCCACHE_LOG=debug SCCACHE_ERROR_LOG=_.log` to see which parameters are pass
 
 For example,
 `SCCACHE_LOG=debug SCCACHE_ERROR_LOG=/_.log cargo test --no-run`
+
+## Codex Setup
+
+```sh
+rustup component add clippy
+rustup component add rustfmt
+
+# Install Node.js dependencies.
+npm ci
+
+# Install Rust dependencies.
+cargo fetch
+
+rustup show
+node -v
+```
