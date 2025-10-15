@@ -6,8 +6,7 @@ use crate::{
     },
 };
 
-/// Preffered type for coercion to primitive, as per ECMAScript specification.
-///
+/// Preferred type for coercion to primitive, as per ECMAScript specification.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
