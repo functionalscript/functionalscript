@@ -7,7 +7,8 @@ use crate::{
 };
 
 /// Preffered type for coercion to primitive, as per ECMAScript specification.
-/// https://tc39.es/ecma262/#sec-toprimitive
+///
+/// <https://tc39.es/ecma262/#sec-toprimitive>
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToPrimitivePreferredType {
@@ -19,8 +20,7 @@ pub enum ToPrimitivePreferredType {
 #[allow(dead_code)]
 pub trait PrimitiveCoercion<A: IVm> {
     /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
-    /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion
-    /// https://tc39.es/ecma262/multipage/abstract-operations.html#sec-toprimitive
+    /// <https://tc39.es/ecma262/#sec-toprimitive>
     fn coerce_to_primitive(
         &self,
         preferred_type: ToPrimitivePreferredType,

@@ -8,7 +8,7 @@ use crate::{
 pub trait NumberCoercion<A: IVm> {
     /// Coerces the value to f64, possibly producing an error result.
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number#number_coercion>
-    /// <https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tonumber>
+    /// <https://tc39.es/ecma262/#sec-tonumber>
     fn coerce_to_number(&self) -> Result<f64, Any<A>>;
 }
 
