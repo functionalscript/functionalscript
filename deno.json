@@ -1,7 +1,7 @@
 {
   "name": "@functionalscript/functionalscript",
   "version": "0.7.0",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
     "./bnf/func/module.f.ts": "./bnf/func/module.f.ts",
