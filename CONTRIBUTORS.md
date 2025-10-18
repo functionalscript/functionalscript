@@ -4,4 +4,5 @@
 - [Trinidadec](https://github.com/Trinidadec),
 - [sasha-gil](https://github.com/sasha-gil),
 - [KodiMaberek](https://github.com/KodiMaberek),
+- [VortexIsHere](https://github.com/VortexIsHere),
 - [MiYanni](https://github.com/MiYanni).
