@@ -1,0 +1,66 @@
+{
+    "version": "v1.0.0",
+    "entity": {
+        "type": "individual",
+        "role": "owner",
+        "name": "Sergey Shandar",
+        "email": "sergey.oss@proton.me",
+        "description": "Sergey is the main author of FunctionalScript, and other OSS projects related to content-addressable infrastructure",
+        "webpageUrl": {
+            "url": "https://github.com/functionalscript/functionalscript"
+        }
+    },
+    "projects": [
+        {
+            "guid": "functionalscript",
+            "name": "FunctionalScript",
+            "description": "FunctionalScript is a purely functional safe subset of JavaScript",
+            "webpageUrl": {
+                "url": "https://github.com/functionalscript/functionalscript"
+            },
+            "repositoryUrl": {
+                "url": "https://github.com/functionalscript/functionalscript"
+            },
+            "licenses": [
+                "spdx:MIT"
+            ],
+            "tags": [
+                "programming",
+                "web-development",
+                "software-engineering",
+                "developer-tools",
+                "programming-language",
+                "cryptography",
+                "smart-contract"
+            ]
+        }
+    ],
+    "funding": {
+        "channels": [
+            {
+                "guid": "github",
+                "type": "other",
+                "address": "https://github.com/sponsors/sergey-shandar"
+            },
+            {
+                "guid": "opencollective",
+                "type": "other",
+                "address": "https://opencollective.com/functionalscript"
+            }
+        ],
+        "plans": [
+            {
+                "guid": "nanvm",
+                "status": "active",
+                "name": "NaNVM",
+                "description": "NaNVM is a virtual machine for the FunctionalScript",
+                "amount": 0,
+                "currency": "USD",
+                "frequency": "one-time",
+                "channels": [
+                    "github"
+                ]
+            }
+        ]
+    }
+}
