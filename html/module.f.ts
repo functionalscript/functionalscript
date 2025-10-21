@@ -31,6 +31,15 @@ const voidTagList: readonly string[] = [
     'wbr',
 ]
 
+/**
+ * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script
+ * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/style
+ */
+const rawText: readonly string[] = [
+    'script',
+    'style'
+]
+
 type Element1 = readonly [Tag, ...Node[]]
 
 type Element2 = readonly [Tag, Attributes, ...Node[]]
@@ -63,6 +72,11 @@ const node = (n: Node) =>
 
 const nodes = flatMap(node)
 
+const raw = (n: Node) =>
+    typeof n === 'string' ? n : ''
+
+const rawMap = map(raw)
+
 const attribute = ([name, value]: Entry<string>) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
@@ -80,9 +94,10 @@ const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]]
 export const element = (e: Element): List<string> => {
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
-    return voidTagList.includes(tag) ?
-        open :
-        flat([open, nodes(n), ['</', tag, '>']])
+    if (voidTagList.includes(tag)) {
+        return open
+    }
+    return flat([open, rawText.includes(tag) ? rawMap(n) : nodes(n), ['</', tag, '>']])
 }
 
 export const html
