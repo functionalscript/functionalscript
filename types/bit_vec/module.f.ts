@@ -15,6 +15,18 @@ import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import { fold, type List, type Thunk } from '../list/module.f.ts'
 
+export type Nominal<T extends string, B> = { [k in T]: true }
+
+export const to_nominal = <T extends string, B>(b: B): Nominal<T, B> => b as Nominal<T, B>
+
+export const to_base = <T extends string, B>(n: Nominal<T, B>): B => n as B
+
+export type NVec = Nominal<'0cef502e4a951e6e42f421c62abd79e7e9b07bee3e63549638676ec2d8ed98e3', bigint>
+
+export const nvec = (len: bigint) => (b: bigint): NVec => to_nominal(vec(len)(b))
+
+export const nuint = (v: NVec): bigint => uint(to_base(v))
+
 /**
  * A vector of bits represented as a `bigint`.
  */
