@@ -57,7 +57,7 @@ mod test {
         use crate::{
             extension::AnyExtension,
             interface::{Complex, Extension},
-            naive::{Any, Array, Object},
+            naive::Any,
             nullish::Nullish::*,
             simple::Simple,
         };
@@ -113,6 +113,7 @@ mod test {
             simple::Simple,
         };
 
+        // #[wasm_bindgen_test] // #[wasm-bindgen-test] doesn't work with `#[should_panic]`
         #[test]
         #[should_panic]
         fn test_own_property_null() {

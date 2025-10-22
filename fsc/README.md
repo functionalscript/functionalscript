@@ -46,7 +46,7 @@
   - `===` - equal
   - `=>` - arrow
 - `>` - greater
-  - `<=` - greaterEqual
+  - `>=` - greaterEqual
   - `>>` - rightShift
   - `>>>` - unsignedRightShift
   - `>>>=` unsignedRightShiftAssignment

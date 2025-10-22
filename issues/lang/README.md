@@ -9,11 +9,10 @@ When we implement features of FunctionalScript, the first priority is a simplifi
 
 File Types:
 
-|File Type|Extension        |Notes       |
-|---------|-----------------|------------|
-|JSON     |`.json`          |Not a graph.|
-|DJS      |`.d.js`, `.d.mjs`|A graph.    |
-|FJS      |`.f.js`, `.f.mjs`|Functions.  |
+|File Type|Extension       |Notes                |
+|---------|----------------|---------------------|
+|JSON     |`.json`         |Tree.                |
+|FJS      |`.f.js`, `.f.ts`|Graph with functions.|
 
 **Note**: An FJS value can't be serialized without additional run-time infrastructure.
 
@@ -27,49 +26,48 @@ We are introducing new commands in such a way that every new command depends onl
 
 |format|any           |Tag|          |
 |------|--------------|---|----------|
-|JSON  |null          | 00|          |
-|      |number        | 01|u64       |
+|JSON  |undefined     | 00|          |
+|      |null          | 01|          |
 |      |false         | 02|          |
 |      |true          | 03|          |
-|      |string        | 04|String    |
-|      |array         | 05|Array<Any>|
-|      |object        | 06|Object    |
+|      |number        | 04|u64       |
+|      |string        | 05|String    |
+|      |array         | 06|Array<Any>|
+|      |object        | 07|Object    |
 
 ## 2. DJS
 
 The DJS form a graph of values. It can be serialized without additional run-time information.
 
-File extensions: `.d.js` and `.d.mjs`.
-
 |format|any                     |Tag|          |Notes                                           |
 |------|------------------------|---|----------|------------------------------------------------|
-|DJS   |const_ref               | 07|u32       |[const](./2120-const.md)                        |
+|DJS   |const_ref               | 80|u32       |[const](./2120-const.md)                        |
 |      |bigint_plus             | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |bigint_minus            | 09|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |undefined               | 0A|          |[undefined](./2310-undefined.md)                |
-|      |own_property            | 0B|          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_property       | 0C|          |[property-accessor](./2330-property-accessor.md)|
-|      |instance_method_call    | 0D|          |[property-accessor](./2330-property-accessor.md)|
-|      |at                      | 0E|          |[property-accessor](./2330-property-accessor.md)|
+|      |bigint_minus            | 0A|Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |undefined               | 0B|          |[undefined](./2310-undefined.md)                |
+|      |own_property            | 0C|          |[property-accessor](./2330-property-accessor.md)|
+|      |instance_property       | 0E|          |[property-accessor](./2330-property-accessor.md)|
+|      |instance_method_call    | 0F|          |[property-accessor](./2330-property-accessor.md)|
+|      |at                      | 10|          |[property-accessor](./2330-property-accessor.md)|
 |      |operators               |   |          |[operators](./2340-operators.md)                |
 
 ### 2.1. Required
 
-1. [ ] [default-export](./2110-default-export.md),
-2. [ ] [const](./2120-const.md),
-3. [ ] [default-import](./2130-default-import.md).
+1. [x] [default-export](./2110-default-export.md),
+2. [x] [const](./2120-const.md),
+3. [x] [default-import](./2130-default-import.md).
 
 ### 2.2. Priority 1
 
 We need it to use JSDoc and TypeScript.
 
-1. [ ] [block-comment](./2210-block-comment.md),
+1. [x] [block-comment](./2210-block-comment.md),
 2. [ ] [namespace-import](./2220-namespace-import.md).
 
 ### 2.3. Priority 2
 
-1. [ ] [undefined](./2310-undefined.md),
-2. [ ] [bigint](./2320-bigint.md),
+1. [x] [undefined](./2310-undefined.md),
+2. [x] [bigint](./2320-bigint.md),
 3. [ ] [property-accessor](./2330-property-accessor.md),
 4. [ ] [operators](./2340-operators.md),
 5. [ ] [grouping](./2350-grouping.md),
@@ -77,17 +75,15 @@ We need it to use JSDoc and TypeScript.
 
 ### 2.4. Syntactic Sugar
 
-1. [ ] [identifier-property](./2410-identifier-property.md),
-2. [ ] [line-comment](./2420-line-comment.md),
-3. [ ] [trailing-comma](./2430-trailing-comma.md),
+1. [x] [identifier-property](./2410-identifier-property.md),
+2. [x] [line-comment](./2420-line-comment.md),
+3. [x] [trailing-comma](./2430-trailing-comma.md),
 4. [ ] [shorthand](./2440-shorthand.md),
 5. [ ] [destructuring](./2450-destructuring.md).
 
 ## 3. FJS
 
 The FJS can have functions. The format requires additional run-time information for serialization.
-
-File extensions: `.f.js` and `.f.mjs`.
 
 |format|any     |Tag|    |Notes                           |
 |------|--------|---|----|--------------------------------|
@@ -109,10 +105,11 @@ File extensions: `.f.js` and `.f.mjs`.
 
 ### 3.3. Priority 3
 
-1. [ ] Regular Expressions
+1. [ ] Regular Expressions.
 2. [ ] [type inference](./3370-type-inference.md)
 3. [ ] [promise](./3380-promise.md)
 4. [ ] [class](./3390-class.md)
+5. [ ] Temporal classes.
 
 ### 3.4. Syntactic Sugar
 
@@ -130,9 +127,14 @@ File extensions: `.f.js` and `.f.mjs`.
    - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2:
-   One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`. 
+   One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`.
 4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
+6. [ ] [Temporal](https://github.com/tc39/proposal-temporal).
+
+Wish list:
+
+1. [ ] Utf8 String. Something like `u8"Hello, world"`.
 
 ## 5. I/O
 
@@ -140,7 +142,7 @@ File extensions: `.f.js` and `.f.mjs`.
 
 Using dependency injection.
 
-This implementation of VM requires external function implementation.
+This implementation of VM requires the implementation of external functions.
 
 ### 5.2 Isolated Asynchronous I/O
 
@@ -192,5 +194,208 @@ enum Value {
 }
 ```
 
-The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack). 
-    
+The collision probability for 48 bits is 50% for `16777216 = 2^24` hashes (birthday attack).
+
+## 7. Object Identity
+
+To build custom dictionaries when using functions as a key, we need either an object identifier (for hash map `O(1)`) or a proper comparison operator (for BTree map `O(log(n))`). The best option now is to use `<` and then use an array for items that satisfy `(a !== b) && !(a < b) && !(b > a)`.
+
+One of the options is to use `Map`. The `Map` type is mutable and requires an object ownership tracking, similar to Rust.
+
+## 7.1. Hack For Map. Add `ReadonlyMap`
+
+```ts
+type ImmutableMap<K, V> = {
+    readonly set(k: K, v: V): ImmutableMap<K, V>
+    readonly delete(k: K): ImmutableMap<K, V>
+}
+
+const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
+    set: (...kv: readonly[K, V]) => new Map([...map, kv])
+    delete: (k: K) => new Map([...map.filter([k] => k !== k)])
+})
+```
+
+## 7.2. Hack For Map. Special Instructions
+
+```ts
+// a special expression which is converted into one command.
+new Map(a).set(k, v)
+
+// a special expression which is converted into one command.
+const b = new Map(a)
+b.delete(k)
+```
+
+```ts
+type ImmutableMap<K, V> = {
+    readonly set(k: K, v: V): ImmutableMap<K, V>
+    readonly delete(k: K): ImmutableMap<K, V>
+}
+
+const immutableMap = <K, V>(map: ReadonlyMap<K, V>) => ({
+    set: (k: K, v: V) => new Map(map).set(k, v)
+    delete: (k: K, v: V) => {
+        const x = new Map(map)
+        x.delete(k)
+        return x
+    }
+})
+```
+
+## 8. Mutable Objects and Ownership Tracking
+
+The zero stage is to support `let`.
+
+The first stage is to support mutable objects only as a local variable:
+
+```js
+const my = () => {
+   const map = new Map()
+   map.set("hello", "world!") // we can change `map` here because we've never pass `map` to anything else.
+   f(map) // now `map` is immutable.
+   return map // returns an immutable Map.
+}
+```
+
+Other stages may include passing mutable objects as parameters.
+
+Implementing IO using mutable objects with ownership tracking:
+
+```ts
+type Io<S> = {
+    readonly consoleLog: (s: S, msg: string) => void
+    // ...
+}
+```
+
+Or immutable
+
+```ts
+type Io<S> = {
+    readonly consoleLog: (s: S, msg: string) => S
+    // ...
+}
+```
+
+With class supports, mutability state can be encapsulate with methods into one class:
+
+```ts
+class VirtualIo {
+   #buffer = []
+   function log(s: string) {
+      this.#buffer.push(s)
+   }
+   function reset(x: readonly string[]) {
+      // note, that we have to do a deep clone.
+      this.#buffer = []
+      for (const i of x) {
+         this.#buffer.push(i)
+      }
+   }
+}
+```
+
+## 8.1. Local mutability
+
+```ts
+const ar = () => {
+   const a = [] // a is mutable
+   a.push('hello')
+   return a // now it's immutable
+}
+```
+
+## 8.2. Pass Mutability
+
+```ts
+const ar = a => { // a is marked as mutable because we don't use the object anywhere else.
+   a.push('hello')
+}
+
+const f = () => {
+   const a = []
+   ar(a)
+   return a
+}
+```
+
+Here we consider an object is mutable if it has only one path.
+
+```ts
+const f = a => { // a is not mutable because we return a
+   return a
+}
+
+const f1 = a => {
+   const x = () => {
+      // a is mutable
+      a.push('x')
+   }
+   x()
+}
+
+const f2 = a => {
+   const x = () => {
+      a.push('x')
+   }
+   return x // compilation error.
+}
+```
+
+Should we have a global analysis?
+
+## 8.3. Async in Tests
+
+```ts
+type Fs = {
+   readonly readFile: (name: string) => Promise<string>
+   readonly writeFile: (name: string, text: string) => Promise<void>
+}
+
+// Should every test receive a state object, similar to Map?
+
+type AsyncMap<K, V> = {
+   readonly asyncGet: (k: K) => Promise<V|undefined>
+   readonly asyncSet: (k: K, v: V|undefined) => Promise<void>
+}
+
+const fs = (state: AsyncMap<string, string>) => ({
+   readFile: async(name: string): Promise<string> => { /* ? */ }
+   writeFile: async(name: string, text: string): Promise<void> => { /* ? */ }
+})
+
+// Another option is to allow access to `let` in `async` functions.
+
+const test = async(f: (fs: Fs) => Promise<void>): Promise<void> => {
+    let x = new Map()
+    const fs = {
+        readFile: async() => {
+            x.get() /* ... */
+        }
+        writeFile: async(k: string, v: string) => { // should writeFile
+            x = new Map(concat(x, [[k, v]]))
+        }
+    }
+    await f(fs)
+}
+```
+
+## 9. Bytecode
+
+Let's have a concise and relatively stable "external" bytecode model that is fit for representation
+of processed FS code upon serialization (saving in-memory function object) / deserialization
+(loading previously saved function objects). A VM implementation has an option to transform that
+external bytecode into its internal representation on loading.
+
+Looking from that perspective we should design external bytecode in most flexible manner, allowing
+for various kinds of optimizations in VM implementations. For example, bytecode that always copies
+arguments of a function call to devoted stack slots (before the proper call instruction) disallow
+optimization opportunities for calling well-known host (built-in) functions that can be implemented
+without excessive copying / slot allocations.
+
+On the other hand we target for simplicity and speed of bytecode loader, for example, we represent
+number literals as an LSB double floating point (8 bytes - LSB picked here since it's an in-memory
+representation more commonly used in popular processor architectures).
+
+1. [ ] [Call-like instructions](./9100-call-like-instructions.md)

@@ -8,7 +8,7 @@ FunctionalScript is a safe, purely functional programming language and a strict 
 
 - [JSON](https://en.wikipedia.org/wiki/JSON) and [JSON5](https://json5.org/) as subsets of JavaScript.
   JSON is also a subset of FunctionalScript.
-- [asm.JS](https://en.wikipedia.org/wiki/Asm.js)/[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly),
+- [asm.JS](https://en.wikipedia.org/wiki/Asm.js) (a precursor of [WebAssembly](https://en.wikipedia.org/wiki/WebAssembly)),
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
@@ -19,7 +19,32 @@ Learn more about
 - [Purely Functional Programming in JavaScript](https://blog.bitsrc.io/purely-functional-programming-in-javascript-91114b1b2dff?sk=5f7132e56902f38fcf4c6164bfa681ed),
 - [FunctionalScript and I/O](https://medium.com/@sergeyshandar/functionalscript-5cf817345376?sk=30b32189a81d1a2dad16c2244f32328d).
 
-This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and distributted under under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). Let us know if you need another license by sending an [email](mailto:sergey.oss@proton.me).
+This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and distributed under [MIT](LICENSE).
+
+## Getting Started
+
+Install FunctionalScript via npm:
+
+```bash
+npm install functionalscript
+```
+
+The FunctionalScript compiler (`fsc`) currently supports:
+
+* `import` statements
+* `const` declarations
+
+It does **not** yet support functions or complex expressions.
+
+Example usage with `fsc`:
+
+```bash
+npx fsc example.f.js output.json
+# or
+npx fsc example.f.js output.f.js
+```
+
+FunctionalScript code can be compiled directly into either JSON or JavaScript without imports.
 
 ## Vision
 
@@ -31,7 +56,7 @@ FunctionalScript code can be used:
 
 - safely in any JavaScript/TypeScript application or library;
 - as a JSON with expressions, see [DJS](https://medium.com/@sasha.gil/bridging-the-gap-from-json-to-javascript-without-dsls-fee273573f1b);
-- as a query language,
+- as a query language;
 - as a smart contract programming language in DeFi.
 
 ## Design Principles
@@ -50,4 +75,5 @@ In FunctionalScript:
 ## Sponsors
 
 - [KirillOsenkov](https://github.com/KirillOsenkov),
-- [antkmsft](https://github.com/antkmsft).
+- [antkmsft](https://github.com/antkmsft),
+- [Mark Heyman](https://opencollective.com/body-count).

@@ -16,7 +16,9 @@ type Object = {
 
 type Array = readonly Unknown[]
 
-export type Unknown = Object|boolean|string|number|null|Array
+export type Primitive = boolean | string | number | null
+
+export type Unknown = Primitive | Object | Array
 
 export const setProperty
     : (value: Unknown) => (path: list.List<string>) => (src: Unknown) => Unknown

@@ -1,22 +1,20 @@
 # Issues
 
-- [ ] [03-djs](./03-djs.md)
+- [X] [03-djs](./03-djs.md)
 - [ ] [05-publish](./05-publish.md)
-- [ ] 08. Move logic from `.ts` files to `.f.ts` files.
 - [ ] 09. Generating a Website.
 - [ ] 10. Short URL table.
 - [ ] [11-fs-load](./11-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
-- [ ] 14. Combine `npm run index` and `npm run version`
 - [ ] 16. License in JSR file?
-- [ ] [17-djs-extension](./17-djs-extension.md).
-- [ ] 18. Formatter for `.f.js` and `.f.ts` files.
-- [ ] 20. Test framework should be able to run a subset of tests.
-- [ ] 21. Test Framework silent mode. Show progress and failed tests only.
+- [X] [17-djs-extension](./17-djs-extension.md).
+- [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
+- [ ] P5 20. Test framework should be able to run a subset of tests.
+- [ ] [21-test-framework-silent-mode](./21-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
-- [ ] 24. create `./main.ts` that supports the same behavior as current NaNVM Rust implementation:
-    - [ ] run `node ./main.ts input.f.mjs output.f.mjs`
-    - [ ] run `deno ./main.ts input.f.mjs output.f.mjs`
+- [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
+    - [ ] run `node ./fsc.ts input.f.js output.f.js`
+    - [ ] run `deno ./fsc.ts input.f.js output.f.js`
 - [ ] 27. Test Framework parses non-default export.
 - [ ] 28. Make a distinction between unit tests, examples, and API tests.
     - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
@@ -89,8 +87,185 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
-- [X] 49. Delete [com](./com/) and [commonjs](./commonjs). Bump a minor version to `0.4.0`.
-- [X] 50. Delete old `bigint.log2` benchmark tests. Leave only `str32log2` and `log2`.
+- [ ] [51-parser-structures.md](./51-parser-structures.md).
+- [ ] [52-poker.md](./52-poker.md).
+- [ ] [54-token-plus.md](./54-token-plus.md)
+- [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
+- [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
+- [ ] 57. https://github.com/Agoric/eslint-config-jessie
+- [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
+          2) Replace panic in BigUint::shl with returning an error code.
+- [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
+- [X] 61. fix transpile import path
+- [X] 62. `fsc` should be able to detect and parse JSON.
+- [X] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
+- [ ] 64. Implement IO as mutable
+  ```ts
+  type Io<S> = {
+      readonly log: (s: S, msg: string) => void
+  }
+  ```
+- [ ] 65. Investigate mutability inference
+- [ ] 66. Only forward objects are visible. Example:
+  ```ts
+  const a = () => 5
+  const b = () => a() + 7 // ok
+  const c = b() // ok
+  const d = d() // error!
+  const e = () => e() // ok
+  // two recursive functions:
+  const f = () => h() // not ok
+  const h = () => f() // ok
+  // how to solve the two recursive functions case:
+  const x = {
+      a: () => x.b() // ok
+      b: () => x.a() // ok
+      c: () => x.rrrr() // ok
+  }
+  ```
+- [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
+- [ ] [69-incremental.md](69-incremental.md).
+- [ ] 70. Flags for `fsc`:
+  1. `--tree`: a tree, no constants and references. It looks almost like JSON, except `export default`. This method is also used when the output file extension is `.json`.
+  2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
+  3. `--fjs` (default behavior): deduplication of the same objects.
+  4. `--ca`: content-addressable deduplication.
+- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. Rename it to `fjs`?. Examples:
+  - Compiling:
+      - `fjs compile a.f.js` prints FunctionalScript code to stdout.
+      - `fjs compile a.f.ts a.json` saves JSON.
+      - `fjs compile a.json a.bast` saves BAST.
+  - Testing:
+      - `fjs test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
+- [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
+- [x] [./74-bast-tag.md](./74-bast-tag.md)
+- [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
+  - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
+  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
+  - Browsers don't support type annotations and `.ts` files.
+- [ ] 76. Serialization mapping should be done only once. For example, instead of
+  ```rust
+  fn serialize(v: bool) => u8 {
+      if v == false { 0 } else { 1 }
+  }
+  fn deserialize(v: u8) -> bool {
+      if v == 0 { false } else { true }
+  }
+  ```
+  we should have something like this
+  ```rust
+  const BOOL_MAP: ... = [(false, 0), (true, 1)];
+  ```
+- [ ] 77. Support for [./lang/2330-property-accessor.md](./lang/2330-property-accessor.md).
+  ```js
+  const a = { b: 45, c: [3] }
+  // Operator:
+  // `instant_property(a, "b")`
+  const c0 = a.b
+  // Only strings are allowed excluding a list of specific strings. Operator:
+  // `instant_property(a, "b")`
+  const c1 = a["c"]
+  // Operator:
+  // `at(c1, +0)`
+  const c2 = c1[+0] // [+...] is allowed.
+  // translated into one operator:
+  // `own_property(a, c2)`
+  const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+  ```
+- [ ] 78. Instant Method Call
+  ```js
+  // Operator:
+  // `instant_method_call(a, "b", c)`
+  const c4 = a.b(c)
+  // Operator:
+  // `instant_method_call(a, "b", c)`
+  const c4 = a["b"](c)
+  // Operator:
+  // `at_call(a, b, c)`
+  const c4 = a[+b](c)
+  ```
+- [ ] 79. Use `importmap` as `package-lock.json`. See https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap#integrity_metadata_map.
+- [ ] 80. Add `CONST_REF` to serialization.
+- [ ] 81. Currently, `nanvm_lib` relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits, for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait.
+- [ ] [./82-nanvm.md](./82-nanvm.md).
+- [ ] 83. FSC should support for `#` comments.
+- [X] 84. Implement `isTTY`.
+- [ ] 85. GitHub supports colors, so we should have, at least, three modes:
+  - [ ] GitHub: colored log,
+  - [ ] no GitHub, isTTY: colored progress bar,
+  - [ ] no GitHub, no isTTY: non-colored log.
+- [ ] 86. Operations for new VM impl:
+  ```rust
+  // not all types require to implement these traits.
+  trait StringCoercion {
+      // link to MDN, optionally to ECMAScript
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion
+      fn string(self) -> String16
+  }
+  // not types required to implement.
+  trait NumberCoercion {
+      // link to MDN, optionally to ECMAScript
+      fn unary_plus(self) -> Result<f64, Any>
+  }
+  // ```
+  // fn some() -> Result<(), Any> {
+  //     let x = a.unary_plus()?;
+  //     // let y = (-a)? // `-` never throws so we don't need `?`.
+  //     let y = -a;
+  // }
+  // ```
+  trait Js: StringCoercion + NumberCoercion + Neg<Output = Any> {}
+  
+  impl Js for Any {}
+  impl Js for Unpacked {}
+  ```
+- [ ] 87. Optimization. Reduce number of `Rc::clone()`:
+  - Now: 
+    ```rust
+    type Any = Rc<AnyImpl>;
+    fn add(a: Any, b: Any) -> Any;
+    // alternative:
+    fn add(a: &Any, b: &Any) -> Any;
+    ```
+  - Proposal:
+    ```rust
+    trait AnyImpl {
+        fn clone_to_any(&self) -> Any;
+    }
+    trait Any: Deref<AnyImpl>;
+    fn add<'a>(a: &'a AnyImpl, b: &'a AnyImpl) -> Any {
+        return { a: a.clone_to_any() };
+    }
+    let x: Any = ...;
+    let y: Any = ...;
+    let xy = add(*x, *y);
+    let x2 = add(*x, *x);
+    ```
+- [ ] [88-python.md](88-python.md).
+- [ ] 89. Rust Unpack dispatch:
+  ```rust
+  trait Unary<Tag> {
+      type Result;
+      fn do(self) -> Self::Result;
+  }
+
+  struct UnaryPlus;
+  impl Unary<UnaryPlus> for f64 {
+      type Result = Any;
+      fn do(self) -> Self::Result;
+  }
+
+  impl<Operation> Unary<Operation> Unpack {
+      type Result = Any;
+      fn do(self) -> Self::Result {
+          match ... {
+              Number(v) => v.do::<Operation>(),
+              ... 
+          }
+      }      
+  }
+  ```
+- [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers    
 
 ## Language Specification
 

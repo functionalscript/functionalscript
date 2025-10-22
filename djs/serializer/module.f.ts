@@ -1,32 +1,124 @@
-import * as list from '../../types/list/module.f.ts'
-const { flat, map, entries: listEntries, concat: listConcat, flatMap } = list
+import type * as djs from '../module.f.ts'
+import type { Fold } from '../../types/function/operator/module.f.ts'
+import type * as O from '../../types/object/module.f.ts'
+import { fold } from '../../types/list/module.f.ts'
 import * as string from '../../types/string/module.f.ts'
 const { concat } = string
-import type * as O from '../../types/object/module.f.ts'
+import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
+const { entries } = Object
 import * as f from '../../types/function/module.f.ts'
 const { compose, fn } = f
-const { entries } = Object
-import * as bi from '../../types/bigint/module.f.ts'
-const { serialize: bigintSerialize } = bi
-import * as j from '../../json/serializer/module.f.ts'
-const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = j
-import type * as DjsParser from '../parser/module.f.ts'
+import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
+import * as serializer from '../../json/serializer/module.f.ts'
+const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = serializer
 
 const colon = [':']
 
 export const undefinedSerialize = ['undefined']
 
-type Entry = O.Entry<DjsParser.DjsConst>
+type RefCounter = [number, number, boolean]
 
-type Entries = list.List<Entry>
+type Entry = O.Entry<djs.Unknown>
+
+type Entries = List<Entry>
 
 type MapEntries = (entries: Entries) => Entries
 
-const djsConstSerialize
-: (mapEntries: MapEntries) => (value: DjsParser.DjsConst) => list.List<string>
-= sort => {
+type Refs = Map<djs.Unknown, RefCounter>
+
+type GetConstsState = {
+    refs: Refs,
+    consts: List<djs.Unknown>
+}
+
+const getConstantsOp
+    :Fold<djs.Unknown, GetConstsState>
+    = djs => state =>
+    {        
+        switch (typeof djs) {
+            case 'boolean': { return state }
+            case 'number':
+            case 'string':
+            case 'bigint': { return getConstantSelf(djs)(state) }
+            default: {
+                if (djs === null) { return state }
+                if (djs === undefined) { return state }
+                if (djs instanceof Array) {
+                    return getConstantSelf(djs)(fold(getConstantsOp)(state)(djs))
+                }
+
+                return getConstantSelf(djs)(fold(getConstantsOp)(state)(map(entryValue)(entries(djs))))
+            }
+        }
+    }
+
+const getConstantSelf
+    :Fold<djs.Unknown, GetConstsState>
+    = djs => state => {
+        const refs = state.refs
+        const refCounter = refs.get(djs)
+        if (refCounter !== undefined && refCounter[1] > 1 && !refCounter[2])
+        {
+            refCounter[2] = true
+            refs.set(djs, refCounter)  
+            return { refs, consts: { head: state.consts, tail: [djs] }}
+        }
+        return state
+    }
+
+const getConstants 
+    :Fold<djs.Unknown, GetConstsState>
+    = djs => refs => {
+        return getConstantsOp(djs)(refs)
+    }
+
+const entryValue
+    : (kv: readonly[string, djs.Unknown]) => djs.Unknown
+    = kv => kv[1]
+
+export const serializeWithoutConst
+    : (mapEntries: MapEntries) => (value: djs.Unknown) => List<string>
+    = sort => {
+        const propertySerialize
+        : (kv: readonly[string, djs.Unknown]) => List<string>
+        = ([k, v]) => flat([
+            stringSerialize(k),
+            colon,
+            f(v)
+        ])
+        const mapPropertySerialize = map(propertySerialize)
+        const objectSerialize
+            : (object: djs.Object) => List<string>
+            = fn(entries)
+            .then(sort)
+            .then(mapPropertySerialize)
+            .then(objectWrap)
+            .result
+        const f
+            : (value: djs.Unknown) => List<string>
+            = value => {
+            switch (typeof value) {
+                case 'boolean': { return boolSerialize(value) }
+                case 'number': { return numberSerialize(value) }
+                case 'string': { return stringSerialize(value) }
+                case 'bigint': { return [bigintSerialize(value)] }
+                default: {
+                    if (value === null) { return nullSerialize }
+                    if (value === undefined) { return undefinedSerialize }
+                    if (value instanceof Array) { return arraySerialize(value) }
+                    return objectSerialize(value)
+                }
+            }
+        }
+        const arraySerialize = compose(map(f))(arrayWrap)
+        return f
+    }
+
+const serializeWithConst
+    : (sort: MapEntries) => (refs: Refs) => (root: djs.Unknown) => (djs: djs.Unknown) => List<string>
+    = sort => refs => root => {
     const propertySerialize
-    : (kv: readonly[string, DjsParser.DjsConst]) => list.List<string>
+    :(kv: readonly[string, djs.Unknown]) => List<string>
     = ([k, v]) => flat([
         stringSerialize(k),
         colon,
@@ -34,15 +126,23 @@ const djsConstSerialize
     ])
     const mapPropertySerialize = map(propertySerialize)
     const objectSerialize
-    : (object: DjsParser.DjsObject) => list.List<string>
+    : (object: djs.Object) => List<string>
     = fn(entries)
         .then(sort)
         .then(mapPropertySerialize)
         .then(objectWrap)
         .result
     const f
-    : (value: DjsParser.DjsConst) => list.List<string>
+    : (value: djs.Unknown) => List<string>
     = value => {
+        if (value !== root)
+        {
+            const refCounter = refs.get(value)
+            if (refCounter !== undefined && refCounter[1] > 1)
+            {                
+                return [`c${refCounter[0]}`]
+            }      
+        }
         switch (typeof value) {
             case 'boolean': { return boolSerialize(value) }
             case 'number': { return numberSerialize(value) }
@@ -51,13 +151,7 @@ const djsConstSerialize
             default: {
                 if (value === null) { return nullSerialize }
                 if (value === undefined) { return undefinedSerialize }
-                if (value instanceof Array) {
-                    switch (value[0]) {
-                        case 'aref': { return [`a${value[1]}`] }
-                        case 'cref': { return [`c${value[1]}`] }
-                        case 'array': { return arraySerialize(value[1]) }
-                    }
-                }
+                if (value instanceof Array) { return arraySerialize(value) }
                 return objectSerialize(value)
             }
         }
@@ -66,25 +160,72 @@ const djsConstSerialize
     return f
 }
 
-export const djsModuleStringify
-: (mapEntries: MapEntries) => (djsModule: DjsParser.DjsModule) => string
-= sort => djsModule => {
-    const importEntries = listEntries(djsModule[0])
-    const importSerialize
-    : (entry: list.Entry<string>) => list.List<string>
-    = entry => flat([['import a'], numberSerialize(entry[0]), [' from "', entry[1], '"\n']])
+const countRefsOp
+    :Fold<djs.Unknown, Refs>
+    = djs => refs => {
+        switch (typeof djs) {
+            case 'boolean':
+            case 'number': { return refs }
+            case 'string':
+            case 'bigint': { return addRef(djs)(refs) }
+            default: {
+                switch(djs) {
+                    case null:
+                    case undefined: { return refs }
+                }
+                
+                if (djs instanceof Array) {
+                    if (refs.has(djs))
+                        return addRef(djs)(refs)
+                    return addRef(djs)(fold(countRefsOp)(refs)(djs))
+                }
 
-    const len = djsModule[1].length
-    const constEntries = listEntries(djsModule[1])
-    const moduleEntrySerialize
-    : (entry: list.Entry<DjsParser.DjsConst>) => list.List<string>
-    = entry => {
-        if (entry[0] === len - 1) {
-            return listConcat(['export default '])(djsConstSerialize(sort)(entry[1]))
+                if (refs.has(djs))
+                    return addRef(djs)(refs)
+
+                return addRef(djs)(fold(countRefsOp)(refs)(map(entryValue)(entries(djs))))
+            }
         }
-        return flat([['const c'], numberSerialize(entry[0]), [' = '], djsConstSerialize(sort)(entry[1]), ['\n']])
-    }
-
-    return concat(listConcat(flatMap(importSerialize)(importEntries))(flatMap(moduleEntrySerialize)(constEntries)))
 }
 
+const addRef
+    :Fold<djs.Unknown, Refs>
+    = djs => refs => {
+        const refCounter = refs.get(djs)
+        if (refCounter === undefined)
+        {
+            return refs.set(djs, [refs.size, 1, false])
+        }
+        return refs.set(djs, [refCounter[0], refCounter[1] + 1, false])
+    }
+
+export const stringify
+    : (sort: MapEntries) => (djs: djs.Unknown) => string
+    = sort => djs => {
+        const refs = countRefs(djs)
+        const consts = getConstants(djs)({refs, consts: []}).consts
+        const constSerialize
+            : (entry: djs.Unknown) => List<string>
+            = entry => {                
+                const refCounter = refs.get(entry)
+                if (refCounter === undefined)
+                {
+                    throw 'unexpected behaviour'
+                }
+                return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serializeWithConst(sort)(refs)(entry)(entry), ['\n']])
+            }
+        const constStrings = flatMap(constSerialize)(consts)
+        const rootStrings = listConcat(['export default '])(serializeWithConst(sort)(refs)(djs)(djs))
+        return concat(listConcat(constStrings)(rootStrings))
+    }
+
+export const stringifyAsTree
+    : (mapEntries: MapEntries) => (value: djs.Unknown) => string
+    = sort => compose(serializeWithoutConst(sort))(concat)
+    
+
+export const countRefs
+    :(djs: djs.Unknown) => Refs
+    = djs => {
+        return countRefsOp(djs)(new Map())
+    }

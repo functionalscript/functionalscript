@@ -9,84 +9,144 @@ on:
     - master
   pull_request:
 
+# See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 jobs:
   node20:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [16, 18, 20]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm run test20
 
   node22:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: 22
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm run test22
 
   node:
-    runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        node-version: [23]
-
+        os: ['ubuntu-latest', 'windows-latest']
+        node-version: [24, 25]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
+    # checkout
+    - uses: actions/checkout@v2
     - run: npm ci
     - run: npm test
-    - run: npm run version
+    - run: npm run fst
+    - run: npx tsgo # check types using TypeScript native-preview
+    - run: npm run index
     - run: npm pack
 
-  deno:
-
+  node-bin:
     runs-on: ubuntu-latest
+    steps:
+    # setup
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
+    - run: npm ci
+    - run: npm pack
+    - run: npm install -g ./*.tgz
+    - run: fsc
+      continue-on-error: true
+    - run: fst
+    - uses: actions/upload-artifact@v4
+      with:
+        path: ./*.tgz
 
+  deno:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        deno-version: [1, 2]
-
+        deno-version: [2]
     steps:
-    - uses: actions/checkout@v2
+    # setup
     - uses: denoland/setup-deno@v1
       with:
         deno-version: ${{ matrix.deno-version }}
+    # checkout
+    - uses: actions/checkout@v2
+    - run: deno install
     - run: deno task test
+    - run: deno task fst
     - run: deno publish --dry-run
 
   bun:
-
     runs-on: ubuntu-latest
-
     steps:
+    # setup
+    - uses: oven-sh/setup-bun@v1
+    # checkout
     - uses: actions/checkout@v2
-    - run: curl https://bun.sh/install | bash
-    - run: /home/runner/.bun/bin/bun ./dev/test.ts
+    - run: bun test
+    - run: bun ./dev/tf/module.ts
 
   rust:
     strategy:
       matrix:
         # https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job#choosing-github-hosted-runners
-        os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
-
+        os: ['ubuntu-latest', 'windows-latest', 'macos-latest', 'ubuntu-24.04-arm', 'windows-11-arm']
+        type: ['', '--release']
+        target: ['']
+        include:
+        - os: windows-latest
+          target: '--target i686-pc-windows-msvc'
     runs-on: ${{ matrix.os }}
-
     steps:
+    # setup
+    # Windows on ARM has no Rust installed.
+    - if: ${{ matrix.os == 'windows-11-arm' }}
+      run: |
+        Invoke-WebRequest -Uri https://win.rustup.rs/ -OutFile rustup-init.exe
+        .\rustup-init.exe -y --default-toolchain stable --profile minimal
+        echo "$env:USERPROFILE\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
+    # checkout
     - uses: actions/checkout@v3
-    - run: cargo test
+    - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
+
+  rust-wasm:
+    strategy:
+      matrix:
+        type: ['', '--release']
+        target: ['wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+    runs-on: ubuntu-latest
+    steps:
+    # checkout
+    - uses: actions/checkout@v4
+    # - run: rustup target add ${{ matrix.target }}
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    # - run: cargo install wasmtime-cli
+    - uses: bytecodealliance/actions/wasmtime/setup@v1
+    - run: cargo test --target ${{ matrix.target }} ${{ matrix.type }}
+
+  rust-lints:
+    runs-on: ubuntu-latest
+    steps:
+    # setup
+    - run: rustup update
+    # checkout
+    - uses: actions/checkout@v3
+    - run: cargo clippy -- -D warnings
+    - run: cargo fmt -- --check

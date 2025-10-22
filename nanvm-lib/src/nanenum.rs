@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::{marker::PhantomData, mem::forget};
 use std::rc::Rc;
 
@@ -106,7 +108,10 @@ mod test {
     };
     use std::rc::Rc;
 
-    use crate::nanenum::{Raw64, NEGATIVE, NOT_FINITE};
+    use crate::{
+        common::default::default,
+        nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE},
+    };
 
     use super::{NaNEnum, NaNEnumPack};
 
@@ -144,7 +149,7 @@ mod test {
 
         impl Clone for P {
             fn clone(&self) -> Self {
-                Self::default()
+                default()
             }
         }
 
@@ -156,7 +161,7 @@ mod test {
 
         impl Raw64 for P {
             const BIT_SIZE: u64 = 0;
-            unsafe fn from_raw64(v: u64) -> Self {
+            unsafe fn from_raw64(_: u64) -> Self {
                 Self()
             }
             unsafe fn into_raw64(self) -> u64 {
@@ -231,6 +236,13 @@ mod test {
         let x = Rc::new("hello");
         let m = NaNEnum::Else(x);
         let p = NaNEnumPack::pack(m);
-        let p1 = p.clone();
+        let _p1 = p.clone();
+    }
+
+    // Use INFINITY, NEG_INFINITY in a test to avoid dead code warning
+    #[test]
+    fn test_infinity() {
+        assert_eq!(INFINITY, NOT_FINITE);
+        assert_eq!(NEG_INFINITY, NOT_FINITE | NEGATIVE);
     }
 }
