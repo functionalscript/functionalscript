@@ -44,7 +44,7 @@ export type Base = {
     readonly compress: (i: V8) => (u: bigint) => V8
     readonly fromV8: (a: V8) => bigint
     readonly append: (state: State) => (v: Vec) => State
-    readonly end: (hashLength: bigint) => (state: State) => bigint
+    readonly end: (hashLength: bigint) => (state: State) => Vec
 }
 
 type BaseInit = {
@@ -219,7 +219,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         end: (hashLength: bigint) => {
             const offset = (bitLength << 3n) - hashLength
             const result = vec(hashLength)
-            return (state: State): bigint => {
+            return (state: State): Vec => {
                 const { len, remainder } = state
                 let { hash } = state
                 const rLen = length(remainder)
@@ -274,7 +274,7 @@ export type Sha2 = {
      * @param state The final state.
      * @returns The resulting hash.
      */
-    readonly end: (state: State) => bigint
+    readonly end: (state: State) => Vec
 }
 
 const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint): Sha2 => ({
