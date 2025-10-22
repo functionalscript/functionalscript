@@ -19,7 +19,7 @@ import { as_base, as_nominal, type Nominal } from '../nominal/module.f.ts'
 /**
  * A vector of bits represented as a `bigint`.
  */
-export type Vec = Nominal<'0cef502e4a951e6e42f421c62abd79e7e9b07bee3e63549638676ec2d8ed98e3', bigint>
+export type Vec = Nominal<'bit_vec_0cef502e4a951e6e42f421c62abd79e7e9b07bee3e63549638676ec2d8ed98e3', bigint>
 
 export const unsafe_vec: (u: bigint) => Vec = as_nominal
 
