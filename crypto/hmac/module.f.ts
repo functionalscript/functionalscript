@@ -17,7 +17,7 @@
  * ```
  */
 
-import { length, type Vec } from '../../types/bit_vec/module.f.ts'
+import { length, unsafe_bigint, type Vec } from '../../types/bit_vec/module.f.ts'
 import { empty, msb, vec, vec8 } from '../../types/bit_vec/module.f.ts'
 import { flip } from '../../types/function/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
@@ -55,7 +55,7 @@ export const hmac = (sha2: Sha2): (k: Vec) => (m: Vec) => Vec => {
     const c = computeSync(sha2)
     const vbl = vec(blockLength)
     // a and b should have the same size
-    const xor = (a: Vec) => (b: Vec) => vbl(a ^ b)
+    const xor = (a: Vec) => (b: Vec) => vbl(unsafe_bigint(a) ^ unsafe_bigint(b))
     return k => {
         const k1 = length(k) > blockLength ? c([k]) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
