@@ -16,12 +16,6 @@ import { flip } from '../function/module.f.ts'
 import { fold, type List, type Thunk } from '../list/module.f.ts'
 import { as_base, as_nominal, type Nominal } from '../nominal/module.f.ts'
 
-// export type NVec = Nominal<'0cef502e4a951e6e42f421c62abd79e7e9b07bee3e63549638676ec2d8ed98e3', bigint>
-
-// export const nvec = (len: bigint) => (b: bigint): NVec => to_nominal(vec(len)(b))
-
-// export const nuint = (v: NVec): bigint => uint(to_base(v))
-
 /**
  * A vector of bits represented as a `bigint`.
  */
