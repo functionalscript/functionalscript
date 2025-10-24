@@ -77,6 +77,7 @@ const raw = (n: Node) =>
 
 const mr = map(raw)
 
+// Escape closing tags in raw text elements
 const rawMap = (n: List<Node>) => concat(mr(n)).replaceAll('</', '<\\/')
 
 const attribute = ([name, value]: Entry<string>) =>
