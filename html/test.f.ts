@@ -40,10 +40,20 @@ export default {
             const s = htmlToString(x)
             if (s !== '<!DOCTYPE html><script id="a&lt;">const a = a<b>c</script>') { throw s }
         },
+        scriptEsc: () => {
+            const x: Element = ['script', {id: 'a<'}, '<',  '/script>']
+            const s = htmlToString(x)
+            if (s !== '<!DOCTYPE html><script id="a&lt;"><\\/script></script>') { throw s }
+        },
         style: () => {
             const x: Element = ['style', {id: 'a<'}, 'const a = ',  'a<b>c']
             const s = htmlToString(x)
             if (s !== '<!DOCTYPE html><style id="a&lt;">const a = a<b>c</style>') { throw s }
+        },
+        styleEsc: () => {
+            const x: Element = ['style', {id: 'a<'}, '</',  'stYle>']
+            const s = htmlToString(x)
+            if (s !== '<!DOCTYPE html><style id="a&lt;"><\\/stYle></style>') { throw s }
         },
         noRaw: () => {
             const x: Element = ['div', {id: 'a<'}, 'const a = ',  'a<b>c']

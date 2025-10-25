@@ -1,5 +1,5 @@
 import { msbUtf8 } from "../../text/module.f.ts";
-import { empty, msb, unsafe_bigint, unsafe_vec, vec } from "../../types/bit_vec/module.f.ts"
+import { empty, msb, unsafeBigint, unsafeVec, vec } from "../../types/bit_vec/module.f.ts"
 import { map } from '../../types/list/module.f.ts'
 import { repeat } from "../../types/monoid/module.f.ts";
 import {
@@ -19,7 +19,7 @@ const { concat: beConcat } = msb
 
 const checkEmpty = ({ init, end }: Sha2) => (x: bigint) => {
     const result = end(init)
-    if (result !== unsafe_vec(x)) { throw [result, x] }
+    if (result !== unsafeVec(x)) { throw [result, x] }
 }
 
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
@@ -84,26 +84,26 @@ export default {
             {
                 const s = msbUtf8("The quick brown fox jumps over the lazy dog")
                 const h = computeSync(sha224)([s])
-                if (h !== unsafe_vec(e)) { throw h }
+                if (h !== unsafeVec(e)) { throw h }
             }
             {
                 const s = ['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog']
                 const h = computeSync(sha224)(map(msbUtf8)(s))
-                if (h !== unsafe_vec(e)) { throw h }
+                if (h !== unsafeVec(e)) { throw h }
             }
         },
         () => {
             const s = msbUtf8("The quick brown fox jumps over the lazy dog.")
             const h = computeSync(sha224)([s])
-            if (h !== unsafe_vec(0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn)) { throw h }
+            if (h !== unsafeVec(0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn)) { throw h }
         },
         () => {
             const s = msbUtf8("hello world")
-            if (s !== unsafe_vec(0x1_68656C6C_6F20776F_726C64n)) { throw s }
+            if (s !== unsafeVec(0x1_68656C6C_6F20776F_726C64n)) { throw s }
             let state = sha256.init
             state = sha256.append(state)(s)
             const h = sha256.end(state)
-            if (h !== unsafe_vec(0x1_b94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n)) { throw h }
+            if (h !== unsafeVec(0x1_b94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n)) { throw h }
         }
     ],
     fill: () => {
@@ -113,7 +113,7 @@ export default {
                 const r = times(8n)
                 let state = sha256.init
                 state = sha256.append(state)(r)
-                const h = unsafe_bigint(sha256.end(state))
+                const h = unsafeBigint(sha256.end(state))
                 if (h >> 224n !== 0x1_8a83665fn) { throw h }
             },
             16: () => {
@@ -121,7 +121,7 @@ export default {
                 let state = sha256.init
                 state = sha256.append(state)(r)
                 const h = sha256.end(state)
-                if (h !== unsafe_vec(0x1_3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n)) { throw h }
+                if (h !== unsafeVec(0x1_3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n)) { throw h }
             }
         }
     }
