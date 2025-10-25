@@ -1,5 +1,5 @@
 import { cp, range, remove, set, str, type Rule } from '../bnf/func/module.f.ts'
-import { digit, json, unicode, ws0, ws1, wsNoNewLine0 } from './json.f.ts'
+import { digit, json, unicode, ws0, ws1, wsNoNewLine0 } from './json.f.ts_'
 
 export const wsModule: Rule = () => [[ws0, module]]
 

@@ -4,7 +4,6 @@
   "license": "MIT",
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
-    "./bnf/func/module.f.ts": "./bnf/func/module.f.ts",
     "./bnf/module.f.ts": "./bnf/module.f.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
     "./crypto/prime_field/module.f.ts": "./crypto/prime_field/module.f.ts",
@@ -57,6 +56,7 @@
     "./types/map/module.f.ts": "./types/map/module.f.ts",
     "./types/monoid/module.f.ts": "./types/monoid/module.f.ts",
     "./types/nibble_set/module.f.ts": "./types/nibble_set/module.f.ts",
+    "./types/nominal/module.f.ts": "./types/nominal/module.f.ts",
     "./types/nullable/module.f.ts": "./types/nullable/module.f.ts",
     "./types/number/module.f.ts": "./types/number/module.f.ts",
     "./types/object/module.f.ts": "./types/object/module.f.ts",
