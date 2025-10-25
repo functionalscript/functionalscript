@@ -254,6 +254,15 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     return result
 }
 
+export const parser_rd = (fr: FRule): Match => {
+    const fn = toParserFn(fr)
+}
+
+export const toParserFn = (fr: FRule): readonly [RuleSet, string] => {
+    const [, ruleSet, id] = toDataAdd({})(fr)
+    return [ruleSet, id]
+} 
+
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
     return parserRuleSet(data[0])
