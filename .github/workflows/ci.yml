@@ -133,11 +133,10 @@ jobs:
     steps:
     # checkout
     - uses: actions/checkout@v4
-    # - run: rustup target add ${{ matrix.target }}
     - uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: '1.90'
         targets: ${{ matrix.target }}
-    # - run: cargo install wasmtime-cli
     - uses: bytecodealliance/actions/wasmtime/setup@v1
     - run: cargo test --target ${{ matrix.target }} ${{ matrix.type }}
 
