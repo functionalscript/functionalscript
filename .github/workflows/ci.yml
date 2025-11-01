@@ -142,6 +142,7 @@ jobs:
         toolchain: '1.90'
         targets: ${{ matrix.target }}
     - uses: bytecodealliance/actions/wasmtime/setup@v1
+    - uses: wasmerio/setup-wasmer@v1
     - run: cargo --config .cargo/config${{ matrix.runner }}.toml test --target ${{ matrix.target }} ${{ matrix.type }}
 
   rust-lints:
