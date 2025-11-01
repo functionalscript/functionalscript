@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "files": [
     "**/*.js",
@@ -30,7 +30,7 @@
     "url": "git+https://github.com/functionalscript/functionalscript.git"
   },
   "author": "Sergey Shandar",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "keywords": [
     "lambda",
     "functional-programming",

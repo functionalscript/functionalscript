@@ -14,21 +14,28 @@
 import { log2, mask } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import { fold, type List, type Thunk } from '../list/module.f.ts'
+import { as_base, as_nominal, type Nominal } from '../nominal/module.f.ts'
 
 /**
  * A vector of bits represented as a `bigint`.
  */
-export type Vec = bigint
+export type Vec = Nominal<'0cef502e4a951e6e42f421c62abd79e7e9b07bee3e63549638676ec2d8ed98e3', bigint>
+
+export const unsafe_vec: (u: bigint) => Vec = as_nominal
+
+export const unsafe_bigint: (v: Vec) => bigint = as_base
 
 /**
  * An empty vector of bits.
  */
-export const empty: Vec = 1n
+export const empty: Vec = unsafe_vec(1n)
 
 /**
  * Calculates the length of the given vector of bits.
  */
-export const length = log2
+export const length = (v: Vec): bigint => log2(unsafe_bigint(v))
+
+const lazyEmpty = () => empty
 
 /**
  * Creates a vector of bits of the given `len` and the given unsigned integer.
@@ -42,10 +49,10 @@ export const length = log2
  * ```
  */
 export const vec = (len: bigint): (ui: bigint) => Vec => {
-    if (len <= 0n) { return () => empty }
+    if (len <= 0n) { return lazyEmpty }
     const stop = 1n << len
     const mask = stop - 1n
-    return data => stop | (data & mask)
+    return data => unsafe_vec(stop | (data & mask))
 }
 
 /**
@@ -63,7 +70,9 @@ export const vec8: (u: bigint) => Vec = vec(8n)
  * const result = uint(vector); // result is 0x5n
  * ```
  */
-export const uint = (v: Vec): bigint => v ^ (1n << length(v))
+export const uint = (v: Vec): bigint => {
+    return unsafe_bigint(v) ^ (1n << length(v))
+}
 
 /**
  * Represents operations for handling bit vectors with a specific bit order.
@@ -159,25 +168,27 @@ export const lsb: BitOrder = {
     front: len => {
         const m = mask(len)
         return v => {
-            const result = v & m
-            return result === v ? uint(v) : result
+            const u = unsafe_bigint(v)
+            const result = u & m
+            return result === u ? uint(v) : result
         }
     },
     removeFront: len => v => {
-        const r = v >> len
-        return r === 0n ? empty : r
+        const r = unsafe_bigint(v) >> len
+        return r === 0n ? empty : unsafe_vec(r)
     },
     popFront: len => {
         const m = mask(len)
         return v => {
-            const result = v & m
-            return result === v ? [uint(v), empty] : [result, v >> len]
+            const u = unsafe_bigint(v)
+            const result = u & m
+            return result === u ? [uint(v), empty] : [result, unsafe_vec(u >> len)]
         }
     },
     concat: a => {
         const aLen = length(a)
         const m = mask(aLen)
-        return b => (b << aLen) | (a & m)
+        return b => unsafe_vec((unsafe_bigint(b) << aLen) | (unsafe_bigint(a) & m))
     },
 }
 
@@ -191,20 +202,22 @@ export const lsb: BitOrder = {
 export const msb: BitOrder = {
     front: len => {
         const m = mask(len)
-        return v => (v >> (length(v) - len)) & m
+        return v => (unsafe_bigint(v) >> (length(v) - len)) & m
     },
-    removeFront: len => v => vec(length(v) - len)(v),
+    removeFront: len => v => vec(length(v) - len)(unsafe_bigint(v)),
     popFront: len => {
         const m = mask(len)
         return v => {
+            const u = unsafe_bigint(v)
             const d = length(v) - len
-            return [(v >> d) & m, vec(d)(v)]
+            return [(u >> d) & m, vec(d)(u)]
         }
     },
     concat: flip(lsb.concat),
 }
 
-const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)(vec8(BigInt(u8)))
+const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
+    concat(a)(vec8(BigInt(u8)))
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector.
@@ -213,7 +226,8 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) => concat(a)
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec => fold(appendU8(bo))(empty)
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
+    fold(appendU8(bo))(empty)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.

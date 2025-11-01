@@ -4,13 +4,15 @@ mod bigint;
 mod function;
 mod internal;
 mod number;
+mod number_coercion;
 mod object;
+mod primitive;
+mod primitive_coercion;
 mod string16;
 mod string_coercion;
 mod unpacked;
 
 pub mod naive;
-pub mod number_coercion;
 
 pub use crate::vm::{
     any::{Any, ToAny},
