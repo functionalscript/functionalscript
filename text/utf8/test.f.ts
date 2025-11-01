@@ -2,6 +2,7 @@ import { toCodePointList, fromCodePointList } from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
+import { asNominal, type Nominal } from '../../types/nominal/module.f.ts'
 
 const stringify = json.stringify(sort)
 
