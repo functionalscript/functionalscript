@@ -128,18 +128,39 @@ jobs:
     strategy:
       matrix:
         type: ['', '--release']
-        target: ['wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+        target: ['wasm32-unknown-unknown', 'wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+        runner: ['', '.wasmer']
+        exclude:
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-wasip2
+            runner: '.wasmer'
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-unknown-unknown
+            runner: '.wasmer'
+        include:
+          # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
+          # - https://github.com/bytecodealliance/wasmtime/issues/11958
+          # - https://github.com/rust-lang/rust/issues/146843
+          - target: wasm32-wasip1-threads
+            rust: '1.90.0'
+          # everything else → "latest" (stable channel)
+          - target: wasm32-wasip1
+            rust: 'stable'
+          - target: wasm32-wasip2
+            rust: 'stable'
+          - target: wasm32-unknown-unknown
+            rust: 'stable'
     runs-on: ubuntu-latest
     steps:
     # checkout
     - uses: actions/checkout@v4
-    # - run: rustup target add ${{ matrix.target }}
     - uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: ${{ matrix.rust }}
         targets: ${{ matrix.target }}
-    # - run: cargo install wasmtime-cli
     - uses: bytecodealliance/actions/wasmtime/setup@v1
-    - run: cargo test --target ${{ matrix.target }} ${{ matrix.type }}
+    - uses: wasmerio/setup-wasmer@v1
+    - run: cargo --config .cargo/config${{ matrix.runner }}.toml test --target ${{ matrix.target }} ${{ matrix.type }}
 
   rust-lints:
     runs-on: ubuntu-latest
