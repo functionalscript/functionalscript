@@ -148,6 +148,8 @@ jobs:
             rust: 'stable'
           - target: wasm32-wasip2
             rust: 'stable'
+          - target: wasm32-unknown-unknown
+            rust: 'stable'
     runs-on: ubuntu-latest
     steps:
     # checkout
