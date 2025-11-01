@@ -1,11 +1,8 @@
 [target.wasm32-wasip1]
 runner = "wasmtime run --dir . --"
-# runner = "wasmer run --dir . --"
 
 [target.wasm32-wasip1-threads]
 runner = "wasmtime run --wasi threads --dir . --"
-# runner = "wasmer run --enable-threads --dir . --"
 
 [target.wasm32-wasip2]
 runner = "wasmtime run --dir . --"
-# runner = "wasmer run --dir . --"
