@@ -6,7 +6,7 @@ declare const brand: unique symbol
 
 export default {
     pre: () => {
-        type Str = Nominal<'utf8', bigint>
+        type Str = Nominal<'utf8', 'v0', bigint>
         const strA: Str = asNominal(0b1_11000010_10100010_11000010_10100011n) // "¢£"
         const strB: Str = asNominal(0b1_11000010_10100010_11000010_10100100n) // "¢¤"
         if (strA === strB) { throw [strA, strB] }
@@ -53,8 +53,8 @@ export default {
         }
     },
     nominal: () => {
-        type UserId = Nominal<'UserId', number>
-        type UserId2 = Nominal<'UserId2', number>
+        type UserId = Nominal<'UserId', '1', number>
+        type UserId2 = Nominal<'UserId', '2', number>
         const userIdA: UserId = asNominal(123)
         const userIdB: UserId = asNominal(456)
         if (userIdA === userIdB) { throw [userIdA, userIdB] }

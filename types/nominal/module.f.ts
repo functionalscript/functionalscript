@@ -2,10 +2,10 @@
 ///
 /// It doesn't allow `===` between different nominal types.
 /// It doesn't allow `<`, `>`, `<=`, `>=` comparisons at all.
-export type Nominal<T extends string, B> = symbol & {[k in T]: true}
+export type Nominal<N extends string, R extends string, B> = symbol & {[k in N]: R}
 
 /// note: It should compiles into `identity` and no-ops at runtime.
-export const asNominal = <T extends string, B>(b: B): Nominal<T, B> => b as Nominal<T, B>
+export const asNominal = <N extends string, R extends string, B>(b: B): Nominal<N, R, B> => b as Nominal<N, R, B>
 
 /// note: It should compiles into `identity` and no-ops at runtime.
-export const asBase = <T extends string, B>(n: Nominal<T, B>): B => n as B
+export const asBase = <T extends string, R extends string, B>(n: Nominal<T, R, B>): B => n as B
