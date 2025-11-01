@@ -129,6 +129,7 @@ jobs:
       matrix:
         type: ['', '--release']
         target: ['wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+        runner: ['', '.wasmer']
     runs-on: ubuntu-latest
     steps:
     # checkout
@@ -141,7 +142,7 @@ jobs:
         toolchain: '1.90'
         targets: ${{ matrix.target }}
     - uses: bytecodealliance/actions/wasmtime/setup@v1
-    - run: cargo test --target ${{ matrix.target }} ${{ matrix.type }}
+    - run: cargo --config .cargo/config${{ matrix.runner }}.toml test --target ${{ matrix.target }} ${{ matrix.type }}
 
   rust-lints:
     runs-on: ubuntu-latest
