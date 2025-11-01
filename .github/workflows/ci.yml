@@ -135,7 +135,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
       with:
-        # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads`. See:
+        # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
         # - https://github.com/bytecodealliance/wasmtime/issues/11958
         # - https://github.com/rust-lang/rust/issues/146843
         toolchain: '1.90'
