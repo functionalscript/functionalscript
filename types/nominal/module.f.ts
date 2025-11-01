@@ -1,3 +1,7 @@
+/// Nominal type.
+///
+/// It doesn't allow `===` between different nominal types.
+/// It doesn't allow `<`, `>`, `<=`, `>=` comparisons at all.
 export type Nominal<T extends string, B> = symbol & {[k in T]: true}
 
 /// note: It should compiles into `identity` and no-ops at runtime.
