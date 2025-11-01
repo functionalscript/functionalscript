@@ -28,7 +28,7 @@ const u8ListToVecMsb = u8ListToVec(msb)
  * @param s The input string to be converted.
  * @returns The resulting UTF-8 bit vector, MSB first.
  */
-export const msbUtf8 = (s: string): Vec =>
+export const utf8 = (s: string): Vec =>
     u8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
 
 /**
@@ -37,5 +37,5 @@ export const msbUtf8 = (s: string): Vec =>
  * @param msbV - The UTF-8 bit vector with MSB first encoding.
  * @returns The resulting string.
  */
-export const msbUtf8ToString = (msbV: Vec): string =>
+export const utf8ToString = (msbV: Vec): string =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
