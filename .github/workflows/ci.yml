@@ -134,6 +134,9 @@ jobs:
           # If wasip2 shouldn’t run on Wasmer, exclude those rows:
           - target: wasm32-wasip2
             runner: '.wasmer'
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-unknown-unknown
+            runner: '.wasmer'
         include:
           # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
           # - https://github.com/bytecodealliance/wasmtime/issues/11958

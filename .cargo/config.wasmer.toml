@@ -3,6 +3,3 @@ runner = "wasmer run --dir . --"
 
 [target.wasm32-wasip1-threads]
 runner = "wasmer run --enable-threads --dir . --"
-
-[target.wasm32-unknown-unknown]
-runner = "wasmer run --dir . --"
