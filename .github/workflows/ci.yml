@@ -128,8 +128,11 @@ jobs:
     strategy:
       matrix:
         type: ['', '--release']
-        target: ['wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+        target: ['wasm32-wasip1', 'wasm32-wasip1-threads']
         runner: ['', '.wasmer']
+        include:
+          - runner: ''
+            target: 'wasm32-wasip2'
     runs-on: ubuntu-latest
     steps:
     # checkout
