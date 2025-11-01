@@ -22,13 +22,15 @@ export const flat = (indent: string): (text: Block) => List<string> => {
 
 const u8ListToVecMsb = u8ListToVec(msb)
 
+export type Utf8 = Vec
+
 /**
  * Converts a string to an UTF-8, represented as an MSB first bit vector.
  *
  * @param s The input string to be converted.
  * @returns The resulting UTF-8 bit vector, MSB first.
  */
-export const utf8 = (s: string): Vec =>
+export const utf8 = (s: string): Utf8 =>
     u8ListToVecMsb(fromCodePointList(stringToCodePointList(s)))
 
 /**
@@ -37,5 +39,5 @@ export const utf8 = (s: string): Vec =>
  * @param msbV - The UTF-8 bit vector with MSB first encoding.
  * @returns The resulting string.
  */
-export const utf8ToString = (msbV: Vec): string =>
+export const utf8ToString = (msbV: Utf8): string =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
