@@ -134,16 +134,24 @@ jobs:
           # If wasip2 shouldn’t run on Wasmer, exclude those rows:
           - target: wasm32-wasip2
             runner: '.wasmer'
+        include:
+          # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
+          # - https://github.com/bytecodealliance/wasmtime/issues/11958
+          # - https://github.com/rust-lang/rust/issues/146843
+          - target: wasm32-wasip1-threads
+            rust: '1.90.0'
+          # everything else → "latest" (stable channel)
+          - target: wasm32-wasip1
+            rust: 'stable'
+          - target: wasm32-wasip2
+            rust: 'stable'
     runs-on: ubuntu-latest
     steps:
     # checkout
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
       with:
-        # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
-        # - https://github.com/bytecodealliance/wasmtime/issues/11958
-        # - https://github.com/rust-lang/rust/issues/146843
-        toolchain: '1.90'
+        toolchain: ${{ matrix.rust }}
         targets: ${{ matrix.target }}
     - uses: bytecodealliance/actions/wasmtime/setup@v1
     - uses: wasmerio/setup-wasmer@v1
