@@ -1,5 +1,3 @@
-declare const brand: unique symbol;
-
 export type Nominal<T extends string, B> = symbol & {[k in T]: true}
 
 /// note: It should compiles into `identity` and no-ops at runtime.
