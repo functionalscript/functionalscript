@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest', 'windows-latest']
-        node-version: [24]
+        node-version: [24, 25]
     runs-on: ${{ matrix.os }}
     steps:
     # setup
@@ -128,17 +128,39 @@ jobs:
     strategy:
       matrix:
         type: ['', '--release']
+        target: ['wasm32-unknown-unknown', 'wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+        runner: ['', '.wasmer']
+        exclude:
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-wasip2
+            runner: '.wasmer'
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-unknown-unknown
+            runner: '.wasmer'
+        include:
+          # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
+          # - https://github.com/bytecodealliance/wasmtime/issues/11958
+          # - https://github.com/rust-lang/rust/issues/146843
+          - target: wasm32-wasip1-threads
+            rust: '1.90.0'
+          # everything else → "latest" (stable channel)
+          - target: wasm32-wasip1
+            rust: 'stable'
+          - target: wasm32-wasip2
+            rust: 'stable'
+          - target: wasm32-unknown-unknown
+            rust: 'stable'
     runs-on: ubuntu-latest
     steps:
-    # setup
-    - run: rustup update
-    - uses: actions/setup-node@v2
-      with:
-        node-version: 20
-    - uses: taiki-e/install-action@wasm-pack
     # checkout
     - uses: actions/checkout@v4
-    - run: wasm-pack test --node ${{ matrix.type }} ./nanvm-lib
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
+    - uses: bytecodealliance/actions/wasmtime/setup@v1
+    - uses: wasmerio/setup-wasmer@v1
+    - run: cargo --config .cargo/config${{ matrix.runner }}.toml test --target ${{ matrix.target }} ${{ matrix.type }}
 
   rust-lints:
     runs-on: ubuntu-latest

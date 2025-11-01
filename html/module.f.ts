@@ -1,5 +1,5 @@
 import { map, flatMap, flat, concat as listConcat, type List } from '../types/list/module.f.ts'
-import { concat as stringConcat } from '../types/string/module.f.ts'
+import { concat, concat as stringConcat } from '../types/string/module.f.ts'
 import type { Entry } from '../types/object/module.f.ts'
 import { compose } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
@@ -29,6 +29,15 @@ const voidTagList: readonly string[] = [
     'source',
     'track',
     'wbr',
+]
+
+/**
+ * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script
+ * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/style
+ */
+const rawText: readonly string[] = [
+    'script',
+    'style'
 ]
 
 type Element1 = readonly [Tag, ...Node[]]
@@ -63,6 +72,14 @@ const node = (n: Node) =>
 
 const nodes = flatMap(node)
 
+const raw = (n: Node) =>
+    typeof n === 'string' ? n : ''
+
+const mr = map(raw)
+
+// Escape closing tags in raw text elements
+const rawMap = (n: List<Node>) => concat(mr(n)).replaceAll('</', '<\\/')
+
 const attribute = ([name, value]: Entry<string>) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
@@ -80,9 +97,10 @@ const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]]
 export const element = (e: Element): List<string> => {
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
-    return voidTagList.includes(tag) ?
-        open :
-        flat([open, nodes(n), ['</', tag, '>']])
+    if (voidTagList.includes(tag)) {
+        return open
+    }
+    return flat([open, rawText.includes(tag) ? [rawMap(n)] : nodes(n), ['</', tag, '>']])
 }
 
 export const html

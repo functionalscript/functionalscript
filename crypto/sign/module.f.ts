@@ -1,3 +1,4 @@
+import { bitLength } from '../../types/bigint/module.f.ts'
 import { listToVec, msb, uint, vec, vec8, length, type Vec } from '../../types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
 import { curve, type Init } from '../secp/module.f.ts'
@@ -31,9 +32,9 @@ const createK = (sha2: Sha2) => {
     }
 }
 
-export const newPrivateKey = (i: Init) => (random: Vec): Vec => {
+export const newPrivateKey = (i: Init) => (random: Vec): bigint => {
     const { nf } = curve(i)
-    if (length(nf.max) < length(random)) {
+    if (bitLength(nf.max) < length(random)) {
         throw "need more random bits"
     }
     return uint(random) % nf.p

@@ -5,7 +5,7 @@
         "role": "owner",
         "name": "Sergey Shandar",
         "email": "sergey.oss@proton.me",
-        "description": "Sergey is the main author of FunctionalScript, and other OSS projects related to content-addressable infrastructure",
+        "description": "Sergey is the main author of FunctionalScript.",
         "webpageUrl": {
             "url": "https://github.com/functionalscript/functionalscript"
         }
@@ -22,7 +22,7 @@
                 "url": "https://github.com/functionalscript/functionalscript"
             },
             "licenses": [
-                "spdx:AGPL-3.0-only"
+                "spdx:MIT"
             ],
             "tags": [
                 "programming",
@@ -41,6 +41,11 @@
                 "guid": "github",
                 "type": "other",
                 "address": "https://github.com/sponsors/sergey-shandar"
+            },
+            {
+                "guid": "opencollective",
+                "type": "other",
+                "address": "https://opencollective.com/functionalscript"
             }
         ],
         "plans": [

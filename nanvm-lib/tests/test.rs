@@ -1,5 +1,3 @@
-use core::panic;
-
 use nanvm_lib::{
     interface::{Any, Complex, Container, Extension, Unpacked, Utf8, WAny},
     naive,
@@ -7,8 +5,6 @@ use nanvm_lib::{
     sign::Sign,
     simple::Simple,
 };
-
-use wasm_bindgen_test::wasm_bindgen_test;
 
 fn assert_is_nan<A: Any>(a: A, test_case: &str) {
     let nan = Any::unary_plus(a).unwrap();
@@ -372,7 +368,6 @@ fn test_vm<A: Any>() {
 }
 
 #[test]
-#[wasm_bindgen_test]
 fn test() {
     test_vm::<naive::Any>();
 }

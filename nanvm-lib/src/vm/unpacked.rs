@@ -3,10 +3,8 @@ use crate::{
     nullish::Nullish,
     vm::{string_coercion::StringCoercion, Any, Array, BigInt, Function, IVm, Object, String16},
 };
-use std::{
-    fmt::Debug,
-    io::{self, Read, Write},
-};
+use core::fmt::Debug;
+use std::io::{self, Read, Write};
 
 #[derive(Clone)]
 pub enum Unpacked<A: IVm> {
@@ -48,12 +46,6 @@ impl<A: IVm> PartialEq for Unpacked<A> {
             (Self::Function(a), Self::Function(b)) => a == b,
             _ => false,
         }
-    }
-}
-
-impl<A: IVm> From<Any<A>> for Unpacked<A> {
-    fn from(value: Any<A>) -> Self {
-        value.0.to_unpacked()
     }
 }
 
@@ -123,13 +115,13 @@ const FUNCTION: u8 = 0b0011_0010;
 // Operations 0b01XX_XXXX:
 const _CONST_REF: u8 = 0b0100_0000;
 
-fn serialize(write: &mut impl Write, tag: u8, value: &impl Serializable) -> io::Result<()> {
+fn serialize(write: &mut impl Write, tag: u8, value: impl Serializable) -> io::Result<()> {
     write.write_all(&[tag])?;
     value.serialize(write)
 }
 
 impl<A: IVm> Serializable for Unpacked<A> {
-    fn serialize(&self, write: &mut impl Write) -> io::Result<()> {
+    fn serialize(self, write: &mut impl Write) -> io::Result<()> {
         match self {
             Unpacked::Nullish(v) => {
                 let tag = match v {
@@ -172,7 +164,7 @@ impl<A: IVm> Serializable for Unpacked<A> {
 }
 
 impl<A: IVm> StringCoercion<A> for Unpacked<A> {
-    fn coerce_to_string(&self) -> Result<String16<A>, Any<A>> {
+    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         match self {
             Unpacked::Nullish(n) => n.coerce_to_string(),
             Unpacked::Boolean(b) => b.coerce_to_string(),
