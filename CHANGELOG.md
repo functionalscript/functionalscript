@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.0
 
-- Switch to MIT License [PR 557](https://github.com/functionalscript/functionalscript/pull/557).
+- Switch to MIT License [PR 557](https://github.com/functionalscript/functionalscript/pull/557) and
+  [559](https://github.com/functionalscript/functionalscript/pull/559).
 
 ## 0.7.0
 
