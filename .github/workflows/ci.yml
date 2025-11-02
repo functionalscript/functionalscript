@@ -23,7 +23,16 @@ jobs:
         ]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 25
+      - uses: actions/checkout@v5
+      - run: npm ci
+      - run: npm test
+      - run: npm run fst
+      - run: npx tsgo # check types using TypeScript native-preview
+      - run: npm run index
+      - run: npm pack
 
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:
