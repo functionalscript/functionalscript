@@ -35,13 +35,9 @@ jobs:
       - run: npm run index
       - run: npm pack
       # Deno
-      - uses: denoland/setup-deno@v1
-        with:
-          deno-version: 2
-      - run: deno install
-      - run: deno task test
-      - run: deno task fst
-      - run: deno publish --dry-run
+      - name: "Deno"
+        if: ${{ runner.os != 'Windows' || !contains(matrix.os, 'arm') }}
+        uses: ./.github/actions/deno-tests
 
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:
