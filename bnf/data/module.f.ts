@@ -260,7 +260,36 @@ export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) =
 export const parserDescent = (fr: FRule): Match => {
     const data = toData(fr)
 
+    const getEmptyTag = (rule: Rule): EmptyTag => {
+        if (typeof rule === 'number') {
+            return undefined
+        } else if (rule instanceof Array) {
+            let emptyTag: EmptyTag = true
+            for (const item of rule) {
+                if (emptyTag === true) {
+                    const dr = data[0][item]
+                    emptyTag = getEmptyTag(dr) !== undefined ? true : undefined
+                }
+            }
+        } else {
+            const entries = Object.entries(rule)
+            let emptyTag: EmptyTag = undefined
+            for (const [tag, item] of entries) {
+                const dr = data[0][item]
+                if (getEmptyTag(dr) !== undefined) {
+                    emptyTag = tag
+                }
+            }
+        }
+    }
+
     const f: DescentMatchRule = (r, cp, idx): MatchResult => {
+        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
+        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
+        if (idx >= cp.length) {
+            const emptyTag = getEmptyTag(r)
+            return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
+        }
         return todo()
     }
 
@@ -281,7 +310,7 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
 
     const f: MatchRule = (rule, cp): MatchResult => {
         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
-        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]        
+        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
         const {emptyTag, rangeMap} = rule      
         if (cp.length === 0) {            
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
