@@ -1,4 +1,3 @@
-name: "Deno"
 runs:
   using: "composite"
   steps:

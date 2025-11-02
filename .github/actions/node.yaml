@@ -1,0 +1,12 @@
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 25
+    - run: npm ci
+    - run: npm test
+    - run: npm run fst
+    - run: npx tsgo # check types using TypeScript native-preview
+    - run: npm run index
+    - run: npm pack

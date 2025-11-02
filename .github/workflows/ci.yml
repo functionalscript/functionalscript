@@ -24,20 +24,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      # Node.js
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 25
-      - run: npm ci
-      - run: npm test
-      - run: npm run fst
-      - run: npx tsgo # check types using TypeScript native-preview
-      - run: npm run index
-      - run: npm pack
-      # Deno
-      - name: "Deno"
-        if: ${{ runner.os != 'Windows' || !contains(matrix.os, 'arm') }}
-        uses: ./.github/actions/deno-tests
+      - uses: ./.github/actions/node
+      - if: ${{ matrix.os != 'windows-11-arm' }}
+        uses: ./.github/actions/deno
 
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:
