@@ -32,6 +32,7 @@ jobs:
           node-version: 25
       - if: ${{ matrix.os != 'windows-11-arm' }}
         uses: ./.github/actions/deno
+      - uses: ./.github/actions/bun
 
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:

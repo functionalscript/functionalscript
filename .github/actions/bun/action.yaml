@@ -1,0 +1,10 @@
+runs:
+  using: "composite"
+  steps:
+    # setup
+    - uses: oven-sh/setup-bun@v1
+    # checkout
+    - run: bun test
+      shell: bash
+    - run: bun ./dev/tf/module.ts
+      shell: bash
