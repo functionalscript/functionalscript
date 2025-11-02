@@ -1,3 +1,4 @@
+import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
@@ -252,6 +253,22 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     }
     
     return result
+}
+
+export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
+
+export const parserDescent = (fr: FRule): Match => {
+    const data = toData(fr)
+
+    const f: DescentMatchRule = (r, cp, idx): MatchResult => {
+        return todo()
+    }
+
+    const match: Match = (name, cp): MatchResult => {
+        return f(data[0][name], cp, 0)
+    }
+    
+    return match
 }
 
 export const parser = (fr: FRule): Match => {
