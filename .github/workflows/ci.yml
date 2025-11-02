@@ -25,6 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/node
+        with:
+          node-version: 24
+      - uses: ./.github/actions/node
+        with:
+          node-version: 25
       - if: ${{ matrix.os != 'windows-11-arm' }}
         uses: ./.github/actions/deno
 

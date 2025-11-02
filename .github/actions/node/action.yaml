@@ -1,9 +1,13 @@
+inputs:
+  node-version:
+    required: true
+
 runs:
   using: "composite"
   steps:
     - uses: actions/setup-node@v6
       with:
-        node-version: 25
+        node-version: ${{ inputs.node-version }}
     - run: npm ci
       shell: bash
     - run: npm test
