@@ -23,16 +23,25 @@ jobs:
         ]
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v5
+      # Node.js
       - uses: actions/setup-node@v6
         with:
           node-version: 25
-      - uses: actions/checkout@v5
       - run: npm ci
       - run: npm test
       - run: npm run fst
       - run: npx tsgo # check types using TypeScript native-preview
       - run: npm run index
       - run: npm pack
+      # Deno
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: 2
+      - run: deno install
+      - run: deno task test
+      - run: deno task fst
+      - run: deno publish --dry-run
 
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:
@@ -72,6 +81,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
     # checkout
     - uses: actions/checkout@v2
+    # Node
     - run: npm ci
     - run: npm test
     - run: npm run fst
