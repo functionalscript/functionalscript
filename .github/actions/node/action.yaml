@@ -5,8 +5,14 @@ runs:
       with:
         node-version: 25
     - run: npm ci
+      shell: bash
     - run: npm test
+      shell: bash
     - run: npm run fst
+      shell: bash
     - run: npx tsgo # check types using TypeScript native-preview
+      shell: bash
     - run: npm run index
+      shell: bash
     - run: npm pack
+      shell: bash
