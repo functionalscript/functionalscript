@@ -24,9 +24,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/node
+      - uses: ./.github/actions/node.yaml
       - if: ${{ matrix.os != 'windows-11-arm' }}
-        uses: ./.github/actions/deno
+        uses: ./.github/actions/deno.yaml
 
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:
