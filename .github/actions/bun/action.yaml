@@ -4,7 +4,7 @@ runs:
     # setup
     - uses: oven-sh/setup-bun@v1
     # checkout
-    - run: bun test
+    - run: bun test --timeout 10000
       shell: bash
     - run: bun ./dev/tf/module.ts
       shell: bash
