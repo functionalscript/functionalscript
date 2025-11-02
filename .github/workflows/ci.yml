@@ -9,8 +9,23 @@ on:
     - master
   pull_request:
 
-# See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 jobs:
+  main:
+    strategy:
+      matrix:
+        os: [
+          'ubuntu-latest', # 'ubuntu-slim'
+          'ubuntu-24.04-arm',
+          'windows-latest',
+          'windows-11-arm',
+          'macos-15-intel',
+          'macos-latest'
+        ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+  # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
   node20:
     runs-on: ubuntu-latest
     steps:
