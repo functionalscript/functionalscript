@@ -31,6 +31,7 @@ jobs:
         with:
           node-version: 25
       - if: ${{ matrix.os != 'windows-11-arm' }}
+        # note: Deno can be build on Windows on ARM but binary releases are not provided yet
         uses: ./.github/actions/deno
       - if: ${{ matrix.os != 'windows-11-arm' }}
         uses: ./.github/actions/bun
@@ -140,13 +141,6 @@ jobs:
           target: '--target i686-pc-windows-msvc'
     runs-on: ${{ matrix.os }}
     steps:
-    # setup
-    # Windows on ARM has no Rust installed.
-    - if: ${{ matrix.os == 'windows-11-arm' }}
-      run: |
-        Invoke-WebRequest -Uri https://win.rustup.rs/ -OutFile rustup-init.exe
-        .\rustup-init.exe -y --default-toolchain stable --profile minimal
-        echo "$env:USERPROFILE\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
     # checkout
     - uses: actions/checkout@v3
     - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
