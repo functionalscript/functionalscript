@@ -58,6 +58,8 @@ const gha: GitHubAction = {
             { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
             { run: 'npm ci' },
             { run: 'npm test' },
+            // Deno
+            { run: 'deno task test' },
             // Rust
             { run: 'cargo fmt -- --check' },
             { run: 'cargo clippy -- -D warnings' },
