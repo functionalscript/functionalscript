@@ -1,6 +1,5 @@
 import type { Io } from '../io/module.f.ts'
 
-// https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 const os = ['ubuntu', 'macos', 'windows'] as const
 
 type Os = typeof os[number]
@@ -9,6 +8,7 @@ const architecture = ['intel', 'arm'] as const
 
 type Architecture = typeof architecture[number]
 
+// https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 const images = {
     ubuntu: {
         intel: 'ubuntu-latest',

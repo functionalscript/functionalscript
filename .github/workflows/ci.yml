@@ -7,6 +7,9 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "uses": "actions/checkout@v5"
+        },
+        {
           "run": "npm test"
         }
       ]
@@ -14,6 +17,9 @@
     "ubuntu-arm": {
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
         {
           "run": "npm test"
         }
@@ -23,6 +29,9 @@
       "runs-on": "macos-15-intel",
       "steps": [
         {
+          "uses": "actions/checkout@v5"
+        },
+        {
           "run": "npm test"
         }
       ]
@@ -30,6 +39,9 @@
     "macos-arm": {
       "runs-on": "macos-latest",
       "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
         {
           "run": "npm test"
         }
@@ -39,6 +51,9 @@
       "runs-on": "windows-latest",
       "steps": [
         {
+          "uses": "actions/checkout@v5"
+        },
+        {
           "run": "npm test"
         }
       ]
@@ -46,6 +61,9 @@
     "windows-arm": {
       "runs-on": "windows-11-arm",
       "steps": [
+        {
+          "uses": "actions/checkout@v5"
+        },
         {
           "run": "npm test"
         }
