@@ -1,8 +1,16 @@
 {
   "on": {},
   "jobs": {
-    "main": {
-      "runs-on": "ubuntu-latest",
+    "ubuntu": {
+      "runs-on": "ubuntu",
+      "steps": []
+    },
+    "macos": {
+      "runs-on": "macos",
+      "steps": []
+    },
+    "windows": {
+      "runs-on": "windows",
       "steps": []
     }
   }
