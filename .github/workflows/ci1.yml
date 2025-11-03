@@ -1,0 +1,194 @@
+# This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+
+jobs:
+  main:
+    strategy:
+      matrix:
+        os: [
+          'ubuntu-latest', # 'ubuntu-slim'
+          'ubuntu-24.04-arm',
+          'windows-latest',
+          'windows-11-arm',
+          'macos-15-intel',
+          'macos-latest'
+        ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/node
+        with:
+          node-version: 24
+      - uses: ./.github/actions/node
+        with:
+          node-version: 25
+      - if: ${{ matrix.os != 'windows-11-arm' }}
+        # note: Deno can be build on Windows on ARM but binary releases are not provided yet
+        uses: ./.github/actions/deno
+      - if: ${{ matrix.os != 'windows-11-arm' }}
+        uses: ./.github/actions/bun
+      - uses: ./.github/actions/rust
+
+  # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+  node20:
+    runs-on: ubuntu-latest
+    steps:
+    # setup
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
+    - run: npm ci
+    - run: npm run test20
+
+  node22:
+    runs-on: ubuntu-latest
+    steps:
+    # setup
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 22
+    # checkout
+    - uses: actions/checkout@v2
+    - run: npm ci
+    - run: npm run test22
+
+  node:
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'windows-latest']
+        node-version: [24, 25]
+    runs-on: ${{ matrix.os }}
+    steps:
+    # setup
+    - uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+    # checkout
+    - uses: actions/checkout@v2
+    # Node
+    - run: npm ci
+    - run: npm test
+    - run: npm run fst
+    - run: npx tsgo # check types using TypeScript native-preview
+    - run: npm run index
+    - run: npm pack
+
+  node-bin:
+    runs-on: ubuntu-latest
+    steps:
+    # setup
+    - uses: actions/setup-node@v2
+      with:
+        node-version: 20
+    # checkout
+    - uses: actions/checkout@v2
+    - run: npm ci
+    - run: npm pack
+    - run: npm install -g ./*.tgz
+    - run: fsc
+      continue-on-error: true
+    - run: fst
+    - uses: actions/upload-artifact@v4
+      with:
+        path: ./*.tgz
+
+  deno:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deno-version: [2]
+    steps:
+    # setup
+    - uses: denoland/setup-deno@v1
+      with:
+        deno-version: ${{ matrix.deno-version }}
+    # checkout
+    - uses: actions/checkout@v2
+    - run: deno install
+    - run: deno task test
+    - run: deno task fst
+    - run: deno publish --dry-run
+
+  bun:
+    runs-on: ubuntu-latest
+    steps:
+    # setup
+    - uses: oven-sh/setup-bun@v1
+    # checkout
+    - uses: actions/checkout@v2
+    - run: bun test
+    - run: bun ./dev/tf/module.ts
+
+  rust:
+    strategy:
+      matrix:
+        # https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job#choosing-github-hosted-runners
+        os: ['ubuntu-latest', 'windows-latest', 'macos-latest', 'ubuntu-24.04-arm', 'windows-11-arm']
+        type: ['', '--release']
+        target: ['']
+        include:
+        - os: windows-latest
+          target: '--target i686-pc-windows-msvc'
+    runs-on: ${{ matrix.os }}
+    steps:
+    # checkout
+    - uses: actions/checkout@v3
+    - run: cargo test ${{ matrix.type }} ${{ matrix.target }}
+
+  rust-wasm:
+    strategy:
+      matrix:
+        type: ['', '--release']
+        target: ['wasm32-unknown-unknown', 'wasm32-wasip1', 'wasm32-wasip1-threads', 'wasm32-wasip2']
+        runner: ['', '.wasmer']
+        exclude:
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-wasip2
+            runner: '.wasmer'
+          # If wasip2 shouldn’t run on Wasmer, exclude those rows:
+          - target: wasm32-unknown-unknown
+            runner: '.wasmer'
+        include:
+          # We can't run it on Rust 1.91 yet because of the `wasm32-wasip1-threads` issue. See:
+          # - https://github.com/bytecodealliance/wasmtime/issues/11958
+          # - https://github.com/rust-lang/rust/issues/146843
+          - target: wasm32-wasip1-threads
+            rust: '1.90.0'
+          # everything else → "latest" (stable channel)
+          - target: wasm32-wasip1
+            rust: 'stable'
+          - target: wasm32-wasip2
+            rust: 'stable'
+          - target: wasm32-unknown-unknown
+            rust: 'stable'
+    runs-on: ubuntu-latest
+    steps:
+    # checkout
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
+    - uses: bytecodealliance/actions/wasmtime/setup@v1
+    - uses: wasmerio/setup-wasmer@v1
+    - run: cargo --config .cargo/config${{ matrix.runner }}.toml test --target ${{ matrix.target }} ${{ matrix.type }}
+
+  rust-lints:
+    runs-on: ubuntu-latest
+    steps:
+    # setup
+    - run: rustup update
+    # checkout
+    - uses: actions/checkout@v3
+    - run: cargo clippy -- -D warnings
+    - run: cargo fmt -- --check
