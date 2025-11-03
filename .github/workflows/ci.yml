@@ -264,7 +264,7 @@
           "run": "deno task test"
         },
         {
-          "uses": "oven-sh/setup-bun@v1"
+          "run": "irm bun.sh/install.ps1 | iex"
         },
         {
           "run": "bun test --timeout 10000"

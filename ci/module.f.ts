@@ -45,6 +45,11 @@ type GitHubAction = {
     }
 }
 
+const installBun = (v: Os) => (a: Architecture) =>
+    v === 'windows' && a === 'arm'
+        ? { run: 'irm bun.sh/install.ps1 | iex' }
+        : { uses: 'oven-sh/setup-bun@v1' }
+
 const installDeno = (v: Os) => (a: Architecture) =>
     v === 'windows' && a === 'arm'
         ? { run: 'irm https://deno.land/install.ps1 | iex; "$env:USERPROFILE\\.deno\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append' }
@@ -67,7 +72,7 @@ const gha: GitHubAction = {
             installDeno(v)(a),
             { run: 'deno task test' },
             // Bun
-            { uses: 'oven-sh/setup-bun@v1' },
+            installBun(v)(a),
             { run: 'bun test --timeout 10000' },
             { run: 'bun ./dev/tf/module.ts' },
             // Rust
