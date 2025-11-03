@@ -4,7 +4,7 @@
   },
   "jobs": {
     "ubuntu": {
-      "runs-on": "ubuntu",
+      "runs-on": "ubuntu-latest",
       "steps": [
         {
           "run": "npm test"
@@ -12,7 +12,7 @@
       ]
     },
     "macos": {
-      "runs-on": "macos",
+      "runs-on": "macos-latest",
       "steps": [
         {
           "run": "npm test"
@@ -20,7 +20,7 @@
       ]
     },
     "windows": {
-      "runs-on": "windows",
+      "runs-on": "windows-latest",
       "steps": [
         {
           "run": "npm test"
