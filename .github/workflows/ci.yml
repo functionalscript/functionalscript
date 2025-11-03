@@ -2,7 +2,7 @@
   "on": {},
   "jobs": {
     "ubuntu": {
-      "runs-on": "ubuntu",
+      "runs-on": "ubuntu-latest",
       "steps": [
         {
           "run": "node test"
@@ -10,7 +10,7 @@
       ]
     },
     "macos": {
-      "runs-on": "macos",
+      "runs-on": "macos-latest",
       "steps": [
         {
           "run": "node test"
@@ -18,7 +18,7 @@
       ]
     },
     "windows": {
-      "runs-on": "windows",
+      "runs-on": "windows-latest",
       "steps": [
         {
           "run": "node test"

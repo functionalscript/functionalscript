@@ -2,7 +2,7 @@ import type { Io } from '../io/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
-type Os = typeof os[number]
+type Os = `${typeof os[number]}-latest`
 
 type GitHubAction = {
     on: {}
@@ -21,7 +21,7 @@ type Architecture = 'intel' | 'arm'
 const gha: GitHubAction = {
     on: {},
     jobs: Object.fromEntries(os.map(v => [v, {
-        'runs-on': v,
+        'runs-on': `${v}-latest`,
         steps: [{
             run: 'node test'
         }],
