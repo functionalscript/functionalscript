@@ -60,7 +60,7 @@ const gha: GitHubAction = {
             { run: 'npm test' },
             // Deno
             v === 'windows' && a === 'arm'
-                ? { run: 'irm https://deno.land/install.ps1 | iex' }
+                ? { run: 'irm https://deno.land/install.ps1 | iex\n"$env:USERPROFILE\.deno\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append' }
                 : { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
             { run: 'deno task test' },
             // Rust
