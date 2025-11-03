@@ -32,6 +32,15 @@
           "run": "deno task test"
         },
         {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "run": "bun test --timeout 10000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
+        },
+        {
           "run": "cargo fmt -- --check"
         },
         {
@@ -68,6 +77,15 @@
         },
         {
           "run": "deno task test"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "run": "bun test --timeout 10000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
         },
         {
           "run": "cargo fmt -- --check"
@@ -108,6 +126,15 @@
           "run": "deno task test"
         },
         {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "run": "bun test --timeout 10000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
+        },
+        {
           "run": "cargo fmt -- --check"
         },
         {
@@ -144,6 +171,15 @@
         },
         {
           "run": "deno task test"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "run": "bun test --timeout 10000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
         },
         {
           "run": "cargo fmt -- --check"
@@ -184,6 +220,15 @@
           "run": "deno task test"
         },
         {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "run": "bun test --timeout 10000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
+        },
+        {
           "run": "cargo fmt -- --check"
         },
         {
@@ -217,6 +262,15 @@
         },
         {
           "run": "deno task test"
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "run": "bun test --timeout 10000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
         },
         {
           "run": "cargo fmt -- --check"

@@ -45,6 +45,11 @@ type GitHubAction = {
     }
 }
 
+const installDeno = (v: Os) => (a: Architecture) =>
+    v === 'windows' && a === 'arm'
+        ? { run: 'irm https://deno.land/install.ps1 | iex; "$env:USERPROFILE\\.deno\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append' }
+        : { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } }
+
 const gha: GitHubAction = {
     name: 'CI',
     on: {
@@ -59,10 +64,12 @@ const gha: GitHubAction = {
             { run: 'npm ci' },
             { run: 'npm test' },
             // Deno
-            v === 'windows' && a === 'arm'
-                ? { run: 'irm https://deno.land/install.ps1 | iex; "$env:USERPROFILE\\.deno\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append' }
-                : { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
+            installDeno(v)(a),
             { run: 'deno task test' },
+            // Bun
+            { uses: 'oven-sh/setup-bun@v1' },
+            { run: 'bun test --timeout 10000' },
+            { run: 'bun ./dev/tf/module.ts' },
             // Rust
             { run: 'cargo fmt -- --check' },
             { run: 'cargo clippy -- -D warnings' },
