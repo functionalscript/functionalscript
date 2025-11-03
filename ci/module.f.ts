@@ -1,16 +1,38 @@
 import type { Io } from '../io/module.f.ts'
 
+// https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 const os = ['ubuntu', 'macos', 'windows'] as const
 
-type Os = `${typeof os[number]}-latest`
+type Os = typeof os[number]
+
+const architecture = ['intel', 'arm'] as const
+
+type Architecture = typeof architecture[number]
+
+const images = {
+    ubuntu: {
+        intel: 'ubuntu-latest',
+        arm: 'ubuntu-24.04-arm'
+    },
+    macos: {
+        intel: 'macos-15-intel',
+        arm: 'macos-latest'
+    },
+    windows: {
+        intel: 'windows-latest',
+        arm: 'windows-11-arm',
+    }
+} as const
+
+type Image = typeof images[Os][Architecture]
 
 type GitHubAction = {
     on: {
         pull_request?: {}
     }
     jobs: {
-        readonly[jobs: string]: {
-            'runs-on': Os
+        readonly [jobs: string]: {
+            'runs-on': Image
             steps: readonly {
                 readonly run: string
             }[]
@@ -18,21 +40,19 @@ type GitHubAction = {
     }
 }
 
-type Architecture = 'intel' | 'arm'
-
 const gha: GitHubAction = {
     on: {
         pull_request: {}
     },
-    jobs: Object.fromEntries(os.map(v => [v, {
-        'runs-on': `${v}-latest`,
+    jobs: Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
+        'runs-on': images[v][a],
         steps: [{
             run: 'npm test'
         }],
-    }])),
+    }]))),
 }
 
-export default async(io: Io): Promise<number> => {
+export default async (io: Io): Promise<number> => {
     io.fs.writeFileSync('.github/workflows/ci.yml', JSON.stringify(gha, null, '  '))
     return 0
 }

@@ -3,7 +3,7 @@
     "pull_request": {}
   },
   "jobs": {
-    "ubuntu": {
+    "ubuntu-intel": {
       "runs-on": "ubuntu-latest",
       "steps": [
         {
@@ -11,7 +11,23 @@
         }
       ]
     },
-    "macos": {
+    "ubuntu-arm": {
+      "runs-on": "ubuntu-24.04-arm",
+      "steps": [
+        {
+          "run": "npm test"
+        }
+      ]
+    },
+    "macos-intel": {
+      "runs-on": "macos-15-intel",
+      "steps": [
+        {
+          "run": "npm test"
+        }
+      ]
+    },
+    "macos-arm": {
       "runs-on": "macos-latest",
       "steps": [
         {
@@ -19,8 +35,16 @@
         }
       ]
     },
-    "windows": {
+    "windows-intel": {
       "runs-on": "windows-latest",
+      "steps": [
+        {
+          "run": "npm test"
+        }
+      ]
+    },
+    "windows-arm": {
+      "runs-on": "windows-11-arm",
       "steps": [
         {
           "run": "npm test"
