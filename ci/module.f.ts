@@ -2,7 +2,8 @@ import type { Io } from '../io/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
-type Os = `${typeof os[number]}-latest`
+// type Os = `${typeof os[number]}-latest`
+type Os = typeof os[number]
 
 type GitHubAction = {
     on: {
@@ -25,9 +26,9 @@ const gha: GitHubAction = {
         pull_request: {}
     },
     jobs: Object.fromEntries(os.map(v => [v, {
-        'runs-on': `${v}-latest`,
+        'runs-on': v,
         steps: [{
-            run: 'node test'
+            run: 'npm test'
         }],
     }])),
 }

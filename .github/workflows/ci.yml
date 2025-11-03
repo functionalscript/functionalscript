@@ -4,26 +4,26 @@
   },
   "jobs": {
     "ubuntu": {
-      "runs-on": "ubuntu-latest",
+      "runs-on": "ubuntu",
       "steps": [
         {
-          "run": "node test"
+          "run": "npm test"
         }
       ]
     },
     "macos": {
-      "runs-on": "macos-latest",
+      "runs-on": "macos",
       "steps": [
         {
-          "run": "node test"
+          "run": "npm test"
         }
       ]
     },
     "windows": {
-      "runs-on": "windows-latest",
+      "runs-on": "windows",
       "steps": [
         {
-          "run": "node test"
+          "run": "npm test"
         }
       ]
     }
