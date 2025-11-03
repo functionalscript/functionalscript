@@ -52,6 +52,9 @@ const gha: GitHubAction = {
                 uses: 'actions/checkout@v5',
             },
             {
+                run: 'npm ci'
+            },
+            {
                 run: 'npm test'
             }
         ],
