@@ -26,35 +26,49 @@ const images = {
 
 type Image = typeof images[Os][Architecture]
 
-type GitHubAction = {
-    name: string
-    on: {
-        pull_request?: {}
+type Step = {
+    readonly run?: string
+    readonly uses?: string
+    readonly with?: {
+        readonly [k: string]: string
     }
-    jobs: {
+}
+
+type GitHubAction = {
+    readonly name: string
+    readonly on: {
+        readonly pull_request?: {}
+    }
+    readonly jobs: {
         readonly [jobs: string]: {
-            'runs-on': Image
-            steps: readonly {
-                readonly run?: string
-                readonly uses?: string
-                readonly with?: {
-                    readonly [k: string]: string
-                }
-            }[]
+            readonly 'runs-on': Image
+            readonly steps: readonly Step[]
         }
     }
 }
 
-const installBun = (v: Os) => (a: Architecture) =>
-    v === 'windows' && a === 'arm'
-        ? { run: 'irm bun.sh/install.ps1 | iex; "$env:USERPROFILE\\.bun\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append',
-        }
-        : { uses: 'oven-sh/setup-bun@v1' }
+type Tool = {
+    readonly def: Step
+    readonly name: string
+    readonly path: string
+}
 
-const installDeno = (v: Os) => (a: Architecture) =>
+const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Architecture): Step =>
     v === 'windows' && a === 'arm'
-        ? { run: 'irm deno.land/install.ps1 | iex; "$env:USERPROFILE\\.deno\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append' }
-        : { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } }
+        ? { run: `irm ${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
+        : def
+
+const installBun = installOnWindowsArm({
+    def: { uses: 'oven-sh/setup-bun@v1' },
+    name: 'bun',
+    path: 'bun.sh'
+})
+
+const installDeno = installOnWindowsArm({
+    def: { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
+    name: 'deno',
+    path: 'deno.land'
+})
 
 const gha: GitHubAction = {
     name: 'CI',
