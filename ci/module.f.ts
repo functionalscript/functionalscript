@@ -27,6 +27,7 @@ const images = {
 type Image = typeof images[Os][Architecture]
 
 type GitHubAction = {
+    name: string
     on: {
         pull_request?: {}
     }
@@ -45,6 +46,7 @@ type GitHubAction = {
 }
 
 const gha: GitHubAction = {
+    name: 'CI',
     on: {
         pull_request: {}
     },
