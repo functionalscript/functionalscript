@@ -3,15 +3,27 @@
   "jobs": {
     "ubuntu": {
       "runs-on": "ubuntu",
-      "steps": []
+      "steps": [
+        {
+          "run": "node test"
+        }
+      ]
     },
     "macos": {
       "runs-on": "macos",
-      "steps": []
+      "steps": [
+        {
+          "run": "node test"
+        }
+      ]
     },
     "windows": {
       "runs-on": "windows",
-      "steps": []
+      "steps": [
+        {
+          "run": "node test"
+        }
+      ]
     }
   }
 }

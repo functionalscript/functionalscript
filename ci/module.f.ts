@@ -7,9 +7,11 @@ type Os = typeof os[number]
 type GitHubAction = {
     on: {}
     jobs: {
-        [jobs: string]: {
+        readonly[jobs: string]: {
             'runs-on': Os
-            steps: readonly string[]
+            steps: readonly {
+                readonly run: string
+            }[]
         }
     }
 }
@@ -20,7 +22,9 @@ const gha: GitHubAction = {
     on: {},
     jobs: Object.fromEntries(os.map(v => [v, {
         'runs-on': v,
-        steps: [],
+        steps: [{
+            run: 'node test'
+        }],
     }])),
 }
 
