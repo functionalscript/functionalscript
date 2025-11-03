@@ -213,10 +213,7 @@
           "run": "npm test"
         },
         {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2"
-          }
+          "run": "cargo install deno"
         },
         {
           "run": "deno task test"

@@ -59,7 +59,9 @@ const gha: GitHubAction = {
             { run: 'npm ci' },
             { run: 'npm test' },
             // Deno
-            { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
+            v === 'windows' && a === 'arm'
+                ? { run: 'cargo install deno' }
+                : { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
             { run: 'deno task test' },
             // Rust
             { run: 'cargo fmt -- --check' },
