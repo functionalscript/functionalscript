@@ -23,10 +23,10 @@
           "run": "npm test"
         },
         {
-          "run": "cargo fmt --check"
+          "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"
@@ -52,10 +52,10 @@
           "run": "npm test"
         },
         {
-          "run": "cargo fmt --check"
+          "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"
@@ -81,10 +81,10 @@
           "run": "npm test"
         },
         {
-          "run": "cargo fmt --check"
+          "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"
@@ -110,10 +110,10 @@
           "run": "npm test"
         },
         {
-          "run": "cargo fmt --check"
+          "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"
@@ -139,10 +139,10 @@
           "run": "npm test"
         },
         {
-          "run": "cargo fmt --check"
+          "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"
@@ -168,10 +168,10 @@
           "run": "npm test"
         },
         {
-          "run": "cargo fmt --check"
+          "run": "cargo fmt -- --check"
         },
         {
-          "run": "cargo clippy -D warnings"
+          "run": "cargo clippy -- -D warnings"
         },
         {
           "run": "cargo test"

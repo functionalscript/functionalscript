@@ -59,8 +59,8 @@ const gha: GitHubAction = {
             { run: 'npm ci' },
             { run: 'npm test' },
             // Rust
-            { run: 'cargo fmt --check' },
-            { run: 'cargo clippy -D warnings' },
+            { run: 'cargo fmt -- --check' },
+            { run: 'cargo clippy -- -D warnings' },
             { run: 'cargo test' },
         ],
     }]))),
