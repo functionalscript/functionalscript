@@ -213,7 +213,7 @@
           "run": "npm test"
         },
         {
-          "run": "irm https://deno.land/install.ps1 | iex\n\"$env:USERPROFILE.deno\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
+          "run": "irm https://deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
           "run": "deno task test"
