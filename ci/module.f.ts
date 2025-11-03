@@ -38,7 +38,7 @@ type GitHubAction = {
                 readonly run?: string
                 readonly uses?: string
                 readonly with?: {
-                    readonly 'node-version': string
+                    readonly [k: string]: string
                 }
             }[]
         }
@@ -59,6 +59,7 @@ const gha: GitHubAction = {
             { run: 'npm ci' },
             { run: 'npm test' },
             // Deno
+            { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
             { run: 'deno task test' },
             // Rust
             { run: 'cargo fmt -- --check' },
