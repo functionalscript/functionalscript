@@ -36,6 +36,9 @@ type GitHubAction = {
             steps: readonly {
                 readonly run?: string
                 readonly uses?: string
+                readonly with?: {
+                    readonly 'node-version': string
+                }
             }[]
         }
     }
@@ -48,15 +51,10 @@ const gha: GitHubAction = {
     jobs: Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
         'runs-on': images[v][a],
         steps: [
-            {
-                uses: 'actions/checkout@v5',
-            },
-            {
-                run: 'npm ci'
-            },
-            {
-                run: 'npm test'
-            }
+            { uses: 'actions/checkout@v5'},
+            { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
+            { run: 'npm ci' },
+            { run: 'npm test' }
         ],
     }]))),
 }

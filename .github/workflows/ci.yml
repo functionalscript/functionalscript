@@ -10,6 +10,12 @@
           "uses": "actions/checkout@v5"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "run": "npm ci"
         },
         {
@@ -22,6 +28,12 @@
       "steps": [
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
         },
         {
           "run": "npm ci"
@@ -38,6 +50,12 @@
           "uses": "actions/checkout@v5"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "run": "npm ci"
         },
         {
@@ -50,6 +68,12 @@
       "steps": [
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
         },
         {
           "run": "npm ci"
@@ -66,6 +90,12 @@
           "uses": "actions/checkout@v5"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "run": "npm ci"
         },
         {
@@ -78,6 +108,12 @@
       "steps": [
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
         },
         {
           "run": "npm ci"
