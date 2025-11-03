@@ -1,5 +1,7 @@
 {
-  "on": {},
+  "on": {
+    "pull_request": {}
+  },
   "jobs": {
     "ubuntu": {
       "runs-on": "ubuntu-latest",

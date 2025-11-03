@@ -5,7 +5,9 @@ const os = ['ubuntu', 'macos', 'windows'] as const
 type Os = `${typeof os[number]}-latest`
 
 type GitHubAction = {
-    on: {}
+    on: {
+        pull_request?: {}
+    }
     jobs: {
         readonly[jobs: string]: {
             'runs-on': Os
@@ -19,7 +21,9 @@ type GitHubAction = {
 type Architecture = 'intel' | 'arm'
 
 const gha: GitHubAction = {
-    on: {},
+    on: {
+        pull_request: {}
+    },
     jobs: Object.fromEntries(os.map(v => [v, {
         'runs-on': `${v}-latest`,
         steps: [{
