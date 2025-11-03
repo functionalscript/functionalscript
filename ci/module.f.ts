@@ -54,9 +54,14 @@ const gha: GitHubAction = {
         'runs-on': images[v][a],
         steps: [
             { uses: 'actions/checkout@v5'},
+            // Node.js
             { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
             { run: 'npm ci' },
-            { run: 'npm test' }
+            { run: 'npm test' },
+            // Rust
+            { run: 'cargo fmt --check' },
+            { run: 'cargo clippy -D warnings' },
+            { run: 'cargo test' },
         ],
     }]))),
 }
