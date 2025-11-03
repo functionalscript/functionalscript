@@ -213,7 +213,7 @@
           "run": "npm test"
         },
         {
-          "run": "cargo install deno"
+          "run": "irm https://deno.land/install.ps1 | iex"
         },
         {
           "run": "deno task test"
