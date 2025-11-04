@@ -124,7 +124,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...node('25')([
             { run: 'npx tsgo' },
             { run: 'npm pack' },
-            { run: 'npm install -g ./*.tgz' },
+            { run: 'npm install -g "*.tgz"' },
             { run: 'fsc issues/demo/data/tree.json _tree.f.js' },
             { run: 'fst' },
             { run: 'npm uninstall functionalscript -g' },
