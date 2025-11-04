@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Generating a GitHub CI file [PR 569](https://github.com/functionalscript/functionalscript/pull/569)
 - New Nominal type that prohibits '<' operations in Type Script
   [PR 567](https://github.com/functionalscript/functionalscript/pull/567).
 
