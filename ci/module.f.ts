@@ -55,7 +55,7 @@ type Tool = {
 
 const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Architecture): Step =>
     v === 'windows' && a === 'arm'
-        ? { run: `irm ${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
+        ? { run: `irm https://${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
         : def
 
 const installBun = installOnWindowsArm({
