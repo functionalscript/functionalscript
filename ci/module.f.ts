@@ -92,7 +92,7 @@ const wasmTarget = (target: string): readonly Step[] => [
 
 const clean = (steps: readonly Step[]): readonly Step[] => [
     ...steps,
-    { run: 'git reset --hard HEAD && git -fdx' }
+    { run: 'git reset --hard HEAD && git clean -fdx' }
 ]
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
