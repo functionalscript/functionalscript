@@ -145,6 +145,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             { run: 'bun test --timeout 10000' },
             { run: 'bun ./dev/tf/module.ts' },
         ]),
+        // Playwright
+        { run: 'npx playwright test --browser=chromium' },
         // Rust
         { run: 'cargo fmt -- --check' },
         { run: 'cargo clippy -- -D warnings' },
