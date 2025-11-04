@@ -70,9 +70,18 @@ const installDeno = installOnWindowsArm({
     path: 'deno.land'
 })
 
+const cargoTest = (target?: string): readonly Step[] => {
+    const t = target ? ` --target ${target}` : ''
+    const main = `cargo test${t}`
+    return [
+        { run: main },
+        { run: `${main} --release` }
+    ]
+}
+
 const customTarget = (target: string): readonly Step[] => [
     { run: `rustup target add ${target}` },
-    { run: `cargo test --target ${target}` }
+    ...cargoTest(target)
 ]
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
@@ -95,7 +104,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Rust
         { run: 'cargo fmt -- --check' },
         { run: 'cargo clippy -- -D warnings' },
-        { run: 'cargo test' },
+        ...cargoTest(),
         { uses: 'bytecodealliance/actions/wasmtime/setup@v1' },
         { uses: 'wasmerio/setup-wasmer@v1' },
         ...customTarget('wasm32-wasip1'),
@@ -105,7 +114,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     ]
     const more = a !== 'intel'
         ? []
-        : v === 'windows' ? [ { run: 'cargo test --target i686-pc-windows-msvc' } ]
+        : v === 'windows' ? cargoTest('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
             { run: 'sudo dpkg --add-architecture i386'},
             { run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' },

@@ -59,6 +59,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -71,10 +74,16 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -83,10 +92,16 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
         },
         {
           "run": "sudo dpkg --add-architecture i386"
@@ -99,6 +114,9 @@
         },
         {
           "run": "cargo test --target i686-unknown-linux-gnu"
+        },
+        {
+          "run": "cargo test --target i686-unknown-linux-gnu --release"
         }
       ]
     },
@@ -157,6 +175,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -169,10 +190,16 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -181,10 +208,16 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
         }
       ]
     },
@@ -243,6 +276,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -255,10 +291,16 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -267,10 +309,16 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
         }
       ]
     },
@@ -329,6 +377,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -341,10 +392,16 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -353,10 +410,16 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
         }
       ]
     },
@@ -415,6 +478,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -427,10 +493,16 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -439,13 +511,22 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
         },
         {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
           "run": "cargo test --target i686-pc-windows-msvc"
+        },
+        {
+          "run": "cargo test --target i686-pc-windows-msvc --release"
         }
       ]
     },
@@ -501,6 +582,9 @@
           "run": "cargo test"
         },
         {
+          "run": "cargo test --release"
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -513,10 +597,16 @@
           "run": "cargo test --target wasm32-wasip1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -525,10 +615,16 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --release"
         }
       ]
     }
