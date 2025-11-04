@@ -16,6 +16,36 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test20"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test22"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
             "node-version": "24"
           }
         },
@@ -195,6 +225,36 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test20"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test22"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
             "node-version": "24"
           }
         },
@@ -355,6 +415,36 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test20"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test22"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "actions/setup-node@v6",
@@ -523,6 +613,36 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test20"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test22"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
             "node-version": "24"
           }
         },
@@ -683,6 +803,36 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test20"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test22"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "actions/setup-node@v6",
@@ -853,6 +1003,36 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test20"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm run test22"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "actions/setup-node@v6",

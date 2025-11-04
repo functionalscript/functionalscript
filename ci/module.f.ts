@@ -95,9 +95,17 @@ const clean = (steps: readonly Step[]): readonly Step[] => [
     { run: 'git reset --hard HEAD && git clean -fdx' }
 ]
 
-const node = (version: string): readonly Step[] => clean([
+const basicNode = (version: string) => (extra: readonly Step[]): readonly Step[] => clean([
     { uses: 'actions/setup-node@v6', with: { 'node-version': version } },
     { run: 'npm ci' },
+    ...extra,
+])
+
+const oldNode = (version: string): readonly Step[] => basicNode(version)([
+    { run: `npm run test${version}` },
+])
+
+const node = (version: string): readonly Step[] => basicNode(version)([
     { run: 'npx tsgo' },
     { run: 'npm test' },
     { run: 'npm run fst' },
@@ -109,6 +117,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         { run: 'rustc -V' },
         { uses: 'actions/checkout@v5' },
         // Node.js
+        ...oldNode('20'),
+        ...oldNode('22'),
         ...node('24'),
         ...node('25'),
         // Deno
