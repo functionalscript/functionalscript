@@ -98,6 +98,7 @@ const clean = (steps: readonly Step[]): readonly Step[] => [
 const node = (version: string): readonly Step[] => clean([
     { uses: 'actions/setup-node@v6', with: { 'node-version': version } },
     { run: 'npm ci' },
+    { run: 'npx tsgo' },
     { run: 'npm test' },
     { run: 'npm run fst' },
 ])

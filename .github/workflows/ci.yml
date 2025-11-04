@@ -23,6 +23,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsgo"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -39,6 +42,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsgo"
         },
         {
           "run": "npm test"
@@ -196,6 +202,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsgo"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -212,6 +221,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsgo"
         },
         {
           "run": "npm test"
@@ -354,6 +366,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsgo"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -370,6 +385,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsgo"
         },
         {
           "run": "npm test"
@@ -512,6 +530,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsgo"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -528,6 +549,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsgo"
         },
         {
           "run": "npm test"
@@ -670,6 +694,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsgo"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -686,6 +713,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsgo"
         },
         {
           "run": "npm test"
@@ -834,6 +864,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsgo"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -850,6 +883,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsgo"
         },
         {
           "run": "npm test"
