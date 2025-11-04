@@ -70,9 +70,10 @@ const installDeno = installOnWindowsArm({
     path: 'deno.land'
 })
 
-const cargoTest = (target?: string): readonly Step[] => {
+const cargoTest = (target?: string, config?: string): readonly Step[] => {
     const t = target ? ` --target ${target}` : ''
-    const main = `cargo test${t}`
+    const c = config ? ` --config ${config}` : ''
+    const main = `cargo test${t}${c}`
     return [
         { run: main },
         { run: `${main} --release` }
@@ -84,8 +85,15 @@ const customTarget = (target: string): readonly Step[] => [
     ...cargoTest(target)
 ]
 
+const wasmTarget = (target: string): readonly Step[] => [
+    ...customTarget(target),
+    ...cargoTest(target, '.cargo/config.wasmer.toml')
+]
+
+
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
+        // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
         { run: 'rustc -V' },
         { uses: 'actions/checkout@v5' },
         // Node.js
@@ -108,10 +116,10 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...cargoTest(),
         { uses: 'bytecodealliance/actions/wasmtime/setup@v1' },
         { uses: 'wasmerio/setup-wasmer@v1' },
-        ...customTarget('wasm32-wasip1'),
-        ...customTarget('wasm32-wasip2'),
-        ...customTarget('wasm32-unknown-unknown'),
-        ...customTarget('wasm32-wasip1-threads'),
+        ...wasmTarget('wasm32-wasip1'),
+        ...wasmTarget('wasm32-wasip2'),
+        ...wasmTarget('wasm32-unknown-unknown'),
+        ...wasmTarget('wasm32-wasip1-threads'),
     ]
     const more = a !== 'intel'
         ? []

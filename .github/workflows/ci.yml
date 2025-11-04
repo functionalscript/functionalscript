@@ -80,6 +80,12 @@
           "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
@@ -87,6 +93,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -98,6 +110,12 @@
           "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
@@ -105,6 +123,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "sudo dpkg --add-architecture i386"
@@ -199,6 +223,12 @@
           "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
@@ -206,6 +236,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -217,6 +253,12 @@
           "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
@@ -224,6 +266,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         }
       ]
     },
@@ -303,6 +351,12 @@
           "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
@@ -310,6 +364,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -321,6 +381,12 @@
           "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
@@ -328,6 +394,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         }
       ]
     },
@@ -407,6 +479,12 @@
           "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
@@ -414,6 +492,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -425,6 +509,12 @@
           "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
@@ -432,6 +522,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         }
       ]
     },
@@ -511,6 +607,12 @@
           "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
@@ -518,6 +620,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -529,6 +637,12 @@
           "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
@@ -536,6 +650,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "cargo test --target i686-pc-windows-msvc"
@@ -618,6 +738,12 @@
           "run": "cargo test --target wasm32-wasip1 --release"
         },
         {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip2"
         },
         {
@@ -625,6 +751,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip2 --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
           "run": "rustup target add wasm32-unknown-unknown"
@@ -636,6 +768,12 @@
           "run": "cargo test --target wasm32-unknown-unknown --release"
         },
         {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+        },
+        {
           "run": "rustup target add wasm32-wasip1-threads"
         },
         {
@@ -643,6 +781,12 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --release"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         }
       ]
     }
