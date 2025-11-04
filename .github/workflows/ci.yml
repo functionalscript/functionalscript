@@ -65,6 +65,9 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1"
+        },
+        {
           "run": "sudo dpkg --add-architecture i386"
         },
         {
@@ -137,6 +140,9 @@
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1"
         }
       ]
     },
@@ -199,6 +205,9 @@
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1"
         }
       ]
     },
@@ -261,6 +270,9 @@
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1"
         }
       ]
     },
@@ -325,6 +337,9 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "cargo test --target wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target i686-pc-windows-msvc"
         }
       ]
@@ -385,6 +400,9 @@
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1"
         }
       ]
     }
