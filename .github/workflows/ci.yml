@@ -65,7 +65,22 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
           "run": "sudo dpkg --add-architecture i386"
@@ -142,7 +157,22 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
         }
       ]
     },
@@ -207,7 +237,22 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
         }
       ]
     },
@@ -272,7 +317,22 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
         }
       ]
     },
@@ -337,7 +397,22 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
           "run": "cargo test --target i686-pc-windows-msvc"
@@ -402,7 +477,22 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
           "run": "cargo test --target wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "cargo test --target wasm32-unknown-unknown"
         }
       ]
     }

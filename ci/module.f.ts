@@ -70,6 +70,11 @@ const installDeno = installOnWindowsArm({
     path: 'deno.land'
 })
 
+const customTarget = (target: string): readonly Step[] => [
+    { run: `rustup target add ${target}` },
+    { run: `cargo test --target ${target}` }
+]
+
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
         { uses: 'actions/checkout@v5' },
@@ -93,8 +98,9 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         { run: 'cargo test' },
         { uses: 'bytecodealliance/actions/wasmtime/setup@v1' },
         { uses: 'wasmerio/setup-wasmer@v1' },
-        { run: 'cargo test --target wasm32-wasip1' },
-        { run: 'cargo test --target wasm32-wasip2' },
+        ...customTarget('wasm32-wasip1'),
+        ...customTarget('wasm32-wasip2'),
+        ...customTarget('wasm32-unknown-unknown'),
     ]
     const more = a !== 'intel'
         ? []
@@ -102,8 +108,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         : v === 'ubuntu' ? [
             { run: 'sudo dpkg --add-architecture i386'},
             { run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' },
-            { run: 'rustup target add i686-unknown-linux-gnu' },
-            { run: 'cargo test --target i686-unknown-linux-gnu' }
+            ...customTarget('i686-unknown-linux-gnu'),
         ]
         : []
     return [...result, ...more]
