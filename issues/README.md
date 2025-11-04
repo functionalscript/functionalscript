@@ -269,6 +269,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 91. Create a separate nominal type for UTF-8.
 - [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
 - [ ] 93. Reduce a number of CI jobs.
+- [ ] 94. Add browser testing in CI, for example, using Playwright.
 
 ## Language Specification
 
