@@ -16,7 +16,8 @@
     "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
     "fst": "node ./dev/tf/module.ts",
-    "update": "npm run index && npm install"
+    "ci-update": "node ./ci/module.ts",
+    "update": "npm run index && npm run ci-update && npm install"
   },
   "engines": {
     "node": ">=20"

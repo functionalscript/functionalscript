@@ -215,12 +215,12 @@ logic should be moved to a private free floating helper function (to keep public
   // }
   // ```
   trait Js: StringCoercion + NumberCoercion + Neg<Output = Any> {}
-  
+
   impl Js for Any {}
   impl Js for Unpacked {}
   ```
 - [ ] 87. Optimization. Reduce number of `Rc::clone()`:
-  - Now: 
+  - Now:
     ```rust
     type Any = Rc<AnyImpl>;
     fn add(a: Any, b: Any) -> Any;
@@ -260,12 +260,16 @@ logic should be moved to a private free floating helper function (to keep public
       fn do(self) -> Self::Result {
           match ... {
               Number(v) => v.do::<Operation>(),
-              ... 
+              ...
           }
-      }      
+      }
   }
   ```
-- [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers    
+- [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
+- [ ] 91. Create a separate nominal type for UTF-8.
+- [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
+- [ ] 93. Reduce a number of CI jobs.
+- [ ] 94. Add browser testing in CI, for example, using Playwright.
 
 ## Language Specification
 

@@ -5,6 +5,8 @@
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
     "./bnf/module.f.ts": "./bnf/module.f.ts",
+    "./ci/module.f.ts": "./ci/module.f.ts",
+    "./ci/module.ts": "./ci/module.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
     "./crypto/prime_field/module.f.ts": "./crypto/prime_field/module.f.ts",
     "./crypto/secp/module.f.ts": "./crypto/secp/module.f.ts",
