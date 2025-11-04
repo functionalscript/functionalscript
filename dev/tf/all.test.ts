@@ -9,6 +9,8 @@ declare const Bun: object | undefined
 
 const isBun = typeof Bun !== 'undefined'
 
+const isPlaywright = typeof process !== 'undefined' && process?.env?.PLAYWRIGHT_TEST !== undefined
+
 //
 
 type Awaitable<T> = Promise<T> | T
@@ -24,10 +26,19 @@ type CommonFramework = (name: string, f: TestFunc) => Awaitable<void>
 const createFramework = (fw: typeof nodeTest): CommonFramework =>
     (prefix, f) => fw.test(prefix, t => f((name, v) => t.test(name, v)))
 
+// Bun doesn't support nested tests yet.
 const createBunFramework = (fw: typeof nodeTest): CommonFramework =>
     (prefix, f) => f((name, v) => fw.test(`${prefix}: ${name}`, v))
 
-const framework = isBun ? createBunFramework(nodeTest) : createFramework(nodeTest)
+const createPlaywrihtFramework = async (): Promise<CommonFramework> => {
+    const pwTest = (await import('@playwright/test')).test
+    return (prefix, f) => f((name, v) => pwTest(`${prefix}: ${name}`, v))
+}
+
+const framework: CommonFramework =
+    isPlaywright ? await createPlaywrihtFramework() :
+    isBun ? createBunFramework(nodeTest) :
+        createFramework(nodeTest)
 
 const parse = parseTestSet(io.tryCatch)
 

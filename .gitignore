@@ -116,7 +116,7 @@ bin/
 *.exp
 *.lib
 
-# temoprary files
+# temporary files
 _result.*
 
 # Rust
