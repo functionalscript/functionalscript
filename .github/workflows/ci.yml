@@ -63,6 +63,9 @@
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "cargo test --target i686-unknown-linux-gnu"
         }
       ]
     },
