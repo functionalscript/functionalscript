@@ -32,6 +32,24 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run fst"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -167,6 +185,24 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run fst"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "actions/setup-node@v6",
@@ -327,6 +363,24 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run fst"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -447,6 +501,24 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run fst"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "actions/setup-node@v6",
@@ -607,6 +679,24 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run fst"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -733,6 +823,24 @@
         },
         {
           "uses": "actions/checkout@v5"
+        },
+        {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "run": "npm ci"
+        },
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run fst"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "actions/setup-node@v6",
