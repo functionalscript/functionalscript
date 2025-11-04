@@ -313,7 +313,7 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "cargo test --target x86_64-pc-windows-msvc"
+          "run": "cargo test --target i686-pc-windows-msvc"
         }
       ]
     },
