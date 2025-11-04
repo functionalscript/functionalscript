@@ -91,6 +91,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         { run: 'cargo fmt -- --check' },
         { run: 'cargo clippy -- -D warnings' },
         { run: 'cargo test' },
+        { uses: 'bytecodealliance/actions/wasmtime/setup@v1' },
+        { uses: 'wasmerio/setup-wasmer@v1' },
     ]
     const more = v === 'windows' && a === 'intel' ? [ { run: 'cargo test --target x86_64-pc-windows-msvc' } ] : []
     return [...result, ...more]

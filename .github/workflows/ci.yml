@@ -57,6 +57,12 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
         }
       ]
     },
@@ -113,6 +119,12 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
         }
       ]
     },
@@ -169,6 +181,12 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
         }
       ]
     },
@@ -225,6 +243,12 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
         }
       ]
     },
@@ -283,6 +307,12 @@
           "run": "cargo test"
         },
         {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
           "run": "cargo test --target x86_64-pc-windows-msvc"
         }
       ]
@@ -337,6 +367,12 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
         }
       ]
     }
