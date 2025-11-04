@@ -97,7 +97,10 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const more = a !== 'intel'
         ? []
         : v === 'windows' ? [ { run: 'cargo test --target i686-pc-windows-msvc' } ]
-        : v === 'ubuntu' ? [ { run: 'cargo test --target i686-unknown-linux-gnu' } ]
+        : v === 'ubuntu' ? [
+            { run: 'rustup target add i686-unknown-linux-gnu' },
+            { run: 'cargo test --target i686-unknown-linux-gnu' }
+        ]
         : []
     return [...result, ...more]
 }
