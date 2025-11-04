@@ -98,6 +98,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ? []
         : v === 'windows' ? [ { run: 'cargo test --target i686-pc-windows-msvc' } ]
         : v === 'ubuntu' ? [
+            { run: 'sudo dpkg --add-architecture i386'},
             { run: 'rustup target add i686-unknown-linux-gnu' },
             { run: 'cargo test --target i686-unknown-linux-gnu' }
         ]

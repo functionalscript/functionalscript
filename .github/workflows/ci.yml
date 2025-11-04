@@ -65,6 +65,9 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "sudo dpkg --add-architecture i386"
+        },
+        {
           "run": "rustup target add i686-unknown-linux-gnu"
         },
         {
