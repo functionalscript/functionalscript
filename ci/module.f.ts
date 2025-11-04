@@ -110,6 +110,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Deno
         ...clean([
             installDeno(v)(a),
+            { run: 'deno install' },
             { run: 'deno task test' },
             { run: 'deno task fst' },
             { run: 'deno publish --dry-run' },
