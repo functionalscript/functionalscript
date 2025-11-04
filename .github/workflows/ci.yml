@@ -53,9 +53,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -74,9 +71,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -84,6 +78,24 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx tsgo"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "npm install -g ./*.tgz"
+        },
+        {
+          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "fst"
+        },
+        {
+          "run": "npm uninstall functionalscript -g"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -262,9 +274,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -283,9 +292,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -293,6 +299,24 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx tsgo"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "npm install -g ./*.tgz"
+        },
+        {
+          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "fst"
+        },
+        {
+          "run": "npm uninstall functionalscript -g"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -456,9 +480,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -477,9 +498,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -487,6 +505,24 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx tsgo"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "npm install -g ./*.tgz"
+        },
+        {
+          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "fst"
+        },
+        {
+          "run": "npm uninstall functionalscript -g"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -650,9 +686,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -671,9 +704,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -681,6 +711,24 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx tsgo"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "npm install -g ./*.tgz"
+        },
+        {
+          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "fst"
+        },
+        {
+          "run": "npm uninstall functionalscript -g"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -844,9 +892,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -865,9 +910,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -875,6 +917,24 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx tsgo"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "npm install -g ./*.tgz"
+        },
+        {
+          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "fst"
+        },
+        {
+          "run": "npm uninstall functionalscript -g"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -1044,9 +1104,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -1065,9 +1122,6 @@
           "run": "npm ci"
         },
         {
-          "run": "npx tsgo"
-        },
-        {
           "run": "npm test"
         },
         {
@@ -1075,6 +1129,24 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx tsgo"
+        },
+        {
+          "run": "npm pack"
+        },
+        {
+          "run": "npm install -g ./*.tgz"
+        },
+        {
+          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "fst"
+        },
+        {
+          "run": "npm uninstall functionalscript -g"
         },
         {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
