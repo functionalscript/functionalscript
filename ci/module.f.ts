@@ -95,18 +95,21 @@ const clean = (steps: readonly Step[]): readonly Step[] => [
     { run: 'git reset --hard HEAD && git clean -fdx' }
 ]
 
+const node = (version: string): readonly Step[] => clean([
+    { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
+    { run: 'npm ci' },
+    { run: 'npm test' },
+    { run: 'npm run fst' },
+])
+
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
         { run: 'rustc -V' },
         { uses: 'actions/checkout@v5' },
         // Node.js
-        ...clean([
-            { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
-            { run: 'npm ci' },
-            { run: 'npm test' },
-            { run: 'npm run fst' },
-        ]),
+        ...node('24'),
+        ...node('25'),
         // Deno
         ...clean([
             installDeno(v)(a),
