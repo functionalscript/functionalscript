@@ -96,7 +96,8 @@ const clean = (steps: readonly Step[]): readonly Step[] => [
 ]
 
 const basicNode = (version: string) => (extra: readonly Step[]): readonly Step[] => clean([
-    { uses: 'actions/setup-node@v6', with: { 'node-version': version } },
+    // { uses: 'actions/setup-node@v6', with: { 'node-version': version } },
+    { run: `nvm install ${version} && nvm use ${version}` },
     { run: 'npm ci' },
     ...extra,
 ])
