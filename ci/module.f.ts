@@ -70,6 +70,32 @@ const installDeno = installOnWindowsArm({
     path: 'deno.land'
 })
 
+const steps = (v: Os) => (a: Architecture): readonly Step[] => {
+    const result = [
+        { uses: 'actions/checkout@v5' },
+        // Node.js
+        { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
+        { run: 'npm ci' },
+        { run: 'npm test' },
+        { run: 'npm run fst' },
+        // Deno
+        installDeno(v)(a),
+        { run: 'deno task test' },
+        { run: 'deno task fst' },
+        { run: 'deno publish --dry-run' },
+        // Bun
+        installBun(v)(a),
+        { run: 'bun test --timeout 10000' },
+        { run: 'bun ./dev/tf/module.ts' },
+        // Rust
+        { run: 'cargo fmt -- --check' },
+        { run: 'cargo clippy -- -D warnings' },
+        { run: 'cargo test' },
+    ]
+    const more = v === 'windows' && a === 'intel' ? [ { run: 'cargo test --target x86_64-pc-windows-msvc' } ] : []
+    return [...result, ...more]
+}
+
 const gha: GitHubAction = {
     name: 'CI',
     on: {
@@ -77,27 +103,7 @@ const gha: GitHubAction = {
     },
     jobs: Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
         'runs-on': images[v][a],
-        steps: [
-            { uses: 'actions/checkout@v5'},
-            // Node.js
-            { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
-            { run: 'npm ci' },
-            { run: 'npm test' },
-            { run: 'npm run fst' },
-            // Deno
-            installDeno(v)(a),
-            { run: 'deno task test' },
-            { run: 'deno task fst' },
-            { run: 'deno publish --dry-run' },
-            // Bun
-            installBun(v)(a),
-            { run: 'bun test --timeout 10000' },
-            { run: 'bun ./dev/tf/module.ts' },
-            // Rust
-            { run: 'cargo fmt -- --check' },
-            { run: 'cargo clippy -- -D warnings' },
-            { run: 'cargo test' },
-        ],
+        steps: steps(v)(a),
     }]))),
 }
 

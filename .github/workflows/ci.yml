@@ -281,6 +281,9 @@
         },
         {
           "run": "cargo test"
+        },
+        {
+          "run": "cargo test --target x86_64-pc-windows-msvc"
         }
       ]
     },
