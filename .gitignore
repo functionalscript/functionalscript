@@ -131,3 +131,4 @@ _*
 **/*.js
 
 deno.lock
+test-results/
