@@ -131,6 +131,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
           "run": "cargo fmt -- --check"
         },
         {
@@ -352,6 +355,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
           "run": "cargo fmt -- --check"
         },
         {
@@ -556,6 +562,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
         },
         {
           "run": "cargo fmt -- --check"
@@ -764,6 +773,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
           "run": "cargo fmt -- --check"
         },
         {
@@ -968,6 +980,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
         },
         {
           "run": "cargo fmt -- --check"
@@ -1177,6 +1192,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
         },
         {
           "run": "cargo fmt -- --check"
