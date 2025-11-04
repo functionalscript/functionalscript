@@ -83,6 +83,12 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
           "run": "sudo dpkg --add-architecture i386"
         },
         {
@@ -173,6 +179,12 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
         }
       ]
     },
@@ -253,6 +265,12 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
         }
       ]
     },
@@ -333,6 +351,12 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
         }
       ]
     },
@@ -415,6 +439,12 @@
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
+        },
+        {
           "run": "cargo test --target i686-pc-windows-msvc"
         }
       ]
@@ -493,6 +523,12 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "cargo test --target wasm32-wasip1-threads"
         }
       ]
     }

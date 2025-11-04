@@ -101,6 +101,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...customTarget('wasm32-wasip1'),
         ...customTarget('wasm32-wasip2'),
         ...customTarget('wasm32-unknown-unknown'),
+        ...customTarget('wasm32-wasip1-threads'),
     ]
     const more = a !== 'intel'
         ? []
