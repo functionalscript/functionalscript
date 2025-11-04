@@ -106,9 +106,10 @@ const oldNode = (version: string): readonly Step[] => basicNode(version)([
     { run: `npm run test${version}` },
 ])
 
-const node = (version: string): readonly Step[] => basicNode(version)([
+const node = (version: string) => (extra: readonly Step[]): readonly Step[] => basicNode(version)([
     { run: 'npm test' },
     { run: 'npm run fst' },
+    ...extra,
 ])
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
@@ -119,14 +120,15 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Node.js
         ...oldNode('20'),
         ...oldNode('22'),
-        ...node('24'),
-        ...node('25'),
-        { run: 'npx tsgo' },
-        { run: 'npm pack' },
-        { run: 'npm install -g ./*.tgz' },
-        { run: 'fsc issues/demo/data/tree.json _tree.f.js' },
-        { run: 'fst' },
-        { run: 'npm uninstall functionalscript -g' },
+        ...node('24')([]),
+        ...node('25')([
+            { run: 'npx tsgo' },
+            { run: 'npm pack' },
+            { run: 'npm install -g ./*.tgz' },
+            { run: 'fsc issues/demo/data/tree.json _tree.f.js' },
+            { run: 'fst' },
+            { run: 'npm uninstall functionalscript -g' },
+        ]),
         // Deno
         ...clean([
             installDeno(v)(a),

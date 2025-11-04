@@ -77,9 +77,6 @@
           "run": "npm run fst"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "npx tsgo"
         },
         {
@@ -96,6 +93,9 @@
         },
         {
           "run": "npm uninstall functionalscript -g"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -298,9 +298,6 @@
           "run": "npm run fst"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "npx tsgo"
         },
         {
@@ -317,6 +314,9 @@
         },
         {
           "run": "npm uninstall functionalscript -g"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -504,9 +504,6 @@
           "run": "npm run fst"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "npx tsgo"
         },
         {
@@ -523,6 +520,9 @@
         },
         {
           "run": "npm uninstall functionalscript -g"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -710,9 +710,6 @@
           "run": "npm run fst"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "npx tsgo"
         },
         {
@@ -729,6 +726,9 @@
         },
         {
           "run": "npm uninstall functionalscript -g"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -916,9 +916,6 @@
           "run": "npm run fst"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "npx tsgo"
         },
         {
@@ -935,6 +932,9 @@
         },
         {
           "run": "npm uninstall functionalscript -g"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -1128,9 +1128,6 @@
           "run": "npm run fst"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "npx tsgo"
         },
         {
@@ -1147,6 +1144,9 @@
         },
         {
           "run": "npm uninstall functionalscript -g"
+        },
+        {
+          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
