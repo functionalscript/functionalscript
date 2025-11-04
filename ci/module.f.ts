@@ -93,7 +93,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         { run: 'cargo test' },
         { uses: 'bytecodealliance/actions/wasmtime/setup@v1' },
         { uses: 'wasmerio/setup-wasmer@v1' },
-        { run: 'cargo test --target wasm32-wasip1'}
+        { run: 'cargo test --target wasm32-wasip1' },
+        { run: 'cargo test --target wasm32-wasip2' },
     ]
     const more = a !== 'intel'
         ? []
