@@ -90,6 +90,10 @@ const wasmTarget = (target: string): readonly Step[] => [
     ...cargoTest(target, '.cargo/config.wasmer.toml')
 ]
 
+const clean = (steps: readonly Step[]): readonly Step[] => [
+    ...steps,
+    { run: 'git reset --hard HEAD && git -fdx' }
+]
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
@@ -97,19 +101,25 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         { run: 'rustc -V' },
         { uses: 'actions/checkout@v5' },
         // Node.js
-        { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
-        { run: 'npm ci' },
-        { run: 'npm test' },
-        { run: 'npm run fst' },
+        ...clean([
+            { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },
+            { run: 'npm ci' },
+            { run: 'npm test' },
+            { run: 'npm run fst' },
+        ]),
         // Deno
-        installDeno(v)(a),
-        { run: 'deno task test' },
-        { run: 'deno task fst' },
-        { run: 'deno publish --dry-run' },
+        ...clean([
+            installDeno(v)(a),
+            { run: 'deno task test' },
+            { run: 'deno task fst' },
+            { run: 'deno publish --dry-run' },
+        ]),
         // Bun
-        installBun(v)(a),
-        { run: 'bun test --timeout 10000' },
-        { run: 'bun ./dev/tf/module.ts' },
+        ...clean([
+            installBun(v)(a),
+            { run: 'bun test --timeout 10000' },
+            { run: 'bun ./dev/tf/module.ts' },
+        ]),
         // Rust
         { run: 'cargo fmt -- --check' },
         { run: 'cargo clippy -- -D warnings' },
