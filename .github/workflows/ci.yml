@@ -29,6 +29,9 @@
           "run": "npm run fst"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -44,6 +47,9 @@
           "run": "deno publish --dry-run"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "oven-sh/setup-bun@v1"
         },
         {
@@ -51,6 +57,9 @@
         },
         {
           "run": "bun ./dev/tf/module.ts"
+        },
+        {
+          "run": "git reset --hard HEAD && git -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -172,6 +181,9 @@
           "run": "npm run fst"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -187,6 +199,9 @@
           "run": "deno publish --dry-run"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "oven-sh/setup-bun@v1"
         },
         {
@@ -194,6 +209,9 @@
         },
         {
           "run": "bun ./dev/tf/module.ts"
+        },
+        {
+          "run": "git reset --hard HEAD && git -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -300,6 +318,9 @@
           "run": "npm run fst"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -315,6 +336,9 @@
           "run": "deno publish --dry-run"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "oven-sh/setup-bun@v1"
         },
         {
@@ -322,6 +346,9 @@
         },
         {
           "run": "bun ./dev/tf/module.ts"
+        },
+        {
+          "run": "git reset --hard HEAD && git -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -428,6 +455,9 @@
           "run": "npm run fst"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -443,6 +473,9 @@
           "run": "deno publish --dry-run"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "oven-sh/setup-bun@v1"
         },
         {
@@ -450,6 +483,9 @@
         },
         {
           "run": "bun ./dev/tf/module.ts"
+        },
+        {
+          "run": "git reset --hard HEAD && git -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -556,6 +592,9 @@
           "run": "npm run fst"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -571,6 +610,9 @@
           "run": "deno publish --dry-run"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "uses": "oven-sh/setup-bun@v1"
         },
         {
@@ -578,6 +620,9 @@
         },
         {
           "run": "bun ./dev/tf/module.ts"
+        },
+        {
+          "run": "git reset --hard HEAD && git -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -690,6 +735,9 @@
           "run": "npm run fst"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
@@ -702,6 +750,9 @@
           "run": "deno publish --dry-run"
         },
         {
+          "run": "git reset --hard HEAD && git -fdx"
+        },
+        {
           "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
@@ -709,6 +760,9 @@
         },
         {
           "run": "bun ./dev/tf/module.ts"
+        },
+        {
+          "run": "git reset --hard HEAD && git -fdx"
         },
         {
           "run": "cargo fmt -- --check"
