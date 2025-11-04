@@ -86,6 +86,7 @@ const customTarget = (target: string): readonly Step[] => [
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
+        { run: 'rustc -V' },
         { uses: 'actions/checkout@v5' },
         // Node.js
         { uses: 'actions/setup-node@v6', with: { 'node-version': '24' } },

@@ -8,6 +8,9 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "run": "rustc -V"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -124,6 +127,9 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
+          "run": "rustc -V"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -224,6 +230,9 @@
     "macos-intel": {
       "runs-on": "macos-15-intel",
       "steps": [
+        {
+          "run": "rustc -V"
+        },
         {
           "uses": "actions/checkout@v5"
         },
@@ -326,6 +335,9 @@
       "runs-on": "macos-latest",
       "steps": [
         {
+          "run": "rustc -V"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -426,6 +438,9 @@
     "windows-intel": {
       "runs-on": "windows-latest",
       "steps": [
+        {
+          "run": "rustc -V"
+        },
         {
           "uses": "actions/checkout@v5"
         },
@@ -533,6 +548,9 @@
     "windows-arm": {
       "runs-on": "windows-11-arm",
       "steps": [
+        {
+          "run": "rustc -V"
+        },
         {
           "uses": "actions/checkout@v5"
         },
