@@ -1,9 +1,0 @@
-runs:
-  using: "composite"
-  steps:
-    - run: cargo fmt -- --check
-      shell: bash
-    - run: cargo clippy -- -D warnings
-      shell: bash
-    - run: cargo test
-      shell: bash
