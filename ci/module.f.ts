@@ -124,7 +124,13 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...oldNode('22'),
         ...node('24')([]),
         ...node('25')([
+            // TypeScript Preview
             { run: 'npx tsgo' },
+            // Playwright
+            { run: 'npx playwright install --with-deps' },
+            ...['chromium', 'firefox', 'webkit'].map(browser =>
+            ({ run: `npx playwright test --browser=${browser}` })),
+            // publishing
             { run: 'npm pack' },
             { run: `npm install -g ${install(v)}` },
             { run: 'fsc issues/demo/data/tree.json _tree.f.js' },
@@ -145,10 +151,6 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             { run: 'bun test --timeout 10000' },
             { run: 'bun ./dev/tf/module.ts' },
         ]),
-        // Playwright
-        { run: 'npx playwright install --with-deps' },
-        ...['chromium', 'firefox', 'webkit'].map(browser =>
-            ({ run: `npx playwright test --browser=${browser}` })),
         // Rust
         { run: 'cargo fmt -- --check' },
         { run: 'cargo clippy -- -D warnings' },
