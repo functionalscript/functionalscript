@@ -4,7 +4,7 @@ import { join0Plus, rangeEncode, range, remove, repeat0Plus, type Rule, set, typ
 
 const wsNoNewLineItem: Rule = set(' \t\r')
 
-export const wsNoNewLine0: Rule = () => option([wsNoNewLineItem, wsNoNewLine0])
+export const wsNoNewLine0: Rule = repeat0Plus(wsNoNewLineItem)
 
 const wsItem: Rule = {
     wsNoNewLineItem,
@@ -91,7 +91,7 @@ const exponent0: Rule = () => option([e, sign, digits1])
 
 const e: Rule = set('eE')
 
-const sign: Rule = () => option({
+const sign: Rule = option({
     '+': '+',
     '-': '-',
 })

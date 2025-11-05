@@ -13,48 +13,48 @@ const fjs: Rule = () => option({
     export: ['export', ws1, 'default', ws1, json],
 })
 
-const fjsTail: Rule = () => option(['\n', ws0, fjs])
+const fjsTail: Rule = option(['\n', ws0, fjs])
 
 // line comment
 
-const lineItem: Rule = () => remove(unicode, set('\n'))
+const lineItem: Rule = remove(unicode, set('\n'))
 
 const line: Rule = () => option([lineItem, line])
 
 const lineComment = () => ['/', commentTail, '\n']
 
-const multiLineSkip: Rule = () => remove(unicode, set('/'))
+const multiLineSkip: Rule = remove(unicode, set('/'))
 
-const multiLineItem: Rule = () => remove(unicode, set('*'))
+const multiLineItem: Rule = remove(unicode, set('*'))
 
 const multiLine: Rule = () => ({
     '*': ['*', multiLineTail],
     '_': [multiLineItem, multiLine]
 })
 
-const multiLineTail: Rule = () => ({
+const multiLineTail: Rule = {
     '/': '/',
     '_': [multiLineSkip, multiLine]
-})
+}
 
-const commentTail = () => ({
+const commentTail = {
     '/': ['/', lineComment],
     '*': ['*', multiLine],
-})
+}
 
 // id
 
 const id: Rule = () => [alpha, idTail0]
 
-const alpha: Rule = () => ({
-    'u': [range('AZ')],
-    'l': [range('az')],
-    '_': set('_$'),
-})
+const alpha: Rule = {
+    upper: range('AZ'),
+    lower: range('az'),
+    _: set('_$'),
+}
 
 const idTail0: Rule = () => option([alphaDigit, idTail0])
 
-const alphaDigit: Rule = () => ({
+const alphaDigit: Rule = {
     alpha,
     digit,
-})
+}
