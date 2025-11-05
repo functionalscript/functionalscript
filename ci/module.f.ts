@@ -146,7 +146,9 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             { run: 'bun ./dev/tf/module.ts' },
         ]),
         // Playwright
-        { run: 'npx playwright test --browser=chromium' },
+        { run: 'npx playwright install --with-deps' },
+        ...['chromium', 'firefox', 'webkit'].map(browser =>
+            ({ run: `npx playwright test --browser=${browser}` })),
         // Rust
         { run: 'cargo fmt -- --check' },
         { run: 'cargo clippy -- -D warnings' },

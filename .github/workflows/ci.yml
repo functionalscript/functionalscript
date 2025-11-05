@@ -131,7 +131,16 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
           "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "cargo fmt -- --check"
@@ -355,7 +364,16 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
           "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "cargo fmt -- --check"
@@ -564,7 +582,16 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
           "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "cargo fmt -- --check"
@@ -773,7 +800,16 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
           "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "cargo fmt -- --check"
@@ -982,7 +1018,16 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
           "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "cargo fmt -- --check"
@@ -1194,7 +1239,16 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
           "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "cargo fmt -- --check"
