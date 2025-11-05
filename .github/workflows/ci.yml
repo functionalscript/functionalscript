@@ -80,6 +80,18 @@
           "run": "npx tsgo"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
+        },
+        {
           "run": "npm pack"
         },
         {
@@ -301,6 +313,18 @@
           "run": "npx tsgo"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
+        },
+        {
           "run": "npm pack"
         },
         {
@@ -505,6 +529,18 @@
         },
         {
           "run": "npx tsgo"
+        },
+        {
+          "run": "npx playwright install --with-deps"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -713,6 +749,18 @@
           "run": "npx tsgo"
         },
         {
+          "run": "npx playwright install --with-deps"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
+        },
+        {
           "run": "npm pack"
         },
         {
@@ -917,6 +965,18 @@
         },
         {
           "run": "npx tsgo"
+        },
+        {
+          "run": "npx playwright install --with-deps"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -1129,6 +1189,18 @@
         },
         {
           "run": "npx tsgo"
+        },
+        {
+          "run": "npx playwright install --with-deps"
+        },
+        {
+          "run": "npx playwright test --browser=chromium"
+        },
+        {
+          "run": "npx playwright test --browser=firefox"
+        },
+        {
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
