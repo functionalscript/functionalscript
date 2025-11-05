@@ -116,7 +116,7 @@ bin/
 *.exp
 *.lib
 
-# temoprary files
+# temporary files
 _result.*
 
 # Rust
@@ -131,3 +131,4 @@ _*
 **/*.js
 
 deno.lock
+test-results/

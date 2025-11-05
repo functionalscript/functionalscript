@@ -46,8 +46,10 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
+    "@playwright/test": "*",
     "@types/node": "*",
     "@typescript/native-preview": "*",
+    "playwright": "*",
     "typescript": "*"
   }
 }
