@@ -21,18 +21,14 @@ pub trait PrimitiveCoercion<A: IVm>: NumberCoercion<A> + StringCoercion<A> + Siz
     /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
     /// <https://tc39.es/ecma262/#sec-toprimitive>
     ///
-    /// Examples:
+    ///
     fn coerce_to_primitive(
         self,
         preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
         Ok(match preferred_type {
-            Some(ToPrimitivePreferredType::Number) => {
-                Primitive::Number(self.coerce_to_number()?)
-            }
-            Some(ToPrimitivePreferredType::String) => {
-                Primitive::String(self.coerce_to_string()?)
-            }
+            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.coerce_to_number()?),
+            Some(ToPrimitivePreferredType::String) => Primitive::String(self.coerce_to_string()?),
             None => self.coerce_to_primitive_default(),
         })
     }
