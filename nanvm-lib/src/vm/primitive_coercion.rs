@@ -20,19 +20,21 @@ pub enum ToPrimitivePreferredType {
 pub trait PrimitiveCoercion<A: IVm>: NumberCoercion<A> + StringCoercion<A> + Sized {
     /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
     /// <https://tc39.es/ecma262/#sec-toprimitive>
+    ///
+    /// Examples:
     fn coerce_to_primitive(
         self,
         preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
-        match preferred_type {
+        Ok(match preferred_type {
             Some(ToPrimitivePreferredType::Number) => {
-                Ok(Primitive::Number(self.coerce_to_number()?))
+                Primitive::Number(self.coerce_to_number()?)
             }
             Some(ToPrimitivePreferredType::String) => {
-                Ok(Primitive::String(self.coerce_to_string()?))
+                Primitive::String(self.coerce_to_string()?)
             }
-            None => Ok(self.coerce_to_primitive_default()),
-        }
+            None => self.coerce_to_primitive_default(),
+        })
     }
 
     fn coerce_to_primitive_default(self) -> Primitive<A>;
