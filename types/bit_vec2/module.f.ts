@@ -1,4 +1,4 @@
-import { bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
+import { abs, bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
 import type { Binary, Reduce as OpReduce } from "../function/operator/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
 
@@ -15,7 +15,22 @@ export const uint = (v: Vec): bigint => {
     const b = asBase(v)
     if (b >= 0n) { return b }
     const u = -b
-    return mask(bitLength(u)) ^ u
+    const len = bitLength(u)
+    return u ^ (1n << (len - 1n))
+}
+
+export const vec = (len: bigint): (ui: bigint) => Vec => {
+    const m = mask(len)
+    const last = len - 1n
+    const lastBit = 1n << last
+    return ui => {
+        // normalize `u`
+        const u = m & abs(ui)
+        //
+        const sign = u >> last
+        const x = sign !== 0n ? u : -(u ^ lastBit)
+        return asNominal(x)
+    }
 }
 
 export type Unpacked = {
@@ -27,16 +42,6 @@ export const unpack = (v: Vec): Unpacked => ({
     length: length(v),
     uint: uint(v),
 })
-
-export const vec = (len: bigint): (ui: bigint) => Vec => {
-    const m = mask(len)
-    return ui => {
-        const u = m & ui
-        const sign = u >> (len - 1n)
-        const x = sign !== 0n ? u : -(m ^ u)
-        return asNominal(x)
-    }
-}
 
 export const vec8: (ui: bigint) => Vec = vec(8n)
 

@@ -1,4 +1,4 @@
-import { mask } from '../bigint/module.f.ts'
+import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
 import { length, empty, uint, type Vec, vec, msbConcat, lsbXor, msbXor } from './module.f.ts'
 
@@ -7,90 +7,95 @@ export default {
         const len = length(empty)
         if (len !== 0n ) { throw len }
     },
-    uint: () => {
-        {
+    uint: [
+        // 0
+        () => {
             const x = uint(asNominal(0n))
             if (x !== 0n) { throw x }
-        }
-        {
+        },
+        // 1
+        () => {
             const v: Vec = asNominal(1n)
             const x = uint(v)
             if (x !== 1n) { throw x }
             const len = length(v)
             if (len !== 1n) { throw len }
-        }
-        {
+        },
+        // 2
+        () => {
             const v: Vec = asNominal(0b10n)
             const x = uint(v)
             if (x !== 0b10n) { throw x }
             const len = length(v)
             if (len !== 2n) { throw len }
-        }
-        {
+        },
+        // 3
+        () => {
             const v: Vec = asNominal(0b11n)
             const x = uint(v)
             if (x !== 0b11n) { throw x }
             const len = length(v)
             if (len !== 2n) { throw len }
-        }
-        {
+        },
+        // 4
+        () => {
             const v: Vec = asNominal(-1n)
             const x = uint(v)
             if (x !== 0n) { throw x }
             const len = length(v)
             if (len !== 1n) { throw len }
-        }
-        {
+        },
+        () => {
             const v: Vec = asNominal(-0b10n)
+            const x = uint(v)
+            if (x !== 0n) { throw x }
+            const len = length(v)
+            if (len !== 2n) { throw len }
+        },
+        () => {
+            const v: Vec = asNominal(-0b11n)
             const x = uint(v)
             if (x !== 1n) { throw x }
             const len = length(v)
             if (len !== 2n) { throw len }
         }
-        {
-            const v: Vec = asNominal(-0b11n)
-            const x = uint(v)
-            if (x !== 0n) { throw x }
-            const len = length(v)
-            if (len !== 2n) { throw len }
-        }
-    },
-    vec: () => {
+    ],
+    vec: [
         // 0
-        {
+        () => {
             const v = asBase(vec(0n)(0n))
             if (v !== 0n) { throw v }
-        }
-        {
+        },
+        () => {
             const v = asBase(vec(0n)(1n))
             if (v !== 0n) { throw v }
-        }
-        {
+        },
+        () => {
             const v = asBase(vec(0n)(-1n))
             if (v !== 0n) { throw v }
-        }
+        },
         // 1
-        {
+        () => {
             const v = asBase(vec(1n)(0n))
             if (v !== -1n) { throw v }
-        }
-        {
+        },
+        () => {
             const v = asBase(vec(1n)(1n))
             if (v !== 1n) { throw v }
-        }
-        {
+        },
+        () => {
             const v = asBase(vec(1n)(-1n))
             if (v !== 1n) { throw v }
-        }
-        {
+        },
+        () => {
             const v = asBase(vec(1n)(0b10n))
             if (v !== -1n) { throw v }
-        }
-        {
+        },
+        () => {
             const v = asBase(vec(1n)(0b11n))
             if (v !== 1n) { throw v }
         }
-    },
+    ],
     both: () => {
         const c = (len: bigint) => (ui: bigint) => (raw: bigint) => {
             const v = vec(len)(ui)
@@ -99,24 +104,25 @@ export default {
             const len2 = length(v)
             if (len2 !== len) { throw len2 }
             const u = uint(v)
-            const mui = mask(len) & ui
+            const mui = mask(len) & abs(ui)
             if (u !== mui) { throw u }
         }
         // 0n
         for (const i of [0n, 1n, -1n, 2n, -2n, 3n, -3n]) {
             c(0n)(i)(0n)
         }
-        // 1n
-        c(1n)(0n)(-1n)
-        c(1n)(1n)(1n)
-        c(1n)(-1n)(1n) //< overflow
-        // 2n
-        c(2n)(0n)(-0b11n)
-        c(2n)(1n)(-0b10n)
-        c(2n)(0b10n)(0b10n)
-        c(2n)(0b11n)(0b11n)
-        c(2n)(0b111n)(0b11n) //< overflow
-        // 3n
+        return [
+            // 1n
+            () => c(1n)(0n)(-1n),
+            () => c(1n)(1n)(1n),
+            () => c(1n)(-11n)(1n), //< overflow
+            // 2n
+            () => c(2n)(0n)(-0b10n),
+            () => c(2n)(1n)(-0b11n),
+            () => c(2n)(0b10n)(0b10n),
+            () => c(2n)(0b11n)(0b11n),
+            () => c(2n)(-0b111n)(0b11n), //< overflow
+        ]
     },
     concat: () => {
         const c = (a: Vec) => (b: Vec) => (abx: Vec) => {
