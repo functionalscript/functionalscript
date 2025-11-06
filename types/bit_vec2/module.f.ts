@@ -1,5 +1,5 @@
 import { bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
-import type { Binary } from "../function/operator/module.f.ts"
+import type { Binary, Reduce as OpReduce } from "../function/operator/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
 
 export type Vec = Nominal<
@@ -38,7 +38,7 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
     }
 }
 
-export const vec8 = vec(8n)
+export const vec8: (ui: bigint) => Vec = vec(8n)
 
 export const pack = ({ length, uint }: Unpacked): Vec => vec(length)(uint)
 
@@ -69,11 +69,13 @@ const msbNorm: NormOp = ap => bp => {
     return { len, a: a << (len - al), b: b << (len - bl) }
 }
 
-const op = (norm: NormOp) => (op: BigintReduce) => (ap: Vec) => (bp: Vec): Vec => {
+const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
     const { len, a, b } = norm(ap)(bp)
     return vec(len)(op(a)(b))
 }
 
-export const lsbXor = op(lsbNorm)(xor)
+export type Reduce = OpReduce<Vec>
 
-export const msbXor = op(msbNorm)(xor)
+export const lsbXor: Reduce = op(lsbNorm)(xor)
+
+export const msbXor: Reduce = op(msbNorm)(xor)
