@@ -117,7 +117,8 @@ const install = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
-        { run: 'rustc -V' },
+        // { run: 'rustc -V' },
+        { run: 'rustup default 1.90.0' },
         { uses: 'actions/checkout@v5' },
         // Node.js
         ...oldNode('20'),

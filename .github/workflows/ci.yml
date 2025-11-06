@@ -8,7 +8,7 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
-          "run": "rustc -V"
+          "run": "rustup default 1.90.0"
         },
         {
           "uses": "actions/checkout@v5"
@@ -241,7 +241,7 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
-          "run": "rustc -V"
+          "run": "rustup default 1.90.0"
         },
         {
           "uses": "actions/checkout@v5"
@@ -459,7 +459,7 @@
       "runs-on": "macos-15-intel",
       "steps": [
         {
-          "run": "rustc -V"
+          "run": "rustup default 1.90.0"
         },
         {
           "uses": "actions/checkout@v5"
@@ -677,7 +677,7 @@
       "runs-on": "macos-latest",
       "steps": [
         {
-          "run": "rustc -V"
+          "run": "rustup default 1.90.0"
         },
         {
           "uses": "actions/checkout@v5"
@@ -895,7 +895,7 @@
       "runs-on": "windows-latest",
       "steps": [
         {
-          "run": "rustc -V"
+          "run": "rustup default 1.90.0"
         },
         {
           "uses": "actions/checkout@v5"
@@ -1119,7 +1119,7 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "run": "rustc -V"
+          "run": "rustup default 1.90.0"
         },
         {
           "uses": "actions/checkout@v5"
