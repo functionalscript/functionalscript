@@ -1,4 +1,4 @@
-import { bitLength, mask } from "../bigint/module.f.ts"
+import { bitLength, mask, max } from "../bigint/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
 
 export type Vec = Nominal<
@@ -17,6 +17,10 @@ export const uint = (v: Vec): bigint => {
     return mask(bitLength(u)) ^ u
 }
 
+export type Unpacked = readonly[bigint, bigint]
+
+export const unpack = (v: Vec): Unpacked => [length(v), uint(v)]
+
 export const vec = (len: bigint) => (ui: bigint): Vec => {
     const m = mask(len)
     const u = m & ui
@@ -25,9 +29,18 @@ export const vec = (len: bigint) => (ui: bigint): Vec => {
     return asNominal(x)
 }
 
-const isNegative = (v: bigint) => v < 0
+export const vec8 = vec(8n)
+
+export const pack = ([len, u]: Unpacked): Vec => vec(len)(u)
 
 export const msbConcat = (a: Vec) => (b: Vec): Vec => {
-    const bLen = length(b)
-    return vec(length(a) + bLen)((uint(a) << bLen) | uint(b))
+    const [al, au] = unpack(a)
+    const [bl, bu] = unpack(b)
+    return vec(al + bl)((au << bl) | bu)
+}
+
+export const xor = (a: Vec) => (b: Vec): Vec => {
+    const [al, au] = unpack(a)
+    const [bl, bu] = unpack(b)
+    return vec(max(al)(bl))(au ^ bu)
 }
