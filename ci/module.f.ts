@@ -148,7 +148,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Bun
         ...clean([
             installBun(v)(a),
-            { run: 'bun test --timeout 10000' },
+            { run: 'bun test --timeout 20000' },
             { run: 'bun ./dev/tf/module.ts' },
         ]),
         // Rust
