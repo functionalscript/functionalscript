@@ -119,6 +119,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
         // { run: 'rustc -V' },
         { run: 'rustup default 1.90.0' },
+        { run: 'rustup component add rustfmt' },
         { uses: 'actions/checkout@v5' },
         // Node.js
         ...oldNode('20'),

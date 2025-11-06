@@ -11,6 +11,9 @@
           "run": "rustup default 1.90.0"
         },
         {
+          "run": "rustup component add rustfmt"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -244,6 +247,9 @@
           "run": "rustup default 1.90.0"
         },
         {
+          "run": "rustup component add rustfmt"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -460,6 +466,9 @@
       "steps": [
         {
           "run": "rustup default 1.90.0"
+        },
+        {
+          "run": "rustup component add rustfmt"
         },
         {
           "uses": "actions/checkout@v5"
@@ -680,6 +689,9 @@
           "run": "rustup default 1.90.0"
         },
         {
+          "run": "rustup component add rustfmt"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -896,6 +908,9 @@
       "steps": [
         {
           "run": "rustup default 1.90.0"
+        },
+        {
+          "run": "rustup component add rustfmt"
         },
         {
           "uses": "actions/checkout@v5"
@@ -1120,6 +1135,9 @@
       "steps": [
         {
           "run": "rustup default 1.90.0"
+        },
+        {
+          "run": "rustup component add rustfmt"
         },
         {
           "uses": "actions/checkout@v5"
