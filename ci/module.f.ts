@@ -164,7 +164,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     ]
     const more = a !== 'intel'
         ? []
-        : v === 'windows' ? cargoTest('i686-pc-windows-msvc')
+        : v === 'windows' ? customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
             { run: 'sudo dpkg --add-architecture i386'},
             { run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' },

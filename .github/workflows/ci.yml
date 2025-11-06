@@ -1123,6 +1123,9 @@
           "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         },
         {
+          "run": "rustup target add i686-pc-windows-msvc"
+        },
+        {
           "run": "cargo test --target i686-pc-windows-msvc"
         },
         {
