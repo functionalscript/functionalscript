@@ -1,11 +1,50 @@
 import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, msbConcat, lsbXor, msbXor } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, msbConcat, lsbXor, msbXor, lsb, msb } from './module.f.ts'
+
+const unsafeVec = (a: bigint): Vec => asNominal(a)
+
+// 0x8 = 0b1000 = 0 + 8
+// 0x9 = 0b1001 = 1 + 8
+// 0xA = 0b1010 = 2 + 8
+// 0xB = 0b1011 = 3 + 8
+// 0xC = 0b1100 = 4 + 8
+// 0xD = 0b1101 = 5 + 8
+// 0xE = 0b1110 = 6 + 8
+// 0xF = 0b1111 = 7 + 8
+
+const assertEq = <T>(a: T, b: T) => {
+    if (a !== b) { throw [a, b] }
+}
 
 export default {
+    examples: {
+        vec: () => {
+            const vec4 = vec(4n)
+            const v0 = vec4(5n) // 0b0101 => -0b1101
+            if (v0 !== unsafeVec(-0xDn)) { throw v0 }
+            const v1 = vec4(0x5FEn) // 0xEn
+            if (v1 !== unsafeVec(0xEn)) { throw v1 }
+        },
+        uint: () => {
+            const vector = vec(8n)(0x5n) // -0x85n
+            if (vector !== unsafeVec(-0x85n)) { throw vector }
+            const result = uint(vector) // result is 0x5n
+            if (result !== 0x5n) { throw result }
+        },
+        front: () => {
+            const vector = vec(8n)(0xF5n) // 0xF5n
+
+            assertEq(lsb.front(4n)(vector), 5n)
+            assertEq(lsb.front(16n)(vector), 0xF5n)
+
+            assertEq(msb.front(4n)(vector), 0xFn)
+            assertEq(msb.front(16n)(vector), 0xF500n)
+        },
+    },
     length: () => {
         const len = length(empty)
-        if (len !== 0n ) { throw len }
+        if (len !== 0n) { throw len }
     },
     uint: [
         // 0

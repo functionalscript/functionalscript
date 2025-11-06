@@ -129,3 +129,26 @@ export const lsbXor: Reduce = op(lsbNorm)(xor)
  * Performs a most-significant-bit (MSb) xor operation between two vectors.
  */
 export const msbXor: Reduce = op(msbNorm)(xor)
+
+/**
+ * Represents operations for handling bit vectors with a specific bit order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering
+ */
+export type BitOrder = {
+    readonly front: (len: bigint) => (v: Vec) => bigint
+}
+
+export const lsb: BitOrder = {
+    front: len => {
+        const m = mask(len)
+        return v => uint(v) & m
+    },
+}
+
+export const msb: BitOrder = {
+    front: len => {
+        const m = mask(len)
+        return v => (uint(v) >> (length(v) - len)) & m
+    },
+}
