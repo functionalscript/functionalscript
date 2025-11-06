@@ -11,7 +11,7 @@
           "run": "rustup default 1.90.0"
         },
         {
-          "run": "rustup component add rustfmt"
+          "run": "rustup component add rustfmt clippy"
         },
         {
           "uses": "actions/checkout@v5"
@@ -247,7 +247,7 @@
           "run": "rustup default 1.90.0"
         },
         {
-          "run": "rustup component add rustfmt"
+          "run": "rustup component add rustfmt clippy"
         },
         {
           "uses": "actions/checkout@v5"
@@ -468,7 +468,7 @@
           "run": "rustup default 1.90.0"
         },
         {
-          "run": "rustup component add rustfmt"
+          "run": "rustup component add rustfmt clippy"
         },
         {
           "uses": "actions/checkout@v5"
@@ -689,7 +689,7 @@
           "run": "rustup default 1.90.0"
         },
         {
-          "run": "rustup component add rustfmt"
+          "run": "rustup component add rustfmt clippy"
         },
         {
           "uses": "actions/checkout@v5"
@@ -910,7 +910,7 @@
           "run": "rustup default 1.90.0"
         },
         {
-          "run": "rustup component add rustfmt"
+          "run": "rustup component add rustfmt clippy"
         },
         {
           "uses": "actions/checkout@v5"
@@ -1137,7 +1137,7 @@
           "run": "rustup default 1.90.0"
         },
         {
-          "run": "rustup component add rustfmt"
+          "run": "rustup component add rustfmt clippy"
         },
         {
           "uses": "actions/checkout@v5"
