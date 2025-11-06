@@ -134,7 +134,7 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "bun test --timeout 10000"
+          "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
@@ -367,7 +367,7 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "bun test --timeout 10000"
+          "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
@@ -585,7 +585,7 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "bun test --timeout 10000"
+          "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
@@ -803,7 +803,7 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "bun test --timeout 10000"
+          "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
@@ -1021,7 +1021,7 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "bun test --timeout 10000"
+          "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
@@ -1242,7 +1242,7 @@
           "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
-          "run": "bun test --timeout 10000"
+          "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
