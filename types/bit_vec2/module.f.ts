@@ -62,23 +62,18 @@ type Norm = {
     readonly b: bigint
 }
 
-type NormOp = Binary<Vec, Vec, Norm>
+type NormOp = Binary<Unpacked, Unpacked, Norm>
 
-const lsbNorm: NormOp = ap => bp => {
-    const { length: al, uint: a } = unpack(ap)
-    const { length: bl, uint: b } = unpack(bp)
-    return { len: max(al)(bl), a, b }
-}
+const lsbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) =>
+    ({ len: max(al)(bl), a, b })
 
-const msbNorm: NormOp = ap => bp => {
-    const { length: al, uint: a } = unpack(ap)
-    const { length: bl, uint: b } = unpack(bp)
+const msbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => {
     const len = max(al)(bl)
     return { len, a: a << (len - al), b: b << (len - bl) }
 }
 
 const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
-    const { len, a, b } = norm(ap)(bp)
+    const { len, a, b } = norm(unpack(ap))(unpack(bp))
     return vec(len)(op(a)(b))
 }
 
