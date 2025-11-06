@@ -17,7 +17,7 @@
  * ```
  */
 
-import { length, uint, unsafeBigint, type Vec } from '../../types/bit_vec/module.f.ts'
+import { length, uint, type Vec } from '../../types/bit_vec/module.f.ts'
 import { empty, msb, vec, vec8 } from '../../types/bit_vec/module.f.ts'
 import { flip } from '../../types/function/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
