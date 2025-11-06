@@ -189,13 +189,7 @@ export const log2 = (v: bigint): bigint => {
  * The function uses the `log2` function to calculate the position of the most significant bit (MSB)
  * and adds `1n` to account for the MSB itself. For negative numbers, the absolute value is used.
  */
-export const bitLength = (v: bigint): bigint => {
-    if (v <= 0n) {
-        if (v === 0n) { return 0n }
-        v = -v
-    }
-    return log2(v) + 1n
-}
+export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
 
 /**
  * Generates a bitmask with the specified number of bits set to 1.
