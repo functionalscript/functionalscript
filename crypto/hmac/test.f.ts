@@ -14,7 +14,7 @@ export default {
     },
     sha512: () => {
         const r = hmac(sha512)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
-        if (r !== vec(512n)(0x1_b42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an)) {
+        if (r !== vec(512n)(0xb42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3an)) {
             throw r
         }
     }
