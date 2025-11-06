@@ -11,6 +11,8 @@ export const length = (v: Vec): bigint => bitLength(asBase(v))
 
 export const empty: Vec = asNominal(0n)
 
+const lazyEmpty = () => empty
+
 export const uint = (v: Vec): bigint => {
     const b = asBase(v)
     if (b >= 0n) { return b }
@@ -20,6 +22,7 @@ export const uint = (v: Vec): bigint => {
 }
 
 export const vec = (len: bigint): (ui: bigint) => Vec => {
+    if (len <= 0n) { return lazyEmpty }
     const m = mask(len)
     const last = len - 1n
     const lastBit = 1n << last
