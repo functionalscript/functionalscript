@@ -1,5 +1,5 @@
 import { utf8 } from "../../text/module.f.ts";
-import { empty, msb, unsafeBigint, unsafeVec, vec } from "../../types/bit_vec/module.f.ts"
+import { empty, msb, uint, vec } from "../../types/bit_vec/module.f.ts"
 import { map } from '../../types/list/module.f.ts'
 import { repeat } from "../../types/monoid/module.f.ts";
 import {
@@ -80,30 +80,30 @@ export default {
     },
     utf8: [
         () => {
-            const e = 0x1_730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n
+            const e = 0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n
             {
                 const s = utf8("The quick brown fox jumps over the lazy dog")
                 const h = computeSync(sha224)([s])
-                if (h !== unsafeVec(e)) { throw h }
+                if (uint(h) !== e) { throw h }
             }
             {
                 const s = ['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog']
                 const h = computeSync(sha224)(map(utf8)(s))
-                if (h !== unsafeVec(e)) { throw h }
+                if (uint(h) !== e) { throw h }
             }
         },
         () => {
             const s = utf8("The quick brown fox jumps over the lazy dog.")
             const h = computeSync(sha224)([s])
-            if (h !== unsafeVec(0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn)) { throw h }
+            if (uint(h) !== 0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn) { throw h }
         },
         () => {
             const s = utf8("hello world")
-            if (s !== unsafeVec(0x1_68656C6C_6F20776F_726C64n)) { throw s }
+            if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
             let state = sha256.init
             state = sha256.append(state)(s)
             const h = sha256.end(state)
-            if (h !== unsafeVec(0x1_b94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n)) { throw h }
+            if (uint(h) !== 0xb94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n) { throw h }
         }
     ],
     fill: () => {
@@ -113,15 +113,15 @@ export default {
                 const r = times(8n)
                 let state = sha256.init
                 state = sha256.append(state)(r)
-                const h = unsafeBigint(sha256.end(state))
-                if (h >> 224n !== 0x1_8a83665fn) { throw h }
+                const h = uint(sha256.end(state))
+                if (h >> 224n !== 0x8a83665fn) { throw h }
             },
             16: () => {
                 const r = times(16n)
                 let state = sha256.init
                 state = sha256.append(state)(r)
                 const h = sha256.end(state)
-                if (h !== unsafeVec(0x1_3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n)) { throw h }
+                if (uint(h) !== 0x3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n) { throw h }
             }
         }
     }
