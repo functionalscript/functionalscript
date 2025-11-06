@@ -111,7 +111,7 @@ const msbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) =
 }
 
 /**
- * Normalises two vectors to the same length before applying a bigint reducer.
+ * Normalizes two vectors to the same length before applying a bigint reducer.
  */
 const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
     const { len, a, b } = norm(unpack(ap))(unpack(bp))
@@ -137,12 +137,19 @@ export const msbXor: Reduce = op(msbNorm)(xor)
  */
 export type BitOrder = {
     readonly front: (len: bigint) => (v: Vec) => bigint
+    readonly removeFront: (len: bigint) => (v: Vec) => Vec
 }
 
 export const lsb: BitOrder = {
     front: len => {
         const m = mask(len)
         return v => uint(v) & m
+    },
+    removeFront: len => {
+        return v => {
+            const { length, uint } = unpack(v)
+            return vec(length - len)(uint >> len)
+        }
     },
 }
 
@@ -151,4 +158,5 @@ export const msb: BitOrder = {
         const m = mask(len)
         return v => (uint(v) >> (length(v) - len)) & m
     },
+    removeFront: len => v => vec(length(v) - len)(uint(v)),
 }

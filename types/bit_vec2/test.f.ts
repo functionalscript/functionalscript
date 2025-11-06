@@ -41,6 +41,15 @@ export default {
             assertEq(msb.front(4n)(vector), 0xFn)
             assertEq(msb.front(16n)(vector), 0xF500n)
         },
+        removeFront: () => {
+            const v = vec(16n)(0x3456n) // -0xB456n
+
+            assertEq(lsb.removeFront(4n)(v), asNominal(-0xB45n))
+            assertEq(lsb.removeFront(24n)(v), empty)
+
+            assertEq(msb.removeFront(4n)(v), asNominal(-0xC56n))
+            assertEq(msb.removeFront(24n)(v), empty)
+        },
     },
     length: () => {
         const len = length(empty)
