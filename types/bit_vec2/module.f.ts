@@ -18,25 +18,33 @@ export const uint = (v: Vec): bigint => {
     return mask(bitLength(u)) ^ u
 }
 
-export type Unpacked = readonly[bigint, bigint]
+export type Unpacked = {
+    readonly length: bigint
+    readonly uint: bigint
+}
 
-export const unpack = (v: Vec): Unpacked => [length(v), uint(v)]
+export const unpack = (v: Vec): Unpacked => ({
+    length: length(v),
+    uint: uint(v),
+})
 
-export const vec = (len: bigint) => (ui: bigint): Vec => {
+export const vec = (len: bigint): (ui: bigint) => Vec => {
     const m = mask(len)
-    const u = m & ui
-    const sign = u >> (len - 1n)
-    const x = sign !== 0n ? u : -(m ^ u)
-    return asNominal(x)
+    return ui => {
+        const u = m & ui
+        const sign = u >> (len - 1n)
+        const x = sign !== 0n ? u : -(m ^ u)
+        return asNominal(x)
+    }
 }
 
 export const vec8 = vec(8n)
 
-export const pack = ([len, u]: Unpacked): Vec => vec(len)(u)
+export const pack = ({ length, uint }: Unpacked): Vec => vec(length)(uint)
 
 export const msbConcat = (a: Vec) => (b: Vec): Vec => {
-    const [al, au] = unpack(a)
-    const [bl, bu] = unpack(b)
+    const { length: al, uint: au } = unpack(a)
+    const { length: bl, uint: bu } = unpack(b)
     return vec(al + bl)((au << bl) | bu)
 }
 
@@ -49,19 +57,19 @@ type Norm = {
 type NormOp = Binary<Vec, Vec, Norm>
 
 const lsbNorm: NormOp = ap => bp => {
-    const [al, a] = unpack(ap)
-    const [bl, b] = unpack(bp)
+    const { length: al, uint: a } = unpack(ap)
+    const { length: bl, uint: b } = unpack(bp)
     return { len: max(al)(bl), a, b }
 }
 
 const msbNorm: NormOp = ap => bp => {
-    const [al, a] = unpack(ap)
-    const [bl, b] = unpack(bp)
+    const { length: al, uint: a } = unpack(ap)
+    const { length: bl, uint: b } = unpack(bp)
     const len = max(al)(bl)
     return { len, a: a << (len - al), b: b << (len - bl) }
 }
 
-const op = (norm: NormOp) => <T>(op: BigintReduce) => (ap: Vec) => (bp: Vec): Vec => {
+const op = (norm: NormOp) => (op: BigintReduce) => (ap: Vec) => (bp: Vec): Vec => {
     const { len, a, b } = norm(ap)(bp)
     return vec(len)(op(a)(b))
 }
