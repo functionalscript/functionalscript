@@ -1,6 +1,6 @@
 import { mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, msbConcat } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, msbConcat, lsbXor, msbXor } from './module.f.ts'
 
 export default {
     length: () => {
@@ -130,7 +130,21 @@ export default {
         }
         c(vec(4n)(0xFn))(vec(8n)(0xA7n))(vec(12n)(0xFA7n))
         c(vec(4n)(0xFn))(vec(8n)(0x57n))(vec(12n)(0xF57n))
-        //c(vec(4n)(0x5n))(vec(8n)(0xA7n))(vec(12n)(0x5A7n))
-        //c(vec(4n)(0x5n))(vec(8n)(0x79n))(vec(12n)(0x579n))
+        c(vec(4n)(0x5n))(vec(8n)(0xA7n))(vec(12n)(0x5A7n))
+        c(vec(4n)(0x5n))(vec(8n)(0x79n))(vec(12n)(0x579n))
+    },
+    lsbXor: () => {
+        const c = (a: Vec) => (b: Vec) => (e: Vec) => {
+            const r = lsbXor(a)(b)
+            if (r !== e) { throw r }
+        }
+        c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x7n ^ 0x12n))
+    },
+    msbXor: () => {
+        const c = (a: Vec) => (b: Vec) => (e: Vec) => {
+            const r = msbXor(a)(b)
+            if (r !== e) { throw r }
+        }
+        c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x70n ^ 0x12n))
     }
 }

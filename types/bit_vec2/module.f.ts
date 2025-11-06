@@ -39,8 +39,17 @@ export const msbConcat = (a: Vec) => (b: Vec): Vec => {
     return vec(al + bl)((au << bl) | bu)
 }
 
-export const xor = (a: Vec) => (b: Vec): Vec => {
+export const lsbXor = (a: Vec) => (b: Vec): Vec => {
     const [al, au] = unpack(a)
     const [bl, bu] = unpack(b)
     return vec(max(al)(bl))(au ^ bu)
+}
+
+export const msbXor = (a: Vec) => (b: Vec): Vec => {
+    const [al, au] = unpack(a)
+    const [bl, bu] = unpack(b)
+    const len = max(al)(bl)
+    const a2 = au << (len - al)
+    const b2 = bu << (len - bl)
+    return vec(len)(a2 ^ b2)
 }
