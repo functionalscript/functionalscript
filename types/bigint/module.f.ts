@@ -266,3 +266,5 @@ export const combination = (...k: readonly bigint[]): bigint => {
     }
     return partialFactorial(m)(s) / p
 }
+
+export const xor: Reduce = a => b => a ^ b

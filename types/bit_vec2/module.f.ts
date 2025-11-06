@@ -1,4 +1,5 @@
-import { bitLength, mask, max } from "../bigint/module.f.ts"
+import { bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
+import type { Binary } from "../function/operator/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
 
 export type Vec = Nominal<
@@ -39,17 +40,32 @@ export const msbConcat = (a: Vec) => (b: Vec): Vec => {
     return vec(al + bl)((au << bl) | bu)
 }
 
-export const lsbXor = (a: Vec) => (b: Vec): Vec => {
-    const [al, au] = unpack(a)
-    const [bl, bu] = unpack(b)
-    return vec(max(al)(bl))(au ^ bu)
+type Norm = {
+    readonly len: bigint
+    readonly a: bigint
+    readonly b: bigint
 }
 
-export const msbXor = (a: Vec) => (b: Vec): Vec => {
-    const [al, au] = unpack(a)
-    const [bl, bu] = unpack(b)
-    const len = max(al)(bl)
-    const a2 = au << (len - al)
-    const b2 = bu << (len - bl)
-    return vec(len)(a2 ^ b2)
+type NormOp = Binary<Vec, Vec, Norm>
+
+const lsbNorm: NormOp = ap => bp => {
+    const [al, a] = unpack(ap)
+    const [bl, b] = unpack(bp)
+    return { len: max(al)(bl), a, b }
 }
+
+const msbNorm: NormOp = ap => bp => {
+    const [al, a] = unpack(ap)
+    const [bl, b] = unpack(bp)
+    const len = max(al)(bl)
+    return { len, a: a << (len - al), b: b << (len - bl) }
+}
+
+const op = (norm: NormOp) => <T>(op: BigintReduce) => (ap: Vec) => (bp: Vec): Vec => {
+    const { len, a, b } = norm(ap)(bp)
+    return vec(len)(op(a)(b))
+}
+
+export const lsbXor = op(lsbNorm)(xor)
+
+export const msbXor = op(msbNorm)(xor)
