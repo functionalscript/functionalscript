@@ -1,4 +1,4 @@
-import * as _ from './module.f.ts'
+import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
 import * as byteSet from '../types/byte_set/module.f.ts'
 import * as o from '../types/object/module.f.ts'
 const { sort, fromEntries } = o
@@ -13,17 +13,17 @@ const { stringToList } = utf16
 const stringifyIdentity = json.stringify(identity)
 
 const buildDfa = () => {
-    const lowercaseAlpha = _.toRange('az')
-    const uppercaseAlpha = _.toRange('AZ')
+    const lowercaseAlpha = toRange('az')
+    const uppercaseAlpha = toRange('AZ')
     const alpha = byteSet.union(lowercaseAlpha)(uppercaseAlpha)
-    const idSymbol = _.toUnion('_$')
+    const idSymbol = toUnion('_$')
     const idBegin = byteSet.union(alpha)(idSymbol)
-    const digit = _.toRange('09')
+    const digit = toRange('09')
     const idNext = byteSet.union(idBegin)(digit)
-    const dot = _.toUnion('.')
+    const dot = toUnion('.')
 
     const grammar
-        : _.Grammar
+        : Grammar
         = [
         ['', digit, 'int'],
         ['int', digit, 'int'],
@@ -35,7 +35,7 @@ const buildDfa = () => {
         ['', idBegin, 'id'],
         ['id', idNext, 'id']
     ]
-    return _.dfa(grammar)
+    return dfa(grammar)
 }
 
 export default {
@@ -89,7 +89,7 @@ export default {
         () => {
             const dfa = buildDfa()
             const input = stringToList('a1')
-            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+            const result = stringifyIdentity(toArray(run(dfa)(input)))
 
             const expectedOutput = [
                 '["id"]',
@@ -101,7 +101,7 @@ export default {
         () => {
             const dfa = buildDfa()
             const input = stringToList('0.1')
-            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+            const result = stringifyIdentity(toArray(run(dfa)(input)))
 
             const expectedOutput = [
                 '["floatBegin","int"]',
@@ -114,7 +114,7 @@ export default {
         () => {
             const dfa = buildDfa()
             const input = stringToList('//')
-            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+            const result = stringifyIdentity(toArray(run(dfa)(input)))
 
             const expectedOutput = [
                 '[]',
@@ -126,7 +126,7 @@ export default {
         () => {
             const dfa = buildDfa()
             const input = stringToList('::')
-            const result = stringifyIdentity(toArray(_.run(dfa)(input)))
+            const result = stringifyIdentity(toArray(run(dfa)(input)))
 
             const expectedOutput = [
                 '[]',
