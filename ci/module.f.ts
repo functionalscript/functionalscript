@@ -140,6 +140,16 @@ const nodeVersions: { [k in string]: readonly MetaStep[] } = {
     ]
 }
 
+const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
+    const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
+    return [
+        ...filter('install'),
+        { run: 'rustup target add ' + m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ') },
+        { uses: 'actions/checkout@v5' },
+        ...filter('test'),
+    ]
+}
+
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
@@ -198,14 +208,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             ...customTarget('i686-unknown-linux-gnu'),
         ]
         : []
-    const m = [...result, ...more]
-    const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
-    return [
-        ...filter('install'),
-        { run: 'rustup target add ' + m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ') },
-        { uses: 'actions/checkout@v5' },
-        ...filter('test'),
-    ]
+    return toSteps([...result, ...more])
 }
 
 const jobs = Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
