@@ -1,4 +1,4 @@
-import type * as djs from '../module.f.ts'
+import { type Unknown } from '../module.f.ts'
 import { type Result, error, ok } from '../../types/result/module.f.ts'
 import { fold, drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
@@ -18,11 +18,11 @@ export type ParseContext = {
 }
 
 export type djsResult = {
-    djs: djs.Unknown
+    djs: Unknown
 }
 
 const mapDjs
-    : (context: ParseContext) => (path: string) => djs.Unknown
+    : (context: ParseContext) => (path: string) => Unknown
     = context => path => {
         const res = at(path)(context.complete)
         if (res === null)
@@ -80,7 +80,7 @@ const foldNextModuleOp
         return transpileWithImports(path)(parseModuleResult)(context)
 }
 
-export const transpile: (fs: Fs) => (path: string) => Result<djs.Unknown, ParseError>
+export const transpile: (fs: Fs) => (path: string) => Result<Unknown, ParseError>
  = fs => path => {
     const context = foldNextModuleOp(path)({fs, stack: null, complete: null, error: null})
     if (context.error !== null) {
