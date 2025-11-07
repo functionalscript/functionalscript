@@ -1,4 +1,4 @@
-import * as result from '../../types/result/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { type List, fold, first, drop, toArray, concat } from '../../types/list/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 import type * as Tokenizer from '../tokenizer/module.f.ts'
@@ -217,12 +217,12 @@ const foldOp
     }
 
 export const parse
-    : (tokenList: List<Tokenizer.JsonToken>) => result.Result<Json.Unknown, string>
+    : (tokenList: List<Tokenizer.JsonToken>) => Result<Json.Unknown, string>
     = tokenList => {
         const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
         switch (state.status) {
-            case 'result': return result.ok(state.value)
-            case 'error': return result.error(state.message)
-            default: return result.error('unexpected end')
+            case 'result': return ok(state.value)
+            case 'error': return error(state.message)
+            default: return error('unexpected end')
         }
     }
