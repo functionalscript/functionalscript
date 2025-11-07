@@ -1,7 +1,7 @@
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { type List, fold, first, drop, toArray, concat } from '../../types/list/module.f.ts'
-import type * as Operator from '../../types/function/operator/module.f.ts'
-import type * as Tokenizer from '../tokenizer/module.f.ts'
+import { type Fold } from '../../types/function/operator/module.f.ts'
+import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import type * as Json from '../module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
@@ -106,7 +106,7 @@ const endObject
     }
 
 const tokenToValue
-    : (token: Tokenizer.JsonToken) => Json.Unknown
+    : (token: JsonToken) => Json.Unknown
     = token => {
         switch (token.kind) {
             case 'null': return null
@@ -119,7 +119,7 @@ const tokenToValue
     }
 
 const isValueToken
-    : (token: Tokenizer.JsonToken) => boolean
+    : (token: JsonToken) => boolean
     = token => {
         switch (token.kind) {
             case 'null':
@@ -132,7 +132,7 @@ const isValueToken
     }
 
 const parseValueOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         switch (token.kind) {
             case ']':
@@ -147,7 +147,7 @@ const parseValueOp
     }
 
 const parseArrayStartOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
         if (token.kind === '[') { return startArray(state) }
@@ -157,7 +157,7 @@ const parseArrayStartOp
     }
 
 const parseArrayValueOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         if (token.kind === ']') { return endArray(state) }
         if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
@@ -165,7 +165,7 @@ const parseArrayValueOp
     }
 
 const parseObjectStartOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         if (token.kind === 'string') { return pushKey(state)(token.value) }
         if (token.kind === '}') { return endObject(state) }
@@ -173,14 +173,14 @@ const parseObjectStartOp
     }
 
 const parseObjectKeyOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
         return { status: 'error', message: 'unexpected token' }
     }
 
 const parseObjectNextOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         if (token.kind === '}') { return endObject(state) }
         if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
@@ -188,7 +188,7 @@ const parseObjectNextOp
     }
 
 const parseObjectCommaOp
-    : (token: Tokenizer.JsonToken) => (state: StateParse) => JsonState
+    : (token: JsonToken) => (state: StateParse) => JsonState
     = token => state => {
         if (token.kind === '}') { return endObject(state) }
         if (token.kind === 'string') { return pushKey(state)(token.value) }
@@ -196,7 +196,7 @@ const parseObjectCommaOp
     }
 
 const foldOp
-    : Operator.Fold<Tokenizer.JsonToken, JsonState>
+    : Fold<JsonToken, JsonState>
     = token => state => {
         if (token.kind === 'eof')
             return state
@@ -217,7 +217,7 @@ const foldOp
     }
 
 export const parse
-    : (tokenList: List<Tokenizer.JsonToken>) => Result<Json.Unknown, string>
+    : (tokenList: List<JsonToken>) => Result<Json.Unknown, string>
     = tokenList => {
         const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
         switch (state.status) {
