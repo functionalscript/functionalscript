@@ -3,18 +3,18 @@ import { type List, fold, first, drop, toArray, concat } from '../../types/list/
 import { type Fold } from '../../types/function/operator/module.f.ts'
 import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
-import type * as Json from '../module.f.ts'
+import { type Unknown } from '../module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
 
 type JsonObject = {
     readonly kind: 'object'
-    readonly values: OrderedMap<Json.Unknown>
+    readonly values: OrderedMap<Unknown>
     readonly key: string
 }
 
 type JsonArray = {
     readonly kind: 'array'
-    readonly values: List<Json.Unknown>
+    readonly values: List<Unknown>
 }
 
 type JsonStackElement = |
@@ -31,7 +31,7 @@ type StateParse = {
 
 type StateResult = {
     readonly status: 'result'
-    readonly value: Json.Unknown
+    readonly value: Unknown
 }
 
 type StateError = {
@@ -49,11 +49,11 @@ const addKeyToObject
     = obj => key => ({ kind: 'object', values: obj.values, key: key })
 
 const addValueToObject
-    : (obj: JsonObject) => (value: Json.Unknown) => JsonObject
+    : (obj: JsonObject) => (value: Unknown) => JsonObject
     = obj => value => ({ kind: 'object', values: setReplace(obj.key)(value)(obj.values), key: '' })
 
 const addToArray
-    : (array: JsonArray) => (value: Json.Unknown) => JsonArray
+    : (array: JsonArray) => (value: Unknown) => JsonArray
     = array => value => ({ kind: 'array', values: concat(array.values)([value]) })
 
 const pushKey
@@ -64,7 +64,7 @@ const pushKey
     }
 
 const pushValue
-    : (state: StateParse) => (value: Json.Unknown) => JsonState
+    : (state: StateParse) => (value: Unknown) => JsonState
     = state => value => {
         if (state.top === null) { return { status: 'result', value: value } }
         if (state.top.kind === 'array') { return { status: '[v', top: addToArray(state.top)(value), stack: state.stack } }
@@ -106,7 +106,7 @@ const endObject
     }
 
 const tokenToValue
-    : (token: JsonToken) => Json.Unknown
+    : (token: JsonToken) => Unknown
     = token => {
         switch (token.kind) {
             case 'null': return null
@@ -217,7 +217,7 @@ const foldOp
     }
 
 export const parse
-    : (tokenList: List<JsonToken>) => Result<Json.Unknown, string>
+    : (tokenList: List<JsonToken>) => Result<Unknown, string>
     = tokenList => {
         const state = fold(foldOp)({ status: '', top: null, stack: null })(tokenList)
         switch (state.status) {
