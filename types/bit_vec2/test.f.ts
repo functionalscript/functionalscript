@@ -127,6 +127,22 @@ export default {
         lsbm: concat(lsb)(asNominal(0x8945n)),
         msbm: concat(msb)(asNominal(-0xC589n)),
     },
+    uintLsb: () => {
+        const vector: Vec = asNominal(0b110101n)
+        const extract3Bits = lsb.front(3n)
+        const result = extract3Bits(vector) // result is 0b101n (5n)
+        if (result !== 0b101n) { throw result }
+    },
+    uintSmall: () => {
+        const vector: Vec = asNominal(0b1n)
+        const extract3Bits = lsb.front(3n)(vector)
+        if (extract3Bits !== 0b1n) { throw extract3Bits }
+    },
+    vecExample: () => {
+        const createVector = vec(4n)
+        const vector = createVector(5n) // vector is -0b1101n
+        if (vector !== unsafeVec(-0b1101n)) { throw vector }
+    },
     length: () => {
         const len = length(empty)
         if (len !== 0n) { throw len }
