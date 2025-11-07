@@ -1,6 +1,6 @@
 import { flat, reduce, empty, type List } from '../../types/list/module.f.ts'
 import { type Entry as ObjectEntry } from '../../types/object/module.f.ts'
-import type * as Operator from '../../types/function/operator/module.f.ts'
+import { type Reduce } from '../../types/function/operator/module.f.ts'
 
 type Obj<T> = {
     readonly [k in string]: Unknown<T>
@@ -43,7 +43,7 @@ export const boolSerialize
 const comma = [',']
 
 const joinOp
-    : Operator.Reduce<List<string>>
+    : Reduce<List<string>>
     = b => prior => flat([prior, comma, b])
 
 const join
