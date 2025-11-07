@@ -1,6 +1,5 @@
 import { tokenize, type DjsToken, type DjsTokenWithMetadata } from './module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { toArray } = list
+import { map, toArray } from '../../types/list/module.f.ts'
 import * as serializer from '../serializer/module.f.ts'
 import * as o from '../../types/object/module.f.ts'
 const { sort } = o
@@ -8,7 +7,7 @@ import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly DjsToken[]
-    = s => toArray(list.map(withoutMetada)(tokenize(encoding.stringToList(s))('')))
+    = s => toArray(map(withoutMetada)(tokenize(encoding.stringToList(s))('')))
 
 const tokenizeStringWithMetadata
         : (s: string) => readonly DjsTokenWithMetadata[]
