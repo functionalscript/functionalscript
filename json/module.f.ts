@@ -1,11 +1,10 @@
 import { next, flat, map, type List } from '../types/list/module.f.ts'
 import { concat } from '../types/string/module.f.ts'
 import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
-import * as f from '../types/function/module.f.ts'
-const { compose, fn } = f
+import { compose, fn } from '../types/function/module.f.ts'
+import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
+
 const { entries } = Object
-import * as s from './serializer/module.f.ts'
-const { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } = s
 
 type Object = {
    readonly [k in string]: Unknown
