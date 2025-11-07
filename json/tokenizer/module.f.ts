@@ -1,7 +1,15 @@
 import { type StateScan } from '../../types/function/operator/module.f.ts'
 import { concat, empty, flat, stateScan, type List } from '../../types/list/module.f.ts'
 import { multiply } from '../../types/bigfloat/module.f.ts'
-import { tokenize as jsTokenize, type EofToken, type ErrorToken, type JsToken, type JsTokenWithMetadata, type NumberToken, type StringToken } from '../../js/tokenizer/module.f.ts'
+import {
+    tokenize as jsTokenize,
+    type EofToken,
+    type ErrorToken,
+    type JsToken,
+    type JsTokenWithMetadata,
+    type NumberToken,
+    type StringToken
+} from '../../js/tokenizer/module.f.ts'
 
 export type JsonToken = |
     {readonly kind: 'true' | 'false' | 'null' } |
