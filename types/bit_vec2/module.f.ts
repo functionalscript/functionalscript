@@ -87,27 +87,27 @@ export const vec8: (ui: bigint) => Vec = vec(8n)
  */
 export const pack = ({ length, uint }: Unpacked): Vec => vec(length)(uint)
 
-type Norm = {
-    readonly len: bigint
+type Norm = (len: bigint) => {
     readonly a: bigint
     readonly b: bigint
 }
 
 type NormOp = Binary<Unpacked, Unpacked, Norm>
 
-const lsbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) =>
-    ({ len: max(al)(bl), a, b })
+const lsbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => (len: bigint) =>
+    ({ a, b })
 
-const msbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => {
-    const len = max(al)(bl)
-    return { len, a: a << (len - al), b: b << (len - bl) }
-}
+const msbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => (len: bigint) =>
+    ({ a: a << (len - al), b: b << (len - bl) })
 
 /**
  * Normalizes two vectors to the same length before applying a bigint reducer.
  */
 const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
-    const { len, a, b } = norm(unpack(ap))(unpack(bp))
+    const au = unpack(ap)
+    const bu = unpack(bp)
+    const len = max(au.length)(bu.length)
+    const { a, b } = norm(au)(bu)(len)
     return vec(len)(op(a)(b))
 }
 
