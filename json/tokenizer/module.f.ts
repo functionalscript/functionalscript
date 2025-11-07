@@ -1,6 +1,5 @@
 import { type StateScan } from '../../types/function/operator/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { empty, flat, stateScan } = list
+import { concat, empty, flat, stateScan, type List } from '../../types/list/module.f.ts'
 import * as bf from '../../types/bigfloat/module.f.ts'
 const { multiply } = bf
 import * as jsTokenizer from '../../js/tokenizer/module.f.ts'
@@ -18,7 +17,7 @@ type ScanState = {readonly kind: 'def' | '-' }
 type ScanInput = jsTokenizer.JsTokenWithMetadata | null
 
 const mapToken
-    : (input: jsTokenizer.JsToken) => list.List<JsonToken>
+    : (input: jsTokenizer.JsToken) => List<JsonToken>
     = input => {
         switch(input.kind)
         {
@@ -42,7 +41,7 @@ const mapToken
     }
 
 const parseDefaultState
-    : (input: ScanInput) => readonly [list.List<JsonToken>, ScanState]
+    : (input: ScanInput) => readonly [List<JsonToken>, ScanState]
     = input => {
         if (input === null) return [empty, { kind: 'def'}]
         switch(input.token.kind)
@@ -53,7 +52,7 @@ const parseDefaultState
     }
 
 const parseMinusState
-    : (input: ScanInput) => readonly [list.List<JsonToken>, ScanState]
+    : (input: ScanInput) => readonly [List<JsonToken>, ScanState]
     = input => {
         if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def'}]
         switch(input.token.kind)
@@ -65,7 +64,7 @@ const parseMinusState
     }
 
 const scanToken
-    : StateScan<ScanInput, ScanState, list.List<JsonToken>>
+    : StateScan<ScanInput, ScanState, List<JsonToken>>
     = state => input => {
         switch(state.kind)
         {
@@ -75,9 +74,9 @@ const scanToken
     }
 
 export const tokenize
-    = (input: list.List<number>): list.List<JsonToken> => {
+    = (input: List<number>): List<JsonToken> => {
         const jsTokens
-            : list.List<ScanInput>
+            : List<ScanInput>
             =  jsTokenizer.tokenize(input)('')
-        return flat(stateScan(scanToken)({ kind: 'def' })(list.concat(jsTokens)([null])))
+        return flat(stateScan(scanToken)({ kind: 'def' })(concat(jsTokens)([null])))
     }
