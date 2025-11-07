@@ -34,17 +34,19 @@ type Step = {
     }
 }
 
+type Jobs = {
+    readonly [jobs: string]: {
+        readonly 'runs-on': Image
+        readonly steps: readonly Step[]
+    }
+}
+
 type GitHubAction = {
     readonly name: string
     readonly on: {
         readonly pull_request?: {}
     }
-    readonly jobs: {
-        readonly [jobs: string]: {
-            readonly 'runs-on': Image
-            readonly steps: readonly Step[]
-        }
-    }
+    readonly jobs: Jobs
 }
 
 type StepType = 'install' | 'test'
@@ -143,7 +145,6 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
         install({ run: 'rustup default 1.90.0' }),
         install({ run: 'rustup component add rustfmt clippy' }),
-        test({ uses: 'actions/checkout@v5' }),
         // Node.js
         ...oldNode('20'),
 
@@ -194,7 +195,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
             // install({ run: 'sudo dpkg --add-architecture i386'}),
-            install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
+            // install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
+            install({ run: 'sudo apt-get update && sudo apt-get install -y g++-multilib libc6-dev-i386' }),
             ...customTarget('i686-unknown-linux-gnu'),
         ]
         : []
@@ -203,17 +205,20 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     return [
         ...filter('install'),
         { run: 'rustup target add ' + m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ') },
+        { uses: 'actions/checkout@v5' },
         ...filter('test'),
     ]
 }
 
+const jobs = Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
+    'runs-on': images[v][a],
+    steps: steps(v)(a),
+}])))
+
 const gha: GitHubAction = {
     name: 'CI',
     on: { pull_request: {} },
-    jobs: Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
-        'runs-on': images[v][a],
-        steps: steps(v)(a),
-    }]))),
+    jobs,
 }
 
 export default async (io: Io): Promise<number> => {
