@@ -1,9 +1,24 @@
 /**
- * Bit vectors that normalise the most-significant bit using signed `bigint` values.
+ * Bit vectors that normalize the most-significant bit using signed `bigint` values.
  *
  * A value whose top bit is already set remains positive, while other values are
  * negated after toggling the leading bit so the stop bit is always `1`. The sign bit
  * therefore acts as the stop bit that encodes the logical length of the vector.
+ *
+ * MSb is most-significant bit first.
+ *
+ * ```
+ * - byte: 0x53 = 0b0101_0011
+ * -                0123_4567
+ * ```
+ *
+ * LSb is least-significant bit first.
+ *
+ * ```
+ * - byte: 0x53 = 0b0101_0011
+ * -                7654_3210
+ * ```
+ *
  * @module
  */
 import { abs, bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
@@ -21,30 +36,27 @@ export type Vec = Nominal<
     bigint>
 
 /**
- * Calculates the length of the given vector of bits.
- */
-export const length = (v: Vec): bigint => bitLength(asBase(v))
-
-/**
  * An empty vector of bits.
  */
 export const empty: Vec = asNominal(0n)
 
+/**
+ * Calculates the length of the given vector of bits.
+ */
+export const length = (v: Vec): bigint => bitLength(asBase(v))
+
 const lazyEmpty = () => empty
 
 /**
- * Returns the unsigned integer representation of the vector by clearing the stop bit.
- */
-export const uint = (v: Vec): bigint => {
-    const b = asBase(v)
-    if (b >= 0n) { return b }
-    const u = -b
-    const len = bitLength(u)
-    return u ^ (1n << (len - 1n))
-}
-
-/**
  * Creates a vector of bits of the given `len` and the provided unsigned integer.
+ *
+ * @example
+ *
+ * ```js
+ * const vec4 = vec(4n)
+ * const v0 = vec4(5n)     // -0xDn = -0b1101
+ * const v1 = vec4(0x5FEn) //  0xEn =  0b1110
+ * ```
  */
 export const vec = (len: bigint): (ui: bigint) => Vec => {
     if (len <= 0n) { return lazyEmpty }
@@ -62,6 +74,29 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
 }
 
 /**
+ * Creates an 8-bit vector from an unsigned integer.
+ */
+export const vec8: (ui: bigint) => Vec = vec(8n)
+
+/**
+ * Returns the unsigned integer representation of the vector by clearing the stop bit.
+ *
+ * @example
+ *
+ * ```js
+ * const vector = vec(8n)(0x5n) // -0x85n
+ * const result = uint(vector); // result is 0x5n
+ * ```
+ */
+export const uint = (v: Vec): bigint => {
+    const b = asBase(v)
+    if (b >= 0n) { return b }
+    const u = -b
+    const len = bitLength(u)
+    return u ^ (1n << (len - 1n))
+}
+
+/**
  * Structure describing the unpacked view of a vector.
  */
 export type Unpacked = {
@@ -76,11 +111,6 @@ export const unpack = (v: Vec): Unpacked => ({
     length: length(v),
     uint: uint(v),
 })
-
-/**
- * Creates an 8-bit vector from an unsigned integer.
- */
-export const vec8: (ui: bigint) => Vec = vec(8n)
 
 /**
  * Packs an unpacked representation back into a vector.
