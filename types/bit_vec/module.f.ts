@@ -300,12 +300,20 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
+ *
+ * @param bo The bit order for the conversion
+ * @param list The list of unsigned 8-bit integers to be converted.
+ * @returns The resulting vector based on the provided bit order.
  */
 export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
     fold(appendU8(bo))(empty)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
+ *
+ * @param bitOrder The bit order for the conversion.
+ * @param v The vector to be converted.
+ * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
 export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
     const f = (v: Vec) => () => {
