@@ -1,7 +1,7 @@
 import { init } from './module.f.ts'
 import { one } from '../text/ascii/module.f.ts'
-import * as j from '../json/module.f.ts'
-const { stringify } = j
+import { stringify } from '../json/module.f.ts'
+
 const s = stringify(i => i)
 
 const f
