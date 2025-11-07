@@ -1,5 +1,5 @@
 import { flat, reduce, empty, type List } from '../../types/list/module.f.ts'
-import type * as O from '../../types/object/module.f.ts'
+import { type Entry as ObjectEntry } from '../../types/object/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 
 type Obj<T> = {
@@ -66,7 +66,7 @@ export const arrayWrap
     : (input: List<List<string>>) => List<string>
     = wrap('[')(']')
 
-type Entry<T> = O.Entry<Unknown<T>>
+type Entry<T> = ObjectEntry<Unknown<T>>
 
 type Entries<T> = List<Entry<T>>
 
