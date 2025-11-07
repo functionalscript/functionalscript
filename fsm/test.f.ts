@@ -3,8 +3,7 @@ import { union } from '../types/byte_set/module.f.ts'
 import { sort, fromEntries } from '../types/object/module.f.ts'
 import { stringify } from '../json/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
-import * as list from '../types/list/module.f.ts'
-const { toArray } = list
+import { toArray } from '../types/list/module.f.ts'
 import * as utf16 from '../text/utf16/module.f.ts'
 const { stringToList } = utf16
 
