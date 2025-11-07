@@ -101,7 +101,7 @@ export default {
             const s = utf8("hello world")
             if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
             let state = sha256.init
-            state = sha256.append(state)(s)
+            state = sha256.append(s)(state)
             const h = sha256.end(state)
             if (uint(h) !== 0xb94d27b9_934d3e08_a52e52d7_da7dabfa_c484efe3_7a5380ee_9088f7ac_e2efcde9n) { throw h }
         }
@@ -112,14 +112,14 @@ export default {
             8: () => {
                 const r = times(8n)
                 let state = sha256.init
-                state = sha256.append(state)(r)
+                state = sha256.append(r)(state)
                 const h = uint(sha256.end(state))
                 if (h >> 224n !== 0x8a83665fn) { throw h }
             },
             16: () => {
                 const r = times(16n)
                 let state = sha256.init
-                state = sha256.append(state)(r)
+                state = sha256.append(r)(state)
                 const h = sha256.end(state)
                 if (uint(h) !== 0x3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n) { throw h }
             }

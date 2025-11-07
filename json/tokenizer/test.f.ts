@@ -1,16 +1,14 @@
-import * as tokenizer from './module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { toArray } = list
-import * as serializer from '../../djs/serializer/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { sort } = o
-import * as encoding from '../../text/utf16/module.f.ts'
+import { tokenize, type JsonToken } from './module.f.ts'
+import { toArray } from '../../types/list/module.f.ts'
+import { stringifyAsTree } from '../../djs/serializer/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
 
 const tokenizeString
-    : (s: string) => readonly tokenizer.JsonToken[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s)))
+    : (s: string) => readonly JsonToken[]
+    = s => toArray(tokenize(stringToList(s)))
 
-const stringify = serializer.stringifyAsTree(sort)
+const stringify = stringifyAsTree(sort)
 
 export default {
     json: [
