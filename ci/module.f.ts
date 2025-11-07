@@ -129,17 +129,6 @@ const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaSte
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
-const nodeVersions: { [k in string]: readonly MetaStep[] } = {
-    node20: [
-        test({ uses: 'actions/checkout@v5' }),
-        ...oldNode('20'),
-    ],
-    node22: [
-        test({ uses: 'actions/checkout@v5' }),
-        ...oldNode('22')
-    ]
-}
-
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     return [
@@ -148,6 +137,21 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
         { uses: 'actions/checkout@v5' },
         ...filter('test'),
     ]
+}
+
+const nodeImage = (v: string): Jobs => ({
+    [`node${v}`]: {
+        'runs-on': 'ubuntu-latest',
+        steps: toSteps([
+            test({ uses: 'actions/checkout@v5' }),
+            ...oldNode(v),
+        ])
+    }
+})
+
+const nodeVersions: Jobs = {
+    ...nodeImage('20'),
+    ...nodeImage('22'),
 }
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
@@ -166,7 +170,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             // Playwright
             test({ run: 'npx playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
-            (test({ run: `npx playwright test --browser=${browser}` }))),
+                (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing
             test({ run: 'npm pack' }),
             test({ run: `npm install -g ${findTgz(v)}` }),
@@ -203,18 +207,23 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ? []
         : v === 'windows' ?
             customTarget('i686-pc-windows-msvc')
-        : v === 'ubuntu' ? [
-            install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
-            ...customTarget('i686-unknown-linux-gnu'),
-        ]
-        : []
+            : v === 'ubuntu' ? [
+                install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
+                ...customTarget('i686-unknown-linux-gnu'),
+            ]
+                : []
     return toSteps([...result, ...more])
 }
 
-const jobs = Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
-    'runs-on': images[v][a],
-    steps: steps(v)(a),
-}])))
+const jobs = {
+    ...Object.fromEntries([
+        ...os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
+            'runs-on': images[v][a],
+            steps: steps(v)(a),
+        }]))
+    ]),
+    ...nodeVersions
+}
 
 const gha: GitHubAction = {
     name: 'CI',
