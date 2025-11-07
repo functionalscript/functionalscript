@@ -1,8 +1,7 @@
 import { tokenize, type DjsToken, type DjsTokenWithMetadata } from './module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import * as o from '../../types/object/module.f.ts'
-const { sort } = o
+import { sort } from '../../types/object/module.f.ts'
 import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
