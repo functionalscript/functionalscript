@@ -1,97 +1,97 @@
-import * as _ from './module.f.ts'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, type List, first, filterMap, isEmpty } from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.ts'
 
-const stringify
-    : (sequence: _.List<json.Unknown>) => string
-    = sequence => json.stringify(sort)(_.toArray(sequence))
+const str
+    : (sequence: List<json.Unknown>) => string
+    = sequence => json.stringify(sort)(toArray(sequence))
 
 const stringifyTest = () => {
-    const s = stringify([1, 2, 3])
+    const s = str([1, 2, 3])
     if (s !== '[1,2,3]') { throw s }
 }
 
-const cycle = () => {
-    const x = stringify(_.toArray(_.take(10)(_.cycle([1, 2, 3]))))
+const cycleTest = () => {
+    const x = str(toArray(take(10)(cycle([1, 2, 3]))))
     if (x !== '[1,2,3,1,2,3,1,2,3,1]') { throw x }
 }
 
-const countdown = () => {
-    const result = stringify(_.countdown(10))
+const countdownTest = () => {
+    const result = str(countdown(10))
     if (result !== '[9,8,7,6,5,4,3,2,1,0]') { throw result }
 }
 
-const flat = () => {
-    const result = stringify(_.flat([[1, 2, 3], [4, 5], [6], [], [7, 8, 9]]))
+const flatTest = () => {
+    const result = str(flat([[1, 2, 3], [4, 5], [6], [], [7, 8, 9]]))
     if (result !== '[1,2,3,4,5,6,7,8,9]') { throw result }
 }
 
-const concat = () => {
-    const result = _.concat([1])([2])
-    const x = _.next(result)
+const concatTest = () => {
+    const result = concat([1])([2])
+    const x = next(result)
     if (x === null) { throw x }
     if (x.first !== 1) { throw x }
 }
 
-const flatMap = () => {
-    const result = stringify(_.flatMap((x: number) => [x, x * 2, x * 3])([0, 1, 2, 3]))
+const flatMapTest = () => {
+    const result = str(flatMap((x: number) => [x, x * 2, x * 3])([0, 1, 2, 3]))
     if (result !== '[0,0,0,1,2,3,2,4,6,3,6,9]') { throw result }
 }
 
-const take = [
+const takeTest = [
     () => {
-        const result = stringify(_.take(3)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        const result = str(take(3)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
         if (result !== '[1,2,3]') { throw result }
     },
     () => {
-        const result = stringify(_.take(20)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        const result = str(take(20)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
         if (result !== '[1,2,3,4,5,6,7,8,9]') { throw result }
     },
     () => {
-        const result = stringify(_.take(0)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        const result = str(take(0)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
         if (result !== '[]') { throw result }
     }
 ]
 
-const find = [
+const findTest = [
     () => {
-        const result = _.find(null)((x: number) => x % 2 === 0)([1, 3, 5, 7])
+        const result = find(null)((x: number) => x % 2 === 0)([1, 3, 5, 7])
         if (result !== null) { throw result }
     },
     () => {
-        const result = _.find(null)((x: number) => x % 2 === 0)([1, 2, 3, 4])
+        const result = find(null)((x: number) => x % 2 === 0)([1, 2, 3, 4])
         if (result !== 2) { throw result }
     }
 ]
 
-const takeWhile = [
+const takeWhileTest = [
     () => {
-        const result = stringify(_.takeWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+        const result = str(takeWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
         if (result !== '[1,2,3,4,5]') { throw result }
     },
     () => {
-        const result = stringify(_.takeWhile((x: number) => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        const result = str(takeWhile((x: number) => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
         if (result !== '[1,2,3,4,5]') { throw result }
     }
 ]
 
-const dropWhile = () => {
-    const result = stringify(_.dropWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+const dropWhileTest = () => {
+    const result = str(dropWhile((x: number) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
     if (result !== '[10,11]') { throw result }
 }
 
-const drop = [
+const dropTest = [
     () => {
-        const result = stringify(_.drop(3)([1, 2, 3, 4, 5, 10, 11]))
+        const result = str(drop(3)([1, 2, 3, 4, 5, 10, 11]))
         if (result !== '[4,5,10,11]') { throw result }
     },
     () => {
-        const result = stringify(_.drop(0)([1, 2, 3, 4, 5, 10, 11]))
+        const result = str(drop(0)([1, 2, 3, 4, 5, 10, 11]))
         if (result !== '[1,2,3,4,5,10,11]') { throw result }
     },
     () => {
-        const result = stringify(_.drop(10)([1, 2, 3, 4, 5, 10, 11]))
+        const result = str(drop(10)([1, 2, 3, 4, 5, 10, 11]))
         if (result !== '[]') { throw result }
     }
 ]
@@ -99,78 +99,78 @@ const drop = [
 const additionTests = [
     () => {
         const op = reduceToScan(addition)
-        const result = stringify(_.scan(op)([2, 3, 4, 5]))
+        const result = str(scan(op)([2, 3, 4, 5]))
         if (result !== '[2,5,9,14]') { throw result }
     },
     () => {
-        const result = _.reduce(addition)(null)([2, 3, 4, 5])
+        const result = reduce(addition)(null)([2, 3, 4, 5])
         if (result !== 14) { throw result }
     },
     () => {
-        const result = _.reduce(addition)(null)([])
+        const result = reduce(addition)(null)([])
         if (result !== null) { throw result }
     }
 ]
 
-const entries = [
+const entriesTest = [
     () => {
-        const result = stringify(_.entries([]))
+        const result = str(entries([]))
         if (result !== '[]') { throw result }
     },
     () => {
-        const result = stringify(_.entries(['hello', 'world']))
+        const result = str(entries(['hello', 'world']))
         if (result !== '[[0,"hello"],[1,"world"]]') { throw result }
     }
 ]
 
-const reverse = [
+const reverseTest = [
     () => {
-        const result = stringify(_.reverse([]))
+        const result = str(reverse([]))
         if (result !== '[]') { throw result }
     },
     () => {
-        const result = stringify(_.reverse([1, 2, 3, 4, 5]))
+        const result = str(reverse([1, 2, 3, 4, 5]))
         if (result !== '[5,4,3,2,1]') { throw result }
     }
 ]
 
-const zip = [
+const zipTest = [
     () => {
-        const result = stringify(_.zip([0, 1, 2])(['a', 'b', 'c', 'd']))
+        const result = str(zip([0, 1, 2])(['a', 'b', 'c', 'd']))
         if (result !== '[[0,"a"],[1,"b"],[2,"c"]]') { throw result }
     },
     () => {
-        const result = stringify(_.zip([0, 1, 2])(['a', 'b']))
+        const result = str(zip([0, 1, 2])(['a', 'b']))
         if (result !== '[[0,"a"],[1,"b"]]') { throw result }
     }
 ]
 
 const logic = () => {
-    const map5 = _.map((x: number) => x > 5)
+    const map5 = map((x: number) => x > 5)
 
     return [
         () => {
-            const result = _.some(map5([0, 1, 7]))
+            const result = some(map5([0, 1, 7]))
             if (!result) { throw result }
         },
         () => {
-            const result = _.some(map5([0, 1, 4]))
+            const result = some(map5([0, 1, 4]))
             if (result) { throw result }
         },
         () => {
-            const result = _.some(map5([]))
+            const result = some(map5([]))
             if (result) { throw result }
         },
         () => {
-            const result = _.every(map5([0, 1, 7]))
+            const result = every(map5([0, 1, 7]))
             if (result) { throw result }
         },
         () => {
-            const result = _.every(map5([6, 11, 7]))
+            const result = every(map5([6, 11, 7]))
             if (!result) { throw result }
         },
         () => {
-            const result = _.every(map5([]))
+            const result = every(map5([]))
             if (!result) { throw result }
         }
     ]
@@ -182,90 +182,90 @@ const stress = () => ({
     toArray: () => {
         // 200_000_000 is too much
         const n = 100_000_000
-        const result = _.toArray(_.countdown(n))
+        const result = toArray(countdown(n))
         if (result.length !== n) { throw result.length }
-        const len = _.length(_.filter((x: number) => x > n)(result))
+        const len = length(filter((x: number) => x > n)(result))
         if (len !== 0) { throw len }
     },
     first: () => {
         // 100_000_000 is too much
         const n = 50_000_000
-        const result = _.toArray(_.countdown(n))
+        const result = toArray(countdown(n))
         if (result.length !== n) { throw result.length }
-        const first = _.first(null)(result)
-        if (first !== n - 1) { throw first }
+        const f = first(null)(result)
+        if (f !== n - 1) { throw f }
     },
     concatBack: () => {
         let sequence
-            : _.List<number>
+            : List<number>
             = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
         for (let i = 0; i < 5_000_000; ++i) {
-            sequence = _.concat(sequence)([i])
+            sequence = concat(sequence)([i])
         }
-        const r = _.toArray(sequence)
+        const r = toArray(sequence)
     },
     flatToArray: () => {
         let sequence
-            : _.List<number>
+            : List<number>
             = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
-            sequence = _.flat([sequence, [i]])
+            sequence = flat([sequence, [i]])
         }
-        const r = _.toArray(sequence)
+        const r = toArray(sequence)
     },
     flatNext: () => {
         let sequence
-            : _.List<number>
+            : List<number>
             = []
         // 4_000_000 is too much
         for (let i = 0; i < 2_000_000; ++i) {
-            sequence = _.flat([sequence, [i]])
+            sequence = flat([sequence, [i]])
         }
-        const a = _.next(sequence)
+        const a = next(sequence)
     },
     concatFront: () => {
         let sequence
-            : _.List<number>
+            : List<number>
             = []
         // 20_000_000 is too much
         for (let i = 0; i < 10_000_000; ++i) {
-            sequence = _.concat([i])(sequence)
+            sequence = concat([i])(sequence)
         }
-        const a = _.next(sequence)
+        const a = next(sequence)
     },
     flatFront: () => {
         let sequence
-            : _.List<number>
+            : List<number>
             = []
         // 10_000_000 is too much
         for (let i = 0; i < 5_000_000; ++i) {
-            sequence = _.flat([[i], sequence])
+            sequence = flat([[i], sequence])
         }
-        const a = _.next(sequence)
+        const a = next(sequence)
     },
     filterMap: () => {
         // 100_000_000 is too much
         const n = 50_000_000
-        const result = _.toArray(_.countdown(n))
+        const result = toArray(countdown(n))
         if (result.length !== n) { throw result.length }
-        const len = _.length(_.filterMap(() => null)(result))
+        const len = length(filterMap(() => null)(result))
         if (len !== 0) { throw len }
     },
     dropWhile: () => {
         // 50_000_000 is too much
         const n = 20_000_000
-        const result = _.toArray(_.countdown(n))
+        const result = toArray(countdown(n))
         if (result.length !== n) { throw result.length }
-        const len = _.length(_.dropWhile(() => true)(result))
+        const len = length(dropWhile(() => true)(result))
         if (len !== 0) { throw len }
     },
     reverse: () => {
         // 10_000_000 is too much
         const n = 5_000_000
-        const result = _.toArray(_.reverse(_.countdown(n)))
+        const result = toArray(reverse(countdown(n)))
         if (result.length !== n) { throw result.length }
     }
 
@@ -273,20 +273,20 @@ const stress = () => ({
 
 export default {
     stringifyTest,
-    cycle,
-    countdown,
-    flat,
-    concat,
-    flatMap,
-    take,
-    find,
-    takeWhile,
-    dropWhile,
-    drop,
+    cycle: cycleTest,
+    countdown: countdownTest,
+    flat: flatTest,
+    concat: concatTest,
+    flatMap: flatMapTest,
+    take: takeTest,
+    find: findTest,
+    takeWhile: takeWhileTest,
+    dropWhile: dropWhileTest,
+    drop: dropTest,
     additionTests,
-    entries,
-    reverse,
-    zip,
+    entries: entriesTest,
+    reverse: reverseTest,
+    zip: zipTest,
     logic,
     strictEqual: [
         () => {
@@ -308,18 +308,18 @@ export default {
     ],
     isEmpty: [
         () => {
-            const result = _.isEmpty(() => [])
+            const result = isEmpty(() => [])
             if (result !== true) { throw result }
         },
         () => {
-            const result = _.isEmpty(() => [2])
+            const result = isEmpty(() => [2])
             if (result !== false) { throw result }
         }
     ],
     length: () => {
-        if (_.length([1, 2, 3]) !== 3) { throw 3 }
-        if (_.length(null) !== 0) { throw 0 }
-        if (_.length(_.flat([[1, 3], null, () => [3], _.concat([12])([4, 89])])) !== 6) { throw 6 }
+        if (length([1, 2, 3]) !== 3) { throw 3 }
+        if (length(null) !== 0) { throw 0 }
+        if (length(flat([[1, 3], null, () => [3], concat([12])([4, 89])])) !== 6) { throw 6 }
     },
     // stress
 }
