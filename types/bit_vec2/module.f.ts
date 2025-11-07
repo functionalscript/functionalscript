@@ -138,6 +138,7 @@ export const msbXor: Reduce = op(msbNorm)(xor)
 export type BitOrder = {
     readonly front: (len: bigint) => (v: Vec) => bigint
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
+    readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
 }
 
 export const lsb: BitOrder = {
@@ -151,12 +152,33 @@ export const lsb: BitOrder = {
             return vec(length - len)(uint >> len)
         }
     },
+    popFront: len => {
+        const m = mask(len)
+        return v =>  {
+            const { length, uint } = unpack(v)
+            return [uint & m, vec(length - len)(uint >> len)]
+        }
+    },
 }
 
 export const msb: BitOrder = {
     front: len => {
         const m = mask(len)
-        return v => (uint(v) >> (length(v) - len)) & m
+        return v => {
+            const { length, uint } = unpack(v)
+            return (uint >> (length - len)) & m
+        }
     },
-    removeFront: len => v => vec(length(v) - len)(uint(v)),
+    removeFront: len => v => {
+        const { length, uint } = unpack(v)
+        return vec(length - len)(uint)
+    },
+    popFront: len => {
+        const m = mask(len)
+        return v => {
+            const { length, uint } = unpack(v)
+            const d = length - len
+            return [(uint >> d) & m, vec(d)(uint)]
+        }
+    },
 }

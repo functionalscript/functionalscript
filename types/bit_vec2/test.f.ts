@@ -17,6 +17,11 @@ const assertEq = <T>(a: T, b: T) => {
     if (a !== b) { throw [a, b] }
 }
 
+const assertEq2 = <T>([a0, a1]: readonly[bigint, T], [b0, b1]: readonly[bigint, T]) => {
+    assertEq(a0, b0)
+    assertEq(a1, b1)
+}
+
 export default {
     examples: {
         vec: () => {
@@ -49,6 +54,15 @@ export default {
 
             assertEq(msb.removeFront(4n)(v), asNominal(-0xC56n))
             assertEq(msb.removeFront(24n)(v), empty)
+        },
+        popFront: () => {
+            const vector = vec(8n)(0xF5n) // 0xF5n
+
+            assertEq2(lsb.popFront(4n)(vector), [5n, asNominal(0xFn)])
+            assertEq2(lsb.popFront(16n)(vector), [0xF5n, asNominal(0n)])
+
+            assertEq2(msb.popFront(4n)(vector), [0xFn, asNominal(-0xDn)])
+            assertEq2(msb.popFront(16n)(vector), [0xF500n, asNominal(0n)])
         },
     },
     length: () => {
