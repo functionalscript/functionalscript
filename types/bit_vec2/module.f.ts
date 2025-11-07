@@ -9,6 +9,7 @@
 import { abs, bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
 import { flip } from "../function/module.f.ts"
 import type { Binary, Reduce as OpReduce } from "../function/operator/module.f.ts"
+import { fold, type List, type Thunk } from "../list/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
 
 /**
@@ -265,3 +266,31 @@ export const msb: BitOrder = {
     concat: flip(lsb.concat),
     xor: op(msbNorm)(xor)
 }
+
+const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
+    concat(a)(vec8(BigInt(u8)))
+
+/**
+ * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
+ */
+export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
+    fold(appendU8(bo))(empty)
+
+/**
+ * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
+ */
+export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
+    const f = (v: Vec) => () => {
+        if (v === empty) { return null }
+        const [first, tail] = popFront(8n)(v)
+        return { first: Number(first), tail: f(tail) }
+    }
+    return f
+}
+
+/**
+ * Concatenates a list of vectors using the provided bit order.
+ */
+export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
+    fold(concat)(empty)
+
