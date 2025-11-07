@@ -195,6 +195,12 @@ export type BitOrder = {
      * ```
      */
     readonly concat: Reduce
+    /**
+     * Computes the bitwise exclusive OR of two vectors after normalizing their lengths.
+     *
+     * @param a - The first vector.
+     * @returns A function that takes a second vector and returns the XOR result.
+     */
     readonly xor: Reduce
 }
 
