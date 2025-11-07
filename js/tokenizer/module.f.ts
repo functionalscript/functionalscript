@@ -1,8 +1,7 @@
 import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.ts'
 import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.ts'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.ts'
-import * as map from '../../types/ordered_map/module.f.ts'
-const { at } = map
+import { at, fromEntries, type Entry } from '../../types/ordered_map/module.f.ts'
 import * as _range from '../../types/range/module.f.ts'
 const { one } = _range
 import type * as bigfloatT from '../../types/bigfloat/module.f.ts'
@@ -409,7 +408,7 @@ const bufferToNumberToken
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
  */
-const keywordEntries : List<map.Entry<JsToken>> = [
+const keywordEntries : List<Entry<JsToken>> = [
     ['arguments', { kind: 'arguments'}],
     ['await', { kind: 'await'}],
     ['break', { kind: 'break'}],
@@ -461,7 +460,7 @@ const keywordEntries : List<map.Entry<JsToken>> = [
     ['yield', { kind: 'yield'}],
 ]
 
-const keywordMap = map.fromEntries(keywordEntries)
+const keywordMap = fromEntries(keywordEntries)
 
 export const isKeywordToken
     : (token: JsToken) => boolean
@@ -470,7 +469,7 @@ export const isKeywordToken
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
  */
-const operatorEntries: List<map.Entry<JsToken>> = [
+const operatorEntries: List<Entry<JsToken>> = [
     ['!', { kind: '!'}],
     ['!=', { kind: '!='}],
     ['!==', { kind: '!=='}],
@@ -528,7 +527,7 @@ const operatorEntries: List<map.Entry<JsToken>> = [
     ['~', { kind: '~' }]
 ]
 
-const operatorMap = map.fromEntries(operatorEntries)
+const operatorMap = fromEntries(operatorEntries)
 
 const getOperatorToken
     : (op: string) => JsToken
