@@ -4,8 +4,8 @@ import { stringify as jsonStringify, type Unknown } from '../../json/module.f.ts
 import { sort } from '../object/module.f.ts'
 import { cmp } from '../string/module.f.ts'
 import { next, toArray, type List, type Result } from '../list/module.f.ts'
-import * as s from './set/module.f.ts'
-import * as f from './find/module.f.ts'
+import { set as setSet } from './set/module.f.ts'
+import { value, find as findFind } from './find/module.f.ts'
 
 const jsonStr = jsonStringify(sort)
 
@@ -15,7 +15,7 @@ const stringify
 
 const set
     : (node: TNode<string>) => (value: string) => TNode<string>
-    = node => value => s.set(cmp(value))(() => value)(node)
+    = node => value => setSet(cmp(value))(() => value)(node)
 
 const valueTest1 =() => {
     let _map: TNode<string> = ['a']
@@ -40,7 +40,7 @@ const findTrue = () => {
     let _map: TNode<string> = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = f.value(f.find(cmp('b'))(_map).first)
+    const result = value(findFind(cmp('b'))(_map).first)
     if (result !== 'b') { throw result }
 }
 
@@ -48,7 +48,7 @@ const find = () => {
     let _map: TNode<string> = ['a']
     _map = set(_map)('b')
     _map = set(_map)('c')
-    const result = f.value(f.find(cmp('e'))(_map).first)
+    const result = value(findFind(cmp('e'))(_map).first)
     if (result !== null) { throw result }
 }
 
