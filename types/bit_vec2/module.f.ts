@@ -113,16 +113,6 @@ const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
 export type Reduce = OpReduce<Vec>
 
 /**
- * Performs a least-significant-bit (LSb) xor operation between two vectors.
- */
-export const lsbXor: Reduce = op(lsbNorm)(xor)
-
-/**
- * Performs a most-significant-bit (MSb) xor operation between two vectors.
- */
-export const msbXor: Reduce = op(msbNorm)(xor)
-
-/**
  * Represents operations for handling bit vectors with a specific bit order.
  *
  * https://en.wikipedia.org/wiki/Bit_numbering
@@ -204,7 +194,8 @@ export type BitOrder = {
      * const abM = msb.concat(a)(b) // uint(abM) is 0x4589n
      * ```
      */
-    readonly concat: (a: Vec) => (b: Vec) => Vec
+    readonly concat: Reduce
+    readonly xor: Reduce
 }
 
 /**
@@ -219,11 +210,9 @@ export const lsb: BitOrder = {
         const m = mask(len)
         return v => uint(v) & m
     },
-    removeFront: len => {
-        return v => {
-            const { length, uint } = unpack(v)
-            return vec(length - len)(uint >> len)
-        }
+    removeFront: len => v => {
+        const { length, uint } = unpack(v)
+        return vec(length - len)(uint >> len)
     },
     popFront: len => {
         const m = mask(len)
@@ -236,7 +225,8 @@ export const lsb: BitOrder = {
         const { length: al, uint: au } = unpack(a)
         const { length: bl, uint: bu } = unpack(b)
         return vec(al + bl)((bu << al) | au)
-    }
+    },
+    xor: op(lsbNorm)(xor)
 }
 
 /**
@@ -266,5 +256,6 @@ export const msb: BitOrder = {
             return [(uint >> d) & m, vec(d)(uint)]
         }
     },
-    concat: flip(lsb.concat)
+    concat: flip(lsb.concat),
+    xor: op(msbNorm)(xor)
 }

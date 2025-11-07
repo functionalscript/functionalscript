@@ -1,6 +1,6 @@
 import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsbXor, msbXor, lsb, msb, type BitOrder } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder } from './module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -305,14 +305,14 @@ export default {
     },
     lsbXor: () => {
         const c = (a: Vec) => (b: Vec) => (e: Vec) => {
-            const r = lsbXor(a)(b)
+            const r = lsb.xor(a)(b)
             if (r !== e) { throw r }
         }
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x7n ^ 0x12n))
     },
     msbXor: () => {
         const c = (a: Vec) => (b: Vec) => (e: Vec) => {
-            const r = msbXor(a)(b)
+            const r = msb.xor(a)(b)
             if (r !== e) { throw r }
         }
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x70n ^ 0x12n))
