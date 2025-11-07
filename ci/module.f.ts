@@ -52,11 +52,14 @@ type StepType = 'install' | 'test'
 type MetaStep = {
     readonly type: StepType
     readonly step: Step
+} | {
+    readonly type: 'target'
+    readonly target: string
 }
 
-const i = (step: Step): MetaStep => ({ type: 'install', step })
+const install = (step: Step): MetaStep => ({ type: 'install', step })
 
-const t = (step: Step): MetaStep => ({ type: 'test', step })
+const test = (step: Step): MetaStep => ({ type: 'test', step })
 
 type Tool = {
     readonly def: Step
@@ -65,7 +68,7 @@ type Tool = {
 }
 
 const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Architecture): MetaStep =>
-    i(v === 'windows' && a === 'arm'
+    install(v === 'windows' && a === 'arm'
         ? { run: `irm ${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
         : def)
 
@@ -86,13 +89,13 @@ const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
     const co = config ? ` --config ${config}` : ''
     const main = `cargo test${to}${co}`
     return [
-        t({ run: main }),
-        t({ run: `${main} --release` })
+        test({ run: main }),
+        test({ run: `${main} --release` })
     ]
 }
 
 const customTarget = (target: string): readonly MetaStep[] => [
-    i({ run: `rustup target add ${target}` }),
+    { type: 'target', target },
     ...cargoTest(target)
 ]
 
@@ -103,33 +106,33 @@ const wasmTarget = (target: string): readonly MetaStep[] => [
 
 const clean = (steps: readonly MetaStep[]): readonly MetaStep[] => [
     ...steps,
-    t({ run: 'git reset --hard HEAD && git clean -fdx' })
+    test({ run: 'git reset --hard HEAD && git clean -fdx' })
 ]
 
 const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
-    t({ uses: 'actions/setup-node@v6', with: { 'node-version': version } }),
-    t({ run: 'npm ci' }),
+    test({ uses: 'actions/setup-node@v6', with: { 'node-version': version } }),
+    test({ run: 'npm ci' }),
     ...extra,
 ])
 
 const oldNode = (version: string): readonly MetaStep[] => basicNode(version)([
-    t({ run: `npm run test${version}` }),
+    test({ run: `npm run test${version}` }),
 ])
 
 const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
-    t({ run: 'npm test' }),
-    t({ run: 'npm run fst' }),
+    test({ run: 'npm test' }),
+    test({ run: 'npm run fst' }),
     ...extra,
 ])
 
-const install = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
+const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
-        i({ run: 'rustup default 1.90.0' }),
-        i({ run: 'rustup component add rustfmt clippy' }),
-        t({ uses: 'actions/checkout@v5' }),
+        install({ run: 'rustup default 1.90.0' }),
+        install({ run: 'rustup component add rustfmt clippy' }),
+        test({ uses: 'actions/checkout@v5' }),
         // Node.js
         ...oldNode('20'),
 
@@ -137,38 +140,38 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...node('24')([]),
         ...node('25')([
             // TypeScript Preview
-            t({ run: 'npx tsgo' }),
+            test({ run: 'npx tsgo' }),
             // Playwright
-            t({ run: 'npx playwright install --with-deps' }),
+            test({ run: 'npx playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
-            (t({ run: `npx playwright test --browser=${browser}` }))),
+            (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing
-            t({ run: 'npm pack' }),
-            t({ run: `npm install -g ${install(v)}` }),
-            t({ run: 'fsc issues/demo/data/tree.json _tree.f.js' }),
-            t({ run: 'fst' }),
-            t({ run: 'npm uninstall functionalscript -g' }),
+            test({ run: 'npm pack' }),
+            test({ run: `npm install -g ${findTgz(v)}` }),
+            test({ run: 'fsc issues/demo/data/tree.json _tree.f.js' }),
+            test({ run: 'fst' }),
+            test({ run: 'npm uninstall functionalscript -g' }),
         ]),
         // Deno
         ...clean([
             installDeno(v)(a),
-            t({ run: 'deno install' }),
-            t({ run: 'deno task test' }),
-            t({ run: 'deno task fst' }),
-            t({ run: 'deno publish --dry-run' }),
+            test({ run: 'deno install' }),
+            test({ run: 'deno task test' }),
+            test({ run: 'deno task fst' }),
+            test({ run: 'deno publish --dry-run' }),
         ]),
         // Bun
         ...clean([
             installBun(v)(a),
-            t({ run: 'bun test --timeout 20000' }),
-            t({ run: 'bun ./dev/tf/module.ts' }),
+            test({ run: 'bun test --timeout 20000' }),
+            test({ run: 'bun ./dev/tf/module.ts' }),
         ]),
         // Rust
-        t({ run: 'cargo fmt -- --check' }),
-        t({ run: 'cargo clippy -- -D warnings' }),
+        test({ run: 'cargo fmt -- --check' }),
+        test({ run: 'cargo clippy -- -D warnings' }),
         ...cargoTest(),
-        i({ uses: 'bytecodealliance/actions/wasmtime/setup@v1' }),
-        i({ uses: 'wasmerio/setup-wasmer@v1' }),
+        install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1' }),
+        install({ uses: 'wasmerio/setup-wasmer@v1' }),
         ...wasmTarget('wasm32-wasip1'),
         ...wasmTarget('wasm32-wasip2'),
         ...wasmTarget('wasm32-unknown-unknown'),
@@ -178,15 +181,16 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ? []
         : v === 'windows' ? customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
-            i({ run: 'sudo dpkg --add-architecture i386'}),
-            i({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
+            install({ run: 'sudo dpkg --add-architecture i386'}),
+            install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
             ...customTarget('i686-unknown-linux-gnu'),
         ]
         : []
     const m = [...result, ...more]
-    const filter = (st: StepType) => ({ type, step }: MetaStep): Step[] => type === st ? [step] : []
+    const filter = (st: StepType) => (mt: MetaStep): Step[] => mt.type === st ? [mt.step] : []
     return [
         ...m.flatMap(filter('install')),
+        { run: 'rustup target add ' + m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ') },
         ...m.flatMap(filter('test')),
     ]
 }

@@ -29,25 +29,13 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
-        },
-        {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
-        },
-        {
           "run": "sudo dpkg --add-architecture i386"
         },
         {
           "run": "sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386"
         },
         {
-          "run": "rustup target add i686-unknown-linux-gnu"
+          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
         },
         {
           "uses": "actions/checkout@v5"
@@ -265,16 +253,7 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
-        },
-        {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
+          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
         },
         {
           "uses": "actions/checkout@v5"
@@ -486,16 +465,7 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
-        },
-        {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
+          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
         },
         {
           "uses": "actions/checkout@v5"
@@ -707,16 +677,7 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
-        },
-        {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
+          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
         },
         {
           "uses": "actions/checkout@v5"
@@ -928,19 +889,7 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
-        },
-        {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
-        },
-        {
-          "run": "rustup target add i686-pc-windows-msvc"
+          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-pc-windows-msvc"
         },
         {
           "uses": "actions/checkout@v5"
@@ -1155,16 +1104,7 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
-        },
-        {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
+          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
         },
         {
           "uses": "actions/checkout@v5"
