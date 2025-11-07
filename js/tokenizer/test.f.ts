@@ -1,4 +1,4 @@
-import * as tokenizer from './module.f.ts'
+import { tokenize, type JsToken, type JsTokenWithMetadata } from './module.f.ts'
 import * as list from '../../types/list/module.f.ts'
 const { toArray } = list
 import * as serializer from '../../djs/serializer/module.f.ts'
@@ -7,17 +7,17 @@ const { sort } = o
 import * as encoding from '../../text/utf16/module.f.ts'
 
 const tokenizeString
-    : (s: string) => readonly tokenizer.JsToken[]
-    = s => toArray(list.map(withoutMetada)(tokenizer.tokenize(encoding.stringToList(s))('')))
+    : (s: string) => readonly JsToken[]
+    = s => toArray(list.map(withoutMetada)(tokenize(encoding.stringToList(s))('')))
 
 const tokenizeStringWithMetadata
-    : (s: string) => readonly tokenizer.JsTokenWithMetadata[]
-    = s => toArray(tokenizer.tokenize(encoding.stringToList(s))(''))
+    : (s: string) => readonly JsTokenWithMetadata[]
+    = s => toArray(tokenize(encoding.stringToList(s))(''))
 
 const stringify = serializer.stringifyAsTree(sort)
 
 const withoutMetada
-    : (tokenWithMetada: tokenizer.JsTokenWithMetadata) => tokenizer.JsToken
+    : (tokenWithMetada: JsTokenWithMetadata) => JsToken
     = tokenWithMetada => { return tokenWithMetada.token }
 
 export default {
