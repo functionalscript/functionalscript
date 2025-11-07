@@ -1,5 +1,5 @@
 import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
-import * as byteSet from '../types/byte_set/module.f.ts'
+import { union } from '../types/byte_set/module.f.ts'
 import * as o from '../types/object/module.f.ts'
 const { sort, fromEntries } = o
 import * as json from '../json/module.f.ts'
@@ -15,11 +15,11 @@ const stringifyIdentity = json.stringify(identity)
 const buildDfa = () => {
     const lowercaseAlpha = toRange('az')
     const uppercaseAlpha = toRange('AZ')
-    const alpha = byteSet.union(lowercaseAlpha)(uppercaseAlpha)
+    const alpha = union(lowercaseAlpha)(uppercaseAlpha)
     const idSymbol = toUnion('_$')
-    const idBegin = byteSet.union(alpha)(idSymbol)
+    const idBegin = union(alpha)(idSymbol)
     const digit = toRange('09')
-    const idNext = byteSet.union(idBegin)(digit)
+    const idNext = union(idBegin)(digit)
     const dot = toUnion('.')
 
     const grammar
