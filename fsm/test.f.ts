@@ -2,8 +2,7 @@ import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
 import { union } from '../types/byte_set/module.f.ts'
 import { sort, fromEntries } from '../types/object/module.f.ts'
 import { stringify } from '../json/module.f.ts'
-import * as f from '../types/function/module.f.ts'
-const { identity } = f
+import { identity } from '../types/function/module.f.ts'
 import * as list from '../types/list/module.f.ts'
 const { toArray } = list
 import * as utf16 from '../text/utf16/module.f.ts'
