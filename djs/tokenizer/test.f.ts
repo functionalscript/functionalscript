@@ -2,15 +2,15 @@ import { tokenize, type DjsToken, type DjsTokenWithMetadata } from './module.f.t
 import { map, toArray } from '../../types/list/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import * as encoding from '../../text/utf16/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly DjsToken[]
-    = s => toArray(map(withoutMetada)(tokenize(encoding.stringToList(s))('')))
+    = s => toArray(map(withoutMetada)(tokenize(stringToList(s))('')))
 
 const tokenizeStringWithMetadata
     : (s: string) => readonly DjsTokenWithMetadata[]
-    = s => toArray(tokenize(encoding.stringToList(s))(''))
+    = s => toArray(tokenize(stringToList(s))(''))
 
 const stringify = stringifyAsTree(sort)
 
