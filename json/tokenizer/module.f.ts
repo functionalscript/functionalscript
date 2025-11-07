@@ -1,22 +1,22 @@
 import { type StateScan } from '../../types/function/operator/module.f.ts'
 import { concat, empty, flat, stateScan, type List } from '../../types/list/module.f.ts'
 import { multiply } from '../../types/bigfloat/module.f.ts'
-import * as jsTokenizer from '../../js/tokenizer/module.f.ts'
+import { tokenize as jsTokenize, type EofToken, type ErrorToken, type JsToken, type JsTokenWithMetadata, type NumberToken, type StringToken } from '../../js/tokenizer/module.f.ts'
 
 export type JsonToken = |
     {readonly kind: 'true' | 'false' | 'null' } |
     {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
-    jsTokenizer.StringToken |
-    jsTokenizer.NumberToken |
-    jsTokenizer.ErrorToken |
-    jsTokenizer.EofToken
+    StringToken |
+    NumberToken |
+    ErrorToken |
+    EofToken
 
 type ScanState = {readonly kind: 'def' | '-' }
 
-type ScanInput = jsTokenizer.JsTokenWithMetadata | null
+type ScanInput = JsTokenWithMetadata | null
 
 const mapToken
-    : (input: jsTokenizer.JsToken) => List<JsonToken>
+    : (input: JsToken) => List<JsonToken>
     = input => {
         switch(input.kind)
         {
@@ -76,6 +76,6 @@ export const tokenize
     = (input: List<number>): List<JsonToken> => {
         const jsTokens
             : List<ScanInput>
-            =  jsTokenizer.tokenize(input)('')
+            =  jsTokenize(input)('')
         return flat(stateScan(scanToken)({ kind: 'def' })(concat(jsTokens)([null])))
     }
