@@ -1,6 +1,6 @@
 import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, msbConcat, lsbXor, msbXor, lsb, msb } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsbXor, msbXor, lsb, msb } from './module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -64,6 +64,14 @@ export default {
             assertEq2(msb.popFront(4n)(vector), [0xFn, asNominal(-0xDn)])
             assertEq2(msb.popFront(16n)(vector), [0xF500n, asNominal(0n)])
         },
+        concat: () => {
+            const u8 = vec(8n)
+            const a = u8(0x45n) // -0xC5n
+            const b = u8(0x89n) // 0x89n
+
+            assertEq(lsb.concat(a)(b), asNominal(0x8945n))
+            assertEq(msb.concat(a)(b), asNominal(-0xC589n))
+        }
     },
     length: () => {
         const len = length(empty)
@@ -188,7 +196,7 @@ export default {
     },
     concat: () => {
         const c = (a: Vec) => (b: Vec) => (abx: Vec) => {
-            const ab = msbConcat(a)(b)
+            const ab = msb.concat(a)(b)
             const abLen = length(ab)
             const abxLen = length(abx)
             if (abLen !== abxLen) { throw abLen }

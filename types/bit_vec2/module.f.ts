@@ -7,6 +7,7 @@
  * @module
  */
 import { abs, bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
+import { flip } from "../function/module.f.ts"
 import type { Binary, Reduce as OpReduce } from "../function/operator/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
 
@@ -85,15 +86,6 @@ export const vec8: (ui: bigint) => Vec = vec(8n)
  */
 export const pack = ({ length, uint }: Unpacked): Vec => vec(length)(uint)
 
-/**
- * Concatenates two vectors in most-significant-bit (MSb) order.
- */
-export const msbConcat = (a: Vec) => (b: Vec): Vec => {
-    const { length: al, uint: au } = unpack(a)
-    const { length: bl, uint: bu } = unpack(b)
-    return vec(al + bl)((au << bl) | bu)
-}
-
 type Norm = {
     readonly len: bigint
     readonly a: bigint
@@ -139,6 +131,7 @@ export type BitOrder = {
     readonly front: (len: bigint) => (v: Vec) => bigint
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
     readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
+    readonly concat: (a: Vec) => (b: Vec) => Vec
 }
 
 export const lsb: BitOrder = {
@@ -159,6 +152,11 @@ export const lsb: BitOrder = {
             return [uint & m, vec(length - len)(uint >> len)]
         }
     },
+    concat: (a: Vec) => (b: Vec): Vec => {
+        const { length: al, uint: au } = unpack(a)
+        const { length: bl, uint: bu } = unpack(b)
+        return vec(al + bl)((bu << al) | au)
+    }
 }
 
 export const msb: BitOrder = {
@@ -181,4 +179,5 @@ export const msb: BitOrder = {
             return [(uint >> d) & m, vec(d)(uint)]
         }
     },
+    concat: flip(lsb.concat)
 }
