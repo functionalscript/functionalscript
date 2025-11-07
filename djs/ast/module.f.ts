@@ -1,11 +1,11 @@
-import type * as djs from '../module.f.ts'
+import type { Primitive, Array, Unknown } from '../module.f.ts'
 import { type List, concat, fold, last, map, take, toArray } from '../../types/list/module.f.ts'
 import type { Entry } from '../../types/ordered_map/module.f.ts'
 import { fromEntries } from '../../types/object/module.f.ts'
 const { entries } = Object
 
 export type AstModule = [readonly string[], AstBody]
-export type AstConst = djs.Primitive|AstModuleRef|AstArray|AstObject
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject
 
 export type AstModuleRef = ['aref' | 'cref', number]
 
@@ -19,13 +19,13 @@ export type AstBody = readonly AstConst[]
 
 type RunState = {
     readonly body: AstBody
-    readonly args: djs.Array
-    readonly consts: List<djs.Unknown>
+    readonly args: Array
+    readonly consts: List<Unknown>
 }
 
 type FoldObjectState = {
     readonly runState: RunState,
-    readonly entries: List<Entry<djs.Unknown>>
+    readonly entries: List<Entry<Unknown>>
 }
 
 const foldOp
@@ -43,7 +43,7 @@ const foldAstObjectOp
     }
 
 const toDjs
-    : (state: RunState) => (ast: AstConst) => djs.Unknown
+    : (state: RunState) => (ast: AstConst) => Unknown
     = state => ast => {
         switch (typeof ast) {
             case 'boolean':
@@ -67,7 +67,7 @@ const toDjs
     }
 
 export const run
-    :(body: AstBody) => (args: djs.Array) => djs.Unknown
+    :(body: AstBody) => (args: Array) => Unknown
     = body => args => {
         const state = fold(foldOp)({ body, args, consts: null})(body)
         return last(null)(state.consts)
