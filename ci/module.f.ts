@@ -131,9 +131,10 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
+    const targets = m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ')
     return [
         ...filter('install'),
-        { run: 'rustup target add ' + m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ') },
+        ...(targets === '' ? [] : [{ run: `rustup target add ${targets}`}]),
         { uses: 'actions/checkout@v5' },
         ...filter('test'),
     ]
@@ -143,7 +144,6 @@ const nodeImage = (v: string): Jobs => ({
     [`node${v}`]: {
         'runs-on': 'ubuntu-latest',
         steps: toSteps([
-            test({ uses: 'actions/checkout@v5' }),
             ...oldNode(v),
         ])
     }

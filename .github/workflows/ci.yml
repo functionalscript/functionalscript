@@ -1292,12 +1292,6 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
-          "run": "rustup target add "
-        },
-        {
-          "uses": "actions/checkout@v5"
-        },
-        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -1320,12 +1314,6 @@
     "node22": {
       "runs-on": "ubuntu-latest",
       "steps": [
-        {
-          "run": "rustup target add "
-        },
-        {
-          "uses": "actions/checkout@v5"
-        },
         {
           "uses": "actions/checkout@v5"
         },
