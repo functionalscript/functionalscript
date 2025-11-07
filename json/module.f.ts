@@ -1,8 +1,6 @@
 import { next, flat, map, type List } from '../types/list/module.f.ts'
-import * as string  from '../types/string/module.f.ts'
-const { concat } = string
-import * as object from '../types/object/module.f.ts'
-const { at } = object
+import { concat } from '../types/string/module.f.ts'
+import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
 import * as f from '../types/function/module.f.ts'
 const { compose, fn } = f
 const { entries } = Object
@@ -36,7 +34,7 @@ export const setProperty
 
 const colon = [':']
 
-export type Entry = object.Entry<Unknown>
+export type Entry = ObjectEntry<Unknown>
 
 type Entries = List<Entry>
 
