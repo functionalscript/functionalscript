@@ -50,6 +50,16 @@ const removeFront = (e: BitOrder) => (r0: Vec) => (r1: Vec) => () => {
     if (r2 !== r1) { throw r2 }
 }
 
+const concat = (e: BitOrder) => (r: Vec) => () => {
+    const u8 = vec(8n)
+    const a = u8(0x45n) // -0xC5n
+    if (a !== unsafeVec(-0xC5n)) { throw a }
+    const b = u8(0x89n) // 0x89n
+    if (b !== unsafeVec(0x89n)) { throw b }
+    const ab = e.concat(a)(b) // 0x8945n
+    if (ab !== r) { throw ab }
+}
+
 export default {
     examples: {
         vec: () => {
@@ -112,6 +122,10 @@ export default {
     removeFront: {
         lsbm: removeFront(lsb)(asNominal(-0xB45n))(empty),
         msbm: removeFront(msb)(asNominal(-0xC56n))(empty),
+    },
+    concat: {
+        lsbm: concat(lsb)(asNominal(0x8945n)),
+        msbm: concat(msb)(asNominal(-0xC589n)),
     },
     length: () => {
         const len = length(empty)
@@ -234,7 +248,7 @@ export default {
             () => c(2n)(-0b111n)(0b11n), //< overflow
         ]
     },
-    concat: () => {
+    concat2: () => {
         const c = (a: Vec) => (b: Vec) => (abx: Vec) => {
             const ab = msb.concat(a)(b)
             const abLen = length(ab)
