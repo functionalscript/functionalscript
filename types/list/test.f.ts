@@ -27,13 +27,13 @@ import {
     isEmpty,
     equal
 } from './module.f.ts'
-import * as json from '../../json/module.f.ts'
+import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.ts'
 
 const str
-    : (sequence: List<json.Unknown>) => string
-    = sequence => json.stringify(sort)(toArray(sequence))
+    : (sequence: List<Unknown>) => string
+    = sequence => stringify(sort)(toArray(sequence))
 
 const stringifyTest = () => {
     const s = str([1, 2, 3])
