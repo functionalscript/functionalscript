@@ -154,6 +154,15 @@ export default {
         const u = lsb.front(8n)(v)
         if (u !== 0xFEn) { throw v }
     },
+    appendBack: () => {
+        const vec8 = vec(8n)
+        const a = vec8(0x345n)
+        const b = vec8(0x789n)
+        const ab = lsb.concat(a)(b)
+        if (ab !== unsafeVec(0x8945n)) { throw ab }
+        const s = length(ab)
+        if (s !== 16n) { throw `appendBack: ${s}` }
+    },
     uint: [
         // 0
         () => {
