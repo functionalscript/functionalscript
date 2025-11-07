@@ -1,6 +1,5 @@
 import { tokenize, type JsonToken } from './module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { toArray } = list
+import { toArray } from '../../types/list/module.f.ts'
 import * as serializer from '../../djs/serializer/module.f.ts'
 import * as o from '../../types/object/module.f.ts'
 const { sort } = o
