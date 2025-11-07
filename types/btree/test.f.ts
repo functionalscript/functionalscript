@@ -1,16 +1,16 @@
 import type { TNode } from './types/module.f.ts'
 import { values } from './module.f.ts'
-import * as json from '../../json/module.f.ts'
+import { stringify as jsonStringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { cmp } from '../string/module.f.ts'
 import { next, toArray, type List, type Result } from '../list/module.f.ts'
 import * as s from './set/module.f.ts'
 import * as f from './find/module.f.ts'
 
-const jsonStr = json.stringify(sort)
+const jsonStr = jsonStringify(sort)
 
 const stringify
-    : (sequence: List<json.Unknown>) => string
+    : (sequence: List<Unknown>) => string
     = sequence => jsonStr(toArray(sequence))
 
 const set
