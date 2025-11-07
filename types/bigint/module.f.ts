@@ -19,18 +19,18 @@
  */
 
 import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
-import type * as Operator from '../function/operator/module.f.ts'
+import type { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { reduce, type List } from '../list/module.f.ts'
 
 /**
  * Type representing a unary operation on `bigint`.
  */
-export type Unary = Operator.Unary<bigint, bigint>
+export type Unary = OpUnary<bigint, bigint>
 
 /**
  * Type representing a reduction operation on `bigint` values.
  */
-export type Reduce = Operator.Reduce<bigint>
+export type Reduce = OpReduce<bigint>
 
 /**
  * Adds two `bigint` values.

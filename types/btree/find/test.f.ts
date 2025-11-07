@@ -1,4 +1,4 @@
-import * as _ from './module.f.ts'
+import { type Result, find as btreeFind } from './module.f.ts'
 import * as list from '../../list/module.f.ts'
 import * as json from '../../../json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
@@ -13,12 +13,12 @@ const set
     = node => value => s.set(cmp(value))(() => value)(node)
 
 const str
-    : (r: _.Result<json.Unknown>) => string
+    : (r: Result<json.Unknown>) => string
     = r => jsonStr(list.toArray(list.map((x: any) => x[0])(r)))
 
 const find
     : (i: string) => (m: btree.TNode<string>) => string
-    = i => m => str(_.find(cmp(i))(m))
+    = i => m => str(btreeFind(cmp(i))(m))
 
 const test = () => {
     let _map: btree.TNode<string> = ['1']
