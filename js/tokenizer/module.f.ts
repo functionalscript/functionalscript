@@ -3,7 +3,7 @@ import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../.
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.ts'
 import { at, fromEntries, type Entry } from '../../types/ordered_map/module.f.ts'
 import { one, type Range as NumberRange } from '../../types/range/module.f.ts'
-import type * as bigfloatT from '../../types/bigfloat/module.f.ts'
+import { type BigFloat } from '../../types/bigfloat/module.f.ts'
 const { fromCharCode } = String
 import * as ascii from '../../text/ascii/module.f.ts'
 const { range } = ascii
@@ -73,7 +73,7 @@ export type StringToken = {
 export type NumberToken = {
     readonly kind: 'number'
     readonly value: string
-    readonly bf: bigfloatT.BigFloat
+    readonly bf: BigFloat
 }
 
 export type BigIntToken = {
