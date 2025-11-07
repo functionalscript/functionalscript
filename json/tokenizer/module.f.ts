@@ -1,4 +1,4 @@
-import type * as Operator from '../../types/function/operator/module.f.ts'
+import { type StateScan } from '../../types/function/operator/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
 const { empty, flat, stateScan } = list
 import * as bf from '../../types/bigfloat/module.f.ts'
@@ -65,7 +65,7 @@ const parseMinusState
     }
 
 const scanToken
-    : Operator.StateScan<ScanInput, ScanState, list.List<JsonToken>>
+    : StateScan<ScanInput, ScanState, list.List<JsonToken>>
     = state => input => {
         switch(state.kind)
         {
