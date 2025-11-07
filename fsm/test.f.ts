@@ -1,7 +1,6 @@
 import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
 import { union } from '../types/byte_set/module.f.ts'
-import * as o from '../types/object/module.f.ts'
-const { sort, fromEntries } = o
+import { sort, fromEntries } from '../types/object/module.f.ts'
 import * as json from '../json/module.f.ts'
 import * as f from '../types/function/module.f.ts'
 const { identity } = f
