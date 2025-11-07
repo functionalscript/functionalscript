@@ -1,6 +1,5 @@
 import { init } from './module.f.ts'
-import * as ascii from '../text/ascii/module.f.ts'
-const { one } = ascii
+import { one } from '../text/ascii/module.f.ts'
 import * as j from '../json/module.f.ts'
 const { stringify } = j
 const s = stringify(i => i)
