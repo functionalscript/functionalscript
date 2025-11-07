@@ -179,27 +179,26 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     ]
     const more = a !== 'intel'
         ? []
-        : v === 'windows' ? customTarget('i686-pc-windows-msvc')
+        : v === 'windows' ?
+            customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
-            install({ run: 'sudo dpkg --add-architecture i386'}),
-            install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
+            // install({ run: 'sudo dpkg --add-architecture i386'}),
+            // install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
             ...customTarget('i686-unknown-linux-gnu'),
         ]
         : []
     const m = [...result, ...more]
-    const filter = (st: StepType) => (mt: MetaStep): Step[] => mt.type === st ? [mt.step] : []
+    const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     return [
-        ...m.flatMap(filter('install')),
+        ...filter('install'),
         { run: 'rustup target add ' + m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ') },
-        ...m.flatMap(filter('test')),
+        ...filter('test'),
     ]
 }
 
 const gha: GitHubAction = {
     name: 'CI',
-    on: {
-        pull_request: {}
-    },
+    on: { pull_request: {} },
     jobs: Object.fromEntries(os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
         'runs-on': images[v][a],
         steps: steps(v)(a),
