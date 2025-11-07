@@ -163,6 +163,14 @@ export default {
         const s = length(ab)
         if (s !== 16n) { throw `appendBack: ${s}` }
     },
+    removeBack: () => {
+        const v = vec(17n)(0x12345n)
+        if (v !== unsafeVec(0x12345n)) {
+            throw (asBase(v) as bigint).toString(16)
+        }
+        const r = lsb.removeFront(9n)(v)
+        if (r !== unsafeVec(0x91n)) { throw (asBase(r) as bigint).toString(16) }
+    },
     uint: [
         // 0
         () => {
