@@ -29,6 +29,9 @@
           "uses": "wasmerio/setup-wasmer@v1"
         },
         {
+          "run": "sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386"
+        },
+        {
           "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
         },
         {

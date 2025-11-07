@@ -127,6 +127,17 @@ const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaSte
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
+const nodeVersions: { [k in string]: readonly MetaStep[] } = {
+    node20: [
+        test({ uses: 'actions/checkout@v5' }),
+        ...oldNode('20'),
+    ],
+    node22: [
+        test({ uses: 'actions/checkout@v5' }),
+        ...oldNode('22')
+    ]
+}
+
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
@@ -183,7 +194,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
             // install({ run: 'sudo dpkg --add-architecture i386'}),
-            // install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
+            install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
             ...customTarget('i686-unknown-linux-gnu'),
         ]
         : []
