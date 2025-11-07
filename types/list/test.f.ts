@@ -1,4 +1,4 @@
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, type List, first, filterMap, isEmpty } from './module.f.ts'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, type List, first, filterMap, isEmpty, equal } from './module.f.ts'
 import * as json from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.ts'
@@ -290,19 +290,19 @@ export default {
     logic,
     strictEqual: [
         () => {
-            const result = _.equal(strictEqual)([1])([2, 3])
+            const result = equal(strictEqual)([1])([2, 3])
             if (result) { throw result }
         },
         () => {
-            const result = _.equal(strictEqual)([1, 3])([1])
+            const result = equal(strictEqual)([1, 3])([1])
             if (result) { throw result }
         },
         () => {
-            const result = _.equal(strictEqual)([15, 78])([15, 78])
+            const result = equal(strictEqual)([15, 78])([15, 78])
             if (!result) { throw result }
         },
         () => {
-            const result = _.equal(strictEqual)([])([])
+            const result = equal(strictEqual)([])([])
             if (!result) { throw result }
         }
     ],
