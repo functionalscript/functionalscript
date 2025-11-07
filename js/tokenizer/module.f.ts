@@ -2,8 +2,7 @@ import { strictEqual, type Scan, type StateScan } from '../../types/function/ope
 import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.ts'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.ts'
 import { at, fromEntries, type Entry } from '../../types/ordered_map/module.f.ts'
-import * as _range from '../../types/range/module.f.ts'
-const { one } = _range
+import { one, type Range as NumberRange } from '../../types/range/module.f.ts'
 import type * as bigfloatT from '../../types/bigfloat/module.f.ts'
 const { fromCharCode } = String
 import * as ascii from '../../text/ascii/module.f.ts'
@@ -338,7 +337,7 @@ const rangeMapMerge
     })
 
 const rangeFunc
-    : <T>(r: _range.Range) => (f: CreateToToken<T>) => RangeFunc<T>
+    : <T>(r: NumberRange) => (f: CreateToToken<T>) => RangeFunc<T>
     = r => f => def => fromRange(def)(r)(f)
 
 const scanRangeOp
@@ -353,11 +352,11 @@ const reduceRangeMap
     }
 
 const scanRangeSetOp
-    : <T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (Scan<_range.Range, RangeMapToToken<T>>)
+    : <T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (Scan<NumberRange, RangeMapToToken<T>>)
     = def => f => r => [fromRange(def)(r)(f), scanRangeSetOp(def)(f)]
 
 const rangeSetFunc
-    : <T>(rs: List<_range.Range>) => (f: CreateToToken<T>) => RangeFunc<T>
+    : <T>(rs: List<NumberRange>) => (f: CreateToToken<T>) => RangeFunc<T>
     = rs => f => def => {
         const rm = scan(scanRangeSetOp(def)(f))(rs)
         return toArray(listReduce(rangeMapMerge(def))(empty)(rm))
