@@ -1,5 +1,4 @@
-import * as list from '../../types/list/module.f.ts'
-const { flat, reduce, empty } = list
+import { flat, reduce, empty, type List } from '../../types/list/module.f.ts'
 import type * as O from '../../types/object/module.f.ts'
 import type * as Operator from '../../types/function/operator/module.f.ts'
 
@@ -24,11 +23,11 @@ type Unknown<T> = |
 const jsonStringify = JSON.stringify
 
 export const stringSerialize
-    : (_: string) => list.List<string>
+    : (_: string) => List<string>
     = input => [jsonStringify(input)]
 
 export const numberSerialize
-    : (_: number) => list.List<string>
+    : (_: number) => List<string>
     = input => [jsonStringify(input)]
 
 export const nullSerialize = ['null']
@@ -38,21 +37,21 @@ const trueSerialize = ['true']
 const falseSerialize = ['false']
 
 export const boolSerialize
-    : (_: boolean) => list.List<string>
+    : (_: boolean) => List<string>
     = value => value ? trueSerialize : falseSerialize
 
 const comma = [',']
 
 const joinOp
-    : Operator.Reduce<list.List<string>>
+    : Operator.Reduce<List<string>>
     = b => prior => flat([prior, comma, b])
 
 const join
-    : (input: list.List<list.List<string>>) => list.List<string>
+    : (input: List<List<string>>) => List<string>
     = reduce(joinOp)(empty)
 
 const wrap
-    : (open: string) => (close: string) => (input: list.List<list.List<string>>) => list.List<string>
+    : (open: string) => (close: string) => (input: List<List<string>>) => List<string>
     = open => close => {
         const seqOpen = [open]
         const seqClose = [close]
@@ -60,15 +59,15 @@ const wrap
     }
 
 export const objectWrap
-    : (input: list.List<list.List<string>>) => list.List<string>
+    : (input: List<List<string>>) => List<string>
     = wrap('{')('}')
 
 export const arrayWrap
-    : (input: list.List<list.List<string>>) => list.List<string>
+    : (input: List<List<string>>) => List<string>
     = wrap('[')(']')
 
 type Entry<T> = O.Entry<Unknown<T>>
 
-type Entries<T> = list.List<Entry<T>>
+type Entries<T> = List<Entry<T>>
 
 type MapEntries<T> = (entries: Entries<T>) => Entries<T>
