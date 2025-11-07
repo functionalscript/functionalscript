@@ -1,22 +1,22 @@
 import { tokenize, type JsToken, type JsTokenWithMetadata } from './module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
-import * as serializer from '../../djs/serializer/module.f.ts'
+import { stringifyAsTree } from '../../djs/serializer/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import * as encoding from '../../text/utf16/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly JsToken[]
-    = s => toArray(map(withoutMetada)(tokenize(encoding.stringToList(s))('')))
+    = s => toArray(map(withoutMetada)(tokenize(stringToList(s))('')))
 
 const tokenizeStringWithMetadata
     : (s: string) => readonly JsTokenWithMetadata[]
-    = s => toArray(tokenize(encoding.stringToList(s))(''))
+    = s => toArray(tokenize(stringToList(s))(''))
 
-const stringify = serializer.stringifyAsTree(sort)
+const stringify = stringifyAsTree(sort)
 
 const withoutMetada
     : (tokenWithMetada: JsTokenWithMetadata) => JsToken
-    = tokenWithMetada => { return tokenWithMetada.token }
+    = tokenWithMetada => tokenWithMetada.token
 
 export default {
     djs: [
