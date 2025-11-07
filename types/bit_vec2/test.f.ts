@@ -1,6 +1,6 @@
 import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsbXor, msbXor, lsb, msb } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsbXor, msbXor, lsb, msb, type BitOrder } from './module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -20,6 +20,44 @@ const assertEq = <T>(a: T, b: T) => {
 const assertEq2 = <T>([a0, a1]: readonly[bigint, T], [b0, b1]: readonly[bigint, T]) => {
     assertEq(a0, b0)
     assertEq(a1, b1)
+}
+
+const frontTest = (e: BitOrder) => (r0: bigint) => (r1: bigint) => () => {
+    const vector = vec(8n)(0xF5n) // 0xF5n
+    if (vector !== unsafeVec(0xF5n)) { throw vector }
+    const result = e.front(4n)(vector)
+    if (result !== r0) { throw result }
+    const result2 = e.front(16n)(vector)
+    if (result2 !== r1) { throw result2 }
+}
+
+const popFront = (e: BitOrder) => ([r00, r01]: readonly [bigint, bigint]) => ([r10, r11]: readonly [bigint, bigint]) => () => {
+    const vector = vec(8n)(0xF5n) // 0xF5n
+    const [result, rest] = e.popFront(4n)(vector)
+    if (result !== r00) { throw result }
+    if (rest !== unsafeVec(r01)) { throw rest }
+    const [result2, rest2] = e.popFront(16n)(vector)
+    if (result2 !== r10) { throw result2 }
+    if (rest2 !== unsafeVec(r11)) { throw rest2 }
+}
+
+const removeFront = (e: BitOrder) => (r0: Vec) => (r1: Vec) => () => {
+    const v = vec(16n)(0x3456n) // -0xB456n
+    if (v !== unsafeVec(-0xB456n)) { throw v }
+    const r = e.removeFront(4n)(v)
+    if (r !== r0) { throw r }
+    const r2 = e.removeFront(24n)(v)
+    if (r2 !== r1) { throw r2 }
+}
+
+const concat = (e: BitOrder) => (r: Vec) => () => {
+    const u8 = vec(8n)
+    const a = u8(0x45n) // -0xC5n
+    if (a !== unsafeVec(-0xC5n)) { throw a }
+    const b = u8(0x89n) // 0x89n
+    if (b !== unsafeVec(0x89n)) { throw b }
+    const ab = e.concat(a)(b) // 0x8945n
+    if (ab !== r) { throw ab }
 }
 
 export default {
@@ -59,10 +97,10 @@ export default {
             const vector = vec(8n)(0xF5n) // 0xF5n
 
             assertEq2(lsb.popFront(4n)(vector), [5n, asNominal(0xFn)])
-            assertEq2(lsb.popFront(16n)(vector), [0xF5n, asNominal(0n)])
+            assertEq2(lsb.popFront(16n)(vector), [0xF5n, empty])
 
             assertEq2(msb.popFront(4n)(vector), [0xFn, asNominal(-0xDn)])
-            assertEq2(msb.popFront(16n)(vector), [0xF500n, asNominal(0n)])
+            assertEq2(msb.popFront(16n)(vector), [0xF500n, empty])
         },
         concat: () => {
             const u8 = vec(8n)
@@ -73,9 +111,65 @@ export default {
             assertEq(msb.concat(a)(b), asNominal(-0xC589n))
         }
     },
+    front: {
+        lsbf: frontTest(lsb)(5n)(0xF5n),
+        msbf: frontTest(msb)(0xFn)(0xF500n),
+    },
+    popFront: {
+        lsbm: popFront(lsb)([5n, 0xFn])([0xF5n, 0n]),
+        msbm: popFront(msb)([0xFn, -0xDn])([0xF500n, 0n]),
+    },
+    removeFront: {
+        lsbm: removeFront(lsb)(asNominal(-0xB45n))(empty),
+        msbm: removeFront(msb)(asNominal(-0xC56n))(empty),
+    },
+    concat: {
+        lsbm: concat(lsb)(asNominal(0x8945n)),
+        msbm: concat(msb)(asNominal(-0xC589n)),
+    },
+    uintLsb: () => {
+        const vector: Vec = asNominal(0b110101n)
+        const extract3Bits = lsb.front(3n)
+        const result = extract3Bits(vector) // result is 0b101n (5n)
+        if (result !== 0b101n) { throw result }
+    },
+    uintSmall: () => {
+        const vector: Vec = asNominal(0b1n)
+        const extract3Bits = lsb.front(3n)(vector)
+        if (extract3Bits !== 0b1n) { throw extract3Bits }
+    },
+    vecExample: () => {
+        const createVector = vec(4n)
+        const vector = createVector(5n) // vector is -0b1101n
+        if (vector !== unsafeVec(-0b1101n)) { throw vector }
+    },
     length: () => {
         const len = length(empty)
         if (len !== 0n) { throw len }
+    },
+    bitset: () => {
+        const v = vec(8n)(0x5FEn)
+        if (v !== unsafeVec(0xFEn)) { throw v }
+        if (length(v) !== 8n) { throw 'len' }
+        const u = lsb.front(8n)(v)
+        if (u !== 0xFEn) { throw v }
+    },
+    appendBack: () => {
+        const vec8 = vec(8n)
+        const a = vec8(0x345n)
+        const b = vec8(0x789n)
+        const ab = lsb.concat(a)(b)
+        if (ab !== unsafeVec(0x8945n)) { throw ab }
+        const s = length(ab)
+        if (s !== 16n) { throw `appendBack: ${s}` }
+    },
+    removeBack: () => {
+        const v = vec(17n)(0x12345n)
+        if (v !== unsafeVec(0x12345n)) {
+            throw (asBase(v) as bigint).toString(16)
+        }
+        const r = lsb.removeFront(9n)(v)
+        if (r !== unsafeVec(0x91n)) { throw (asBase(r) as bigint).toString(16) }
     },
     uint: [
         // 0
@@ -194,7 +288,7 @@ export default {
             () => c(2n)(-0b111n)(0b11n), //< overflow
         ]
     },
-    concat: () => {
+    concat2: () => {
         const c = (a: Vec) => (b: Vec) => (abx: Vec) => {
             const ab = msb.concat(a)(b)
             const abLen = length(ab)
