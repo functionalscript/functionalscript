@@ -1,4 +1,4 @@
-import * as operator from '../../types/function/operator/module.f.ts'
+import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.ts'
 import * as range_map from '../../types/range_map/module.f.ts'
 const { merge, fromRange, get } = range_map
 import * as list from '../../types/list/module.f.ts'
@@ -154,7 +154,7 @@ export type JsToken = |
 export type TokenMetadata = {
     readonly path: string,
     readonly line: number,
-    readonly column: number,    
+    readonly column: number,
 }
 
 export type JsTokenWithMetadata = {readonly token: JsToken,  readonly metadata: TokenMetadata}
@@ -336,7 +336,7 @@ const rangeMapMerge
     : <T>(def:  CreateToToken<T>) => range_map.RangeMerge<CreateToToken<T>>
     = def => merge({
         union: union(def),
-        equal: operator.strictEqual,
+        equal: strictEqual,
         def,
     })
 
@@ -345,7 +345,7 @@ const rangeFunc
     = r => f => def => fromRange(def)(r)(f)
 
 const scanRangeOp
-    : <T>(def:  CreateToToken<T>) => (operator.Scan<RangeFunc<T>, RangeMapToToken<T>>)
+    : <T>(def:  CreateToToken<T>) => (Scan<RangeFunc<T>, RangeMapToToken<T>>)
     = def => f => [f(def), scanRangeOp(def)]
 
 const reduceRangeMap
@@ -356,7 +356,7 @@ const reduceRangeMap
     }
 
 const scanRangeSetOp
-    : <T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (operator.Scan<_range.Range, RangeMapToToken<T>>)
+    : <T>(def:  CreateToToken<T>) => (f:  CreateToToken<T>) => (Scan<_range.Range, RangeMapToToken<T>>)
     = def => f => r => [fromRange(def)(r)(f), scanRangeSetOp(def)(f)]
 
 const rangeSetFunc
@@ -833,7 +833,7 @@ const eofStateOp
     = create((state: EofState) => () => [[{ kind: 'error', message: 'eof' }], state])([])
 
 const tokenizeCharCodeOp
-    :operator.StateScan<number, TokenizerState, list.List<JsToken>>
+    : StateScan<number, TokenizerState, list.List<JsToken>>
     = state => {
         switch (state.kind) {
             case 'initial': return initialStateOp(state)
@@ -882,7 +882,7 @@ const tokenizeEofOp
     }
 
 const tokenizeOp
-    : operator.StateScan<CharCodeOrEof, TokenizerState, list.List<JsToken>>
+    : StateScan<CharCodeOrEof, TokenizerState, list.List<JsToken>>
     = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
 
 const mapTokenWithMetadata
@@ -890,11 +890,11 @@ const mapTokenWithMetadata
     = metadata => token => { return{ token, metadata }}
 
 const tokenizeWithPositionOp
-    : operator.StateScan<CharCodeOrEof, TokenizerStateWithMetadata, list.List<JsTokenWithMetadata>>
+    : StateScan<CharCodeOrEof, TokenizerStateWithMetadata, list.List<JsTokenWithMetadata>>
     = ({state, metadata}) => input => {
         if (input == null)
         {
-            const newState = tokenizeEofOp(state) 
+            const newState = tokenizeEofOp(state)
             return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata}]
         }
 
@@ -902,7 +902,7 @@ const tokenizeWithPositionOp
         const isNewLine = input == lf
         const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 1 : metadata.column + 1}
         return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata: newMetadata}]
-    } 
+    }
 
 const scanTokenize = stateScan(tokenizeWithPositionOp)
 
