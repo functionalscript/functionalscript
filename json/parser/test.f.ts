@@ -3,11 +3,11 @@ import { tokenize, type JsonToken } from '../tokenizer/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { stringify as jsonStringify } from '../module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import * as encoding from '../../text/utf16/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly JsonToken[]
-    = s => toArray(tokenize(encoding.stringToList(s)))
+    = s => toArray(tokenize(stringToList(s)))
 
 const stringify = jsonStringify(sort)
 
