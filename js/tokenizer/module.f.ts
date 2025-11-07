@@ -1,6 +1,5 @@
 import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.ts'
-import * as range_map from '../../types/range_map/module.f.ts'
-const { merge, fromRange, get } = range_map
+import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.ts'
 import * as list from '../../types/list/module.f.ts'
 import * as map from '../../types/ordered_map/module.f.ts'
 const { at } = map
@@ -318,7 +317,7 @@ type CreateToToken<T> = (state: T) => ToToken
 
 type RangeFunc<T> = (def: CreateToToken<T>) => (RangeMapToToken<T>)
 
-type RangeMapToToken<T> = range_map.RangeMapArray<CreateToToken<T>>
+type RangeMapToToken<T> = RangeMapArray<CreateToToken<T>>
 
 const appendChar
     : (old: string) => (input: number) => string
@@ -333,7 +332,7 @@ const union
 }
 
 const rangeMapMerge
-    : <T>(def:  CreateToToken<T>) => range_map.RangeMerge<CreateToToken<T>>
+    : <T>(def:  CreateToToken<T>) => RangeMerge<CreateToToken<T>>
     = def => merge({
         union: union(def),
         equal: strictEqual,
