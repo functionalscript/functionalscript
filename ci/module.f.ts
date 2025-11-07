@@ -194,9 +194,6 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         : v === 'windows' ?
             customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
-            // install({ run: 'sudo dpkg --add-architecture i386'}),
-            // install({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' }),
-            // install({ run: 'sudo apt-get update && sudo apt-get install -y g++-multilib libc6-dev-i386' }),
             install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
             ...customTarget('i686-unknown-linux-gnu'),
         ]
