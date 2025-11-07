@@ -1,6 +1,6 @@
 import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsbXor, msbXor, lsb, msb } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsbXor, msbXor, lsb, msb, type BitOrder } from './module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -20,6 +20,25 @@ const assertEq = <T>(a: T, b: T) => {
 const assertEq2 = <T>([a0, a1]: readonly[bigint, T], [b0, b1]: readonly[bigint, T]) => {
     assertEq(a0, b0)
     assertEq(a1, b1)
+}
+
+const frontTest = (e: BitOrder) => (r0: bigint) => (r1: bigint) => () => {
+    const vector = vec(8n)(0xF5n) // 0xF5n
+    if (vector !== unsafeVec(0xF5n)) { throw vector }
+    const result = e.front(4n)(vector)
+    if (result !== r0) { throw result }
+    const result2 = e.front(16n)(vector)
+    if (result2 !== r1) { throw result2 }
+}
+
+const popFront = (e: BitOrder) => ([r00, r01]: readonly [bigint, bigint]) => ([r10, r11]: readonly [bigint, bigint]) => () => {
+    const vector = vec(8n)(0xF5n) // 0xF5n
+    const [result, rest] = e.popFront(4n)(vector)
+    if (result !== r00) { throw result }
+    if (rest !== unsafeVec(r01)) { throw rest }
+    const [result2, rest2] = e.popFront(16n)(vector)
+    if (result2 !== r10) { throw result2 }
+    if (rest2 !== unsafeVec(r11)) { throw rest2 }
 }
 
 export default {
@@ -72,6 +91,14 @@ export default {
             assertEq(lsb.concat(a)(b), asNominal(0x8945n))
             assertEq(msb.concat(a)(b), asNominal(-0xC589n))
         }
+    },
+    front: {
+        lsbf: frontTest(lsb)(5n)(0xF5n),
+        msbf: frontTest(msb)(0xFn)(0xF500n),
+    },
+    popFront: {
+        lsbm: popFront(lsb)([5n, 0xFn])([0xF5n, 0n]),
+        msbm: popFront(msb)([0xFn, -0xDn])([0xF500n, 0n]),
     },
     length: () => {
         const len = length(empty)
