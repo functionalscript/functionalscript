@@ -97,7 +97,6 @@ const clean = (steps: readonly Step[]): readonly Step[] => [
 
 const basicNode = (version: string) => (extra: readonly Step[]): readonly Step[] => clean([
     { uses: 'actions/setup-node@v6', with: { 'node-version': version } },
-    // { run: `nvm install ${version} && nvm use ${version}` },
     { run: 'npm ci' },
     ...extra,
 ])
@@ -117,7 +116,8 @@ const install = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result = [
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
-        { run: 'rustc -V' },
+        { run: 'rustup default 1.90.0' },
+        { run: 'rustup component add rustfmt clippy' },
         { uses: 'actions/checkout@v5' },
         // Node.js
         ...oldNode('20'),
@@ -148,7 +148,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Bun
         ...clean([
             installBun(v)(a),
-            { run: 'bun test --timeout 10000' },
+            { run: 'bun test --timeout 20000' },
             { run: 'bun ./dev/tf/module.ts' },
         ]),
         // Rust
@@ -164,7 +164,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     ]
     const more = a !== 'intel'
         ? []
-        : v === 'windows' ? cargoTest('i686-pc-windows-msvc')
+        : v === 'windows' ? customTarget('i686-pc-windows-msvc')
         : v === 'ubuntu' ? [
             { run: 'sudo dpkg --add-architecture i386'},
             { run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386' },

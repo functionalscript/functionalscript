@@ -269,10 +269,20 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 91. Create a separate nominal type for UTF-8.
 - [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
 - [X] 93. Reduce a number of CI jobs.
-- [ ] 94. Add browser testing in CI, for example, using Playwright.
+- [X] 94. Add browser testing in CI, for example, using Playwright.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
+- [ ] 98. Use a sign for BitVec:
+  ```
+  - 0n => []
+  - 1n => [1]
+  - -1n => [0]
+  - 0b10n => [10]
+  - 0b11n => [11]
+  - -0b10n => [01]
+  - -0b11n => [00]
+  ```
 
 ## Language Specification
 
