@@ -14,6 +14,42 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "denoland/setup-deno@v2",
+          "with": {
+            "deno-version": "2"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "sudo dpkg --add-architecture i386"
+        },
+        {
+          "run": "sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386"
+        },
+        {
+          "run": "rustup target add i686-unknown-linux-gnu"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -113,12 +149,6 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2"
-          }
-        },
-        {
           "run": "deno install"
         },
         {
@@ -132,9 +162,6 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "uses": "oven-sh/setup-bun@v1"
         },
         {
           "run": "bun test --timeout 20000"
@@ -158,15 +185,6 @@
           "run": "cargo test --release"
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1"
         },
         {
@@ -177,9 +195,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
@@ -194,9 +209,6 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -209,9 +221,6 @@
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-wasip1-threads"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1-threads"
         },
         {
@@ -222,15 +231,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "sudo dpkg --add-architecture i386"
-        },
-        {
-          "run": "sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386"
-        },
-        {
-          "run": "rustup target add i686-unknown-linux-gnu"
         },
         {
           "run": "cargo test --target i686-unknown-linux-gnu"
@@ -250,6 +250,33 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "denoland/setup-deno@v2",
+          "with": {
+            "deno-version": "2"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -349,12 +376,6 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2"
-          }
-        },
-        {
           "run": "deno install"
         },
         {
@@ -368,9 +389,6 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "uses": "oven-sh/setup-bun@v1"
         },
         {
           "run": "bun test --timeout 20000"
@@ -394,15 +412,6 @@
           "run": "cargo test --release"
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1"
         },
         {
@@ -413,9 +422,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
@@ -430,9 +436,6 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -443,9 +446,6 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
@@ -471,6 +471,33 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "denoland/setup-deno@v2",
+          "with": {
+            "deno-version": "2"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -570,12 +597,6 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2"
-          }
-        },
-        {
           "run": "deno install"
         },
         {
@@ -589,9 +610,6 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "uses": "oven-sh/setup-bun@v1"
         },
         {
           "run": "bun test --timeout 20000"
@@ -615,15 +633,6 @@
           "run": "cargo test --release"
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1"
         },
         {
@@ -634,9 +643,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
@@ -651,9 +657,6 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -664,9 +667,6 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
@@ -692,6 +692,33 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "denoland/setup-deno@v2",
+          "with": {
+            "deno-version": "2"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -791,12 +818,6 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2"
-          }
-        },
-        {
           "run": "deno install"
         },
         {
@@ -810,9 +831,6 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "uses": "oven-sh/setup-bun@v1"
         },
         {
           "run": "bun test --timeout 20000"
@@ -836,15 +854,6 @@
           "run": "cargo test --release"
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1"
         },
         {
@@ -855,9 +864,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
@@ -872,9 +878,6 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -885,9 +888,6 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
@@ -913,6 +913,36 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "denoland/setup-deno@v2",
+          "with": {
+            "deno-version": "2"
+          }
+        },
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
+          "run": "rustup target add i686-pc-windows-msvc"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -1012,12 +1042,6 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "uses": "denoland/setup-deno@v2",
-          "with": {
-            "deno-version": "2"
-          }
-        },
-        {
           "run": "deno install"
         },
         {
@@ -1031,9 +1055,6 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "uses": "oven-sh/setup-bun@v1"
         },
         {
           "run": "bun test --timeout 20000"
@@ -1057,15 +1078,6 @@
           "run": "cargo test --release"
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1"
         },
         {
@@ -1076,9 +1088,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
@@ -1093,9 +1102,6 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -1108,9 +1114,6 @@
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-wasip1-threads"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1-threads"
         },
         {
@@ -1121,9 +1124,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add i686-pc-windows-msvc"
         },
         {
           "run": "cargo test --target i686-pc-windows-msvc"
@@ -1143,6 +1143,30 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
+        },
+        {
+          "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
+        },
+        {
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+        },
+        {
+          "uses": "wasmerio/setup-wasmer@v1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1"
+        },
+        {
+          "run": "rustup target add wasm32-wasip2"
+        },
+        {
+          "run": "rustup target add wasm32-unknown-unknown"
+        },
+        {
+          "run": "rustup target add wasm32-wasip1-threads"
+        },
+        {
           "uses": "actions/checkout@v5"
         },
         {
@@ -1242,9 +1266,6 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -1258,9 +1279,6 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
-          "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
           "run": "bun test --timeout 20000"
@@ -1284,15 +1302,6 @@
           "run": "cargo test --release"
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
-        },
-        {
-          "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1"
-        },
-        {
           "run": "cargo test --target wasm32-wasip1"
         },
         {
@@ -1303,9 +1312,6 @@
         },
         {
           "run": "cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip2"
         },
         {
           "run": "cargo test --target wasm32-wasip2"
@@ -1320,9 +1326,6 @@
           "run": "cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "rustup target add wasm32-unknown-unknown"
-        },
-        {
           "run": "cargo test --target wasm32-unknown-unknown"
         },
         {
@@ -1333,9 +1336,6 @@
         },
         {
           "run": "cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
-        },
-        {
-          "run": "rustup target add wasm32-wasip1-threads"
         },
         {
           "run": "cargo test --target wasm32-wasip1-threads"
