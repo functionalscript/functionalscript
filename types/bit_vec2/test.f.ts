@@ -41,6 +41,15 @@ const popFront = (e: BitOrder) => ([r00, r01]: readonly [bigint, bigint]) => ([r
     if (rest2 !== unsafeVec(r11)) { throw rest2 }
 }
 
+const removeFront = (e: BitOrder) => (r0: Vec) => (r1: Vec) => () => {
+    const v = vec(16n)(0x3456n) // -0xB456n
+    if (v !== unsafeVec(-0xB456n)) { throw v }
+    const r = e.removeFront(4n)(v)
+    if (r !== r0) { throw r }
+    const r2 = e.removeFront(24n)(v)
+    if (r2 !== r1) { throw r2 }
+}
+
 export default {
     examples: {
         vec: () => {
@@ -78,10 +87,10 @@ export default {
             const vector = vec(8n)(0xF5n) // 0xF5n
 
             assertEq2(lsb.popFront(4n)(vector), [5n, asNominal(0xFn)])
-            assertEq2(lsb.popFront(16n)(vector), [0xF5n, asNominal(0n)])
+            assertEq2(lsb.popFront(16n)(vector), [0xF5n, empty])
 
             assertEq2(msb.popFront(4n)(vector), [0xFn, asNominal(-0xDn)])
-            assertEq2(msb.popFront(16n)(vector), [0xF500n, asNominal(0n)])
+            assertEq2(msb.popFront(16n)(vector), [0xF500n, empty])
         },
         concat: () => {
             const u8 = vec(8n)
@@ -99,6 +108,10 @@ export default {
     popFront: {
         lsbm: popFront(lsb)([5n, 0xFn])([0xF5n, 0n]),
         msbm: popFront(msb)([0xFn, -0xDn])([0xF500n, 0n]),
+    },
+    removeFront: {
+        lsbm: removeFront(lsb)(asNominal(-0xB45n))(empty),
+        msbm: removeFront(msb)(asNominal(-0xC56n))(empty),
     },
     length: () => {
         const len = length(empty)
