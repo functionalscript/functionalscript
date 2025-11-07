@@ -1,5 +1,4 @@
-import * as list from '../types/list/module.f.ts'
-const { next, flat, map } = list
+import { next, flat, map, type List } from '../types/list/module.f.ts'
 import * as string  from '../types/string/module.f.ts'
 const { concat } = string
 import * as object from '../types/object/module.f.ts'
@@ -21,10 +20,10 @@ export type Primitive = boolean | string | number | null
 export type Unknown = Primitive | Object | Array
 
 export const setProperty
-    : (value: Unknown) => (path: list.List<string>) => (src: Unknown) => Unknown
+    : (value: Unknown) => (path: List<string>) => (src: Unknown) => Unknown
     = value => {
         const f
-            : (path: list.List<string>) => (src: Unknown) => Unknown
+            : (path: List<string>) => (src: Unknown) => Unknown
             = path => src => {
             const result = next(path)
             if (result === null) { return value }
@@ -39,15 +38,15 @@ const colon = [':']
 
 export type Entry = object.Entry<Unknown>
 
-type Entries = list.List<Entry>
+type Entries = List<Entry>
 
 type MapEntries = (entries: Entries) => Entries
 
 export const serialize
-    : (mapEntries: MapEntries) => (value: Unknown) => list.List<string>
+    : (mapEntries: MapEntries) => (value: Unknown) => List<string>
     = sort => {
         const propertySerialize
-            : (kv: readonly[string, Unknown]) => list.List<string>
+            : (kv: readonly[string, Unknown]) => List<string>
             = ([k, v]) => flat([
             stringSerialize(k),
             colon,
@@ -55,14 +54,14 @@ export const serialize
         ])
         const mapPropertySerialize = map(propertySerialize)
         const objectSerialize
-            : (object: Object) => list.List<string>
+            : (object: Object) => List<string>
             = fn(entries)
             .then(sort)
             .then(mapPropertySerialize)
             .then(objectWrap)
             .result
         const f
-            : (value: Unknown) => list.List<string>
+            : (value: Unknown) => List<string>
             = value => {
             switch (typeof value) {
                 case 'boolean': { return boolSerialize(value) }
