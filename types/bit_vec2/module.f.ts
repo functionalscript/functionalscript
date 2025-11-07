@@ -128,12 +128,92 @@ export const msbXor: Reduce = op(msbNorm)(xor)
  * https://en.wikipedia.org/wiki/Bit_numbering
  */
 export type BitOrder = {
+    /**
+     * Retrieves the first unsigned integer of the specified length from the given vector.
+     *
+     * @param len - The number of bits to read from the start of the vector.
+     * @returns A function that takes a vector and returns the extracted unsigned integer.
+     *
+     * @example
+     *
+     * ```js
+     * const vector = vec(8n)(0xF5n)
+     *
+     * const resultL0 = lsb.front(4n)(vector)  // 5n
+     * const resultL1 = lsb.front(16n)(vector) // 0xF5n
+     *
+     * const resultM0 = msb.front(4n)(vector)  // 0xFn
+     * const resultM1 = msb.front(16n)(vector) // 0xF500n
+     * ```
+     */
     readonly front: (len: bigint) => (v: Vec) => bigint
+    /**
+     * Removes a specified number of bits from the start of the given vector.
+     *
+     * @param len - The number of bits to remove from the vector.
+     * @returns A function that takes a vector and returns the remaining vector.
+     *
+     * @example
+     *
+     * ```js
+     * const v = vec(16n)(0x3456n)
+     *
+     * const rL0 = lsb.removeFront(4n)(v)  // uint(rL0) is 0x345n
+     * const rL1 = lsb.removeFront(24n)(v) // rL1 === empty
+     *
+     * const rM0 = msb.removeFront(4n)(v)  // uint(rM0) is 0x456n
+     * const rM1 = msb.removeFront(24n)(v) // rM1 === empty
+     * ```
+     */
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
+    /**
+     * Removes a specified number of bits from the start of the vector and returns
+     * the removed bits and the remaining vector.
+     *
+     * @param len - The number of bits to remove from the vector.
+     * @returns A function that takes a vector and returns
+     * a tuple containing the removed bits as an unsigned integer and the remaining vector.
+     *
+     * @example
+     *
+     * ```js
+     * const vector = vec(8n)(0xF5n)
+     *
+     * const [uL0, rL0] = lsb.popFront(4n)(vector)  // [5n, uint(rL0) is 0xFn]
+     * const [uL1, rL1] = lsb.popFront(16n)(vector) // [0xF5n, rL1 === empty]
+     *
+     * const [uM0, rM0] = msb.popFront(4n)(vector)  // [0xFn, uint(rM0) is 0x5n]
+     * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, rM1 === empty]
+     * ```
+     */
     readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
+    /**
+     * Concatenates two vectors.
+     *
+     * @param a - The first vector.
+     * @returns A function that takes a second vector and returns the concatenated vector.
+     *
+     * @example
+     *
+     * ```js
+     * const u8 = vec(8n)
+     * const a = u8(0x45n)
+     * const b = u8(0x89n)
+     *
+     * const abL = lsb.concat(a)(b) // uint(abL) is 0x8945n
+     * const abM = msb.concat(a)(b) // uint(abM) is 0x4589n
+     * ```
+     */
     readonly concat: (a: Vec) => (b: Vec) => Vec
 }
 
+/**
+ * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering#LSb_0_bit_numbering
+ *
+ * Usually associated with Little-Endian (LE) byte order.
+ */
 export const lsb: BitOrder = {
     front: len => {
         const m = mask(len)
@@ -159,6 +239,13 @@ export const lsb: BitOrder = {
     }
 }
 
+/**
+ * Implements operations for handling vectors in a most-significant-bit (MSb) first order.
+ *
+ * https://en.wikipedia.org/wiki/Bit_numbering#MSb_0_bit_numbering
+ *
+ * Usually associated with Big-Endian (BE) byte order.
+ */
 export const msb: BitOrder = {
     front: len => {
         const m = mask(len)
