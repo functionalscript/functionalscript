@@ -1,7 +1,7 @@
 import { type Unknown } from '../module.f.ts'
 import { type Result, error, ok } from '../../types/result/module.f.ts'
 import { fold, drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'
-import type * as Operator from '../../types/function/operator/module.f.ts'
+import { type Fold } from '../../types/function/operator/module.f.ts'
 import { tokenize } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
@@ -62,7 +62,7 @@ const parseModule
 }
 
 const foldNextModuleOp
-    : Operator.Fold<string, ParseContext>
+    : Fold<string, ParseContext>
     = path => context => {
         if (context.error !== null) {
             return context
