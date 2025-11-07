@@ -10,8 +10,8 @@ const tokenizeString
     = s => toArray(map(withoutMetada)(tokenize(encoding.stringToList(s))('')))
 
 const tokenizeStringWithMetadata
-        : (s: string) => readonly DjsTokenWithMetadata[]
-        = s => toArray(tokenize(encoding.stringToList(s))(''))
+    : (s: string) => readonly DjsTokenWithMetadata[]
+    = s => toArray(tokenize(encoding.stringToList(s))(''))
 
 const stringify = stringifyAsTree(sort)
 
