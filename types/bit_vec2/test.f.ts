@@ -147,6 +147,13 @@ export default {
         const len = length(empty)
         if (len !== 0n) { throw len }
     },
+    bitset: () => {
+        const v = vec(8n)(0x5FEn)
+        if (v !== unsafeVec(0xFEn)) { throw v }
+        if (length(v) !== 8n) { throw 'len' }
+        const u = lsb.front(8n)(v)
+        if (u !== 0xFEn) { throw v }
+    },
     uint: [
         // 0
         () => {
