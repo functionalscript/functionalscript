@@ -22,7 +22,7 @@ import { flip } from '../../types/function/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 
-const { concat } = msb
+const { concat, xor } = msb
 
 /**
  * Outer padding.
@@ -52,9 +52,6 @@ export const hmac = (hashFunc: Sha2): (k: Vec) => (m: Vec) => Vec => {
     const ip = p(iPad)
     const op = p(oPad)
     const c = computeSync(hashFunc)
-    const vbl = vec(blockLength)
-    // a and b should have the same size
-    const xor = (a: Vec) => (b: Vec) => vbl(uint(a) ^ uint(b))
     return k => {
         const k1 = length(k) > blockLength ? c([k]) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
