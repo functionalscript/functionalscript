@@ -1,7 +1,6 @@
 import { type StateScan } from '../../types/function/operator/module.f.ts'
 import { concat, empty, flat, stateScan, type List } from '../../types/list/module.f.ts'
-import * as bf from '../../types/bigfloat/module.f.ts'
-const { multiply } = bf
+import { multiply } from '../../types/bigfloat/module.f.ts'
 import * as jsTokenizer from '../../js/tokenizer/module.f.ts'
 
 export type JsonToken = |
