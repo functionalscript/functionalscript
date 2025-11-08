@@ -8,12 +8,6 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
-          "run": "rustup default 1.90.0"
-        },
-        {
-          "run": "rustup component add rustfmt clippy"
-        },
-        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -42,12 +36,6 @@
         },
         {
           "uses": "oven-sh/setup-bun@v1"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
-          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -187,12 +175,6 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
-          "run": "rustup default 1.90.0"
-        },
-        {
-          "run": "rustup component add rustfmt clippy"
-        },
-        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -218,12 +200,6 @@
         },
         {
           "uses": "oven-sh/setup-bun@v1"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
-          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -357,12 +333,6 @@
       "runs-on": "macos-15-intel",
       "steps": [
         {
-          "run": "rustup default 1.90.0"
-        },
-        {
-          "run": "rustup component add rustfmt clippy"
-        },
-        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -388,12 +358,6 @@
         },
         {
           "uses": "oven-sh/setup-bun@v1"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
-          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -527,12 +491,6 @@
       "runs-on": "macos-latest",
       "steps": [
         {
-          "run": "rustup default 1.90.0"
-        },
-        {
-          "run": "rustup component add rustfmt clippy"
-        },
-        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -558,12 +516,6 @@
         },
         {
           "uses": "oven-sh/setup-bun@v1"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
-          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -697,12 +649,6 @@
       "runs-on": "windows-latest",
       "steps": [
         {
-          "run": "rustup default 1.90.0"
-        },
-        {
-          "run": "rustup component add rustfmt clippy"
-        },
-        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -728,12 +674,6 @@
         },
         {
           "uses": "oven-sh/setup-bun@v1"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-pc-windows-msvc"
-          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -873,12 +813,6 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "run": "rustup default 1.90.0"
-        },
-        {
-          "run": "rustup component add rustfmt clippy"
-        },
-        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -901,12 +835,6 @@
         },
         {
           "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
-          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -1040,6 +968,12 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": ""
+          }
+        },
+        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "20"
@@ -1060,6 +994,12 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": ""
+          }
+        },
+        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "22"
@@ -1079,6 +1019,12 @@
     "node24": {
       "runs-on": "ubuntu-latest",
       "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": ""
+          }
+        },
         {
           "uses": "actions/setup-node@v6",
           "with": {
