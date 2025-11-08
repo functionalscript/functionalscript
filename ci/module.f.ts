@@ -165,9 +165,28 @@ const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
+        // Rust
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
         install({ run: 'rustup default 1.90.0' }),
         install({ run: 'rustup component add rustfmt clippy' }),
+        test({ run: 'cargo fmt -- --check' }),
+        test({ run: 'cargo clippy -- -D warnings' }),
+        ...cargoTest(),
+        install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1' }),
+        install({ uses: 'wasmerio/setup-wasmer@v1' }),
+        ...wasmTarget('wasm32-wasip1'),
+        ...wasmTarget('wasm32-wasip2'),
+        ...wasmTarget('wasm32-unknown-unknown'),
+        ...wasmTarget('wasm32-wasip1-threads'),
+        ...(a !== 'intel' ? [] :
+            v === 'windows' ?
+                customTarget('i686-pc-windows-msvc') :
+            v === 'ubuntu' ? [
+                install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
+                ...customTarget('i686-unknown-linux-gnu'),
+            ]:
+            []
+        ),
         // Node.js
         ...node('25')([
             // TypeScript Preview
@@ -198,27 +217,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             test({ run: 'bun test --timeout 20000' }),
             test({ run: 'bun ./dev/tf/module.ts' }),
         ]),
-        // Rust
-        test({ run: 'cargo fmt -- --check' }),
-        test({ run: 'cargo clippy -- -D warnings' }),
-        ...cargoTest(),
-        install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1' }),
-        install({ uses: 'wasmerio/setup-wasmer@v1' }),
-        ...wasmTarget('wasm32-wasip1'),
-        ...wasmTarget('wasm32-wasip2'),
-        ...wasmTarget('wasm32-unknown-unknown'),
-        ...wasmTarget('wasm32-wasip1-threads'),
     ]
-    const more =
-        a !== 'intel' ? [] :
-        v === 'windows' ?
-            customTarget('i686-pc-windows-msvc') :
-        v === 'ubuntu' ? [
-            install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
-            ...customTarget('i686-unknown-linux-gnu'),
-        ]:
-        []
-    return toSteps([...result, ...more])
+    return toSteps(result)
 }
 
 const jobs = {
