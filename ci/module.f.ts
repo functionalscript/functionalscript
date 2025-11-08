@@ -136,6 +136,8 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(rust ? [{
+            // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
+            // See https://github.com/sergey-shandar/wasmtime-crash
             uses: 'dtolnay/rust-toolchain@1.90.0',
             with: {
                 components: 'rustfmt,clippy',
@@ -148,7 +150,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodes = ['20', '22', '24']
+const nodes = ['20', '22', '25']
 
 const nodeTest = (v: string) => {
     switch (v) {
@@ -173,10 +175,6 @@ const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
         // Rust
-        // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
-        // See https://github.com/sergey-shandar/wasmtime-crash
-        // install({ run: 'rustup default 1.90.0' }),
-        // install({ run: 'rustup component add rustfmt clippy' }),
         test({ run: 'cargo fmt -- --check' }),
         test({ run: 'cargo clippy -- -D warnings' }),
         ...cargoTest(),
@@ -196,7 +194,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             []
         ),
         // Node.js
-        ...node('25')([
+        ...node('24')([
             // TypeScript Preview
             test({ run: 'npx tsgo' }),
             // Playwright
