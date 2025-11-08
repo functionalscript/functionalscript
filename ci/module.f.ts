@@ -135,13 +135,13 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const rust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(' ')
     return [
-        ...(rust ? [] : [{
+        ...(rust ? [{
             uses: 'dtolnay/rust-toolchain@1.90.0',
             with: {
                 targets
             }
             // run: `rustup target add ${targets}`
-        }]),
+        }] : []),
         ...filter('install'),
         { uses: 'actions/checkout@v5' },
         ...filter('test'),
