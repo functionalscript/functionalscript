@@ -8,6 +8,12 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
+          }
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -175,6 +181,12 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -332,6 +344,12 @@
     "macos-intel": {
       "runs-on": "macos-15-intel",
       "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
+        },
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
@@ -491,6 +509,12 @@
       "runs-on": "macos-latest",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -648,6 +672,12 @@
     "windows-intel": {
       "runs-on": "windows-latest",
       "steps": [
+        {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-pc-windows-msvc"
+          }
+        },
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
@@ -813,6 +843,12 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
+        },
+        {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1"
         },
         {
@@ -968,12 +1004,6 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": ""
-          }
-        },
-        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "20"
@@ -994,12 +1024,6 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": ""
-          }
-        },
-        {
           "uses": "actions/setup-node@v6",
           "with": {
             "node-version": "22"
@@ -1019,12 +1043,6 @@
     "node24": {
       "runs-on": "ubuntu-latest",
       "steps": [
-        {
-          "uses": "dtolnay/rust-toolchain@1.90.0",
-          "with": {
-            "targets": ""
-          }
-        },
         {
           "uses": "actions/setup-node@v6",
           "with": {
