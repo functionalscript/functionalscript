@@ -56,7 +56,7 @@
           "run": "npx tsgo"
         },
         {
-          "run": "npx playwright install --with-deps"
+          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -226,7 +226,7 @@
           "run": "npx tsgo"
         },
         {
-          "run": "npx playwright install --with-deps"
+          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -390,7 +390,7 @@
           "run": "npx tsgo"
         },
         {
-          "run": "npx playwright install --with-deps"
+          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -554,7 +554,7 @@
           "run": "npx tsgo"
         },
         {
-          "run": "npx playwright install --with-deps"
+          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -718,7 +718,7 @@
           "run": "npx tsgo"
         },
         {
-          "run": "npx playwright install --with-deps"
+          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -885,7 +885,7 @@
           "run": "npx tsgo"
         },
         {
-          "run": "npx playwright install --with-deps"
+          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
