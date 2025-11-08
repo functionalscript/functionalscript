@@ -273,7 +273,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
-- [ ] 98. Use a sign for BitVec:
+- [X] 98. Use a sign for BitVec:
   ```
   - 0n => []
   - 1n => [1]
