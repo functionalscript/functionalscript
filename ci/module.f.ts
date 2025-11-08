@@ -155,6 +155,7 @@ const nodeImage = (v: string): Jobs => ({
 const nodes = {
     20: 'run test20',
     22: 'run test22',
+    24: 'test',
 }
 
 const nodeVersions: Jobs = Object.fromEntries(Object.entries(nodes).map(([v, s]) => [
@@ -175,11 +176,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         install({ run: 'rustup default 1.90.0' }),
         install({ run: 'rustup component add rustfmt clippy' }),
         // Node.js
-        ...oldNode('20'),
-
-        ...oldNode('22'),
-        ...node('24')([]),
-        ...node('25')([
+        ...node('24')([
             // TypeScript Preview
             test({ run: 'npx tsgo' }),
             // Playwright
