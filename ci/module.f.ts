@@ -57,8 +57,8 @@ type MetaStep = {
     readonly type: StepType
     readonly step: Step
 } | {
-    readonly type: 'target'
-    readonly target: string
+    readonly type: 'rust'
+    readonly target?: string
 }
 
 const install = (step: Step): MetaStep => ({ type: 'install', step })
@@ -99,7 +99,7 @@ const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
 }
 
 const customTarget = (target: string): readonly MetaStep[] => [
-    { type: 'target', target },
+    { type: 'rust', target },
     ...cargoTest(target)
 ]
 
@@ -132,7 +132,8 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
-    const targets = m.flatMap(v => v.type === 'target' ? [v.target] : []).join(' ')
+    const rust = m.find(v => v.type === 'rust')
+    const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(' ')
     return [
         ...filter('install'),
         ...(targets === '' ? [] : [{ run: `rustup target add ${targets}`}]),
@@ -167,6 +168,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
         // Rust
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
+        // See https://github.com/sergey-shandar/wasmtime-crash
         install({ run: 'rustup default 1.90.0' }),
         install({ run: 'rustup component add rustfmt clippy' }),
         test({ run: 'cargo fmt -- --check' }),
