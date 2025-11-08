@@ -20,6 +20,12 @@
           }
         },
         {
+          "run": "npm install -g playwright"
+        },
+        {
+          "run": "playwright install --with-deps"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -54,9 +60,6 @@
         },
         {
           "run": "npx tsgo"
-        },
-        {
-          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -193,6 +196,12 @@
           }
         },
         {
+          "run": "npm install -g playwright"
+        },
+        {
+          "run": "playwright install --with-deps"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -224,9 +233,6 @@
         },
         {
           "run": "npx tsgo"
-        },
-        {
-          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -357,6 +363,12 @@
           }
         },
         {
+          "run": "npm install -g playwright"
+        },
+        {
+          "run": "playwright install --with-deps"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -388,9 +400,6 @@
         },
         {
           "run": "npx tsgo"
-        },
-        {
-          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -521,6 +530,12 @@
           }
         },
         {
+          "run": "npm install -g playwright"
+        },
+        {
+          "run": "playwright install --with-deps"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -552,9 +567,6 @@
         },
         {
           "run": "npx tsgo"
-        },
-        {
-          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -685,6 +697,12 @@
           }
         },
         {
+          "run": "npm install -g playwright"
+        },
+        {
+          "run": "playwright install --with-deps"
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -716,9 +734,6 @@
         },
         {
           "run": "npx tsgo"
-        },
-        {
-          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"
@@ -855,6 +870,12 @@
           }
         },
         {
+          "run": "npm install -g playwright"
+        },
+        {
+          "run": "playwright install --with-deps"
+        },
+        {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
@@ -883,9 +904,6 @@
         },
         {
           "run": "npx tsgo"
-        },
-        {
-          "run": "playwright install --with-deps"
         },
         {
           "run": "npx playwright test --browser=chromium"

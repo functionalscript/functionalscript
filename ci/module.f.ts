@@ -173,7 +173,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             // TypeScript Preview
             test({ run: 'npx tsgo' }),
             // Playwright
-            test({ run: 'playwright install --with-deps' }),
+            install({ run: 'npm install -g playwright'}),
+            install({ run: 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
                 (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing
