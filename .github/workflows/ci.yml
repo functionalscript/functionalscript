@@ -10,7 +10,8 @@
         {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu"
           }
         },
         {
@@ -183,7 +184,8 @@
         {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
           }
         },
         {
@@ -347,7 +349,8 @@
         {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
           }
         },
         {
@@ -511,7 +514,8 @@
         {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
           }
         },
         {
@@ -675,7 +679,8 @@
         {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-pc-windows-msvc"
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-pc-windows-msvc"
           }
         },
         {
@@ -845,7 +850,8 @@
         {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
-            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+            "components": "rustfmt,clippy",
+            "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
           }
         },
         {

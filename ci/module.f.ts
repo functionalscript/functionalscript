@@ -133,14 +133,14 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     const rust = m.find(v => v.type === 'rust') !== undefined
-    const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(' ')
+    const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(rust ? [{
             uses: 'dtolnay/rust-toolchain@1.90.0',
             with: {
+                components: 'rustfmt,clippy',
                 targets
             }
-            // run: `rustup target add ${targets}`
         }] : []),
         ...filter('install'),
         { uses: 'actions/checkout@v5' },
