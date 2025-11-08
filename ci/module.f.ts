@@ -59,6 +59,9 @@ type MetaStep = {
 } | {
     readonly type: 'rust'
     readonly target?: string
+} | {
+    readonly type: 'apt-get'
+    readonly package: string
 }
 
 const install = (step: Step): MetaStep => ({ type: 'install', step })
@@ -132,9 +135,12 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
+    const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
+
     const rust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
+        ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
         ...(rust ? [{
             // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
             // See https://github.com/sergey-shandar/wasmtime-crash
@@ -188,7 +194,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             v === 'windows' ?
                 customTarget('i686-pc-windows-msvc') :
             v === 'ubuntu' ? [
-                install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
+                { type: 'apt-get', package: 'libc6-dev-i386' } as const,
                 ...customTarget('i686-unknown-linux-gnu'),
             ]:
             []

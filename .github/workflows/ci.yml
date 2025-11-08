@@ -8,6 +8,9 @@
       "runs-on": "ubuntu-latest",
       "steps": [
         {
+          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
+        },
+        {
           "uses": "dtolnay/rust-toolchain@1.90.0",
           "with": {
             "components": "rustfmt,clippy",
@@ -19,9 +22,6 @@
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
-        },
-        {
-          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
         },
         {
           "uses": "actions/setup-node@v6",
