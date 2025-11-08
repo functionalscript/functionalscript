@@ -71,22 +71,22 @@ type Tool = {
     readonly path: string
 }
 
-const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Architecture): MetaStep =>
-    install(v === 'windows' && a === 'arm'
-        ? { run: `irm ${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
-        : def)
+// const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Architecture): MetaStep =>
+//     install(v === 'windows' && a === 'arm'
+//         ? { run: `irm ${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
+//         : def)
 
-const installBun = installOnWindowsArm({
-    def: { uses: 'oven-sh/setup-bun@v1' },
-    name: 'bun',
-    path: 'bun.sh'
-})
+// const installBun = installOnWindowsArm({
+//     def: { uses: 'oven-sh/setup-bun@v1' },
+//     name: 'bun',
+//     path: 'bun.sh'
+// })
 
-const installDeno = installOnWindowsArm({
-    def: { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
-    name: 'deno',
-    path: 'deno.land'
-})
+// const installDeno = installOnWindowsArm({
+//     def: { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
+//     name: 'deno',
+//     path: 'deno.land'
+// })
 
 const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
     const to = target ? ` --target ${target}` : ''
@@ -183,20 +183,6 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             test({ run: 'fst' }),
             test({ run: 'npm uninstall functionalscript -g' }),
         ]),
-        // Deno
-        ...clean([
-            installDeno(v)(a),
-            test({ run: 'deno install' }),
-            test({ run: 'deno task test' }),
-            test({ run: 'deno task fst' }),
-            test({ run: 'deno publish --dry-run' }),
-        ]),
-        // Bun
-        ...clean([
-            installBun(v)(a),
-            test({ run: 'bun test --timeout 20000' }),
-            test({ run: 'bun ./dev/tf/module.ts' }),
-        ]),
         // Rust
         test({ run: 'cargo fmt -- --check' }),
         test({ run: 'cargo clippy -- -D warnings' }),
@@ -229,14 +215,14 @@ const jobs = {
     ]),
     ...nodeVersions,
     'deno': ubuntu([
-        installDeno('ubuntu')('intel'),
+        install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } }),
         test({ run: 'deno install' }),
         test({ run: 'deno task test' }),
         test({ run: 'deno task fst' }),
         test({ run: 'deno publish --dry-run' }),
     ]),
     'bun': ubuntu([
-        installBun('ubuntu')('intel'),
+        install({ uses: 'oven-sh/setup-bun@v1' }),
         test({ run: 'bun test --timeout 20000' }),
         test({ run: 'bun ./dev/tf/module.ts' }),
     ])
