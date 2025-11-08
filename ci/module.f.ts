@@ -132,17 +132,17 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
-    const rust = m.find(v => v.type === 'rust')
+    const rust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(' ')
     return [
-        ...filter('install'),
-        ...(targets === '' ? [] : [{
+        ...(rust ? [] : [{
             uses: 'dtolnay/rust-toolchain@1.90.0',
             with: {
                 targets
             }
             // run: `rustup target add ${targets}`
         }]),
+        ...filter('install'),
         { uses: 'actions/checkout@v5' },
         ...filter('test'),
     ]
@@ -175,8 +175,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Rust
         // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
         // See https://github.com/sergey-shandar/wasmtime-crash
-        install({ run: 'rustup default 1.90.0' }),
-        install({ run: 'rustup component add rustfmt clippy' }),
+        // install({ run: 'rustup default 1.90.0' }),
+        // install({ run: 'rustup component add rustfmt clippy' }),
         test({ run: 'cargo fmt -- --check' }),
         test({ run: 'cargo clippy -- -D warnings' }),
         ...cargoTest(),
