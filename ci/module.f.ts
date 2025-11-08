@@ -143,15 +143,6 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodeImage = (v: string): Jobs => ({
-    [`node${v}`]: {
-        'runs-on': 'ubuntu-latest',
-        steps: toSteps([
-            ...oldNode(v),
-        ])
-    }
-})
-
 const nodes = {
     20: 'run test20',
     22: 'run test22',
