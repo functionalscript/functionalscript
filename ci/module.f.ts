@@ -34,11 +34,13 @@ type Step = {
     }
 }
 
+type Job = {
+    readonly 'runs-on': Image
+    readonly steps: readonly Step[]
+}
+
 type Jobs = {
-    readonly [jobs: string]: {
-        readonly 'runs-on': Image
-        readonly steps: readonly Step[]
-    }
+    readonly [jobs: string]: Job
 }
 
 type GitHubAction = {
@@ -139,23 +141,27 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodes = {
-    20: 'run test20',
-    22: 'run test22',
-    24: 'test',
+const nodes = ['20', '22', '24']
+
+const nodeTest = (v: string) => {
+    switch (v) {
+        case '20': case '22': return `run test${v}`
+        default: return 'test'
+    }
 }
 
-const nodeVersions: Jobs = Object.fromEntries(Object.entries(nodes).map(([v, s]) => [
-    `node${v}`,
-    {
-        'runs-on': 'ubuntu-latest',
-        steps: toSteps([
-            install(installNode(v)),
-            test({ run: 'npm ci' }),
-            test({ run: `npm ${s}`}),
-        ])
-    }
-]))
+const nodeSteps = (v: string) => [
+    install(installNode(v)),
+    test({ run: 'npm ci' }),
+    test({ run: `npm ${nodeTest(v)}`}),
+]
+
+const ubuntu = (ms: readonly MetaStep[]): Job => ({
+    'runs-on': 'ubuntu-latest',
+    steps: toSteps(ms)
+})
+
+const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
@@ -221,7 +227,19 @@ const jobs = {
             steps: steps(v)(a),
         }]))
     ]),
-    ...nodeVersions
+    ...nodeVersions,
+    'deno': ubuntu([
+        installDeno('ubuntu')('intel'),
+        test({ run: 'deno install' }),
+        test({ run: 'deno task test' }),
+        test({ run: 'deno task fst' }),
+        test({ run: 'deno publish --dry-run' }),
+    ]),
+    'bun': ubuntu([
+        installBun('ubuntu')('intel'),
+        test({ run: 'bun test --timeout 20000' }),
+        test({ run: 'bun ./dev/tf/module.ts' }),
+    ])
 }
 
 const gha: GitHubAction = {

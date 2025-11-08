@@ -1005,6 +1005,49 @@
           "run": "npm test"
         }
       ]
+    },
+    "deno": {
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "denoland/setup-deno@v2",
+          "with": {
+            "deno-version": "2"
+          }
+        },
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "run": "deno install"
+        },
+        {
+          "run": "deno task test"
+        },
+        {
+          "run": "deno task fst"
+        },
+        {
+          "run": "deno publish --dry-run"
+        }
+      ]
+    },
+    "bun": {
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "oven-sh/setup-bun@v1"
+        },
+        {
+          "uses": "actions/checkout@v5"
+        },
+        {
+          "run": "bun test --timeout 20000"
+        },
+        {
+          "run": "bun ./dev/tf/module.ts"
+        }
+      ]
     }
   }
 }
