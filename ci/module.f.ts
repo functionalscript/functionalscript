@@ -111,8 +111,11 @@ const clean = (steps: readonly MetaStep[]): readonly MetaStep[] => [
     test({ run: 'git reset --hard HEAD && git clean -fdx' })
 ]
 
+const installNode = (version: string) =>
+    ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
+
 const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
-    test({ uses: 'actions/setup-node@v6', with: { 'node-version': version } }),
+    test(installNode(version)),
     test({ run: 'npm ci' }),
     ...extra,
 ])
@@ -149,10 +152,22 @@ const nodeImage = (v: string): Jobs => ({
     }
 })
 
-const nodeVersions: Jobs = {
-    ...nodeImage('20'),
-    ...nodeImage('22'),
+const nodes = {
+    20: 'run test20',
+    22: 'run test22',
 }
+
+const nodeVersions: Jobs = Object.fromEntries(Object.entries(nodes).map(([v, s]) => [
+    `node${v}`,
+    {
+        'runs-on': 'ubuntu-latest',
+        steps: toSteps([
+            install(installNode(v)),
+            test({ run: 'npm ci' }),
+            test({ run: `npm ${s}`}),
+        ])
+    }
+]))
 
 const steps = (v: Os) => (a: Architecture): readonly Step[] => {
     const result: readonly MetaStep[] = [
