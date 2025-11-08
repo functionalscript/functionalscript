@@ -14,6 +14,12 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -36,12 +42,6 @@
         },
         {
           "uses": "actions/checkout@v5"
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "24"
-          }
         },
         {
           "run": "npm ci"
@@ -83,9 +83,6 @@
           "run": "npm uninstall functionalscript -g"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -98,16 +95,10 @@
           "run": "deno publish --dry-run"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -187,6 +178,12 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -206,12 +203,6 @@
         },
         {
           "uses": "actions/checkout@v5"
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "24"
-          }
         },
         {
           "run": "npm ci"
@@ -253,9 +244,6 @@
           "run": "npm uninstall functionalscript -g"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -268,16 +256,10 @@
           "run": "deno publish --dry-run"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -351,6 +333,12 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -370,12 +358,6 @@
         },
         {
           "uses": "actions/checkout@v5"
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "24"
-          }
         },
         {
           "run": "npm ci"
@@ -417,9 +399,6 @@
           "run": "npm uninstall functionalscript -g"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -432,16 +411,10 @@
           "run": "deno publish --dry-run"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -515,6 +488,12 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -534,12 +513,6 @@
         },
         {
           "uses": "actions/checkout@v5"
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "24"
-          }
         },
         {
           "run": "npm ci"
@@ -581,9 +554,6 @@
           "run": "npm uninstall functionalscript -g"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -596,16 +566,10 @@
           "run": "deno publish --dry-run"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -679,6 +643,12 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "uses": "denoland/setup-deno@v2",
           "with": {
             "deno-version": "2"
@@ -698,12 +668,6 @@
         },
         {
           "uses": "actions/checkout@v5"
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "24"
-          }
         },
         {
           "run": "npm ci"
@@ -745,9 +709,6 @@
           "run": "npm uninstall functionalscript -g"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -760,16 +721,10 @@
           "run": "deno publish --dry-run"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "cargo fmt -- --check"
@@ -849,6 +804,12 @@
           "run": "rustup component add rustfmt clippy"
         },
         {
+          "uses": "actions/setup-node@v6",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
@@ -865,12 +826,6 @@
         },
         {
           "uses": "actions/checkout@v5"
-        },
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "24"
-          }
         },
         {
           "run": "npm ci"
@@ -912,9 +867,6 @@
           "run": "npm uninstall functionalscript -g"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "deno install"
         },
         {
@@ -927,16 +879,10 @@
           "run": "deno publish --dry-run"
         },
         {
-          "run": "git reset --hard HEAD && git clean -fdx"
-        },
-        {
           "run": "bun test --timeout 20000"
         },
         {
           "run": "bun ./dev/tf/module.ts"
-        },
-        {
-          "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
           "run": "cargo fmt -- --check"

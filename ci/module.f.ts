@@ -108,20 +108,16 @@ const wasmTarget = (target: string): readonly MetaStep[] => [
 
 const clean = (steps: readonly MetaStep[]): readonly MetaStep[] => [
     ...steps,
-    test({ run: 'git reset --hard HEAD && git clean -fdx' })
+    // test({ run: 'git reset --hard HEAD && git clean -fdx' })
 ]
 
 const installNode = (version: string) =>
     ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
 
 const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
-    test(installNode(version)),
+    install(installNode(version)),
     test({ run: 'npm ci' }),
     ...extra,
-])
-
-const oldNode = (version: string): readonly MetaStep[] => basicNode(version)([
-    test({ run: `npm run test${version}` }),
 ])
 
 const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
@@ -206,15 +202,15 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...wasmTarget('wasm32-unknown-unknown'),
         ...wasmTarget('wasm32-wasip1-threads'),
     ]
-    const more = a !== 'intel'
-        ? []
-        : v === 'windows' ?
-            customTarget('i686-pc-windows-msvc')
-            : v === 'ubuntu' ? [
-                install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
-                ...customTarget('i686-unknown-linux-gnu'),
-            ]
-                : []
+    const more =
+        a !== 'intel' ? [] :
+        v === 'windows' ?
+            customTarget('i686-pc-windows-msvc') :
+        v === 'ubuntu' ? [
+            install({ run: 'sudo apt-get update && sudo apt-get install -y libc6-dev-i386' }),
+            ...customTarget('i686-unknown-linux-gnu'),
+        ]:
+        []
     return toSteps([...result, ...more])
 }
 
