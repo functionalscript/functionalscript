@@ -17,7 +17,7 @@
     "fsc": "node ./fsc/module.ts",
     "fst": "node ./dev/tf/module.ts",
     "ci-update": "node ./ci/module.ts",
-    "update": "npm run index && npm run ci-update && npm install"
+    "update": "npm install && npm run index && npm run ci-update"
   },
   "engines": {
     "node": ">=20"
@@ -49,7 +49,6 @@
     "@playwright/test": "*",
     "@types/node": "*",
     "@typescript/native-preview": "*",
-    "playwright": "*",
     "typescript": "*"
   }
 }

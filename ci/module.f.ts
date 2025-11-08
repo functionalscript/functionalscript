@@ -169,7 +169,7 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         install({ run: 'rustup default 1.90.0' }),
         install({ run: 'rustup component add rustfmt clippy' }),
         // Node.js
-        ...node('24')([
+        ...node('25')([
             // TypeScript Preview
             test({ run: 'npx tsgo' }),
             // Playwright
