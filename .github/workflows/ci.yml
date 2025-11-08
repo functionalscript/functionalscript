@@ -44,7 +44,10 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-unknown-linux-gnu"
+          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -217,7 +220,10 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -384,7 +390,10 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -551,7 +560,10 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -718,7 +730,10 @@
           "uses": "oven-sh/setup-bun@v1"
         },
         {
-          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-pc-windows-msvc"
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads i686-pc-windows-msvc"
+          }
         },
         {
           "uses": "actions/checkout@v5"
@@ -888,7 +903,10 @@
           "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
-          "run": "rustup target add wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          "uses": "dtolnay/rust-toolchain@1.90.0",
+          "with": {
+            "targets": "wasm32-wasip1 wasm32-wasip2 wasm32-unknown-unknown wasm32-wasip1-threads"
+          }
         },
         {
           "uses": "actions/checkout@v5"
