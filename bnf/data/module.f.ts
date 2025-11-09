@@ -259,25 +259,28 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     return result
 }
 
-const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap] => {
+const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTag] => {
     if (name in map) {
-        return [ruleSet, map]
+        return [ruleSet, map, map[name]]
     }
 
     const rule = ruleSet[name]
 
     if (typeof rule === 'number') {
-        return [ruleSet, { ...map, [name]: undefined }]        
+        return [ruleSet, { ...map, [name]: undefined }, undefined]
+    } else if (rule instanceof Array) {
+        let emptyTag: EmptyTag = true
+        for (const item of rule) {
+            if (emptyTag === true) {
+                const [,newMap,itemEmptyTag] = getEmptyTagMap(ruleSet)(map)(item)
+                map = newMap
+                emptyTag = itemEmptyTag !== undefined ? true : undefined
+            }
+        }
+        return [ruleSet, { ...map, [name]: undefined }, undefined]
+    } else {
+        return todo()
     }
-    //     } else if (rule instanceof Array) {
-    //         let emptyTag: EmptyTag = true
-    //         for (const item of rule) {
-    //             if (emptyTag === true) {
-    //                 const dr = data[0][item]
-    //                 emptyTag = getEmptyTag(dr) !== undefined ? true : undefined
-    //             }
-    //         }
-    //     } else {
     //         const entries = Object.entries(rule)
     //         let emptyTag: EmptyTag = undefined
     //         for (const [tag, item] of entries) {
