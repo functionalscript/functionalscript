@@ -74,7 +74,7 @@ export default {
             const data = toData(stringRule)
             const emptyTags = createEmptyTagMap(data)
             const result = JSON.stringify(emptyTags)
-            if (result !== '{todo}') { throw result }
+            if (result !== '{"0":false,"":false}') { throw result }
         }
     ], 
     variantTest: () => {
