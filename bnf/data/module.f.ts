@@ -34,7 +34,7 @@ type FRuleMap = { readonly [k in string]: FRule }
 
 type EmptyTag = string|true|undefined
 
-type EmptyTagTest = string|boolean
+type EmptyTagEntry = string|boolean
 
 type DispatchRule = {
     readonly emptyTag: EmptyTag,
@@ -54,7 +54,7 @@ type DispatchRuleCollection = {
 
 type DispatchMap = { readonly[id in string]: DispatchRule }
 
-type EmptyTagMap = { readonly[id in string]: EmptyTagTest }
+type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
 export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
 
@@ -261,7 +261,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     return result
 }
 
-const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTagTest] => {
+const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTagEntry] => {
     if (name in map) {
         return [ruleSet, map, map[name]]
     }
@@ -271,7 +271,7 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
     if (typeof rule === 'number') {        
         return [ruleSet, { ...map, [name]: false }, false]
     } else if (rule instanceof Array) {
-        let emptyTag: EmptyTagTest = true
+        let emptyTag: EmptyTagEntry = true
         for (const item of rule) {
             const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
             map = newMap
@@ -282,7 +282,7 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     } else {
         const entries = Object.entries(rule)
-        let emptyTag: EmptyTagTest = false
+        let emptyTag: EmptyTagEntry = false
         for (const [tag, item] of entries) {
             const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
             map = newMap
