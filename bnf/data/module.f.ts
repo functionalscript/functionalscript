@@ -259,7 +259,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     return result
 }
 
-const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTag] => {
+const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTag] => {
     if (name in map) {
         return [ruleSet, map, map[name]]
     }
@@ -272,7 +272,7 @@ const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         let emptyTag: EmptyTag = true
         for (const item of rule) {
             if (emptyTag === true) {
-                const [,newMap,itemEmptyTag] = getEmptyTagMap(ruleSet)(map)(item)
+                const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
                 map = newMap
                 emptyTag = itemEmptyTag !== undefined ? true : undefined
             }
@@ -282,7 +282,7 @@ const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         const entries = Object.entries(rule)
         let emptyTag: EmptyTag = undefined
         for (const [tag, item] of entries) {
-            const [,newMap,itemEmptyTag] = getEmptyTagMap(ruleSet)(map)(item)
+            const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
             map = newMap
             if (itemEmptyTag !== undefined) {
                 emptyTag = tag
@@ -290,6 +290,10 @@ const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         }
         return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     }
+}
+
+export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap => {
+    return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
 export const parserDescent = (fr: FRule): Match => {

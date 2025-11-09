@@ -5,7 +5,7 @@ import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { join0Plus, max, option, range, remove, repeat, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
+import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap } from './module.f.ts'
 
 export default {
     toData: [
@@ -68,6 +68,15 @@ export default {
             if (result !== '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"5":[],"":["0","r"],"r":{"some":"","none":"5"}},"r"]') { throw result }
         }
     ],
+    emptyTags: [
+        () => {
+            const stringRule = 'true'
+            const data = toData(stringRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{todo}') { throw result }
+        }
+    ], 
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
         const result = stringify(sort)(toData(varintRule))
