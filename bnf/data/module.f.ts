@@ -277,20 +277,18 @@ const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
                 emptyTag = itemEmptyTag !== undefined ? true : undefined
             }
         }
-        return [ruleSet, { ...map, [name]: undefined }, undefined]
+        return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     } else {
-        return todo()
+        const entries = Object.entries(rule)
+        let emptyTag: EmptyTag = undefined
+        for (const [tag, item] of entries) {
+            const [,newMap,itemEmptyTag] = getEmptyTagMap(ruleSet)(map)(item)
+            if (itemEmptyTag !== undefined) {
+                emptyTag = tag
+            }
+        }
+        return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     }
-    //         const entries = Object.entries(rule)
-    //         let emptyTag: EmptyTag = undefined
-    //         for (const [tag, item] of entries) {
-    //             const dr = data[0][item]
-    //             if (getEmptyTag(dr) !== undefined) {
-    //                 emptyTag = tag
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 export const parserDescent = (fr: FRule): Match => {
