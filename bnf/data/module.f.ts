@@ -52,6 +52,10 @@ type DispatchRuleCollection = {
 
 type DispatchMap = { readonly[id in string]: DispatchRule }
 
+type EmptyTagMap = { readonly[id in string]: EmptyTag }
+
+export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
+
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
  */
@@ -255,7 +259,36 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     return result
 }
 
-export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
+const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap] => {
+    if (name in map) {
+        return [ruleSet, map]
+    }
+
+    const rule = ruleSet[name]
+
+    if (typeof rule === 'number') {
+        return [ruleSet, { ...map, [name]: undefined }]        
+    }
+    //     } else if (rule instanceof Array) {
+    //         let emptyTag: EmptyTag = true
+    //         for (const item of rule) {
+    //             if (emptyTag === true) {
+    //                 const dr = data[0][item]
+    //                 emptyTag = getEmptyTag(dr) !== undefined ? true : undefined
+    //             }
+    //         }
+    //     } else {
+    //         const entries = Object.entries(rule)
+    //         let emptyTag: EmptyTag = undefined
+    //         for (const [tag, item] of entries) {
+    //             const dr = data[0][item]
+    //             if (getEmptyTag(dr) !== undefined) {
+    //                 emptyTag = tag
+    //             }
+    //         }
+    //     }
+    // }
+}
 
 export const parserDescent = (fr: FRule): Match => {
     const data = toData(fr)
