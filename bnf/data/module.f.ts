@@ -332,8 +332,8 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
     const f: MatchRule = (rule, cp): MatchResult => {
         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
         const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
-        const {emptyTag, rangeMap} = rule      
-        if (cp.length === 0) {            
+        const {emptyTag, rangeMap} = rule
+        if (cp.length === 0) {
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
         const cp0 = cp[0]
