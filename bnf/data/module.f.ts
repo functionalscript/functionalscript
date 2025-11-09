@@ -298,29 +298,29 @@ export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap
     return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
-export const parserDescent = (fr: FRule): Match => {
-    const data = toData(fr)
+// export const parserDescent = (fr: FRule): Match => {
+//     const data = toData(fr)
 
-    const getEmptyTag = (rule: Rule): EmptyTag => {
-        return todo()
-    }
+//     const getEmptyTag = (rule: Rule): EmptyTag => {
+//         return todo()
+//     }
 
-    const f: DescentMatchRule = (r, cp, idx): MatchResult => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
-        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
-        if (idx >= cp.length) {
-            const emptyTag = getEmptyTag(r)
-            return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
-        }
-        return todo()
-    }
+//     const f: DescentMatchRule = (r, cp, idx): MatchResult => {
+//         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
+//         const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
+//         if (idx >= cp.length) {
+//             const emptyTag = getEmptyTag(r)
+//             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
+//         }
+//         return todo()
+//     }
 
-    const match: Match = (name, cp): MatchResult => {
-        return f(data[0][name], cp, 0)
-    }
+//     const match: Match = (name, cp): MatchResult => {
+//         return f(data[0][name], cp, 0)
+//     }
     
-    return match
-}
+//     return match
+// }
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
