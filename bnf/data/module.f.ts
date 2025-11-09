@@ -1,4 +1,3 @@
-import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
