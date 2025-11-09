@@ -16,7 +16,8 @@
     "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
     "fst": "node ./dev/tf/module.ts",
-    "update": "npm run index && npm install"
+    "ci-update": "node ./ci/module.ts",
+    "update": "npm install && npm run index && npm run ci-update"
   },
   "engines": {
     "node": ">=20"
@@ -45,6 +46,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
+    "@playwright/test": "*",
     "@types/node": "*",
     "@typescript/native-preview": "*",
     "typescript": "*"

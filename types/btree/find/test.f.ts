@@ -1,27 +1,27 @@
-import * as _ from './module.f.ts'
-import * as list from '../../list/module.f.ts'
-import * as json from '../../../json/module.f.ts'
+import { type Result, find as btreeFind } from './module.f.ts'
+import { map, toArray } from '../../list/module.f.ts'
+import { stringify, type Unknown } from '../../../json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
-import type * as btree from '../types/module.f.ts'
+import { type TNode } from '../types/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
-import * as s from '../set/module.f.ts'
+import { set as setSet } from '../set/module.f.ts'
 
-const jsonStr = json.stringify(sort)
+const jsonStr = stringify(sort)
 
 const set
-    : (node: btree.TNode<string>) => (value: string) => btree.TNode<string>
-    = node => value => s.set(cmp(value))(() => value)(node)
+    : (node: TNode<string>) => (value: string) => TNode<string>
+    = node => value => setSet(cmp(value))(() => value)(node)
 
 const str
-    : (r: _.Result<json.Unknown>) => string
-    = r => jsonStr(list.toArray(list.map((x: any) => x[0])(r)))
+    : (r: Result<Unknown>) => string
+    = r => jsonStr(toArray(map((x: any) => x[0])(r)))
 
 const find
-    : (i: string) => (m: btree.TNode<string>) => string
-    = i => m => str(_.find(cmp(i))(m))
+    : (i: string) => (m: TNode<string>) => string
+    = i => m => str(btreeFind(cmp(i))(m))
 
 const test = () => {
-    let _map: btree.TNode<string> = ['1']
+    let _map: TNode<string> = ['1']
     for (let i = 2; i <= 10; i++) {
         _map = set(_map)((i * i).toString())
     }

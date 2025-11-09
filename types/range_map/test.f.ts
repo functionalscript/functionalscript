@@ -1,19 +1,19 @@
 import { get, merge, type RangeMapArray, type Properties, type RangeMap, fromRange, rangeMap } from './module.f.ts'
 import { unsafeCmp } from '../function/compare/module.f.ts'
-import * as json from '../../json/module.f.ts'
+import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { union, type SortedSet } from '../sorted_set/module.f.ts'
 import { equal, toArray } from '../list/module.f.ts'
-import * as operator from '../function/operator/module.f.ts'
+import { strictEqual } from '../function/operator/module.f.ts'
 
-const stringify
-    : (a: readonly json.Unknown[]) => string
-    = json.stringify(sort)
+const str
+    : (a: readonly Unknown[]) => string
+    = stringify(sort)
 
 const op: Properties<SortedSet<string>>
     = {
         union: union(unsafeCmp),
-        equal: equal(operator.strictEqual),
+        equal: equal(strictEqual),
         def: []
     }
 
@@ -53,7 +53,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = null
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
@@ -62,7 +62,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
@@ -71,7 +71,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['a'], 1], [['b'], 2]]
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a"],1],[["b"],2]]') { throw result }
         },
         () => {
@@ -80,7 +80,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['b'], 2], [['d'], 4]]
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a","b"],1],[["b","c"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
@@ -89,7 +89,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['b'], 2], [['c'], 3]]
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a","b"],1],[["b","d"],2],[["c","d"],3],[["d"],4]]') { throw result }
         },
         () => {
@@ -98,7 +98,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['b'], 1], [['a'], 2]]
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a","b"],2]]') { throw result }
         },
         () => {
@@ -107,7 +107,7 @@ export default {
             const b: RangeMap<SortedSet<string>>
                 = [[['a'], 5]]
             const merged = merge(op)(a)(b)
-            const result = stringify(toArray(merged))
+            const result = str(toArray(merged))
             if (result !== '[[["a"],1],[["a","b"],2],[["a"],5]]') { throw result }
         }
     ],
@@ -118,49 +118,49 @@ export default {
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(5)(rm))
+                const result = str(at(5)(rm))
                 if (result !== '["a"]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(10)(rm))
+                const result = str(at(10)(rm))
                 if (result !== '["a"]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(15)(rm))
+                const result = str(at(15)(rm))
                 if (result !== '["b"]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(20)(rm))
+                const result = str(at(20)(rm))
                 if (result !== '["b"]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(25)(rm))
+                const result = str(at(25)(rm))
                 if (result !== '["c"]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(30)(rm))
+                const result = str(at(30)(rm))
                 if (result !== '["c"]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = [[['a'], 10], [['b'], 20], [['c'], 30]]
-                const result = stringify(at(35)(rm))
+                const result = str(at(35)(rm))
                 if (result !== '[]') { throw result }
             },
             () => {
                 const rm: RangeMapArray<SortedSet<string>>
                     = []
-                const result = stringify(at(10)(rm))
+                const result = str(at(10)(rm))
                 if (result !== '[]') { throw result }
             }
         ]

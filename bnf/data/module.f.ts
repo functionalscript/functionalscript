@@ -210,7 +210,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
         const newCurrent = set(name)(current)
         const rule = ruleSet[name]
         if (typeof rule === 'number') {
-            const range = rangeDecode(rule)            
+            const range = rangeDecode(rule)
             const dispatch = dispatchOp.fromRange(range)({tag: undefined, rules: []})
             const dr: DispatchRule = {emptyTag: undefined, rangeMap: dispatch}
             return { ...dm, [name]: dr }
@@ -230,7 +230,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
                     } else {
                         result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                     }
-                }                
+                }
             }
             const dr: DispatchRule = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
@@ -240,10 +240,10 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
             let emptyTag: EmptyTag = undefined
             for (const [tag, item] of entries) {
                 dm = dispatchRule(dm, item, newCurrent)
-                const dr = dm[item]                
+                const dr = dm[item]
                 if (dr.emptyTag !== undefined) {
                     emptyTag = tag
-                } else {                    
+                } else {
                     const d: Dispatch = dr.rangeMap.map(x => [addTagToDispatch(x[0], tag), x[1]])
                     result = toArray(dispatchOp.merge(result)(d))
                 }
@@ -257,7 +257,7 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
     for (const k in ruleSet) {
         result = dispatchRule(result, k, null)
     }
-    
+
     return result
 }
 
@@ -337,10 +337,10 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         if (cp.length === 0) {            
             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
         }
-        const cp0 = cp[0]        
+        const cp0 = cp[0]
         const dr = dispatchOp.get(cp0)(rangeMap)
         if (dr === null) {
-            if (emptyTag === undefined) {                
+            if (emptyTag === undefined) {
                 return mrFail(emptyTag, [], cp)
             }
             return mrSuccess(emptyTag, [], cp)
@@ -366,9 +366,5 @@ export const parserRuleSet = (ruleSet: RuleSet): Match => {
         return mrSuccess(tag, seq, r)
     }
 
-    const match: Match = (name, cp): MatchResult => {
-        return f(map[name], cp)
-    }
-    
-    return match
+    return (name, cp): MatchResult => f(map[name], cp)
 }

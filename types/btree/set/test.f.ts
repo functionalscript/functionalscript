@@ -1,13 +1,13 @@
-import * as _ from './module.f.ts'
+import { set as setSet } from './module.f.ts'
 import type { TNode } from '../types/module.f.ts'
 import { cmp } from '../../string/module.f.ts'
-import * as json from '../../../json/module.f.ts'
+import { stringify } from '../../../json/module.f.ts'
 import { sort } from '../../object/module.f.ts'
 
 const set = (node: TNode<string>) => (value: string): TNode<string> =>
-    _.set(cmp(value))(() => value)(node)
+    setSet(cmp(value))(() => value)(node)
 
-const jsonStr = json.stringify(sort)
+const jsonStr = stringify(sort)
 
 const test = [
     () => {

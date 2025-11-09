@@ -1,16 +1,16 @@
 # Issues
 
-- [X] [03-djs](./03-djs.md)
-- [ ] [05-publish](./05-publish.md)
-- [ ] 09. Generating a Website.
+- [X] [003-djs](./003-djs.md)
+- [ ] [005-publish](./005-publish.md)
+- [ ] 9. Generating a Website.
 - [ ] 10. Short URL table.
-- [ ] [11-fs-load](./11-fs-load.md)
+- [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 16. License in JSR file?
-- [X] [17-djs-extension](./17-djs-extension.md).
+- [X] [017-djs-extension](./017-djs-extension.md).
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] P5 20. Test framework should be able to run a subset of tests.
-- [ ] [21-test-framework-silent-mode](./21-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
+- [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
 - [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
     - [ ] run `node ./fsc.ts input.f.js output.f.js`
@@ -34,9 +34,9 @@ For example, 'throw' field could be not an immediate function but a reference to
 (e.g. 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
 require setting a flag when walking through a test free as soon as a node has a 'throw' as its name.
-- [ ] [31-formal-grammar](./31-formal-grammar.md).
-- [ ] 32. implement a stupid, non-deterministic parser using [31-formal-grammar](./31-formal-grammar.md).
-- [ ] 33. Rust: VM: implement `Any` and other types as wrappers
+- [ ] [031-formal-grammar](./031-formal-grammar.md).
+- [ ] 032. implement a stupid, non-deterministic parser using [031-formal-grammar](./031-formal-grammar.md).
+- [ ] 033. Rust: VM: implement `Any` and other types as wrappers
   ```rust
   struct Any<A: AnyPolicy>(A);
   ```
@@ -49,7 +49,7 @@ logic should be moved to a private free floating helper function (to keep public
   - add `Map` to the language
   - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
-- [ ] [./39-radix-encoding.md](./39-radix-encoding.md)
+- [ ] [039-radix-encoding.md](./039-radix-encoding.md)
 - [ ] 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
 
   ```ts
@@ -87,9 +87,9 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
-- [ ] [51-parser-structures.md](./51-parser-structures.md).
-- [ ] [52-poker.md](./52-poker.md).
-- [ ] [54-token-plus.md](./54-token-plus.md)
+- [ ] [051-parser-structures.md](./051-parser-structures.md).
+- [ ] [052-poker.md](./052-poker.md).
+- [ ] [054-token-plus.md](./054-token-plus.md)
 - [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
 - [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 - [ ] 57. https://github.com/Agoric/eslint-config-jessie
@@ -124,7 +124,7 @@ logic should be moved to a private free floating helper function (to keep public
   }
   ```
 - [ ] 67. BAST: Consider using only one parameter in functions. System functions should be converted into special BAST operators.
-- [ ] [69-incremental.md](69-incremental.md).
+- [ ] [069-incremental.md](069-incremental.md).
 - [ ] 70. Flags for `fsc`:
   1. `--tree`: a tree, no constants and references. It looks almost like JSON, except `export default`. This method is also used when the output file extension is `.json`.
   2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
@@ -138,7 +138,7 @@ logic should be moved to a private free floating helper function (to keep public
   - Testing:
       - `fjs test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
-- [x] [./74-bast-tag.md](./74-bast-tag.md)
+- [x] [./074-bast-tag.md](./074-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
   - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
   - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
@@ -187,7 +187,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 79. Use `importmap` as `package-lock.json`. See https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap#integrity_metadata_map.
 - [ ] 80. Add `CONST_REF` to serialization.
 - [ ] 81. Currently, `nanvm_lib` relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits, for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait.
-- [ ] [./82-nanvm.md](./82-nanvm.md).
+- [ ] [./082-nanvm.md](./082-nanvm.md).
 - [ ] 83. FSC should support for `#` comments.
 - [X] 84. Implement `isTTY`.
 - [ ] 85. GitHub supports colors, so we should have, at least, three modes:
@@ -241,7 +241,7 @@ logic should be moved to a private free floating helper function (to keep public
     let xy = add(*x, *y);
     let x2 = add(*x, *x);
     ```
-- [ ] [88-python.md](88-python.md).
+- [ ] [088-python.md](088-python.md).
 - [ ] 89. Rust Unpack dispatch:
   ```rust
   trait Unary<Tag> {
@@ -268,6 +268,21 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
 - [ ] 91. Create a separate nominal type for UTF-8.
 - [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
+- [X] 93. Reduce a number of CI jobs.
+- [X] 94. Add browser testing in CI, for example, using Playwright.
+- [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
+- [ ] 96. CI caching.
+- [ ] 97. Smart CA CI for FunctionalScript.
+- [X] 98. Use a sign for BitVec:
+  ```
+  - 0n => []
+  - 1n => [1]
+  - -1n => [0]
+  - 0b10n => [10]
+  - 0b11n => [11]
+  - -0b10n => [01]
+  - -0b11n => [00]
+  ```
 
 ## Language Specification
 

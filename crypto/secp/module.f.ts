@@ -1,4 +1,4 @@
-import type { Reduce } from '../../types/function/operator/module.f.ts'
+import type { Equal, Reduce } from '../../types/function/operator/module.f.ts'
 import { prime_field, sqrt, type PrimeField } from '../prime_field/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
 
@@ -112,7 +112,7 @@ export const curve = ({ p, a: [a0, a1], n }: Init): Curve => {
     }
 }
 
-export const eq = (a: Point) => (b: Point): boolean => {
+export const eq: Equal<Point> = a => b => {
     if (a === null || b === null) {
         return a === b
     }

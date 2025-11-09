@@ -17,13 +17,12 @@
  * ```
  */
 
-import { length, unsafeBigint, type Vec } from '../../types/bit_vec/module.f.ts'
-import { empty, msb, vec, vec8 } from '../../types/bit_vec/module.f.ts'
+import { length, type Vec, empty, msb, vec, vec8, type Reduce } from '../../types/bit_vec/module.f.ts'
 import { flip } from '../../types/function/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 
-const { concat } = msb
+const { concat, xor } = msb
 
 /**
  * Outer padding.
@@ -47,15 +46,12 @@ const padRepeat = repeat({ identity: empty, operation: concat })
  * @returns - A function that takes a key and returns another function
  * that takes a message and computes the HMAC.
  */
-export const hmac = (hashFunc: Sha2): (k: Vec) => (m: Vec) => Vec => {
+export const hmac = (hashFunc: Sha2): Reduce => {
     const { blockLength } = hashFunc
     const p = flip(padRepeat)(blockLength >> 3n)
     const ip = p(iPad)
     const op = p(oPad)
     const c = computeSync(hashFunc)
-    const vbl = vec(blockLength)
-    // a and b should have the same size
-    const xor = (a: Vec) => (b: Vec) => vbl(unsafeBigint(a) ^ unsafeBigint(b))
     return k => {
         const k1 = length(k) > blockLength ? c([k]) : k
         const k2 = concat(k1)(vec(blockLength - length(k1))(0n))
