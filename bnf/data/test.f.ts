@@ -75,7 +75,14 @@ export default {
             const emptyTags = createEmptyTagMap(data)
             const result = JSON.stringify(emptyTags)
             if (result !== '{"0":false,"":false}') { throw result }
-        }
+        },
+        () => {
+            const terminalRangeRule = range('AF')
+            const data = toData(terminalRangeRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"":false}') { throw result }
+        }        
     ], 
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
