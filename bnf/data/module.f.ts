@@ -283,6 +283,7 @@ const getEmptyTagMap = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         let emptyTag: EmptyTag = undefined
         for (const [tag, item] of entries) {
             const [,newMap,itemEmptyTag] = getEmptyTagMap(ruleSet)(map)(item)
+            map = newMap
             if (itemEmptyTag !== undefined) {
                 emptyTag = tag
             }
