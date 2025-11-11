@@ -9,7 +9,6 @@ import {
     type RangeMapArray,
     type Entry
 } from '../types/range_map/module.f.ts'
-// import { unsafeCmp } from '../types/function/compare/module.f.ts'
 import { type Fold, type Scan, strictEqual } from '../types/function/operator/module.f.ts'
 import { stringify } from '../json/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
