@@ -6,10 +6,10 @@ export default {
              identity: 0,
              operation: a => b => a + b,
         };
-        const resultAdd = repeat(add)(2)(10n) // 20
+        const resultAdd = repeat(add)(10n)(2) // 20
         if (resultAdd !== 20) { throw resultAdd }
 
-        const id = repeat(add)(42)(0n)
+        const id = repeat(add)(0n)(42)
         if (id !== 0) { throw id }
     },
     stringConcat: () => {
@@ -18,7 +18,7 @@ export default {
              operation: a => b => a + b,
         };
 
-        const resultConcat = repeat(concat)('ha')(3n) // 'hahaha'
+        const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
         if (resultConcat !== 'hahaha') { throw resultConcat }
     }
 }

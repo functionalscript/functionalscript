@@ -37,32 +37,32 @@ export default {
                 const test
                     : (a: bigint) => void
                     = a => {
-                    if (f.pow(a)(0n) !== 1n) { throw '**0'}
-                    if (f.pow(a)(1n) !== a) { throw '**1' }
+                    if (f.pow(0n)(a) !== 1n) { throw '**0'}
+                    if (f.pow(1n)(a) !== a) { throw '**1' }
                     // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
                     // a^(p-1) % p = 1
-                    if (f.abs(f.pow(a)(f.middle)) !== 1n) { throw '**middle' }
-                    if (f.pow(a)(f.sub(f.max)(1n)) !== f.reciprocal(a)) { throw '**(max-1)' }
-                    if (f.pow(a)(f.max) !== 1n) { throw '**max' }
+                    if (f.abs(f.pow(f.middle)(a)) !== 1n) { throw '**middle' }
+                    if (f.pow(f.sub(f.max)(1n))(a) !== f.reciprocal(a)) { throw '**(max-1)' }
+                    if (f.pow(f.max)(a) !== 1n) { throw '**max' }
                 }
                 // 0
                 if (f.pow(0n)(0n) !== 1n) { throw '0**0'}
-                if (f.pow(0n)(f.max) !== 0n) { throw '0**max' }
+                if (f.pow(f.max)(0n) !== 0n) { throw '0**max' }
                 // 1
                 test(1n)
                 // 2
                 test(2n)
                 if (f.pow(2n)(2n) !== 4n) { throw '2**2' }
-                if (f.pow(2n)(3n) !== 8n) { throw '2**3' }
-                if (f.pow(2n)(128n) !== 1n << 128n) { throw '2**128' }
+                if (f.pow(3n)(2n) !== 8n) { throw '2**3' }
+                if (f.pow(128n)(2n) !== 1n << 128n) { throw '2**128' }
                 // 3
                 test(3n)
-                if (f.pow(3n)(2n) !== 9n) { throw '3**2' }
+                if (f.pow(2n)(3n) !== 9n) { throw '3**2' }
                 if (f.pow(3n)(3n) !== 27n) { throw '3**3' }
-                if (f.pow(3n)(100n) !== 3n ** 100n) { throw '3**100' }
-                if (f.pow(3n)(110n) !== 3n ** 110n) { throw '3**110' }
-                if (f.pow(3n)(120n) !== 3n ** 120n) { throw '3**120' }
-                if (f.pow(3n)(121n) !== 3n ** 121n) { throw '3**121' }
+                if (f.pow(100n)(3n) !== 3n ** 100n) { throw '3**100' }
+                if (f.pow(110n)(3n) !== 3n ** 110n) { throw '3**110' }
+                if (f.pow(120n)(3n) !== 3n ** 120n) { throw '3**120' }
+                if (f.pow(121n)(3n) !== 3n ** 121n) { throw '3**121' }
                 //
                 test(f.middle)
                 test(f.max - 1n)

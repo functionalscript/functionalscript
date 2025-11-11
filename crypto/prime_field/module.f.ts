@@ -85,11 +85,12 @@ export const prime_field = (p: bigint): PrimeField => {
  * if (root !== 2n) { throw root }
  * ```
  */
-export const sqrt = ({p, mul, pow }: PrimeField): (a: bigint) => bigint|null => {
+export const sqrt = ({p, pow, pow2 }: PrimeField): (a: bigint) => bigint|null => {
     if ((p & 3n) !== 3n) { throw 'sqrt' }
     const sqrt_k = (p + 1n) >> 2n
+    const psk = pow(sqrt_k)
     return a => {
-        const result = pow(a)(sqrt_k)
-        return mul(result)(result) === a ? result : null
+        const result = psk(a)
+        return pow2(result) === a ? result : null
     }
 }

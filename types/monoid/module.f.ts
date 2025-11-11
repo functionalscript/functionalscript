@@ -74,7 +74,7 @@ export type Monoid<T> = {
  * const resultConcat = repeat(concat)('ha')(3n) // 'hahaha'
  * ```
  */
-export const repeat = <T>({ identity, operation }: Monoid<T>) => (a: T) => (n: bigint): T => {
+export const repeat = <T>({ identity, operation }: Monoid<T>) => (n: bigint) => (a: T): T => {
     let ai = a
     let ni = n
     let result = identity

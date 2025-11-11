@@ -33,7 +33,7 @@ type Curve = {
     readonly y: (x: bigint) => bigint|null
     readonly neg: (a: Point) => Point
     readonly add: Reduce<Point>
-    readonly mul: (a: Point) => (n: bigint) => Point
+    readonly mul: (n: bigint) => (a: Point) => Point
 }
 
 /**
