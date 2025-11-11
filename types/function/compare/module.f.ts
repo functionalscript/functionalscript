@@ -14,5 +14,14 @@ export const index5
         return (_0 <= 0 ? _0 + 1 : cmp(v1) + 3) as Index5
     }
 
-export const unsafeCmp: <T>(a: T) => (b: T) => Sign
-    = a => b => a < b ? -1 : a > b ? 1 : 0
+export type Cmp1 = boolean | string | number | bigint
+
+export type Cmp2<A, B> =
+    [A, B] extends [boolean, boolean] ? boolean :
+    [A, B] extends [string, string] ? string :
+    [A, B] extends [number, number] ? number :
+    [A, B] extends [bigint, bigint] ? bigint :
+    never
+
+export const cmp = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): Sign =>
+    a as any < b ? -1 : a as any > b ? 1 : 0

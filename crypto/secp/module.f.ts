@@ -1,4 +1,4 @@
-import type { Equal, Reduce } from '../../types/function/operator/module.f.ts'
+import type { Equal, Fold, Reduce } from '../../types/function/operator/module.f.ts'
 import { prime_field, sqrt, type PrimeField } from '../prime_field/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
 
@@ -33,7 +33,7 @@ type Curve = {
     readonly y: (x: bigint) => bigint|null
     readonly neg: (a: Point) => Point
     readonly add: Reduce<Point>
-    readonly mul: (a: Point) => (n: bigint) => Point
+    readonly mul: Fold<bigint, Point>
 }
 
 /**

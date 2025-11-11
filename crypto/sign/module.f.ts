@@ -48,7 +48,7 @@ export const sign = (sha2: Sha2) => (curveInit: Init) => (privateKey: Vec) => (m
     const k = createK(sha2)(privateKey)(messageHash) % pf.p
 
     // `R = G * k`.
-    const rp = mul(curveInit.g)(k)
+    const rp = mul(k)(curveInit.g)
 
     // `r = R.x`
     const r = rp === null ? 0n : rp[0]

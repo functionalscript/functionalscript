@@ -9,7 +9,7 @@ It can be replaced with Docker.
     - tsc
     - tsgo
   - Node.js 20,22,24,25 (we need Node.js 22 for Codex)
-    - `npm test` (`npm run test20`, `npm run test22`)
+    - `npm test` (`npm run test20`)
     - `npm run fst`
     - dry NPM publishing
   - Deno
