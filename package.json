@@ -48,7 +48,6 @@
   "devDependencies": {
     "@playwright/test": "*",
     "@types/node": "*",
-    "@typescript/native-preview": "*",
     "typescript": "*"
   }
 }

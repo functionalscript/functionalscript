@@ -202,7 +202,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Node.js
         ...node('24')([
             // TypeScript Preview
-            test({ run: 'npx tsgo' }),
+            install({ run: 'npm install -g @typescript/native-preview'}),
+            test({ run: 'tsgo' }),
             // Playwright
             install({ run: 'npm install -g playwright'}),
             install({ run: 'playwright install --with-deps' }),
