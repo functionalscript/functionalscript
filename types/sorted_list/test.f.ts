@@ -1,5 +1,4 @@
 import { find, merge } from './module.f.ts'
-import { type Sign } from '../function/compare/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
