@@ -158,12 +158,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
 
 const nodes = ['20', '22', '25']
 
-const nodeTest = (v: string) => {
-    switch (v) {
-        case '20': return `run test20`
-        default: return 'test'
-    }
-}
+const nodeTest = (v: string) => v === '20' ? 'run test20' : 'test'
 
 const nodeSteps = (v: string) => [
     install(installNode(v)),
