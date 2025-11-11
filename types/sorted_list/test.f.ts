@@ -1,15 +1,15 @@
 import { find, merge } from './module.f.ts'
-import { cmp, type Sign } from '../function/compare/module.f.ts'
+import { type Sign } from '../function/compare/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
 import { flip } from '../function/module.f.ts'
+import { cmp } from '../number/module.f.ts'
 
 const str: (a: readonly Unknown[]) => string
     = stringify(sort)
 
-const reverseCmp: <T>(a: T) => (b: T) => Sign
-    = flip(cmp)
+const reverseCmp = flip(cmp)
 
 export default {
     sortedMergre: [
