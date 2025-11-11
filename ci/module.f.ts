@@ -160,7 +160,7 @@ const nodes = ['20', '22', '25']
 
 const nodeTest = (v: string) => {
     switch (v) {
-        case '20': case '22': return `run test${v}`
+        case '20': return `run test20`
         default: return 'test'
     }
 }

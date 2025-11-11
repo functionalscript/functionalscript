@@ -1060,7 +1060,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm run test22"
+          "run": "npm test"
         }
       ]
     },

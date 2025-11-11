@@ -4,7 +4,7 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 
 ## Requirements
 
-- Use **Node.js 24 or later** for scripts whenever possible. Environments running Node 22 can work with the modified test command noted below.
+- Use **Node.js 22 or later** for scripts whenever possible.
 - Install Node dependencies with `npm ci`.
 - Install Rust dependencies with `cargo fetch`.
 
@@ -13,8 +13,7 @@ If either installation fails, skip all test commands.
 ## Testing
 
 - Run `npx tsc` to type-check using the repository's version of TypeScript.
-- Run `npm test` to test FunctionalScript (`.f.ts`) files with Node 24+.
-  If your environment uses Node 22, run `npm run test22` instead so that Node's `--experimental-strip-types` flag is applied.
+- Run `npm test` to test FunctionalScript (`.f.ts`) files with Node 22+.
 - Run `cargo test` to test the Rust crate in `nanvm-lib`.
 - Run `cargo clippy` to lint the Rust crate.
 - Run `cargo fmt -- --check` to verify formatting.
