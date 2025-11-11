@@ -25,6 +25,3 @@ export type Cmp2<A, B> =
 
 export const cmp = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): Sign =>
     a as any < b ? -1 : a as any > b ? 1 : 0
-
-//export const unsafeCmp: <T>(a: T) => (b: T) => Sign
-//    = a => b => a < b ? -1 : a > b ? 1 : 0
