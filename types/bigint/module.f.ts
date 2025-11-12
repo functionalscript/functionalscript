@@ -18,7 +18,7 @@
  * ```
  */
 
-import { unsafeCmp, type Sign } from '../function/compare/module.f.ts'
+import { cmp, type Sign } from '../function/compare/module.f.ts'
 import type { Unary as OpUnary, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { reduce, type List } from '../list/module.f.ts'
 
@@ -80,7 +80,7 @@ export const abs: Unary
  * @param a - The bigint value.
  * @returns `1` if positive, `-1` if negative, and `0` if zero.
  */
-export const sign = (a: bigint): Sign => unsafeCmp(a)(0n)
+export const sign = (a: bigint): Sign => cmp(a)(0n)
 
 /**
  * Serializes a `bigint` to a string representation.

@@ -1,15 +1,14 @@
 import { has, intersect, union } from './module.f.ts'
-import { type Sign, unsafeCmp } from '../function/compare/module.f.ts'
 import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
 import { flip } from '../function/module.f.ts'
+import { cmp } from '../number/module.f.ts'
 
 const str: (a: readonly Unknown[]) => string
     = a => stringify(sort)(a)
 
-const reverseCmp: <T>(a: T) => (b: T) => Sign
-    = flip(unsafeCmp)
+const reverseCmp = flip(cmp)
 
 export default {
     example: () => {
@@ -29,11 +28,11 @@ export default {
     },
     union: [
         () => {
-            const result = str(toArray(union(unsafeCmp)([2, 3, 4])([1, 3, 5])))
+            const result = str(toArray(union(cmp)([2, 3, 4])([1, 3, 5])))
             if (result !== '[1,2,3,4,5]') { throw result }
         },
         () => {
-            const result = str(toArray(union(unsafeCmp)([1, 2, 3])([])))
+            const result = str(toArray(union(cmp)([1, 2, 3])([])))
             if (result !== '[1,2,3]') { throw result }
         },
         () => {
@@ -46,29 +45,29 @@ export default {
     ],
     intersect: [
         () => {
-            const result = str(toArray(intersect(unsafeCmp)([2, 3, 4])([1, 3, 5])))
+            const result = str(toArray(intersect(cmp)([2, 3, 4])([1, 3, 5])))
             if (result !== '[3]') { throw result }
         },
         () => {
-            const result = str(toArray(intersect(unsafeCmp)([1, 2, 3])([])))
+            const result = str(toArray(intersect(cmp)([1, 2, 3])([])))
             if (result !== '[]') { throw result }
         }
     ],
     has: [
         () => {
-            const result = has(unsafeCmp)(0)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            const result = has(cmp)(0)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
             if (!result) { throw result }
         },
         () => {
-            const result = has(unsafeCmp)(3)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            const result = has(cmp)(3)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
             if (result) { throw result }
         },
         () => {
-            const result = has(unsafeCmp)(77)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            const result = has(cmp)(77)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
             if (result) { throw result }
         },
         () => {
-            const result = has(unsafeCmp)(80)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+            const result = has(cmp)(80)([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
             if (!result) { throw result }
         }
     ]
