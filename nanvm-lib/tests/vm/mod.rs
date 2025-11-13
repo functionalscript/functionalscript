@@ -394,13 +394,13 @@ fn unary_plus<A: IVm>() {
         let n: Any<A> = Nullish::Null.to_any();
         assert_eq!(Any::unary_plus(n), Ok(0.0.to_any()));
     }
-    // {
-    //     let n: Any<A> = Nullish::Undefined.to_any();
-    //     assert_eq!(
-    //         Any::unary_plus(n),
-    //         Ok(0.0.to_any()) // TODO should be NaN
-    //     );
-    // }
+    {
+        let n: Any<A> = Nullish::Undefined.to_any();
+        let result = Any::unary_plus(n).unwrap();
+        // Check that the result is NaN
+        let num: f64 = result.try_into().unwrap();
+        assert!(num.is_nan());
+    }
     {
         let n: Any<A> = false.to_any();
         assert_eq!(Any::unary_plus(n), Ok(0.0.to_any()));
@@ -424,6 +424,13 @@ fn unary_plus<A: IVm>() {
     {
         let n: Any<A> = f64::NEG_INFINITY.to_any();
         assert_eq!(Any::unary_plus(n.clone()), Ok(n));
+    }
+    {
+        let n: Any<A> = f64::NAN.to_any();
+        let result = Any::unary_plus(n).unwrap();
+        // Check that the result is NaN
+        let num: f64 = result.try_into().unwrap();
+        assert!(num.is_nan());
     }
 
     // let n0: A = Simple::Number(0.0).to_unknown();
