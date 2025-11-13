@@ -2,7 +2,7 @@ use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        number_coercion::NumberCoercionOp, string_coercion::StringCoercion, unpacked::Operation,
+        number_coercion::NumberCoercion, string_coercion::StringCoercion, unpacked::Operation,
         IVm, String16, Unpacked,
     },
 };
@@ -143,7 +143,7 @@ impl<A: IVm> Any<A> {
     }
 
     pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        self.dispatch(NumberCoercionOp)
+        self.dispatch(NumberCoercion)
     }
 }
 

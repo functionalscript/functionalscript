@@ -10,9 +10,9 @@ use crate::{
 /// It equals to `+self` in JavaScript.
 ///
 /// Note: the function can return an error (JS throw). For example, `+(7n)`.
-pub struct NumberCoercionOp;
+pub struct NumberCoercion;
 
-impl<A: IVm> Operation<A> for NumberCoercionOp {
+impl<A: IVm> Operation<A> for NumberCoercion {
     type Result = Result<f64, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {
