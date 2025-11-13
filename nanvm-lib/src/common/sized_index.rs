@@ -4,7 +4,7 @@ pub trait SizedIndex<I>: Index<I> {
     fn length(&self) -> I;
 }
 
-impl<O> SizedIndex<usize> for [O] {
+impl<T> SizedIndex<usize> for [T] {
     fn length(&self) -> usize {
         self.len()
     }
