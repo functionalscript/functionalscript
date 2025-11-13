@@ -6,7 +6,7 @@ use core::{
 use std::io;
 
 use crate::{
-    common::{random_access::RandomAccess, serializable::Serializable, sized_index::SizedIndex},
+    common::{serializable::Serializable, sized_index::SizedIndex},
     vm::IVm,
 };
 
@@ -30,11 +30,12 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
     }
 }
 
-pub trait IContainer<A: IVm>: Sized + Clone + 'static {
+pub trait IContainer<A: IVm>: Sized + Clone + 'static
+{
     // types
     type Header: PartialEq + Serializable + Clone;
     type Item: Debug + Serializable + Clone;
-    type Items: RandomAccess<Output = Self::Item> + ?Sized;
+    type Items: ?Sized + SizedIndex<usize, Output = Self::Item>;
 
     // functions
     fn new<E>(
@@ -67,10 +68,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         if self.header() != b.header() {
             return false;
         }
-
-        let a = self.items();
-        let b = b.items();
-        a.to_iter().eq(b.to_iter())
+        self.clone().items_iter().eq(b.clone().items_iter())
     }
 
     fn items_iter(self) -> ContainerIterator<A, Self>
