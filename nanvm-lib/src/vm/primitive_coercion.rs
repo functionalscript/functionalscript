@@ -1,8 +1,8 @@
-use crate::{
+/* use crate::{
     nullish::Nullish,
     vm::{
         any::Any, number_coercion::NumberCoercion, primitive::Primitive,
-        string_coercion::StringCoercion, IVm,
+        IVm,
     },
 };
 
@@ -17,7 +17,7 @@ pub enum ToPrimitivePreferredType {
 
 /// ECMAScript functions.
 #[allow(dead_code)]
-pub trait PrimitiveCoercion<A: IVm>: NumberCoercion<A> + StringCoercion<A> + Sized {
+pub trait PrimitiveCoercion<A: IVm>: NumberCoercion<A> + Sized {
     /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
     /// <https://tc39.es/ecma262/#sec-toprimitive>
     ///
@@ -47,3 +47,4 @@ impl<A: IVm> PrimitiveCoercion<A> for Nullish {
         Primitive::Nullish(self)
     }
 }
+ */

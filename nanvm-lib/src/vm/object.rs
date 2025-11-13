@@ -1,9 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     vm::{
-        internal::ContainerIterator,
-        number_coercion::NumberCoercion,
-        string_coercion::{StringCoercion, ToString16Result},
+        internal::ContainerIterator, number_coercion::NumberCoercion,
         Any, IContainer, IVm, String16, Unpacked,
     },
 };
@@ -53,7 +51,7 @@ impl<A: IVm> TryFrom<Any<A>> for Object<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Object(result) = value.into() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -84,13 +82,6 @@ pub trait ToObject {
 }
 
 impl<T> ToObject for T {}
-
-impl<A: IVm> StringCoercion<A> for Object<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        "[object Object]".to_string16_result()
-    }
-}
 
 impl<A: IVm> NumberCoercion<A> for Object<A> {
     fn coerce_to_number(self) -> Result<f64, Any<A>> {

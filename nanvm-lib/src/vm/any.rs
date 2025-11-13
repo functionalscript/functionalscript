@@ -97,7 +97,7 @@ impl<A: IVm> TryFrom<Any<A>> for Nullish {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Nullish(result) = value.0.to_unpacked() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -107,7 +107,7 @@ impl<A: IVm> TryFrom<Any<A>> for bool {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Boolean(result) = value.0.to_unpacked() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -117,7 +117,7 @@ impl<A: IVm> TryFrom<Any<A>> for f64 {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Number(result) = value.0.to_unpacked() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -132,9 +132,9 @@ impl<A: IVm> Serializable for Any<A> {
     }
 }
 
-impl<A: IVm> StringCoercion<A> for Any<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        self.0.to_unpacked().coerce_to_string()
+impl<A: IVm> Any<A> {
+    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        self.0.to_unpacked().dispatch(StringCoercion)
     }
 }
 

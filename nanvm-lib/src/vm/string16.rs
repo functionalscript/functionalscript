@@ -5,8 +5,8 @@ use crate::{
         serializable::Serializable,
     },
     vm::{
-        any::ToAny, internal::ContainerIterator, number_coercion::NumberCoercion,
-        string_coercion::StringCoercion, Any, IContainer, IVm, Unpacked,
+        any::ToAny, internal::ContainerIterator, number_coercion::NumberCoercion, Any, IContainer,
+        IVm, Unpacked,
     },
 };
 use core::{
@@ -114,7 +114,7 @@ impl<A: IVm> TryFrom<Any<A>> for String16<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::String(result) = value.into() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -151,12 +151,6 @@ impl<A: IVm> Serializable for String16<A> {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalString16::deserialize(read).map(Self)
-    }
-}
-
-impl<A: IVm> StringCoercion<A> for String16<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        Ok(self)
     }
 }
 

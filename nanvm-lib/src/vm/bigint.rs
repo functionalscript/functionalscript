@@ -1,11 +1,7 @@
 use crate::{
     common::{array::SizedIndex, default::default, serializable::Serializable},
     sign::Sign,
-    vm::{
-        number_coercion::NumberCoercion,
-        string_coercion::{StringCoercion, ToString16Result},
-        Any, IContainer, IVm, String16, Unpacked,
-    },
+    vm::{number_coercion::NumberCoercion, Any, IContainer, IVm, Unpacked},
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
@@ -99,13 +95,6 @@ impl<A: IVm> Serializable for BigInt<A> {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalBigInt::deserialize(read).map(Self)
-    }
-}
-
-impl<A: IVm> StringCoercion<A> for BigInt<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        // TODO: we should use different algorithm for large numbers.
-        format!("{self:?}").to_string16_result()
     }
 }
 

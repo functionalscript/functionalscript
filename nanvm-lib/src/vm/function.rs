@@ -1,9 +1,8 @@
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
     vm::{
-        number_coercion::NumberCoercion,
-        string_coercion::{StringCoercion, ToString16Result},
-        Any, IContainer, IVm, String16, Unpacked,
+        number_coercion::NumberCoercion, Any, IContainer, IVm,
+        String16, Unpacked,
     },
 };
 use core::fmt::{Debug, Formatter, Write};
@@ -34,7 +33,7 @@ impl<A: IVm> TryFrom<Any<A>> for Function<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Function(result) = value.into() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -65,13 +64,6 @@ impl<A: IVm> Serializable for Function<A> {
     }
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalFunction::deserialize(read).map(Self)
-    }
-}
-
-impl<A: IVm> StringCoercion<A> for Function<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        "[object Function]".to_string16_result()
     }
 }
 

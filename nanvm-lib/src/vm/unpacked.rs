@@ -1,10 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{
-        number_coercion::NumberCoercion, string_coercion::StringCoercion, Any, Array, BigInt,
-        Function, IVm, Object, String16,
-    },
+    vm::{number_coercion::NumberCoercion, Any, Array, BigInt, Function, IVm, Object, String16},
 };
 use core::fmt::Debug;
 use std::io::{self, Read, Write};
@@ -179,7 +176,7 @@ pub trait Operation<A: IVm> {
 }
 
 impl<A: IVm> Unpacked<A> {
-    pub fn op<T: Operation<A>>(self, o: T) -> T::Result {
+    pub fn dispatch<T: Operation<A>>(self, o: T) -> T::Result {
         match self {
             Unpacked::Nullish(v) => o.nullish(v),
             Unpacked::Boolean(v) => o.bool(v),
@@ -189,21 +186,6 @@ impl<A: IVm> Unpacked<A> {
             Unpacked::Object(v) => o.object(v),
             Unpacked::Array(v) => o.array(v),
             Unpacked::Function(v) => o.function(v),
-        }
-    }
-}
-
-impl<A: IVm> StringCoercion<A> for Unpacked<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        match self {
-            Unpacked::Nullish(n) => n.coerce_to_string(),
-            Unpacked::Boolean(b) => b.coerce_to_string(),
-            Unpacked::Number(n) => n.coerce_to_string(),
-            Unpacked::String(s) => s.coerce_to_string(),
-            Unpacked::BigInt(i) => i.coerce_to_string(),
-            Unpacked::Object(o) => o.coerce_to_string(),
-            Unpacked::Array(a) => a.coerce_to_string(),
-            Unpacked::Function(f) => f.coerce_to_string(),
         }
     }
 }

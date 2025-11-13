@@ -1,6 +1,9 @@
 use crate::{
     nullish::Nullish,
-    vm::{Array, BigInt, Function, IVm, Object, String16, any::Any, string16::Join, unpacked::Operation},
+    vm::{
+        any::Any, string16::Join, unpacked::Operation, Array, BigInt, Function, IVm, Object,
+        String16,
+    },
 };
 
 /// Coerces the value to a `String16<A>`, possibly producing an error result.
@@ -11,9 +14,9 @@ use crate::{
 ///
 /// Notes:
 /// 1. It can throw an error. For example: `{ toString: () => { throw 0 } } + ''`
-pub struct StringCoercionOp;
+pub struct StringCoercion;
 
-impl<A: IVm> Operation<A> for StringCoercionOp {
+impl<A: IVm> Operation<A> for StringCoercion {
     type Result = Result<String16<A>, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {
@@ -56,39 +59,12 @@ impl<A: IVm> Operation<A> for StringCoercionOp {
     }
 
     fn array(self, v: Array<A>) -> Self::Result {
-        v.into_iter()
-            .map(|v| v.coerce_to_string())
-            .join(",".into())
+        v.into_iter().map(|v| v.coerce_to_string()).join(",".into())
     }
 
     fn function(self, _: Function<A>) -> Self::Result {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
         "[object Function]".to_string16_result()
-    }
-}
-
-/// ECMAScript functions.
-pub trait StringCoercion<A: IVm> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>>;
-}
-
-impl<A: IVm> StringCoercion<A> for bool {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        match self {
-            true => "true",
-            false => "false",
-        }
-        .to_string16_result()
-    }
-}
-
-impl<A: IVm> StringCoercion<A> for Nullish {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        match self {
-            Nullish::Null => "null",
-            Nullish::Undefined => "undefined",
-        }
-        .to_string16_result()
     }
 }
 
@@ -102,11 +78,3 @@ impl<A: IVm> ToString16Result<A> for &str {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::vm::{IVm, Unpacked, string_coercion::StringCoercionOp};
-
-    fn _compile_check<A: IVm>(u: Unpacked<A>) {
-        let _ = u.op(StringCoercionOp);
-    }
-}

@@ -4,8 +4,8 @@ use std::{io, ops::Index};
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
     vm::{
-        internal::ContainerIterator, number_coercion::NumberCoercion, string16::Join,
-        string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked,
+        internal::ContainerIterator, number_coercion::NumberCoercion, Any,
+        IContainer, IVm, Unpacked,
     },
 };
 
@@ -74,7 +74,7 @@ impl<A: IVm> TryFrom<Any<A>> for Array<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Array(result) = value.into() else {
-            return Err(())
+            return Err(());
         };
         Ok(result)
     }
@@ -105,15 +105,6 @@ pub trait ToArray {
 }
 
 impl<T> ToArray for T {}
-
-impl<A: IVm> StringCoercion<A> for Array<A> {
-    fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        self.0
-            .items_iter()
-            .map(|v| v.coerce_to_string())
-            .join(",".into())
-    }
-}
 
 impl<A: IVm> NumberCoercion<A> for Array<A> {
     fn coerce_to_number(self) -> Result<f64, Any<A>> {
