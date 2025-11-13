@@ -2,7 +2,11 @@ use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        number_coercion::NumberCoercion, string_coercion::StringCoercion, unpacked::Operation,
+        number_coercion::NumberCoercion,
+        primitive::Primitive,
+        primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
+        string_coercion::StringCoercion,
+        unpacked::Operation,
         IVm, String16, Unpacked,
     },
 };
@@ -144,6 +148,17 @@ impl<A: IVm> Any<A> {
 
     pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
         self.dispatch(NumberCoercion)
+    }
+
+    pub fn coerce_to_primitive(
+        self,
+        preferred_type: Option<ToPrimitivePreferredType>,
+    ) -> Result<Primitive<A>, Any<A>> {
+        Ok(match preferred_type {
+            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.coerce_to_number()?),
+            Some(ToPrimitivePreferredType::String) => Primitive::String(self.coerce_to_string()?),
+            None => self.dispatch(PrimitiveCoercionOp),
+        })
     }
 }
 
