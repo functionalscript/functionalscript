@@ -2,6 +2,7 @@ use crate::{
     common::{array::SizedIndex, default::default, serializable::Serializable},
     sign::Sign,
     vm::{
+        number_coercion::NumberCoercion,
         string_coercion::{StringCoercion, ToString16Result},
         Any, IContainer, IVm, String16, Unpacked,
     },
@@ -106,5 +107,11 @@ impl<A: IVm> StringCoercion<A> for BigInt<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         // TODO: we should use different algorithm for large numbers.
         format!("{self:?}").to_string16_result()
+    }
+}
+
+impl<A: IVm> NumberCoercion<A> for BigInt<A> {
+    fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        Err("TypeError: Cannot convert a BigInt value to a number".into())
     }
 }

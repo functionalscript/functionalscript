@@ -5,8 +5,8 @@ use crate::{
         serializable::Serializable,
     },
     vm::{
-        any::ToAny, internal::ContainerIterator, string_coercion::StringCoercion, Any, IContainer,
-        IVm, Unpacked,
+        any::ToAny, internal::ContainerIterator, number_coercion::NumberCoercion,
+        string_coercion::StringCoercion, Any, IContainer, IVm, Unpacked,
     },
 };
 use core::{
@@ -182,3 +182,18 @@ pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
 }
 
 impl<A: IVm, T: Sized + Iterator<Item = Result<String16<A>, Any<A>>>> Join<A> for T {}
+
+impl<A: IVm> NumberCoercion<A> for String16<A> {
+    fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        todo!()
+        // let s: String = self.into();
+        // let trimmed = s.trim();
+        // if trimmed.is_empty() {
+        //     return Ok(0.0);
+        // }
+        // match trimmed.parse::<f64>() {
+        //     Ok(v) => Ok(v),
+        //     Err(_) => Err(Any(A::from(Unpacked::NaN))),
+        // }
+    }
+}

@@ -389,6 +389,134 @@ fn format_fn<A: IVm>() {
     assert_eq!(x, "function myfunc(a0,a1) {DEADBEEF}");
 }
 
+fn unary_plus<A: IVm>() {
+    {
+        let n: Any<A> = Nullish::Null.to_any();
+        assert_eq!(Any::unary_plus(n), Ok(0.0.to_any()));
+    }
+    {
+        let n: Any<A> = Nullish::Undefined.to_any();
+        let result = Any::unary_plus(n).unwrap();
+        // Check that the result is NaN
+        let num: f64 = result.try_into().unwrap();
+        assert!(num.is_nan());
+    }
+    {
+        let n: Any<A> = false.to_any();
+        assert_eq!(Any::unary_plus(n), Ok(0.0.to_any()));
+    }
+    {
+        let n: Any<A> = true.to_any();
+        assert_eq!(Any::unary_plus(n), Ok(1.0.to_any()));
+    }
+    {
+        let n: Any<A> = 0.0.to_any();
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
+    }
+    {
+        let n: Any<A> = (-239.0).to_any();
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
+    }
+    {
+        let n: Any<A> = f64::INFINITY.to_any();
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
+    }
+    {
+        let n: Any<A> = f64::NEG_INFINITY.to_any();
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
+    }
+    {
+        let n: Any<A> = f64::NAN.to_any();
+        let result = Any::unary_plus(n).unwrap();
+        // Check that the result is NaN
+        let num: f64 = result.try_into().unwrap();
+        assert!(num.is_nan());
+    }
+
+    // let n0: A = Simple::Number(0.0).to_unknown();
+    // let nan: A = Simple::Number(f64::NAN).to_unknown();
+    // let null: A = Simple::Nullish(Nullish::Null).to_unknown();
+    // let test_cases: Vec<(A, A, &str)> = vec![
+    //     (null.clone(), n0.clone(), "null"),
+    //     (
+    //         Simple::Nullish(Nullish::Undefined).to_unknown(),
+    //         nan.clone(),
+    //         "undefined",
+    //     ),
+    //     (
+    //         Simple::Boolean(true).to_unknown(),
+    //         Simple::Number(1.0).to_unknown(),
+    //         "boolean true",
+    //     ),
+    //     (
+    //         Simple::Boolean(false).to_unknown(),
+    //         n0.clone(),
+    //         "boolean false",
+    //     ),
+    //     (n0.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
+    //     (
+    //         Simple::Number(2.3).to_unknown(),
+    //         Simple::Number(2.3).to_unknown(),
+    //         "number 2.3",
+    //     ),
+    //     (
+    //         Simple::Number(-2.3).to_unknown(),
+    //         Simple::Number(-2.3).to_unknown(),
+    //         "number -2.3",
+    //     ),
+    //     ("".to_unknown(), n0.clone(), "string \"\""),
+    //     ("0".to_unknown(), n0.clone(), "string \"0\""),
+    //     (
+    //         "2.3e2".to_unknown(),
+    //         Simple::Number(2.3e2).to_unknown(),
+    //         "string \"2.3e2\"",
+    //     ),
+    //     ("a".to_unknown(), nan.clone(), "string \"a\""),
+    //     ([].to_array_unknown(), n0.clone(), "array []"),
+    //     (
+    //         [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
+    //         Simple::Number(-0.3).to_unknown(),
+    //         "array [-0.3]",
+    //     ),
+    //     (
+    //         ["0.3".to_unknown()].to_array_unknown(),
+    //         Simple::Number(0.3).to_unknown(),
+    //         "array [\"0.3\"]",
+    //     ),
+    //     (
+    //         [null.clone()].to_array_unknown(),
+    //         n0.clone(),
+    //         "array [null]",
+    //     ),
+    //     (
+    //         [null.clone(), null.clone()].to_array_unknown(),
+    //         nan.clone(),
+    //         "array [null,null]",
+    //     ),
+    //     ([].to_object_unknown(), nan.clone(), "object {{}}"),
+    //     // TODO: decide on testing objects with valueOf, toString functions.
+    //     (
+    //         A::Function::new(0, [0]).to_unknown(),
+    //         nan.clone(),
+    //         "function",
+    //     ),
+    // ];
+    // for (a, expected, test_case) in test_cases.iter() {
+    //     test_op::<A>(
+    //         Any::unary_plus(a.clone()).unwrap(),
+    //         expected.clone(),
+    //         test_case,
+    //     );
+    // }
+
+    // bigint
+    let b0: Any<A> = BigInt::default().to_any();
+    assert_eq!(
+        Any::unary_plus(b0),
+        Err("TypeError: Cannot convert a BigInt value to a number".into())
+    );
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -401,6 +529,7 @@ fn gen_test<A: IVm>() {
     serialization::<A>();
     number_coerce_to_string::<A>();
     array_coerce_to_string::<A>();
+    unary_plus::<A>();
     //
     format_fn::<A>();
 }
