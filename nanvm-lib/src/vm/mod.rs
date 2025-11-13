@@ -11,6 +11,19 @@ mod string16;
 mod string_coercion;
 mod unpacked;
 
+mod add;
+mod add_assign;
+mod debug;
+mod default;
+mod from;
+mod index;
+mod into_iterator;
+mod neg;
+mod partial_eq;
+mod serializable;
+mod sized_index;
+mod try_from;
+
 pub mod naive;
 
 pub use crate::vm::{

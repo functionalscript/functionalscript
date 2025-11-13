@@ -1,10 +1,3 @@
-mod debug;
-mod default;
-mod from;
-mod partial_eq;
-mod serializable;
-mod try_from;
-
 use crate::vm::{IContainer, IVm};
 
 /// ```
@@ -17,10 +10,10 @@ use crate::vm::{IContainer, IVm};
 /// bigint_test::<Naive>();
 /// ```
 #[derive(Clone)]
-pub struct BigInt<A: IVm>(A::InternalBigInt);
+pub struct BigInt<A: IVm>(pub(crate) A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
-    fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         self.0.is_empty()
     }
 }

@@ -1,10 +1,3 @@
-mod debug;
-mod from;
-mod neg;
-mod partial_eq;
-mod serializable;
-mod try_from;
-
 pub mod to_any;
 
 use crate::vm::{
@@ -38,7 +31,7 @@ use crate::vm::{
 /// any_test::<Naive>();
 /// ```
 #[derive(Clone)]
-pub struct Any<A: IVm>(A);
+pub struct Any<A: IVm>(pub(crate) A);
 
 impl<A: IVm> Any<A> {
     /// Unary plus is nothing but coercion to number.

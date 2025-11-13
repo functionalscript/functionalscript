@@ -1,12 +1,3 @@
-mod debug;
-mod default;
-mod index;
-mod into_iterator;
-mod partial_eq;
-mod serializable;
-mod sized_index;
-mod try_form;
-
 pub mod to_array;
 
 use crate::vm::IVm;
@@ -35,4 +26,4 @@ use crate::vm::IVm;
 /// array_test::<Naive>();
 /// ```
 #[derive(Clone)]
-pub struct Array<A: IVm>(A::InternalArray);
+pub struct Array<A: IVm>(pub(crate) A::InternalArray);

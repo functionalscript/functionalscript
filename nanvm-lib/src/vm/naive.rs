@@ -10,13 +10,7 @@ use crate::{
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
 /// recursive type aliases.
 #[derive(Clone)]
-pub struct Naive(Unpacked<Naive>);
-
-impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
-    fn from(value: T) -> Self {
-        Naive(value.into())
-    }
-}
+pub struct Naive(pub(crate) Unpacked<Naive>);
 
 impl IVm for Naive {
     type InternalString16 = Container<(), u16>;

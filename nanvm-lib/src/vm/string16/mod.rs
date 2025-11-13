@@ -1,15 +1,3 @@
-mod add;
-mod add_assign;
-mod debug;
-mod default;
-mod from;
-mod index;
-mod into_iterator;
-mod partial_eq;
-mod serializable;
-mod sized_index;
-mod try_from;
-
 pub mod join;
 pub mod to_string16;
 
@@ -40,4 +28,4 @@ use crate::vm::IVm;
 /// string_test::<Naive>();
 /// ```
 #[derive(Clone)]
-pub struct String16<A: IVm>(A::InternalString16);
+pub struct String16<A: IVm>(pub(crate) A::InternalString16);

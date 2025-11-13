@@ -1,10 +1,3 @@
-mod debug;
-mod default;
-mod into_iterator;
-mod partial_eq;
-mod serializable;
-mod try_from;
-
 pub mod property;
 pub mod to_object;
 
@@ -25,4 +18,4 @@ use crate::vm::IVm;
 /// object_test::<Naive>();
 /// ```
 #[derive(Clone)]
-pub struct Object<A: IVm>(A::InternalObject);
+pub struct Object<A: IVm>(pub(crate) A::InternalObject);
