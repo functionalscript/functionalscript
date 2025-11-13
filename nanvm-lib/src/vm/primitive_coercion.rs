@@ -1,8 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{
-        IVm, primitive::Primitive, unpacked::Operation
-    },
+    vm::{primitive::Primitive, unpacked::Operation, IVm},
 };
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
