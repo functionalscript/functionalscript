@@ -5,7 +5,6 @@ mod into_iterator;
 mod partial_eq;
 mod serializable;
 mod sized_index;
-mod try_form;
 
 pub mod to_array;
 

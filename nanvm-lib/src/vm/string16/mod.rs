@@ -8,7 +8,6 @@ mod into_iterator;
 mod partial_eq;
 mod serializable;
 mod sized_index;
-mod try_from;
 
 pub mod join;
 pub mod to_string16;

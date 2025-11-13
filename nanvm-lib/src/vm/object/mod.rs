@@ -3,7 +3,6 @@ mod default;
 mod into_iterator;
 mod partial_eq;
 mod serializable;
-mod try_from;
 
 pub mod property;
 pub mod to_object;

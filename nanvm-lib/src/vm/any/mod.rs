@@ -3,7 +3,6 @@ mod from;
 mod neg;
 mod partial_eq;
 mod serializable;
-mod try_from;
 
 pub mod to_any;
 

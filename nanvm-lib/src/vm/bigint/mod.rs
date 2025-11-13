@@ -3,7 +3,6 @@ mod default;
 mod from;
 mod partial_eq;
 mod serializable;
-mod try_from;
 
 use crate::vm::{IContainer, IVm};
 

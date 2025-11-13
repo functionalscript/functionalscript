@@ -1,7 +1,6 @@
 mod debug;
 mod partial_eq;
 mod serializable;
-mod try_from;
 
 pub mod header;
 

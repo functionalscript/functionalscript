@@ -9,6 +9,7 @@ mod primitive;
 mod primitive_coercion;
 mod string16;
 mod string_coercion;
+mod try_from;
 mod unpacked;
 
 pub mod naive;
