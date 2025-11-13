@@ -1,12 +1,15 @@
+pub mod to_any;
+
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
+        any::to_any::ToAny,
         number_coercion::NumberCoercion,
         primitive::Primitive,
         primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
         string_coercion::StringCoercion,
-        unpacked::Operation,
+        unpacked::Dispatch,
         IVm, String16, Unpacked,
     },
 };
@@ -51,6 +54,29 @@ impl<A: IVm> Any<A> {
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
         self.coerce_to_number().map(ToAny::to_any)
     }
+
+    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        self.dispatch(StringCoercion)
+    }
+
+    pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        self.dispatch(NumberCoercion)
+    }
+
+    pub fn coerce_to_primitive(
+        self,
+        preferred_type: Option<ToPrimitivePreferredType>,
+    ) -> Result<Primitive<A>, Any<A>> {
+        Ok(match preferred_type {
+            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.coerce_to_number()?),
+            Some(ToPrimitivePreferredType::String) => Primitive::String(self.coerce_to_string()?),
+            None => self.dispatch(PrimitiveCoercionOp),
+        })
+    }
+
+    fn dispatch<T: Dispatch<A>>(self, o: T) -> T::Result {
+        self.0.to_unpacked().dispatch(o)
+    }
 }
 
 impl<A: IVm> Debug for Any<A> {
@@ -58,17 +84,6 @@ impl<A: IVm> Debug for Any<A> {
         self.0.clone().to_unpacked().fmt(f)
     }
 }
-
-pub trait ToAny {
-    fn to_any<A: IVm>(self) -> Any<A>
-    where
-        Self: Into<A>,
-    {
-        Any(self.into())
-    }
-}
-
-impl<T> ToAny for T {}
 
 /// Same as `===` in ECMAScript.
 impl<A: IVm> PartialEq for Any<A> {
@@ -134,31 +149,6 @@ impl<A: IVm> Serializable for Any<A> {
     }
     fn deserialize(read: &mut impl Read) -> io::Result<Self> {
         Ok(Unpacked::deserialize(read)?.into())
-    }
-}
-
-impl<A: IVm> Any<A> {
-    fn dispatch<T: Operation<A>>(self, o: T) -> T::Result {
-        self.0.to_unpacked().op(o)
-    }
-
-    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        self.dispatch(StringCoercion)
-    }
-
-    pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        self.dispatch(NumberCoercion)
-    }
-
-    pub fn coerce_to_primitive(
-        self,
-        preferred_type: Option<ToPrimitivePreferredType>,
-    ) -> Result<Primitive<A>, Any<A>> {
-        Ok(match preferred_type {
-            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.coerce_to_number()?),
-            Some(ToPrimitivePreferredType::String) => Primitive::String(self.coerce_to_string()?),
-            None => self.dispatch(PrimitiveCoercionOp),
-        })
     }
 }
 

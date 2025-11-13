@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{any::Any, unpacked::Operation, Array, BigInt, Function, IVm, Object, String16},
+    vm::{any::Any, unpacked::Dispatch, Array, BigInt, Function, IVm, Object, String16},
 };
 
 /// Coerces the value to f64, possibly producing an error result.
@@ -12,7 +12,7 @@ use crate::{
 /// Note: the function can return an error (JS throw). For example, `+(7n)`.
 pub struct NumberCoercion;
 
-impl<A: IVm> Operation<A> for NumberCoercion {
+impl<A: IVm> Dispatch<A> for NumberCoercion {
     type Result = Result<f64, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {

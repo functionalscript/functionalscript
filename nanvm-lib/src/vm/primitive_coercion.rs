@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{primitive::Primitive, unpacked::Operation, IVm},
+    vm::{primitive::Primitive, unpacked::Dispatch, IVm},
 };
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
@@ -16,7 +16,7 @@ pub enum ToPrimitivePreferredType {
 /// <https://tc39.es/ecma262/#sec-toprimitive>
 pub struct PrimitiveCoercionOp;
 
-impl<A: IVm> Operation<A> for PrimitiveCoercionOp {
+impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
     type Result = Primitive<A>;
 
     fn nullish(self, v: Nullish) -> Self::Result {

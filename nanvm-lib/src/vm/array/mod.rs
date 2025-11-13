@@ -1,9 +1,11 @@
+pub mod to_array;
+
 use core::{fmt, ops::Index};
 use std::io;
 
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
-    vm::{internal::ContainerIterator, Any, IContainer, IVm, Unpacked},
+    vm::{internal::ContainerIterator, Any, IContainer, IVm, ToArray, Unpacked},
 };
 
 /// ```
@@ -91,14 +93,3 @@ impl<A: IVm> Serializable for Array<A> {
         A::InternalArray::deserialize(reader).map(Self)
     }
 }
-
-pub trait ToArray {
-    fn to_array<A: IVm>(self) -> Array<A>
-    where
-        Self: Sized + IntoIterator<Item = Any<A>>,
-    {
-        Array(A::InternalArray::new_ok((), self))
-    }
-}
-
-impl<T> ToArray for T {}

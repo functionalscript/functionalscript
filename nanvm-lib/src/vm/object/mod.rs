@@ -1,3 +1,5 @@
+pub mod to_object;
+
 use crate::{
     common::serializable::Serializable,
     vm::{internal::ContainerIterator, Any, IContainer, IVm, String16, Unpacked},
@@ -68,14 +70,3 @@ impl<A: IVm> Serializable for Object<A> {
         A::InternalObject::deserialize(reader).map(Self)
     }
 }
-
-pub trait ToObject {
-    fn to_object<A: IVm>(self) -> Object<A>
-    where
-        Self: Sized + IntoIterator<Item = Property<A>>,
-    {
-        Object(A::InternalObject::new_ok((), self))
-    }
-}
-
-impl<T> ToObject for T {}

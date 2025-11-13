@@ -1,7 +1,7 @@
 use crate::{
     nullish::Nullish,
     vm::{
-        any::Any, string16::Join, unpacked::Operation, Array, BigInt, Function, IVm, Object,
+        any::Any, string16::Join, unpacked::Dispatch, Array, BigInt, Function, IVm, Object,
         String16,
     },
 };
@@ -16,7 +16,7 @@ use crate::{
 /// 1. It can throw an error. For example: `{ toString: () => { throw 0 } } + ''`
 pub struct StringCoercion;
 
-impl<A: IVm> Operation<A> for StringCoercion {
+impl<A: IVm> Dispatch<A> for StringCoercion {
     type Result = Result<String16<A>, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {
@@ -68,7 +68,7 @@ impl<A: IVm> Operation<A> for StringCoercion {
     }
 }
 
-pub trait ToString16Result<A: IVm> {
+trait ToString16Result<A: IVm> {
     fn to_string16_result(self) -> Result<String16<A>, Any<A>>;
 }
 

@@ -14,19 +14,19 @@ mod unpacked;
 pub mod naive;
 
 pub use crate::vm::{
-    any::{Any, ToAny},
-    array::{Array, ToArray},
+    any::{to_any::ToAny, Any},
+    array::{to_array::ToArray, Array},
     bigint::BigInt,
     function::{Function, FunctionHeader},
     internal::{IContainer, IVm},
-    object::{Object, Property, ToObject},
-    string16::{String16, ToString16},
+    object::{to_object::ToObject, Object, Property},
+    string16::{to_string16::ToString16, String16},
     unpacked::Unpacked,
 };
 
 #[cfg(test)]
 mod test {
-    use crate::vm::any::ToAny;
+    use crate::vm::ToAny;
 
     use super::*;
 
