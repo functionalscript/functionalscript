@@ -163,7 +163,7 @@ impl<A: IVm> Serializable for Unpacked<A> {
     }
 }
 
-pub trait Operation<A: IVm> {
+pub trait Operation<A: IVm>: Sized {
     type Result;
     fn nullish(self, v: Nullish) -> Self::Result;
     fn bool(self, v: bool) -> Self::Result;
@@ -176,7 +176,7 @@ pub trait Operation<A: IVm> {
 }
 
 impl<A: IVm> Unpacked<A> {
-    pub fn dispatch<T: Operation<A>>(self, o: T) -> T::Result {
+    pub fn op<T: Operation<A>>(self, o: T) -> T::Result {
         match self {
             Unpacked::Nullish(v) => o.nullish(v),
             Unpacked::Boolean(v) => o.bool(v),

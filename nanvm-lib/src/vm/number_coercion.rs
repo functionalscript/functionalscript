@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{Array, BigInt, Function, IVm, Object, String16, any::Any, unpacked::Operation},
+    vm::{any::Any, unpacked::Operation, Array, BigInt, Function, IVm, Object, String16},
 };
 
 /// Coerces the value to f64, possibly producing an error result.

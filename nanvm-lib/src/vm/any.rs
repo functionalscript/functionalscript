@@ -45,10 +45,7 @@ impl<A: IVm> Any<A> {
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
-        self.0
-            .to_unpacked()
-            .dispatch(NumberCoercionOp)
-            .map(ToAny::to_any)
+        self.0.to_unpacked().op(NumberCoercionOp).map(ToAny::to_any)
     }
 }
 
@@ -137,8 +134,8 @@ impl<A: IVm> Serializable for Any<A> {
 }
 
 impl<A: IVm> Any<A> {
-    fn dispatch<T: Operation<A>>(self, op: T) -> T::Result {
-        self.0.to_unpacked().dispatch(op)
+    fn dispatch<T: Operation<A>>(self, o: T) -> T::Result {
+        self.0.to_unpacked().op(o)
     }
 
     pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
