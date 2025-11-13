@@ -11,12 +11,12 @@
     "prepack": "tsc --NoEmit false",
     "git-clean": "git clean -xf",
     "test20": "npm run prepack && node --test",
-    "test22": "tsc && node --test --experimental-strip-types",
-    "test": "tsc && node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
+    "test": "tsc && node --test --experimental-strip-types --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
     "fst": "node ./dev/tf/module.ts",
-    "update": "npm run index && npm install"
+    "ci-update": "node ./ci/module.ts",
+    "update": "npm install && npm run index && npm run ci-update"
   },
   "engines": {
     "node": ">=20"
@@ -45,8 +45,8 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
+    "@playwright/test": "*",
     "@types/node": "*",
-    "@typescript/native-preview": "*",
     "typescript": "*"
   }
 }

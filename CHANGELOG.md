@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- A compact version of Bit Vector [PR 575](https://github.com/functionalscript/functionalscript/pull/575)
+- Running tests in browsers [PR 572](https://github.com/functionalscript/functionalscript/pull/572)
+- Generating a GitHub CI file [PR 569](https://github.com/functionalscript/functionalscript/pull/569)
+- New Nominal type that prohibits '<' operations in Type Script
+  [PR 567](https://github.com/functionalscript/functionalscript/pull/567).
+
 ## 0.8.0
 
 - Switch to MIT License [PR 557](https://github.com/functionalscript/functionalscript/pull/557) and
@@ -14,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.7.0
 
-- New automatic test runner for `Node.js`, `Deno`, and `Bun` [PR 518](https://github.com/functionalscript/functionalscript/pull/518)
+- New automatic test runner for `Node.js`, `Deno`, and `Bun`
+  [PR 518](https://github.com/functionalscript/functionalscript/pull/518)
 
 ## 0.6.11
 

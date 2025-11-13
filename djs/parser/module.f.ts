@@ -1,6 +1,6 @@
-import * as result from '../../types/result/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
-import type * as Operator from '../../types/function/operator/module.f.ts'
+import type { Fold } from '../../types/function/operator/module.f.ts'
 import type { DjsToken, DjsTokenWithMetadata } from '../tokenizer/module.f.ts'
 import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
@@ -10,7 +10,7 @@ import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
 
 export type ParseContext = {
     readonly fs: Fs
-    readonly complete: OrderedMap<result.Result<AstModule, string>>
+    readonly complete: OrderedMap<Result<AstModule, string>>
     readonly stack: List<string>
 }
 
@@ -492,7 +492,7 @@ const parseObjectCommaOp
 }
 
 const foldOp
-    : Operator.Fold<DjsTokenWithMetadata, ParserState>
+    : Fold<DjsTokenWithMetadata, ParserState>
     = token => state => {
     switch (state.state) {
         case '': return parseInitialOp(token)(state)
@@ -524,11 +524,11 @@ const foldOp
     }
 }
 
-export const parseFromTokens = (tokenList: List<DjsTokenWithMetadata>): result.Result<AstModule, ParseError> => {
+export const parseFromTokens = (tokenList: List<DjsTokenWithMetadata>): Result<AstModule, ParseError> => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null }})(tokenList)
     switch (state.state) {
-        case 'result': return result.ok<AstModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
-        case 'error': return result.error(state.error)
-        default: return result.error({message: 'unexpected end', metadata: null})
+        case 'result': return ok<AstModule>([ toArray(state.module.modules), toArray(state.module.consts) ])
+        case 'error': return error(state.error)
+        default: return error({message: 'unexpected end', metadata: null})
     }
 }

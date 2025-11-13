@@ -1,4 +1,4 @@
-use crate::vm::string_coercion::ToString16Result;
+use crate::vm::{number_coercion::NumberCoercion, string_coercion::ToString16Result};
 
 use super::{string_coercion::StringCoercion, Any, IVm, String16};
 
@@ -10,5 +10,11 @@ impl<A: IVm> StringCoercion<A> for f64 {
             -0.0 => "0".to_string16_result(),
             v => v.to_string().to_string16_result(),
         }
+    }
+}
+
+impl<A: IVm> NumberCoercion<A> for f64 {
+    fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        Ok(self)
     }
 }

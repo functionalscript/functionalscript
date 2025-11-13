@@ -1,9 +1,9 @@
 import { toCodePointList, fromCodePointList } from './module.f.ts'
-import * as json from '../../json/module.f.ts'
+import { stringify as jsonStringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 
-const stringify = json.stringify(sort)
+const stringify = jsonStringify(sort)
 
 export default {
     toCodePoint: [

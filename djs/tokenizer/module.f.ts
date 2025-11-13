@@ -1,8 +1,6 @@
-import type * as Operator from '../../types/function/operator/module.f.ts'
-import * as list from '../../types/list/module.f.ts'
-const { empty, flat, stateScan } = list
-import * as bf from '../../types/bigfloat/module.f.ts'
-const { multiply } = bf
+import type { StateScan } from '../../types/function/operator/module.f.ts'
+import { empty, flat, map, stateScan, type List } from '../../types/list/module.f.ts'
+import { multiply } from '../../types/bigfloat/module.f.ts'
 import * as jsTokenizer from '../../js/tokenizer/module.f.ts'
 
 export type DjsToken = |
@@ -23,7 +21,7 @@ export type DjsTokenWithMetadata = {readonly token: DjsToken,  readonly metadata
 type ScanState = {readonly kind: 'def' | '-' }
 
 const mapToken
-    : (input: jsTokenizer.JsToken) => list.List<DjsToken>
+    : (input: jsTokenizer.JsToken) => List<DjsToken>
     = input =>
 {
     switch(input.kind)
@@ -55,7 +53,7 @@ const mapToken
 }
 
 const parseDefaultState
-    : (input: jsTokenizer.JsToken) => readonly [list.List<DjsToken>, ScanState]
+    : (input: jsTokenizer.JsToken) => readonly [List<DjsToken>, ScanState]
     = input =>
 {
     switch(input.kind)
@@ -67,7 +65,7 @@ const parseDefaultState
 }
 
 const parseMinusState
-    : (input: jsTokenizer.JsToken) => readonly [list.List<DjsToken>, ScanState]
+    : (input: jsTokenizer.JsToken) => readonly [List<DjsToken>, ScanState]
     = input =>
 {
     switch(input.kind)
@@ -81,7 +79,7 @@ const parseMinusState
 }
 
 const scanToken
-    : Operator.StateScan<jsTokenizer.JsToken, ScanState, list.List<DjsToken>>
+    : StateScan<jsTokenizer.JsToken, ScanState, List<DjsToken>>
     = state => input => {
     switch(state.kind)
     {
@@ -95,19 +93,19 @@ const mapTokenWithMetadata
     = metadata => token => { return{ token, metadata }}
 
 const scanTokenWithMetadata
-    : Operator.StateScan<jsTokenizer.JsTokenWithMetadata, ScanState, list.List<DjsTokenWithMetadata>>
+    : StateScan<jsTokenizer.JsTokenWithMetadata, ScanState, List<DjsTokenWithMetadata>>
     = state => (input) => {
         const [djsTokens, newState] = scanToken(state)(input.token)
-        const djsTokensWithMetadata = list.map(mapTokenWithMetadata(input.metadata))(djsTokens)
+        const djsTokensWithMetadata = map(mapTokenWithMetadata(input.metadata))(djsTokens)
         return [djsTokensWithMetadata, newState]
 }
 
 export const tokenize
-    : (input: list.List<number>) => (path: string) => list.List<DjsTokenWithMetadata>
+    : (input: List<number>) => (path: string) => List<DjsTokenWithMetadata>
     = input => path =>
 {
     const jsTokens
-        : list.List<jsTokenizer.JsTokenWithMetadata>
+        : List<jsTokenizer.JsTokenWithMetadata>
         = jsTokenizer.tokenize(input)(path)
     return flat(stateScan(scanTokenWithMetadata)({ kind: 'def' })(jsTokens))
 }

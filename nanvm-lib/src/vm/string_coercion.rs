@@ -9,6 +9,8 @@ pub trait StringCoercion<A: IVm> {
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion>
     /// <https://tc39.es/ecma262/#sec-tostring>
     ///
+    /// It equals to `self + ''` in JavaScript.
+    ///
     /// Notes:
     /// 1. It can throw an error. For example: `{ toString: () => { throw 0 } } + ''`
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>>;

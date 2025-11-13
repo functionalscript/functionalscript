@@ -1,15 +1,14 @@
-import * as _ from './module.f.ts'
-import * as ascii from '../text/ascii/module.f.ts'
-const { one } = ascii
-import * as j from '../json/module.f.ts'
-const { stringify } = j
+import { init } from './module.f.ts'
+import { one } from '../text/ascii/module.f.ts'
+import { stringify } from '../json/module.f.ts'
+
 const s = stringify(i => i)
 
 const f
     : (v: string) => string
     = v => {
     const n = one(v)
-    return s(_.init(n)[0])
+    return s(init(n)[0])
 }
 
 // this doesn't change a name of the function

@@ -1,8 +1,8 @@
 import { range } from './module.f.ts'
-import * as json from '../../json/module.f.ts'
+import { stringify as jsonStringify } from '../../json/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 
-const stringify = json.stringify(sort)
+const stringify = jsonStringify(sort)
 
 export default {
     range: () => {

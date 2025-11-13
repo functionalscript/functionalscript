@@ -1,4 +1,4 @@
-import type { Reduce } from '../function/operator/module.f.ts'
+import type { Fold, Reduce } from '../function/operator/module.f.ts'
 
 /**
  * Represents a monoid, an algebraic structure with a binary operation
@@ -64,17 +64,17 @@ export type Monoid<T> = {
  *     operation: a => b => a + b,
  * };
  *
- * const resultAdd = repeat(add)(2)(10n) // 20
+ * const resultAdd = repeat(add)(10n)(2) // 20
  *
  * const concat: Monoid<string> = {
  *     identity: '',
  *     operation: a => b => a + b,
  * };
  *
- * const resultConcat = repeat(concat)('ha')(3n) // 'hahaha'
+ * const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
  * ```
  */
-export const repeat = <T>({ identity, operation }: Monoid<T>) => (a: T) => (n: bigint): T => {
+export const repeat = <T>({ identity, operation }: Monoid<T>): Fold<bigint, T> => n => a => {
     let ai = a
     let ni = n
     let result = identity

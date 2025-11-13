@@ -8,6 +8,7 @@ import {
     type Vec
 } from '../../types/bit_vec/module.f.ts'
 import { flip } from '../../types/function/module.f.ts'
+import type { Fold } from '../../types/function/operator/module.f.ts'
 import { fold, type List } from '../../types/list/module.f.ts'
 
 const { concat, popFront, front } = msb
@@ -43,7 +44,7 @@ export type Base = {
     readonly chunkLength: bigint
     readonly compress: (i: V8) => (u: bigint) => V8
     readonly fromV8: (a: V8) => bigint
-    readonly append: (state: State) => (v: Vec) => State
+    readonly append: Fold<Vec, State>
     readonly end: (hashLength: bigint) => (state: State) => Vec
 }
 
@@ -199,7 +200,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         chunkLength,
         compress,
         fromV8,
-        append: (state: State) => (v: Vec): State => {
+        append: (v: Vec) => (state: State): State => {
             let { remainder, hash, len } = state
             remainder = concat(remainder)(v)
             let remainderLen = length(remainder)
@@ -263,11 +264,11 @@ export type Sha2 = {
     /**
      * Appends data to the state and returns the new state.
      *
-     * @param state The current state.
      * @param v The data to append.
+     * @param state The current state.
      * @returns The new state after appending data.
      */
-    readonly append: (state: State) => (v: Vec) => State
+    readonly append: Fold<Vec, State>
     /**
      * Finalizes the hash and returns the result as a bigint.
      *
@@ -290,7 +291,7 @@ const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint):
 })
 
 export const computeSync = ({ append, init, end }: Sha2): (list: List<Vec>) => Vec => {
-    const f = fold(flip(append))(init)
+    const f = fold(append)(init)
     return (list: List<Vec>): Vec => end(f(list))
 }
 
