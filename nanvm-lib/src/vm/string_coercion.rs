@@ -1,7 +1,7 @@
 use crate::{
     nullish::Nullish,
     vm::{
-        any::Any, string16::Join, unpacked::Dispatch, Array, BigInt, Function, IVm, Object,
+        any::Any, dispatch::Dispatch, string16::Join, Array, BigInt, Function, IVm, Object,
         String16,
     },
 };

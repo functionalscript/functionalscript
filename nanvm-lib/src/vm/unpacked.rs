@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{Array, BigInt, Function, IVm, Object, String16},
+    vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
 };
 use core::fmt::Debug;
 use std::io::{self, Read, Write};
@@ -161,18 +161,6 @@ impl<A: IVm> Serializable for Unpacked<A> {
             _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Unknown tag")),
         }
     }
-}
-
-pub trait Dispatch<A: IVm>: Sized {
-    type Result;
-    fn nullish(self, v: Nullish) -> Self::Result;
-    fn bool(self, v: bool) -> Self::Result;
-    fn number(self, v: f64) -> Self::Result;
-    fn string(self, v: String16<A>) -> Self::Result;
-    fn bigint(self, v: BigInt<A>) -> Self::Result;
-    fn object(self, v: Object<A>) -> Self::Result;
-    fn array(self, v: Array<A>) -> Self::Result;
-    fn function(self, v: Function<A>) -> Self::Result;
 }
 
 impl<A: IVm> Unpacked<A> {

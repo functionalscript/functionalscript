@@ -1,6 +1,7 @@
 mod any;
 mod array;
 mod bigint;
+mod dispatch;
 mod function;
 mod internal;
 mod number_coercion;

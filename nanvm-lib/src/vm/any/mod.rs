@@ -5,11 +5,11 @@ use crate::{
     nullish::Nullish,
     vm::{
         any::to_any::ToAny,
+        dispatch::Dispatch,
         number_coercion::NumberCoercion,
         primitive::Primitive,
         primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
         string_coercion::StringCoercion,
-        unpacked::Dispatch,
         IVm, String16, Unpacked,
     },
 };
