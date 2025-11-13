@@ -45,7 +45,7 @@ impl<A: IVm> Any<A> {
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
-        self.0.to_unpacked().op(NumberCoercionOp).map(ToAny::to_any)
+        self.coerce_to_number().map(ToAny::to_any)
     }
 }
 
