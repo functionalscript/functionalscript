@@ -1,12 +1,15 @@
+mod debug;
+mod default;
+mod index;
+mod into_iterator;
+mod partial_eq;
+mod serializable;
+mod sized_index;
+mod try_form;
+
 pub mod to_array;
 
-use core::{fmt, ops::Index};
-use std::io;
-
-use crate::{
-    common::{array::SizedIndex, serializable::Serializable},
-    vm::{internal::ContainerIterator, Any, IContainer, IVm, ToArray, Unpacked},
-};
+use crate::vm::IVm;
 
 /// ```
 /// use nanvm_lib::{
@@ -33,63 +36,3 @@ use crate::{
 /// ```
 #[derive(Clone)]
 pub struct Array<A: IVm>(A::InternalArray);
-
-impl<A: IVm> Default for Array<A> {
-    fn default() -> Self {
-        [].to_array()
-    }
-}
-
-impl<A: IVm> IntoIterator for Array<A> {
-    type Item = Any<A>;
-    type IntoIter = ContainerIterator<A, A::InternalArray>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.items_iter()
-    }
-}
-
-impl<A: IVm> Index<u32> for Array<A> {
-    type Output = Any<A>;
-    /// Currently panics if out of bounds.
-    /// TODO: Future versions may change to return `Nullish::Undefined`.
-    fn index(&self, index: u32) -> &Self::Output {
-        self.0.items().index(index as usize)
-    }
-}
-
-impl<A: IVm> SizedIndex<u32> for Array<A> {
-    fn length(&self) -> u32 {
-        self.0.items().length() as u32
-    }
-}
-
-impl<A: IVm> PartialEq for Array<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.ptr_eq(&other.0)
-    }
-}
-
-impl<A: IVm> TryFrom<Any<A>> for Array<A> {
-    type Error = ();
-    fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        let Unpacked::Array(result) = value.into() else {
-            return Err(());
-        };
-        Ok(result)
-    }
-}
-
-impl<A: IVm> fmt::Debug for Array<A> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.items_fmt('[', ']', f)
-    }
-}
-
-impl<A: IVm> Serializable for Array<A> {
-    fn serialize(self, writer: &mut impl io::Write) -> io::Result<()> {
-        self.0.serialize(writer)
-    }
-    fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {
-        A::InternalArray::deserialize(reader).map(Self)
-    }
-}

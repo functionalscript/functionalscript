@@ -19,7 +19,7 @@ pub use crate::vm::{
     bigint::BigInt,
     function::{Function, FunctionHeader},
     internal::{IContainer, IVm},
-    object::{to_object::ToObject, Object, Property},
+    object::{to_object::ToObject, Object, property::Property},
     string16::{to_string16::ToString16, String16},
     unpacked::Unpacked,
 };

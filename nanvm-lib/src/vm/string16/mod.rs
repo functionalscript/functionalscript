@@ -1,19 +1,19 @@
+mod add;
+mod add_assign;
+mod debug;
+mod default;
+mod from;
+mod index;
+mod into_iterator;
+mod partial_eq;
+mod serializable;
+mod sized_index;
+mod try_from;
+
+pub mod join;
 pub mod to_string16;
 
-use crate::{
-    common::{
-        array::{RandomAccess, SizedIndex},
-        iter::Iter,
-        serializable::Serializable,
-    },
-    vm::{internal::ContainerIterator, Any, IContainer, IVm, ToAny, ToString16, Unpacked},
-};
-use core::{
-    fmt::{Debug, Formatter, Write},
-    iter,
-    ops::{Add, AddAssign, Index},
-};
-use std::io;
+use crate::vm::IVm;
 
 /// ```
 /// use nanvm_lib::{
@@ -41,125 +41,3 @@ use std::io;
 /// ```
 #[derive(Clone)]
 pub struct String16<A: IVm>(A::InternalString16);
-
-impl<A: IVm> Default for String16<A> {
-    fn default() -> Self {
-        iter::empty().to_string16()
-    }
-}
-
-impl<A: IVm> From<String16<A>> for String {
-    fn from(value: String16<A>) -> Self {
-        char::decode_utf16(value)
-            .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER))
-            .collect()
-    }
-}
-
-impl<A: IVm> From<&str> for String16<A> {
-    fn from(value: &str) -> Self {
-        value.encode_utf16().to_string16()
-    }
-}
-
-impl<A: IVm> From<&str> for Any<A> {
-    fn from(value: &str) -> Self {
-        let s: String16<_> = value.into();
-        s.to_any()
-    }
-}
-
-impl<A: IVm> PartialEq for String16<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.items_eq(&other.0)
-    }
-}
-
-const DOUBLE_QUOTE: u16 = '"' as u16;
-const BACKSLASH: u16 = '\\' as u16;
-
-impl<A: IVm> Debug for String16<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_char('"')?;
-        for &i in self.0.items().to_iter() {
-            match i {
-                DOUBLE_QUOTE => f.write_str("\\\"")?,
-                BACKSLASH => f.write_str("\\\\")?,
-                c => {
-                    if (0x20..=0x7F).contains(&c) {
-                        f.write_char(c as u8 as char)?;
-                    } else {
-                        write!(f, "\\u{c:04X}")?;
-                    }
-                }
-            }
-        }
-        f.write_char('"')
-    }
-}
-
-impl<A: IVm> TryFrom<Any<A>> for String16<A> {
-    type Error = ();
-    fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        let Unpacked::String(result) = value.into() else {
-            return Err(());
-        };
-        Ok(result)
-    }
-}
-
-impl<A: IVm> IntoIterator for String16<A> {
-    type Item = u16;
-    type IntoIter = ContainerIterator<A, A::InternalString16>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.items_iter()
-    }
-}
-
-impl<A: IVm> Index<u32> for String16<A> {
-    type Output = u16;
-    /// Currently panics if out of bounds.
-    /// TODO: Future versions may change to return `Option<u16>`.
-    /// Also we can implement `Index<Any<A>>`, `Index<f64>` and `Index<String16>`.
-    fn index(&self, index: u32) -> &Self::Output {
-        self.0.items().index(index as usize)
-    }
-}
-
-impl<A: IVm> SizedIndex<u32> for String16<A> {
-    fn length(&self) -> u32 {
-        self.0.items().length() as u32
-    }
-}
-
-impl<A: IVm> Serializable for String16<A> {
-    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
-        self.0.serialize(write)
-    }
-
-    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
-        A::InternalString16::deserialize(read).map(Self)
-    }
-}
-
-impl<A: IVm> Add for String16<A> {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
-        self.into_iter().chain(rhs).to_string16()
-    }
-}
-
-impl<A: IVm> AddAssign for String16<A> {
-    fn add_assign(&mut self, other: Self) {
-        *self = self.clone() + other;
-    }
-}
-
-pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
-    fn join(self, separator: String16<A>) -> Result<String16<A>, Any<A>> {
-        let i = self.intersperse_(Ok(separator)).try_flatten();
-        Ok(String16(A::InternalString16::new((), i)?))
-    }
-}
-
-impl<A: IVm, T: Sized + Iterator<Item = Result<String16<A>, Any<A>>>> Join<A> for T {}

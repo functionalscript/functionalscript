@@ -1,13 +1,14 @@
+mod debug;
+mod default;
+mod partial_eq;
+mod into_iterator;
+mod serializable;
+mod try_from;
+
 pub mod to_object;
+pub mod property;
 
-use crate::{
-    common::serializable::Serializable,
-    vm::{internal::ContainerIterator, Any, IContainer, IVm, String16, Unpacked},
-};
-use core::fmt::{self, Debug, Formatter};
-use std::io;
-
-pub type Property<A> = (String16<A>, Any<A>);
+use crate::vm::IVm;
 
 /// ```
 /// use nanvm_lib::vm::{Object, ToObject, IVm, Array, Any, ToAny, naive::Naive};
@@ -25,48 +26,3 @@ pub type Property<A> = (String16<A>, Any<A>);
 /// ```
 #[derive(Clone)]
 pub struct Object<A: IVm>(A::InternalObject);
-
-impl<A: IVm> Default for Object<A> {
-    fn default() -> Self {
-        Object(A::InternalObject::new_empty(()))
-    }
-}
-
-impl<A: IVm> PartialEq for Object<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.ptr_eq(&other.0)
-    }
-}
-
-impl<A: IVm> IntoIterator for Object<A> {
-    type Item = Property<A>;
-    type IntoIter = ContainerIterator<A, A::InternalObject>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.items_iter()
-    }
-}
-
-impl<A: IVm> TryFrom<Any<A>> for Object<A> {
-    type Error = ();
-    fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        let Unpacked::Object(result) = value.into() else {
-            return Err(());
-        };
-        Ok(result)
-    }
-}
-
-impl<A: IVm> Debug for Object<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.items_fmt('{', '}', f)
-    }
-}
-
-impl<A: IVm> Serializable for Object<A> {
-    fn serialize(self, writer: &mut impl io::Write) -> io::Result<()> {
-        self.0.serialize(writer)
-    }
-    fn deserialize(reader: &mut impl io::Read) -> io::Result<Self> {
-        A::InternalObject::deserialize(reader).map(Self)
-    }
-}
