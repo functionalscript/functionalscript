@@ -1,12 +1,12 @@
 mod debug;
 mod default;
-mod partial_eq;
 mod into_iterator;
+mod partial_eq;
 mod serializable;
 mod try_from;
 
-pub mod to_object;
 pub mod property;
+pub mod to_object;
 
 use crate::vm::IVm;
 

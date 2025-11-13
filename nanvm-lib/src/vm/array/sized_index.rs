@@ -1,4 +1,7 @@
-use crate::{common::array::SizedIndex, vm::{Array, IContainer, IVm}};
+use crate::{
+    common::array::SizedIndex,
+    vm::{Array, IContainer, IVm},
+};
 
 impl<A: IVm> SizedIndex<u32> for Array<A> {
     fn length(&self) -> u32 {

@@ -1,4 +1,4 @@
-use crate::vm::{IContainer, IVm, String16, internal::ContainerIterator};
+use crate::vm::{internal::ContainerIterator, IContainer, IVm, String16};
 
 impl<A: IVm> IntoIterator for String16<A> {
     type Item = u16;

@@ -1,5 +1,8 @@
-use crate::{common::serializable::Serializable, vm::{Array, IContainer, IVm}};
-use std::io::{Write, Result, Read};
+use crate::{
+    common::serializable::Serializable,
+    vm::{Array, IContainer, IVm},
+};
+use std::io::{Read, Result, Write};
 
 impl<A: IVm> Serializable for Array<A> {
     fn serialize(self, writer: &mut impl Write) -> Result<()> {

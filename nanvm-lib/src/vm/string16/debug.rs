@@ -1,5 +1,8 @@
-use crate::{common::array::RandomAccess, vm::{IContainer, IVm, String16}};
-use core::fmt::{Write, Debug, Formatter};
+use crate::{
+    common::array::RandomAccess,
+    vm::{IContainer, IVm, String16},
+};
+use core::fmt::{Debug, Formatter, Write};
 
 const DOUBLE_QUOTE: u16 = '"' as u16;
 const BACKSLASH: u16 = '\\' as u16;

@@ -1,4 +1,7 @@
-use crate::vm::{Any, Array, IVm, internal::{ContainerIterator, IContainer}};
+use crate::vm::{
+    internal::{ContainerIterator, IContainer},
+    Any, Array, IVm,
+};
 
 impl<A: IVm> IntoIterator for Array<A> {
     type Item = Any<A>;
