@@ -1,10 +1,15 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{IVm, String16, Unpacked, number_coercion::NumberCoercion, string_coercion::StringCoercion},
+    vm::{
+        number_coercion::NumberCoercion, string_coercion::StringCoercion, IVm, String16, Unpacked,
+    },
 };
 use core::fmt::{self, Debug, Formatter};
-use std::{io::{self, Read, Write}, ops::Neg};
+use std::{
+    io::{self, Read, Write},
+    ops::Neg,
+};
 
 /// ```
 /// use nanvm_lib::{

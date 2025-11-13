@@ -1,7 +1,9 @@
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
     vm::{
-        Any, IContainer, IVm, String16, Unpacked, number_coercion::NumberCoercion, string_coercion::{StringCoercion, ToString16Result}
+        number_coercion::NumberCoercion,
+        string_coercion::{StringCoercion, ToString16Result},
+        Any, IContainer, IVm, String16, Unpacked,
     },
 };
 use core::fmt::{Debug, Formatter, Write};

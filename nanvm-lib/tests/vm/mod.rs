@@ -392,10 +392,7 @@ fn format_fn<A: IVm>() {
 fn unary_plus<A: IVm>() {
     {
         let n: Any<A> = Nullish::Null.to_any();
-        assert_eq!(
-            Any::unary_plus(n),
-            Ok(0.0.to_any())
-        );
+        assert_eq!(Any::unary_plus(n), Ok(0.0.to_any()));
     }
     // {
     //     let n: Any<A> = Nullish::Undefined.to_any();
@@ -406,45 +403,27 @@ fn unary_plus<A: IVm>() {
     // }
     {
         let n: Any<A> = false.to_any();
-        assert_eq!(
-            Any::unary_plus(n),
-            Ok(0.0.to_any())
-        );
+        assert_eq!(Any::unary_plus(n), Ok(0.0.to_any()));
     }
     {
         let n: Any<A> = true.to_any();
-        assert_eq!(
-            Any::unary_plus(n),
-            Ok(1.0.to_any())
-        );
+        assert_eq!(Any::unary_plus(n), Ok(1.0.to_any()));
     }
     {
         let n: Any<A> = 0.0.to_any();
-        assert_eq!(
-            Any::unary_plus(n.clone()),
-            Ok(n)
-        );
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
     }
     {
         let n: Any<A> = (-239.0).to_any();
-        assert_eq!(
-            Any::unary_plus(n.clone()),
-            Ok(n)
-        );
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
     }
     {
         let n: Any<A> = f64::INFINITY.to_any();
-        assert_eq!(
-            Any::unary_plus(n.clone()),
-            Ok(n)
-        );
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
     }
     {
         let n: Any<A> = f64::NEG_INFINITY.to_any();
-        assert_eq!(
-            Any::unary_plus(n.clone()),
-            Ok(n)
-        );
+        assert_eq!(Any::unary_plus(n.clone()), Ok(n));
     }
 
     // let n0: A = Simple::Number(0.0).to_unknown();

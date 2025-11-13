@@ -4,7 +4,8 @@ use std::{io, ops::Index};
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
     vm::{
-        Any, IContainer, IVm, String16, Unpacked, internal::ContainerIterator, number_coercion::NumberCoercion, string_coercion::StringCoercion, string16::Join
+        internal::ContainerIterator, number_coercion::NumberCoercion, string16::Join,
+        string_coercion::StringCoercion, Any, IContainer, IVm, String16, Unpacked,
     },
 };
 

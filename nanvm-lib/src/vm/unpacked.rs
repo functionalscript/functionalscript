@@ -1,7 +1,10 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Object, String16, number_coercion::NumberCoercion, string_coercion::StringCoercion},
+    vm::{
+        number_coercion::NumberCoercion, string_coercion::StringCoercion, Any, Array, BigInt,
+        Function, IVm, Object, String16,
+    },
 };
 use core::fmt::Debug;
 use std::io::{self, Read, Write};
