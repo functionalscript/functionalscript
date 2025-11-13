@@ -1,7 +1,9 @@
+pub mod dispatch;
+
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
+    vm::{unpacked::dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
 };
 use core::fmt::Debug;
 use std::io::{self, Read, Write};

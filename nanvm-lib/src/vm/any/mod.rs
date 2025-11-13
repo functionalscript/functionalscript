@@ -4,11 +4,11 @@ use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        dispatch::Dispatch,
         number_coercion::NumberCoercion,
         primitive::Primitive,
         primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
         string_coercion::StringCoercion,
+        unpacked::dispatch::Dispatch,
         IVm, String16, ToAny, Unpacked,
     },
 };
