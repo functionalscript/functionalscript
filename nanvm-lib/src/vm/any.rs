@@ -6,11 +6,11 @@ use crate::{
         IVm, String16, Unpacked,
     },
 };
-use core::fmt::{self, Debug, Formatter};
-use std::{
-    io::{self, Read, Write},
+use core::{
+    fmt::{self, Debug, Formatter},
     ops::Neg,
 };
+use std::io::{self, Read, Write};
 
 /// ```
 /// use nanvm_lib::{

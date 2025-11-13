@@ -1,5 +1,5 @@
-use core::fmt;
-use std::{io, ops::Index};
+use core::{fmt, ops::Index};
+use std::io;
 
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},

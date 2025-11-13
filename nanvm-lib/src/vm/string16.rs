@@ -9,9 +9,9 @@ use crate::{
 use core::{
     fmt::{Debug, Formatter, Write},
     iter,
-    ops::{Add, AddAssign},
+    ops::{Add, AddAssign, Index},
 };
-use std::{io, ops::Index};
+use std::io;
 
 /// ```
 /// use nanvm_lib::{

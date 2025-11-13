@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{any::Any, unpacked::Operation, IVm},
+    vm::{Array, BigInt, Function, IVm, Object, String16, any::Any, unpacked::Operation},
 };
 
 /// Coerces the value to f64, possibly producing an error result.
@@ -30,7 +30,7 @@ impl<A: IVm> Operation<A> for NumberCoercionOp {
         Ok(v)
     }
 
-    fn string(self, _: super::String16<A>) -> Self::Result {
+    fn string(self, _: String16<A>) -> Self::Result {
         todo!()
         // let s: String = self.into();
         // let trimmed = s.trim();
@@ -43,21 +43,21 @@ impl<A: IVm> Operation<A> for NumberCoercionOp {
         // }
     }
 
-    fn bigint(self, v: super::BigInt<A>) -> Self::Result {
+    fn bigint(self, _: BigInt<A>) -> Self::Result {
         Err("TypeError: Cannot convert a BigInt value to a number".into())
     }
 
-    fn object(self, v: super::Object<A>) -> Self::Result {
+    fn object(self, _: Object<A>) -> Self::Result {
         // TODO:
         todo!()
     }
 
-    fn array(self, v: super::Array<A>) -> Self::Result {
+    fn array(self, _: Array<A>) -> Self::Result {
         // TODO:
         todo!()
     }
 
-    fn function(self, v: super::Function<A>) -> Self::Result {
+    fn function(self, _: Function<A>) -> Self::Result {
         // TODO:
         todo!()
     }
