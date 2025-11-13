@@ -1,4 +1,7 @@
-use crate::{common::array::SizedIndex, vm::{Function, IContainer, IVm}};
+use crate::{
+    common::array::SizedIndex,
+    vm::{Function, IContainer, IVm},
+};
 use core::fmt::{Debug, Formatter, Write};
 
 impl<A: IVm> Debug for Function<A> {

@@ -17,7 +17,7 @@ pub use crate::vm::{
     any::{to_any::ToAny, Any},
     array::{to_array::ToArray, Array},
     bigint::BigInt,
-    function::{Function, header::FunctionHeader},
+    function::{header::FunctionHeader, Function},
     internal::{IContainer, IVm},
     object::{property::Property, to_object::ToObject, Object},
     string16::{to_string16::ToString16, String16},
