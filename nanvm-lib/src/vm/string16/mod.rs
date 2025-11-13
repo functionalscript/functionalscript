@@ -18,7 +18,7 @@ use crate::vm::IVm;
 /// ```
 /// use nanvm_lib::{
 ///     vm::{String16, IVm, Any, ToString16, naive::Naive, ToAny},
-///     common::array::SizedIndex,
+///     common::sized_index::SizedIndex,
 /// };
 /// fn string_test<A: IVm>() {
 ///     let a: String16<A> = "Hello, world!".into();
