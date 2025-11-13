@@ -68,7 +68,18 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static
         if self.header() != b.header() {
             return false;
         }
-        self.clone().items_iter().eq(b.clone().items_iter())
+        let a = self.items();
+        let b = b.items();
+        let len = a.length();
+        if len != b.length() {
+            return false
+        }
+        for i in 0..len {
+            if a[i] != b[i] {
+                return false;
+            }
+        }
+        true
     }
 
     fn items_iter(self) -> ContainerIterator<A, Self>
