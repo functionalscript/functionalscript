@@ -33,11 +33,10 @@ impl<A: IVm> PartialEq for Function<A> {
 impl<A: IVm> TryFrom<Any<A>> for Function<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::Function(result) = value.into() {
-            Ok(result)
-        } else {
-            Err(())
-        }
+        let Unpacked::Function(result) = value.into() else {
+            return Err(())
+        };
+        Ok(result)
     }
 }
 

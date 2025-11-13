@@ -73,11 +73,10 @@ impl<A: IVm> PartialEq for Array<A> {
 impl<A: IVm> TryFrom<Any<A>> for Array<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::Array(result) = value.into() {
-            Ok(result)
-        } else {
-            Err(())
-        }
+        let Unpacked::Array(result) = value.into() else {
+            return Err(())
+        };
+        Ok(result)
     }
 }
 

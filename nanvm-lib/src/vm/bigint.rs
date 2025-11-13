@@ -66,11 +66,10 @@ impl<A: IVm> PartialEq for BigInt<A> {
 impl<A: IVm> TryFrom<Any<A>> for BigInt<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::BigInt(result) = value.into() {
-            Ok(result)
-        } else {
-            Err(())
-        }
+        let Unpacked::BigInt(result) = value.into() else {
+            return Err(());
+        };
+        Ok(result)
     }
 }
 

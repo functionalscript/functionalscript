@@ -52,11 +52,10 @@ impl<A: IVm> IntoIterator for Object<A> {
 impl<A: IVm> TryFrom<Any<A>> for Object<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::Object(result) = value.into() {
-            Ok(result)
-        } else {
-            Err(())
-        }
+        let Unpacked::Object(result) = value.into() else {
+            return Err(())
+        };
+        Ok(result)
     }
 }
 

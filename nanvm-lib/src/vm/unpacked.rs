@@ -166,6 +166,33 @@ impl<A: IVm> Serializable for Unpacked<A> {
     }
 }
 
+pub trait Operation<A: IVm> {
+    type Result;
+    fn nullish(self, v: Nullish) -> Self::Result;
+    fn bool(self, v: bool) -> Self::Result;
+    fn number(self, v: f64) -> Self::Result;
+    fn string(self, v: String16<A>) -> Self::Result;
+    fn bigint(self, v: BigInt<A>) -> Self::Result;
+    fn object(self, v: Object<A>) -> Self::Result;
+    fn array(self, v: Array<A>) -> Self::Result;
+    fn function(self, v: Function<A>) -> Self::Result;
+}
+
+impl<A: IVm> Unpacked<A> {
+    pub fn op<T: Operation<A>>(self, o: T) -> T::Result {
+        match self {
+            Unpacked::Nullish(v) => o.nullish(v),
+            Unpacked::Boolean(v) => o.bool(v),
+            Unpacked::Number(v) => o.number(v),
+            Unpacked::String(v) => o.string(v),
+            Unpacked::BigInt(v) => o.bigint(v),
+            Unpacked::Object(v) => o.object(v),
+            Unpacked::Array(v) => o.array(v),
+            Unpacked::Function(v) => o.function(v),
+        }
+    }
+}
+
 impl<A: IVm> StringCoercion<A> for Unpacked<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         match self {

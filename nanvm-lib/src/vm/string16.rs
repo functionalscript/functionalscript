@@ -113,11 +113,10 @@ impl<A: IVm> Debug for String16<A> {
 impl<A: IVm> TryFrom<Any<A>> for String16<A> {
     type Error = ();
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-        if let Unpacked::String(result) = value.into() {
-            Ok(result)
-        } else {
-            Err(())
-        }
+        let Unpacked::String(result) = value.into() else {
+            return Err(())
+        };
+        Ok(result)
     }
 }
 
