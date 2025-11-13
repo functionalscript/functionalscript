@@ -1,5 +1,5 @@
 use crate::{
-    common::array::SizedIndex,
+    common::sized_index::SizedIndex,
     sign::Sign,
     vm::{BigInt, IContainer, IVm},
 };

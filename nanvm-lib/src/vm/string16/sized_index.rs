@@ -1,5 +1,5 @@
 use crate::{
-    common::array::SizedIndex,
+    common::sized_index::SizedIndex,
     vm::{IContainer, IVm, String16},
 };
 

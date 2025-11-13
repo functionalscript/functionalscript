@@ -1,5 +1,5 @@
 use crate::{
-    common::array::SizedIndex,
+    common::sized_index::SizedIndex,
     vm::{Function, IContainer, IVm},
 };
 use core::fmt::{Debug, Formatter, Write};

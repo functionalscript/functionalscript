@@ -13,7 +13,7 @@ impl<A: IVm> From<&str> for Any<A> {
     }
 }
 
-// Should we use `TryFrom` instead since we can have an error.
+// TODO: Should we use `TryFrom` instead since we can have an error?
 impl<A: IVm> From<String16<A>> for String {
     fn from(value: String16<A>) -> Self {
         char::decode_utf16(value)

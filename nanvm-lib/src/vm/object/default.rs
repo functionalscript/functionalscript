@@ -1,8 +1,10 @@
+use core::iter::empty;
+
 use super::Object;
-use crate::vm::{internal::IContainer, IVm};
+use crate::vm::{IVm, ToObject};
 
 impl<A: IVm> Default for Object<A> {
     fn default() -> Self {
-        Object(A::InternalObject::new_empty(()))
+        empty().to_object()
     }
 }
