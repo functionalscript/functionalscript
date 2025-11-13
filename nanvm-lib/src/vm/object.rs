@@ -1,9 +1,6 @@
 use crate::{
     common::serializable::Serializable,
-    vm::{
-        internal::ContainerIterator, number_coercion::NumberCoercion,
-        Any, IContainer, IVm, String16, Unpacked,
-    },
+    vm::{internal::ContainerIterator, Any, IContainer, IVm, String16, Unpacked},
 };
 use core::fmt::{self, Debug, Formatter};
 use std::io;
@@ -82,9 +79,3 @@ pub trait ToObject {
 }
 
 impl<T> ToObject for T {}
-
-impl<A: IVm> NumberCoercion<A> for Object<A> {
-    fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        todo!()
-    }
-}

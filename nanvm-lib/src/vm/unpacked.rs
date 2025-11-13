@@ -1,7 +1,7 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{number_coercion::NumberCoercion, Any, Array, BigInt, Function, IVm, Object, String16},
+    vm::{Any, Array, BigInt, Function, IVm, Object, String16},
 };
 use core::fmt::Debug;
 use std::io::{self, Read, Write};
@@ -186,21 +186,6 @@ impl<A: IVm> Unpacked<A> {
             Unpacked::Object(v) => o.object(v),
             Unpacked::Array(v) => o.array(v),
             Unpacked::Function(v) => o.function(v),
-        }
-    }
-}
-
-impl<A: IVm> NumberCoercion<A> for Unpacked<A> {
-    fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        match self {
-            Unpacked::Nullish(n) => n.coerce_to_number(),
-            Unpacked::Boolean(b) => b.coerce_to_number(),
-            Unpacked::Number(n) => n.coerce_to_number(),
-            Unpacked::String(s) => s.coerce_to_number(),
-            Unpacked::BigInt(i) => i.coerce_to_number(),
-            Unpacked::Object(o) => o.coerce_to_number(),
-            Unpacked::Array(a) => a.coerce_to_number(),
-            Unpacked::Function(f) => f.coerce_to_number(),
         }
     }
 }

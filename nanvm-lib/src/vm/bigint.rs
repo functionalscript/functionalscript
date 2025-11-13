@@ -1,7 +1,7 @@
 use crate::{
     common::{array::SizedIndex, default::default, serializable::Serializable},
     sign::Sign,
-    vm::{number_coercion::NumberCoercion, Any, IContainer, IVm, Unpacked},
+    vm::{Any, IContainer, IVm, Unpacked},
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
@@ -95,11 +95,5 @@ impl<A: IVm> Serializable for BigInt<A> {
 
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalBigInt::deserialize(read).map(Self)
-    }
-}
-
-impl<A: IVm> NumberCoercion<A> for BigInt<A> {
-    fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        Err("TypeError: Cannot convert a BigInt value to a number".into())
     }
 }

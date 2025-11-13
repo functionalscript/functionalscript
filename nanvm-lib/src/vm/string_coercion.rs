@@ -77,4 +77,3 @@ impl<A: IVm> ToString16Result<A> for &str {
         Ok(self.into())
     }
 }
-

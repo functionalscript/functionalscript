@@ -3,7 +3,6 @@ mod array;
 mod bigint;
 mod function;
 mod internal;
-mod number;
 mod number_coercion;
 mod object;
 mod primitive;

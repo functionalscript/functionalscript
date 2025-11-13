@@ -1,9 +1,6 @@
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
-    vm::{
-        number_coercion::NumberCoercion, Any, IContainer, IVm,
-        String16, Unpacked,
-    },
+    vm::{Any, IContainer, IVm, String16, Unpacked},
 };
 use core::fmt::{Debug, Formatter, Write};
 use std::io;
@@ -64,11 +61,5 @@ impl<A: IVm> Serializable for Function<A> {
     }
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         A::InternalFunction::deserialize(read).map(Self)
-    }
-}
-
-impl<A: IVm> NumberCoercion<A> for Function<A> {
-    fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        todo!()
     }
 }

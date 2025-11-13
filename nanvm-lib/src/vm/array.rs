@@ -3,10 +3,7 @@ use std::{io, ops::Index};
 
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
-    vm::{
-        internal::ContainerIterator, number_coercion::NumberCoercion, Any,
-        IContainer, IVm, Unpacked,
-    },
+    vm::{internal::ContainerIterator, Any, IContainer, IVm, Unpacked},
 };
 
 /// ```
@@ -105,9 +102,3 @@ pub trait ToArray {
 }
 
 impl<T> ToArray for T {}
-
-impl<A: IVm> NumberCoercion<A> for Array<A> {
-    fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        todo!()
-    }
-}

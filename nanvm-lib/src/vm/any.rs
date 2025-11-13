@@ -2,7 +2,8 @@ use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
     vm::{
-        number_coercion::NumberCoercion, string_coercion::StringCoercion, IVm, String16, Unpacked,
+        number_coercion::NumberCoercionOp, string_coercion::StringCoercion, unpacked::Operation,
+        IVm, String16, Unpacked,
     },
 };
 use core::fmt::{self, Debug, Formatter};
@@ -44,7 +45,10 @@ impl<A: IVm> Any<A> {
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
-        self.coerce_to_number().map(ToAny::to_any)
+        self.0
+            .to_unpacked()
+            .dispatch(NumberCoercionOp)
+            .map(ToAny::to_any)
     }
 }
 
@@ -133,14 +137,16 @@ impl<A: IVm> Serializable for Any<A> {
 }
 
 impl<A: IVm> Any<A> {
-    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
-        self.0.to_unpacked().dispatch(StringCoercion)
+    fn dispatch<T: Operation<A>>(self, op: T) -> T::Result {
+        self.0.to_unpacked().dispatch(op)
     }
-}
 
-impl<A: IVm> NumberCoercion<A> for Any<A> {
-    fn coerce_to_number(self) -> Result<f64, Any<A>> {
-        self.0.to_unpacked().coerce_to_number()
+    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+        self.dispatch(StringCoercion)
+    }
+
+    pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        self.dispatch(NumberCoercionOp)
     }
 }
 
