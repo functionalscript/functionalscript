@@ -30,8 +30,7 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
     }
 }
 
-pub trait IContainer<A: IVm>: Sized + Clone + 'static
-{
+pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
     type Header: PartialEq + Serializable + Clone;
     type Item: Debug + Serializable + Clone;
@@ -72,7 +71,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static
         let b = b.items();
         let len = a.length();
         if len != b.length() {
-            return false
+            return false;
         }
         for i in 0..len {
             if a[i] != b[i] {
