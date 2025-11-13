@@ -1,8 +1,7 @@
 use crate::{
     common::{array::SizedIndex, serializable::Serializable},
     vm::{
-        string_coercion::{StringCoercion, ToString16Result},
-        Any, IContainer, IVm, String16, Unpacked,
+        Any, IContainer, IVm, String16, Unpacked, number_coercion::NumberCoercion, string_coercion::{StringCoercion, ToString16Result}
     },
 };
 use core::fmt::{Debug, Formatter, Write};
@@ -72,5 +71,11 @@ impl<A: IVm> StringCoercion<A> for Function<A> {
     fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
         "[object Function]".to_string16_result()
+    }
+}
+
+impl<A: IVm> NumberCoercion<A> for Function<A> {
+    fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        todo!()
     }
 }
