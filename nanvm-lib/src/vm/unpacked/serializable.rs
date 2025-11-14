@@ -33,20 +33,16 @@ fn serialize(write: &mut impl Write, tag: u8, value: impl Serializable) -> Resul
 impl<A: IVm> Serializable for Unpacked<A> {
     fn serialize(self, write: &mut impl Write) -> Result<()> {
         match self {
-            Unpacked::Nullish(v) => {
-                let tag = match v {
-                    Nullish::Undefined => UNDEFINED,
-                    Nullish::Null => NULL,
-                };
-                tag.serialize(write)
+            Unpacked::Nullish(v) => match v {
+                Nullish::Undefined => UNDEFINED,
+                Nullish::Null => NULL,
             }
-            Unpacked::Boolean(v) => {
-                let tag = match v {
-                    true => TRUE,
-                    false => FALSE,
-                };
-                tag.serialize(write)
+            .serialize(write),
+            Unpacked::Boolean(v) => match v {
+                true => TRUE,
+                false => FALSE,
             }
+            .serialize(write),
             Unpacked::Number(v) => serialize(write, NUMBER, v),
             Unpacked::String(v) => serialize(write, STRING, v),
             Unpacked::BigInt(v) => serialize(write, BIG_INT, v),
@@ -63,11 +59,11 @@ impl<A: IVm> Serializable for Unpacked<A> {
             FALSE => Ok(false.into()),
             TRUE => Ok(true.into()),
             NUMBER => Ok(f64::deserialize(read)?.into()),
-            STRING => Ok(String16::<A>::deserialize(read)?.into()),
-            BIG_INT => Ok(BigInt::<A>::deserialize(read)?.into()),
-            OBJECT => Ok(Object::<A>::deserialize(read)?.into()),
-            ARRAY => Ok(Array::<A>::deserialize(read)?.into()),
-            FUNCTION => Ok(Function::<A>::deserialize(read)?.into()),
+            STRING => Ok(String16::deserialize(read)?.into()),
+            BIG_INT => Ok(BigInt::deserialize(read)?.into()),
+            OBJECT => Ok(Object::deserialize(read)?.into()),
+            ARRAY => Ok(Array::deserialize(read)?.into()),
+            FUNCTION => Ok(Function::deserialize(read)?.into()),
             _ => Err(Error::new(ErrorKind::InvalidData, "Unknown tag")),
         }
     }

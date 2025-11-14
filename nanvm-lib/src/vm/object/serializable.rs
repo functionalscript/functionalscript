@@ -6,10 +6,10 @@ use crate::{
 };
 
 impl<A: IVm> Serializable for Object<A> {
-    fn serialize(self, writer: &mut impl Write) -> Result<()> {
-        self.0.serialize(writer)
+    fn serialize(self, write: &mut impl Write) -> Result<()> {
+        self.0.serialize(write)
     }
-    fn deserialize(reader: &mut impl Read) -> Result<Self> {
-        A::InternalObject::deserialize(reader).map(Self)
+    fn deserialize(read: &mut impl Read) -> Result<Self> {
+        A::InternalObject::deserialize(read).map(Self)
     }
 }

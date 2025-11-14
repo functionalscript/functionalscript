@@ -1,4 +1,4 @@
-use std::ops::AddAssign;
+use core::ops::AddAssign;
 
 use crate::vm::{IVm, String16};
 
