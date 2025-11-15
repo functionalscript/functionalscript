@@ -270,16 +270,18 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
     if (typeof rule === 'number') {        
         return [ruleSet, { ...map, [name]: false }, false]
     } else if (rule instanceof Array) {
-        let emptyTag: EmptyTagEntry = true
+        map = { ...map, [name]: true}
+        let emptyTag: EmptyTagEntry = rule.length == 0
         for (const item of rule) {
             const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
-            map = newMap
-            if (emptyTag === true) {
+            map = newMap         
+            if (emptyTag === false) {
                 emptyTag = itemEmptyTag !== false
             }
         }
         return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
     } else {
+        map = { ...map, [name]: true}
         const entries = Object.entries(rule)
         let emptyTag: EmptyTagEntry = false
         for (const [tag, item] of entries) {

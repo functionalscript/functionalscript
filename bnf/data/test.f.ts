@@ -104,6 +104,20 @@ export default {
             const emptyTags = createEmptyTagMap(data)
             const result = JSON.stringify(emptyTags)
             if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"":"e"}') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(option('a'))
+            const data = toData(repeatRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":"none","1":false,"2":false,"3":true,"r":"none","":true}') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(set(' \n\r\t'))
+            const data = toData(repeatRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"r":"none","":true}') { throw result }
         }
     ], 
     variantTest: () => {
