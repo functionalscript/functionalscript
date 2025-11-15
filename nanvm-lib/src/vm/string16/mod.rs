@@ -1,7 +1,6 @@
 mod add;
 mod add_assign;
 mod default;
-mod from;
 mod index;
 mod into_iterator;
 mod partial_eq;
