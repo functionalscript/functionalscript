@@ -1,7 +1,6 @@
 mod from;
 mod neg;
 mod partial_eq;
-mod serializable;
 
 pub mod to_any;
 
