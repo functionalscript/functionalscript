@@ -1,4 +1,3 @@
-mod debug;
 mod from;
 mod neg;
 mod partial_eq;

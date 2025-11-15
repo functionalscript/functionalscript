@@ -180,7 +180,7 @@ fn bigint_eq<A: IVm>() {
 }
 
 fn eq_container<T: IntoIterator>(a: T, b: T, e: fn(a: &T::Item, &T::Item) -> bool) -> bool {
-    a.into_iter().eq_by(b.into_iter(), e)
+    a.into_iter().eq_by_(b.into_iter(), e)
 }
 
 fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
