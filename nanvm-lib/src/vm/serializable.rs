@@ -35,13 +35,12 @@ const FUNCTION: u8 = 0b0011_0010;
 // Operations 0b01XX_XXXX:
 const _CONST_REF: u8 = 0b0100_0000;
 
-fn serialize(write: &mut impl Write, tag: u8, value: impl Serializable) -> Result<()> {
-    write.write_all(&[tag])?;
-    value.serialize(write)
-}
-
 impl<A: IVm> Serializable for Unpacked<A> {
     fn serialize(self, write: &mut impl Write) -> Result<()> {
+        fn complex(write: &mut impl Write, tag: u8, value: impl Serializable) -> Result<()> {
+            write.write_all(&[tag])?;
+            value.serialize(write)
+        }
         match self {
             Unpacked::Nullish(v) => match v {
                 Nullish::Undefined => UNDEFINED,
@@ -53,27 +52,35 @@ impl<A: IVm> Serializable for Unpacked<A> {
                 false => FALSE,
             }
             .serialize(write),
-            Unpacked::Number(v) => serialize(write, NUMBER, v),
-            Unpacked::String(v) => serialize(write, STRING, v),
-            Unpacked::BigInt(v) => serialize(write, BIG_INT, v),
-            Unpacked::Object(v) => serialize(write, OBJECT, v),
-            Unpacked::Array(v) => serialize(write, ARRAY, v),
-            Unpacked::Function(v) => serialize(write, FUNCTION, v),
+            Unpacked::Number(v) => complex(write, NUMBER, v),
+            Unpacked::String(v) => complex(write, STRING, v),
+            Unpacked::BigInt(v) => complex(write, BIG_INT, v),
+            Unpacked::Object(v) => complex(write, OBJECT, v),
+            Unpacked::Array(v) => complex(write, ARRAY, v),
+            Unpacked::Function(v) => complex(write, FUNCTION, v),
         }
     }
 
     fn deserialize(read: &mut impl Read) -> Result<Self> {
+        fn simple<A: IVm>(v: impl Into<Unpacked<A>>) -> Result<Unpacked<A>> {
+            Ok(v.into())
+        }
+        fn complex<A: IVm, T: Serializable + Into<Unpacked<A>>>(
+            read: &mut impl Read,
+        ) -> Result<Unpacked<A>> {
+            T::deserialize(read).map(Into::into)
+        }
         match u8::deserialize(read)? {
-            UNDEFINED => Ok(Nullish::Undefined.into()),
-            NULL => Ok(Nullish::Null.into()),
-            FALSE => Ok(false.into()),
-            TRUE => Ok(true.into()),
-            NUMBER => Ok(f64::deserialize(read)?.into()),
-            STRING => Ok(String16::deserialize(read)?.into()),
-            BIG_INT => Ok(BigInt::deserialize(read)?.into()),
-            OBJECT => Ok(Object::deserialize(read)?.into()),
-            ARRAY => Ok(Array::deserialize(read)?.into()),
-            FUNCTION => Ok(Function::deserialize(read)?.into()),
+            UNDEFINED => simple(Nullish::Undefined),
+            NULL => simple(Nullish::Null),
+            FALSE => simple(false),
+            TRUE => simple(true),
+            NUMBER => complex::<_, f64>(read),
+            STRING => complex::<_, String16<_>>(read),
+            BIG_INT => complex::<_, BigInt<_>>(read),
+            OBJECT => complex::<_, Object<_>>(read),
+            ARRAY => complex::<_, Array<_>>(read),
+            FUNCTION => complex::<_, Function<_>>(read),
             _ => Err(Error::new(ErrorKind::InvalidData, "Unknown tag")),
         }
     }
