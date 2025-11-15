@@ -6,8 +6,9 @@ use crate::{
 
 pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
     fn join(self, separator: String16<A>) -> Result<String16<A>, Any<A>> {
-        let i = self.intersperse_(Ok(separator)).try_flatten();
-        i.result_to_string16()
+        self.intersperse_(Ok(separator))
+            .try_flatten()
+            .result_to_string16()
     }
 }
 
