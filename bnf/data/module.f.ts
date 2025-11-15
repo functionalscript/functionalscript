@@ -33,6 +33,8 @@ type FRuleMap = { readonly [k in string]: FRule }
 
 type EmptyTag = string|true|undefined
 
+type EmptyTagEntry = string|boolean
+
 type DispatchRule = {
     readonly emptyTag: EmptyTag,
     readonly rangeMap: Dispatch
@@ -50,6 +52,10 @@ type DispatchRuleCollection = {
 }
 
 type DispatchMap = { readonly[id in string]: DispatchRule }
+
+type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
+
+export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
 
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
@@ -253,6 +259,69 @@ export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
     return result
 }
+
+const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string): readonly [RuleSet, EmptyTagMap, EmptyTagEntry] => {
+    if (name in map) {
+        return [ruleSet, map, map[name]]
+    }
+
+    const rule = ruleSet[name]
+
+    if (typeof rule === 'number') {        
+        return [ruleSet, { ...map, [name]: false }, false]
+    } else if (rule instanceof Array) {
+        map = { ...map, [name]: true}
+        let emptyTag: EmptyTagEntry = rule.length == 0
+        for (const item of rule) {
+            const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
+            map = newMap         
+            if (emptyTag === false) {
+                emptyTag = itemEmptyTag !== false
+            }
+        }
+        return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
+    } else {
+        map = { ...map, [name]: true}
+        const entries = Object.entries(rule)
+        let emptyTag: EmptyTagEntry = false
+        for (const [tag, item] of entries) {
+            const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
+            map = newMap
+            if (itemEmptyTag !== false) {
+                emptyTag = tag
+            }
+        }
+        return [ruleSet, { ...map, [name]: emptyTag }, emptyTag]
+    }
+}
+
+export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap => {
+    return emptyTagMapAdd(data[0])({})(data[1])[1]
+}
+
+// export const parserDescent = (fr: FRule): Match => {
+//     const data = toData(fr)
+
+//     const getEmptyTag = (rule: Rule): EmptyTag => {
+//         return todo()
+//     }
+
+//     const f: DescentMatchRule = (r, cp, idx): MatchResult => {
+//         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
+//         const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
+//         if (idx >= cp.length) {
+//             const emptyTag = getEmptyTag(r)
+//             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
+//         }
+//         return todo()
+//     }
+
+//     const match: Match = (name, cp): MatchResult => {
+//         return f(data[0][name], cp, 0)
+//     }
+    
+//     return match
+// }
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)

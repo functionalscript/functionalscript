@@ -5,7 +5,7 @@ import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { join0Plus, max, option, range, remove, repeat, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData } from './module.f.ts'
+import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap } from './module.f.ts'
 
 export default {
     toData: [
@@ -68,6 +68,58 @@ export default {
             if (result !== '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"5":[],"":["0","r"],"r":{"some":"","none":"5"}},"r"]') { throw result }
         }
     ],
+    emptyTags: [
+        () => {
+            const stringRule = 'true'
+            const data = toData(stringRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":false,"1":false,"2":false,"3":false,"":false}') { throw result }
+        },
+        () => {
+            const terminalRangeRule = range('AF')
+            const data = toData(terminalRangeRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"":false}') { throw result }
+        },
+        () => {
+            const varintRule = { true: 'true', false: 'false'}
+            const data = toData(varintRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":false,"6":false,"7":false,"8":false,"9":false,"":false}') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const data = toData(emptyRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"":true}') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const varintRule = { true: 'true', e: emptyRule}
+            const data = toData(varintRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"":"e"}') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(option('a'))
+            const data = toData(repeatRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":"none","1":false,"2":false,"3":true,"r":"none","":true}') { throw result }
+        },
+        () => {
+            const repeatRule = repeat0Plus(set(' \n\r\t'))
+            const data = toData(repeatRule)
+            const emptyTags = createEmptyTagMap(data)
+            const result = JSON.stringify(emptyTags)
+            if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"r":"none","":true}') { throw result }
+        }
+    ], 
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
         const result = stringify(sort)(toData(varintRule))
