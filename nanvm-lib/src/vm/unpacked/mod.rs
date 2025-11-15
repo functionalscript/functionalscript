@@ -1,4 +1,3 @@
-mod debug;
 mod from;
 mod partial_eq;
 mod serializable;
