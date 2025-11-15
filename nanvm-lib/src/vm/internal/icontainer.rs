@@ -3,7 +3,7 @@ use std::io;
 
 use crate::{
     common::{serializable::Serializable, sized_index::SizedIndex},
-    vm::{IVm, container_iterator::ContainerIterator},
+    vm::{container_iterator::ContainerIterator, IVm},
 };
 
 pub trait IContainer<A: IVm>: Sized + Clone + 'static {

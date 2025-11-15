@@ -1,6 +1,9 @@
 use core::marker::PhantomData;
 
-use crate::{common::sized_index::SizedIndex, vm::{IContainer, IVm}};
+use crate::{
+    common::sized_index::SizedIndex,
+    vm::{IContainer, IVm},
+};
 
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
     container: C,
