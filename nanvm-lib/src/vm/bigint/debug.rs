@@ -3,10 +3,10 @@ use crate::{
     sign::Sign,
     vm::{BigInt, IContainer, IVm},
 };
-use core::fmt::{Debug, Formatter, Write};
+use core::fmt::{Debug, Formatter, Result, Write};
 
 impl<A: IVm> Debug for BigInt<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if self.is_zero() {
             return f.write_str("0n");
         }
