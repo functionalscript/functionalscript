@@ -18,16 +18,16 @@ impl<A: IVm> From<Unpacked<A>> for Any<A> {
     }
 }
 
-impl<A: IVm> From<&str> for String16<A> {
-    fn from(value: &str) -> Self {
-        value.encode_utf16().to_string16()
-    }
-}
-
 impl<A: IVm> From<&str> for Any<A> {
     fn from(value: &str) -> Self {
         let s: String16<_> = value.into();
         s.to_any()
+    }
+}
+
+impl<A: IVm> From<&str> for String16<A> {
+    fn from(value: &str) -> Self {
+        value.encode_utf16().to_string16()
     }
 }
 
