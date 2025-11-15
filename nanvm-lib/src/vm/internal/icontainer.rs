@@ -1,30 +1,10 @@
-use core::{fmt::Debug, iter, marker::PhantomData};
+use core::{fmt::Debug, iter};
 use std::io;
 
 use crate::{
     common::{serializable::Serializable, sized_index::SizedIndex},
-    vm::IVm,
+    vm::{IVm, container_iterator::ContainerIterator},
 };
-
-pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
-    container: C,
-    i: usize,
-    _p: PhantomData<A>,
-}
-
-impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
-    type Item = C::Item;
-    fn next(&mut self) -> Option<Self::Item> {
-        let i = self.i;
-        let items = self.container.items();
-        if i < items.length() {
-            self.i += 1;
-            Some(items[i].clone())
-        } else {
-            None
-        }
-    }
-}
 
 pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
@@ -81,11 +61,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     where
         Self::Item: Clone,
     {
-        ContainerIterator {
-            container: self,
-            i: 0,
-            _p: PhantomData,
-        }
+        ContainerIterator::new(self)
     }
 
     fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {

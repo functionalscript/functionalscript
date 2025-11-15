@@ -1,6 +1,5 @@
 use crate::vm::{
-    internal::{ContainerIterator, IContainer},
-    Any, Array, IVm,
+    Any, Array, IVm, container_iterator::ContainerIterator, internal::IContainer
 };
 
 impl<A: IVm> IntoIterator for Array<A> {

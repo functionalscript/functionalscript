@@ -1,4 +1,4 @@
-use crate::vm::{internal::ContainerIterator, IContainer, IVm, Object, Property};
+use crate::vm::{IContainer, IVm, Object, Property, container_iterator::ContainerIterator};
 
 impl<A: IVm> IntoIterator for Object<A> {
     type Item = Property<A>;
