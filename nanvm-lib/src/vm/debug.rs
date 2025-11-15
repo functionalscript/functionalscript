@@ -1,7 +1,7 @@
-use crate::vm::{Any, Array, IVm, Object, String16, Unpacked, container_fmt::ContainerFmt};
+use crate::vm::{container_fmt::ContainerFmt, Any, Array, IVm, Object, String16, Unpacked};
 use core::{
-    ops::RangeInclusive,
     fmt::{Debug, Formatter, Result, Write},
+    ops::RangeInclusive,
 };
 
 impl<A: IVm> Debug for Any<A> {
