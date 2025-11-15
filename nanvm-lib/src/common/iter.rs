@@ -40,7 +40,7 @@ pub trait Iter: Sized + Iterator {
         })
     }
 
-    fn eq_by_<J: Iterator, F: FnMut(&Self::Item, &J::Item) -> bool>(
+    fn eq_by<J: Iterator, F: FnMut(&Self::Item, &J::Item) -> bool>(
         mut self,
         mut j: J,
         mut cmp: F,
