@@ -3,6 +3,7 @@ mod array;
 mod bigint;
 mod container_fmt;
 mod debug;
+mod from;
 mod function;
 mod internal;
 mod number_coercion;
