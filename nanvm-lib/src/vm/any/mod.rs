@@ -1,4 +1,4 @@
-mod from;
+mod into;
 mod neg;
 mod partial_eq;
 
