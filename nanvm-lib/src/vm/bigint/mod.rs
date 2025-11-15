@@ -4,6 +4,8 @@ mod from;
 mod partial_eq;
 mod serializable;
 
+use core::iter::once;
+
 use crate::{
     sign::Sign,
     vm::{IContainer, IVm},
@@ -27,5 +29,8 @@ impl<A: IVm> BigInt<A> {
     }
     fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         Self(A::InternalBigInt::new_ok(sign, items))
+    }
+    fn new_one(sign: Sign, value: u64) -> Self {
+        Self::new(sign, once(value))
     }
 }
