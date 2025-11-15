@@ -1,5 +1,3 @@
-mod serializable;
-
 use crate::{
     nullish::Nullish,
     vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
