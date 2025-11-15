@@ -4,7 +4,7 @@ mod from;
 mod partial_eq;
 mod serializable;
 
-use crate::vm::{IContainer, IVm};
+use crate::{sign::Sign, vm::{IContainer, IVm}};
 
 /// ```
 /// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
@@ -21,5 +21,8 @@ pub struct BigInt<A: IVm>(A::InternalBigInt);
 impl<A: IVm> BigInt<A> {
     fn is_zero(&self) -> bool {
         self.0.is_empty()
+    }
+    fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+        Self(A::InternalBigInt::new_ok(sign, items))
     }
 }

@@ -1,16 +1,12 @@
 use super::BigInt;
-use crate::{
-    common::default::default,
-    sign::Sign,
-    vm::{IContainer, IVm},
-};
+use crate::{common::default::default, sign::Sign, vm::IVm};
 
 impl<A: IVm> From<u64> for BigInt<A> {
     fn from(value: u64) -> Self {
         if value == 0 {
             return default();
         }
-        BigInt(A::InternalBigInt::new_ok(Sign::Positive, [value]))
+        Self::new(Sign::Positive, [value])
     }
 }
 
@@ -24,6 +20,6 @@ impl<A: IVm> From<i64> for BigInt<A> {
         } else {
             (Sign::Positive, value as u64)
         };
-        BigInt(A::InternalBigInt::new_ok(sign, [v]))
+        Self::new(sign, [v])
     }
 }

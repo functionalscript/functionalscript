@@ -1,8 +1,8 @@
 use crate::vm::{IVm, Unpacked};
-use core::fmt::Debug;
+use core::fmt::{Debug, Formatter, Result};
 
 impl<A: IVm> Debug for Unpacked<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Nullish(x) => x.fmt(f),
             Self::Boolean(x) => x.fmt(f),
