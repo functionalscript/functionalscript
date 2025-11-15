@@ -1,5 +1,6 @@
 import { utf8 } from "../../text/module.f.ts";
 import { empty, msb, uint, vec } from "../../types/bit_vec/module.f.ts"
+import { flip } from "../../types/function/module.f.ts"
 import { map } from '../../types/list/module.f.ts'
 import { repeat } from "../../types/monoid/module.f.ts";
 import {
@@ -107,7 +108,7 @@ export default {
         }
     ],
     fill: () => {
-        const times = repeat({ identity: empty, operation: beConcat })(vec(32n)(0x31313131n))
+        const times = flip(repeat({ identity: empty, operation: beConcat }))(vec(32n)(0x31313131n))
         return {
             8: () => {
                 const r = times(8n)

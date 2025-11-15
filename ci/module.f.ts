@@ -158,12 +158,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
 
 const nodes = ['20', '22', '25']
 
-const nodeTest = (v: string) => {
-    switch (v) {
-        case '20': case '22': return `run test${v}`
-        default: return 'test'
-    }
-}
+const nodeTest = (v: string) => v === '20' ? 'run test20' : 'test'
 
 const nodeSteps = (v: string) => [
     install(installNode(v)),
@@ -202,7 +197,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         // Node.js
         ...node('24')([
             // TypeScript Preview
-            test({ run: 'npx tsgo' }),
+            install({ run: 'npm install -g @typescript/native-preview'}),
+            test({ run: 'tsgo' }),
             // Playwright
             install({ run: 'npm install -g playwright'}),
             install({ run: 'playwright install --with-deps' }),

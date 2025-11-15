@@ -48,7 +48,7 @@ const padRepeat = repeat({ identity: empty, operation: concat })
  */
 export const hmac = (hashFunc: Sha2): Reduce => {
     const { blockLength } = hashFunc
-    const p = flip(padRepeat)(blockLength >> 3n)
+    const p = padRepeat(blockLength >> 3n)
     const ip = p(iPad)
     const op = p(oPad)
     const c = computeSync(hashFunc)

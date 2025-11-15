@@ -9,11 +9,11 @@ import {
     type RangeMapArray,
     type Entry
 } from '../types/range_map/module.f.ts'
-import { unsafeCmp } from '../types/function/compare/module.f.ts'
 import { type Fold, type Scan, strictEqual } from '../types/function/operator/module.f.ts'
 import { stringify } from '../json/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
+import { cmp } from '../types/string/module.f.ts'
 
 type Rule = readonly [string, ByteSet, string]
 
@@ -41,10 +41,10 @@ export const toUnion: (s: string) => ByteSet
     }
 
 const mergeOp: Properties<SortedSet<string>>
-    = { union: sortedSetUnion(unsafeCmp), equal: equal(strictEqual), def: [] }
+    = { union: sortedSetUnion(cmp), equal: equal(strictEqual), def: [] }
 
 const hasState: (s: string) => (set: SortedSet<string>) => boolean
-    = s => set => !isEmpty(intersect(unsafeCmp)([s])(set))
+    = s => set => !isEmpty(intersect(cmp)([s])(set))
 
 const foldOp: (set: SortedSet<string>) => Fold<Rule, RangeMap<SortedSet<string>>>
     = set => ([ruleIn, bs, ruleOut]) => rm => {

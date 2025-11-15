@@ -6,7 +6,7 @@ const poker = (param: Init) => () => {
     // c ^ ((x * y) * (1/x * 1/y)) = c
     const { g, n } = param
     const { mul, y } = curve(param)
-    const f = (m: bigint) => (pList: readonly Point[]) => pList.map(i => mul(i)(m))
+    const f = (m: bigint) => (pList: readonly Point[]) => pList.map(mul(m))
     //
     const pf = prime_field(n)
     //           0        1        2        3        4        5        6        7
@@ -65,7 +65,7 @@ export default {
         // Access curve operations
         const point = c.add([1n, 1n])([2n, 5n]); // Add two points
         const negPoint = c.neg([1n, 1n]); // Negate a point
-        const mulPoint = c.mul([1n, 1n])(3n); // Multiply a point by 3
+        const mulPoint = c.mul(3n)([1n, 1n]); // Multiply a point by 3
     },
     test: () => {
         const test_curve
@@ -83,17 +83,17 @@ export default {
             point_check(g)
             point_check(neg(g))
             const test_mul = (p: Point): void => {
-                if (mul(p)(0n) !== null) { throw 'O' }
-                if (mul(p)(1n) !== p) { throw 'p' }
-                if (mul(p)(n) !== null) { throw 'n' }
+                if (mul(0n)(p) !== null) { throw 'O' }
+                if (mul(1n)(p) !== p) { throw 'p' }
+                if (mul(n)(p) !== null) { throw 'n' }
                 const pn = neg(p)
-                if (!eq(mul(p)(n - 1n))(pn)) { throw 'n - 1' }
+                if (!eq(mul(n - 1n)(p))(pn)) { throw 'n - 1' }
                 const f
                 : (s: bigint) => void
                 = s => {
-                    const r = mul(p)(s)
+                    const r = mul(s)(p)
                     point_check(r)
-                    const rn = mul(pn)(s)
+                    const rn = mul(s)(pn)
                     point_check(rn)
                     if (!eq(r)(neg(rn))) { throw 'r != -rn' }
                 }
