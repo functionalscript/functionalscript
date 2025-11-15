@@ -4,7 +4,10 @@ mod from;
 mod partial_eq;
 mod serializable;
 
-use crate::{sign::Sign, vm::{IContainer, IVm}};
+use crate::{
+    sign::Sign,
+    vm::{IContainer, IVm},
+};
 
 /// ```
 /// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
