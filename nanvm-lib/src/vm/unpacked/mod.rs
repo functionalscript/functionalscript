@@ -1,11 +1,8 @@
-mod partial_eq;
 mod serializable;
-
-pub mod dispatch;
 
 use crate::{
     nullish::Nullish,
-    vm::{unpacked::dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
+    vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
 };
 
 #[derive(Clone)]

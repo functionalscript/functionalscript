@@ -5,11 +5,11 @@ mod partial_eq;
 pub mod to_any;
 
 use crate::vm::{
+    dispatch::Dispatch,
     number_coercion::NumberCoercion,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    unpacked::dispatch::Dispatch,
     IVm, String16, ToAny,
 };
 
