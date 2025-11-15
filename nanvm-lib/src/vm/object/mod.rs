@@ -1,8 +1,10 @@
 mod debug;
 mod default;
+mod index;
 mod into_iterator;
 mod partial_eq;
 mod serializable;
+mod sized_index;
 
 pub mod property;
 pub mod to_object;

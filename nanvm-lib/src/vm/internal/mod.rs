@@ -1,6 +1,6 @@
 mod icontainer;
 
-pub use icontainer::{ContainerIterator, IContainer};
+pub use icontainer::{ContainerFmt, ContainerIterator, IContainer};
 
 use crate::{
     nullish::Nullish,

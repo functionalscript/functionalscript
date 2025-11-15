@@ -30,6 +30,24 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
     }
 }
 
+pub trait ContainerFmt {
+    fn container_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> fmt::Result
+    where
+        Self: SizedIndex<u32, Output: Debug>,
+    {
+        f.write_char(open)?;
+        for i in 0..self.length() {
+            if i != 0 {
+                f.write_char(',')?;
+            }
+            self[i].fmt(f)?;
+        }
+        f.write_char(close)
+    }
+}
+
+impl<T> ContainerFmt for T {}
+
 pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
     type Header: PartialEq + Serializable + Clone;
@@ -90,18 +108,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
             i: 0,
             _p: PhantomData,
         }
-    }
-
-    fn items_fmt(&self, open: char, close: char, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_char(open)?;
-        let items = self.items();
-        for i in 0..items.length() {
-            if i != 0 {
-                f.write_char(',')?;
-            }
-            items[i].fmt(f)?;
-        }
-        f.write_char(close)
     }
 
     fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
