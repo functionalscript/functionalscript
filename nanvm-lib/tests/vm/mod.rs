@@ -2,8 +2,8 @@ use nanvm_lib::{
     common::{default::default, iter::Iter, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16,
-        StringCoercion, ToAny, ToArray, ToObject, Unpacked,
+        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, ToAny,
+        ToArray, ToObject, Unpacked,
     },
 };
 

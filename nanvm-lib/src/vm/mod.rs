@@ -1,34 +1,44 @@
+mod add;
+mod add_assign;
 mod any;
 mod array;
 mod bigint;
+mod container_fmt;
+mod container_iterator;
+mod debug;
+mod default;
+mod dispatch;
+mod from;
 mod function;
 mod internal;
-mod number;
+mod join;
 mod number_coercion;
 mod object;
+mod partial_eq;
 mod primitive;
 mod primitive_coercion;
+mod serializable;
 mod string16;
 mod string_coercion;
+mod try_from;
 mod unpacked;
 
 pub mod naive;
 
 pub use crate::vm::{
-    any::{Any, ToAny},
-    array::{Array, ToArray},
+    any::{to_any::ToAny, Any},
+    array::{to_array::ToArray, Array},
     bigint::BigInt,
-    function::{Function, FunctionHeader},
+    function::{header::FunctionHeader, Function},
     internal::{IContainer, IVm},
-    object::{Object, Property, ToObject},
-    string16::{String16, ToString16},
-    string_coercion::StringCoercion,
+    object::{property::Property, to_object::ToObject, Object},
+    string16::{to_string16::ToString16, String16},
     unpacked::Unpacked,
 };
 
 #[cfg(test)]
 mod test {
-    use crate::vm::any::ToAny;
+    use crate::vm::ToAny;
 
     use super::*;
 
