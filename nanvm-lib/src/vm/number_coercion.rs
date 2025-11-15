@@ -5,7 +5,7 @@ use crate::{
 
 /// ECMAScript functions.
 #[allow(dead_code)]
-pub trait NumberCoercion<A: IVm> {
+pub trait NumberCoercion<A: IVm>: Sized {
     /// Coerces the value to f64, possibly producing an error result.
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number#number_coercion>
     /// <https://tc39.es/ecma262/#sec-tonumber>

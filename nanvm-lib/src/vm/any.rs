@@ -1,10 +1,15 @@
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{string_coercion::StringCoercion, IVm, String16, Unpacked},
+    vm::{
+        number_coercion::NumberCoercion, string_coercion::StringCoercion, IVm, String16, Unpacked,
+    },
 };
 use core::fmt::{self, Debug, Formatter};
-use std::io::{self, Read, Write};
+use std::{
+    io::{self, Read, Write},
+    ops::Neg,
+};
 
 /// ```
 /// use nanvm_lib::{
@@ -29,6 +34,19 @@ use std::io::{self, Read, Write};
 /// ```
 #[derive(Clone)]
 pub struct Any<A: IVm>(A);
+
+impl<A: IVm> Any<A> {
+    /// Unary plus is nothing but coercion to number.
+    /// We use unary_plus as ECMAScript unary plus operator, and we use coerce_to_number for
+    /// internals in places where ECMAScript's abstract function ToNumber is needed, and also when
+    /// we need Result<f64, Any<A>> result type; here unary_plus returns Result<Any<A>, Any<A>> to
+    /// match public API type of unary plus operator.
+    /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
+    /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
+    pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
+        self.coerce_to_number().map(ToAny::to_any)
+    }
+}
 
 impl<A: IVm> Debug for Any<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -122,3 +140,25 @@ impl<A: IVm> StringCoercion<A> for Any<A> {
         self.0.to_unpacked().coerce_to_string()
     }
 }
+
+impl<A: IVm> NumberCoercion<A> for Any<A> {
+    fn coerce_to_number(self) -> Result<f64, Any<A>> {
+        self.0.to_unpacked().coerce_to_number()
+    }
+}
+
+impl<A: IVm> Neg for Any<A> {
+    type Output = Result<Any<A>, Any<A>>;
+    fn neg(self) -> Self::Output {
+        todo!()
+    }
+}
+
+// TODO Consider UnaryMinus trait with unary_minus returning Result<Numeric<A>, Any<A>> where
+// Numeric<A> is f64 | BigInt<A> enum, to represent ECMAScript unary minus operator for Rust code
+// with better type precision. This would be similar to coerce_to_number but returning Numeric<A>
+// instead of Any<A> of unary_plus in result type.
+
+// TODO implement other operators like +, -, *, /, %, &, |, ^, <<, >>, >>>, !, ~, etc using Rust
+// standard traits - similarly to Neg above. Implement operators that do not have corresponding Rust
+// standard traits via adding methods to Any<A> - similarly to unary_plus.
