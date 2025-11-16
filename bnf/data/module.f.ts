@@ -1,3 +1,4 @@
+import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
@@ -55,7 +56,7 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
 
 type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
-export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
+export type DescentMatchRule = (name: string, s: readonly CodePoint[], idx: number) => MatchResult
 
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
@@ -299,29 +300,31 @@ export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap
     return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
-// export const parserDescent = (fr: FRule): Match => {
-//     const data = toData(fr)
+export const parserDescent = (fr: FRule): Match => {
+    const data = toData(fr)
+    const emptyTagMap = createEmptyTagMap(data)
 
-//     const getEmptyTag = (rule: Rule): EmptyTag => {
-//         return todo()
-//     }
+    const getEmptyTag = (name: string): EmptyTag => {
+        const res = emptyTagMap[name]
+        return res === false ? undefined : res
+    }
 
-//     const f: DescentMatchRule = (r, cp, idx): MatchResult => {
-//         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
-//         const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
-//         if (idx >= cp.length) {
-//             const emptyTag = getEmptyTag(r)
-//             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
-//         }
-//         return todo()
-//     }
+    const f: DescentMatchRule = (name, cp, idx): MatchResult => {
+        const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
+        const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
+        if (idx >= cp.length) {
+            const emptyTag = getEmptyTag(name)
+            return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
+        }
+        return todo()
+    }
 
-//     const match: Match = (name, cp): MatchResult => {
-//         return f(data[0][name], cp, 0)
-//     }
+    const match: Match = (name, cp): MatchResult => {
+        return f(name, cp, 0)
+    }
     
-//     return match
-// }
+    return match
+}
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
