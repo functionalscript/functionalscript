@@ -5,6 +5,7 @@ use crate::{
     vm::{IContainer, IVm},
 };
 
+/*
 pub struct ContainerIterator<A: IVm, C: IContainer<A>> {
     container: C,
     i: usize,
@@ -34,3 +35,4 @@ impl<A: IVm, C: IContainer<A>> Iterator for ContainerIterator<A, C> {
         }
     }
 }
+*/

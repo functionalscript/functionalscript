@@ -3,7 +3,7 @@ use std::io;
 
 use crate::{
     common::{serializable::Serializable, sized_index::SizedIndex},
-    vm::{container_iterator::ContainerIterator, IVm},
+    vm::{/*container_iterator::ContainerIterator,*/ IVm},
 };
 
 pub trait IContainer<A: IVm>: Sized + Clone + 'static {
@@ -57,18 +57,13 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         true
     }
 
-    fn items_iter(self) -> ContainerIterator<A, Self>
-    where
-        Self::Item: Clone,
-    {
-        ContainerIterator::new(self)
-    }
-
     fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
         self.header().clone().serialize(write)?;
-        (self.items().length() as u32).serialize(write)?;
-        for i in self.items_iter() {
-            i.serialize(write)?;
+        let items = self.items();
+        let len = items.length();
+        (items.length() as u32).serialize(write)?;
+        for i in 0..len {
+            items[i].clone().serialize(write)?;
         }
         Ok(())
     }
