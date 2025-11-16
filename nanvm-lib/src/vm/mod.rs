@@ -11,6 +11,7 @@ mod dispatch;
 mod from;
 mod function;
 mod internal;
+mod into_iterator;
 mod join;
 mod number_coercion;
 mod object;
