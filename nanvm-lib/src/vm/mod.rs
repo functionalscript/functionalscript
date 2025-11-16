@@ -4,7 +4,6 @@ mod any;
 mod array;
 mod bigint;
 mod container_fmt;
-mod container_iterator;
 mod debug;
 mod default;
 mod dispatch;
