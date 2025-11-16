@@ -1,9 +1,12 @@
-use crate::vm::{container_iterator::ContainerIterator, internal::IContainer, Any, Array, IVm};
+use crate::{
+    common::sized_index::{SizedIndex, SizedIndexIter},
+    vm::{Any, Array, IVm},
+};
 
 impl<A: IVm> IntoIterator for Array<A> {
     type Item = Any<A>;
-    type IntoIter = ContainerIterator<A, A::InternalArray>;
+    type IntoIter = SizedIndexIter<u32, Array<A>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.0.items_iter()
+        self.si_iter()
     }
 }

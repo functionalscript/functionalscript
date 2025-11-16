@@ -1,9 +1,12 @@
-use crate::vm::{container_iterator::ContainerIterator, IContainer, IVm, String16};
+use crate::{
+    common::sized_index::{SizedIndex, SizedIndexIter},
+    vm::{IVm, String16},
+};
 
 impl<A: IVm> IntoIterator for String16<A> {
     type Item = u16;
-    type IntoIter = ContainerIterator<A, A::InternalString16>;
+    type IntoIter = SizedIndexIter<u32, String16<A>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.0.items_iter()
+        self.si_iter()
     }
 }
