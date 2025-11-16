@@ -1,15 +1,15 @@
 use crate::{
-    common::sized_index::{SizedIndex, SizedIndexIter},
+    common::{index_iter::IndexIter, sized_index::SizedIndex},
     vm::{Any, Array, IVm, Object, Property, String16},
 };
 
-type Iter<T> = SizedIndexIter<u32, T>;
+type Iter<T> = IndexIter<u32, T>;
 
 impl<A: IVm> IntoIterator for Array<A> {
     type Item = Any<A>;
     type IntoIter = Iter<Array<A>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.si_iter()
+        self.index_iter()
     }
 }
 
@@ -17,7 +17,7 @@ impl<A: IVm> IntoIterator for Object<A> {
     type Item = Property<A>;
     type IntoIter = Iter<Object<A>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.si_iter()
+        self.index_iter()
     }
 }
 
@@ -25,6 +25,6 @@ impl<A: IVm> IntoIterator for String16<A> {
     type Item = u16;
     type IntoIter = Iter<String16<A>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.si_iter()
+        self.index_iter()
     }
 }
