@@ -2,7 +2,7 @@ use super::String16;
 use crate::vm::{internal::IContainer, Any, IVm};
 
 pub trait ToString16 {
-    fn result_to_string16<A: IVm>(self) -> Result<String16<A>, Any<A>>
+    fn to_string16_result<A: IVm>(self) -> Result<String16<A>, Any<A>>
     where
         Self: Sized + IntoIterator<Item = Result<u16, Any<A>>>,
     {
@@ -12,7 +12,7 @@ pub trait ToString16 {
     where
         Self: Sized + IntoIterator<Item = u16>,
     {
-        self.into_iter().map(Ok).result_to_string16().unwrap()
+        self.into_iter().map(Ok).to_string16_result().unwrap()
     }
 }
 
