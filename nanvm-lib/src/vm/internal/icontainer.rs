@@ -27,10 +27,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         Self::new::<()>(header, i.into_iter().map(Ok)).unwrap()
     }
 
-    fn new_empty(header: Self::Header) -> Self {
-        Self::new_ok(header, iter::empty())
-    }
-
     fn items_eq(&self, b: &Self) -> bool
     where
         Self::Header: PartialEq,
