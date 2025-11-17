@@ -53,7 +53,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
         self.header().clone().serialize(write)?;
         let items = self.items();
         let len = items.length();
-        (items.length() as u32).serialize(write)?;
+        (len as u32).serialize(write)?;
         for i in 0..len {
             items[i].clone().serialize(write)?;
         }
