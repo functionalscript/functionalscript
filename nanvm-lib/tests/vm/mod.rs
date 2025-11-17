@@ -77,6 +77,10 @@ fn number_eq<A: IVm>() {
     let nan1 = f64::NAN.to_any();
     assert_ne!(nan0, nan1);
     assert_ne!(i0, nan0);
+    let nan0n: f64 = nan0.try_into().unwrap();
+    assert!(nan0n.is_nan());
+    let nan1n: f64 = nan1.try_into().unwrap();
+    assert!(nan1n.is_nan());
 }
 
 fn string_eq<A: IVm>() {

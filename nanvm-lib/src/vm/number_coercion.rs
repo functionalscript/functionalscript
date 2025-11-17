@@ -1,3 +1,5 @@
+use core::f64;
+
 use crate::{
     nullish::Nullish,
     vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
@@ -48,18 +50,18 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     }
 
     fn object(self, _: Object<A>) -> Self::Result {
-        // TODO:
-        todo!()
+        // TODO: check and test
+        Ok(f64::NAN)
     }
 
     fn array(self, _: Array<A>) -> Self::Result {
-        // TODO:
-        todo!()
+        // TODO: check and test
+        Ok(0.0)
     }
 
     fn function(self, _: Function<A>) -> Self::Result {
-        // TODO:
-        todo!()
+        // TODO: check and test
+        Ok(f64::NAN)
     }
 }
 

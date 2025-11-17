@@ -49,6 +49,15 @@ impl<A: IVm> Any<A> {
         self.coerce_to_number().map(ToAny::to_any)
     }
 
+    /// Same as `Number.isNaN` in ECMAScript.
+    /// TODO: check and test.
+    pub fn is_nan(self) -> bool {
+        let Ok(n): Result<f64, _> = self.try_into() else {
+            return false;
+        };
+        n.is_nan()
+    }
+
     pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
         self.dispatch(StringCoercion)
     }
