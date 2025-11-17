@@ -1,4 +1,4 @@
-use core::{fmt::Debug, iter};
+use core::{fmt::Debug, iter::from_fn};
 use std::io;
 
 use crate::{
@@ -63,7 +63,7 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
         let header = Self::Header::deserialize(read)?;
         let mut len = u32::deserialize(read)?;
-        let i = iter::from_fn(|| {
+        let i = from_fn(|| {
             if len > 0 {
                 len -= 1;
                 Some(Self::Item::deserialize(read))

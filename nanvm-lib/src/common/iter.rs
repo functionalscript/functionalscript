@@ -41,10 +41,10 @@ pub trait Iter: Sized + Iterator {
     }
 
     /// See https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.eq_by
-    fn eq_by_<J: Iterator, F: FnMut(&Self::Item, &J::Item) -> bool>(
+    fn eq_by_<J: Iterator>(
         mut self,
         mut j: J,
-        mut cmp: F,
+        mut cmp: impl FnMut(&Self::Item, &J::Item) -> bool,
     ) -> bool {
         loop {
             match (self.next(), j.next()) {

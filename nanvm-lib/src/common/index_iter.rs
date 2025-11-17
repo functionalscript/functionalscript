@@ -7,7 +7,7 @@ pub struct IndexIter<I, T> {
     i: I,
 }
 
-impl<I: Default, T: SizedIndex<I>> IndexIter<I, T> {
+impl<I: Default + PartialEq, T: SizedIndex<I>> IndexIter<I, T> {
     pub fn new(c: T) -> Self {
         Self { c, i: default() }
     }
