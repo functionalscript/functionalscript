@@ -23,10 +23,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
 
     // extensions
 
-    fn is_empty(&self) -> bool {
-        self.items().length() == 0
-    }
-
     fn new_ok(header: Self::Header, i: impl IntoIterator<Item = Self::Item>) -> Self {
         Self::new::<()>(header, i.into_iter().map(Ok)).unwrap()
     }

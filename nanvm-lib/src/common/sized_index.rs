@@ -1,9 +1,15 @@
 use core::ops::Index;
 
-use crate::common::index_iter::IndexIter;
+use crate::common::{default::default, index_iter::IndexIter};
 
 pub trait SizedIndex<I>: Index<I> {
     fn length(&self) -> I;
+    fn is_empty(&self) -> bool
+    where
+        I: Default + PartialEq,
+    {
+        self.length() == default()
+    }
     fn index_iter(self) -> IndexIter<I, Self>
     where
         Self: Sized,

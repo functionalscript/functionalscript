@@ -7,6 +7,7 @@ mod serializable;
 use core::iter::once;
 
 use crate::{
+    common::sized_index::SizedIndex,
     sign::Sign,
     vm::{IContainer, IVm},
 };
@@ -25,7 +26,7 @@ pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
     fn is_zero(&self) -> bool {
-        self.0.is_empty()
+        self.0.items().is_empty()
     }
     fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         Self(A::InternalBigInt::new_ok(sign, items))
