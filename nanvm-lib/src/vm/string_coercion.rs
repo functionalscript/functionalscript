@@ -54,7 +54,7 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
     }
 
     fn array(self, v: Array<A>) -> Self::Result {
-        v.into_iter().map(|v| v.coerce_to_string()).join(",".into())
+        v.into_iter().map(|v| v.to_string()).join(",".into())
     }
 
     fn function(self, _: Function<A>) -> Self::Result {

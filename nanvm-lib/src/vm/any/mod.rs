@@ -46,7 +46,7 @@ impl<A: IVm> Any<A> {
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
-        self.coerce_to_number().map(ToAny::to_any)
+        self.to_number().map(ToAny::to_any)
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -58,21 +58,21 @@ impl<A: IVm> Any<A> {
         n.is_nan()
     }
 
-    pub fn coerce_to_string(self) -> Result<String<A>, Any<A>> {
+    pub fn to_string(self) -> Result<String<A>, Any<A>> {
         self.dispatch(StringCoercion)
     }
 
-    pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
+    pub fn to_number(self) -> Result<f64, Any<A>> {
         self.dispatch(NumberCoercion)
     }
 
-    pub fn coerce_to_primitive(
+    pub fn to_primitive(
         self,
         preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
         Ok(match preferred_type {
-            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.coerce_to_number()?),
-            Some(ToPrimitivePreferredType::String) => Primitive::String(self.coerce_to_string()?),
+            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.to_number()?),
+            Some(ToPrimitivePreferredType::String) => Primitive::String(self.to_string()?),
             None => self.dispatch(PrimitiveCoercionOp),
         })
     }
