@@ -1,3 +1,3 @@
-use crate::vm::String16;
+use crate::vm::String;
 
-pub type FunctionHeader<A> = (String16<A>, u32);
+pub type FunctionHeader<A> = (String<A>, u32);

@@ -1,8 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{
-        any::Any, dispatch::Dispatch, join::Join, Array, BigInt, Function, IVm, Object, String16,
-    },
+    vm::{any::Any, dispatch::Dispatch, join::Join, Array, BigInt, Function, IVm, Object, String},
 };
 
 /// Coerces the value to a `String16<A>`, possibly producing an error result.
@@ -16,7 +14,7 @@ use crate::{
 pub struct StringCoercion;
 
 impl<A: IVm> Dispatch<A> for StringCoercion {
-    type Result = Result<String16<A>, Any<A>>;
+    type Result = Result<String<A>, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {
         to_result(match v {
@@ -41,7 +39,7 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
         }
     }
 
-    fn string(self, v: String16<A>) -> Self::Result {
+    fn string(self, v: String<A>) -> Self::Result {
         Ok(v)
     }
 
@@ -56,7 +54,7 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
     }
 
     fn array(self, v: Array<A>) -> Self::Result {
-        v.into_iter().map(|v| v.coerce_to_string()).join(",".into())
+        v.into_iter().map(|v| v.to_string()).join(",".into())
     }
 
     fn function(self, _: Function<A>) -> Self::Result {
@@ -65,6 +63,6 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
     }
 }
 
-fn to_result<A: IVm>(s: &str) -> Result<String16<A>, Any<A>> {
+fn to_result<A: IVm>(s: &str) -> Result<String<A>, Any<A>> {
     Ok(s.into())
 }

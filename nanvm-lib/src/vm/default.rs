@@ -1,6 +1,6 @@
 use core::iter::empty;
 
-use crate::vm::{Array, IVm, Object, String16, ToArray, ToObject, ToString16};
+use crate::vm::{Array, IVm, Object, String, ToArray, ToObject, ToString};
 
 impl<A: IVm> Default for Array<A> {
     fn default() -> Self {
@@ -14,8 +14,8 @@ impl<A: IVm> Default for Object<A> {
     }
 }
 
-impl<A: IVm> Default for String16<A> {
+impl<A: IVm> Default for String<A> {
     fn default() -> Self {
-        empty().to_string16()
+        empty().to_string()
     }
 }

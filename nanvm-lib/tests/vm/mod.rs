@@ -2,7 +2,7 @@ use nanvm_lib::{
     common::{default::default, iter::Iter, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, ToAny,
+        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny,
         ToArray, ToObject, Unpacked,
     },
 };
@@ -90,8 +90,8 @@ fn string_eq<A: IVm>() {
     let s2 = "World".into();
     assert_ne!(s0, s2);
 
-    let s: String16<A> = s0.try_into().unwrap();
-    assert_eq!(s, String16::from("Hello"));
+    let s: String<A> = s0.try_into().unwrap();
+    assert_eq!(s, String::from("Hello"));
 
     let x = format!("{s:?}");
     assert_eq!(x, "\"Hello\"");
@@ -271,7 +271,7 @@ fn old_eq<A: IVm>() {
     let string_hello1 = "Hello!".into();
     let string_world0 = "world!".into();
     let string0: Any<A> = "0".into();
-    let s0: String16<A> = "0".into();
+    let s0: String<A> = "0".into();
     {
         {
             assert_eq!(string_hello0, string_hello1);
@@ -338,41 +338,41 @@ fn serialization<A: IVm>() {
 
 fn number_coerce_to_string<A: IVm>() {
     let n: Any<A> = 123.0.to_any();
-    assert_eq!(n.coerce_to_string(), Ok("123".into()));
+    assert_eq!(n.to_string(), Ok("123".into()));
 
     let n: Any<A> = (-456.0).to_any();
-    assert_eq!(n.coerce_to_string(), Ok("-456".into()));
+    assert_eq!(n.to_string(), Ok("-456".into()));
 
     let n: Any<A> = (0.0).to_any();
-    assert_eq!(n.coerce_to_string(), Ok("0".into()));
+    assert_eq!(n.to_string(), Ok("0".into()));
 
     let n: Any<A> = (-0.0).to_any();
-    assert_eq!(n.coerce_to_string(), Ok("0".into()));
+    assert_eq!(n.to_string(), Ok("0".into()));
 
     let n: Any<A> = (1.0 / -0.0).to_any();
-    assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
+    assert_eq!(n.to_string(), Ok("-Infinity".into()));
 
     let n: Any<A> = f64::INFINITY.to_any();
-    assert_eq!(n.coerce_to_string(), Ok("Infinity".into()));
+    assert_eq!(n.to_string(), Ok("Infinity".into()));
 
     let n: Any<A> = f64::NEG_INFINITY.to_any();
-    assert_eq!(n.coerce_to_string(), Ok("-Infinity".into()));
+    assert_eq!(n.to_string(), Ok("-Infinity".into()));
 
     let n: Any<A> = f64::NAN.to_any();
-    assert_eq!(n.coerce_to_string(), Ok("NaN".into()));
+    assert_eq!(n.to_string(), Ok("NaN".into()));
 }
 
 fn array_coerce_to_string<A: IVm>() {
     let a: Any<A> = [].to_array().to_any();
-    assert_eq!(a.coerce_to_string(), Ok("".into()));
+    assert_eq!(a.to_string(), Ok("".into()));
 
     let a: Any<A> = [1.0.to_any()].to_array().to_any();
-    assert_eq!(a.coerce_to_string(), Ok("1".into()));
+    assert_eq!(a.to_string(), Ok("1".into()));
 
     let a: Any<A> = [1.0.to_any(), 2.0.to_any(), 3.0.to_any()]
         .to_array()
         .to_any();
-    assert_eq!(a.coerce_to_string(), Ok("1,2,3".into()));
+    assert_eq!(a.to_string(), Ok("1,2,3".into()));
 
     let a: Any<A> = [
         1.0.to_any(),
@@ -381,7 +381,7 @@ fn array_coerce_to_string<A: IVm>() {
     ]
     .to_array()
     .to_any();
-    assert_eq!(a.coerce_to_string(), Ok("1,2,3,4".into()));
+    assert_eq!(a.to_string(), Ok("1,2,3,4".into()));
 }
 
 fn format_fn<A: IVm>() {

@@ -1,4 +1,4 @@
-use crate::vm::{container_fmt::ContainerFmt, Any, Array, IVm, Object, String16, Unpacked};
+use crate::vm::{container_fmt::ContainerFmt, Any, Array, IVm, Object, String, Unpacked};
 use core::{
     fmt::{Debug, Formatter, Result, Write},
     ops::RangeInclusive,
@@ -23,7 +23,7 @@ impl<A: IVm> Debug for Object<A> {
     }
 }
 
-impl<A: IVm> Debug for String16<A> {
+impl<A: IVm> Debug for String<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         const DOUBLE_QUOTE: u16 = '"' as u16;
         const BACKSLASH: u16 = '\\' as u16;

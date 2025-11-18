@@ -1,3 +1,3 @@
-use crate::vm::{Any, String16};
+use crate::vm::{Any, String};
 
-pub type Property<A> = (String16<A>, Any<A>);
+pub type Property<A> = (String<A>, Any<A>);

@@ -1,15 +1,15 @@
-use super::String16;
+use super::String;
 use crate::{
     common::iter::Iter,
-    vm::{Any, IVm, ToString16},
+    vm::{Any, IVm, ToString},
 };
 
-pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String16<A>, Any<A>>> {
-    fn join(self, separator: String16<A>) -> Result<String16<A>, Any<A>> {
+pub trait Join<A: IVm>: Sized + Iterator<Item = Result<String<A>, Any<A>>> {
+    fn join(self, separator: String<A>) -> Result<String<A>, Any<A>> {
         self.intersperse_(Ok(separator))
             .try_flatten()
-            .try_to_string16()
+            .try_to_string()
     }
 }
 
-impl<A: IVm, T: Sized + Iterator<Item = Result<String16<A>, Any<A>>>> Join<A> for T {}
+impl<A: IVm, T: Sized + Iterator<Item = Result<String<A>, Any<A>>>> Join<A> for T {}

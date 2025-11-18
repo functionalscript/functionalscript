@@ -10,19 +10,19 @@ use crate::vm::{
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    IVm, String16, ToAny,
+    IVm, String, ToAny,
 };
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String16, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
+///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
 ///     nullish::Nullish
 /// };
 /// fn any_test<A: IVm>() {
 ///     let b: Any<A> = true.to_any();
 ///     let n: Any<A> = Nullish::Null.to_any();
 ///     let n: Any<A> = 42.0.to_any();
-///     let c: String16<A> = "Hello".into();
+///     let c: String<A> = "Hello".into();
 ///     let m: Any<A> = c.to_any();
 ///     let a: Array<A> = [].to_array();
 ///     let o: Any<A> = a.to_any();
@@ -46,7 +46,7 @@ impl<A: IVm> Any<A> {
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
-        self.coerce_to_number().map(ToAny::to_any)
+        self.to_number().map(ToAny::to_any)
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -58,21 +58,21 @@ impl<A: IVm> Any<A> {
         n.is_nan()
     }
 
-    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+    pub fn to_string(self) -> Result<String<A>, Any<A>> {
         self.dispatch(StringCoercion)
     }
 
-    pub fn coerce_to_number(self) -> Result<f64, Any<A>> {
+    pub fn to_number(self) -> Result<f64, Any<A>> {
         self.dispatch(NumberCoercion)
     }
 
-    pub fn coerce_to_primitive(
+    pub fn to_primitive(
         self,
         preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
         Ok(match preferred_type {
-            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.coerce_to_number()?),
-            Some(ToPrimitivePreferredType::String) => Primitive::String(self.coerce_to_string()?),
+            Some(ToPrimitivePreferredType::Number) => Primitive::Number(self.to_number()?),
+            Some(ToPrimitivePreferredType::String) => Primitive::String(self.to_string()?),
             None => self.dispatch(PrimitiveCoercionOp),
         })
     }

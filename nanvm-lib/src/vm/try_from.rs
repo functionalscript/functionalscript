@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Object, String16, Unpacked},
+    vm::{Any, Array, BigInt, Function, IVm, Object, String, Unpacked},
 };
 
 fn error<A: IVm, T>() -> Result<T, Any<A>> {
@@ -77,7 +77,7 @@ impl<A: IVm> TryFrom<Any<A>> for Object<A> {
     }
 }
 
-impl<A: IVm> TryFrom<Any<A>> for String16<A> {
+impl<A: IVm> TryFrom<Any<A>> for String<A> {
     type Error = Any<A>;
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::String(result) = value.into() else {

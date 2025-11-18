@@ -17,7 +17,7 @@ impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
 }
 
 impl IVm for Naive {
-    type InternalString16 = Container<(), u16>;
+    type InternalString = Container<(), u16>;
     type InternalBigInt = Container<Sign, u64>;
     type InternalObject = Container<(), Property<Naive>>;
     type InternalArray = Container<(), Any<Naive>>;

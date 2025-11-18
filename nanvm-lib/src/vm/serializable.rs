@@ -3,7 +3,7 @@ use std::io::{Error, ErrorKind, Read, Result, Write};
 use crate::{
     common::serializable::Serializable,
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Object, String16, Unpacked},
+    vm::{Any, Array, BigInt, Function, IVm, Object, String, Unpacked},
 };
 
 impl<A: IVm> Serializable for Any<A> {
@@ -76,7 +76,7 @@ impl<A: IVm> Serializable for Unpacked<A> {
             FALSE => simple(false),
             TRUE => simple(true),
             NUMBER => complex::<_, f64>(read),
-            STRING => complex::<_, String16<_>>(read),
+            STRING => complex::<_, String<_>>(read),
             BIG_INT => complex::<_, BigInt<_>>(read),
             OBJECT => complex::<_, Object<_>>(read),
             ARRAY => complex::<_, Array<_>>(read),

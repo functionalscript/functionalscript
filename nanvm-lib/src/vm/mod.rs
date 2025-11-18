@@ -18,7 +18,7 @@ mod partial_eq;
 mod primitive;
 mod primitive_coercion;
 mod serializable;
-mod string16;
+mod string;
 mod string_coercion;
 mod try_from;
 mod unpacked;
@@ -32,7 +32,7 @@ pub use crate::vm::{
     function::{header::FunctionHeader, Function},
     internal::{IContainer, IVm},
     object::{property::Property, to_object::ToObject, Object},
-    string16::{to_string16::ToString16, String16},
+    string::{to_string::ToString, String},
     unpacked::Unpacked,
 };
 
