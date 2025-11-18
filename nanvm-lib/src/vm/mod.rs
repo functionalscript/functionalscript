@@ -1,26 +1,19 @@
-mod add;
-mod add_assign;
 mod any;
 mod array;
 mod bigint;
 mod container_fmt;
-mod debug;
-mod default;
 mod dispatch;
-mod from;
 mod function;
+mod impls;
 mod internal;
 mod into_iterator;
 mod join;
 mod number_coercion;
 mod object;
-mod partial_eq;
 mod primitive;
 mod primitive_coercion;
-mod serializable;
 mod string;
 mod string_coercion;
-mod try_from;
 mod unpacked;
 
 pub mod naive;
