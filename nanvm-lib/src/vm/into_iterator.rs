@@ -1,6 +1,6 @@
 use crate::{
     common::{index_iter::IndexIter, sized_index::SizedIndex},
-    vm::{Any, Array, IVm, Object, Property, String16},
+    vm::{Any, Array, IVm, Object, Property, String},
 };
 
 type Iter<T> = IndexIter<u32, T>;
@@ -21,9 +21,9 @@ impl<A: IVm> IntoIterator for Object<A> {
     }
 }
 
-impl<A: IVm> IntoIterator for String16<A> {
+impl<A: IVm> IntoIterator for String<A> {
     type Item = u16;
-    type IntoIter = Iter<String16<A>>;
+    type IntoIter = Iter<String<A>>;
     fn into_iter(self) -> Self::IntoIter {
         self.index_iter()
     }

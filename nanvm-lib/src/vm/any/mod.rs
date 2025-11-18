@@ -10,19 +10,19 @@ use crate::vm::{
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    IVm, String16, ToAny,
+    IVm, String, ToAny,
 };
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String16, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
+///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
 ///     nullish::Nullish
 /// };
 /// fn any_test<A: IVm>() {
 ///     let b: Any<A> = true.to_any();
 ///     let n: Any<A> = Nullish::Null.to_any();
 ///     let n: Any<A> = 42.0.to_any();
-///     let c: String16<A> = "Hello".into();
+///     let c: String<A> = "Hello".into();
 ///     let m: Any<A> = c.to_any();
 ///     let a: Array<A> = [].to_array();
 ///     let o: Any<A> = a.to_any();
@@ -58,7 +58,7 @@ impl<A: IVm> Any<A> {
         n.is_nan()
     }
 
-    pub fn coerce_to_string(self) -> Result<String16<A>, Any<A>> {
+    pub fn coerce_to_string(self) -> Result<String<A>, Any<A>> {
         self.dispatch(StringCoercion)
     }
 

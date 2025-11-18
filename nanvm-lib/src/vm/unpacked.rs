@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
+    vm::{dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String},
 };
 
 #[derive(Clone)]
@@ -8,7 +8,7 @@ pub enum Unpacked<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
     Number(f64),
-    String(String16<A>),
+    String(String<A>),
     BigInt(BigInt<A>),
     Object(Object<A>),
     Array(Array<A>),

@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Object, String16, ToAny, ToString16, Unpacked},
+    vm::{Any, Array, BigInt, Function, IVm, Object, String, ToAny, ToString, Unpacked},
 };
 
 impl<A: IVm> From<Unpacked<A>> for Any<A> {
@@ -20,20 +20,20 @@ impl<A: IVm> From<Unpacked<A>> for Any<A> {
 
 impl<A: IVm> From<&str> for Any<A> {
     fn from(value: &str) -> Self {
-        let s: String16<_> = value.into();
+        let s: String<_> = value.into();
         s.to_any()
     }
 }
 
-impl<A: IVm> From<&str> for String16<A> {
+impl<A: IVm> From<&str> for String<A> {
     fn from(value: &str) -> Self {
-        value.encode_utf16().to_string16()
+        value.encode_utf16().to_string()
     }
 }
 
 // TODO: Should we use `TryFrom` instead since we can have an error?
-impl<A: IVm> From<String16<A>> for String {
-    fn from(value: String16<A>) -> Self {
+impl<A: IVm> From<String<A>> for std::string::String {
+    fn from(value: String<A>) -> Self {
         char::decode_utf16(value)
             .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER))
             .collect()
@@ -57,8 +57,8 @@ impl<A: IVm> From<f64> for Unpacked<A> {
     }
 }
 
-impl<A: IVm> From<String16<A>> for Unpacked<A> {
-    fn from(value: String16<A>) -> Self {
+impl<A: IVm> From<String<A>> for Unpacked<A> {
+    fn from(value: String<A>) -> Self {
         Unpacked::String(value)
     }
 }

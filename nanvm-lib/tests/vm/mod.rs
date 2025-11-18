@@ -2,7 +2,7 @@ use nanvm_lib::{
     common::{default::default, iter::Iter, serializable::Serializable},
     nullish::Nullish,
     vm::{
-        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String16, ToAny,
+        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny,
         ToArray, ToObject, Unpacked,
     },
 };
@@ -90,8 +90,8 @@ fn string_eq<A: IVm>() {
     let s2 = "World".into();
     assert_ne!(s0, s2);
 
-    let s: String16<A> = s0.try_into().unwrap();
-    assert_eq!(s, String16::from("Hello"));
+    let s: String<A> = s0.try_into().unwrap();
+    assert_eq!(s, String::from("Hello"));
 
     let x = format!("{s:?}");
     assert_eq!(x, "\"Hello\"");
@@ -271,7 +271,7 @@ fn old_eq<A: IVm>() {
     let string_hello1 = "Hello!".into();
     let string_world0 = "world!".into();
     let string0: Any<A> = "0".into();
-    let s0: String16<A> = "0".into();
+    let s0: String<A> = "0".into();
     {
         {
             assert_eq!(string_hello0, string_hello1);

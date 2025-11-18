@@ -2,7 +2,7 @@ use core::f64;
 
 use crate::{
     nullish::Nullish,
-    vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String16},
+    vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String},
 };
 
 /// Coerces the value to f64, possibly producing an error result.
@@ -32,7 +32,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         Ok(v)
     }
 
-    fn string(self, _: String16<A>) -> Self::Result {
+    fn string(self, _: String<A>) -> Self::Result {
         todo!()
         // let s: String = self.into();
         // let trimmed = s.trim();

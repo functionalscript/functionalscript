@@ -31,7 +31,7 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         todo!()
     }
 
-    fn string(self, _: super::String16<A>) -> Self::Result {
+    fn string(self, _: super::String<A>) -> Self::Result {
         todo!()
     }
 
