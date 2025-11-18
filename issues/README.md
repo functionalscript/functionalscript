@@ -283,6 +283,7 @@ logic should be moved to a private free floating helper function (to keep public
   - -0b10n => [01]
   - -0b11n => [00]
   ```
+- [ ] 99. Change `String16` to `String` for consistency with other JS names: `Array`, `BigInt`, `Object`, `Function`.
 
 ## Language Specification
 
