@@ -1,4 +1,4 @@
-const stringCoercion = (a: unknown): string => a + ''
+const stringCoercion = String
 
 export default {
     stringCoercion: {

@@ -8,16 +8,10 @@ use nanvm_lib::{
 
 fn assert_is_nan<A: Any>(a: A, test_case: &str) {
     let nan = Any::unary_plus(a).unwrap();
-    if let Some(simple) = nan.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of '{}'", test_case),
-        }
-    } else {
+    let Some(Simple::Number(f)) = nan.try_to_simple() else {
         panic!("expected Simple result of unary_plus of '{}'", test_case);
-    }
+    };
+    assert!(f.is_nan());
 }
 
 fn test_op<A: Any>(result: A, expected: A, test_case: &str) {
@@ -40,7 +34,7 @@ fn unary_plus<A: Any>() {
     let n0: A = Simple::Number(0.0).to_unknown();
     let nan: A = Simple::Number(f64::NAN).to_unknown();
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let test_cases: Vec<(A, A, &str)> = vec![
+    let test_cases: &[(A, A, &str)] = &[
         (null.clone(), n0.clone(), "null"),
         (
             Simple::Nullish(Nullish::Undefined).to_unknown(),
@@ -125,7 +119,7 @@ fn unary_minus<A: Any>() {
     let n0: A = Simple::Number(0.0).to_unknown();
     let nan: A = Simple::Number(f64::NAN).to_unknown();
     let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let test_cases: Vec<(A, A, &str)> = vec![
+    let test_cases: &[(A, A, &str)] = &[
         (null.clone(), n0.clone(), "null"),
         (
             Simple::Nullish(Nullish::Undefined).to_unknown(),
@@ -215,7 +209,7 @@ fn multiply<A: Any>() {
     let bi_minus1: A = A::BigInt::new(Sign::Negative, [1]).to_unknown();
     let bi10: A = A::BigInt::new(Sign::Positive, [10]).to_unknown();
     let bi_minus10: A = A::BigInt::new(Sign::Negative, [10]).to_unknown();
-    let test_cases: Vec<(A, A, A, &str)> = vec![
+    let test_cases: &[(A, A, A, &str)] = &[
         (null.clone(), null.clone(), n0.clone(), "null by null"),
         (null.clone(), n0.clone(), n0.clone(), "null by 0"),
         (

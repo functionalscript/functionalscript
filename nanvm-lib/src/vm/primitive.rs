@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{BigInt, IVm, String16},
+    vm::{BigInt, IVm, String},
 };
 
 /// <https://developer.mozilla.org/en-US/docs/Glossary/Primitive>
@@ -11,6 +11,6 @@ pub enum Primitive<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
     Number(f64),
-    String(String16<A>),
+    String(String<A>),
     BigInt(BigInt<A>),
 }
