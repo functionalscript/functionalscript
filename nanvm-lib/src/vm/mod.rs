@@ -6,7 +6,6 @@ mod dispatch;
 mod function;
 mod impls;
 mod internal;
-mod into_iterator;
 mod join;
 mod number_coercion;
 mod object;
