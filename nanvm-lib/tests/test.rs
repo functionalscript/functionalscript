@@ -8,16 +8,10 @@ use nanvm_lib::{
 
 fn assert_is_nan<A: Any>(a: A, test_case: &str) {
     let nan = Any::unary_plus(a).unwrap();
-    if let Some(simple) = nan.try_to_simple() {
-        match simple {
-            Simple::Number(f) => {
-                assert!(f.is_nan());
-            }
-            _ => panic!("expected Number result of unary_plus of '{}'", test_case),
-        }
-    } else {
+    let Some(Simple::Number(f)) = nan.try_to_simple() else {
         panic!("expected Simple result of unary_plus of '{}'", test_case);
-    }
+    };
+    assert!(f.is_nan());
 }
 
 fn test_op<A: Any>(result: A, expected: A, test_case: &str) {
