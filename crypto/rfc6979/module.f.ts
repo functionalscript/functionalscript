@@ -1,24 +1,16 @@
-import { bitLength, type Reduce, type Unary } from "../../types/bigint/module.f.ts"
+import { bitLength, roundUpBits, type Unary } from "../../types/bigint/module.f.ts"
 import { unpack, vec, type Vec } from "../../types/bit_vec/module.f.ts"
-
-export const clearBits: Reduce = b => v => v >> b << b
-
-export const roundUpBits: Reduce = b => {
-    const mask = (1n << b) - 1n
-    const cb = clearBits(b)
-    return v => cb(v + mask)
-}
 
 // qlen to rlen
 export const roundUp8: Unary = roundUpBits(3n)
 
-export const bits2int: (qlen: bigint) => (b: Vec) => bigint = qlen => b => {
+const bits2int: (qlen: bigint) => (b: Vec) => bigint = qlen => b => {
     const { length, uint } = unpack(b)
     const diff = length - qlen
     return diff > 0n ? uint >> diff : uint
 }
 
-export const int2octets: (qlen: bigint) => (x: bigint) => Vec = qlen => vec(roundUp8(qlen))
+const int2octets: (qlen: bigint) => (x: bigint) => Vec = qlen => vec(roundUp8(qlen))
 
 export const bits2octets: (q: bigint) => (b: Vec) => Vec = q => {
     const qlen = bitLength(q)
@@ -34,18 +26,24 @@ export const bits2octets: (q: bigint) => (b: Vec) => Vec = q => {
 export type All = {
     readonly q: bigint
     readonly qlen: bigint
-    readonly bits2ints: (b: Vec) => bigint
+    readonly bits2int: (b: Vec) => bigint
     readonly int2octets: (x: bigint) => Vec
     readonly bits2octets: (b: Vec) => Vec
 }
 
 export const all = (q: bigint): All => {
     const qlen = bitLength(q)
+    const bits2int = (b: Vec) => {
+        const { length, uint } = unpack(b)
+        const diff = length - qlen
+        return diff > 0n ? uint >> diff : uint
+    }
+    const int2octets = vec(roundUp8(qlen))
     return {
         q,
         qlen,
-        bits2ints: bits2int(qlen),
-        int2octets: int2octets(qlen),
+        bits2int,
+        int2octets,
         bits2octets: bits2octets(q),
     }
 }
