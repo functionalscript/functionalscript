@@ -22,7 +22,7 @@ Compute `jG`, where `j` ranges from `0` to `q-1`.
 ### 2.3. Integer Conversion
 
 - `qlen` is the binary length of `q`.
-- `rlen` is equal to `qlen`, rounded up to the next multiple of `8`. See `roundUpBits` function. Unrelated to `r`
+- `rlen` is equal to `qlen`, rounded up to the next multiple of `8`. See `roundUp8` function. Unrelated to `r`.
 - `blen` is the length (in bits) of an input sequence.
 
 #### 2.3.1. Bits and Octets
@@ -41,4 +41,10 @@ const bits2int: (qlen: bigint) => (b: Vec) => bigint
 
 ```ts
 const int2octets: (qlen: bigint) => (x: bigint) => Vec
+```
+
+#### 2.3.4. Bit String to Octet String
+
+```ts
+const bits2octets: (q: bigint) => (b: Vec) => Vec
 ```
