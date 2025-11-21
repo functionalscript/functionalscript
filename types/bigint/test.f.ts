@@ -394,5 +394,6 @@ export default {
     roundUpBits: () => {
         if (roundUpBits(3n)(0b1000n) !== 0b1000n) { throw new Error("fail") }
         if (roundUpBits(3n)(0b1111n) !== 0b10000n) { throw new Error("fail") }
+        if (roundUpBits(3n)(3n) !== 8n) { throw new Error("fail") }
     },
 }

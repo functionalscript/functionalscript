@@ -1,10 +1,7 @@
 import { vec } from "../../types/bit_vec/module.f.ts"
-import { roundUp8, all } from "./module.f.ts"
+import { all } from "./module.f.ts"
 
 export default [
-    () => {
-        if (roundUp8(3n) !== 8n) { throw new Error("fail") }
-    },
     () => {
         if (all(7n).bits2int(vec(5n)(0b10100n)) !== 0b101n) { throw new Error("fail") }
         if (all(17n).bits2int(vec(3n)(0b101n)) !== 0b101n) { throw new Error("fail") }
