@@ -14,7 +14,5 @@ export const bits2int: (qlen: bigint) => (b: Vec) => bigint = qlen => b => {
     return diff > 0n ? uint >> diff : uint
 }
 
-export const int2octets: (qlen: bigint) => (x: bigint) => Vec = qlen => x => {
-    const rlen = roundUpBits(3n)(qlen)
-    return vec(rlen)(x << (rlen - qlen))
-}
+export const int2octets: (qlen: bigint) => (x: bigint) => Vec = qlen => x =>
+    vec(roundUpBits(3n)(qlen))(x)
