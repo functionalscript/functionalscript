@@ -8,11 +8,13 @@ export const roundUpBits = (b: bigint): (v: bigint) => bigint => {
     return (v: bigint) => cb(v + mask)
 }
 
+// qlen to rlen
+export const roundUp8 = roundUpBits(3n)
+
 export const bits2int: (qlen: bigint) => (b: Vec) => bigint = qlen => b => {
     const { length, uint } = unpack(b)
     const diff = length - qlen
     return diff > 0n ? uint >> diff : uint
 }
 
-export const int2octets: (qlen: bigint) => (x: bigint) => Vec = qlen => x =>
-    vec(roundUpBits(3n)(qlen))(x)
+export const int2octets: (qlen: bigint) => (x: bigint) => Vec = qlen => vec(roundUp8(qlen))
