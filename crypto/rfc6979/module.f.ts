@@ -4,6 +4,7 @@ import { unpack, vec, type Vec } from "../../types/bit_vec/module.f.ts"
 // qlen to rlen
 export const roundUp8: Unary = roundUpBits(3n)
 
+/*
 const bits2int: (qlen: bigint) => (b: Vec) => bigint = qlen => b => {
     const { length, uint } = unpack(b)
     const diff = length - qlen
@@ -22,6 +23,7 @@ export const bits2octets: (q: bigint) => (b: Vec) => Vec = q => {
         return i2o(z2)
     }
 }
+*/
 
 export type All = {
     readonly q: bigint
@@ -44,6 +46,7 @@ export const all = (q: bigint): All => {
         qlen,
         bits2int,
         int2octets,
-        bits2octets: bits2octets(q),
+        // since z2 < 2*q, we can use simple mod with `z1 < q ? z1 : z1 - q`
+        bits2octets: b => int2octets(bits2int(b) % q),
     }
 }
