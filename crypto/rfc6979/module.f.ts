@@ -30,3 +30,22 @@ export const bits2octets: (q: bigint) => (b: Vec) => Vec = q => {
         return i2o(z2)
     }
 }
+
+export type All = {
+    readonly q: bigint
+    readonly qlen: bigint
+    readonly bits2ints: (b: Vec) => bigint
+    readonly int2octets: (x: bigint) => Vec
+    readonly bits2octets: (b: Vec) => Vec
+}
+
+export const all = (q: bigint): All => {
+    const qlen = bitLength(q)
+    return {
+        q,
+        qlen,
+        bits2ints: bits2int(qlen),
+        int2octets: int2octets(qlen),
+        bits2octets: bits2octets(q),
+    }
+}
