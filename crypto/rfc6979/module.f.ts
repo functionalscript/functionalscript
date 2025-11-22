@@ -41,7 +41,7 @@ const k0 = vec8(0x00n)
 
 const concat = listToVec(msb)
 
-export const k = ({ bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2) => (x: bigint) => (m: Vec) =>{
+export const k = ({ bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint =>{
     const hmacf = hmac(hf)
     const h1 = computeSync(hf)([m])
     const rhlen = roundUp8(hf.hashLength) // in bits
