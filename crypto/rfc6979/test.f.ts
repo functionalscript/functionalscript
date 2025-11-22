@@ -79,6 +79,8 @@ export default {
         v = hmac(sha256)(k)(v)
         t = msb.concat(empty)(v)
         if (t !== vec(256n)(0x475E80E992140567FCC3A50DAB90FE84BCD7BB03638E9C4656A06F37F6508A7Cn)) { throw t }
+        kk = bits2int(t)
+        if (kk !== 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn) { throw kk }
     },
     /*
     kk: () => {
