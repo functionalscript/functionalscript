@@ -61,6 +61,15 @@ export default {
         // 3.
         let kk = bits2int(t)
         if (kk !== 0x4982D236F3FFC758838CA6F5E9FEA455106AF3B2Bn) { throw kk }
+        k = hmac(sha256)(k)(listToVec(msb)([v, vec(8n)(0x00n)]))
+        if (k !== vec(256n)(0x75CB5C05B2A78C3D81DF12D74D7BE0A0E94AB19815781D4D8E2902A79D0A6699n)) { throw k }
+        v = hmac(sha256)(k)(v)
+        if (v !== vec(256n)(0xDCB9CA126107A9C27CE77BA58EA871C8C912D835EADDC305F2445D88F66C4C43n)) { throw v }
+        v = hmac(sha256)(k)(v)
+        t = msb.concat(empty)(v)
+        if (t !== vec(256n)(0xC70C78608A3B5BE9289BE90EF6E81A9E2C1516D5751D2F75F50033E45F73BDEBn)) { throw t }
+        kk = bits2int(t)
+        if (kk !== 0x63863C30451DADF4944DF4877B740D4F160A8B6ABn) { throw kk }
     },
     /*
     kk: () => {
