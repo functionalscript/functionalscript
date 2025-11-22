@@ -26,6 +26,7 @@ import { flip } from "../function/module.f.ts"
 import type { Binary, Reduce as OpReduce } from "../function/operator/module.f.ts"
 import { fold, type List, type Thunk } from "../list/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
+import { repeat as mRepeat } from "../monoid/module.f.ts"
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -330,3 +331,4 @@ export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
 export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
     fold(concat)(empty)
 
+export const repeat = mRepeat({ identity: empty, operation: lsb.concat })
