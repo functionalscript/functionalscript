@@ -23,7 +23,7 @@ export default {
     },
     k: () => {
         const q = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
-        const { qlen, int2octets, bits2octets } = all(q)
+        const { qlen, int2octets, bits2octets, bits2int } = all(q)
         if (qlen !== 163n) { throw qlen }
         const x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
         const m = utf8("sample")
@@ -58,6 +58,9 @@ export default {
         v = hmac(sha256)(k)(v)
         let t = msb.concat(empty)(v)
         if (t !== vec(256n)(0x9305A46DE7FF8EB107194DEBD3FD48AA20D5E7656CBE0EA69D2A8D4E7C67314An)) { throw t }
+        // 3.
+        let kk = bits2int(t)
+        if (kk !== 0x4982D236F3FFC758838CA6F5E9FEA455106AF3B2Bn) { throw kk }
     },
     /*
     kk: () => {
