@@ -329,6 +329,6 @@ export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
  * Concatenates a list of vectors using the provided bit order.
  */
 export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
-    fold(concat)(empty)
+    fold(flip(concat))(empty)
 
 export const repeat = mRepeat({ identity: empty, operation: lsb.concat })

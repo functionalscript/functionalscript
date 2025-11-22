@@ -1,5 +1,6 @@
 import { utf8 } from "../../text/module.f.ts"
-import { vec } from "../../types/bit_vec/module.f.ts"
+import { listToVec, msb, repeat, vec } from "../../types/bit_vec/module.f.ts"
+import { hmac } from "../hmac/module.f.ts"
 import { curve, secp192r1 } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256 } from "../sha2/module.f.ts"
 import { all, fromCurve, k } from "./module.f.ts"
@@ -32,9 +33,24 @@ export default {
         if (xi2o !== vec(168n)(0x009A4D6792295A7F730FC3F2B49CBC0F62E862272Fn)) { throw xi2o }
         const h1b2o = bits2octets(h1)
         if (h1b2o !== vec(168n)(0x01795EDF0D54DB760F156D0DAC04C0322B3A204224n)) { throw h1b2o }
-    }
+        let v = repeat(32n)(vec(8n)(0x01n))
+        if (v !== vec(256n)(0x0101010101010101010101010101010101010101010101010101010101010101n)) { throw v }
+        let k = repeat(32n)(vec(8n)(0x00n))
+        if (k !== vec(256n)(0x0000000000000000000000000000000000000000000000000000000000000000n)) { throw k }
+        // d.
+        // 256 + 8 + 168 + 168 = 600
+        const vv = listToVec(msb)([v, vec(8n)(0x00n), xi2o, h1b2o])
+        const vvu =
+            0x0101010101010101010101010101010101010101010101010101010101010101_00_009A4D6792295A7F730FC3F2B49CBC0F62E862272F_01795EDF0D54DB760F156D0DAC04C0322B3A204224n
+        if (vv !== vec(600n)(vvu)) { throw [(vv as any).toString(16), vvu.toString(16)] }
+        k = hmac(sha256)(k)(vv)
+        if (k !== vec(256n)(0x09999A9BFEF972D3346911883FAD7951D23F2C8B47F420222D1171EEEEAC5AB8n)) { throw k}
+        // e.
+        v = hmac(sha256)(k)(v)
+        if (v !== vec(256n)(0xD5F4030F755EE86AA10BBA8C09DF114FF6B6111C238500D13C7343A8C01BECF7n)) { throw v }
+    },
     /*
-    k: () => {
+    kk: () => {
         const a = fromCurve(curve(secp192r1))
         const x = 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n
         const m = utf8("sample")
