@@ -1,5 +1,5 @@
 import { utf8 } from "../../text/module.f.ts"
-import { listToVec, msb, repeat, vec } from "../../types/bit_vec/module.f.ts"
+import { empty, listToVec, msb, repeat, vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
 import { curve, secp192r1 } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256 } from "../sha2/module.f.ts"
@@ -54,6 +54,10 @@ export default {
         // g.
         v = hmac(sha256)(k)(v)
         if (v !== vec(256n)(0x783457C1CF3148A8F2A9AE73ED472FA98ED9CD925D8E964CE0764DEF3F842B9An)) { throw v }
+        // h.
+        v = hmac(sha256)(k)(v)
+        let t = msb.concat(empty)(v)
+        if (t !== vec(256n)(0x9305A46DE7FF8EB107194DEBD3FD48AA20D5E7656CBE0EA69D2A8D4E7C67314An)) { throw t }
     },
     /*
     kk: () => {
