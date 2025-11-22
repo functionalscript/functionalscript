@@ -26,7 +26,7 @@ export type Init = {
 /**
  * Represents an elliptic curve and its associated operations.
  */
-type Curve = {
+export type Curve = {
     readonly pf: PrimeField
     readonly nf: PrimeField
     readonly y2: (x: bigint) => bigint

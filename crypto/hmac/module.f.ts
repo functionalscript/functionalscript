@@ -18,7 +18,6 @@
  */
 
 import { length, type Vec, empty, msb, vec, vec8, type Reduce } from '../../types/bit_vec/module.f.ts'
-import { flip } from '../../types/function/module.f.ts'
 import { repeat } from '../../types/monoid/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 

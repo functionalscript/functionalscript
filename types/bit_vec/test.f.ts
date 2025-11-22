@@ -1,6 +1,6 @@
 import { abs, mask } from '../bigint/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8 } from './module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -316,5 +316,9 @@ export default {
             if (r !== e) { throw r }
         }
         c(vec(4n)(0x7n))(vec(8n)(0x12n))(vec(8n)(0x70n ^ 0x12n))
+    },
+    repeat: () => {
+        if (repeat(4n)(vec8(0xA5n)) !== vec(32n)(0xA5A5A5A5n)) { throw 'repeat failed' }
+        if (repeat(7n)(vec(5n)(0x13n)) !== vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n)) { throw 'repeat failed' }
     }
 }

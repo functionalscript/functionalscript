@@ -268,3 +268,11 @@ export const combination = (...k: readonly bigint[]): bigint => {
 }
 
 export const xor: Reduce = a => b => a ^ b
+
+export const clearBits: Reduce = b => v => v >> b << b
+
+export const roundUpBits: Reduce = b => {
+    const mask = (1n << b) - 1n
+    const cb = clearBits(b)
+    return v => cb(v + mask)
+}
