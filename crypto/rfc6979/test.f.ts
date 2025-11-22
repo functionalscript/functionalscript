@@ -48,6 +48,12 @@ export default {
         // e.
         v = hmac(sha256)(k)(v)
         if (v !== vec(256n)(0xD5F4030F755EE86AA10BBA8C09DF114FF6B6111C238500D13C7343A8C01BECF7n)) { throw v }
+        // f. K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
+        k = hmac(sha256)(k)(listToVec(msb)([v, vec(8n)(0x01n), xi2o, h1b2o]))
+        if (k !== vec(256n)(0x0CF2FE96D5619C9EF53CB7417D49D37EA68A4FFED0D7E623E38689289911BD57n)) { throw k }
+        // g.
+        v = hmac(sha256)(k)(v)
+        if (v !== vec(256n)(0x783457C1CF3148A8F2A9AE73ED472FA98ED9CD925D8E964CE0764DEF3F842B9An)) { throw v }
     },
     /*
     kk: () => {
