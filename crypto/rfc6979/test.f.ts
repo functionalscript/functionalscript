@@ -72,6 +72,13 @@ export default {
         kk = bits2int(t)
         if (kk !== 0x63863C30451DADF4944DF4877B740D4F160A8B6ABn) { throw kk }
         // 3. third try
+        k = hmac(sha256)(k)(listToVec(msb)([v, vec(8n)(0x00n)]))
+        if (k !== vec(256n)(0x0A5A64B99C059520103686CB6F36BCFCA788EB3BCF69BA66A5BB080B0593BA53n)) { throw k }
+        v = hmac(sha256)(k)(v)
+        if (v !== vec(256n)(0x0B3B196811B19F6C6F729C43F35BCF0DFD725F17CA3430E8721453E55550A18Fn)) { throw v }
+        v = hmac(sha256)(k)(v)
+        t = msb.concat(empty)(v)
+        if (t !== vec(256n)(0x475E80E992140567FCC3A50DAB90FE84BCD7BB03638E9C4656A06F37F6508A7Cn)) { throw t }
     },
     /*
     kk: () => {
