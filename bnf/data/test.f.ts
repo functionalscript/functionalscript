@@ -385,7 +385,7 @@ export default {
             const m = descentParser(emptyRule)
             const mr = m("", [65, 70])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":true,"sequence":[]},false,0]') { throw result }
+            if (result !== '[{"sequence":[]},true,0]') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
@@ -401,57 +401,57 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,0]') { throw result }       
         },
-        // () => {
-        //     const variantRule = { 'a': range('AA'), 'b': range('BB')}
-        //     const m = parser(variantRule)
-        //     const mr = m("", [65])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"tag":"a","sequence":[65]},true,[]]') { throw result }
-        // },
-        // () => {
-        //     const variantRule = { 'a': range('AA'), 'b': range('BB')}
-        //     const m = parser(variantRule)
-        //     const mr = m("", [64])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[]},false,[64]]') { throw result }
-        // },
-        // () => {
-        //     const emptyRule = ''
-        //     const variantRule = { 'e': emptyRule, 'a': range('AA')}
-        //      const m = parser(variantRule)
-        //     const mr = m("", [])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"tag":"e","sequence":[]},true,[]]') { throw result }
-        // },
-        // () => {
-        //     const emptyRule = ''
-        //     const variantRule = { 'e': emptyRule, 'a': range('AA')}
-        //     const m = parser(variantRule)
-        //     const mr = m("", [64])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"tag":"e","sequence":[]},true,[64]]') { throw result }
-        // },
-        // () => {
-        //     const stringRule = 'AB'
-        //     const m = parser(stringRule)
-        //     const mr = m("", [65,66])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[65,{"sequence":[66]}]},true,[]]') { throw result }
-        // },
-        // () => {
-        //     const stringRule = 'AB'
-        //     const m = parser(stringRule)
-        //     const mr = m("", [65,67])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[]},false,[67]]') { throw result }
-        // },
+        () => {
+            const variantRule = { 'a': range('AA'), 'b': range('BB')}
+            const m = descentParser(variantRule)
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"a","sequence":[65]},true,1]') { throw result }
+        },
+        () => {
+            const variantRule = { 'a': range('AA'), 'b': range('BB')}
+            const m = descentParser(variantRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,0]') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const variantRule = { 'e': emptyRule, 'a': range('AA')}
+             const m = descentParser(variantRule)
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"e","sequence":[]},true,0]') { throw result }
+        },
+        () => {
+            const emptyRule = ''
+            const variantRule = { 'e': emptyRule, 'a': range('AA')}
+            const m = descentParser(variantRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":"e","sequence":[]},true,0]') { throw result }
+        },
+        () => {
+            const stringRule = 'AB'
+            const m = descentParser(stringRule)
+            const mr = m("", [65,66])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[{"sequence":[65]},{"sequence":[66]}]},true,2]') { throw result }
+        },
+        () => {
+            const stringRule = 'AB'
+            const m = descentParser(stringRule)
+            const mr = m("", [65,67])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,0]') { throw result }
+        },
         // () => {
         //     const emptyRule = ''            
         //     const minursRule = range('--')
         //     const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
         //     const digitRule = range('09')
         //     const numberRule = [optionalMinusRule, digitRule]
-        //     const m = parser(numberRule)
+        //     const m = descentParser(numberRule)
         //     const mr = m("", [50])
         //     const result = JSON.stringify(mr)
         //     if (result !== '[{"sequence":[50]},true,[]]') { throw result }
@@ -462,7 +462,7 @@ export default {
         //     const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
         //     const digitRule = range('09')
         //     const numberRule = [optionalMinusRule, digitRule]
-        //     const m = parser(numberRule)
+        //     const m = descentParser(numberRule)
         //     const mr = m("", [45,50])
         //     const result = JSON.stringify(mr)
         //     if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }

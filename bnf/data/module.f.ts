@@ -57,7 +57,7 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
 
 type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
-export type DescentMatchRule = (name: string, s: readonly CodePoint[], idx: number) => DescentMatchResult
+export type DescentMatchRule = (name: string, tag: AstTag, s: readonly CodePoint[], idx: number) => DescentMatchResult
 
 export type DescentMatchResult = readonly[AstRule, boolean, number]
 
@@ -314,7 +314,7 @@ export const descentParser = (fr: FRule): DescentMatch => {
         return res === false ? undefined : res
     }
 
-    const f: DescentMatchRule = (name, cp, idx): DescentMatchResult => {
+    const f: DescentMatchRule = (name, tag, cp, idx): DescentMatchResult => {
         const mrSuccess = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, true, idx]
         const mrFail = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, false, idx]
 
@@ -329,24 +329,36 @@ export const descentParser = (fr: FRule): DescentMatch => {
             const cpi = cp[idx]
             const range = rangeDecode(rule)            
             if (rangeContains(range)(cpi)) {
-                return mrSuccess(emptyTag, [cpi], idx + 1)
+                return mrSuccess(tag, [cpi], idx + 1)
             }
             return mrFail(emptyTag, [], idx)
-        } else if (rule instanceof Array) {
+        } else if (rule instanceof Array) {            
+            let seq: AstSequence = []
+            let tidx = idx
             for (const item of rule) {
-                const m = f(item, cp, idx)
+                const m = f(item, undefined, cp, tidx)
+                const [astRule, success, nidx] = m
+                tidx = nidx
+                if (success === false) {
+                    return mrFail(tag, [], idx)
+                }
+                seq = [...seq, astRule]
+            }
+            return mrSuccess(tag, seq, tidx)
+        } else {
+            const entries = Object.entries(rule)
+            for (const [tag, item] of entries) {
+                const m = f(item, tag, cp, idx)
                 if (m[1]) {
                     return m
                 }
             }
             return mrFail(emptyTag, [], idx)
-        } else {
-            return todo()
         }        
     }
 
     const match: DescentMatch = (name, cp): DescentMatchResult => {
-        return f(name, cp, 0)
+        return f(name, undefined, cp, 0)
     }
     
     return match
