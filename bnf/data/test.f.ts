@@ -378,22 +378,22 @@ export default {
             const m = descentParser(emptyRule)
             const mr = m("", [])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":true,"sequence":[]},true,[]]') { throw result }
+            if (result !== '[{"tag":true,"sequence":[]},true,0]') { throw result }
         },
-        // () => {
-        //     const emptyRule = ''
-        //     const m = descentParser(emptyRule)
-        //     const mr = m("", [65, 70])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"tag":true,"sequence":[]},true,[65,70]]') { throw result }
-        // },
-        // () => {
-        //     const terminalRangeRule = range('AF')
-        //     const m = parser(terminalRangeRule)
-        //     const mr = m("", [65])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[65]},true,[]]') { throw result }       
-        // },
+        () => {
+            const emptyRule = ''
+            const m = descentParser(emptyRule)
+            const mr = m("", [65, 70])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":true,"sequence":[]},false,0]') { throw result }
+        },
+        () => {
+            const terminalRangeRule = range('AF')
+            const m = descentParser(terminalRangeRule)
+            const mr = m("", [65])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[65]},true,1]') { throw result }       
+        },
         // () => {
         //     const terminalRangeRule = range('AF')
         //     const m = parser(terminalRangeRule)
