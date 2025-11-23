@@ -5,7 +5,7 @@ import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { join0Plus, max, option, range, remove, repeat, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap } from './module.f.ts'
+import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser } from './module.f.ts'
 
 export default {
     toData: [
@@ -119,7 +119,7 @@ export default {
             const result = JSON.stringify(emptyTags)
             if (result !== '{"0":false,"1":false,"2":false,"3":false,"4":false,"5":true,"r":"none","":true}') { throw result }
         }
-    ], 
+    ],    
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
         const result = stringify(sort)(toData(varintRule))
@@ -371,6 +371,182 @@ export default {
             expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
+    ],
+    descentParser: [
+        () => {
+            const emptyRule = ''
+            const m = descentParser(emptyRule)
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"tag":true,"sequence":[]},true,[]]') { throw result }
+        },
+        // () => {
+        //     const emptyRule = ''
+        //     const m = descentParser(emptyRule)
+        //     const mr = m("", [65, 70])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"tag":true,"sequence":[]},true,[65,70]]') { throw result }
+        // },
+        // () => {
+        //     const terminalRangeRule = range('AF')
+        //     const m = parser(terminalRangeRule)
+        //     const mr = m("", [65])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[65]},true,[]]') { throw result }       
+        // },
+        // () => {
+        //     const terminalRangeRule = range('AF')
+        //     const m = parser(terminalRangeRule)
+        //     const mr = m("", [64])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[]},false,[64]]') { throw result }       
+        // },
+        // () => {
+        //     const variantRule = { 'a': range('AA'), 'b': range('BB')}
+        //     const m = parser(variantRule)
+        //     const mr = m("", [65])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"tag":"a","sequence":[65]},true,[]]') { throw result }
+        // },
+        // () => {
+        //     const variantRule = { 'a': range('AA'), 'b': range('BB')}
+        //     const m = parser(variantRule)
+        //     const mr = m("", [64])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[]},false,[64]]') { throw result }
+        // },
+        // () => {
+        //     const emptyRule = ''
+        //     const variantRule = { 'e': emptyRule, 'a': range('AA')}
+        //      const m = parser(variantRule)
+        //     const mr = m("", [])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"tag":"e","sequence":[]},true,[]]') { throw result }
+        // },
+        // () => {
+        //     const emptyRule = ''
+        //     const variantRule = { 'e': emptyRule, 'a': range('AA')}
+        //     const m = parser(variantRule)
+        //     const mr = m("", [64])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"tag":"e","sequence":[]},true,[64]]') { throw result }
+        // },
+        // () => {
+        //     const stringRule = 'AB'
+        //     const m = parser(stringRule)
+        //     const mr = m("", [65,66])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[65,{"sequence":[66]}]},true,[]]') { throw result }
+        // },
+        // () => {
+        //     const stringRule = 'AB'
+        //     const m = parser(stringRule)
+        //     const mr = m("", [65,67])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[]},false,[67]]') { throw result }
+        // },
+        // () => {
+        //     const emptyRule = ''            
+        //     const minursRule = range('--')
+        //     const optionalMinusRule = { 'none': emptyRule, 'minus': minursRule}
+        //     const digitRule = range('09')
+        //     const numberRule = [optionalMinusRule, digitRule]
+        //     const m = parser(numberRule)
+        //     const mr = m("", [50])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"sequence":[50]},true,[]]') { throw result }
+        // },
+        // () => {
+        //     const emptyRule = ''            
+        //     const minusRule = range('--')
+        //     const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+        //     const digitRule = range('09')
+        //     const numberRule = [optionalMinusRule, digitRule]
+        //     const m = parser(numberRule)
+        //     const mr = m("", [45,50])
+        //     const result = JSON.stringify(mr)
+        //     if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
+        // },
+        // () => {                        
+        //     const m = parser(option('a'))
+
+        //     const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+        //     const expect = (s: string, success: boolean) => {
+        //         const mr = m('', toArray(stringToCodePointList(s)))
+        //         if (isSuccess(mr) !== success) {
+        //             throw mr
+        //         }
+        //     }
+
+        //     expect('a', true)
+        //     expect('', true)
+        //     expect('aa', false)
+        //     expect('b', false)
+        // },
+        // () => {       
+        //     const ws = repeat0Plus(set(' \n\r\t'))
+
+        //     const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+        //         open,
+        //         ws,
+        //         join0Plus([a, ws], [',', ws]),
+        //         close,
+        //     ]
+             
+        //     const value = () => ({                
+        //         object: commaJoin0Plus('{}', 'a'),
+        //         array: commaJoin0Plus('[]', 'a')
+        //     })
+
+        //     value.name //bun will fail if no usage of name found
+
+        //     const m = parser(value)
+
+        //     const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+        //     const expect = (s: string, success: boolean) => {
+        //         const mr = m('value', toArray(stringToCodePointList(s)))
+        //         if (isSuccess(mr) !== success) {
+        //             throw mr
+        //         }
+        //     }            
+            
+        //     expect('[]', true)
+        //     expect('[a]', true)            
+        //     expect('[a, a]', true)            
+        //     expect('{a}', true)
+        // },
+        // () => {
+        //     const m = parser(deterministic())
+            
+        //     const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
+        //     const expect = (s: string, success: boolean) => {
+        //         const mr = m('', toArray(stringToCodePointList(s)))
+        //         if (isSuccess(mr) !== success) {
+        //             throw mr
+        //         }
+        //     }
+
+        //     expect('   true   ', true)
+        //     expect('   tr2ue   ', false)
+        //     expect('   true"   ', false)
+        //     expect('   "Hello"   ', true)
+        //     expect('   "Hello   ', false)
+        //     expect('   "Hello\\n\\r\\""   ', true)
+        //     expect('   -56.7e+5  ', true)
+        //     expect('   h-56.7e+5   ', false)
+        //     expect('   -56.7e+5   3', false)
+        //     expect('   [] ', true)
+        //     expect('   {} ', true)
+        //     expect('   [[[]]] ', true)
+        //     expect('   [1] ', true)
+        //     expect('   [ 12, false, "a"]  ', true)
+        //     expect('   [ 12, false2, "a"]  ', false)
+        //     expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
+        //     expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+        //     expect('   { "q": [ 12, false, [}], "a"] }  ', false)
+        //     expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
+        //     expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
+        // }
     ],
     repeat: [
         () => {            

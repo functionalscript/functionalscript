@@ -300,7 +300,7 @@ export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap
     return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
-export const parserDescent = (fr: FRule): Match => {
+export const descentParser = (fr: FRule): Match => {
     const data = toData(fr)
     const emptyTagMap = createEmptyTagMap(data)
 
