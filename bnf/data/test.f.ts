@@ -394,13 +394,13 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[65]},true,1]') { throw result }       
         },
-        // () => {
-        //     const terminalRangeRule = range('AF')
-        //     const m = parser(terminalRangeRule)
-        //     const mr = m("", [64])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[]},false,[64]]') { throw result }       
-        // },
+        () => {
+            const terminalRangeRule = range('AF')
+            const m = descentParser(terminalRangeRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,0]') { throw result }       
+        },
         // () => {
         //     const variantRule = { 'a': range('AA'), 'b': range('BB')}
         //     const m = parser(variantRule)

@@ -329,7 +329,6 @@ export const descentParser = (fr: FRule): DescentMatch => {
             const cpi = cp[idx]
             const range = rangeDecode(rule)            
             if (rangeContains(range)(cpi)) {
-                console.log('success!')
                 return mrSuccess(emptyTag, [cpi], idx + 1)
             }
             return mrFail(emptyTag, [], idx)
