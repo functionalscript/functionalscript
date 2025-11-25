@@ -39,9 +39,11 @@ export const fromCurve = (c: Curve): All => all(c.nf.p)
 const v0 = vec8(0x01n)
 const k0 = vec8(0x00n)
 
-const concat = listToVec(msb)
+const ltov = listToVec(msb)
 
-export const k = ({ bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint =>{
+export const concat = (...x: readonly Vec[]) => ltov(x)
+
+export const computeK = ({ q, bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint =>{
     const hmacf = hmac(hf)
     const h1 = computeSync(hf)([m])
     const rhlen = roundUp8(hf.hashLength) // in bits
@@ -49,25 +51,34 @@ export const k = ({ bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2
     const rep = repeat(hlenBytes)
     let v = rep(v0)
     let k = rep(k0)
-    k = hmacf(k)(concat([v, k0, int2octets(x), bits2octets(h1)]))
+    k = hmacf(k)(concat(v, k0, int2octets(x), bits2octets(h1)))
     v = hmacf(k)(v)
-    // h. Apply the following algorithm until a proper value is for `k`:
-    //    1. Set `T` to the empty sequence, so `tlen = 0`.
-    //    2. while `tlen < qlen` do:
-    //       - `V = HMAC_K(V)`
-    //       - `T = T || V`
-    let t = empty
-    while (length(t) < qlen) {
+    while (true) {
+        // h. Apply the following algorithm until a proper value is for `k`:
+        //    1. Set `T` to the empty sequence, so `tlen = 0`.
+        let t = empty
+        //    2. while `tlen < qlen` do:
+        //       - `V = HMAC_K(V)`
+        //       - `T = T || V`
+        // Possible optimizations:
+        // - precompute number of iterations
+        // - `qlen` can't be 0, so we can avoid the first check and
+        //   first concatenation.
+        while (length(t) < qlen) {
+            v = hmacf(k)(v)
+            t = concat(t, v)
+        }
+        //    3. Compute `k = bits2int(T)`. If `k` is not in `[1, q-1]` or `kG = 0` then
+        //       - `K = HMAC_K(V || 0x00)`
+        //       - `V = HMAC_K(V)`
+        //       and loop (try to generate a new `T`, and so on). Return to step `1`.
+        const result = bits2int(t)
+        if (0n < result && result < q) {
+            return result
+        }
+        k = hmacf(k)(concat(v, k0))
         v = hmacf(k)(v)
-        t = concat([t, v])
     }
-    // TODO:
-    //    3. Compute `k = bits2int(T)`. If `k` is not in `[1, q-1]` or `kG = 0` then
-    //       - `K = HMAC_K(V || 0x00)`
-    //       - `V = HMAC_K(V)`
-    //       and loop (try to generate a new `T`, and so on). Return to step `1`.
-    const result = bits2int(t)
-    return result
 }
 
 export const sign = (a: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint => {

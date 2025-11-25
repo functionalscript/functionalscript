@@ -1,11 +1,20 @@
 import { utf8 } from "../../text/module.f.ts"
-import { empty, listToVec, msb, repeat, vec, vec8 } from "../../types/bit_vec/module.f.ts"
+import { empty, listToVec, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
 import { curve, secp192r1 } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256 } from "../sha2/module.f.ts"
-import { all, fromCurve, k } from "./module.f.ts"
+import { all, concat, fromCurve, computeK } from "./module.f.ts"
 
 const m = utf8("sample")
+
+const x00 = vec8(0x00n)
+const x01 = vec8(0x01n)
+
+const v168 = vec(168n)
+const v256 = vec(256n)
+const v600 = vec(600n)
+const r32 = repeat(32n)
+const hmac256 = hmac(sha256)
 
 export default {
     bits2int: () => {
@@ -24,10 +33,6 @@ export default {
         if (all(11n).bits2octets(vec(4n)(0b1101n)) !== vec(8n)(0b0000_0010n)) { throw new Error("fail") }
     },
     k: () => {
-        const v168 = vec(168n)
-        const v256 = vec(256n)
-        const r32 = repeat(32n)
-        const hmac256 = hmac(sha256)
         //
         const q = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
         const { qlen, int2octets, bits2octets, bits2int } = all(q)
@@ -39,23 +44,23 @@ export default {
         if (xi2o !== v168(0x009A4D6792295A7F730FC3F2B49CBC0F62E862272Fn)) { throw xi2o }
         const h1b2o = bits2octets(h1)
         if (h1b2o !== v168(0x01795EDF0D54DB760F156D0DAC04C0322B3A204224n)) { throw h1b2o }
-        let v = r32(vec8(0x01n))
+        let v = r32(x01)
         if (v !== v256(0x0101010101010101010101010101010101010101010101010101010101010101n)) { throw v }
-        let k = r32(vec8(0x00n))
+        let k = r32(x00)
         if (k !== v256(0x0000000000000000000000000000000000000000000000000000000000000000n)) { throw k }
         // d.
         // 256 + 8 + 168 + 168 = 600
-        const vv = listToVec(msb)([v, vec8(0x00n), xi2o, h1b2o])
+        const vv = concat(v, x00, xi2o, h1b2o)
         const vvu =
             0x0101010101010101010101010101010101010101010101010101010101010101_00_009A4D6792295A7F730FC3F2B49CBC0F62E862272F_01795EDF0D54DB760F156D0DAC04C0322B3A204224n
-        if (vv !== vec(600n)(vvu)) { throw [(vv as any).toString(16), vvu.toString(16)] }
+        if (vv !== v600(vvu)) { throw [(vv as any).toString(16), vvu.toString(16)] }
         k = hmac256(k)(vv)
-        if (k !== v256(0x09999A9BFEF972D3346911883FAD7951D23F2C8B47F420222D1171EEEEAC5AB8n)) { throw k}
+        if (k !== v256(0x09999A9BFEF972D3346911883FAD7951D23F2C8B47F420222D1171EEEEAC5AB8n)) { throw k }
         // e.
         v = hmac256(k)(v)
         if (v !== v256(0xD5F4030F755EE86AA10BBA8C09DF114FF6B6111C238500D13C7343A8C01BECF7n)) { throw v }
         // f. K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
-        k = hmac256(k)(listToVec(msb)([v, vec8(0x01n), xi2o, h1b2o]))
+        k = hmac256(k)(concat(v, x01, xi2o, h1b2o))
         if (k !== v256(0x0CF2FE96D5619C9EF53CB7417D49D37EA68A4FFED0D7E623E38689289911BD57n)) { throw k }
         // g.
         v = hmac256(k)(v)
@@ -68,7 +73,7 @@ export default {
         let kk = bits2int(t)
         if (kk !== 0x4982D236F3FFC758838CA6F5E9FEA455106AF3B2Bn) { throw kk }
         // 3. second try
-        k = hmac256(k)(listToVec(msb)([v, vec(8n)(0x00n)]))
+        k = hmac256(k)(concat(v, x00))
         if (k !== v256(0x75CB5C05B2A78C3D81DF12D74D7BE0A0E94AB19815781D4D8E2902A79D0A6699n)) { throw k }
         v = hmac256(k)(v)
         if (v !== v256(0xDCB9CA126107A9C27CE77BA58EA871C8C912D835EADDC305F2445D88F66C4C43n)) { throw v }
@@ -78,7 +83,7 @@ export default {
         kk = bits2int(t)
         if (kk !== 0x63863C30451DADF4944DF4877B740D4F160A8B6ABn) { throw kk }
         // 3. third try
-        k = hmac256(k)(listToVec(msb)([v, vec(8n)(0x00n)]))
+        k = hmac256(k)(concat(v, x00))
         if (k !== v256(0x0A5A64B99C059520103686CB6F36BCFCA788EB3BCF69BA66A5BB080B0593BA53n)) { throw k }
         v = hmac256(k)(v)
         if (v !== v256(0x0B3B196811B19F6C6F729C43F35BCF0DFD725F17CA3430E8721453E55550A18Fn)) { throw v }
