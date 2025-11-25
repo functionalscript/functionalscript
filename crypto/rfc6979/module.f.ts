@@ -45,14 +45,38 @@ export const concat = (...x: readonly Vec[]) => ltov(x)
 
 export const computeK = ({ q, bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint =>{
     const hmacf = hmac(hf)
+    // a. Process m through the hash function H, yielding:
+    //      h1 = H(m)
+    //   (h1 is a sequence of hlen bits).
     const h1 = computeSync(hf)([m])
-    const rhlen = roundUp8(hf.hashLength) // in bits
-    const hlenBytes = rhlen >> 3n
-    const rep = repeat(hlenBytes)
+    // b. Set:
+    //      V = 0x01 0x01 0x01 ... 0x01
+    //    such that the length of V, in bits, is equal to 8*ceil(hlen/8).
+    //    For instance, on an octet-based system, if H is SHA-256, then V
+    //    is set to a sequence of 32 octets of value 1.  Note that in this
+    //    step and all subsequent steps, we use the same H function as the
+    //    one used in step 'a' to process the input message; this choice
+    //    will be discussed in more detail in Section 3.6.
+    const rep = repeat(roundUp8(hf.hashLength) >> 3n)
     let v = rep(v0)
+    // c. Set:
+    //      K = 0x00 0x00 0x00 ... 0x00
+    //    such that the length of K, in bits, is equal to 8*ceil(hlen/8).
     let k = rep(k0)
+    // d. Set:
+    //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
+    //    where '||' denotes concatenation.
     k = hmacf(k)(concat(v, k0, int2octets(x), bits2octets(h1)))
+    // e. Set:
+    //      V = HMAC_K(V)
     v = hmacf(k)(v)
+    // f. Set:
+    //      K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
+    k = hmacf(k)(concat(v, v0, int2octets(x), bits2octets(h1)))
+    // g. Set:
+    //      V = HMAC_K(V)
+    v = hmacf(k)(v)
+    // h. Apply the following algorithm until a proper value is for `k`:
     while (true) {
         // h. Apply the following algorithm until a proper value is for `k`:
         //    1. Set `T` to the empty sequence, so `tlen = 0`.

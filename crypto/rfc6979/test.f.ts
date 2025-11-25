@@ -93,6 +93,14 @@ export default {
         kk = bits2int(t)
         if (kk !== 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn) { throw kk }
     },
+    computeK: () => {
+        const q = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
+        const a = all(q)
+        if (a.qlen !== 163n) { throw a.qlen }
+        const x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
+        const k = computeK(a)(sha256)(x)(m)
+        if (k !== 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn) { throw k }
+    }
     /*
     kk: () => {
         const a = fromCurve(curve(secp192r1))
