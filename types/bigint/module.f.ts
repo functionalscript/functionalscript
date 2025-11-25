@@ -272,7 +272,7 @@ export const xor: Reduce = a => b => a ^ b
 export const clearBits: Reduce = b => v => v >> b << b
 
 export const roundUpBits: Reduce = b => {
-    const mask = (1n << b) - 1n
+    const m = mask(b)
     const cb = clearBits(b)
-    return v => cb(v + mask)
+    return v => cb(v + m)
 }
