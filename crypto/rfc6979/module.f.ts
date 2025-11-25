@@ -41,7 +41,7 @@ const k0 = vec8(0x00n)
 
 const ltov = listToVec(msb)
 
-export const concat = (...x: readonly Vec[]) => ltov(x)
+export const concat = (...x: readonly Vec[]): Vec => ltov(x)
 
 export const computeK = ({ q, bits2int, qlen, int2octets, bits2octets }: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint =>{
     const hmacf = hmac(hf)

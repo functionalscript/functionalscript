@@ -100,6 +100,13 @@ export default {
         const x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
         const k = computeK(a)(sha256)(x)(m)
         if (k !== 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn) { throw k }
+    },
+    a21: () => {
+        const q = 0x996F967F6C8E388D9E28D01E205FBA957A5698B1n
+        const x = 0x411602CB19A6CCC34494D79D98EF1E7ED5AF25F7n
+        const a = all(q)
+        const k = computeK(a)(sha256)(x)(m)
+        if (k !== 0x519BA0546D0C39202A7D34D7DFA5E760B318BCFBn) { throw k }
     }
     /*
     kk: () => {
