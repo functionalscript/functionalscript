@@ -53,7 +53,7 @@ export default {
                     const x = 0xcf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3en
                     if (result !== x) { throw [result, x] }
                 },
-                s385: () => {
+                s384: () => {
                     const result = fromV8(compress(sha384.init.hash)(e)) >> 128n
                     const x = 0x38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95bn
                     if (result !== x) { throw [result, x] }
