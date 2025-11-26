@@ -398,8 +398,6 @@ class DeterministicDSA {
 
 public class Ref {
         public static void main(String[] args) {
-                System.out.println("Hello, World!");
-                final DeterministicDSA dsa =
-                        new DeterministicDSA("SHA-256");
+                final DeterministicDSA dsa = new DeterministicDSA("SHA-256");
         }
 }
