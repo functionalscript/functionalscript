@@ -86,7 +86,3 @@ h. Apply the following algorithm until a proper value is for `k`:
       - `K = HMAC_K(V || 0x00)`
       - `V = HMAC_K(V)`
       and loop (try to generate a new `T`, and so on). Return to step `1`.
-
-### A.3. Sample Code
-
-[Ref.java](Ref.java). Run `java Ref.java`.
