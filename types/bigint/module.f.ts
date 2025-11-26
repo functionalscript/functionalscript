@@ -268,3 +268,13 @@ export const combination = (...k: readonly bigint[]): bigint => {
 }
 
 export const xor: Reduce = a => b => a ^ b
+
+export const divUp: Reduce = b => {
+    const m = b - 1n
+    return v => (v + m) / b
+}
+
+export const roundUp: Reduce = b => {
+    const d = divUp(b)
+    return v => d(v) * b
+}
