@@ -1,8 +1,7 @@
 import { utf8 } from "../../text/module.f.ts";
-import { empty, msb, uint, vec } from "../../types/bit_vec/module.f.ts"
+import { repeat, uint, vec } from "../../types/bit_vec/module.f.ts"
 import { flip } from "../../types/function/module.f.ts"
 import { map } from '../../types/list/module.f.ts'
-import { repeat } from "../../types/monoid/module.f.ts";
 import {
     base32,
     base64,
@@ -15,8 +14,6 @@ import {
     sha512x224,
     sha512x256,
 } from './module.f.ts'
-
-const { concat: beConcat } = msb
 
 const checkEmpty = ({ init, end, hashLength }: Sha2) => (x: bigint) => {
     const result = end(init)
@@ -108,7 +105,7 @@ export default {
         }
     ],
     fill: () => {
-        const times = flip(repeat({ identity: empty, operation: beConcat }))(vec(32n)(0x31313131n))
+        const times = flip(repeat)(vec(32n)(0x31313131n))
         return {
             8: () => {
                 const r = times(8n)
@@ -125,5 +122,14 @@ export default {
                 if (uint(h) !== 0x3138bb9b_c78df27c_473ecfd1_410f7bd4_5ebac1f5_9cf3ff9c_fe4db77a_ab7aedd3n) { throw h }
             }
         }
-    }
+    },
+    padding: {
+        overflow: () => {
+            const zero = vec(8n)(0n)
+            const msg = flip(repeat)(zero)(113n)
+            const h = computeSync(sha384)([msg])
+            const x = 0x6be9af2cf3cd5dd12c8d9399ec2b34e66034fbd699d4e0221d39074172a380656089caafe8f39963f94cc7c0a07e3d21n
+            if (uint(h) !== x) { throw h }
+        },
+    },
 }
