@@ -1,12 +1,14 @@
 import { todo } from '../../dev/module.f.ts'
-import { bitLength, roundUpBits, type Unary } from '../../types/bigint/module.f.ts'
+import { bitLength, divUp, roundUp, type Unary } from '../../types/bigint/module.f.ts'
 import { empty, length, listToVec, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
 import type { Curve } from '../secp/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 
 // qlen to rlen
-const roundUp8: Unary = roundUpBits(3n)
+const roundUp8: Unary = roundUp(8n)
+
+const divUp8 = divUp(8n)
 
 export type All = {
     readonly q: bigint
@@ -57,7 +59,7 @@ export const computeK = ({ q, bits2int, qlen, int2octets, bits2octets }: All) =>
     //    step and all subsequent steps, we use the same H function as the
     //    one used in step 'a' to process the input message; this choice
     //    will be discussed in more detail in Section 3.6.
-    const rep = repeat(roundUp8(hf.hashLength) >> 3n)
+    const rep = repeat(divUp8(hf.hashLength))
     let v = rep(v0)
     // c. Set:
     //      K = 0x00 0x00 0x00 ... 0x00

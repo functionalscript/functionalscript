@@ -2,6 +2,7 @@
  * Provides an implementation of HMAC (Hash-based Message Authentication Code).
  *
  * https://en.wikipedia.org/wiki/HMAC
+ * https://www.rfc-editor.org/rfc/rfc2104
  *
  * @module
  *
