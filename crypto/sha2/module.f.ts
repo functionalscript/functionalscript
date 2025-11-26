@@ -193,7 +193,9 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
 
-    const lastChunkLength = chunkLength - 65n
+    const lengthBits = bitLength << 1n
+    const lengthMask = mask(lengthBits)
+    const lastChunkLength = chunkLength - lengthBits - 1n
 
     return {
         bitLength,
@@ -230,7 +232,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
                     hash = compress(hash)(u)
                     u = 0n
                 }
-                return result(fromV8(compress(hash)(u | (len + rLen))) >> offset)
+                const msgLength = (len + rLen) & lengthMask
+                return result(fromV8(compress(hash)(u | msgLength)) >> offset)
             }
         }
     }

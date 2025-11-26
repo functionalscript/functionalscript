@@ -29,8 +29,7 @@ export default {
         if (k !== k0) { throw [k, k0] }
         if (m !== m0) { throw [m, m0] }
         const r = hmac(sha384)(k)(m)
-        // TODO: it has to be `8F858157CE005CD52FD8E8F1A46B55E6CFAE21C8C183D9C2F7504BEDF450609EDD7D3C6171DC0BDD2D2444FAA28F18BA`
-        if (r !== vec(384n)(0x9fd1afe82743d433f901f78b91de8aa2fd12a27ef55c2dccb805add1f58374a04cea7a85a04e7b29a948afa376e45371n)) {
+        if (r !== vec(384n)(0x8f858157ce005cd52fd8e8f1a46b55e6cfae21c8c183d9c2f7504bedf450609edd7d3c6171dc0bdd2d2444faa28f18ban)) {
             throw uint(r).toString(16)
         }
     },
