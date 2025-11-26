@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.8.1
+
+- 64bit SHA2 padding is fixed [PR 595](https://github.com/functionalscript/functionalscript/pull/595)
 - A compact version of Bit Vector [PR 575](https://github.com/functionalscript/functionalscript/pull/575)
 - Running tests in browsers [PR 572](https://github.com/functionalscript/functionalscript/pull/572)
 - Generating a GitHub CI file [PR 569](https://github.com/functionalscript/functionalscript/pull/569)

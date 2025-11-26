@@ -1,4 +1,16 @@
-import { sum, abs, serialize, log2, bitLength, mask, min, combination, factorial } from './module.f.ts'
+import {
+    sum,
+    abs,
+    serialize,
+    log2,
+    bitLength,
+    mask,
+    min,
+    combination,
+    factorial,
+    divUp,
+    roundUp
+} from './module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
@@ -374,5 +386,14 @@ export default {
         // e = 5 * 6 * 7 * 8 * 9 * 10 * 11 / (2n * 2n * 6n) =
         // e = 5     * 7 * 2 * 9 * 10 * 11 = 69300
         if (r !== 69300n) { throw r }
-    }
+    },
+    divUp: () => {
+        if (divUp(8n)(0b1000n) !== 1n) { throw new Error("fail") }
+        if (divUp(8n)(0b1111n) !== 2n) { throw new Error("fail") }
+    },
+    roundUp: () => {
+        if (roundUp(8n)(0b1000n) !== 0b1000n) { throw new Error("fail") }
+        if (roundUp(8n)(0b1111n) !== 0b10000n) { throw new Error("fail") }
+        if (roundUp(8n)(3n) !== 8n) { throw new Error("fail") }
+    },
 }
