@@ -193,10 +193,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
 
-    // 1 - stop bit.
-    // 64 - the size of the payload length.
-    // sum: 65
-    const lastChunkLength = chunkLength - 65n
+    const lastChunkLength = chunkLength - 1n - (bitLength << 1n)
 
     return {
         bitLength,
