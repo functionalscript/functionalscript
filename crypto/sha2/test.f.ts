@@ -1,5 +1,5 @@
 import { utf8 } from "../../text/module.f.ts";
-import { empty, msb, repeatConcat, uint, vec } from "../../types/bit_vec/module.f.ts"
+import { empty, msb, repeat, uint, vec } from "../../types/bit_vec/module.f.ts"
 import { flip } from "../../types/function/module.f.ts"
 import { map } from '../../types/list/module.f.ts'
 import {
@@ -109,14 +109,14 @@ export default {
     padding: {
         overflow: () => {
             const zero = vec(8n)(0n)
-            const msg = flip(repeatConcat)(zero)(113n)
+            const msg = flip(repeat)(zero)(113n)
             const h = computeSync(sha384)([msg])
             const x = 0x6be9af2cf3cd5dd12c8d9399ec2b34e66034fbd699d4e0221d39074172a380656089caafe8f39963f94cc7c0a07e3d21n
             if (uint(h) !== x) { throw h }
         },
     },
     fill: () => {
-        const times = flip(repeatConcat)(vec(32n)(0x31313131n))
+        const times = flip(repeat)(vec(32n)(0x31313131n))
         return {
             8: () => {
                 const r = times(8n)
