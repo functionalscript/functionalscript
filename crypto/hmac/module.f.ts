@@ -18,7 +18,7 @@
  * ```
  */
 
-import { length, type Vec, empty, msb, vec, vec8, type Reduce, repeat } from '../../types/bit_vec/module.f.ts'
+import { length, type Vec, msb, vec, vec8, type Reduce, repeat } from '../../types/bit_vec/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 
 const { concat, xor } = msb
