@@ -66,13 +66,14 @@ export const computeK = ({ q, bits2int, qlen, int2octets, bits2octets }: All) =>
     // d. Set:
     //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
     //    where '||' denotes concatenation.
-    k = hmacf(k)(concat(v, k0, int2octets(x), bits2octets(h1)))
+    const xh1 = concat(int2octets(x), bits2octets(h1))
+    k = hmacf(k)(concat(v, k0, xh1))
     // e. Set:
     //      V = HMAC_K(V)
     v = hmacf(k)(v)
     // f. Set:
     //      K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
-    k = hmacf(k)(concat(v, v0, int2octets(x), bits2octets(h1)))
+    k = hmacf(k)(concat(v, v0, xh1))
     // g. Set:
     //      V = HMAC_K(V)
     v = hmacf(k)(v)
