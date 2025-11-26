@@ -331,4 +331,7 @@ export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
 export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
     fold(flip(concat))(empty)
 
+/**
+ * Repeats a vector to create a padded block of the desired length.
+ */
 export const repeat: Fold<bigint, Vec> = mRepeat({ identity: empty, operation: lsb.concat })

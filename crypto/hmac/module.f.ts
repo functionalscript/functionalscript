@@ -17,8 +17,7 @@
  * ```
  */
 
-import { length, type Vec, empty, msb, vec, vec8, type Reduce } from '../../types/bit_vec/module.f.ts'
-import { repeat } from '../../types/monoid/module.f.ts'
+import { length, type Vec, empty, msb, vec, vec8, type Reduce, repeat } from '../../types/bit_vec/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
 
 const { concat, xor } = msb
@@ -34,11 +33,6 @@ const oPad = vec8(0x5cn)
 const iPad = vec8(0x36n)
 
 /**
- * Repeats a vector to create a padded block of the desired length.
- */
-const padRepeat = repeat({ identity: empty, operation: concat })
-
-/**
  * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
  * @param hashFunc - The hash function implementation to use.
@@ -47,7 +41,7 @@ const padRepeat = repeat({ identity: empty, operation: concat })
  */
 export const hmac = (hashFunc: Sha2): Reduce => {
     const { blockLength } = hashFunc
-    const p = padRepeat(blockLength >> 3n)
+    const p = repeat(blockLength >> 3n)
     const ip = p(iPad)
     const op = p(oPad)
     const c = computeSync(hashFunc)
