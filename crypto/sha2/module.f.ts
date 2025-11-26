@@ -1,3 +1,8 @@
+/**
+ * See https://www.rfc-editor.org/rfc/rfc6234
+ *
+ * @module
+ */
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
 import { mask } from "../../types/bigint/module.f.ts";
 import {
@@ -193,6 +198,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const fromV8 = (a: V8) => a.reduce((p, v) => (p << bitLength) | v)
 
+    // See https://www.rfc-editor.org/rfc/rfc6234#section-4
     const lastChunkLength = chunkLength - 1n - (bitLength << 1n)
 
     return {
