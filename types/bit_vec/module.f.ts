@@ -335,3 +335,8 @@ export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
  * Repeats a vector to create a padded block of the desired length.
  */
 export const repeat: Fold<bigint, Vec> = mRepeat({ identity: empty, operation: lsb.concat })
+
+/**
+ * Repeats a vector using MSb concatenation to build a padded block.
+ */
+export const repeatConcat: Fold<bigint, Vec> = mRepeat({ identity: empty, operation: msb.concat })
