@@ -23,9 +23,10 @@
  */
 import { abs, bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
 import { flip } from "../function/module.f.ts"
-import type { Binary, Reduce as OpReduce } from "../function/operator/module.f.ts"
+import type { Binary, Fold, Reduce as OpReduce } from "../function/operator/module.f.ts"
 import { fold, type List, type Thunk } from "../list/module.f.ts"
 import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
+import { repeat as mRepeat } from "../monoid/module.f.ts"
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -328,5 +329,9 @@ export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
  * Concatenates a list of vectors using the provided bit order.
  */
 export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
-    fold(concat)(empty)
+    fold(flip(concat))(empty)
 
+/**
+ * Repeats a vector to create a padded block of the desired length.
+ */
+export const repeat: Fold<bigint, Vec> = mRepeat({ identity: empty, operation: lsb.concat })

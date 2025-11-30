@@ -1,34 +1,11 @@
 use core::iter::once;
 
+use crate::common::either::Either;
+
 use super::default::default;
 
-pub enum Either<L, R> {
-    Left(L),
-    Right(R),
-}
-
-impl<L, R, T> Iterator for Either<L, R>
-where
-    L: Iterator<Item = T>,
-    R: Iterator<Item = T>,
-{
-    type Item = T;
-    fn next(&mut self) -> Option<T> {
-        match self {
-            Either::Left(l) => l.next(),
-            Either::Right(r) => r.next(),
-        }
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Either::Left(l) => l.size_hint(),
-            Either::Right(r) => r.size_hint(),
-        }
-    }
-}
-
 pub trait Iter: Sized + Iterator {
-    //
+    /// See https://doc.rust-lang.org/std/iter/struct.Intersperse.html
     fn intersperse_(self, sep: Self::Item) -> impl Iterator<Item = Self::Item>
     where
         Self::Item: Clone,
@@ -63,10 +40,11 @@ pub trait Iter: Sized + Iterator {
         })
     }
 
-    fn eq_by_<J: Iterator, F: FnMut(&Self::Item, &J::Item) -> bool>(
+    /// See https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.eq_by
+    fn eq_by_<J: Iterator>(
         mut self,
         mut j: J,
-        mut cmp: F,
+        mut cmp: impl FnMut(&Self::Item, &J::Item) -> bool,
     ) -> bool {
         loop {
             match (self.next(), j.next()) {
