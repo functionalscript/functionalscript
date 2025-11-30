@@ -467,22 +467,23 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[{"tag":"minus","sequence":[45]},{"sequence":[50]}]},true,2]') { throw result }
         },
-        // () => {                        
-        //     const m = parser(option('a'))
+        () => {                        
+            const m = descentParser(option('a'))
 
-        //     const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-        //     const expect = (s: string, success: boolean) => {
-        //         const mr = m('', toArray(stringToCodePointList(s)))
-        //         if (isSuccess(mr) !== success) {
-        //             throw mr
-        //         }
-        //     }
+            const expect = (s: string, expected: boolean) => {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = m('', cp)
+                const success = mr[1] && mr[2] === cp.length
+                if (success !== expected) {
+                    throw mr
+                }
+            }
 
-        //     expect('a', true)
-        //     expect('', true)
-        //     expect('aa', false)
-        //     expect('b', false)
-        // },
+            expect('a', true)
+            expect('', true)
+            expect('aa', false)
+            expect('b', false)
+        },
         // () => {       
         //     const ws = repeat0Plus(set(' \n\r\t'))
 
