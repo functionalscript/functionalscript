@@ -456,17 +456,17 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[50]}]},true,1]') { throw result }
         },
-        // () => {
-        //     const emptyRule = ''            
-        //     const minusRule = range('--')
-        //     const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
-        //     const digitRule = range('09')
-        //     const numberRule = [optionalMinusRule, digitRule]
-        //     const m = descentParser(numberRule)
-        //     const mr = m("", [45,50])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
-        // },
+        () => {
+            const emptyRule = ''            
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const m = descentParser(numberRule)
+            const mr = m("", [45,50])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[{"tag":"minus","sequence":[45]},{"sequence":[50]}]},true,2]') { throw result }
+        },
         // () => {                        
         //     const m = parser(option('a'))
 

@@ -348,13 +348,23 @@ export const descentParser = (fr: FRule): DescentMatch => {
         } else {
             const entries = Object.entries(rule)
             for (const [tag, item] of entries) {
+                if (tag == emptyTag) {
+                    continue;
+                }                    
                 const m = f(item, tag, cp, idx)
                 if (m[1]) {
                     return m
                 }
             }
+
+            for (const [tag, item] of entries) {
+                if (tag == emptyTag) {
+                   return f(item, tag, cp, idx)
+                }                    
+            }
+
             return mrFail(emptyTag, [], idx)
-        }        
+        }
     }
 
     const match: DescentMatch = (name, cp): DescentMatchResult => {
