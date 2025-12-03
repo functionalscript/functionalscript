@@ -9,7 +9,6 @@
     "./ci/module.ts": "./ci/module.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
     "./crypto/prime_field/module.f.ts": "./crypto/prime_field/module.f.ts",
-    "./crypto/rfc6979/module.f.ts": "./crypto/rfc6979/module.f.ts",
     "./crypto/secp/module.f.ts": "./crypto/secp/module.f.ts",
     "./crypto/sha2/module.f.ts": "./crypto/sha2/module.f.ts",
     "./crypto/sign/module.f.ts": "./crypto/sign/module.f.ts",
