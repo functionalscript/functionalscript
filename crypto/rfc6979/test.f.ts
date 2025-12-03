@@ -2,9 +2,9 @@ import { utf8 } from "../../text/module.f.ts"
 import type { Array3, Array4 } from "../../types/array/module.f.ts"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
-import { curve, secp192r1 } from "../secp/module.f.ts"
+import { curve, secp192r1, type Curve } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.ts"
-import { all, concat, computeK, fromCurve } from "./module.f.ts"
+import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
 
 const sample = utf8("sample")
 const test = utf8("test")
@@ -427,17 +427,20 @@ export default {
         }
         type H = Array4<Result>
         type P = {
-            readonly q: bigint
+            readonly q: Curve
             readonly x: bigint
             readonly msg0: H
             readonly msg1: H
         }
         type S = { readonly [key: string]: P }
         const check = ({ q, x, msg0, msg1 }: P) => {
-            const a = all(q)
-            const check = (sha: Sha2, expected: Result, m: Vec) => {
-                const k = computeK(a)(sha)(x)(m)
-                if (k !== expected.k) { throw [k.toString(16), expected.k.toString(16)] }
+            const a = all(q.nf.p)
+            const check = (sha: Sha2, { k, r, s }: Result, m: Vec) => {
+                const k0 = computeK(a)(sha)(x)(m)
+                if (k0 !== k) { throw [k0.toString(16), k.toString(16)] }
+                const [r0, s0] = sign(q)(sha)(x)(m)
+                if (r0 !== r) { throw [r0, r] }
+                if (s0 !== s) { throw [s0, s] }
             }
             const check4 = (m: Vec, h: H) => {
                 check(sha224, h[0], m)
@@ -450,7 +453,7 @@ export default {
         }
         const testVectors: S = {
             x3: {
-                q: 0xFFFFFFFFFFFFFFFFFFFFFFFF99DEF836146BC9B1B4D22831n,
+                q: secp192r1,
                 x: 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n,
                 msg0: [
                     {
