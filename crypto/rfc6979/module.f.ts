@@ -150,6 +150,9 @@ export const sign = (c: Curve) => (hf: Sha2) => (x: bigint) => (m: Vec): Signatu
     //     If r turns out to be zero, a new k should be selected and r
     //     computed again (this is an utterly improbable occurrence).
     const rxy = c.mul(k)(g)
+    // TODO: implement the loop. `computeK` should either
+    // - accept a state (current `k`).
+    // - accept a `is_valid` function.
     if (rxy === null) { throw 'rxy === null' }
     const [r] = rxy
     // 4.  The value s (modulo q) is computed:
