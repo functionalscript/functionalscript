@@ -27,27 +27,33 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         Primitive::Boolean(v)
     }
 
-    fn number(self, _: f64) -> Self::Result {
-        todo!()
+    fn number(self, v: f64) -> Self::Result {
+        Primitive::Number(v)
     }
 
-    fn string(self, _: super::String<A>) -> Self::Result {
-        todo!()
+    fn string(self, v: super::String<A>) -> Self::Result {
+        Primitive::String(v)
     }
 
-    fn bigint(self, _: super::BigInt<A>) -> Self::Result {
-        todo!()
+    fn bigint(self, v: super::BigInt<A>) -> Self::Result {
+        Primitive::BigInt(v)
     }
 
-    fn object(self, _: super::Object<A>) -> Self::Result {
-        todo!()
+    fn object(self, v: super::Object<A>) -> Self::Result {
+        // Objects cannot be directly converted to primitives without coercion.
+        // This would typically require calling valueOf() or toString() methods.
+        todo!("Object to primitive coercion not implemented")
     }
 
-    fn array(self, _: super::Array<A>) -> Self::Result {
-        todo!()
+    fn array(self, v: super::Array<A>) -> Self::Result {
+        // Arrays cannot be directly converted to primitives without coercion.
+        // This would typically require calling valueOf() or toString() methods.
+        todo!("Array to primitive coercion not implemented")
     }
 
-    fn function(self, _: super::Function<A>) -> Self::Result {
-        todo!()
+    fn function(self, v: super::Function<A>) -> Self::Result {
+        // Functions cannot be directly converted to primitives without coercion.
+        // This would typically require calling valueOf() or toString() methods.
+        todo!("Function to primitive coercion not implemented")
     }
 }

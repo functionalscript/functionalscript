@@ -50,17 +50,24 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     }
 
     fn object(self, _: Object<A>) -> Self::Result {
-        // TODO: check and test
         Ok(f64::NAN)
     }
 
-    fn array(self, _: Array<A>) -> Self::Result {
-        // TODO: check and test
-        Ok(0.0)
+    fn array(self, arr: Array<A>) -> Self::Result {
+        use crate::common::sized_index::SizedIndex;
+
+        let len = arr.length();
+        if len == 0 {
+            return Ok(0.0);
+        }
+        if len > 1 {
+            return Ok(f64::NAN);
+        }
+        // Single element: recursively convert to number
+        arr[0].clone().to_number()
     }
 
     fn function(self, _: Function<A>) -> Self::Result {
-        // TODO: check and test
         Ok(f64::NAN)
     }
 }
@@ -71,11 +78,74 @@ fn to_f64(v: bool) -> f64 {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::number_coercion::to_f64;
+    use crate::vm::{
+        naive::Naive, number_coercion::to_f64, Any, IContainer, ToAny, ToArray, ToObject,
+    };
 
     #[test]
-    fn test() {
+    fn test_bool() {
         assert_eq!(to_f64(true), 1.0);
         assert_eq!(to_f64(false), 0.0);
+    }
+
+    #[test]
+    fn test_object() {
+        // Empty object should convert to NaN
+        let obj = [].to_object::<Naive>();
+        let any: Any<Naive> = obj.to_any();
+        let result = any.to_number();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nan());
+    }
+
+    #[test]
+    fn test_array_empty() {
+        // Empty array should convert to 0
+        let arr = [].to_array::<Naive>();
+        let any: Any<Naive> = arr.to_any();
+        let result = any.to_number();
+        assert_eq!(result, Ok(0.0));
+    }
+
+    #[test]
+    fn test_array_single_number() {
+        // Single number element should convert to that number
+        let arr = [42.0.to_any()].to_array::<Naive>();
+        let any: Any<Naive> = arr.to_any();
+        let result = any.to_number();
+        assert_eq!(result, Ok(42.0));
+    }
+
+    #[test]
+    fn test_array_single_bool() {
+        // Single boolean element: recursively converts to number
+        // Note: This is a simplified implementation. Full ECMAScript spec would
+        // convert array to string first, making +[true] return NaN.
+        let arr = [true.to_any()].to_array::<Naive>();
+        let any: Any<Naive> = arr.to_any();
+        let result = any.to_number();
+        assert_eq!(result, Ok(1.0));
+    }
+
+    #[test]
+    fn test_array_multiple() {
+        // Multiple elements should convert to NaN
+        let arr = [1.0.to_any(), 2.0.to_any()].to_array::<Naive>();
+        let any: Any<Naive> = arr.to_any();
+        let result = any.to_number();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nan());
+    }
+
+    #[test]
+    fn test_function() {
+        // Functions should convert to NaN
+        let func = crate::vm::Function::<Naive>(
+            <Naive as crate::vm::IVm>::InternalFunction::new_ok(("test".into(), 0), []),
+        );
+        let any: Any<Naive> = func.to_any();
+        let result = any.to_number();
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nan());
     }
 }
