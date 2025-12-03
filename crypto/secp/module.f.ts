@@ -126,7 +126,7 @@ export const eq: Equal<Point> = a => b => {
 /**
  * https://neuromancer.sk/std/secg/secp192r1
  */
-export const secp192r1 = curve({
+export const secp192r1: Curve = curve({
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
     a: [
         0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
@@ -143,7 +143,7 @@ export const secp192r1 = curve({
  * https://en.bitcoin.it/wiki/Secp256k1
  * https://neuromancer.sk/std/secg/secp256k1
  */
-export const secp256k1 = curve({
+export const secp256k1: Curve = curve({
     p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
     a: [7n, 0n],
     g: [
@@ -156,7 +156,7 @@ export const secp256k1 = curve({
 /**
  * https://neuromancer.sk/std/secg/secp256r1
  */
-export const secp256r1 = curve({
+export const secp256r1: Curve = curve({
     p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
     a: [
         0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< b
@@ -172,7 +172,7 @@ export const secp256r1 = curve({
 /**
  * https://neuromancer.sk/std/secg/secp384r1
  */
-export const secp384r1 = curve({
+export const secp384r1: Curve = curve({
     p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffffn,
     a: [
         0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aefn, //< b
@@ -188,7 +188,7 @@ export const secp384r1 = curve({
 /**
  * https://neuromancer.sk/std/secg/secp521r1
  */
-export const secp521r1 = curve({
+export const secp521r1: Curve = curve({
     p: 0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn,
     a: [
         0x0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00n, //< b
