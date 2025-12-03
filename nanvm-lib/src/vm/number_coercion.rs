@@ -50,6 +50,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     }
 
     fn object(self, _: Object<A>) -> Self::Result {
+        
         // TODO: check and test
         Ok(f64::NAN)
     }
