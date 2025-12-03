@@ -125,6 +125,7 @@ export const eq: Equal<Point> = a => b => {
 
 /**
  * https://neuromancer.sk/std/secg/secp192r1
+ * NIST P-192
  */
 export const secp192r1: Curve = curve({
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
@@ -138,6 +139,24 @@ export const secp192r1: Curve = curve({
     ],
     n: 0xffffffff_ffffffff_ffffffff_99def836_146bc9b1_b4d22831n,
 })
+
+// The curve doesn't have a simple square root function.
+// /**
+//  * https://std.neuromancer.sk/nist/P-224
+//  * NIST P-224
+//  */
+// export const secp224r1: Curve = curve({
+//     p: 0xffffffff_ffffffff_ffffffff_ffffffff_00000000_00000000_00000001n,
+//     a: [
+//         0xb4050a85_0c04b3ab_f5413256_5044b0b7_d7bfd8ba_270b3943_2355ffb4n,
+//         0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffff_fffffffen,
+//     ],
+//     g: [
+//         0xb70e0cbd_6bb4bf7f_321390b9_4a03c1d3_56c21122_343280d6_115c1d21n,
+//         0xbd376388_b5f723fb_4c22dfe6_cd4375a0_5a074764_44d58199_85007e34n,
+//     ],
+//     n: 0xffffffff_ffffffff_ffffffff_ffff16a2_e0b8f03e_13dd2945_5c5c2a3dn,
+// })
 
 /**
  * https://en.bitcoin.it/wiki/Secp256k1
@@ -155,6 +174,7 @@ export const secp256k1: Curve = curve({
 
 /**
  * https://neuromancer.sk/std/secg/secp256r1
+ * NIST P-256
  */
 export const secp256r1: Curve = curve({
     p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
