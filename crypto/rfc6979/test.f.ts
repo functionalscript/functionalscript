@@ -1,5 +1,5 @@
 import { utf8 } from "../../text/module.f.ts"
-import type { Array4 } from "../../types/array/module.f.ts"
+import type { Array3, Array4 } from "../../types/array/module.f.ts"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
 import { curve, secp192r1 } from "../secp/module.f.ts"
@@ -420,6 +420,86 @@ export default {
         }
     },
     a2s: () => {
-
+        type Result = {
+            readonly k: bigint
+            readonly r: bigint
+            readonly s: bigint
+        }
+        type H = Array4<Result>
+        type P = {
+            readonly q: bigint
+            readonly x: bigint
+            readonly msg0: H
+            readonly msg1: H
+        }
+        type S = { readonly [key: string]: P }
+        const check = ({ q, x, msg0, msg1 }: P) => {
+            const a = all(q)
+            const check = (sha: Sha2, expected: Result, m: Vec) => {
+                const k = computeK(a)(sha)(x)(m)
+                if (k !== expected.k) { throw [k.toString(16), expected.k.toString(16)] }
+            }
+            const check4 = (m: Vec, h: H) => {
+                check(sha224, h[0], m)
+                check(sha256, h[1], m)
+                check(sha384, h[2], m)
+                check(sha512, h[3], m)
+            }
+            check4(sample, msg0)
+            check4(test, msg1)
+        }
+        const testVectors: S = {
+            x3: {
+                q: 0xFFFFFFFFFFFFFFFFFFFFFFFF99DEF836146BC9B1B4D22831n,
+                x: 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n,
+                msg0: [
+                    {
+                        k: 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n,
+                        r: 0xA1F00DAD97AEEC91C95585F36200C65F3C01812AA60378F5n,
+                        s: 0xE07EC1304C7C6C9DEBBE980B9692668F81D4DE7922A0F97An,
+                    },
+                    {
+                        k: 0x32B1B6D7D42A05CB449065727A84804FB1A3E34D8F261496n,
+                        r: 0x4B0B8CE98A92866A2820E20AA6B75B56382E0F9BFD5ECB55n,
+                        s: 0xCCDB006926EA9565CBADC840829D8C384E06DE1F1E381B85n,
+                    },
+                    {
+                        k: 0x4730005C4FCB01834C063A7B6760096DBE284B8252EF4311n,
+                        r: 0xDA63BF0B9ABCF948FBB1E9167F136145F7A20426DCC287D5n,
+                        s: 0xC3AA2C960972BD7A2003A57E1C4C77F0578F8AE95E31EC5En,
+                    },
+                    {
+                        k: 0xA2AC7AB055E4F20692D49209544C203A7D1F2C0BFBC75DB1n,
+                        r: 0x4D60C5AB1996BD848343B31C00850205E2EA6922DAC2E4B8n,
+                        s: 0x3F6E837448F027A1BF4B34E796E32A811CBB4050908D8F67n,
+                    }
+                ],
+                msg1: [
+                    {
+                        k: 0xF5DC805F76EF851800700CCE82E7B98D8911B7D510059FBEn,
+                        r: 0x6945A1C1D1B2206B8145548F633BB61CEF04891BAF26ED34n,
+                        s: 0xB7FB7FDFC339C0B9BD61A9F5A8EAF9BE58FC5CBA2CB15293n,
+                    },
+                    {
+                        k: 0x5C4CE89CF56D9E7C77C8585339B006B97B5F0680B4306C6Cn,
+                        r: 0x3A718BD8B4926C3B52EE6BBE67EF79B18CB6EB62B1AD97AEn,
+                        s: 0x5662E6848A4A19B1F1AE2F72ACD4B8BBE50F1EAC65D9124Fn,
+                    },
+                    {
+                        k: 0x5AFEFB5D3393261B828DB6C91FBC68C230727B030C975693n,
+                        r: 0xB234B60B4DB75A733E19280A7A6034BD6B1EE88AF5332367n,
+                        s: 0x7994090B2D59BB782BE57E74A44C9A1C700413F8ABEFE77An,
+                    },
+                    {
+                        k: 0x0758753A5254759C7CFBAD2E2D9B0792EEE44136C9480527n,
+                        r: 0xFE4F4AE86A58B6507946715934FE2D8FF9D95B6B098FE739n,
+                        s: 0x74CF5605C98FBA0E1EF34D4B5A1577A7DCF59457CAE52290n,
+                    }
+                ],
+            },
+        }
+        for (const v of Object.values(testVectors)) {
+            check(v)
+        }
     }
 }
