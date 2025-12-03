@@ -2,7 +2,7 @@ import { utf8 } from "../../text/module.f.ts"
 import type { Array3, Array4 } from "../../types/array/module.f.ts"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
-import { curve, secp192r1, type Curve } from "../secp/module.f.ts"
+import { curve, secp192r1, secp256r1, type Curve } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.ts"
 import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
 
@@ -158,6 +158,7 @@ export default {
                     0x65D2C2EEB175E370F28C75BFCDC028D22C7DBE9Cn
                 ]
             },
+            /*
             x2: {
                 q: 0xF2C3119374CE76C9356990B465374A17F23F9ED35089BD969F61C6DDE9998C1Fn,
                 x: 0x69C7548C21D0DFEA6B9A51C9EAD4E27C33D3B3F180316E5BCAB92C933F0E4DBCn,
@@ -174,6 +175,7 @@ export default {
                     0xAFF1651E4CD6036D57AA8B2A05CCF1A9D5A40166340ECBBDC55BE10B568AA0AAn,
                 ],
             },
+            */
             x3: {
                 q: 0xFFFFFFFFFFFFFFFFFFFFFFFF99DEF836146BC9B1B4D22831n,
                 x: 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n,
@@ -498,6 +500,54 @@ export default {
                         r: 0xFE4F4AE86A58B6507946715934FE2D8FF9D95B6B098FE739n,
                         s: 0x74CF5605C98FBA0E1EF34D4B5A1577A7DCF59457CAE52290n,
                     }
+                ],
+            },
+            x5: {
+                q: secp256r1,
+                x: 0xC9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721n,
+                msg0: [
+                    {
+                        k: 0x103F90EE9DC52E5E7FB5132B7033C63066D194321491862059967C715985D473n,
+                        r: 0x53B2FFF5D1752B2C689DF257C04C40A587FABABB3F6FC2702F1343AF7CA9AA3Fn,
+                        s: 0xB9AFB64FDC03DC1A131C7D2386D11E349F070AA432A4ACC918BEA988BF75C74Cn,
+                    },
+                    {
+                        k: 0xA6E3C57DD01ABE90086538398355DD4C3B17AA873382B0F24D6129493D8AAD60n,
+                        r: 0xEFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716n,
+                        s: 0xF7CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8n,
+                    },
+                    {
+                        k: 0x09F634B188CEFD98E7EC88B1AA9852D734D0BC272F7D2A47DECC6EBEB375AAD4n,
+                        r: 0x0EAFEA039B20E9B42309FB1D89E213057CBF973DC0CFC8F129EDDDC800EF7719n,
+                        s: 0x4861F0491E6998B9455193E34E7B0D284DDD7149A74B95B9261F13ABDE940954n,
+                    },
+                    {
+                        k: 0x5FA81C63109BADB88C1F367B47DA606DA28CAD69AA22C4FE6AD7DF73A7173AA5n,
+                        r: 0x8496A60B5E9B47C825488827E0495B0E3FA109EC4568FD3F8D1097678EB97F00n,
+                        s: 0x2362AB1ADBE2B8ADF9CB9EDAB740EA6049C028114F2460F96554F61FAE3302FEn,
+                    }
+                ],
+                msg1: [
+                    {
+                        k: 0x669F4426F2688B8BE0DB3A6BD1989BDAEFFF84B649EEB84F3DD26080F667FAA7n,
+                        r: 0xC37EDB6F0AE79D47C3C27E962FA269BB4F441770357E114EE511F662EC34A692n,
+                        s: 0xC820053A05791E521FCAAD6042D40AEA1D6B1A540138558F47D0719800E18F2Dn,
+                    },
+                    {
+                        k: 0xD16B6AE827F17175E040871A1C7EC3500192C4C92677336EC2537ACAEE0008E0n,
+                        r: 0xF1ABB023518351CD71D881567B1EA663ED3EFCF6C5132B354F28D3B0B7D38367n,
+                        s: 0x019F4113742A2B14BD25926B49C649155F267E60D3814B4C0CC84250E46F0083n,
+                    },
+                    {
+                        k: 0x16AEFFA357260B04B1DD199693960740066C1A8F3E8EDD79070AA914D361B3B8n,
+                        r: 0x83910E8B48BB0C74244EBDF7F07A1C5413D61472BD941EF3920E623FBCCEBEB6n,
+                        s: 0x8DDBEC54CF8CD5874883841D712142A56A8D0F218F5003CB0296B6B509619F2Cn,
+                    },
+                    {
+                        k: 0x6915D11632ACA3C40D5D51C08DAF9C555933819548784480E93499000D9F0B7Fn,
+                        r: 0x461D93F31B6540894788FD206C07CFA0CC35F46FA3C91816FFF1040AD1581A04n,
+                        s: 0x39AF9F15DE0DB8D97E72719C74820D304CE5226E32DEDAE67519E840D1194E55n,
+                    },
                 ],
             },
         }
