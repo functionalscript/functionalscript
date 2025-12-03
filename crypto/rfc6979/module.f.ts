@@ -1,4 +1,4 @@
-import { todo } from '../../dev/module.f.ts'
+import type { Array2 } from '../../types/array/module.f.ts'
 import { bitLength, divUp, roundUp, type Unary } from '../../types/bigint/module.f.ts'
 import { empty, length, listToVec, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
@@ -47,6 +47,8 @@ export const concat = (...x: readonly Vec[]): Vec => ltov(x)
 
 export const computeK: (_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint
 = ({ q, bits2int, qlen, int2octets, bits2octets }) => hf => {
+    // TODO: Look at https://www.rfc-editor.org/rfc/rfc6979#section-3.3 to reformulate
+    //       it using `HMAC_DRBG`.
     const hmacf = hmac(hf)
     // b. Set:
     //      V = 0x01 0x01 0x01 ... 0x01
@@ -114,9 +116,50 @@ export const computeK: (_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigin
     }
 }
 
-export const sign = (a: All) => (hf: Sha2) => (x: bigint) => (m: Vec): bigint => {
+type Signature = Array2<bigint>
+
+export const sign = (c: Curve) => (hf: Sha2) => (x: bigint) => (m: Vec): Signature => {
+    // 2.4 Signature Generation
+    const { nf: { p: q, div }, g } = c
+    const a = all(q)
+    const { bits2int } = a
+    // The following steps are then applied:
+    //
+    // 1. H(m) is transformed into an integer modulo q using the bits2int
+    //    transform and an extra modular reduction:
+    //
+    //       h = bits2int(H(m)) mod q
+    //
+    //     As was noted in the description of bits2octets, the extra modular
+    //     reduction is no more than a conditional subtraction.
     const hm = computeSync(hf)([m])
-    const h = a.bits2int(hm) % a.q
-    ///
-    return todo()
+    const h = bits2int(hm) % q
+    // 2. A random value modulo q, dubbed k, is generated.  That value
+    //    shall not be 0; hence, it lies in the [1, q-1] range.  Most of
+    //    the remainder of this document will revolve around the process
+    //    used to generate k.  In plain DSA or ECDSA, k should be selected
+    //    through a random selection that chooses a value among the q-1
+    //    possible values with uniform probability.
+    const k = computeK(a)(hf)(x)(m)
+    // 3.  A value r (modulo q) is computed from k and the key parameters:
+    //
+    //     *  For ECDSA: the point kG is computed; its X coordinate (a
+    //        member of the field over which E is defined) is converted to
+    //        an integer, which is reduced modulo q, yielding r.
+    //
+    //     If r turns out to be zero, a new k should be selected and r
+    //     computed again (this is an utterly improbable occurrence).
+    const rxy = c.mul(k)(g)
+    if (rxy === null) { throw 'rxy === null' }
+    const [r] = rxy
+    // 4.  The value s (modulo q) is computed:
+    //
+    //        s = (h+x*r)/k mod q
+    //
+    //     The pair (r, s) is the signature.  How a signature is to be
+    //     encoded is not covered by the DSA and ECDSA standards themselves;
+    //     a common way is to use a DER-encoded ASN.1 structure (a SEQUENCE
+    //     of two INTEGERs, for r and s, in that order).
+    const s = div(h + x*r)(k)
+    return [r, s]
 }

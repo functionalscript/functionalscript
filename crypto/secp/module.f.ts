@@ -29,6 +29,7 @@ export type Init = {
 export type Curve = {
     readonly pf: PrimeField
     readonly nf: PrimeField
+    readonly g: Point
     readonly y2: (x: bigint) => bigint
     readonly y: (x: bigint) => bigint|null
     readonly neg: (a: Point) => Point
@@ -56,7 +57,7 @@ export type Curve = {
  * const mulPoint = curveInstance.mul([1n, 1n])(3n); // Multiply a point by 3
  * ```
  */
-export const curve = ({ p, a: [a0, a1], n }: Init): Curve => {
+export const curve = ({ p, a: [a0, a1], n, g }: Init): Curve => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
@@ -98,6 +99,7 @@ export const curve = ({ p, a: [a0, a1], n }: Init): Curve => {
     return {
         pf,
         nf: prime_field(n),
+        g,
         y2,
         y: x => sqrt_p(y2(x)),
         neg: p => {
