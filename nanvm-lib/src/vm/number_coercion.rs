@@ -118,7 +118,9 @@ mod test {
 
     #[test]
     fn test_array_single_bool() {
-        // Single boolean element should convert to 0 or 1
+        // Single boolean element: recursively converts to number
+        // Note: This is a simplified implementation. Full ECMAScript spec would
+        // convert array to string first, making +[true] return NaN.
         let arr = [true.to_any()].to_array::<Naive>();
         let any: Any<Naive> = arr.to_any();
         let result = any.to_number();
