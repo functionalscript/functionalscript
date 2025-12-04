@@ -1,6 +1,6 @@
 use crate::{
     nullish::Nullish,
-    vm::{dispatch::Dispatch, primitive::Primitive, IVm},
+    vm::{dispatch::Dispatch, primitive::Primitive, Any, IVm},
 };
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
@@ -20,26 +20,26 @@ pub enum ToPrimitivePreferredType {
 pub struct PrimitiveCoercionOp(pub Option<ToPrimitivePreferredType>);
 
 impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
-    type Result = Primitive<A>;
+    type Result = Result<Primitive<A>, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {
-        Primitive::Nullish(v)
+        Ok(Primitive::Nullish(v))
     }
 
     fn bool(self, v: bool) -> Self::Result {
-        Primitive::Boolean(v)
+        Ok(Primitive::Boolean(v))
     }
 
     fn number(self, v: f64) -> Self::Result {
-        Primitive::Number(v)
+        Ok(Primitive::Number(v))
     }
 
     fn string(self, v: super::String<A>) -> Self::Result {
-        Primitive::String(v)
+        Ok(Primitive::String(v))
     }
 
     fn bigint(self, v: super::BigInt<A>) -> Self::Result {
-        Primitive::BigInt(v)
+        Ok(Primitive::BigInt(v))
     }
 
     fn object(self, _: super::Object<A>) -> Self::Result {

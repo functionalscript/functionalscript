@@ -70,7 +70,7 @@ impl<A: IVm> Any<A> {
         self,
         preferred_type: Option<ToPrimitivePreferredType>,
     ) -> Result<Primitive<A>, Any<A>> {
-        Ok(self.dispatch(PrimitiveCoercionOp(preferred_type)))
+        self.dispatch(PrimitiveCoercionOp(preferred_type))
     }
 
     fn dispatch<T: Dispatch<A>>(self, o: T) -> T::Result {
