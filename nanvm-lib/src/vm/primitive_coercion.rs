@@ -16,7 +16,8 @@ pub enum ToPrimitivePreferredType {
 
 /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
-pub struct PrimitiveCoercionOp(Option<ToPrimitivePreferredType>);
+#[allow(dead_code)]
+pub struct PrimitiveCoercionOp(pub Option<ToPrimitivePreferredType>);
 
 impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
     type Result = Primitive<A>;
