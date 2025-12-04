@@ -1,8 +1,10 @@
+import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
 import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'
+import { contains as rangeContains } from '../../types/range/module.f.ts'
 import {
     oneEncode,
     rangeDecode,
@@ -55,7 +57,11 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
 
 type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
-export type DescentMatchRule = (r: Rule, s: readonly CodePoint[], idx: number) => MatchResult
+export type DescentMatchRule = (name: string, tag: AstTag, s: readonly CodePoint[], idx: number) => DescentMatchResult
+
+export type DescentMatchResult = readonly[AstRule, boolean, number]
+
+export type DescentMatch = (name: string, s: readonly CodePoint[]) => DescentMatchResult
 
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
@@ -267,7 +273,7 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
 
     const rule = ruleSet[name]
 
-    if (typeof rule === 'number') {        
+    if (typeof rule === 'number') {
         return [ruleSet, { ...map, [name]: false }, false]
     } else if (rule instanceof Array) {
         map = { ...map, [name]: true}
@@ -299,29 +305,74 @@ export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap
     return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
-// export const parserDescent = (fr: FRule): Match => {
-//     const data = toData(fr)
+export const descentParser = (fr: FRule): DescentMatch => {
+    const data = toData(fr)
+    const emptyTagMap = createEmptyTagMap(data)
 
-//     const getEmptyTag = (rule: Rule): EmptyTag => {
-//         return todo()
-//     }
+    const getEmptyTag = (name: string): EmptyTag => {
+        const res = emptyTagMap[name]
+        return res === false ? undefined : res
+    }
 
-//     const f: DescentMatchRule = (r, cp, idx): MatchResult => {
-//         const mrSuccess = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, true, r]
-//         const mrFail = (tag: AstTag, sequence: AstSequence, r: Remainder): MatchResult => [{tag, sequence}, false, r]
-//         if (idx >= cp.length) {
-//             const emptyTag = getEmptyTag(r)
-//             return mrSuccess(emptyTag, [], emptyTag === undefined ? null : cp)
-//         }
-//         return todo()
-//     }
+    const f: DescentMatchRule = (name, tag, cp, idx): DescentMatchResult => {
+        const mrSuccess = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, true, idx]
+        const mrFail = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, false, idx]
 
-//     const match: Match = (name, cp): MatchResult => {
-//         return f(data[0][name], cp, 0)
-//     }
+        const emptyTag = getEmptyTag(name)
+
+        if (idx >= cp.length) {
+            return emptyTag === undefined ? mrFail(emptyTag, [], idx) : mrSuccess(emptyTag, [], idx)
+        }
+
+        const rule = data[0][name]
+        if (typeof rule === 'number') {            
+            const cpi = cp[idx]
+            const range = rangeDecode(rule)            
+            if (rangeContains(range)(cpi)) {
+                return mrSuccess(tag, [cpi], idx + 1)
+            }
+            return mrFail(emptyTag, [], idx)
+        } else if (rule instanceof Array) {            
+            let seq: AstSequence = []
+            let tidx = idx
+            for (const item of rule) {
+                const m = f(item, undefined, cp, tidx)
+                const [astRule, success, nidx] = m
+                tidx = nidx
+                if (success === false) {
+                    return mrFail(tag, [], idx)
+                }
+                seq = [...seq, astRule]
+            }
+            return mrSuccess(tag, seq, tidx)
+        } else {
+            const entries = Object.entries(rule)
+            for (const [tag, item] of entries) {
+                if (tag == emptyTag) {
+                    continue;
+                }                    
+                const m = f(item, tag, cp, idx)
+                if (m[1]) {
+                    return m
+                }
+            }
+
+            for (const [tag, item] of entries) {
+                if (tag == emptyTag) {
+                   return f(item, tag, cp, idx)
+                }                    
+            }
+
+            return mrFail(emptyTag, [], idx)
+        }
+    }
+
+    const match: DescentMatch = (name, cp): DescentMatchResult => {
+        return f(name, undefined, cp, 0)
+    }
     
-//     return match
-// }
+    return match
+}
 
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
