@@ -5,6 +5,8 @@ use crate::{
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
+/// Note that preferredType can be absent - we express that by using None value of
+/// Option<ToPrimitivePreferredType>.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToPrimitivePreferredType {
@@ -14,7 +16,7 @@ pub enum ToPrimitivePreferredType {
 
 /// Coerces the value to a primitive type `Primitive<A>`, possibly producing an error result.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
-pub struct PrimitiveCoercionOp;
+pub struct PrimitiveCoercionOp(Option<ToPrimitivePreferredType>);
 
 impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
     type Result = Primitive<A>;
