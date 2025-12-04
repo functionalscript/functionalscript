@@ -1,5 +1,5 @@
-import type { Unary, Reduce } from '../../types/bigint/module.f.ts'
-import { repeat } from '../../types/monoid/module.f.ts'
+import type { Unary, Reduce } from '../bigint/module.f.ts'
+import { repeat } from '../monoid/module.f.ts'
 
 /**
  * A type representing a prime field and its associated operations.
