@@ -2,8 +2,14 @@
 
 See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 
-- the new functional parser [./module.f.ts](./module.f.ts),
-- the new serializable parser [./data/](./data/).
+- the functional grammar helpers in [./module.f.ts](./module.f.ts) for composing
+  new grammars from existing pieces,
+- the serializable parser data in [./data/](./data/) (use the transformer in
+  [./data/module.f.ts](./data/module.f.ts) to emit it).
+
+In this module a **Sequence** is an ordered array of rules, while a **Variant**
+is a mapping of production names to rule choices. The capitalized names in the
+docs match the exported types to keep the vocabulary consistent.
 
 ## Functional Representation
 
@@ -48,7 +54,7 @@ export default [{
 
 ```ts
 type DispatchRule = {
-    readonly emptyTag: string|true|undefined  
+    readonly emptyTag: string|true|undefined
     readonly rangeMap: RangeMap<{
         readonly tag: string|undefined
         readonly rules: DispatchRule[]
@@ -92,13 +98,13 @@ const sequence: DispatchRule = {
     }
 }
 
-const twoSequences: DispitchRule = {
+const twoSequences: DispatchRule = {
     rangeMap: {
         0x20: [digit, sequence]
     }
 }
 
-const emtpy: DispatchRule = {
+const empty: DispatchRule = {
     emptyTag: true,
     rangeMap: {}
 }
@@ -109,17 +115,17 @@ const minus: DispatchRule = {
     }
 }
 
-const optionalMap: DispatchRule = {
+const optionalMinus: DispatchRule = {
     emptyTag: 'none',
     rangeMap: {
         0x2D..0x2D: { tag: 'minus', rules: [] }
     }
 }
 
-const iDigit: Dispatch = {
+const iDigit: DispatchRule = {
     rangeMap: {
-        0x2D..0x2D: { output: [{"minus:" ["-"]}], rules: [digit] }
-        0x30..0x39: { output: [{"none": []}], rules: [] }
+        0x2D..0x2D: { output: [{ "minus": ['-'] }], rules: [digit] },
+        0x30..0x39: { output: [{ "none": [] }], rules: [] },
     }
 }
 ```
