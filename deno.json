@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "license": "MIT",
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
@@ -8,8 +8,6 @@
     "./ci/module.f.ts": "./ci/module.f.ts",
     "./ci/module.ts": "./ci/module.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
-    "./crypto/prime_field/module.f.ts": "./crypto/prime_field/module.f.ts",
-    "./crypto/rfc6979/module.f.ts": "./crypto/rfc6979/module.f.ts",
     "./crypto/secp/module.f.ts": "./crypto/secp/module.f.ts",
     "./crypto/sha2/module.f.ts": "./crypto/sha2/module.f.ts",
     "./crypto/sign/module.f.ts": "./crypto/sign/module.f.ts",
@@ -64,6 +62,7 @@
     "./types/number/module.f.ts": "./types/number/module.f.ts",
     "./types/object/module.f.ts": "./types/object/module.f.ts",
     "./types/ordered_map/module.f.ts": "./types/ordered_map/module.f.ts",
+    "./types/prime_field/module.f.ts": "./types/prime_field/module.f.ts",
     "./types/range/module.f.ts": "./types/range/module.f.ts",
     "./types/range_map/module.f.ts": "./types/range_map/module.f.ts",
     "./types/result/module.f.ts": "./types/result/module.f.ts",

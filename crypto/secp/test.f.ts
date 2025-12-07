@@ -1,11 +1,11 @@
-import { prime_field } from '../prime_field/module.f.ts'
-import { curve, secp256k1, secp192r1, secp256r1, eq, type Init, type Point, secp384r1, secp521r1 } from './module.f.ts'
+import { prime_field } from '../../types/prime_field/module.f.ts'
+import { curve, secp256k1, secp192r1, secp256r1, eq, type Point, secp384r1, secp521r1, type Curve, type Init } from './module.f.ts'
 
-const poker = (param: Init) => () => {
+const poker = (param: Curve) => () => {
     // (c ^ x) ^ y = c ^ (x * y)
     // c ^ ((x * y) * (1/x * 1/y)) = c
-    const { g, n } = param
-    const { mul, y } = curve(param)
+    // const { g, n } = param
+    const { mul, y, nf: { p: n } } = param
     const f = (m: bigint) => (pList: readonly Point[]) => pList.map(mul(m))
     //
     const pf = prime_field(n)
@@ -69,10 +69,9 @@ export default {
     },
     test: () => {
         const test_curve
-        : (c: Init) => void
+        : (c: Curve) => void
         = c => {
-            const { g } = c
-            const { mul, neg, pf: { abs }, y: yf, nf: { p: n } } = curve(c)
+            const { mul, neg, pf: { abs }, y: yf, nf: { p: n }, g } = c
             const point_check = (p: Point): void => {
                 if (p === null) { throw 'p === null' }
                 const [x, y] = p
