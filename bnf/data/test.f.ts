@@ -511,8 +511,6 @@ export default {
                     throw mr
                 }
             }                   
-
-            const s = stringify(identity)(toData(value))
             
             expect('', true)
             expect('[]', true)
@@ -520,38 +518,39 @@ export default {
             expect('[a, a]', true)
             expect('{a}', true)
         },
-        // () => {
-        //     const m = parser(deterministic())
+        () => {
+            const m = descentParser(deterministic())
             
-        //     const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-        //     const expect = (s: string, success: boolean) => {
-        //         const mr = m('', toArray(stringToCodePointList(s)))
-        //         if (isSuccess(mr) !== success) {
-        //             throw mr
-        //         }
-        //     }
+            const expect = (s: string, expected: boolean) => {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = m('', cp)
+                const success = mr[1] && mr[2] === cp.length
+                if (success !== expected) {
+                    throw mr
+                }
+            }
 
-        //     expect('   true   ', true)
-        //     expect('   tr2ue   ', false)
-        //     expect('   true"   ', false)
-        //     expect('   "Hello"   ', true)
-        //     expect('   "Hello   ', false)
-        //     expect('   "Hello\\n\\r\\""   ', true)
-        //     expect('   -56.7e+5  ', true)
-        //     expect('   h-56.7e+5   ', false)
-        //     expect('   -56.7e+5   3', false)
-        //     expect('   [] ', true)
-        //     expect('   {} ', true)
-        //     expect('   [[[]]] ', true)
-        //     expect('   [1] ', true)
-        //     expect('   [ 12, false, "a"]  ', true)
-        //     expect('   [ 12, false2, "a"]  ', false)
-        //     expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
-        //     expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-        //     expect('   { "q": [ 12, false, [}], "a"] }  ', false)
-        //     expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
-        //     expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
-        // }
+            expect('   true   ', true)
+            expect('   tr2ue   ', false)
+            expect('   true"   ', false)
+            expect('   "Hello"   ', true)
+            expect('   "Hello   ', false)
+            expect('   "Hello\\n\\r\\""   ', true)
+            expect('   -56.7e+5  ', true)
+            expect('   h-56.7e+5   ', false)
+            expect('   -56.7e+5   3', false)
+            expect('   [] ', true)
+            expect('   {} ', true)
+            expect('   [[[]]] ', true)
+            expect('   [1] ', true)
+            expect('   [ 12, false, "a"]  ', true)
+            expect('   [ 12, false2, "a"]  ', false)
+            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
+            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
+            expect('   { "q": [ 12, false, [}], "a"] }  ', false)
+            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
+            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
+        }
     ],
     repeat: [
         () => {            
