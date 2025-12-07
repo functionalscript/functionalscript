@@ -325,17 +325,17 @@ export const descentParser = (fr: FRule): DescentMatch => {
         }
 
         const rule = data[0][name]
-        if (typeof rule === 'number') {            
+        if (typeof rule === 'number') {
             const cpi = cp[idx]
             const range = rangeDecode(rule)            
             if (rangeContains(range)(cpi)) {
                 return mrSuccess(tag, [cpi], idx + 1)
             }
             return mrFail(emptyTag, [], idx)
-        } else if (rule instanceof Array) {            
+        } else if (rule instanceof Array) {
             let seq: AstSequence = []
             let tidx = idx
-            for (const item of rule) {
+            for (const item of rule) {                
                 const m = f(item, undefined, cp, tidx)
                 const [astRule, success, nidx] = m
                 tidx = nidx
@@ -345,25 +345,19 @@ export const descentParser = (fr: FRule): DescentMatch => {
                 seq = [...seq, astRule]
             }
             return mrSuccess(tag, seq, tidx)
-        } else {
-            const entries = Object.entries(rule)
-            for (const [tag, item] of entries) {
-                if (tag == emptyTag) {
-                    continue;
-                }                    
+        } else {       
+            const entries = Object.entries(rule)            
+            let emptyResult = mrFail(emptyTag, [], idx)
+            for (const [tag, item] of entries) {   
                 const m = f(item, tag, cp, idx)
-                if (m[1]) {
-                    return m
+                if (m[1]) {                    
+                    if (idx !== m[2])
+                        return m
+
+                    emptyResult = m
                 }
             }
-
-            for (const [tag, item] of entries) {
-                if (tag == emptyTag) {
-                   return f(item, tag, cp, idx)
-                }                    
-            }
-
-            return mrFail(emptyTag, [], idx)
+            return emptyResult
         }
     }
 

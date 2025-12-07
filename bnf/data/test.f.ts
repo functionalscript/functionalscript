@@ -332,8 +332,8 @@ export default {
                 if (isSuccess(mr) !== success) {
                     throw mr
                 }
-            }            
-            
+            }
+
             expect('[]', true)
             expect('[a]', true)            
             expect('[a, a]', true)            
@@ -484,38 +484,42 @@ export default {
             expect('aa', false)
             expect('b', false)
         },
-        // () => {       
-        //     const ws = repeat0Plus(set(' \n\r\t'))
+        () => {       
+            const ws = repeat0Plus(set(' \n\r\t'))
 
-        //     const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-        //         open,
-        //         ws,
-        //         join0Plus([a, ws], [',', ws]),
-        //         close,
-        //     ]
+            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
+                open,
+                ws,
+                join0Plus([a, ws], [',', ws]),
+                close,
+            ]
              
-        //     const value = () => ({                
-        //         object: commaJoin0Plus('{}', 'a'),
-        //         array: commaJoin0Plus('[]', 'a')
-        //     })
+            const value = () => ({                
+                object: commaJoin0Plus('{}', 'a'),
+                array: commaJoin0Plus('[]', 'a')
+            })
 
-        //     value.name //bun will fail if no usage of name found
+            value.name //bun will fail if no usage of name found
 
-        //     const m = parser(value)
+            const m = descentParser(value)
 
-        //     const isSuccess = (mr: MatchResult) => mr[1] && mr[2]?.length === 0
-        //     const expect = (s: string, success: boolean) => {
-        //         const mr = m('value', toArray(stringToCodePointList(s)))
-        //         if (isSuccess(mr) !== success) {
-        //             throw mr
-        //         }
-        //     }            
+            const expect = (s: string, expected: boolean) => {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = m('value', cp)
+                const success = mr[1] && mr[2] === cp.length
+                if (success !== expected) {
+                    throw mr
+                }
+            }                   
+
+            const s = stringify(identity)(toData(value))
             
-        //     expect('[]', true)
-        //     expect('[a]', true)            
-        //     expect('[a, a]', true)            
-        //     expect('{a}', true)
-        // },
+            expect('', true)
+            expect('[]', true)
+            expect('[a]', true)
+            expect('[a, a]', true)
+            expect('{a}', true)
+        },
         // () => {
         //     const m = parser(deterministic())
             
