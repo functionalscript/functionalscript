@@ -316,16 +316,15 @@ export const descentParser = (fr: FRule): DescentMatch => {
 
     const f: DescentMatchRule = (name, tag, cp, idx): DescentMatchResult => {
         const mrSuccess = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, true, idx]
-        const mrFail = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, false, idx]
-
-        const emptyTag = getEmptyTag(name)
-
-        if (idx >= cp.length) {
-            return emptyTag === undefined ? mrFail(emptyTag, [], idx) : mrSuccess(emptyTag, [], idx)
-        }
+        const mrFail = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, false, idx]        
 
         const rule = data[0][name]
         if (typeof rule === 'number') {
+            const emptyTag = getEmptyTag(name)
+            if (idx >= cp.length) {
+                return emptyTag === undefined ? mrFail(emptyTag, [], idx) : mrSuccess(emptyTag, [], idx)
+            }
+
             const cpi = cp[idx]
             const range = rangeDecode(rule)            
             if (rangeContains(range)(cpi)) {
@@ -345,8 +344,9 @@ export const descentParser = (fr: FRule): DescentMatch => {
                 seq = [...seq, astRule]
             }
             return mrSuccess(tag, seq, tidx)
-        } else {       
-            const entries = Object.entries(rule)            
+        } else {
+            const entries = Object.entries(rule)
+            const emptyTag = getEmptyTag(name)
             let emptyResult = mrFail(emptyTag, [], idx)
             for (const [tag, item] of entries) {   
                 const m = f(item, tag, cp, idx)
