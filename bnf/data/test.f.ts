@@ -3,7 +3,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { join0Plus, max, option, range, remove, repeat, repeat0Plus, type Rule, set } from '../module.f.ts'
+import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser } from './module.f.ts'
 
