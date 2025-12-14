@@ -291,17 +291,17 @@ export default {
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"minus","sequence":[45,{"sequence":[50]}]},true,[]]') { throw result }
         },
-        // () => {
-        //     const emptyRule = ''            
-        //     const minusRule = range('--')
-        //     const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
-        //     const digitRule = range('09')
-        //     const numberRule = [optionalMinusRule, digitRule]
-        //     const m = parser(numberRule)
-        //     const mr = m("", [])
-        //     const result = JSON.stringify(mr)
-        //     if (result !== '[{"sequence":[]},false,[]]') { throw result }
-        // },
+        () => {
+            const emptyRule = ''            
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const m = parser(numberRule)
+            const mr = m("", [])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},true,null]') { throw result } //if remainder is null it means failed
+        },
         () => {                        
             const m = parser(option('a'))
 
@@ -345,6 +345,7 @@ export default {
                 }
             }
 
+            expect('', false)
             expect('[]', true)
             expect('[a]', true)            
             expect('[a, a]', true)            
