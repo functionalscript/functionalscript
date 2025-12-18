@@ -463,33 +463,13 @@ fn unary_plus<A: IVm>() {
     let nan = f64::NAN.to_any::<A>();
     let null = Nullish::Null.to_any::<A>();
     let test_cases: &[(Any<A>, Any<A>, &str)] = &[
-         (null.clone(), n0.clone(), "null"),
-         (
-             Nullish::Undefined.to_any(),
-             nan.clone(),
-             "undefined",
-         ),
-         (
-             true.to_any(),
-             1.0.to_any(),
-             "boolean true",
-         ),
-        (
-            false.to_any(),
-            n0.clone(),
-            "boolean false",
-        ),
+        (null.clone(), n0.clone(), "null"),
+        (Nullish::Undefined.to_any(), nan.clone(), "undefined"),
+        (true.to_any(), 1.0.to_any(), "boolean true"),
+        (false.to_any(), n0.clone(), "boolean false"),
         (n0.clone(), 0.0.to_any(), "number 0"),
-        (
-            2.3.to_any(),
-            2.3.to_any(),
-            "number 2.3",
-        ),
-        (
-            (-2.3).to_any(),
-            (-2.3).to_any(),
-            "number -2.3",
-        ),
+        (2.3.to_any(), 2.3.to_any(), "number 2.3"),
+        ((-2.3).to_any(), (-2.3).to_any(), "number -2.3"),
         /*
         ("".into(), n0.clone(), "string \"\""),
         ("0".into(), n0.clone(), "string \"0\""),
@@ -530,11 +510,11 @@ fn unary_plus<A: IVm>() {
         //),
     ];
     for (a, expected, test_case) in test_cases.iter() {
-         test_op::<A>(
-             Any::unary_plus(a.clone()).unwrap(),
-             expected.clone(),
-             test_case,
-         );
+        test_op::<A>(
+            Any::unary_plus(a.clone()).unwrap(),
+            expected.clone(),
+            test_case,
+        );
     }
 
     // bigint
