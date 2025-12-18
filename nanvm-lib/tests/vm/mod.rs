@@ -393,6 +393,28 @@ fn format_fn<A: IVm>() {
     assert_eq!(x, "function myfunc(a0,a1) {DEADBEEF}");
 }
 
+fn assert_is_nan<A: IVm>(a: Any<A>, test_case: &str) {
+    let nan = Any::unary_plus(a).unwrap();
+    let f = nan.to_number().expect(test_case);
+    assert!(f.is_nan(), "{test_case}");
+}
+
+fn test_op<A: IVm>(result: Any<A>, expected: Any<A>, test_case: &str) {
+    match expected.clone().into() {
+        Unpacked::Number(f) => {
+            if f.is_nan() {
+                assert_is_nan(result, test_case);
+            } else {
+                assert_eq!(result, expected);
+            }
+        }
+        Unpacked::BigInt(_) => {
+            assert_eq!(result, expected);
+        }
+        _ => panic!("expected is neither Number nor BigInt in '{}'", test_case),
+    }
+}
+
 fn unary_plus<A: IVm>() {
     {
         let n: Any<A> = Nullish::Null.to_any();
@@ -437,81 +459,83 @@ fn unary_plus<A: IVm>() {
         assert!(num.is_nan());
     }
 
-    // let n0: A = Simple::Number(0.0).to_unknown();
-    // let nan: A = Simple::Number(f64::NAN).to_unknown();
-    // let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    // let test_cases: Vec<(A, A, &str)> = vec![
-    //     (null.clone(), n0.clone(), "null"),
-    //     (
-    //         Simple::Nullish(Nullish::Undefined).to_unknown(),
-    //         nan.clone(),
-    //         "undefined",
-    //     ),
-    //     (
-    //         Simple::Boolean(true).to_unknown(),
-    //         Simple::Number(1.0).to_unknown(),
-    //         "boolean true",
-    //     ),
-    //     (
-    //         Simple::Boolean(false).to_unknown(),
-    //         n0.clone(),
-    //         "boolean false",
-    //     ),
-    //     (n0.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
-    //     (
-    //         Simple::Number(2.3).to_unknown(),
-    //         Simple::Number(2.3).to_unknown(),
-    //         "number 2.3",
-    //     ),
-    //     (
-    //         Simple::Number(-2.3).to_unknown(),
-    //         Simple::Number(-2.3).to_unknown(),
-    //         "number -2.3",
-    //     ),
-    //     ("".to_unknown(), n0.clone(), "string \"\""),
-    //     ("0".to_unknown(), n0.clone(), "string \"0\""),
-    //     (
-    //         "2.3e2".to_unknown(),
-    //         Simple::Number(2.3e2).to_unknown(),
-    //         "string \"2.3e2\"",
-    //     ),
-    //     ("a".to_unknown(), nan.clone(), "string \"a\""),
-    //     ([].to_array_unknown(), n0.clone(), "array []"),
-    //     (
-    //         [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
-    //         Simple::Number(-0.3).to_unknown(),
-    //         "array [-0.3]",
-    //     ),
-    //     (
-    //         ["0.3".to_unknown()].to_array_unknown(),
-    //         Simple::Number(0.3).to_unknown(),
-    //         "array [\"0.3\"]",
-    //     ),
-    //     (
-    //         [null.clone()].to_array_unknown(),
-    //         n0.clone(),
-    //         "array [null]",
-    //     ),
-    //     (
-    //         [null.clone(), null.clone()].to_array_unknown(),
-    //         nan.clone(),
-    //         "array [null,null]",
-    //     ),
-    //     ([].to_object_unknown(), nan.clone(), "object {{}}"),
-    //     // TODO: decide on testing objects with valueOf, toString functions.
-    //     (
-    //         A::Function::new(0, [0]).to_unknown(),
-    //         nan.clone(),
-    //         "function",
-    //     ),
-    // ];
-    // for (a, expected, test_case) in test_cases.iter() {
-    //     test_op::<A>(
-    //         Any::unary_plus(a.clone()).unwrap(),
-    //         expected.clone(),
-    //         test_case,
-    //     );
-    // }
+    let n0 = 0.0.to_any::<A>();
+    let nan = f64::NAN.to_any::<A>();
+    let null = Nullish::Null.to_any::<A>();
+    let test_cases: &[(Any<A>, Any<A>, &str)] = &[
+         (null.clone(), n0.clone(), "null"),
+         (
+             Nullish::Undefined.to_any(),
+             nan.clone(),
+             "undefined",
+         ),
+         (
+             true.to_any(),
+             1.0.to_any(),
+             "boolean true",
+         ),
+        (
+            false.to_any(),
+            n0.clone(),
+            "boolean false",
+        ),
+        (n0.clone(), 0.0.to_any(), "number 0"),
+        (
+            2.3.to_any(),
+            2.3.to_any(),
+            "number 2.3",
+        ),
+        (
+            (-2.3).to_any(),
+            (-2.3).to_any(),
+            "number -2.3",
+        ),
+        /*
+        ("".into(), n0.clone(), "string \"\""),
+        ("0".into(), n0.clone(), "string \"0\""),
+        (
+            "2.3e2".into(),
+            2.3e2.to_any(),
+            "string \"2.3e2\"",
+        ),
+        ("a".into(), nan.clone(), "string \"a\""),
+        ([].to_array().to_any(), n0.clone(), "array []"),
+        (
+            [(-0.3).to_any()].to_array().to_any(),
+            (-0.3).to_any(),
+            "array [-0.3]",
+        ),
+        (
+            ["0.3".into()].to_array().to_any(),
+            0.3.to_any(),
+            "array [\"0.3\"]",
+        ),
+        (
+            [null.clone()].to_array().to_any(),
+            n0.clone(),
+            "array [null]",
+        ),
+        (
+            [null.clone(), null.clone()].to_array().to_any(),
+            nan.clone(),
+            "array [null,null]",
+        ),
+        ([].to_array().to_any(), nan.clone(), "object {{}}"),
+        */
+        // TODO: decide on testing objects with valueOf, toString functions.
+        //(
+        //    A::Function::new(0, [0]).to_unknown(),
+        //    nan.clone(),
+        //    "function",
+        //),
+    ];
+    for (a, expected, test_case) in test_cases.iter() {
+         test_op::<A>(
+             Any::unary_plus(a.clone()).unwrap(),
+             expected.clone(),
+             test_case,
+         );
+    }
 
     // bigint
     let b0: Any<A> = BigInt::default().to_any();
