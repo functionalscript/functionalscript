@@ -42,7 +42,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         }
         match trimmed.parse::<f64>() {
             Ok(v) => Ok(v),
-            Err(_) => Ok(f64::NAN), //Any::from(Unpacked::Number(f64::NAN))),
+            Err(_) => Ok(f64::NAN),
         }
     }
 
