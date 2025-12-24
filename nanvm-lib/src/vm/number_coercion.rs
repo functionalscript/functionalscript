@@ -32,17 +32,18 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         Ok(v)
     }
 
-    fn string(self, _: String<A>) -> Self::Result {
-        todo!()
-        // let s: String = self.into();
-        // let trimmed = s.trim();
-        // if trimmed.is_empty() {
-        //     return Ok(0.0);
-        // }
-        // match trimmed.parse::<f64>() {
-        //     Ok(v) => Ok(v),
-        //     Err(_) => Err(Any(A::from(Unpacked::NaN))),
-        // }
+    fn string(self, v: String<A>) -> Self::Result {
+        // https://tc39.es/ecma262/#sec-stringtonumber
+        // TODO: binary, octal, hex parsing
+        let s: std::string::String = v.into();
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return Ok(0.0);
+        }
+        match trimmed.parse::<f64>() {
+            Ok(v) => Ok(v),
+            Err(_) => Ok(f64::NAN), //Any::from(Unpacked::Number(f64::NAN))),
+        }
     }
 
     fn bigint(self, _: BigInt<A>) -> Self::Result {
