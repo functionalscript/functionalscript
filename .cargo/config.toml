@@ -2,7 +2,7 @@
 runner = "wasmtime run --dir . --"
 
 [target.wasm32-wasip1-threads]
-runner = "wasmtime run --wasi threads --wasm threads=y --dir . --"
+runner = "wasmtime run --wasi threads --wasm threads=y --wasm stack-switching=n --dir . --"
 
 [target.wasm32-wasip2]
 runner = "wasmtime run --dir . --"
