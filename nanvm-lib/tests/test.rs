@@ -63,7 +63,6 @@ fn unary_plus<A: Any>() {
             Simple::Number(-2.3).to_unknown(),
             "number -2.3",
         ),
-        */
         ("".to_unknown(), n0.clone(), "string \"\""),
         ("0".to_unknown(), n0.clone(), "string \"0\""),
         (
@@ -73,6 +72,7 @@ fn unary_plus<A: Any>() {
         ),
         ("a".to_unknown(), nan.clone(), "string \"a\""),
         ([].to_array_unknown(), n0.clone(), "array []"),
+        */
         (
             [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
             Simple::Number(-0.3).to_unknown(),

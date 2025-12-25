@@ -470,16 +470,12 @@ fn unary_plus<A: IVm>() {
         (n0.clone(), 0.0.to_any(), "number 0"),
         (2.3.to_any(), 2.3.to_any(), "number 2.3"),
         ((-2.3).to_any(), (-2.3).to_any(), "number -2.3"),
-        /*
         ("".into(), n0.clone(), "string \"\""),
         ("0".into(), n0.clone(), "string \"0\""),
-        (
-            "2.3e2".into(),
-            2.3e2.to_any(),
-            "string \"2.3e2\"",
-        ),
+        ("2.3e2".into(), 2.3e2.to_any(), "string \"2.3e2\""),
         ("a".into(), nan.clone(), "string \"a\""),
         ([].to_array().to_any(), n0.clone(), "array []"),
+        /*
         (
             [(-0.3).to_any()].to_array().to_any(),
             (-0.3).to_any(),
