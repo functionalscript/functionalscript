@@ -50,13 +50,12 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         Err("TypeError: Cannot convert a BigInt value to a number".into())
     }
 
-    fn object(self, v: Object<A>) -> Self::Result {
+    fn object(self, _v: Object<A>) -> Self::Result {
         // Objects are first converted to primitive (which would call valueOf/toString),
         // but since those methods are not yet implemented, we use the default behavior
         // which is to return NaN.
         // See: https://tc39.es/ecma262/#sec-tonumber
         // This matches JavaScript behavior: +({}) === NaN
-        let _ = v;
         Ok(f64::NAN)
     }
 
@@ -73,13 +72,12 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         self.string(string_result)
     }
 
-    fn function(self, v: Function<A>) -> Self::Result {
+    fn function(self, _v: Function<A>) -> Self::Result {
         // Functions are first converted to primitive (which would call valueOf/toString),
         // but since those methods are not yet implemented, we use the default behavior
         // which is to return NaN.
         // See: https://tc39.es/ecma262/#sec-tonumber
         // This matches JavaScript behavior: +(function(){}) === NaN
-        let _ = v;
         Ok(f64::NAN)
     }
 }
@@ -213,11 +211,13 @@ mod test {
     #[test]
     fn test_function_number_coercion() {
         // Function should convert to NaN
-        let func = Function::<Naive>(<Naive as IVm>::InternalFunction::new_ok(
-            ("f".into(), 0),
-            [0],
-        ));
-        let func_any: Any<Naive> = func.to_any();
+        fn create_test_function() -> Function<Naive> {
+            Function::<Naive>(<Naive as IVm>::InternalFunction::new_ok(
+                ("f".into(), 0),
+                [0],
+            ))
+        }
+        let func_any: Any<Naive> = create_test_function().to_any();
         assert!(func_any.to_number().unwrap().is_nan());
     }
 

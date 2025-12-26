@@ -498,6 +498,7 @@ fn unary_plus<A: IVm>() {
             nan.clone(),
             "array [null,null]",
         ),
+        // Empty object (created from empty array) should convert to NaN
         ([].to_object().to_any(), nan.clone(), "object {{}}"),
         // TODO: decide on testing objects with valueOf, toString functions.
         //(
