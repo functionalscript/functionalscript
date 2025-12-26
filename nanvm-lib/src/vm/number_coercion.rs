@@ -58,8 +58,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         // converts to NaN.
         // https://tc39.es/ecma262/#sec-tonumber
         // https://tc39.es/ecma262/#sec-toprimitive
-        let s = o.to_any().to_string()?;
-        self.string(s)
+        self.via_string_coercion(o)
     }
 
     fn array(self, a: Array<A>) -> Self::Result {
@@ -69,8 +68,7 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         // Examples: [] -> "" -> 0, [5] -> "5" -> 5, [1,2] -> "1,2" -> NaN
         // https://tc39.es/ecma262/#sec-tonumber
         // https://tc39.es/ecma262/#sec-toprimitive
-        let s = a.to_any().to_string()?;
-        self.string(s)
+        self.via_string_coercion(a)
     }
 
     fn function(self, f: Function<A>) -> Self::Result {
@@ -80,7 +78,18 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         // converts to NaN.
         // https://tc39.es/ecma262/#sec-tonumber
         // https://tc39.es/ecma262/#sec-toprimitive
-        let s = f.to_any().to_string()?;
+        self.via_string_coercion(f)
+    }
+}
+
+impl NumberCoercion {
+    /// Helper method to convert values to numbers via string coercion.
+    /// Used for objects, arrays, and functions.
+    fn via_string_coercion<A: IVm, T: ToAny>(self, value: T) -> Result<f64, Any<A>>
+    where
+        T: Into<A>,
+    {
+        let s = value.to_any().to_string()?;
         self.string(s)
     }
 }
@@ -154,12 +163,10 @@ mod test {
 
         // Function should convert to NaN
         // function -> "[object Function]" -> NaN
-        let f = Function::<Naive>(<Naive as crate::vm::IVm>::InternalFunction::new_ok(
-            ("test".into(), 0),
-            [],
-        ));
-        let a: Any<Naive> = f.to_any();
-        let result = a.to_number().unwrap();
+        let f_internal =
+            <Naive as crate::vm::IVm>::InternalFunction::new_ok(("test".into(), 0), []);
+        let f: Any<Naive> = Function::<Naive>(f_internal).to_any();
+        let result = f.to_number().unwrap();
         assert!(result.is_nan());
     }
 }
