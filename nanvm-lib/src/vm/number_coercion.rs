@@ -2,7 +2,7 @@ use core::f64;
 
 use crate::{
     nullish::Nullish,
-    vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String},
+    vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String, ToAny},
 };
 
 /// Coerces the value to f64, possibly producing an error result.
@@ -50,19 +50,38 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         Err("TypeError: Cannot convert a BigInt value to a number".into())
     }
 
-    fn object(self, _: Object<A>) -> Self::Result {
-        // TODO: check and test
-        Ok(f64::NAN)
+    fn object(self, o: Object<A>) -> Self::Result {
+        // Per ECMAScript spec, objects are converted to primitives via ToPrimitive
+        // with hint "number", which typically calls valueOf() then toString().
+        // Since this VM doesn't support calling custom methods, we use the default
+        // Object.prototype.toString() which returns "[object Object]", and that
+        // converts to NaN.
+        // https://tc39.es/ecma262/#sec-tonumber
+        // https://tc39.es/ecma262/#sec-toprimitive
+        let s = o.to_any().to_string()?;
+        self.string(s)
     }
 
-    fn array(self, _: Array<A>) -> Self::Result {
-        // TODO: check and test
-        Ok(0.0)
+    fn array(self, a: Array<A>) -> Self::Result {
+        // Per ECMAScript spec, arrays are converted to primitives via ToPrimitive
+        // with hint "number", which for arrays uses toString() (joining elements).
+        // The resulting string is then converted to a number.
+        // Examples: [] -> "" -> 0, [5] -> "5" -> 5, [1,2] -> "1,2" -> NaN
+        // https://tc39.es/ecma262/#sec-tonumber
+        // https://tc39.es/ecma262/#sec-toprimitive
+        let s = a.to_any().to_string()?;
+        self.string(s)
     }
 
-    fn function(self, _: Function<A>) -> Self::Result {
-        // TODO: check and test
-        Ok(f64::NAN)
+    fn function(self, f: Function<A>) -> Self::Result {
+        // Per ECMAScript spec, functions are converted to primitives via ToPrimitive
+        // with hint "number", which typically calls valueOf() then toString().
+        // Function.prototype.toString() returns a string like "function(){}", which
+        // converts to NaN.
+        // https://tc39.es/ecma262/#sec-tonumber
+        // https://tc39.es/ecma262/#sec-toprimitive
+        let s = f.to_any().to_string()?;
+        self.string(s)
     }
 }
 
@@ -72,11 +91,75 @@ fn to_f64(v: bool) -> f64 {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::number_coercion::to_f64;
+    use crate::vm::{naive::Naive, number_coercion::to_f64, Any, ToAny, ToArray};
 
     #[test]
-    fn test() {
+    fn test_bool_to_f64() {
         assert_eq!(to_f64(true), 1.0);
         assert_eq!(to_f64(false), 0.0);
+    }
+
+    #[test]
+    fn test_array_coercion() {
+        // Empty array should convert to 0 ([] -> "" -> 0)
+        let a: Any<Naive> = [].to_array().to_any();
+        let result = a.to_number().unwrap();
+        assert_eq!(result, 0.0);
+
+        // Single element array should convert to that element's number value
+        // [5] -> "5" -> 5
+        let a: Any<Naive> = [5.0.to_any()].to_array().to_any();
+        let result = a.to_number().unwrap();
+        assert_eq!(result, 5.0);
+
+        // Array with string "10" should convert to 10
+        // ["10"] -> "10" -> 10
+        let a: Any<Naive> = ["10".into()].to_array().to_any();
+        let result = a.to_number().unwrap();
+        assert_eq!(result, 10.0);
+
+        // Array with multiple elements should convert to NaN
+        // [1, 2] -> "1,2" -> NaN
+        let a: Any<Naive> = [1.0.to_any(), 2.0.to_any()].to_array().to_any();
+        let result = a.to_number().unwrap();
+        assert!(result.is_nan());
+
+        // Array with nested empty array should convert to 0
+        // [[]] -> "" -> 0
+        let inner: Any<Naive> = [].to_array().to_any();
+        let a: Any<Naive> = [inner].to_array().to_any();
+        let result = a.to_number().unwrap();
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn test_object_coercion() {
+        use crate::vm::ToObject;
+
+        // Empty object should convert to NaN
+        // {} -> "[object Object]" -> NaN
+        let o: Any<Naive> = [].to_object().to_any();
+        let result = o.to_number().unwrap();
+        assert!(result.is_nan());
+
+        // Object with properties should also convert to NaN
+        let o: Any<Naive> = [("a".into(), 1.0.to_any())].to_object().to_any();
+        let result = o.to_number().unwrap();
+        assert!(result.is_nan());
+    }
+
+    #[test]
+    fn test_function_coercion() {
+        use crate::vm::{Function, IContainer};
+
+        // Function should convert to NaN
+        // function -> "[object Function]" -> NaN
+        let f = Function::<Naive>(<Naive as crate::vm::IVm>::InternalFunction::new_ok(
+            ("test".into(), 0),
+            [],
+        ));
+        let a: Any<Naive> = f.to_any();
+        let result = a.to_number().unwrap();
+        assert!(result.is_nan());
     }
 }
