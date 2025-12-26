@@ -496,7 +496,7 @@ fn unary_plus<A: IVm>() {
             nan.clone(),
             "array [null,null]",
         ),
-        ([].to_object().to_any(), nan.clone(), "object {{}}"),
+        ([].to_array().to_any(), nan.clone(), "object {{}}"),
         */
         // TODO: decide on testing objects with valueOf, toString functions.
         //(
