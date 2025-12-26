@@ -2,7 +2,7 @@ use core::f64;
 
 use crate::{
     nullish::Nullish,
-    vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String},
+    vm::{any::Any, dispatch::Dispatch, Array, BigInt, Function, IVm, Object, String, ToAny},
 };
 
 /// Coerces the value to f64, possibly producing an error result.
@@ -67,7 +67,6 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         // - +[] === 0 (empty string -> 0)
         // - +[42] === 42 (string "42" -> 42)
         // - +[1,2] === NaN (string "1,2" -> NaN)
-        use crate::vm::ToAny;
         let string_result = v.to_any().to_string()?;
         self.string(string_result)
     }
@@ -212,6 +211,7 @@ mod test {
     fn test_function_number_coercion() {
         // Function should convert to NaN
         fn create_test_function() -> Function<Naive> {
+            // Create a simple function: name "f", arity 0, bytecode [0]
             Function::<Naive>(<Naive as IVm>::InternalFunction::new_ok(
                 ("f".into(), 0),
                 [0],
