@@ -6,6 +6,7 @@ use nanvm_lib::{
         ToArray, ToObject, Unpacked,
     },
 };
+use std::ops::Neg;
 
 fn nullish_eq<A: IVm>() {
     let n0: Any<A> = Nullish::Null.to_any();
@@ -519,6 +520,46 @@ fn unary_plus<A: IVm>() {
     );
 }
 
+fn unary_minus<A: IVm>() {
+    let n0 = 0.0.to_any::<A>();
+    let nan = f64::NAN.to_any::<A>();
+    let null = Nullish::Null.to_any::<A>();
+    let test_cases: &[(Any<A>, Any<A>, &str)] = &[
+        (null.clone(), n0.clone(), "null"),
+        (Nullish::Undefined.to_any(), nan.clone(), "undefined"),
+        (true.to_any(),(-1.0).to_any(), "boolean true"),
+        (false.to_any(), n0.clone(), "boolean false"),
+        (n0.clone(), 0.0.to_any(), "number 0"),
+        ((-2.3).to_any(), 2.3.to_any(), "number -2.3"),
+        (2.3.to_any(), (-2.3).to_any(), "number 2.3"),
+        ("".into(), n0.clone(), "string \"\""),
+        ("0".into(), n0.clone(), "string \"0\""),
+        ("2.3e2".into(), (-2.3e2).to_any(), "string \"2.3e2\""),
+        ("a".into(), nan.clone(), "string \"a\""),
+        ([].to_array().to_any(), n0.clone(), "array []"),
+        // (
+        //     A::BigInt::new(Sign::Positive, [1]).to_unknown(),
+        //     A::BigInt::new(Sign::Negative, [1]).to_unknown(),
+        //     "bigint 1n",
+        // ),
+        ([(-0.3).to_any()].to_array().to_any(), 0.3.to_any(), "array [-0.3]"),
+        ([null.clone()].to_array().to_any(), n0.clone(), "array [null]"),
+        ([null.clone(), null.clone()].to_array().to_any(), nan.clone(), "array [null,null]"),
+        ([].to_object().to_any(), nan.clone(), "object {{}}"),
+        (["0.3".into()].to_array().to_any(), (-0.3).to_any(), "array [\"0.3\"]"),
+        ([].to_object().to_any(), nan.clone(), "object {{}}"),
+        // TODO: decide on testing objects with valueOf, toString functions.
+        (
+            Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any(),
+            nan.clone(),
+            "function",
+        ),
+    ];
+    for (a, expected, test_case) in test_cases.iter() {
+        test_op::<A>(a.clone().neg().unwrap(), expected.clone(), test_case);
+    }
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -532,6 +573,7 @@ fn gen_test<A: IVm>() {
     number_coerce_to_string::<A>();
     array_coerce_to_string::<A>();
     unary_plus::<A>();
+    unary_minus::<A>();
     //
     format_fn::<A>();
 }

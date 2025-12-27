@@ -1,11 +1,16 @@
 use core::ops::Neg;
 
-use crate::vm::{Any, IVm};
+use crate::vm::{Any, IVm, numeric::Numeric, unpacked::Unpacked};
 
 impl<A: IVm> Neg for Any<A> {
     type Output = Result<Any<A>, Any<A>>;
     fn neg(self) -> Self::Output {
-        todo!()
+        // https://tc39.es/ecma262/#sec-unary-minus-operator
+        match self.to_numeric() {
+            Ok(Numeric::Number(n)) => Ok(Unpacked::Number(-n).into()),
+            Ok(Numeric::BigInt(bi)) => Ok(Unpacked::BigInt(bi.negate()).into()),
+            Err(e) => Err(e),
+        }
     }
 }
 

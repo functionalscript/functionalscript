@@ -5,12 +5,7 @@ mod partial_eq;
 pub mod to_any;
 
 use crate::vm::{
-    dispatch::Dispatch,
-    number_coercion::NumberCoercion,
-    primitive::Primitive,
-    primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
-    string_coercion::StringCoercion,
-    IVm, String, ToAny,
+    IVm, String, ToAny, dispatch::Dispatch, number_coercion::NumberCoercion, numeric::Numeric, numeric_coercion::NumericCoercion, primitive::Primitive, primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType}, string_coercion::StringCoercion
 };
 
 /// ```
@@ -49,6 +44,12 @@ impl<A: IVm> Any<A> {
         self.to_number().map(ToAny::to_any)
     }
 
+    /// Unary negation operator.
+    /// <https://tc39.es/ecma262/#sec-unary-minus-operator>
+    pub fn negate(self) -> Self {
+        self
+    }
+
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
@@ -64,6 +65,10 @@ impl<A: IVm> Any<A> {
 
     pub fn to_number(self) -> Result<f64, Any<A>> {
         self.dispatch(NumberCoercion)
+    }
+
+    pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
+        self.dispatch(NumericCoercion)
     }
 
     pub fn to_primitive(

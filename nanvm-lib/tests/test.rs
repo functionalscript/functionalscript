@@ -30,85 +30,6 @@ fn test_op<A: Any>(result: A, expected: A, test_case: &str) {
     }
 }
 
-fn unary_minus<A: Any>() {
-    let n0: A = Simple::Number(0.0).to_unknown();
-    let nan: A = Simple::Number(f64::NAN).to_unknown();
-    let null: A = Simple::Nullish(Nullish::Null).to_unknown();
-    let test_cases: &[(A, A, &str)] = &[
-        (null.clone(), n0.clone(), "null"),
-        (
-            Simple::Nullish(Nullish::Undefined).to_unknown(),
-            nan.clone(),
-            "undefined",
-        ),
-        (
-            Simple::Boolean(true).to_unknown(),
-            Simple::Number(-1.0).to_unknown(),
-            "boolean true",
-        ),
-        (
-            Simple::Boolean(false).to_unknown(),
-            n0.clone(),
-            "boolean false",
-        ),
-        (n0.clone(), Simple::Number(0.0).to_unknown(), "number 0"),
-        (
-            Simple::Number(-2.3).to_unknown(),
-            Simple::Number(2.3).to_unknown(),
-            "number -2.3",
-        ),
-        (
-            Simple::Number(2.3).to_unknown(),
-            Simple::Number(-2.3).to_unknown(),
-            "number 2.3",
-        ),
-        ("".to_unknown(), n0.clone(), "string \"\""),
-        ("0".to_unknown(), n0.clone(), "string \"0\""),
-        (
-            "2.3e2".to_unknown(),
-            Simple::Number(-2.3e2).to_unknown(),
-            "string \"2.3e2\"",
-        ),
-        ("a".to_unknown(), nan.clone(), "string \"a\""),
-        ([].to_array_unknown(), n0.clone(), "array []"),
-        (
-            A::BigInt::new(Sign::Positive, [1]).to_unknown(),
-            A::BigInt::new(Sign::Negative, [1]).to_unknown(),
-            "bigint 1n",
-        ),
-        (
-            [Simple::Number(-0.3).to_unknown()].to_array_unknown(),
-            Simple::Number(0.3).to_unknown(),
-            "array [-0.3]",
-        ),
-        (
-            ["0.3".to_unknown()].to_array_unknown(),
-            Simple::Number(-0.3).to_unknown(),
-            "array [\"-0.3\"]",
-        ),
-        (
-            [null.clone()].to_array_unknown(),
-            n0.clone(),
-            "array [null]",
-        ),
-        (
-            [null.clone(), null.clone()].to_array_unknown(),
-            nan.clone(),
-            "array [null,null]",
-        ),
-        ([].to_object_unknown(), nan.clone(), "object {{}}"),
-        // TODO: decide on testing objects with valueOf, toString functions.
-        (
-            A::Function::new(0, [0]).to_unknown(),
-            nan.clone(),
-            "function",
-        ),
-    ];
-    for (a, expected, test_case) in test_cases.iter() {
-        test_op::<A>(Any::unary_minus(a.clone()), expected.clone(), test_case);
-    }
-}
-
 fn multiply<A: Any>() {
     let n0: A = Simple::Number(0.0).to_unknown();
     let n1: A = Simple::Number(1.0).to_unknown();
@@ -269,7 +190,6 @@ fn big_int_mul<A: Any>() -> Result<(), WAny<A>> {
 }
 
 fn test_vm<A: Any>() {
-    unary_minus::<A>();
     multiply::<A>();
     big_int_add::<A>();
     big_int_mul::<A>().unwrap();

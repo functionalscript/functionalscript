@@ -34,4 +34,7 @@ impl<A: IVm> BigInt<A> {
     fn new_one(sign: Sign, value: u64) -> Self {
         Self::new(sign, once(value))
     }
+    pub fn negate(self) -> Self {
+        self
+    }
 }
