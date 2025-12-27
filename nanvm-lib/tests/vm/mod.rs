@@ -406,7 +406,8 @@ fn test_op<A: IVm>(result: Any<A>, expected: Any<A>, test_case: &str) {
             if f.is_nan() {
                 assert_is_nan(result, test_case);
             } else {
-                assert_eq!(result, expected);
+                let res: f64 = result.try_into().unwrap();
+                assert_eq!(f.to_bits(), res.to_bits(), "{test_case}");
             }
         }
         Unpacked::BigInt(_) => {
@@ -531,7 +532,7 @@ fn unary_minus<A: IVm>() {
         (Nullish::Undefined.to_any(), nan.clone(), "undefined"),
         (true.to_any(), (-1.0).to_any(), "boolean true"),
         (false.to_any(), n0.clone(), "boolean false"),
-        (n0.clone(), 0.0.to_any(), "number 0"),
+        (n0.clone(), (-0.0).to_any(), "number 0"),
         ((-2.3).to_any(), 2.3.to_any(), "number -2.3"),
         (2.3.to_any(), (-2.3).to_any(), "number 2.3"),
         ("".into(), n0.clone(), "string \"\""),
