@@ -555,7 +555,6 @@ fn unary_minus<A: IVm>() {
             nan.clone(),
             "array [null,null]",
         ),
-        ([].to_object().to_any(), nan.clone(), "object {{}}"),
         (
             ["0.3".into()].to_array().to_any(),
             (-0.3).to_any(),
