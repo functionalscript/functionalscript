@@ -1,8 +1,10 @@
 mod debug;
 mod default;
 mod from;
+mod index;
 mod partial_eq;
 mod serializable;
+mod sized_index;
 
 use core::iter::once;
 
@@ -35,6 +37,15 @@ impl<A: IVm> BigInt<A> {
         Self::new(sign, once(value))
     }
     pub fn negate(self) -> Self {
-        self
+        match self.is_zero() {
+            true => self,
+            false => Self::new(
+                match *self.0.header() {
+                    Sign::Positive => Sign::Negative,
+                    Sign::Negative => Sign::Positive,
+                },
+                self.index_iter(),
+            ),
+        }
     }
 }

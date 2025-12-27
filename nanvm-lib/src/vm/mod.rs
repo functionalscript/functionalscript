@@ -9,7 +9,6 @@ mod internal;
 mod join;
 mod number_coercion;
 mod numeric;
-mod numeric_coercion;
 mod object;
 mod primitive;
 mod primitive_coercion;

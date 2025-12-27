@@ -1,6 +1,6 @@
 use core::ops::Neg;
 
-use crate::vm::{Any, IVm, numeric::Numeric, unpacked::Unpacked};
+use crate::vm::{numeric::Numeric, unpacked::Unpacked, Any, IVm};
 
 impl<A: IVm> Neg for Any<A> {
     type Output = Result<Any<A>, Any<A>>;

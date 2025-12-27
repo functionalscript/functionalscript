@@ -5,7 +5,13 @@ mod partial_eq;
 pub mod to_any;
 
 use crate::vm::{
-    IVm, String, ToAny, dispatch::Dispatch, number_coercion::NumberCoercion, numeric::Numeric, numeric_coercion::NumericCoercion, primitive::Primitive, primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType}, string_coercion::StringCoercion
+    dispatch::Dispatch,
+    number_coercion::NumberCoercion,
+    numeric::Numeric,
+    primitive::Primitive,
+    primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
+    string_coercion::StringCoercion,
+    IVm, String, ToAny,
 };
 
 /// ```
@@ -68,7 +74,14 @@ impl<A: IVm> Any<A> {
     }
 
     pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
-        self.dispatch(NumericCoercion)
+        // https://tc39.es/ecma262/#sec-tonumeric
+        let prim_value = self
+            .clone()
+            .to_primitive(Some(ToPrimitivePreferredType::Number))?;
+        match prim_value {
+            Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
+            _ => Ok(Numeric::Number(self.to_number()?)),
+        }
     }
 
     pub fn to_primitive(
