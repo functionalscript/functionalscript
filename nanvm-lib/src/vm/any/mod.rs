@@ -50,12 +50,6 @@ impl<A: IVm> Any<A> {
         self.to_number().map(ToAny::to_any)
     }
 
-    /// Unary negation operator.
-    /// <https://tc39.es/ecma262/#sec-unary-minus-operator>
-    pub fn negate(self) -> Self {
-        self
-    }
-
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
