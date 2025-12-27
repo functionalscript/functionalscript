@@ -80,7 +80,7 @@ impl<A: IVm> Any<A> {
             .to_primitive(Some(ToPrimitivePreferredType::Number))?;
         match prim_value {
             Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-            _ => Ok(Numeric::Number(self.to_number()?)),
+            _ => Ok(Numeric::Number(prim_value.to_any().to_number()?)),
         }
     }
 
