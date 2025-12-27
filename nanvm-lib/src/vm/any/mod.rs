@@ -7,10 +7,11 @@ pub mod to_any;
 use crate::vm::{
     dispatch::Dispatch,
     number_coercion::NumberCoercion,
+    numeric::Numeric,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    IVm, String, ToAny,
+    IVm, String, ToAny, Unpacked,
 };
 
 /// ```
@@ -64,6 +65,19 @@ impl<A: IVm> Any<A> {
 
     pub fn to_number(self) -> Result<f64, Any<A>> {
         self.dispatch(NumberCoercion)
+    }
+
+    pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
+        // https://tc39.es/ecma262/#sec-tonumeric
+        let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
+        match prim_value {
+            Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
+            _ => {
+                let u: Unpacked<A> = prim_value.into();
+                let any: Any<A> = u.into();
+                Ok(Numeric::Number(any.to_number()?))
+            }
+        }
     }
 
     pub fn to_primitive(
