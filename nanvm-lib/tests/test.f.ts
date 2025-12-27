@@ -1,9 +1,9 @@
 const e = (a: unknown) => (b: unknown): void => {
-    if (a === b) { } else { throw [a, '===', b] }
+    if (Object.is(a, b)) { } else { throw [a, '===', b] }
 }
 
 const n = (a: unknown) => (b: unknown): void => {
-    if (a !== b) { } else { throw [a, '!==', b] }
+    if (!Object.is(a, b)) { } else { throw [a, '!==', b] }
 }
 
 const nan_res = (op: (n: unknown) => unknown) => (n: unknown): void => {
