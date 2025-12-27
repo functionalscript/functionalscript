@@ -475,7 +475,6 @@ fn unary_plus<A: IVm>() {
         ("2.3e2".into(), 2.3e2.to_any(), "string \"2.3e2\""),
         ("a".into(), nan.clone(), "string \"a\""),
         ([].to_array().to_any(), n0.clone(), "array []"),
-        /*
         (
             [(-0.3).to_any()].to_array().to_any(),
             (-0.3).to_any(),
