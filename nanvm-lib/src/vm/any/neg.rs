@@ -10,7 +10,7 @@ impl<A: IVm> Neg for Any<A> {
             Ok(Numeric::Number(n)) => {
                 let m = -n;
                 Ok(Unpacked::Number(m).into())
-            },
+            }
             Ok(Numeric::BigInt(bi)) => Ok(Unpacked::BigInt(bi.negate()).into()),
             Err(e) => Err(e),
         }
@@ -20,13 +20,12 @@ impl<A: IVm> Neg for Any<A> {
 #[cfg(test)]
 mod test {
 
-#[test]
-fn test_neg_zero() {
-    let z = 0.0f64;
-    let nz = -z;
-    assert_ne!(z.to_bits(), nz.to_bits());
-}
-
+    #[test]
+    fn test_neg_zero() {
+        let z = 0.0f64;
+        let nz = -z;
+        assert_ne!(z.to_bits(), nz.to_bits());
+    }
 }
 
 // TODO Consider UnaryMinus trait with unary_minus returning Result<Numeric<A>, Any<A>> where
