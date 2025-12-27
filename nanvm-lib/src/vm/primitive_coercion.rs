@@ -8,7 +8,7 @@ use crate::{
 
 use std::result::Result;
 
-const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "Cannot convert to primitive value";
+const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
 
 fn arr_element_to_string<A: IVm>(v: Any<A>) -> Result<String<A>, Any<A>> {
     // https://tc39.es/ecma262/#sec-array.prototype.join: in case the element is nullish, on
