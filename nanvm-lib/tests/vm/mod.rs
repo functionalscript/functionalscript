@@ -6,6 +6,7 @@ use nanvm_lib::{
         ToArray, ToObject, Unpacked,
     },
 };
+use std::ops::Neg;
 
 fn nullish_eq<A: IVm>() {
     let n0: Any<A> = Nullish::Null.to_any();
@@ -405,7 +406,8 @@ fn test_op<A: IVm>(result: Any<A>, expected: Any<A>, test_case: &str) {
             if f.is_nan() {
                 assert_is_nan(result, test_case);
             } else {
-                assert_eq!(result, expected);
+                let res: f64 = result.try_into().unwrap();
+                assert_eq!(f.to_bits(), res.to_bits(), "{test_case}");
             }
         }
         Unpacked::BigInt(_) => {
@@ -475,7 +477,6 @@ fn unary_plus<A: IVm>() {
         ("2.3e2".into(), 2.3e2.to_any(), "string \"2.3e2\""),
         ("a".into(), nan.clone(), "string \"a\""),
         ([].to_array().to_any(), n0.clone(), "array []"),
-        /*
         (
             [(-0.3).to_any()].to_array().to_any(),
             (-0.3).to_any(),
@@ -496,14 +497,13 @@ fn unary_plus<A: IVm>() {
             nan.clone(),
             "array [null,null]",
         ),
-        ([].to_array().to_any(), nan.clone(), "object {{}}"),
-        */
+        ([].to_object().to_any(), nan.clone(), "object {{}}"),
         // TODO: decide on testing objects with valueOf, toString functions.
-        //(
-        //    A::Function::new(0, [0]).to_unknown(),
-        //    nan.clone(),
-        //    "function",
-        //),
+        (
+            Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any(),
+            nan.clone(),
+            "function",
+        ),
     ];
     for (a, expected, test_case) in test_cases.iter() {
         test_op::<A>(
@@ -521,6 +521,57 @@ fn unary_plus<A: IVm>() {
     );
 }
 
+fn unary_minus<A: IVm>() {
+    let nan = f64::NAN.to_any::<A>();
+    let null = Nullish::Null.to_any::<A>();
+    let bi1: BigInt<A> = 1u64.into();
+    let bi_m1: BigInt<A> = (-1i64).into();
+    let test_cases: &[(Any<A>, Any<A>, &str)] = &[
+        (null.clone(), (-0.0).to_any(), "null"),
+        (Nullish::Undefined.to_any(), nan.clone(), "undefined"),
+        (true.to_any(), (-1.0).to_any(), "boolean true"),
+        (false.to_any(), (-0.0).to_any(), "boolean false"),
+        (0.0.to_any::<A>().clone(), (-0.0).to_any(), "number 0"),
+        ((-2.3).to_any(), 2.3.to_any(), "number -2.3"),
+        (2.3.to_any(), (-2.3).to_any(), "number 2.3"),
+        ("".into(), (-0.0).to_any(), "string \"\""),
+        ("0".into(), (-0.0).to_any(), "string \"0\""),
+        ("2.3e2".into(), (-2.3e2).to_any(), "string \"2.3e2\""),
+        ("a".into(), nan.clone(), "string \"a\""),
+        ([].to_array().to_any(), (-0.0).to_any(), "array []"),
+        (bi1.to_any(), bi_m1.to_any(), "bigint 1n"),
+        (
+            [(-0.3).to_any()].to_array().to_any(),
+            0.3.to_any(),
+            "array [-0.3]",
+        ),
+        (
+            [null.clone()].to_array().to_any(),
+            (-0.0).to_any(),
+            "array [null]",
+        ),
+        (
+            [null.clone(), null.clone()].to_array().to_any(),
+            nan.clone(),
+            "array [null,null]",
+        ),
+        (
+            ["0.3".into()].to_array().to_any(),
+            (-0.3).to_any(),
+            "array [\"0.3\"]",
+        ),
+        // TODO: decide on testing objects with valueOf, toString functions.
+        (
+            Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any(),
+            nan.clone(),
+            "function",
+        ),
+    ];
+    for (a, expected, test_case) in test_cases.iter() {
+        test_op::<A>(a.clone().neg().unwrap(), expected.clone(), test_case);
+    }
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -534,6 +585,7 @@ fn gen_test<A: IVm>() {
     number_coerce_to_string::<A>();
     array_coerce_to_string::<A>();
     unary_plus::<A>();
+    unary_minus::<A>();
     //
     format_fn::<A>();
 }

@@ -8,6 +8,7 @@ mod impls;
 mod internal;
 mod join;
 mod number_coercion;
+mod numeric;
 mod object;
 mod primitive;
 mod primitive_coercion;
