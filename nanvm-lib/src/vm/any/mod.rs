@@ -11,7 +11,7 @@ use crate::vm::{
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    IVm, String, ToAny,
+    IVm, String, ToAny, Unpacked,
 };
 
 /// ```
@@ -80,7 +80,11 @@ impl<A: IVm> Any<A> {
             .to_primitive(Some(ToPrimitivePreferredType::Number))?;
         match prim_value {
             Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
-            _ => Ok(Numeric::Number(prim_value.to_any().to_number()?)),
+            _ => {
+                let u: Unpacked<A> = prim_value.into();
+                let any: Any<A> = u.into();
+                Ok(Numeric::Number(any.to_number()?))
+            }
         }
     }
 
