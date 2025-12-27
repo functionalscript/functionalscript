@@ -70,7 +70,6 @@ impl<A: IVm> Any<A> {
     pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
         // https://tc39.es/ecma262/#sec-tonumeric
         let prim_value = self
-            .clone()
             .to_primitive(Some(ToPrimitivePreferredType::Number))?;
         match prim_value {
             Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),
