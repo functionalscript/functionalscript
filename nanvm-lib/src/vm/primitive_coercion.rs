@@ -30,23 +30,9 @@ pub enum ToPrimitivePreferredType {
     String,
 }
 
-fn value_of_obj<A: IVm>(_o: Object<A>) -> Option<Result<Primitive<A>, Any<A>>> {
-    // https://tc39.es/ecma262/#sec-object.prototype.valueof
-    // TODO: implement a call to user-defined "valueOf" method.
-    // For now, we return None since in ECMAScript the default Object.prototype.valueOf value is the
-    // object itself, which is not a primitive.
-    None
-}
-
-fn value_of_arr<A: IVm>(_a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
-    // https://tc39.es/ecma262/#sec-object.prototype.valueof
-    // TODO: implement a call to user-defined "valueOf" method.
-    // For now, we return None since in ECMAScript the default Object.prototype.valueOf value is the
-    // object itself, which is not a primitive.
-    None
-}
-
-fn value_of_fn<A: IVm>(_a: Function<A>) -> Option<Result<Primitive<A>, Any<A>>> {
+fn value_of<A: IVm, T>(
+    _: T, /* Object<A> | Array<A> | Function<A> */
+) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-object.prototype.valueof
     // TODO: implement a call to user-defined "valueOf" method.
     // For now, we return None since in ECMAScript the default Object.prototype.valueOf value is the
@@ -89,7 +75,7 @@ fn obj_to_primitive<A: IVm>(
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
     match preferred_type {
-        ToPrimitivePreferredType::Number => match value_of_obj(o.clone()) {
+        ToPrimitivePreferredType::Number => match value_of(o.clone()) {
             Some(res) => res,
             None => match obj_to_string(o) {
                 Some(res) => res,
@@ -98,7 +84,7 @@ fn obj_to_primitive<A: IVm>(
         },
         ToPrimitivePreferredType::String => match obj_to_string(o.clone()) {
             Some(res) => res,
-            None => match value_of_obj(o) {
+            None => match value_of(o) {
                 Some(res) => res,
                 None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
@@ -111,7 +97,7 @@ fn arr_to_primitive<A: IVm>(
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
     match preferred_type {
-        ToPrimitivePreferredType::Number => match value_of_arr(a.clone()) {
+        ToPrimitivePreferredType::Number => match value_of(a.clone()) {
             Some(res) => res,
             None => match arr_to_string(a) {
                 Some(res) => res,
@@ -120,7 +106,7 @@ fn arr_to_primitive<A: IVm>(
         },
         ToPrimitivePreferredType::String => match arr_to_string(a.clone()) {
             Some(res) => res,
-            None => match value_of_arr(a) {
+            None => match value_of(a) {
                 Some(res) => res,
                 None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
@@ -133,7 +119,7 @@ fn fn_to_primitive<A: IVm>(
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
     match preferred_type {
-        ToPrimitivePreferredType::Number => match value_of_fn(f.clone()) {
+        ToPrimitivePreferredType::Number => match value_of(f.clone()) {
             Some(res) => res,
             None => match fn_to_string(f) {
                 Some(res) => res,
@@ -142,7 +128,7 @@ fn fn_to_primitive<A: IVm>(
         },
         ToPrimitivePreferredType::String => match fn_to_string(f.clone()) {
             Some(res) => res,
-            None => match value_of_fn(f) {
+            None => match value_of(f) {
                 Some(res) => res,
                 None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
