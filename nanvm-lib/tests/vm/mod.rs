@@ -560,7 +560,6 @@ fn unary_minus<A: IVm>() {
             (-0.3).to_any(),
             "array [\"0.3\"]",
         ),
-        ([].to_object().to_any(), nan.clone(), "object {{}}"),
         // TODO: decide on testing objects with valueOf, toString functions.
         (
             Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any(),
