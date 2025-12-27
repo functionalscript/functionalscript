@@ -8,6 +8,8 @@ use crate::{
 
 use std::result::Result;
 
+const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "Cannot convert to primitive value";
+
 fn arr_element_to_string<A: IVm>(v: Any<A>) -> Result<String<A>, Any<A>> {
     // https://tc39.es/ecma262/#sec-array.prototype.join: in case the element is nullish, on
     // joining it is represented as an empty string (see point 7.c: If element is neither undefined
@@ -91,14 +93,14 @@ fn obj_to_primitive<A: IVm>(
             Some(res) => res,
             None => match obj_to_string(o) {
                 Some(res) => res,
-                None => Err("Cannot convert object to primitive".into()),
+                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
         },
         ToPrimitivePreferredType::String => match obj_to_string(o.clone()) {
             Some(res) => res,
             None => match value_of_obj(o) {
                 Some(res) => res,
-                None => Err("Cannot convert object to primitive".into()),
+                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
         },
     }
@@ -113,14 +115,14 @@ fn arr_to_primitive<A: IVm>(
             Some(res) => res,
             None => match arr_to_string(a) {
                 Some(res) => res,
-                None => Err("Cannot convert array to primitive".into()),
+                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
         },
         ToPrimitivePreferredType::String => match arr_to_string(a.clone()) {
             Some(res) => res,
             None => match value_of_arr(a) {
                 Some(res) => res,
-                None => Err("Cannot convert array to primitive".into()),
+                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
         },
     }
@@ -135,14 +137,14 @@ fn fn_to_primitive<A: IVm>(
             Some(res) => res,
             None => match fn_to_string(f) {
                 Some(res) => res,
-                None => Err("Cannot convert function to primitive".into()),
+                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
         },
         ToPrimitivePreferredType::String => match fn_to_string(f.clone()) {
             Some(res) => res,
             None => match value_of_fn(f) {
                 Some(res) => res,
-                None => Err("Cannot convert function to primitive".into()),
+                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
         },
     }
