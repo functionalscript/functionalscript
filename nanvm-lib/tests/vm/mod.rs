@@ -522,24 +522,23 @@ fn unary_plus<A: IVm>() {
 }
 
 fn unary_minus<A: IVm>() {
-    let n0 = 0.0.to_any::<A>();
     let nan = f64::NAN.to_any::<A>();
     let null = Nullish::Null.to_any::<A>();
     let bi1: BigInt<A> = 1u64.into();
     let bi_m1: BigInt<A> = (-1i64).into();
     let test_cases: &[(Any<A>, Any<A>, &str)] = &[
-        (null.clone(), n0.clone(), "null"),
+        (null.clone(), (-0.0).to_any(), "null"),
         (Nullish::Undefined.to_any(), nan.clone(), "undefined"),
         (true.to_any(), (-1.0).to_any(), "boolean true"),
-        (false.to_any(), n0.clone(), "boolean false"),
-        (n0.clone(), (-0.0).to_any(), "number 0"),
+        (false.to_any(), (-0.0).to_any(), "boolean false"),
+        (0.0.to_any::<A>().clone(), (-0.0).to_any(), "number 0"),
         ((-2.3).to_any(), 2.3.to_any(), "number -2.3"),
         (2.3.to_any(), (-2.3).to_any(), "number 2.3"),
-        ("".into(), n0.clone(), "string \"\""),
-        ("0".into(), n0.clone(), "string \"0\""),
+        ("".into(), (-0.0).to_any(), "string \"\""),
+        ("0".into(), (-0.0).to_any(), "string \"0\""),
         ("2.3e2".into(), (-2.3e2).to_any(), "string \"2.3e2\""),
         ("a".into(), nan.clone(), "string \"a\""),
-        ([].to_array().to_any(), n0.clone(), "array []"),
+        ([].to_array().to_any(), (-0.0).to_any(), "array []"),
         (bi1.to_any(), bi_m1.to_any(), "bigint 1n"),
         (
             [(-0.3).to_any()].to_array().to_any(),
@@ -548,7 +547,7 @@ fn unary_minus<A: IVm>() {
         ),
         (
             [null.clone()].to_array().to_any(),
-            n0.clone(),
+            (-0.0).to_any(),
             "array [null]",
         ),
         (
