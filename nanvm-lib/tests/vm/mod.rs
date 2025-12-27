@@ -475,7 +475,6 @@ fn unary_plus<A: IVm>() {
         ("2.3e2".into(), 2.3e2.to_any(), "string \"2.3e2\""),
         ("a".into(), nan.clone(), "string \"a\""),
         ([].to_array().to_any(), n0.clone(), "array []"),
-        /*
         (
             [(-0.3).to_any()].to_array().to_any(),
             (-0.3).to_any(),
@@ -496,14 +495,13 @@ fn unary_plus<A: IVm>() {
             nan.clone(),
             "array [null,null]",
         ),
-        ([].to_array().to_any(), nan.clone(), "object {{}}"),
-        */
+        ([].to_object().to_any(), nan.clone(), "object {{}}"),
         // TODO: decide on testing objects with valueOf, toString functions.
-        //(
-        //    A::Function::new(0, [0]).to_unknown(),
-        //    nan.clone(),
-        //    "function",
-        //),
+        (
+            Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any(),
+            nan.clone(),
+            "function",
+        ),
     ];
     for (a, expected, test_case) in test_cases.iter() {
         test_op::<A>(

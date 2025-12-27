@@ -1,6 +1,10 @@
 use crate::{
     nullish::Nullish,
-    vm::{any::Any, dispatch::Dispatch, join::Join, Array, BigInt, Function, IVm, Object, String},
+    vm::{
+        any::Any, dispatch::Dispatch, primitive::Primitive,
+        primitive_coercion::ToPrimitivePreferredType, Array, BigInt, Function, IVm, Object, String,
+        ToAny,
+    },
 };
 
 /// Coerces the value to a `String16<A>`, possibly producing an error result.
@@ -12,6 +16,23 @@ use crate::{
 /// Notes:
 /// 1. It can throw an error. For example: `{ toString: () => { throw 0 } } + ''`
 pub struct StringCoercion;
+
+fn any_to_string<A: IVm>(a: Any<A>) -> Result<String<A>, Any<A>> {
+    // https://tc39.es/ecma262/#sec-tostring - starting from point 10:
+    // 10. Let primValue be ? ToPrimitive(argument, STRING).
+    // (here we call to_primitive with preferred type String)
+    // 11. Assert: primValue is not an Object.
+    // (handled by to_primitive)
+    // 12. Return ? ToString(primValue).
+    // (handled by calls to relevant methods of StringCoercion)
+    match a.to_primitive(Some(ToPrimitivePreferredType::String))? {
+        Primitive::Nullish(n) => StringCoercion.nullish(n),
+        Primitive::Boolean(b) => StringCoercion.bool(b),
+        Primitive::Number(n) => StringCoercion.number(n),
+        Primitive::String(s) => StringCoercion.string(s),
+        Primitive::BigInt(bi) => StringCoercion.bigint(bi),
+    }
+}
 
 impl<A: IVm> Dispatch<A> for StringCoercion {
     type Result = Result<String<A>, Any<A>>;
@@ -48,18 +69,16 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
         to_result(&format!("{v:?}"))
     }
 
-    fn object(self, _: Object<A>) -> Self::Result {
-        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        to_result("[object Object]")
+    fn object(self, v: Object<A>) -> Self::Result {
+        any_to_string(v.to_any())
     }
 
     fn array(self, v: Array<A>) -> Self::Result {
-        v.into_iter().map(|v| v.to_string()).join(",".into())
+        any_to_string(v.to_any())
     }
 
-    fn function(self, _: Function<A>) -> Self::Result {
-        // TODO: invoke user-defined methods Symbol.toPrimitive, toString, valueOf.
-        to_result("[object Function]")
+    fn function(self, v: Function<A>) -> Self::Result {
+        any_to_string(v.to_any())
     }
 }
 
