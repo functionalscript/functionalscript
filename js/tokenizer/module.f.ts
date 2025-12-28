@@ -3,7 +3,7 @@ import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../.
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.ts'
 import { at, fromEntries, type Entry } from '../../types/ordered_map/module.f.ts'
 import { one, type Range as NumberRange } from '../../types/range/module.f.ts'
-import { type BigFloat } from '../../types/bigfloat/module.f.ts'
+import type { BigFloat } from '../../types/bigfloat/module.f.ts'
 import {
     range,
     //
