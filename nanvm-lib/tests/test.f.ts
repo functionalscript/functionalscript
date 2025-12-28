@@ -8,9 +8,11 @@ const nis = (a: unknown) => (b: unknown): void => {
     if (is(a, b)) { } else { throw [a, 'is', b] }
 }
 
+const { isNaN } = Number;
+
 const nan_res = (op: (n: unknown) => unknown) => (n: unknown): void => {
     const result = op(n);
-    if (!Number.isNaN(result)) {
+    if (!isNaN(result)) {
         throw result
     }
 }
