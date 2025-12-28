@@ -1,14 +1,14 @@
-const is = (a: unknown) => (b: unknown): void => {
-    if (Object.is(a, b)) { } else { throw [a, 'is', b] }
+const { is } = Object;
+
+const ois = (a: unknown) => (b: unknown): void => {
+    if (is(a, b)) { } else { throw [a, 'is', b] }
 }
 
-const nis = (a: unknown) => (b: unknown): void => {
-    if (Object.is(a, b)) { } else { throw [a, 'is', b] }
-}
+const { isNaN } = Number;
 
-const nan_res = (op: (n: unknown) => unknown) => (n: unknown): void => {
+const nanRes = (op: (n: unknown) => unknown) => (n: unknown): void => {
     const result = op(n);
-    if (!Number.isNaN(result)) {
+    if (!isNaN(result)) {
         throw result
     }
 }
@@ -45,8 +45,8 @@ export default {
                     n(2.3)(-5.4)
                     n(NaN)(NaN)
                     e(0)(-0)
-                    if (!Object.is(-0, -0)) { throw -0 }
-                    if (Object.is(0, -0)) { throw -0 }
+                    if (!is(-0, -0)) { throw -0 }
+                    if (is(0, -0)) { throw -0 }
                     e(Infinity)(Infinity)
                     e(-Infinity)(-Infinity)
                     n(Infinity)(-Infinity)
@@ -92,32 +92,32 @@ export default {
     },
     unary_plus: () => {
         const op = (n: any) => +n
-        const nan = nan_res(op)
+        const nan = nanRes(op)
         return {
-            null: () => is(op(null))(0),
+            null: () => ois(op(null))(0),
             undefined: () => nan(undefined),
             boolean: {
-                false: () => is(op(false))(0),
-                true: () => is(op(true))(1)
+                false: () => ois(op(false))(0),
+                true: () => ois(op(true))(1)
             },
             number: {
-                zero: () => is(op(0))(0),
-                positive: () => is(op(2.3))(2.3),
-                negative: () => is(op(-2.3))(-2.3)
+                zero: () => ois(op(0))(0),
+                positive: () => ois(op(2.3))(2.3),
+                negative: () => ois(op(-2.3))(-2.3)
             },
             string: {
-                empty: () => is(op(""))(0),
-                zero: () => is(op("0"))(0),
-                positive: () => is(op("2.3"))(2.3),
+                empty: () => ois(op(""))(0),
+                zero: () => ois(op("0"))(0),
+                positive: () => ois(op("2.3"))(2.3),
                 nan: () => nan("a")
             },
             bigint: {
                 throw: () => op(0n),
             },
             array: {
-                empty: () => is(op([]))(0),
-                single_number: () => is(op([2.3]))(2.3),
-                single_string: () => is(op(["-2.3"]))(-2.3),
+                empty: () => ois(op([]))(0),
+                single_number: () => ois(op([2.3]))(2.3),
+                single_string: () => ois(op(["-2.3"]))(-2.3),
                 multiple: () => nan([null, null])
             },
             object: {
@@ -129,33 +129,33 @@ export default {
     },
     unary_minus: () => {
         const op = (n: any) => -n
-        const nan = nan_res(op)
+        const nan = nanRes(op)
         return {
-            null: () => is(op(null))(-0),
+            null: () => ois(op(null))(-0),
             undefined: () => nan(undefined),
             boolean: {
-                false: () => is(op(false))(-0),
-                true: () => is(op(true))(-1)
+                false: () => ois(op(false))(-0),
+                true: () => ois(op(true))(-1)
             },
             number: {
-                zero: () => is(op(0))(-0),
-                positive: () => is(op(2.3))(-2.3),
-                negative: () => is(op(-2.3))(2.3)
+                zero: () => ois(op(0))(-0),
+                positive: () => ois(op(2.3))(-2.3),
+                negative: () => ois(op(-2.3))(2.3)
             },
             string: {
-                empty: () => is(op(""))(-0),
-                zero: () => is(op("0"))(-0),
-                positive: () => is(op("2.3"))(-2.3),
+                empty: () => ois(op(""))(-0),
+                zero: () => ois(op("0"))(-0),
+                positive: () => ois(op("2.3"))(-2.3),
                 nan: () => nan("a")
             },
             bigint: {
-                positive: () => is(op(1n))(-1n),
-                negative: () => is(op(-1n))(1n),
+                positive: () => ois(op(1n))(-1n),
+                negative: () => ois(op(-1n))(1n),
             },
             array: {
-                empty: () => is(op([]))(-0),
-                single_number: () => is(op([2.3]))(-2.3),
-                single_string: () => is(op(["-2.3"]))(2.3),
+                empty: () => ois(op([]))(-0),
+                single_number: () => ois(op([2.3]))(-2.3),
+                single_string: () => ois(op(["-2.3"]))(2.3),
                 multiple: () => nan([null, null])
             },
             object: {
