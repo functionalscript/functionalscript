@@ -4,13 +4,9 @@ const ois = (a: unknown) => (b: unknown): void => {
     if (is(a, b)) { } else { throw [a, 'is', b] }
 }
 
-const nis = (a: unknown) => (b: unknown): void => {
-    if (is(a, b)) { } else { throw [a, 'is', b] }
-}
-
 const { isNaN } = Number;
 
-const nan_res = (op: (n: unknown) => unknown) => (n: unknown): void => {
+const nanRes = (op: (n: unknown) => unknown) => (n: unknown): void => {
     const result = op(n);
     if (!isNaN(result)) {
         throw result
@@ -49,8 +45,8 @@ export default {
                     n(2.3)(-5.4)
                     n(NaN)(NaN)
                     e(0)(-0)
-                    if (!Object.is(-0, -0)) { throw -0 }
-                    if (Object.is(0, -0)) { throw -0 }
+                    if (!is(-0, -0)) { throw -0 }
+                    if (is(0, -0)) { throw -0 }
                     e(Infinity)(Infinity)
                     e(-Infinity)(-Infinity)
                     n(Infinity)(-Infinity)
@@ -96,7 +92,7 @@ export default {
     },
     unary_plus: () => {
         const op = (n: any) => +n
-        const nan = nan_res(op)
+        const nan = nanRes(op)
         return {
             null: () => ois(op(null))(0),
             undefined: () => nan(undefined),
@@ -133,7 +129,7 @@ export default {
     },
     unary_minus: () => {
         const op = (n: any) => -n
-        const nan = nan_res(op)
+        const nan = nanRes(op)
         return {
             null: () => ois(op(null))(-0),
             undefined: () => nan(undefined),
