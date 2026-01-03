@@ -582,6 +582,19 @@ export default {
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
     ],
+    descentParserWithMeta: [
+        () => {
+            const emptyRule = ''            
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const m = descentParser(numberRule)
+            const mr = m("", [[45, 'minus'], [50, 'two']])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,"minus"]]},{"sequence":[[50,"two"]]}]},true,2]') { throw result }
+        },
+    ],
     repeat: [
         () => {            
             const repeatData: readonly [RuleSet, string] = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
