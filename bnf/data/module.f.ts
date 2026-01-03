@@ -56,11 +56,20 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
 
 type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
-export type DescentMatchRule = (name: string, tag: AstTag, s: readonly CodePoint[], idx: number) => DescentMatchResult
+export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], idx: number) => DescentMatchResult<T>
 
-export type DescentMatchResult = readonly[AstRule, boolean, number]
+export type DescentMatchResult<T> = readonly[AstRuleMeta<T>, boolean, number]
 
-export type DescentMatch = (name: string, s: readonly CodePoint[]) => DescentMatchResult
+export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
+
+export type CodePointMeta<T> = [CodePoint, T]
+
+export type AstSequenceMeta<T> = readonly(AstRuleMeta<T>|CodePointMeta<T>)[]
+
+export type AstRuleMeta<T> = {
+    readonly tag: AstTag,
+    readonly sequence: AstSequenceMeta<T>
+}
 
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
