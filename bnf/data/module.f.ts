@@ -62,7 +62,7 @@ export type DescentMatchResult<T> = readonly[AstRuleMeta<T>, boolean, number]
 
 export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
 
-export type CodePointMeta<T> = [CodePoint, T]
+export type CodePointMeta<T> = readonly[CodePoint, T]
 
 export type AstSequenceMeta<T> = readonly(AstRuleMeta<T>|CodePointMeta<T>)[]
 
