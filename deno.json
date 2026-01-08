@@ -5,6 +5,7 @@
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
     "./bnf/module.f.ts": "./bnf/module.f.ts",
+    "./cas/module.f.ts": "./cas/module.f.ts",
     "./ci/module.f.ts": "./ci/module.f.ts",
     "./ci/module.ts": "./ci/module.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
@@ -50,6 +51,7 @@
     "./types/btree/set/module.f.ts": "./types/btree/set/module.f.ts",
     "./types/btree/types/module.f.ts": "./types/btree/types/module.f.ts",
     "./types/byte_set/module.f.ts": "./types/byte_set/module.f.ts",
+    "./types/cbase32/module.f.ts": "./types/cbase32/module.f.ts",
     "./types/function/compare/module.f.ts": "./types/function/compare/module.f.ts",
     "./types/function/module.f.ts": "./types/function/module.f.ts",
     "./types/function/operator/module.f.ts": "./types/function/operator/module.f.ts",
