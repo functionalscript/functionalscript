@@ -1,11 +1,18 @@
 import { stringify } from '../../json/module.f.ts'
-import { stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
-import { toArray } from '../../types/list/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
-import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser } from './module.f.ts'
+import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
+
+const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
+
+const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]): DescentMatchResult<unknown> => {
+    const cpm = toArray(map(mapCodePoint)(cp))
+    return m(name, cpm)
+}
 
 export default {
     toData: [
@@ -395,35 +402,35 @@ export default {
         () => {
             const emptyRule = ''
             const m = descentParser(emptyRule)
-            const mr = m("", [65, 70])
+            const mr = descentParserCpOnly(m, "", [65, 70])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},true,0]') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
             const m = descentParser(terminalRangeRule)
-            const mr = m("", [65])
+            const mr = descentParserCpOnly(m, "", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[65]},true,1]') { throw result }       
+            if (result !== '[{"sequence":[[65,null]]},true,1]') { throw result }       
         },
         () => {
             const terminalRangeRule = range('AF')
             const m = descentParser(terminalRangeRule)
-            const mr = m("", [64])
+            const mr =descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,0]') { throw result }       
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = descentParser(variantRule)
-            const mr = m("", [65])
+            const mr = descentParserCpOnly(m, "", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"tag":"a","sequence":[65]},true,1]') { throw result }
+            if (result !== '[{"tag":"a","sequence":[[65,null]]},true,1]') { throw result }
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = descentParser(variantRule)
-            const mr = m("", [64])
+            const mr = descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,0]') { throw result }
         },
@@ -439,21 +446,21 @@ export default {
             const emptyRule = ''
             const variantRule = { 'e': emptyRule, 'a': range('AA')}
             const m = descentParser(variantRule)
-            const mr = m("", [64])
+            const mr = descentParserCpOnly(m, "", [64])
             const result = JSON.stringify(mr)
             if (result !== '[{"tag":"e","sequence":[]},true,0]') { throw result }
         },
         () => {
             const stringRule = 'AB'
             const m = descentParser(stringRule)
-            const mr = m("", [65,66])
+            const mr = descentParserCpOnly(m, "", [65,66])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"sequence":[65]},{"sequence":[66]}]},true,2]') { throw result }
+            if (result !== '[{"sequence":[{"sequence":[[65,null]]},{"sequence":[[66,null]]}]},true,2]') { throw result }
         },
         () => {
             const stringRule = 'AB'
             const m = descentParser(stringRule)
-            const mr = m("", [65,67])
+            const mr = descentParserCpOnly(m, "", [65,67])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[]},false,0]') { throw result }
         },
@@ -464,9 +471,9 @@ export default {
             const digitRule = range('09')
             const numberRule = [optionalMinusRule, digitRule]
             const m = descentParser(numberRule)
-            const mr = m("", [50])
+            const mr = descentParserCpOnly(m, "", [50])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[50]}]},true,1]') { throw result }
+            if (result !== '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[[50,null]]}]},true,1]') { throw result }
         },       
         () => {
             const emptyRule = ''            
@@ -475,9 +482,9 @@ export default {
             const digitRule = range('09')
             const numberRule = [optionalMinusRule, digitRule]
             const m = descentParser(numberRule)
-            const mr = m("", [45,50])
+            const mr = descentParserCpOnly(m, "", [45,50])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[{"tag":"minus","sequence":[45]},{"sequence":[50]}]},true,2]') { throw result }
+            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,null]]},{"sequence":[[50,null]]}]},true,2]') { throw result }
         },
         () => {
             const emptyRule = ''            
@@ -495,7 +502,7 @@ export default {
 
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
-                const mr = m('', cp)
+                const mr = descentParserCpOnly(m, '', cp)
                 const success = mr[1] && mr[2] === cp.length
                 if (success !== expected) {
                     throw mr
@@ -528,7 +535,7 @@ export default {
 
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
-                const mr = m('value', cp)
+                const mr = descentParserCpOnly(m, 'value', cp)
                 const success = mr[1] && mr[2] === cp.length
                 if (success !== expected) {
                     throw mr
@@ -546,7 +553,7 @@ export default {
             
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
-                const mr = m('', cp)
+                const mr = descentParserCpOnly(m, '', cp)
                 const success = mr[1] && mr[2] === cp.length
                 if (success !== expected) {
                     throw mr
@@ -574,6 +581,19 @@ export default {
             expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
         }
+    ],
+    descentParserWithMeta: [
+        () => {
+            const emptyRule = ''            
+            const minusRule = range('--')
+            const optionalMinusRule = { 'none': emptyRule, 'minus': minusRule}
+            const digitRule = range('09')
+            const numberRule = [optionalMinusRule, digitRule]
+            const m = descentParser(numberRule)
+            const mr = m("", [[45, 'minus'], [50, 'two']])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[{"tag":"minus","sequence":[[45,"minus"]]},{"sequence":[[50,"two"]]}]},true,2]') { throw result }
+        },
     ],
     repeat: [
         () => {            

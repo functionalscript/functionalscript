@@ -56,11 +56,20 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
 
 type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
-export type DescentMatchRule = (name: string, tag: AstTag, s: readonly CodePoint[], idx: number) => DescentMatchResult
+export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], idx: number) => DescentMatchResult<T>
 
-export type DescentMatchResult = readonly[AstRule, boolean, number]
+export type DescentMatchResult<T> = readonly[AstRuleMeta<T>, boolean, number]
 
-export type DescentMatch = (name: string, s: readonly CodePoint[]) => DescentMatchResult
+export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
+
+export type CodePointMeta<T> = readonly[CodePoint, T]
+
+export type AstSequenceMeta<T> = readonly(AstRuleMeta<T>|CodePointMeta<T>)[]
+
+export type AstRuleMeta<T> = {
+    readonly tag: AstTag,
+    readonly sequence: AstSequenceMeta<T>
+}
 
 /**
  * Represents a parsed Abstract Syntax Tree (AST) sequence.
@@ -304,7 +313,7 @@ export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap
     return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
-export const descentParser = (fr: FRule): DescentMatch => {
+export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     const data = toData(fr)
     const emptyTagMap = createEmptyTagMap(data)
 
@@ -313,9 +322,9 @@ export const descentParser = (fr: FRule): DescentMatch => {
         return res === false ? undefined : res
     }
 
-    const f: DescentMatchRule = (name, tag, cp, idx): DescentMatchResult => {
-        const mrSuccess = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, true, idx]
-        const mrFail = (tag: AstTag, sequence: AstSequence, idx: number): DescentMatchResult => [{tag, sequence}, false, idx]        
+    const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
+        const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, true, idx]
+        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, false, idx]        
 
         const rule = data[0][name]
         if (typeof rule === 'number') {
@@ -326,12 +335,12 @@ export const descentParser = (fr: FRule): DescentMatch => {
 
             const cpi = cp[idx]
             const range = rangeDecode(rule)            
-            if (rangeContains(range)(cpi)) {
+            if (rangeContains(range)(cpi[0])) {
                 return mrSuccess(tag, [cpi], idx + 1)
             }
             return mrFail(emptyTag, [], idx)
         } else if (rule instanceof Array) {
-            let seq: AstSequence = []
+            let seq: AstSequenceMeta<T> = []
             let tidx = idx
             for (const item of rule) {                
                 const m = f(item, undefined, cp, tidx)
@@ -360,7 +369,7 @@ export const descentParser = (fr: FRule): DescentMatch => {
         }
     }
 
-    const match: DescentMatch = (name, cp): DescentMatchResult => {
+    const match: DescentMatch<T> = (name, cp): DescentMatchResult<T> => {
         return f(name, undefined, cp, 0)
     }
     
