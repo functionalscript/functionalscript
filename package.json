@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "type": "module",
   "files": [
     "**/*.js",
@@ -12,8 +12,7 @@
     "test20": "npm run prepack && node --test",
     "test": "tsc && node --test --experimental-strip-types --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "index": "node ./dev/index/module.ts",
-    "fsc": "node ./fsc/module.ts",
-    "fst": "node ./dev/tf/module.ts",
+    "fst": "npm run fjs -- t",
     "fjs": "node ./fjs/module.ts",
     "ci-update": "node ./ci/module.ts",
     "update": "git clean -fdx && npm install && npm run index && npm run ci-update"
@@ -22,8 +21,6 @@
     "node": ">=20"
   },
   "bin": {
-    "fsc": "fsc/module.js",
-    "fst": "dev/tf/module.js",
     "fjs": "fjs/module.js"
   },
   "repository": {

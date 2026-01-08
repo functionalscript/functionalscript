@@ -29,19 +29,19 @@ Install FunctionalScript via npm:
 npm install functionalscript
 ```
 
-The FunctionalScript compiler (`fsc`) currently supports:
+The FunctionalScript compiler command (`fjs compile`) currently supports:
 
 * `import` statements
 * `const` declarations
 
 It does **not** yet support functions or complex expressions.
 
-Example usage with `fsc`:
+Example usage with `fjs`:
 
 ```bash
-npx fsc example.f.js output.json
+npx fjs compile example.f.js output.json
 # or
-npx fsc example.f.js output.f.js
+npx fjs compile example.f.js output.f.js
 ```
 
 FunctionalScript code can be compiled directly into either JSON or JavaScript without imports.

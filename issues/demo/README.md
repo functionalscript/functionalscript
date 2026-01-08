@@ -82,13 +82,13 @@ Convert `.f.js` files:
 
 ```sh
 # From JSON to FJS
-fsc tree.json _tree.f.js
+fjs compile tree.json _tree.f.js
 
 # To FunctionalScript (FJS)
-fsc data.f.js _data.f.js
+fjs compile data.f.js _data.f.js
 
 # To JSON
-fsc data.f.js _data.json
+fjs compile data.f.js _data.json
 ```
 
 ## 5. Test Framework in FunctionalScript
@@ -113,7 +113,7 @@ export default {
 Run it with:
 
 ```sh
-fst
+fjs t
 ```
 
 ## 6. Roadmap
