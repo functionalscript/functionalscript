@@ -22,7 +22,8 @@
   },
   "bin": {
     "fsc": "fsc/module.js",
-    "fst": "dev/tf/module.js"
+    "fst": "dev/tf/module.js",
+    "fjs": "fjs/module.js"
   },
   "repository": {
     "type": "git",
