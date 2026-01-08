@@ -10,6 +10,10 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 
 If either installation fails, skip all test commands.
 
+## Update
+
+It's recommended to run `npm run update` after changing the source code. 
+
 ## Testing
 
 - Run `npx tsc` to type-check using the repository's version of TypeScript.
