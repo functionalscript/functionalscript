@@ -18,6 +18,10 @@ export const toCBase32 = (v: Vec): string => {
 
 const vec5 = vec(5n)
 
+// TODO: handle properly:
+// - invalid characters
+// - allowed characters in uppercase
+// - allowed characters 'i', 'l', 'o' (and uppercase) mapped to '1', '1', '0' respectively
 export const fromCBase32 = (s: string): Vec => {
     let result: Vec = empty
     for (const c of s) {

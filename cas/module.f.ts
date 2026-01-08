@@ -24,9 +24,10 @@ export const memCas = (): Cas => {
 }
 
 export const fileCas = (io: Io) => (path: string): Cas => {
+    const { readdir } = io.fs.promises;
     const result: Cas ={
         read: async (key: Vec) => {
-            const dir = await io.fs.promises.readdir(path, { withFileTypes: true })
+            const dir = await readdir(path, { withFileTypes: true })
             return todo()
         },
         write: async (key: Vec, value: Vec) => {
@@ -37,4 +38,3 @@ export const fileCas = (io: Io) => (path: string): Cas => {
     }
     return result
 }
-
