@@ -6,7 +6,6 @@ use nanvm_lib::{
         ToArray, ToObject, Unpacked,
     },
 };
-use std::ops::Neg;
 
 fn nullish_eq<A: IVm>() {
     let n0: Any<A> = Nullish::Null.to_any();
@@ -568,7 +567,133 @@ fn unary_minus<A: IVm>() {
         ),
     ];
     for (a, expected, test_case) in test_cases.iter() {
-        test_op::<A>(a.clone().neg().unwrap(), expected.clone(), test_case);
+        test_op::<A>((-a.clone()).unwrap(), expected.clone(), test_case);
+    }
+}
+
+fn mul<A: IVm>() {
+    let n0: Any<A> = 0.0.to_any();
+    let n1: Any<A> = 1.0.to_any();
+    let n_minus1: Any<A> = (-1.0).to_any();
+    let n10: Any<A> = 10.0.to_any();
+    let n_minus10: Any<A> = (-10.0).to_any();
+    let nan: Any<A> = f64::NAN.to_any();
+    let null: Any<A> = Nullish::Null.to_any();
+    let true_: Any<A> = true.to_any();
+    let false_: Any<A> = false.to_any();
+    // let bi0: Any<A> = BigInt::default().to_any();
+    // let bi1: Any<A> = Into::<BigInt<A>>::into(1u64).to_any();
+    // let bi_minus1: Any<A> = Into::<BigInt<A>>::into(-1i64).to_any();
+    // let bi10: Any<A> = Into::<BigInt<A>>::into(10u64).to_any();
+    // let bi_minus10: Any<A> = Into::<BigInt<A>>::into(-10i64).to_any();
+    let test_cases: &[(Any<A>, Any<A>, Any<A>, &str)] = &[
+        (null.clone(), null.clone(), n0.clone(), "null by null"),
+        (null.clone(), n0.clone(), n0.clone(), "null by 0"),
+        (
+            Nullish::Undefined.to_any(),
+            n0.clone(),
+            nan.clone(),
+            "undefined by 0",
+        ),
+        (true_.clone(), n0.clone(), n0.clone(), "boolean true by 0"),
+        (true_.clone(), n1.clone(), n1.clone(), "boolean true by 1"),
+        (
+            true_.clone(),
+            n10.clone(),
+            n10.clone(),
+            "boolean true by 10",
+        ),
+        (false_.clone(), n0.clone(), n0.clone(), "boolean false by 0"),
+        (false_.clone(), n1.clone(), n0.clone(), "boolean false by 1"),
+        (
+            false_.clone(),
+            n10.clone(),
+            n0.clone(),
+            "boolean false by 10",
+        ),
+        (n0.clone(), n0.clone(), n0.clone(), "0 by 0"),
+        (n0.clone(), n1.clone(), n0.clone(), "0 by 1"),
+        (n1.clone(), n1.clone(), n1.clone(), "1 by 1"),
+        (n1.clone(), n_minus1.clone(), n_minus1.clone(), "1 by -1"),
+        (n1.clone(), n10.clone(), n10.clone(), "1 by 10"),
+        (n_minus1.clone(), n10.clone(), n_minus10.clone(), "-1 by 10"),
+        (n10.clone(), n10.clone(), 100.0.to_any(), "10 by 10"),
+        (
+            n_minus10.clone(),
+            n10.clone(),
+            (-100.0).to_any(),
+            "-10 by 10",
+        ),
+        // (bi0.clone(), bi0.clone(), bi0.clone(), "0n by 0n"),
+        // (bi0.clone(), bi1.clone(), bi0.clone(), "0n by 1n"),
+        // (bi1.clone(), bi1.clone(), bi1.clone(), "1n by 1n"),
+        // (
+        //     bi1.clone(),
+        //     bi_minus1.clone(),
+        //     bi_minus1.clone(),
+        //     "1n by -1n",
+        // ),
+        // (bi1.clone(), bi10.clone(), bi10.clone(), "1n by 10n"),
+        // (
+        //     bi_minus1.clone(),
+        //     bi10.clone(),
+        //     Into::<BigInt<A>>::into(-10i64).to_any(),
+        //     "-1n by 10n",
+        // ),
+        // (
+        //     bi10.clone(),
+        //     bi10.clone(),
+        //     Into::<BigInt<A>>::into(100i64).to_any(),
+        //     "10n by 10n",
+        // ),
+        // (
+        //     bi_minus10.clone(),
+        //     bi10.clone(),
+        //     Into::<BigInt<A>>::into(-100i64).to_any(),
+        //     "-10n by 10n",
+        // ),
+        ("".into(), n1.clone(), n0.clone(), "\"\" by 1"),
+        ("10".into(), n1.clone(), n10.clone(), "\"10\" by 1"),
+        ("a".into(), n1.clone(), nan.clone(), "\"a\" by 1"),
+        ("1n".into(), n1.clone(), nan.clone(), "\"1n\" by 1"),
+        ([].to_array().to_any(), n1.clone(), n0.clone(), "[] by 1"),
+        (
+            [n10.clone()].to_array().to_any(),
+            n1.clone(),
+            n10.clone(),
+            "[10] by 1",
+        ),
+        (
+            ["10".into()].to_array().to_any(),
+            n1.clone(),
+            n10.clone(),
+            "[\"10\"] by 1",
+        ),
+        (
+            [n0.clone(), n0.clone()].to_array().to_any(),
+            n1.clone(),
+            nan.clone(),
+            "[\"0,0\"] by 1",
+        ),
+        (
+            [].to_object().to_any(),
+            n1.clone(),
+            nan.clone(),
+            "{{}} by 1",
+        ),
+        // TODO: decide on testing objects with valueOf, toString functions.
+    ];
+    for (a, b, expected, test_case) in test_cases.iter() {
+        test_op::<A>(
+            (a.clone() * b.clone()).unwrap(),
+            expected.clone(),
+            test_case,
+        );
+        test_op::<A>(
+            (b.clone() * a.clone()).unwrap(),
+            expected.clone(),
+            test_case,
+        );
     }
 }
 
@@ -586,6 +711,7 @@ fn gen_test<A: IVm>() {
     array_coerce_to_string::<A>();
     unary_plus::<A>();
     unary_minus::<A>();
+    mul::<A>();
     //
     format_fn::<A>();
 }
