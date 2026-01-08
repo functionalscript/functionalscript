@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.0
+
+- Replace legacy fsc/fst usage with fjs CLI [PR 619](https://github.com/functionalscript/functionalscript/pull/619)
 - Add fjs CLI [PR 618](https://github.com/functionalscript/functionalscript/pull/618)
 - Move the prime field module from `crypto/` to `types/`[PR 602](https://github.com/functionalscript/functionalscript/pull/602)
 - Digital signatures [PR 599](https://github.com/functionalscript/functionalscript/pull/599)

@@ -144,10 +144,10 @@
           "run": "npm install -g ./*.tgz"
         },
         {
-          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "fst"
+          "run": "fjs t"
         },
         {
           "run": "npm uninstall functionalscript -g"
@@ -162,7 +162,10 @@
           "run": "deno task test"
         },
         {
-          "run": "deno task fst"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "deno task fjs t"
         },
         {
           "run": "deno publish --dry-run"
@@ -174,7 +177,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./dev/tf/module.ts"
+          "run": "bun ./fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -312,10 +315,10 @@
           "run": "npm install -g ./*.tgz"
         },
         {
-          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "fst"
+          "run": "fjs t"
         },
         {
           "run": "npm uninstall functionalscript -g"
@@ -330,7 +333,10 @@
           "run": "deno task test"
         },
         {
-          "run": "deno task fst"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "deno task fjs t"
         },
         {
           "run": "deno publish --dry-run"
@@ -342,7 +348,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./dev/tf/module.ts"
+          "run": "bun ./fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -480,10 +486,10 @@
           "run": "npm install -g ./*.tgz"
         },
         {
-          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "fst"
+          "run": "fjs t"
         },
         {
           "run": "npm uninstall functionalscript -g"
@@ -498,7 +504,10 @@
           "run": "deno task test"
         },
         {
-          "run": "deno task fst"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "deno task fjs t"
         },
         {
           "run": "deno publish --dry-run"
@@ -510,7 +519,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./dev/tf/module.ts"
+          "run": "bun ./fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -648,10 +657,10 @@
           "run": "npm install -g ./*.tgz"
         },
         {
-          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "fst"
+          "run": "fjs t"
         },
         {
           "run": "npm uninstall functionalscript -g"
@@ -666,7 +675,10 @@
           "run": "deno task test"
         },
         {
-          "run": "deno task fst"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "deno task fjs t"
         },
         {
           "run": "deno publish --dry-run"
@@ -678,7 +690,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./dev/tf/module.ts"
+          "run": "bun ./fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -822,10 +834,10 @@
           "run": "npm install -g (Get-ChildItem *.tgz).FullName"
         },
         {
-          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "fst"
+          "run": "fjs t"
         },
         {
           "run": "npm uninstall functionalscript -g"
@@ -840,7 +852,10 @@
           "run": "deno task test"
         },
         {
-          "run": "deno task fst"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "deno task fjs t"
         },
         {
           "run": "deno publish --dry-run"
@@ -852,7 +867,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./dev/tf/module.ts"
+          "run": "bun ./fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -987,10 +1002,10 @@
           "run": "npm install -g (Get-ChildItem *.tgz).FullName"
         },
         {
-          "run": "fsc issues/demo/data/tree.json _tree.f.js"
+          "run": "fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "fst"
+          "run": "fjs t"
         },
         {
           "run": "npm uninstall functionalscript -g"
@@ -1005,7 +1020,10 @@
           "run": "deno task test"
         },
         {
-          "run": "deno task fst"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
+        },
+        {
+          "run": "deno task fjs t"
         },
         {
           "run": "deno publish --dry-run"
@@ -1017,7 +1035,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./dev/tf/module.ts"
+          "run": "bun ./fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
