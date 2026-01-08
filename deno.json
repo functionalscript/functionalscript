@@ -24,7 +24,6 @@
     "./djs/transpiler/module.f.ts": "./djs/transpiler/module.f.ts",
     "./fjs/module.f.ts": "./fjs/module.f.ts",
     "./fjs/module.ts": "./fjs/module.ts",
-    "./fsc/module.f.ts": "./fsc/module.f.ts",
     "./fsm/module.f.ts": "./fsm/module.f.ts",
     "./html/module.f.ts": "./html/module.f.ts",
     "./io/module.f.ts": "./io/module.f.ts",
