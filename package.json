@@ -14,6 +14,7 @@
     "index": "node ./dev/index/module.ts",
     "fsc": "node ./fsc/module.ts",
     "fst": "node ./dev/tf/module.ts",
+    "fjs": "node ./fjs/module.ts",
     "ci-update": "node ./ci/module.ts",
     "update": "git clean -fdx && npm install && npm run index && npm run ci-update"
   },
