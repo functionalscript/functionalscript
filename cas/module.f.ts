@@ -1,6 +1,6 @@
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
-import type { Vec } from "../types/bit_vec/module.f.ts"
+import { empty, length, msb, vec, type Vec } from "../types/bit_vec/module.f.ts"
 
 export type Cas = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
@@ -23,11 +23,18 @@ export const memCas = (): Cas => {
     return create();
 }
 
-export const fileCas = (io: Io) => (path: string): Cas => ({
-    read: async (key: Vec) => {
-        const dir = await io.fs.promises.readdir(path, { withFileTypes: true })
-        return todo()
-    },
-    write: async (key: Vec, value: Vec) => todo(),
-    list: async () => todo(),
-})
+export const fileCas = (io: Io) => (path: string): Cas => {
+    const result: Cas ={
+        read: async (key: Vec) => {
+            const dir = await io.fs.promises.readdir(path, { withFileTypes: true })
+            return todo()
+        },
+        write: async (key: Vec, value: Vec) => {
+            todo()
+            return result
+        },
+        list: async () => todo(),
+    }
+    return result
+}
+
