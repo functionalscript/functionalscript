@@ -207,8 +207,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             // publishing
             test({ run: 'npm pack' }),
             test({ run: `npm install -g ${findTgz(v)}` }),
-            test({ run: 'fsc issues/demo/data/tree.json _tree.f.js' }),
-            test({ run: 'fst' }),
+            test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
+            test({ run: 'fjs t' }),
             test({ run: 'npm uninstall functionalscript -g' }),
         ]),
         // Deno
@@ -216,14 +216,15 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             installDeno(v)(a),
             test({ run: 'deno install' }),
             test({ run: 'deno task test' }),
-            test({ run: 'deno task fst' }),
+            test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
+            test({ run: 'deno task fjs t' }),
             test({ run: 'deno publish --dry-run' }),
         ]),
         // Bun
         ...clean([
             installBun(v)(a),
             test({ run: 'bun test --timeout 20000' }),
-            test({ run: 'bun ./dev/tf/module.ts' }),
+            test({ run: 'bun ./fjs/module.ts t' }),
         ]),
     ]
     return toSteps(result)
