@@ -14,8 +14,7 @@ export type Primitive = JsonPrimitive | bigint | undefined
 
 export type Unknown = Primitive | Object | Array
 
-export const compile = ({ console: { error }, fs, process: { argv } }: Io): Promise<number> => {
-    const args = argv.slice(2)
+export const compile = ({ console: { error }, fs }: Io) => (args: readonly string[]): Promise<number> => {
     if (args.length < 2) {
         error('Error: Requires 2 or more arguments')
         return Promise.resolve(1)
