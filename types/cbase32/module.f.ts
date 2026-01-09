@@ -1,4 +1,5 @@
 import { msb, type Vec, length, vec, empty } from "../bit_vec/module.f.ts"
+import { ok, error, type Result } from "../result/module.f.ts"
 
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
 
@@ -18,15 +19,30 @@ export const toCBase32 = (v: Vec): string => {
 
 const vec5 = vec(5n)
 
-// TODO: handle properly:
-// - invalid characters
-// - allowed characters in uppercase
-// - allowed characters 'i', 'l', 'o' (and uppercase) mapped to '1', '1', '0' respectively
-export const fromCBase32 = (s: string): Vec => {
+const normalizeChar = (c: string): string => {
+    const lower = c.toLowerCase()
+    switch (lower) {
+        case 'i': { return '1' }
+        case 'l': { return '1' }
+        case 'o': { return '0' }
+        default: { return lower }
+    }
+}
+
+const toCrockfordIndex = (c: string): Result<number, string> => {
+    const normalized = normalizeChar(c)
+    const index = m.indexOf(normalized)
+    if (index < 0) { return error('invalid crockford base32 character') }
+    return ok(index)
+}
+
+export const fromCBase32 = (s: string): Result<Vec, string> => {
     let result: Vec = empty
     for (const c of s) {
-        const v = vec5(BigInt(m.indexOf(c)))
+        const [kind, index] = toCrockfordIndex(c)
+        if (kind === 'error') { return error(index) }
+        const v = vec5(BigInt(index))
         result = concat(result)(v)
     }
-    return result
+    return ok(result)
 }
