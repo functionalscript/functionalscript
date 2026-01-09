@@ -3,30 +3,29 @@ import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 
-export type KeyValueStore = {
+export type KvStore = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
-    readonly write: (key: Vec, value: Vec) => Promise<KeyValueStore>
+    readonly write: (key: Vec, value: Vec) => Promise<KvStore>
     readonly list: () => Promise<Iterable<Vec>>
 }
 
-export type KeyValue = readonly[Vec, Vec];
+export type Kv = readonly[Vec, Vec];
 
-export const memStore = (): KeyValueStore => {
-    type Store = Map<Vec, Vec>;
-    const create = (...i: readonly KeyValue[]): KeyValueStore => {
+export const memStore = (): KvStore => {
+    const create = (...i: readonly Kv[]): KvStore => {
         const store = new Map(i);
         return {
             read: async (key: Vec) => store.get(key),
-            write: async (...kv: KeyValue) => create(...store, kv),
+            write: async (...kv: Kv) => create(...store, kv),
             list: async () => store.keys(),
         }
     }
     return create();
 }
 
-export const fileStore = (io: Io) => (path: string): KeyValueStore => {
+export const fileStore = (io: Io) => (path: string): KvStore => {
     const { readdir } = io.fs.promises;
-    const result: KeyValueStore ={
+    const result: KvStore ={
         read: async (key: Vec) => {
             const dir = await readdir(path, { withFileTypes: true })
             return todo()
@@ -48,7 +47,7 @@ export type Cas = {
 
 export const cas = (sha2: Sha2) => {
     const compute = computeSync(sha2)
-    const f = ({ read, list, write }: KeyValueStore): Cas => ({
+    const f = ({ read, list, write }: KvStore): Cas => ({
         read,
         write: async (value: Vec) => {
             const hash = compute([value])
