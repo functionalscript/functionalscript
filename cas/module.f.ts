@@ -53,7 +53,10 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
                 return result
             }
             const all = await f(path)
-            return all.map(fromCBase32)
+            return all.flatMap(c => {
+                const [s, v] = fromCBase32(c)
+                return s === 'ok' ? [v] : []
+            })
         },
     }
     return result

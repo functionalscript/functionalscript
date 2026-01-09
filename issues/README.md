@@ -271,13 +271,7 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
-- [ ] 100. Crockford's Base32 should handle properly invalid and all allowed characters.
 - [ ] 101. Monad's IO design.
-- [X] 102. Combine multiple standalone program into one (e.g. `fjs`) with options. For example
-  - `test`/`t`. `fjs t`.
-  - `compile`/`c`. `fjs compile input.f.js output.json`.
-  - `cas`/`s`. `fjs cas store somefile.jpg`.
-- [X] 103. Remove old `fsc` and `fst` and replace it with `fjs <command>`. `npm run fst` can stay but it should call `node fjs/module.ts t`.
 - [X] 104. Update `compile` using passed arguments instead of `withArgs` hack.
 
 ## Language Specification
