@@ -25,6 +25,8 @@ export type MakeDirectoryOptions = {
     readonly recursive?: boolean
 }
 
+export type ReadFile = ((path: string, options: BufferEncoding) => Promise<string>) & ((path: string) => Promise<Uint8Array>)
+
 /**
  * File system operations interface
  * @see https://nodejs.org/api/fs.html
@@ -35,7 +37,7 @@ export type Fs = {
     readonly readFileSync: (path: string, options: BufferEncoding) => string | null
     readonly existsSync: (path: string) => boolean
     readonly promises: {
-        readonly readFile: (path: string, options: BufferEncoding) => Promise<string>
+        readonly readFile: ReadFile
         readonly writeFile: (path: string, data: string, options: BufferEncoding) => Promise<void>
         readonly readdir: (path: string, options: { withFileTypes: true }) => Promise<Dirent[]>
         readonly rm: (path: string, options?: RmOptions) => Promise<void>
