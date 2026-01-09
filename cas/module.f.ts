@@ -2,7 +2,7 @@ import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
-import { fromCBase32 } from "../types/cbase32/module.f.ts"
+import { fromCBase32, toCBase32 } from "../types/cbase32/module.f.ts"
 
 export type KvStore = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
@@ -33,7 +33,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
             return todo()
         },
         write: async (key: Vec, value: Vec) => {
-            todo()
+            const ks = toCBase32(key)
             return result
         },
         list: async () => {
@@ -65,7 +65,7 @@ export type Cas = {
     readonly list: () => Promise<Iterable<Vec>>
 }
 
-export const cas = (sha2: Sha2) => {
+export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
     const compute = computeSync(sha2)
     const f = ({ read, list, write }: KvStore): Cas => ({
         read,
