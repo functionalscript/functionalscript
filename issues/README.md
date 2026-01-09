@@ -1,13 +1,11 @@
 # Issues
 
-- [X] [003-djs](./003-djs.md)
 - [ ] [005-publish](./005-publish.md)
 - [ ] 9. Generating a Website.
 - [ ] 10. Short URL table.
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 16. License in JSR file?
-- [X] [017-djs-extension](./017-djs-extension.md).
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] P5 20. Test framework should be able to run a subset of tests.
 - [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
@@ -41,9 +39,6 @@ require setting a flag when walking through a test free as soon as a node has a 
   struct Any<A: AnyPolicy>(A);
   ```
   This way we can implement operations on it, such as `+`.
-- [x] 34. Refactor unary_plus in interface.rs so the runtime error of unary_plus does not keep a value - that
-logic should be moved to a private free floating helper function (to keep public interface of Any clean).
-- [x] 35. Switch the error case of Any's public functions (like unary_plus) from a custom RuntimeError to Any.
 - [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
 - [ ] 37. Language Design: Currently, FS has no way to store references (objects/functions) in a container with fast search capabilities. Several options:
   - add `Map` to the language
@@ -60,7 +55,6 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 41. BNF should use byte parsing instead of codePoint. In this case, we can parse binary files as well.
 - [ ] 42. Try mixing serializable BNFs.
 - [ ] 43. state-full parser.
-
   ```ts
   const { init, append, end } = parser(ruleMap)
   let state = init
@@ -82,7 +76,6 @@ logic should be moved to a private free floating helper function (to keep public
       ...
   }
   ```
-
 - [ ] 45. [nanenum](../nanvm-lib/src/nanenum.rs) should use new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance)
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
 - [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
@@ -96,9 +89,6 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
-- [X] 61. fix transpile import path
-- [X] 62. `fsc` should be able to detect and parse JSON.
-- [X] 63. `fsc` should be able to output JSON or JS, depends on an extension. If `.json` then JSON, otherwise DJS serializer.
 - [ ] 64. Implement IO as mutable
   ```ts
   type Io<S> = {
@@ -130,13 +120,6 @@ logic should be moved to a private free floating helper function (to keep public
   2. `--js`: always clone mutable objects. bigint and string can be deduplicated.
   3. `--fjs` (default behavior): deduplication of the same objects.
   4. `--ca`: content-addressable deduplication.
-- [ ] 71. Make only one universal executable instead of `fsc` and `fst`. We can leave only `fsc`. Rename it to `fjs`?. Examples:
-  - Compiling:
-      - `fjs compile a.f.js` prints FunctionalScript code to stdout.
-      - `fjs compile a.f.ts a.json` saves JSON.
-      - `fjs compile a.json a.bast` saves BAST.
-  - Testing:
-      - `fjs test` recursively finds and tests all `test.f.ts` and `test.f.js` files (optionally `test.f.mts` and `test.f.mjs`).
 - [ ] 72. A property could be a number, `{ 3e+7: true }`. Exception: no sign is allowed at the beginning (`+`, `-`).
 - [x] [./074-bast-tag.md](./074-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
@@ -189,7 +172,6 @@ logic should be moved to a private free floating helper function (to keep public
 - [ ] 81. Currently, `nanvm_lib` relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits, for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait.
 - [ ] [./082-nanvm.md](./082-nanvm.md).
 - [ ] 83. FSC should support for `#` comments.
-- [X] 84. Implement `isTTY`.
 - [ ] 85. GitHub supports colors, so we should have, at least, three modes:
   - [ ] GitHub: colored log,
   - [ ] no GitHub, isTTY: colored progress bar,
