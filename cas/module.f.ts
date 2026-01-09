@@ -26,14 +26,24 @@ export const memKvStore = (): KvStore => {
 
 const o = { withFileTypes: true } as const
 
+const split = (s: string) => [s.substring(0, 2), s.substring(2)]
+
+const toPath = (key: Vec): string => {
+    const s = toCBase32(key)
+    const [a, bc] = split(s)
+    const [b, c] = split(bc)
+    return `${a}/${b}/${c}`
+}
+
 export const fileKvStore = (io: Io) => (path: string): KvStore => {
     const { readdir } = io.fs.promises;
     const result: KvStore = {
         read: async (key: Vec) => {
+            const p = toPath(key)
             return todo()
         },
         write: async (key: Vec, value: Vec) => {
-            const ks = toCBase32(key)
+            const p = toPath(key)
             return result
         },
         list: async () => {
