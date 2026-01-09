@@ -1,3 +1,4 @@
+import { readFile } from "fs/promises"
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
@@ -36,10 +37,13 @@ const toPath = (key: Vec): string => {
 }
 
 export const fileKvStore = (io: Io) => (path: string): KvStore => {
-    const { readdir } = io.fs.promises;
+    const { readdir } = io.fs.promises
+    const { asyncTryCatch } = io
     const result: KvStore = {
         read: async (key: Vec) => {
             const p = toPath(key)
+            const [s, v] = await asyncTryCatch(() => readFile(`${path}/${p}`))
+            if (s === 'error') { return undefined }
             return todo()
         },
         write: async (key: Vec, value: Vec) => {
