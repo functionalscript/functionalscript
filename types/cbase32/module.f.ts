@@ -29,18 +29,16 @@ const normalizeChar = (c: string): string => {
     }
 }
 
-const toCrockfordIndex = (c: string): Result<number, string> => {
+const toCrockfordIndex = (c: string): number => {
     const normalized = normalizeChar(c)
-    const index = m.indexOf(normalized)
-    if (index < 0) { return error('invalid crockford base32 character') }
-    return ok(index)
+    return m.indexOf(normalized)
 }
 
 export const fromCBase32 = (s: string): Result<Vec, string> => {
     let result: Vec = empty
     for (const c of s) {
-        const [kind, index] = toCrockfordIndex(c)
-        if (kind === 'error') { return error(index) }
+        const index = toCrockfordIndex(c)
+        if (index < 0) { return error('invalid crockford base32 character') }
         const v = vec5(BigInt(index))
         result = concat(result)(v)
     }
