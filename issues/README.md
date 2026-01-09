@@ -277,8 +277,8 @@ logic should be moved to a private free floating helper function (to keep public
   - `test`/`t`. `fjs t`.
   - `compile`/`c`. `fjs compile input.f.js output.json`.
   - `cas`/`s`. `fjs cas store somefile.jpg`.
-- [ ] 103. Remove old `fsc` and `fst` and replace it with `fjs <command>`. `npm run fst` can stay but it should call `node fjs/module.ts t`.
-- [ ] 104. Update `compile` using passed arguments instead of `withArgs` hack.
+- [X] 103. Remove old `fsc` and `fst` and replace it with `fjs <command>`. `npm run fst` can stay but it should call `node fjs/module.ts t`.
+- [X] 104. Update `compile` using passed arguments instead of `withArgs` hack.
 
 ## Language Specification
 
