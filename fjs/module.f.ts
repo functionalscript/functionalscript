@@ -3,6 +3,7 @@ import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'
 
 export const main = (io: Io): Promise<number> => {
+    const { error } = io.console
     const [command, ...rest] = io.process.argv.slice(2)
     switch (command) {
         case 'test':
@@ -13,13 +14,13 @@ export const main = (io: Io): Promise<number> => {
             return compile(io)(rest)
         case 'cas':
         case 's':
-            io.console.error('cas command is not implemented yet')
+            error('cas command is not implemented yet')
             return Promise.resolve(1)
         case undefined:
-            io.console.error('Error: command is required')
+            error('Error: command is required')
             return Promise.resolve(1)
         default:
-            io.console.error(`Error: Unknown command "${command}"`)
+            error(`Error: Unknown command "${command}"`)
             return Promise.resolve(1)
     }
 }
