@@ -2,6 +2,7 @@ import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
+import { fromCBase32 } from "../types/cbase32/module.f.ts"
 
 export type KvStore = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
@@ -11,7 +12,7 @@ export type KvStore = {
 
 export type Kv = readonly[Vec, Vec];
 
-export const memStore = (): KvStore => {
+export const memKvStore = (): KvStore => {
     const create = (...i: readonly Kv[]): KvStore => {
         const store = new Map(i);
         return {
@@ -23,18 +24,37 @@ export const memStore = (): KvStore => {
     return create();
 }
 
-export const fileStore = (io: Io) => (path: string): KvStore => {
+const o = { withFileTypes: true } as const
+
+export const fileKvStore = (io: Io) => (path: string): KvStore => {
     const { readdir } = io.fs.promises;
-    const result: KvStore ={
+    const result: KvStore = {
         read: async (key: Vec) => {
-            const dir = await readdir(path, { withFileTypes: true })
             return todo()
         },
         write: async (key: Vec, value: Vec) => {
             todo()
             return result
         },
-        list: async () => todo(),
+        list: async () => {
+            const f = async (p: string): Promise<readonly string[]> => {
+                const dir = await readdir(p, o)
+                let result: readonly string[] = []
+                for (const entry of dir) {
+                    const { name } = entry
+                    if (entry.isFile()) {
+                        result = [...result, name]
+                        continue
+                    }
+                    // directory
+                    const sub = await f(`${p}/${name}`)
+                    result = [...result, ...sub.map(x => `${name}${x}`)]
+                }
+                return result
+            }
+            const all = await f(path)
+            return all.map(fromCBase32)
+        },
     }
     return result
 }
