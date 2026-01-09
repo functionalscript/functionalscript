@@ -29,10 +29,7 @@ const normalizeChar = (c: string): string => {
     }
 }
 
-const toCrockfordIndex = (c: string): number => {
-    const normalized = normalizeChar(c)
-    return m.indexOf(normalized)
-}
+const toCrockfordIndex = (c: string): number => m.indexOf(normalizeChar(c))
 
 export const fromCBase32 = (s: string): Result<Vec, string> => {
     let result: Vec = empty
