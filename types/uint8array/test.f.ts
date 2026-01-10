@@ -1,14 +1,11 @@
 import { vec } from '../bit_vec/module.f.ts'
 import { toVec, fromVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
-
-const assertEq = <T>(a: T, b: T) => {
-    if (a !== b) { throw [a, b] }
-}
+import { strictEqual } from '../function/operator/module.f.ts'
+import { equal, fromArrayLike } from '../list/module.f.ts'
 
 const assertArrayEq = (a: Uint8Array, b: Uint8Array) => {
-    assertEq(a.length, b.length)
-    for (let i = 0; i < a.length; i += 1) {
-        assertEq(a[i], b[i])
+    if (!equal(strictEqual)(fromArrayLike(a))(fromArrayLike(b))) {
+        throw [a, b]
     }
 }
 
