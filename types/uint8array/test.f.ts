@@ -3,6 +3,10 @@ import { toVec, fromVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import { equal, fromArrayLike } from '../list/module.f.ts'
 
+const assertEq = <T>(a: T, b: T) => {
+    if (a !== b) { throw [a, b] }
+}
+
 const assertArrayEq = (a: Uint8Array, b: Uint8Array) => {
     if (!equal(strictEqual)(fromArrayLike(a))(fromArrayLike(b))) {
         throw [a, b]
