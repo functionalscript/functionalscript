@@ -254,7 +254,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
 - [ ] 101. Monad's IO design.
-- [ ] 105. Create the `types/uint8array/module.f.ts` that can convert:
+- [X] 105. Create the `types/uint8array/module.f.ts` that can convert:
   - `UInt8Array` to `Vec` from `bit_vec`.
   - `Vec` to `UInt8Array`.
 - [ ] 106. Add conversion from CBase32 to Vec of a specific length.
