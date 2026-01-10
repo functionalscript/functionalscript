@@ -51,7 +51,7 @@ const trampoline = <T>(list: List<T>): NotLazy<T> => {
 }
 
 export const next = <T>(head: List<T>): Result<T> => {
-    let tail: typeof head = null
+    let tail: List<T> = null
     while (true) {
         head = trampoline(head)
 
