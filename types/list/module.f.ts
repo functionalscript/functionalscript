@@ -36,10 +36,16 @@ type Concat<T> = {
     readonly tail: List<T>
 }
 
-const fromArray = <T>(array: readonly T[]): Result<T> => {
+export const fromArray = <T>(array: readonly T[]): Result<T> => {
     const at = (i: number): Result<T> =>
         i < array.length ? { first: array[i], tail: () => at(i + 1) } : null
     return at(0)
+}
+
+export const fromArrayLike = <T>(length: number) => (at: (i: number) => T): Result<T> => {
+    const step = (i: number): Result<T> =>
+        i < length ? { first: at(i), tail: () => step(i + 1) } : null
+    return step(0)
 }
 
 export const concat = <T>(head: List<T>) => (tail: List<T>): List<T> =>
