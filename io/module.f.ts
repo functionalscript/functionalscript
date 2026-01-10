@@ -1,12 +1,6 @@
 import type { Result } from '../types/result/module.f.ts'
 
 /**
- * Standard Node.js buffer encoding type
- * @see https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings
- */
-export type BufferEncoding = 'utf8'
-
-/**
  * Represents a directory entry (file or directory) in the filesystem
  * @see https://nodejs.org/api/fs.html#class-fsdirent
  */
@@ -25,7 +19,7 @@ export type MakeDirectoryOptions = {
     readonly recursive?: boolean
 }
 
-export type ReadFile = ((path: string, options: BufferEncoding) => Promise<string>) & ((path: string) => Promise<Uint8Array>)
+export type ReadFile = (path: string) => Promise<Uint8Array>
 
 /**
  * File system operations interface
@@ -34,11 +28,11 @@ export type ReadFile = ((path: string, options: BufferEncoding) => Promise<strin
 export type Fs = {
     readonly writeSync: (fd:number, s: string) => void
     readonly writeFileSync: (file: string, data: string) => void
-    readonly readFileSync: (path: string, options: BufferEncoding) => string | null
+    readonly readFileSync: (path: string) => string | null
     readonly existsSync: (path: string) => boolean
     readonly promises: {
         readonly readFile: ReadFile
-        readonly writeFile: (path: string, data: string, options: BufferEncoding) => Promise<void>
+        readonly writeFile: (path: string, data: string) => Promise<void>
         readonly readdir: (path: string, options: { withFileTypes: true }) => Promise<Dirent[]>
         readonly rm: (path: string, options?: RmOptions) => Promise<void>
         readonly mkdir: (path: string, options?: MakeDirectoryOptions) => Promise<string|undefined>
