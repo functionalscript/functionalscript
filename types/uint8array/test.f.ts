@@ -1,5 +1,11 @@
+import { vec } from '../bit_vec/module.f.ts'
 import { toVec, fromVec } from './module.f.ts'
 
+    },
+    unalignedLength: () => {
+        const input = vec(4n)(0xFn)
+        const output = fromVec(input)
+        assertArrayEq(output, Uint8Array.from([0xF0]))
 const assertEq = (a: number, b: number) => {
     if (a !== b) { throw [a, b] }
 }
