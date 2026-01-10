@@ -3,7 +3,9 @@
  *
  * @module
  */
+import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { msb, u8List, u8ListToVec, type Vec } from "../bit_vec/module.f.ts"
+import { compose } from "../function/module.f.ts"
 import { fromArrayLike, iterable } from "../list/module.f.ts"
 
 const u8ListToVecMsb = u8ListToVec(msb)
@@ -20,3 +22,9 @@ export const toVec = (input: Uint8Array): Vec =>
  */
 export const fromVec = (input: Vec): Uint8Array =>
     Uint8Array.from(iterable(u8ListMsb(input)))
+
+export const decodeUtf8: (input: Uint8Array) => string
+    = compose(toVec)(utf8ToString)
+
+export const encodeUtf8: (input: string) => Uint8Array
+    = compose(utf8)(fromVec)
