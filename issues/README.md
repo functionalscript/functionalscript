@@ -260,7 +260,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [ ] 106. Add conversion from CBase32 to Vec of a specific length.
 - [ ] 107. Remove UTF-8 encoding function signatures from `Io`. Always read/write binary data and use algorithms to decode/encode to UTF-8.
 - [ ] 108. Introduce type `Option<T> = (readonly[T]) | (readonly[])` as an alternative to `Nullable`. The main reason is compatibility with `flatMap`.
-- [ ] 109. Replace `Result<>` in `FromCBase32` with `Option<>`.
+- [ ] 109. Replace `Result<>` in `fromCBase32` with `Nullable<>`.
 
 ## Language Specification
 
