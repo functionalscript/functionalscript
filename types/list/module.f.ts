@@ -36,7 +36,7 @@ type Concat<T> = {
     readonly tail: List<T>
 }
 
-const fromArray = <T>(array: readonly T[]): Result<T> => {
+export const fromArrayLike = <T>(array: ArrayLike<T>): Result<T> => {
     const at = (i: number): Result<T> =>
         i < array.length ? { first: array[i], tail: () => at(i + 1) } : null
     return at(0)
@@ -56,7 +56,7 @@ export const next = <T>(head: List<T>): Result<T> => {
         head = trampoline(head)
 
         if (head instanceof Array) {
-            head = fromArray(head)
+            head = fromArrayLike(head)
         } else if (head !== null && 'head' in head) {
             [head, tail] = [head.head, concat(head.tail)(tail)]
             continue
