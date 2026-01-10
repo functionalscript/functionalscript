@@ -63,6 +63,7 @@
     "./types/nullable/module.f.ts": "./types/nullable/module.f.ts",
     "./types/number/module.f.ts": "./types/number/module.f.ts",
     "./types/object/module.f.ts": "./types/object/module.f.ts",
+    "./types/option/module.f.ts": "./types/option/module.f.ts",
     "./types/ordered_map/module.f.ts": "./types/ordered_map/module.f.ts",
     "./types/prime_field/module.f.ts": "./types/prime_field/module.f.ts",
     "./types/range/module.f.ts": "./types/range/module.f.ts",
