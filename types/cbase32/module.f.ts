@@ -1,4 +1,5 @@
 import { msb, type Vec, length, vec, empty } from "../bit_vec/module.f.ts"
+import type { Nullable } from "../nullable/module.f.ts"
 import { ok, error, type Result } from "../result/module.f.ts"
 
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
@@ -31,13 +32,13 @@ const normalizeChar = (c: string): string => {
 
 const toCrockfordIndex = (c: string): number => m.indexOf(normalizeChar(c))
 
-export const fromCBase32 = (s: string): Result<Vec, string> => {
+export const fromCBase32 = (s: string): Nullable<Vec> => {
     let result: Vec = empty
     for (const c of s) {
         const index = toCrockfordIndex(c)
-        if (index < 0) { return error('invalid crockford base32 character') }
+        if (index < 0) { return null }
         const v = vec5(BigInt(index))
         result = concat(result)(v)
     }
-    return ok(result)
+    return result
 }

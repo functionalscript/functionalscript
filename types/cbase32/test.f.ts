@@ -1,17 +1,11 @@
 import { empty, vec, type Vec } from "../bit_vec/module.f.ts"
-import { unwrap, type Result } from "../result/module.f.ts"
 import { fromCBase32, toCBase32 } from "./module.f.ts"
 
 const check = (s: string, v: Vec) => {
     const sr = toCBase32(v)
     if (sr !== s) { throw [sr, s] }
-    const vr = unwrap(fromCBase32(s))
+    const vr = fromCBase32(s)
     if (vr !== v) { throw [vr, v] }
-}
-
-const shouldError = (fn: () => Result<Vec, string>) => {
-    const [kind] = fn()
-    if (kind !== 'error') { throw 'expected to error' }
 }
 
 export default {
@@ -34,10 +28,10 @@ export default {
         if (cr !== "g") { throw ['g', cr] }
     },
     caseInsensitive: () => {
-        if (unwrap(fromCBase32("A")) !== unwrap(fromCBase32("a"))) { throw 'case-insensitive expected' }
-        if (unwrap(fromCBase32("I")) !== unwrap(fromCBase32("1"))) { throw 'i maps to 1' }
-        if (unwrap(fromCBase32("l")) !== unwrap(fromCBase32("1"))) { throw 'l maps to 1' }
-        if (unwrap(fromCBase32("o")) !== unwrap(fromCBase32("0"))) { throw 'o maps to 0' }
-        shouldError(() => fromCBase32("u"))
+        if (fromCBase32("A") !== fromCBase32("a")) { throw 'case-insensitive expected' }
+        if (fromCBase32("I") !== fromCBase32("1")) { throw 'i maps to 1' }
+        if (fromCBase32("l") !== fromCBase32("1")) { throw 'l maps to 1' }
+        if (fromCBase32("o") !== fromCBase32("0")) { throw 'o maps to 0' }
+        if (fromCBase32("u") !== null) { throw 'should error on invalid character' }
     }
 }
