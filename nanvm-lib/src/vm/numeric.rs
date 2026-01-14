@@ -13,10 +13,10 @@ impl<A: IVm> std::ops::Mul for Numeric<A> {
     type Output = Result<Any<A>, Any<A>>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Ok((a * b).to_any()),
-            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok((a * b).to_any()),
-            _ => Err("TODO: Cannot multiply Number and BigInt".into()),
-        }
+        Ok(match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => (a * b).to_any(),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => (a * b).to_any(),
+            _ => return Err("TODO: Cannot multiply Number and BigInt".into()),
+        })
     }
 }
