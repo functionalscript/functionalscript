@@ -15,7 +15,7 @@ impl<A: IVm> std::ops::Mul for Numeric<A> {
     fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Ok((a * b).to_any()),
-            (Numeric::BigInt(_), Numeric::BigInt(_)) => todo!("Mul not implemented for BigInt yet"),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok((a * b).to_any()),
             _ => Err("TODO: Cannot multiply Number and BigInt".into()),
         }
     }

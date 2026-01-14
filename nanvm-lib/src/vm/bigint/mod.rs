@@ -2,6 +2,8 @@ mod debug;
 mod default;
 mod from;
 mod index;
+mod mul;
+mod neg;
 mod partial_eq;
 mod serializable;
 mod sized_index;
@@ -35,17 +37,5 @@ impl<A: IVm> BigInt<A> {
     }
     fn new_one(sign: Sign, value: u64) -> Self {
         Self::new(sign, once(value))
-    }
-    pub fn negate(self) -> Self {
-        match self.is_zero() {
-            true => self,
-            false => Self::new(
-                match *self.0.header() {
-                    Sign::Positive => Sign::Negative,
-                    Sign::Negative => Sign::Positive,
-                },
-                self.index_iter(),
-            ),
-        }
     }
 }
