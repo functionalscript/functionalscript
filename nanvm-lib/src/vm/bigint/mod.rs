@@ -38,4 +38,13 @@ impl<A: IVm> BigInt<A> {
     fn new_one(sign: Sign, value: u64) -> Self {
         Self::new(sign, once(value))
     }
+    fn add_to_vec(mut vec: Vec<u64>, index: usize, add: u128) -> Vec<u64> {
+        let sum = vec[index] as u128 + add;
+        vec[index] = sum as u64;
+        let carry = sum >> 64;
+        if carry > 0 {
+            vec = Self::add_to_vec(vec, index + 1, carry);
+        }
+        vec
+    }
 }
