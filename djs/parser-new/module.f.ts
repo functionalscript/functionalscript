@@ -81,7 +81,8 @@ export const deterministic = (): Rule => {
         number,
         true: 'true',
         false: 'false',
-        null: 'null'
+        null: 'null',
+        undefined: 'undefined'
     })
 
     const json = [ws, value, ws]
