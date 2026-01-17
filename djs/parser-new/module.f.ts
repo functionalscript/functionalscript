@@ -56,8 +56,13 @@ export const deterministic = (): Rule => {
             0: '0',
             onenine: [onenine, digits0],
         },
-        option(['.', digits]),
-        option([set('Ee'), option(set('+-')), digits])
+        option({
+            bigint: 'n',
+            frac: [
+                option(['.', digits]),
+                option([set('Ee'), option(set('+-')), digits])
+            ]
+        })
     ]
 
     const ws = repeat0Plus(set(' \n\r\t'))
