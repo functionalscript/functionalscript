@@ -79,6 +79,7 @@ export const deterministic = (): Rule => {
         object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
         string,
         number,
+        //TODO: id instead of key words
         true: 'true',
         false: 'false',
         null: 'null',
