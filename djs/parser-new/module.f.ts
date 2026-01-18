@@ -91,7 +91,7 @@ export const deterministic = (): Rule => {
     const operator = {
         memberAccess: '.',
         equalSign: ['=', { equals: option(['=', option('=')]), arrow: '>'}],
-        exclamationMark: ['!',option(['=', option('=')])],
+        exclamationMark: ['!', option(['=', option('=')])],
         greaterSign: ['>', {relational: option('='), shift: ['>', option('>'), option('=')]}],
         lessSign: ['<', {relational: option('='), shift: ['<', option('<'), option('=')]}],
         add: ['+', option(set('+='))],
@@ -104,7 +104,7 @@ export const deterministic = (): Rule => {
         xor: ['^', option('=')],
         not: '~',
         questionMark: ['?', { chaining: option('.'), nullish: ['?', option('=')]}],
-        grouping: set('{}'),
+        grouping: set('()'),
     }
 
     const value = () => ({        
