@@ -1,5 +1,5 @@
+import { descentParser } from "../../bnf/data/module.f.ts"
 import {
-    descentParser,
     join0Plus,
     max,
     none,
@@ -12,6 +12,7 @@ import {
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../dev/module.f.ts"
+import { dollarSign } from "../../text/ascii/module.f.ts"
 
 export const parse = (input: string): boolean => {
     const m = descentParser(deterministic())
@@ -73,17 +74,27 @@ export const deterministic = (): Rule => {
         join0Plus([a, ws], [',', ws]),
         close,
     ]
+    
+    const idStart = {
+        smallLetter: range('az'),
+        bigLetter: range('AZ'),
+        lowLine: '_',
+        dollarSign: '$'
+    }
+
+    const idChar = {
+        ...idStart,
+        digit
+    }
+
+    const id = [idStart, repeat0Plus(idChar)]
 
     const value = () => ({        
         array: commaJoin0Plus('[]', value),
         object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
         string,
         number,
-        //TODO: id instead of key words
-        true: 'true',
-        false: 'false',
-        null: 'null',
-        undefined: 'undefined'
+        id
     })
 
     const json = [ws, value, ws]
