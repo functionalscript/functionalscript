@@ -6,14 +6,14 @@ import { createVirtualIo } from '../../io/virtual/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 
 const virtualFs
-    :(map: OrderedMap<string>) => Fs
+    :(map: OrderedMap<Uint8Array>) => Fs
     = map => {
         return createVirtualIo(map).fs
     }
 
 export default {
     parse: () => {
-        const map = setReplace('a')('export default 1')(null)
+        const map = setReplace('a')(new Uint8Array())(null)
         const fs = virtualFs(map)
         const result = transpile(fs)('a')
         if (result[0] === 'error') { throw result[1] }
@@ -21,8 +21,8 @@ export default {
         if (s !== '1') { throw s }
     },
     parseWithSubModule: () => {
-        const map = setReplace('a/b')('import c from "c"\nexport default c')(null)
-        const map2 = setReplace('a/c')('export default 2')(map)
+        const map = setReplace('a/b')(new Uint8Array())(null)
+        const map2 = setReplace('a/c')(new Uint8Array())(map)
         const fs = virtualFs(map2)
         const result = transpile(fs)('a/b')
         if (result[0] === 'error') { throw result[1] }
@@ -30,10 +30,10 @@ export default {
         if (s !== '2') { throw s }
     },
     parseWithSubModules: () => {
-        const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
-        const map2 = setReplace('b')('import d from "d"\nexport default [0,d]')(map)
-        const map3 = setReplace('c')('import d from "d"\nexport default [1,d]')(map2)
-        const map4 = setReplace('d')('export default 2')(map3)
+        const map = setReplace('a')(new Uint8Array())(null)
+        const map2 = setReplace('b')(new Uint8Array())(map)
+        const map3 = setReplace('c')(new Uint8Array())(map2)
+        const map4 = setReplace('d')(new Uint8Array())(map3)
         const fs = virtualFs(map4)
         const result = transpile(fs)('a')
         if (result[0] === 'error') { throw result[1] }
@@ -41,16 +41,16 @@ export default {
         if (s !== '[[0,2],[1,2],[0,2]]') { throw s }
     },
     parseWithFileNotFoundError: () => {
-        const map = setReplace('a')('import b from "b"\nexport default b')(null)
+        const map = setReplace('a')(new Uint8Array())(null)
         const fs = virtualFs(map)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }
         if (result[1].message !== 'file not found') { throw result }
     },
     parseWithCycleError: () => {
-        const map = setReplace('a')('import b from "b"\nimport c from "c"\nexport default [b,c,b]')(null)
-        const map2 = setReplace('b')('import c from "c"\nexport default c')(map)
-        const map3 = setReplace('c')('import b from "b"\nexport default b')(map2)
+        const map = setReplace('a')(new Uint8Array())(null)
+        const map2 = setReplace('b')(new Uint8Array())(map)
+        const map3 = setReplace('c')(new Uint8Array())(map2)
         const fs = virtualFs(map3)
         const result = transpile(fs)('a')
         if (result[0] !== 'error') { throw result }

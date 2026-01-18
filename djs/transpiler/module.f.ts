@@ -9,6 +9,7 @@ import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
+import { decodeUtf8 } from '../../types/uint8array/module.f.ts'
 
 export type ParseContext = {
     readonly fs: Fs
@@ -52,12 +53,12 @@ const transpileWithImports
 const parseModule
     : (path: string) => (context: ParseContext) => Result<AstModule, ParseError>
     = path => context => {
-        const content = context.fs.readFileSync(path, 'utf8')
+        const content = context.fs.readFileSync(path)
         if (content === null) {
             return error({message: 'file not found', metadata: null})
         }
 
-        const tokens = tokenize(stringToList(content))(path)
+        const tokens = tokenize(stringToList(decodeUtf8(content)))(path)
         return parseFromTokens(tokens)
 }
 
