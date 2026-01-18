@@ -52,7 +52,6 @@ export const deterministic = (): Rule => {
     const digits = [digit, digits0]
 
     const number = [
-        option('-'),
         {
             0: '0',
             onenine: [onenine, digits0],
@@ -89,12 +88,32 @@ export const deterministic = (): Rule => {
 
     const id = [idStart, repeat0Plus(idChar)]
 
+    const operator = {
+        memberAccess: '.',
+        equalSign: ['=', { equals: option(['=', option('=')]), arrow: '>'}],
+        exclamationMark: ['!',option(['=', option('=')])],
+        greaterSign: ['>', {relational: option('='), shift: ['>', option('>'), option('=')]}],
+        lessSign: ['<', {relational: option('='), shift: ['<', option('<'), option('=')]}],
+        add: ['+', option(set('+='))],
+        substract: ['-', option(set('-='))],
+        asterix: ['*', { multiply: option('='), exp: ['*', option('=')]}],
+        divide: ['/', option('=')],
+        remainder: ['%', option('=')],
+        and: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
+        or: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
+        xor: ['^', option('=')],
+        not: '~',
+        questionMark: ['?', { chaining: option('.'), nullish: ['?', option('=')]}],
+        grouping: set('{}'),
+    }
+
     const value = () => ({        
         array: commaJoin0Plus('[]', value),
         object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
         string,
         number,
-        id
+        id,
+        operator
     })
 
     const json = [ws, value, ws]
