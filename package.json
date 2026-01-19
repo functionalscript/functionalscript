@@ -12,7 +12,7 @@
     "test20": "npm run prepack && node --test",
     "test": "tsc && node --test --experimental-strip-types --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "index": "node ./dev/index/module.ts",
-    "fst": "npm run fjs -- t",
+    "fst": "node ./fjs/module.ts t",
     "fjs": "node ./fjs/module.ts",
     "ci-update": "node ./ci/module.ts",
     "update": "git clean -fdx && npm install && npm run index && npm run ci-update"

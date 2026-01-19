@@ -59,6 +59,7 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     } = io
     let map: ModuleArray = []
     const initCwd = env(io)('INIT_CWD')
+    console.log(`INIT_CWD=${initCwd}`)
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     for (const f of await allFiles(io)(s)) {
         if (f.endsWith('.f.js') ||
