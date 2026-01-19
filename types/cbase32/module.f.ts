@@ -1,6 +1,5 @@
 import { msb, type Vec, length, vec, empty } from "../bit_vec/module.f.ts"
 import type { Nullable } from "../nullable/module.f.ts"
-import { ok, error, type Result } from "../result/module.f.ts"
 
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
 
