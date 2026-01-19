@@ -2,6 +2,7 @@ import type { Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import type { Node } from './version/module.f.ts'
+import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -58,6 +59,7 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     } = io
     let map: ModuleArray = []
     const initCwd = env(io)('INIT_CWD')
+    console.log(`INIT_CWD=${initCwd}`)
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     for (const f of await allFiles(io)(s)) {
         if (f.endsWith('.f.js') ||
@@ -73,7 +75,7 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
 export const index = async (io: Io): Promise<number> => {
     updateVersion(io as Node<void>)
     const jj = './deno.json'
-    const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))
+    const jsr_json = JSON.parse(decodeUtf8(await io.fs.promises.readFile(jj)))
     const list = (await allFiles(io)('.')).filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
     //console.log(list)
     const exportsA = list.map(v => [v, `./${v.substring(2)}`])
@@ -82,6 +84,6 @@ export const index = async (io: Io): Promise<number> => {
     // console.log(exports)
     const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
     // console.log(json)
-    await io.fs.promises.writeFile(jj, json, 'utf8')
+    await io.fs.promises.writeFile(jj, encodeUtf8(json))
     return 0
 }

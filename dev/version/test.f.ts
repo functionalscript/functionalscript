@@ -1,3 +1,4 @@
+import { decodeUtf8, encodeUtf8 } from '../../types/uint8array/module.f.ts'
 import * as _ from './module.f.ts'
 
 const version = '0.3.0'
@@ -82,8 +83,8 @@ export default () => {
         : _.Node<string>
         = {
         fs: {
-            readFileSync: n => JSON.stringify(x[n]),
-            writeFileSync: (_, content) => content
+            readFileSync: n => encodeUtf8(JSON.stringify(x[n])),
+            writeFileSync: (_, content) => decodeUtf8(content)
         }
     }
     const [n, d] = _.updateVersion(node)
