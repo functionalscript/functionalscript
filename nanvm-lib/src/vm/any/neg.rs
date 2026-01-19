@@ -11,7 +11,7 @@ impl<A: IVm> Neg for Any<A> {
                 let m = -n;
                 Ok(Unpacked::Number(m).into())
             }
-            Ok(Numeric::BigInt(bi)) => Ok(Unpacked::BigInt(bi.negate()).into()),
+            Ok(Numeric::BigInt(bi)) => Ok(Unpacked::BigInt(-bi).into()),
             Err(e) => Err(e),
         }
     }
