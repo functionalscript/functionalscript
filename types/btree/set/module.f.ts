@@ -59,7 +59,6 @@ const nodeSet
                     case 1: { return [[value, x[0]]] }
                     case 2: { return [[value], x[0], [x[1]]] }
                 }
-                // throw 'unreachable'
             }
             case 1: {
                 // replace
@@ -69,7 +68,6 @@ const nodeSet
                     case 3: { return [[x[0], g(x[1]), x[2]]] }
                     case 5: { return [[x[0], g(x[1]), x[2], x[3], x[4]]] }
                 }
-                // throw 'unreachable'
             }
             case 2: {
                 // insert
@@ -82,8 +80,8 @@ const nodeSet
                 throw 'unreachable'
             }
             case 3: {
-                const _xl: 2|5 = x.length
                 // replace
+                const _xl: 2|5 = x.length
                 switch (x.length) {
                     case 2: { return [[x[0], g(x[1])]] }
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]]}
