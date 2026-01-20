@@ -1,5 +1,5 @@
 import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
-import { find, type PathItem } from '../find/module.f.ts'
+import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
 
@@ -35,8 +35,21 @@ const reduceBranch = fold(reduceOp)
 
 const nodeSet
     = <T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>): TNode<T> => {
-    const { first, tail } = find(c)(node)
-    const [i, x] = first;
+    // export type Result<T> = {
+    //    readonly first: First<T>,
+    //    readonly tail: Path<T>
+    //}
+    const { first, tail }: Result<T> = find(c)(node)
+    // export type Index2 = 0 | 1
+    // export type Index3 = Index2 | 2 // 0 | 1 | 2
+    // export type Index4 = Index3 | 3 // 0 | 1 | 2 | 3
+    // export type Index5 = Index4 | 4 // 0 | 1 | 2 | 3 | 4
+    // type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
+    // type FirstBranch3<T> = readonly[1, Branch3<T>]
+    // type FirstLeaf2<T> = readonly[Index5, Leaf2<T>]
+    // type FirstBranch5<T> = readonly[1|3, Branch5<T>]
+    // export type First<T> = FirstLeaf1<T> | FirstBranch3<T> | FirstLeaf2<T> | FirstBranch5<T>
+    const [i, x]: First<T> = first;
     const f = (): Branch1To3<T> => {
         switch (i) {
             case 0: {
@@ -73,6 +86,9 @@ const nodeSet
             }
             case 4: {
                 // insert
+                // export type Branch5<T> = readonly[TNode<T>, T, TNode<T>, T, TNode<T>]
+                // export type Leaf1<T> = readonly[T]
+                // export type Leaf2<T> = readonly[T, T]
                 const [v0, v1] = x;
                 return [[v0], v1, [g(null)]]
             }
