@@ -6,6 +6,8 @@ const check5x = (s: string, v: Vec) => {
     if (sr !== s) { throw [sr, s] }
     const vr = cBase32ToVec5x(s)
     if (vr !== v) { throw [vr, v] }
+    //
+    check(`${s}g`, v)
 }
 
 const check = (s: string, v: Vec) => {
