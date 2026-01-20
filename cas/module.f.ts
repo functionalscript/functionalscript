@@ -2,7 +2,7 @@ import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
-import { fromCBase32, toCBase32 } from "../types/cbase32/module.f.ts"
+import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { fromVec, toVec } from "../types/uint8array/module.f.ts"
@@ -32,7 +32,7 @@ const o = { withFileTypes: true } as const
 const split = (s: string) => [s.substring(0, 2), s.substring(2)]
 
 const toPath = (key: Vec): string => {
-    const s = toCBase32(key)
+    const s = vecToCBase32(key)
     const [a, bc] = split(s)
     const [b, c] = split(bc)
     return `${a}/${b}/${c}`
@@ -70,7 +70,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
                 return result
             }
             const all = await f(path)
-            return all.flatMap(compose(fromCBase32)(toOption))
+            return all.flatMap(compose(cBase32ToVec)(toOption))
         },
     }
     return result
