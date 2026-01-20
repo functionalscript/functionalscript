@@ -72,25 +72,29 @@ const nodeSet
             case 2: {
                 // insert
                 const value = g(null)
+                // TODO: remove after TSGO fix the regression.
                 const _xl: 1|2 = x.length
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
                 }
+                // TODO: remove after TSGO fix the regression.
                 throw 'unreachable'
             }
             case 3: {
                 // replace
+                // TODO: remove after TSGO fix the regression.
                 const _xl: 2|5 = x.length
                 switch (x.length) {
                     case 2: { return [[x[0], g(x[1])]] }
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]]}
                 }
+                // TODO: remove after TSGO fix the regression.
                 throw 'unreachable'
             }
             case 4: {
                 // insert
-                const [v0, v1]: Leaf2<T> = x;
+                const [v0, v1] = x;
                 return [[v0], v1, [g(null)]]
             }
         }
