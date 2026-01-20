@@ -1,4 +1,4 @@
-import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
+import type { Branch1, Branch3, Branch5, Branch7, Leaf2, TNode, Tree } from '../types/module.f.ts'
 import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
@@ -59,6 +59,7 @@ const nodeSet
                     case 1: { return [[value, x[0]]] }
                     case 2: { return [[value], x[0], [x[1]]] }
                 }
+                // throw 'unreachable'
             }
             case 1: {
                 // replace
@@ -68,28 +69,30 @@ const nodeSet
                     case 3: { return [[x[0], g(x[1]), x[2]]] }
                     case 5: { return [[x[0], g(x[1]), x[2], x[3], x[4]]] }
                 }
+                // throw 'unreachable'
             }
             case 2: {
                 // insert
                 const value = g(null)
+                const _xl: 1|2 = x.length
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
                 }
+                throw 'unreachable'
             }
             case 3: {
+                const _xl: 2|5 = x.length
                 // replace
                 switch (x.length) {
                     case 2: { return [[x[0], g(x[1])]] }
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]]}
                 }
+                throw 'unreachable'
             }
             case 4: {
                 // insert
-                // export type Branch5<T> = readonly[TNode<T>, T, TNode<T>, T, TNode<T>]
-                // export type Leaf1<T> = readonly[T]
-                // export type Leaf2<T> = readonly[T, T]
-                const [v0, v1] = x;
+                const [v0, v1]: Leaf2<T> = x;
                 return [[v0], v1, [g(null)]]
             }
         }
