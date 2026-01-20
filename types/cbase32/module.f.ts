@@ -57,10 +57,9 @@ export const cBase32ToVec5x = (s: string): Nullable<Vec> => {
 
 export const cBase32ToVec = (s: string): Nullable<Vec> => {
     let v = cBase32ToVec5x(s)
-    if (v === null) { return null }
+    if (v === null || v === empty) { return null }
     // TODO: replace with a function that computes trailing zeros.
     while (true) {
-        if (v === empty) { return null }
         const [last, v0] = popBack1(v)
         v = v0
         if (last === 1n) { return v }
