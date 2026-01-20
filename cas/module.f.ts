@@ -5,6 +5,7 @@ import { type Vec } from "../types/bit_vec/module.f.ts"
 import { fromCBase32, toCBase32 } from "../types/cbase32/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
+import { fromVec, toVec } from "../types/uint8array/module.f.ts"
 
 export type KvStore = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
@@ -38,17 +39,18 @@ const toPath = (key: Vec): string => {
 }
 
 export const fileKvStore = (io: Io) => (path: string): KvStore => {
-    const { readdir, readFile } = io.fs.promises
+    const { readdir, readFile, writeFile } = io.fs.promises
     const { asyncTryCatch } = io
     const result: KvStore = {
         read: async (key: Vec) => {
             const p = toPath(key)
             const [s, v] = await asyncTryCatch(() => readFile(`${path}/${p}`))
             if (s === 'error') { return undefined }
-            return todo()
+            return toVec(v)
         },
         write: async (key: Vec, value: Vec) => {
             const p = toPath(key)
+            await writeFile(`${path}/${p}`, fromVec(value))
             return result
         },
         list: async () => {
