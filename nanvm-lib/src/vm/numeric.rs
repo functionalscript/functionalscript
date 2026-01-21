@@ -9,7 +9,7 @@ pub enum Numeric<A: IVm> {
     BigInt(BigInt<A>),
 }
 
-impl<A: IVm> std::ops::Mul for Numeric<A> {
+impl<A: IVm> std::ops::Mul for Numeric<A> where A::InternalBigInt: AsRef<[u64]>{
     type Output = Result<Any<A>, Any<A>>;
 
     fn mul(self, rhs: Self) -> Self::Output {

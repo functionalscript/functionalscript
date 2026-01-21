@@ -256,7 +256,7 @@ impl BigUint {
         let shift_mod = rhs[0] & ((1 << 6) - 1);
         if shift_mod > 0 {
             let len = value.len();
-            value.push(0); //todo: check if it is neccessary?
+            value.push(0); //todo: check if it is necessary?
             for i in (0..=len - 1).rev() {
                 let mut digit = value[i] as u128;
                 digit <<= shift_mod;
