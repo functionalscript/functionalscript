@@ -4,19 +4,19 @@ import { index3, index5, type Compare } from '../../function/compare/module.f.ts
 import type { KeyOf } from '../../array/module.f.ts'
 import type { Index3, Index5 } from "../../array/module.f.ts";
 
-type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
+export type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
 
-type FirstBranch3<T> = readonly[1, Branch3<T>]
+export type FirstBranch3<T> = readonly[1, Branch3<T>]
 
-type FirstLeaf2<T> = readonly[Index5, Leaf2<T>]
+export type FirstLeaf2<T> = readonly[Index5, Leaf2<T>]
 
-type FirstBranch5<T> = readonly[1|3, Branch5<T>]
+export type FirstBranch5<T> = readonly[1|3, Branch5<T>]
 
-type First<T> = FirstLeaf1<T> | FirstBranch3<T> | FirstLeaf2<T> | FirstBranch5<T>
+export type First<T> = FirstLeaf1<T> | FirstBranch3<T> | FirstLeaf2<T> | FirstBranch5<T>
 
-type PathItem3<T> = readonly[0|2, Branch3<T>]
+export type PathItem3<T> = readonly[0|2, Branch3<T>]
 
-type PathItem5<T> = readonly[0|2|4, Branch5<T>]
+export type PathItem5<T> = readonly[0|2|4, Branch5<T>]
 
 export type PathItem<T> = PathItem3<T> | PathItem5<T>
 

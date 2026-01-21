@@ -1,4 +1,5 @@
 import type { Io } from '../io/module.f.ts'
+import { encodeUtf8 } from '../types/uint8array/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -247,6 +248,6 @@ const gha: GitHubAction = {
 }
 
 export default async (io: Io): Promise<number> => {
-    io.fs.writeFileSync('.github/workflows/ci.yml', JSON.stringify(gha, null, '  '))
+    io.fs.writeFileSync('.github/workflows/ci.yml', encodeUtf8(JSON.stringify(gha, null, '  ')))
     return 0
 }

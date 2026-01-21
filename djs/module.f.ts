@@ -3,6 +3,7 @@ import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
 import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
+import { encodeUtf8 } from '../types/uint8array/module.f.ts'
 
 export type Object = {
    readonly [k in string]: Unknown
@@ -22,17 +23,17 @@ export const compile = ({ console: { error }, fs }: Io) => (args: readonly strin
 
     const inputFileName = args[0]
     const outputFileName = args[1]
-    const result = transpile(fs)(inputFileName)    
+    const result = transpile(fs)(inputFileName)
     switch (result[0]) {
         case 'ok': {
             if (outputFileName.endsWith('.json'))
             {
                 const output = stringifyAsTree(sort)(result[1])
-                fs.writeFileSync(outputFileName, output)
+                fs.writeFileSync(outputFileName, encodeUtf8(output))
                 break
             }
             const output = stringify(sort)(result[1])
-            fs.writeFileSync(outputFileName, output)
+            fs.writeFileSync(outputFileName, encodeUtf8(output))
             break
         }
         case 'error': {
