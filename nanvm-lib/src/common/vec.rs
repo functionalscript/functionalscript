@@ -5,4 +5,3 @@ pub fn with_default<T: Default + Clone>(size: usize) -> Vec<T> {
     vec.resize(size, default());
     vec
 }
-
