@@ -25,7 +25,7 @@ impl<A: IVm> Mul for BigInt<A> {
         let rhs_max = rhs.length() - 1;
 
         // TODO: 1. Implement Karatsuba multiplication for large numbers.
-        //       2. For 'value', reate mutable BigInt instead of Vec<u64>.
+        //       2. For 'value', create mutable BigInt instead of Vec<u64>.
         //       3. Ask self, _rhs for mutable access and operate in-place on one of them (if available).
         let total_max = lhs_max + rhs_max + 1;
         let mut value = with_default((total_max + 1) as usize);
