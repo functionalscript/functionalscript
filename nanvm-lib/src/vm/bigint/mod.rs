@@ -39,6 +39,7 @@ impl<A: IVm> BigInt<A> {
         Self::new(sign, once(value))
     }
     fn add_to_vec(mut vec: Vec<u64>, index: u32, add: u128) -> Vec<u64> {
+        // TODO: replace recursion with loop.
         let sum = vec[index as usize] as u128 + add;
         vec[index as usize] = sum as u64;
         let carry = sum >> 64;
