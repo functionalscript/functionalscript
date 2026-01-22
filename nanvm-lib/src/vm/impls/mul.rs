@@ -1,5 +1,6 @@
-use super::{Any, IVm};
 use std::ops::Mul;
+
+use crate::vm::{Any, IVm};
 
 impl<A: IVm> Mul for Any<A> {
     type Output = Result<Any<A>, Any<A>>;
