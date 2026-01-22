@@ -1,23 +1,18 @@
 use crate::{
-    common::{default::default, sized_index::SizedIndex},
+    common::{sized_index::SizedIndex, vec::with_default},
     sign::Sign,
     vm::{BigInt, IContainer, IVm},
 };
 
 use std::ops::Mul;
 
-pub fn new_resize<T: Default + Clone>(size: usize) -> Vec<T> {
-    let mut vec = Vec::with_capacity(size);
-    vec.resize(size, default());
-    vec
-}
-
-pub fn normalize(vec: &mut Vec<u64>) {
+fn normalize(vec: &mut Vec<u64>) {
     while let Some(&0) = vec.last() {
         vec.pop();
     }
 }
 
+// BigInt's Mul is implemeted here, not under impls, because it needs private BigInt's stuff.
 impl<A: IVm> Mul for BigInt<A> {
     type Output = Self;
 
@@ -33,7 +28,7 @@ impl<A: IVm> Mul for BigInt<A> {
         //       2. For 'value', reate mutable BigInt instead of Vec<u64>.
         //       3. Ask self, _rhs for mutable access and operate in-place on one of them (if available).
         let total_max = lhs_max + rhs_max + 1;
-        let mut value = new_resize((total_max + 1) as usize);
+        let mut value = with_default((total_max + 1) as usize);
         let mut i: u32 = 0;
         while i < total_max {
             let mut j = i.saturating_sub(rhs_max);
