@@ -15,11 +15,11 @@ import { todo } from "../../dev/module.f.ts"
 import { dollarSign } from "../../text/ascii/module.f.ts"
 
 export const parse = (input: string): boolean => {
-    const m = descentParser(deterministic())
+    const m = descentParser(jsGrammar())
     return todo()
 }
 
-export const deterministic = (): Rule => {
+export const jsGrammar = (): Rule => {
 
     const onenine = range('19')
 
