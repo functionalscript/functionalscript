@@ -8,6 +8,7 @@ import {
     remove,
     repeat,
     repeat0Plus,
+    repeat1Plus,
     set,
     type Rule
 } from "../../bnf/module.f.ts"
@@ -66,13 +67,6 @@ export const jsGrammar = (): Rule => {
     ]
 
     const ws = repeat0Plus(set(' \n\r\t'))
-
-    const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-        open,
-        ws,
-        join0Plus([a, ws], [',', ws]),
-        close,
-    ]
     
     const idStart = {
         smallLetter: range('az'),
@@ -104,19 +98,18 @@ export const jsGrammar = (): Rule => {
         xor: ['^', option('=')],
         not: '~',
         questionMark: ['?', { chaining: option('.'), nullish: ['?', option('=')]}],
-        grouping: set('()'),
+        grouping: set('[]{}()'),
     }
 
-    const value = () => ({        
-        array: commaJoin0Plus('[]', value),
-        object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
-        string,
+    const token = {
         number,
+        string,
         id,
-        operator
-    })
+        operator,
+        ws
+    }
 
-    const json = [ws, value, ws]
+    const tokens = repeat0Plus(token)
 
-    return json
+    return tokens
 }
