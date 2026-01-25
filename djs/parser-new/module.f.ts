@@ -66,7 +66,7 @@ export const jsGrammar = (): Rule => {
         })
     ]
 
-    const ws = repeat0Plus(set(' \n\r\t'))
+    const ws = set(' \n\r\t')
     
     const idStart = {
         smallLetter: range('az'),
@@ -99,6 +99,8 @@ export const jsGrammar = (): Rule => {
         not: '~',
         questionMark: ['?', { chaining: option('.'), nullish: ['?', option('=')]}],
         grouping: set('[]{}()'),
+        comma: ',',
+        colon: ':'
     }
 
     const token = {
