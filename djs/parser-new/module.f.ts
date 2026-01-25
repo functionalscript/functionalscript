@@ -66,7 +66,9 @@ export const jsGrammar = (): Rule => {
         })
     ]
 
-    const ws = set(' \n\r\t')
+    const ws = set(' \t')
+
+    const newLine = set('\n\r')
     
     const idStart = {
         smallLetter: range('az'),
@@ -108,7 +110,8 @@ export const jsGrammar = (): Rule => {
         string,
         id,
         operator,
-        ws
+        ws,
+        newLine
     }
 
     const tokens = repeat0Plus(token)
