@@ -254,15 +254,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
 - [ ] 101. Monad's IO design.
-- [X] 105. Create the `types/uint8array/module.f.ts` that can convert:
-  - `UInt8Array` to `Vec` from `bit_vec`.
-  - `Vec` to `UInt8Array`.
-- [X] 106. Add conversion from CBase32 to Vec of a specific length. Add a length as the last bit `10..`
-- [X] 107. Remove UTF-8 encoding function signatures from `Io`. Always read/write binary data and use algorithms to decode/encode to UTF-8.
-- [X] 108. Introduce type `Option<T> = (readonly[T]) | (readonly[])` as an alternative to `Nullable`. The main reason is compatibility with `flatMap`.
-- [X] 109. Replace `Result<>` in `fromCBase32` with `Nullable<>`.
-- [X] 110. `npm run fst` should run only a limited set of tests if it runs from a directory.
-- [ ] 111. Fix `npm` publishing.
+- [X] 111. Fix `npm` publishing.
 
 ## Language Specification
 
