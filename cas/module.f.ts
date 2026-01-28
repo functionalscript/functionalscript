@@ -1,5 +1,4 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
@@ -93,4 +92,10 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
         list,
     })
     return f
+}
+
+export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
+    const { error } = io.console
+    error('cas module is not implemented yet')
+    return Promise.resolve(1)
 }
