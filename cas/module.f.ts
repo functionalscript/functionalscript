@@ -96,6 +96,26 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
 
 export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
     const { error } = io.console
-    error('cas module is not implemented yet')
+    switch (args[0]) {
+        case 'add': {
+            error('cas add command is not implemented yet')
+            break
+        }
+        case 'get': {
+            error('cas get command is not implemented yet')
+            break
+        }
+        case 'list': {
+            error('cas list command is not implemented yet')
+            break
+        }
+        case undefined: {
+            error('Error: cas command requires subcommand')
+            break
+        }
+        default: {
+            error(`Error: Unknown cas subcommand "${args[0]}"`)
+        }
+    }
     return Promise.resolve(1)
 }
