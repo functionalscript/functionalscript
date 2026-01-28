@@ -124,7 +124,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [x] [./074-bast-tag.md](./074-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
   - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
-  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
+  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files. See the proposal.
   - Browsers don't support type annotations and `.ts` files.
 - [ ] 76. Serialization mapping should be done only once. For example, instead of
   ```rust
@@ -247,7 +247,7 @@ require setting a flag when walking through a test free as soon as a node has a 
       }
   }
   ```
-- [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
+- [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
 - [ ] 91. Create a separate nominal type for UTF-8.
 - [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
@@ -255,6 +255,9 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [ ] 97. Smart CA CI for FunctionalScript.
 - [ ] 101. Monad's IO design.
 - [X] 111. Fix `npm` publishing.
+- [ ] 112. CAS
+- [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
+- [ ] 114. A generic command line parse that can produce help.
 
 ## Language Specification
 

@@ -1,5 +1,4 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
@@ -39,7 +38,7 @@ const toPath = (key: Vec): string => {
 }
 
 export const fileKvStore = (io: Io) => (path: string): KvStore => {
-    const { readdir, readFile, writeFile } = io.fs.promises
+    const { readdir, readFile, writeFile, mkdir } = io.fs.promises
     const { asyncTryCatch } = io
     const result: KvStore = {
         read: async (key: Vec) => {
@@ -50,6 +49,9 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
         },
         write: async (key: Vec, value: Vec) => {
             const p = toPath(key)
+            const parts = p.split('/')
+            const dir = `${path}/${parts.slice(0, -1).join('/')}`
+            await mkdir(dir, { recursive: true })
             await writeFile(`${path}/${p}`, fromVec(value))
             return result
         },
@@ -93,4 +95,30 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
         list,
     })
     return f
+}
+
+export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
+    const { error } = io.console
+    switch (args[0]) {
+        case 'add': {
+            error('cas add command is not implemented yet')
+            break
+        }
+        case 'get': {
+            error('cas get command is not implemented yet')
+            break
+        }
+        case 'list': {
+            error('cas list command is not implemented yet')
+            break
+        }
+        case undefined: {
+            error('Error: cas command requires subcommand')
+            break
+        }
+        default: {
+            error(`Error: Unknown cas subcommand "${args[0]}"`)
+        }
+    }
+    return Promise.resolve(1)
 }
