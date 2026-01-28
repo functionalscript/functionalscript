@@ -262,6 +262,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [X] 108. Introduce type `Option<T> = (readonly[T]) | (readonly[])` as an alternative to `Nullable`. The main reason is compatibility with `flatMap`.
 - [X] 109. Replace `Result<>` in `fromCBase32` with `Nullable<>`.
 - [X] 110. `npm run fst` should run only a limited set of tests if it runs from a directory.
+- [ ] 111. Fix `npm` publishing.
 
 ## Language Specification
 
