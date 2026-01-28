@@ -38,7 +38,7 @@ const toPath = (key: Vec): string => {
 }
 
 export const fileKvStore = (io: Io) => (path: string): KvStore => {
-    const { readdir, readFile, writeFile } = io.fs.promises
+    const { readdir, readFile, writeFile, mkdir } = io.fs.promises
     const { asyncTryCatch } = io
     const result: KvStore = {
         read: async (key: Vec) => {
@@ -49,6 +49,9 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
         },
         write: async (key: Vec, value: Vec) => {
             const p = toPath(key)
+            const parts = p.split('/')
+            const dir = `${path}/${parts.slice(0, -1).join('/')}`
+            await mkdir(dir, { recursive: true })
             await writeFile(`${path}/${p}`, fromVec(value))
             return result
         },
