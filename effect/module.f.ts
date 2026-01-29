@@ -14,3 +14,9 @@ export type NodeDo<R> =
   | NDo<R, 'mkdir', readonly[string, { recursive: boolean }], void>
 
 export type NodeEffect<R> = Pure<R> | NodeDo<R>
+
+export type DoOp<P, R> = (param: P) => Promise<R>
+
+export type Map = {
+    readFile: (P: string) => Promise<bigint>
+}
