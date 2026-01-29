@@ -1,4 +1,4 @@
-import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
+import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
@@ -97,20 +97,62 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
     return f
 }
 
+const casPath = (io: Io): string => `${io.process.cwd()}/.cas`
+
+const casStore = (io: Io): Cas => cas(sha256)(fileKvStore(io)(casPath(io)))
+
 export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
-    const { error } = io.console
-    switch (args[0]) {
+    const { error, log } = io.console
+    const { asyncTryCatch } = io
+    const [command, ...rest] = args
+    switch (command) {
         case 'add': {
-            error('cas add command is not implemented yet')
-            break
+            if (rest.length < 1) {
+                error('Error: cas add requires <path>')
+                return Promise.resolve(1)
+            }
+            const inputPath = rest[0]
+            return asyncTryCatch(() => io.fs.promises.readFile(inputPath)).then(async result => {
+                if (result[0] === 'error') {
+                    error(`Error: Failed to read "${inputPath}"`)
+                    return 1
+                }
+                const value = toVec(result[1])
+                const [, hash] = await casStore(io).write(value)
+                log(vecToCBase32(hash))
+                return 0
+            })
         }
         case 'get': {
-            error('cas get command is not implemented yet')
-            break
+            if (rest.length < 2) {
+                error('Error: cas get requires <hash> <output>')
+                return Promise.resolve(1)
+            }
+            const key = cBase32ToVec(rest[0])
+            if (key === null) {
+                error(`Error: Invalid hash "${rest[0]}"`)
+                return Promise.resolve(1)
+            }
+            const outputPath = rest[1]
+            return casStore(io).read(key).then(async value => {
+                if (value === undefined) {
+                    error(`Error: Missing CAS entry "${rest[0]}"`)
+                    return 1
+                }
+                await io.fs.promises.writeFile(outputPath, fromVec(value))
+                return 0
+            })
         }
         case 'list': {
-            error('cas list command is not implemented yet')
-            break
+            if (!io.fs.existsSync(casPath(io))) {
+                return Promise.resolve(0)
+            }
+            return casStore(io).list().then(keys => {
+                for (const key of keys) {
+                    log(vecToCBase32(key))
+                }
+                return 0
+            })
         }
         case undefined: {
             error('Error: cas command requires subcommand')
