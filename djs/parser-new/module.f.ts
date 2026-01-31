@@ -1,8 +1,10 @@
 import { descentParser } from "../../bnf/data/module.f.ts"
 import {
+    fullRange,
     join0Plus,
     max,
     none,
+    not,
     option,
     range,
     remove,
@@ -104,13 +106,30 @@ export const jsGrammar = (): Rule => {
         colon: ':'
     }
 
+    const comment =
+    [
+        '/',
+        {
+            oneline: ['/', option(remove(fullRange, newLine)), newLine],
+            multiline: [
+                '*',
+                repeat0Plus({
+                    na: not('*'),
+                    a: ['*', not('/')]
+                }),
+                '*/'
+            ]
+        }
+    ]
+
     const token = {
         number,
         string,
         id,
         operator,
         ws,
-        newLine
+        newLine,
+        comment
     }
 
     const tokens = repeat0Plus(token)
