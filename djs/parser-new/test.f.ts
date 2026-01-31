@@ -46,6 +46,9 @@ export default {
             expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
             expect('   [{ "q": [ 12, false, [}], "a"] }]  ', true)
             expect('. + ++ +=', true)
+            expect('//12\n', true)
+            expect('/*12*/', true)
+            expect('/* 1*2 */', true)
         }
     ]
 }

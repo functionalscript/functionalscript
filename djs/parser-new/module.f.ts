@@ -110,6 +110,7 @@ export const jsGrammar = (): Rule => {
     [
         '/',
         {
+            //TODO: add end of file
             oneline: ['/', option(remove(fullRange, newLine)), newLine],
             multiline: [
                 '*',
