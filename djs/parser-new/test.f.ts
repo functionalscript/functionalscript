@@ -11,7 +11,7 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
 }
 
 export default {
-    grammar: [() => {
+    isValid: [() => {
             const m = descentParser(jsGrammar())
             
             const expect = (s: string, expected: boolean) => {
@@ -50,5 +50,87 @@ export default {
             expect('/*12*/', true)
             expect('/* 1*2 */', true)
         }
+    ],
+    parser: [
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('tr'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'id') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('"tr"'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'string') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('56.7e+5'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'number') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('56n'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'number') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('*'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'asterix') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('**'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'asterix') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('=='))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'equalSign') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList(' '))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== ' ') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('\n'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== '\n') throw JSON.stringify(mr)
+        },
+        // () => {
+        //     const m = descentParser(jsGrammar())
+        //     const cp = toArray(stringToCodePointList('//\n'))
+        //     const mr = descentParserCpOnly(m, '', cp)
+        //     const seq = mr[0].sequence[0]
+        //     if (seq instanceof Array) throw JSON.stringify(mr)
+        //     if (seq.tag !== 'comment') throw JSON.stringify(mr)
+        // }
     ]
 }
