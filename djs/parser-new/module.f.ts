@@ -95,7 +95,6 @@ export const jsGrammar = (): Rule => {
         substract: ['-', option(set('-='))],
         asterix: ['*', { multiply: option('='), exp: ['*', option('=')]}],
         slash: ['/', {
-            divide: option('='),
             //TODO: add end of file
             oneline: ['/', option(remove(fullRange, newLine)), newLine],
             multiline: [
@@ -105,7 +104,8 @@ export const jsGrammar = (): Rule => {
                     a: ['*', not('/')]
                 }),
                 '*/'
-            ]
+            ],
+            divide: option('='),
         }],
         remainder: ['%', option('=')],
         and: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
