@@ -94,7 +94,19 @@ export const jsGrammar = (): Rule => {
         add: ['+', option(set('+='))],
         substract: ['-', option(set('-='))],
         asterix: ['*', { multiply: option('='), exp: ['*', option('=')]}],
-        divide: ['/', option('=')],
+        slash: ['/', {
+            divide: option('='),
+            //TODO: add end of file
+            oneline: ['/', option(remove(fullRange, newLine)), newLine],
+            multiline: [
+                '*',
+                repeat0Plus({
+                    na: not('*'),
+                    a: ['*', not('/')]
+                }),
+                '*/'
+            ]
+        }],
         remainder: ['%', option('=')],
         and: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
         or: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
@@ -106,31 +118,13 @@ export const jsGrammar = (): Rule => {
         colon: ':'
     }
 
-    const comment =
-    [
-        '/',
-        {
-            //TODO: add end of file
-            oneline: ['/', option(remove(fullRange, newLine)), newLine],
-            multiline: [
-                '*',
-                repeat0Plus({
-                    na: not('*'),
-                    a: ['*', not('/')]
-                }),
-                '*/'
-            ]
-        }
-    ]
-
     const token = {
         number,
         string,
         id,
         operator,
         ws,
-        newLine,
-        comment
+        newLine
     }
 
     const tokens = repeat0Plus(token)

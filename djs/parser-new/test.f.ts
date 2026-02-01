@@ -124,13 +124,21 @@ export default {
             if (seq instanceof Array) throw JSON.stringify(mr)
             if (seq.tag !== '\n') throw JSON.stringify(mr)
         },
-        // () => {
-        //     const m = descentParser(jsGrammar())
-        //     const cp = toArray(stringToCodePointList('//\n'))
-        //     const mr = descentParserCpOnly(m, '', cp)
-        //     const seq = mr[0].sequence[0]
-        //     if (seq instanceof Array) throw JSON.stringify(mr)
-        //     if (seq.tag !== 'comment') throw JSON.stringify(mr)
-        // }
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('//\n'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'slash') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('/*1*/'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== 'slash') throw JSON.stringify(mr)
+        }
     ]
 }
