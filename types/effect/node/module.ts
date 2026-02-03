@@ -1,11 +1,11 @@
 import { promises } from 'fs'
-import { type NodeEffect, type NodeOperationMap } from './module.f.ts'
+import type { NodeEffect, NodeOperationMap } from './module.f.ts'
 
 const { readFile } = promises
 
 const nodeOperationMap: NodeOperationMap = {
-    'console.log': async (message: string): Promise<void> => console.log(message),
-    'fs.promises.readFile': readFile,
+    log: async (message: string): Promise<void> => console.log(message),
+    readFile: readFile,
 }
 
 export const run = async<T>(effect: NodeEffect<T>): Promise<T> => {

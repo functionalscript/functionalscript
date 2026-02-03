@@ -9,22 +9,19 @@ export type Operation = {
 }
 
 export type AsyncOperationMap<O extends Operation> = {
-    readonly[K in keyof O]:
-        (payload: O[K][0]) => Promise<O[K][1]>
+    readonly[K in keyof O]: (payload: O[K][0]) => Promise<O[K][1]>
 }
 
-// Node.js specific effects
-
-export type NodeEffect<T> = Pure<T> | NodeDo<T>
-
-export type NodeOperations = {
-    readonly 'console.log': readonly[string, void]
-    readonly 'fs.promises.readFile': readonly[string, Uint8Array]
+/*
+export const run =  => async<T, E extends Effect<T>>(effect: Effect<T>): Promise<T> => {
+    while (true) {
+        if (effect[0] === 'pure') {
+            return effect[1]
+        }
+        const [, command, payload, continuation] = effect
+        const operation = nodeOperationMap[command]
+        const result = await operation(payload)
+        effect = continuation(result as any)
+    }
 }
-
-export type NodeOne<T, K extends keyof NodeOperations> =
-    readonly['do', K, NodeOperations[K][0], (input: NodeOperations[K][1]) => NodeEffect<T>]
-
-export type NodeDo<T> = { readonly[K in keyof NodeOperations]: NodeOne<T, K> }[keyof NodeOperations]
-
-export type NodeOperationMap = AsyncOperationMap<NodeOperations>
+*/
