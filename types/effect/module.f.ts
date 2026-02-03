@@ -12,7 +12,8 @@ export type ToAsyncOperationMap<O extends Operation> = {
     readonly[K in keyof O]: (payload: O[K][0]) => Promise<O[K][1]>
 }
 
-export const run = <O extends Operation>(map: ToAsyncOperationMap<O>) =>
+export const run =
+    <O extends Operation>(map: ToAsyncOperationMap<O>) =>
     async<T, E extends Effect<T>>(effect: Effect<T>): Promise<T> =>
 {
     while (true) {
