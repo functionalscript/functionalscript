@@ -13,7 +13,8 @@ export type ToAsyncOperationMap<O extends Operation> = {
 }
 
 export const run = <O extends Operation>(map: ToAsyncOperationMap<O>) =>
-    async<T, E extends Effect<T>>(effect: Effect<T>): Promise<T> => {
+    async<T, E extends Effect<T>>(effect: Effect<T>): Promise<T> =>
+{
     while (true) {
         if (effect[0] === 'pure') {
             return effect[1]
