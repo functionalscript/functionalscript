@@ -1,4 +1,4 @@
-import type { AsyncOperationMap, Pure } from "../module.f.ts"
+import type { ToAsyncOperationMap, Pure } from "../module.f.ts"
 
 export type NodeEffect<T> = Pure<T> | NodeDo<T>
 
@@ -12,4 +12,4 @@ export type NodeOne<T, K extends keyof NodeOperations> =
 
 export type NodeDo<T> = { readonly[K in keyof NodeOperations]: NodeOne<T, K> }[keyof NodeOperations]
 
-export type NodeOperationMap = AsyncOperationMap<NodeOperations>
+export type NodeOperationMap = ToAsyncOperationMap<NodeOperations>
