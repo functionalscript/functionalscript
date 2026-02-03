@@ -259,7 +259,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
 - [ ] 114. A generic command line parse that can produce help.
 - [ ] 115. Run-time types. See also https://arktype.io/
-  1. We need more powerful type system than TS.
+  1. We need more powerful type system than TS. See `bnf` or `effects`.
   2. Validating type match at run-time.
 
 ## Language Specification
