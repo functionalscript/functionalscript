@@ -6,6 +6,7 @@ export type NodeEffect<T> = Pure<T> | NodeDo<T>
 export type NodeOperations = {
     readonly log: readonly[string, void]
     readonly readFile: readonly[string, Vec]
+    readonly writeFile: readonly[readonly[string, Vec], void]
 }
 
 export type NodeOne<T, K extends keyof NodeOperations> =
