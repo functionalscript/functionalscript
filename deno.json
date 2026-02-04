@@ -77,7 +77,9 @@
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
-    "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts"
+    "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts",
+    "./website/module.f.ts": "./website/module.f.ts",
+    "./website/module.ts": "./website/module.ts"
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
