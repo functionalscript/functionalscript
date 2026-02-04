@@ -10,3 +10,5 @@ export type NodeOperations = {
 export type NodeEffect<T> = Effect<NodeOperations, T>
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOperations>
+
+export type NodeProgram = (argv: readonly string[]) => NodeEffect<number>
