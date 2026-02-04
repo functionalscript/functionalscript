@@ -1,10 +1,11 @@
+import type { Vec } from "../../bit_vec/module.f.ts"
 import type { ToAsyncOperationMap, Pure } from "../module.f.ts"
 
 export type NodeEffect<T> = Pure<T> | NodeDo<T>
 
 export type NodeOperations = {
     readonly log: readonly[string, void]
-    readonly readFile: readonly[string, Uint8Array]
+    readonly readFile: readonly[string, Vec]
 }
 
 export type NodeOne<T, K extends keyof NodeOperations> =
