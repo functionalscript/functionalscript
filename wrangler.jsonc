@@ -1,4 +1,6 @@
 {
 	"compatibility_date": "2026-02-04",
-	"assets": "."
+	"assets": {
+        "directory": "."
+    }
 }
