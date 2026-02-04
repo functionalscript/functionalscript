@@ -1,5 +1,5 @@
-import { promises } from 'fs'
-import { argv } from 'process'
+import { promises } from 'node:fs'
+import { argv } from 'node:process'
 import type { NodeOperationMap, NodeProgram } from './module.f.ts'
 import type { Vec } from '../../bit_vec/module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
@@ -13,5 +13,6 @@ const nodeOperationMap: NodeOperationMap = {
     writeFile: ([path, data]: readonly[string, Vec]): Promise<void> => writeFile(path, fromVec(data))
 }
 
-export const nodeRun = (p: NodeProgram): Promise<number> =>
-    asyncRun(nodeOperationMap)(p(argv))
+const nr = asyncRun(nodeOperationMap)
+
+export const nodeRun = (p: NodeProgram): Promise<number> => nr(p(argv))
