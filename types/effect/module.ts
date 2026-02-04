@@ -1,0 +1,15 @@
+import type { Effect, Operations, ToAsyncOperationMap } from "./module.f.ts"
+
+export const asyncRun = <O extends Operations>(map: ToAsyncOperationMap<O>) =>
+    async<T, E extends Effect<O, T>>(effect: Effect<O, T>): Promise<T> =>
+{
+    while (true) {
+        if (effect[0] === 'pure') {
+            return effect[1]
+        }
+        const [, command, payload, continuation] = effect
+        const operation = map[command]
+        const result = await operation(payload)
+        effect = continuation(result)
+    }
+}

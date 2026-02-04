@@ -1,8 +1,8 @@
 import { promises } from 'fs'
 import type { NodeEffect, NodeOperationMap } from './module.f.ts'
-import { run } from '../module.f.ts'
 import type { Vec } from '../../bit_vec/module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
+import { asyncRun } from '../module.ts'
 
 const { readFile, writeFile } = promises
 
@@ -12,6 +12,4 @@ const nodeOperationMap: NodeOperationMap = {
     writeFile: ([path, data]: readonly[string, Vec]): Promise<void> => writeFile(path, fromVec(data))
 }
 
-export type NodeRun = <T>(effect: NodeEffect<T>) => Promise<T>
-
-export const nodeRun: NodeRun = run(nodeOperationMap) as NodeRun
+export const nodeRun = asyncRun(nodeOperationMap)
