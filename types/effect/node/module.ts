@@ -1,5 +1,5 @@
 import { promises } from 'fs'
-import type { NodeEffect, NodeOperationMap } from './module.f.ts'
+import type { NodeOperationMap } from './module.f.ts'
 import type { Vec } from '../../bit_vec/module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
