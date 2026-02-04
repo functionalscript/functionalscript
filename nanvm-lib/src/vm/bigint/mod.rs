@@ -1,3 +1,5 @@
+mod add;
+mod cmp;
 mod debug;
 mod default;
 mod from;

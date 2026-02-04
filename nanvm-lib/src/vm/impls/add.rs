@@ -8,3 +8,4 @@ impl<A: IVm> Add for String<A> {
         self.into_iter().chain(rhs).to_string()
     }
 }
+
