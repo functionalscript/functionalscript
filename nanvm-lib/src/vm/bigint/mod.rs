@@ -10,7 +10,7 @@ mod partial_eq;
 mod serializable;
 mod sized_index;
 
-use core::iter::once;
+use core::{cmp::Ordering, iter::once};
 
 use crate::{
     common::sized_index::SizedIndex,
@@ -34,12 +34,15 @@ impl<A: IVm> BigInt<A> {
     fn is_zero(&self) -> bool {
         self.0.items().is_empty()
     }
+
     fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         Self(A::InternalBigInt::new_ok(sign, items))
     }
+
     fn new_one(sign: Sign, value: u64) -> Self {
         Self::new(sign, once(value))
     }
+
     fn add_to_vec(mut vec: Vec<u64>, index: u32, add: u128) -> Vec<u64> {
         // TODO: replace recursion with loop.
         let sum = vec[index as usize] as u128 + add;
@@ -49,5 +52,19 @@ impl<A: IVm> BigInt<A> {
             vec = Self::add_to_vec(vec, index + 1, carry);
         }
         vec
+    }
+
+    // NOTE: use .index_iter in abs_* helpers.
+
+    fn abs_cmp_vec(self, _rhs: Self) -> Ordering {
+        todo!();
+    }
+
+    fn abs_add_vec(self, _rhs: Self) -> Vec<u64> {
+        todo!();
+    }
+
+    fn abs_sub_vec(self, _rhs: Self) -> Vec<u64> {
+        todo!();
     }
 }
