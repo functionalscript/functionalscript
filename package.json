@@ -15,7 +15,8 @@
     "fst": "node ./fjs/module.ts t",
     "fjs": "node ./fjs/module.ts",
     "ci-update": "node ./ci/module.ts",
-    "update": "git clean -fdx && npm install && npm run index && npm run ci-update"
+    "update": "git clean -fdx && npm install && npm run index && npm run ci-update",
+    "website": "node ./website/module.ts"
   },
   "engines": {
     "node": ">=20"
