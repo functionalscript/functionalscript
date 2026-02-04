@@ -2,9 +2,16 @@ import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
+import type { Effect, Operations } from "../types/effect/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { fromVec, toVec } from "../types/uint8array/module.f.ts"
+
+export type KvStore2<O extends Operations> = {
+    readonly read: (key: Vec) => Effect<O, Vec|undefined>
+    readonly write: (key: Vec, value: Vec) => Effect<O, void>
+    readonly list: () => Effect<O, Iterable<Vec>>
+}
 
 export type KvStore = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
