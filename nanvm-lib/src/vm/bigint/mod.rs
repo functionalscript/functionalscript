@@ -9,6 +9,7 @@ mod neg;
 mod partial_eq;
 mod serializable;
 mod sized_index;
+mod sub;
 
 use core::{cmp::Ordering, iter::once};
 
