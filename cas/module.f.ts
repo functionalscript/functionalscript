@@ -94,6 +94,7 @@ export const fileKvStore2 = <O extends FileOperations>(path: string): KvStore2<O
         const p = toPath(key)
         const parts = p.split('/')
         const dir = `${path}/${parts.slice(0, -1).join('/')}`
+        // TODO: create directory if not exists
         return writeFile(`${path}/${p}`, value)(() => pure(undefined))
     },
     list: (): Effect<O, readonly[Vec]> => todo(),

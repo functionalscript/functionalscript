@@ -1,6 +1,6 @@
 import type { Vec } from "../../bit_vec/module.f.ts"
 import type { Result } from "../../result/module.f.ts"
-import { pure, type DoAll, type Do, type Effect, type ToAsyncOperationMap } from "../module.f.ts"
+import { type Do, type Effect, type ToAsyncOperationMap, type Operations, do_ } from "../module.f.ts"
 
 export type IoResult<T> = Result<T, unknown>
 
@@ -11,13 +11,13 @@ export type FileOperations = {
 
 export const readFile =
     (path: string) =>
-    <O extends FileOperations, T>(f: (r: IoResult<Vec>) => Effect<O, T>): DoAll<O, T> =>
-    ['do', 'readFile', path, f] as Do<O, T, 'readFile'> as DoAll<O, T>
+    <O extends FileOperations, T>(f: (r: IoResult<Vec>) => Effect<O, T>): Do<O, T> =>
+    do_('readFile', path, f)
 
 export const writeFile =
     (path: string, data: Vec) =>
-    <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): DoAll<O, T> =>
-    ['do', 'writeFile', [path, data], f] as Do<O, T, 'writeFile'> as DoAll<O, T>
+    <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
+    do_('writeFile', [path, data], f)
 
 export type ConsoleOperations = {
     readonly log: readonly [string, void]
