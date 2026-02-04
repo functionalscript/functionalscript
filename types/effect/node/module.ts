@@ -8,10 +8,7 @@ const { readFile } = promises
 
 const nodeOperationMap: NodeOperationMap = {
     log: async (message: string): Promise<void> => console.log(message),
-    readFile: async(path: string): Promise<Vec> => {
-        const buffer = await readFile(path)
-        return toVec(buffer)
-    }
+    readFile: async(path: string): Promise<Vec> => toVec(await readFile(path)),
 }
 
 export type NodeRun = <T>(effect: NodeEffect<T>) => Promise<T>
