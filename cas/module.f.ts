@@ -1,9 +1,10 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
+import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
-import type { Effect, Operations } from "../types/effect/module.f.ts"
-import type { FileOperations } from "../types/effect/node/module.f.ts"
+import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
+import { readFile, writeFile, type FileOperations } from "../types/effect/node/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { fromVec, toVec } from "../types/uint8array/module.f.ts"
@@ -13,12 +14,6 @@ export type KvStore2<O extends Operations> = {
     readonly write: (key: Vec, value: Vec) => Effect<O, void>
     readonly list: () => Effect<O, readonly[Vec]>
 }
-
-/*
-export const fileKvStore2 = <O extends FileOperations>(path: string): KvStore2<O> => ({
-    read: (key: Vec) => {},
-})
-*/
 
 export type KvStore = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
@@ -91,6 +86,18 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
     }
     return result
 }
+
+export const fileKvStore2 = <O extends FileOperations>(path: string): KvStore2<O> => ({
+    read: (key: Vec): Effect<O, Vec|undefined> => readFile(toPath(key))
+        (([status, data]) => pure(status === 'error' ? undefined : data)),
+    write: (key: Vec, value: Vec): Effect<O, void> => {
+        const p = toPath(key)
+        const parts = p.split('/')
+        const dir = `${path}/${parts.slice(0, -1).join('/')}`
+        return writeFile(`${path}/${p}`, value)(() => pure(undefined))
+    },
+    list: (): Effect<O, readonly[Vec]> => todo(),
+})
 
 export type Cas = {
     readonly read: (key: Vec) => Promise<Vec|undefined>
