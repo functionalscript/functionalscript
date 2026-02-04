@@ -1,5 +1,5 @@
 export type Operations = {
-    readonly[command in string]: readonly[unknown, unknown]
+    readonly[command in string]: readonly[input: unknown, output: unknown]
 }
 
 export type Effect<O extends Operations, T> = Pure<T> | Do<O, T>
