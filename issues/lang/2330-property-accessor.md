@@ -324,3 +324,8 @@ const iterable = {
     }
 }
 ```
+
+**Open Questions**
+
+- Generator detection (has a `Symbol.iterator` property and it's not an array)
+- Serialization/Deserialization of generators.

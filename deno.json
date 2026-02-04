@@ -52,6 +52,10 @@
     "./types/btree/types/module.f.ts": "./types/btree/types/module.f.ts",
     "./types/byte_set/module.f.ts": "./types/byte_set/module.f.ts",
     "./types/cbase32/module.f.ts": "./types/cbase32/module.f.ts",
+    "./types/effect/module.f.ts": "./types/effect/module.f.ts",
+    "./types/effect/module.ts": "./types/effect/module.ts",
+    "./types/effect/node/module.f.ts": "./types/effect/node/module.f.ts",
+    "./types/effect/node/module.ts": "./types/effect/node/module.ts",
     "./types/function/compare/module.f.ts": "./types/function/compare/module.f.ts",
     "./types/function/module.f.ts": "./types/function/module.f.ts",
     "./types/function/operator/module.f.ts": "./types/function/operator/module.f.ts",
@@ -74,7 +78,9 @@
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
-    "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts"
+    "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts",
+    "./website/module.f.ts": "./website/module.f.ts",
+    "./website/module.ts": "./website/module.ts"
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
