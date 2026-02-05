@@ -2,27 +2,43 @@ export type Operations = {
     readonly [command in string]: readonly [input: unknown, output: unknown]
 }
 
-export type Effect<O extends Operations, T> = Pure<T> | Do<O, T>
+export type Effect<O extends Operations, T> = Pure<O, T> | Do<O, T>
 
-export type Pure<T> = {
-    readonly pure: T
+export type Then<O extends Operations, T> = {
+    readonly then: <R>(f: (_: T) => Effect<O, R>) => Effect<O, R>
 }
 
-export const pure = <T>(value: T): Pure<T> => ({ pure: value })
+export type Pure<O extends Operations, T> = {
+    readonly pure: T
+} & Then<O, T>
+
+export const pure = <O extends Operations, T>(value: T): Pure<O, T> => ({
+    pure: value,
+    then: f => f(value),
+})
 
 export type One<O extends Operations, T, K extends keyof O & string> =
     readonly [K, O[K][0], (input: O[K][1]) => Effect<O, T>]
 
 export type Do<O extends Operations, T> = {
     readonly do: { readonly [K in keyof O & string]: One<O, T, K> }[keyof O & string]
-}
+} //& Then<O, T>
 
 const doFull = <O extends Operations, K extends keyof O & string, T>(
     cmd: K,
     payload: O[K][0],
     f: (input: O[K][1]) => Effect<O, T>
-): Do<O, O[K][1]> =>
-    ({ do:  [cmd, payload, f] })
+): Do<O, O[K][1]> => {
+    const one: One<O, T, K> = [cmd, payload, f]
+    return {
+        do: one,
+        /*then: f => {
+            if (f === pure) {
+                return [cmd, payload] as Effect<O, R & M> //< M == R
+            }
+        }*/
+    }
+}
 
 export const do_ = <O extends Operations, K extends keyof O & string>(
     cmd: K,
@@ -41,16 +57,14 @@ export const bind = <O extends Operations, M, R>(
         return f(a.pure)
     }
     const [cmd, payload, cont] = a.do
-    type T = O[typeof cmd][1]
-    return {
-        do: [
-            cmd,
-            payload,
-            cont === pure
-                ? f as (x: T) => Effect<O, R> //< M == T
-                : x => bind(cont(x), f)
-        ]
-    }
+    type K = O[typeof cmd][1]
+    return doFull(
+        cmd,
+        payload,
+        cont === pure
+            ? f as (x: K) => Effect<O, R> //< M == T
+            : x => bind(cont(x), f)
+    ) as Do<O, R>
 }
 
 export type ToAsyncOperationMap<O extends Operations> = {
