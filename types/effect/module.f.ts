@@ -27,13 +27,18 @@ export type ToAsyncOperationMap<O extends Operations> = {
 
 export const bind = <O extends Operations, M, R>(a: Effect<O, M>, f: (x: M) => Effect<O, R>): Effect<O, R> => {
     if (f === pure) {
-        return a as Effect<O, R>
+        return a as Effect<O, R> // M == R
     }
     if (a[0] === 'pure') {
         return f(a[1])
     }
     const [, cmd, payload, cont] = a
-    return cont === pure
-        ? ['do', cmd, payload, f as (x: unknown) => Effect<O, R>]
-        : ['do', cmd, payload, x => bind(cont(x), f)]
+    type T = O[typeof cmd][1]
+    return [
+        'do',
+        cmd,
+        payload,
+        cont === pure
+            ? f as (x: T) => Effect<O, R> // M == T
+            : x => bind(cont(x), f)]
 }
