@@ -4,17 +4,19 @@ export type Operations = {
 
 export type Effect<O extends Operations, T> = Pure<O, T> | Do<O, T>
 
-export type Then<O extends Operations, T> = {
-    readonly then: <R>(f: (_: T) => Effect<O, R>) => Effect<O, R>
+export type Map<O extends Operations, T> = {
+    readonly flatMap: <R>(f: (_: T) => Effect<O, R>) => Effect<O, R>
+    readonly map: <R>(f: (_: T) => R) => Effect<O, R>
 }
 
 export type Pure<O extends Operations, T> = {
     readonly pure: T
-} & Then<O, T>
+} & Map<O, T>
 
 export const pure = <O extends Operations, T>(value: T): Pure<O, T> => ({
     pure: value,
-    then: f => f(value),
+    flatMap: f => f(value),
+    map: f => pure(f(value))
 })
 
 export type One<O extends Operations, T, K extends keyof O & string> =
@@ -22,7 +24,7 @@ export type One<O extends Operations, T, K extends keyof O & string> =
 
 export type Do<O extends Operations, T> = {
     readonly do: { readonly [K in keyof O & string]: One<O, T, K> }[keyof O & string]
-} & Then<O, T>
+} & Map<O, T>
 
 const doFull = <O extends Operations, K extends keyof O & string, T>(
     cmd: K,
@@ -31,15 +33,16 @@ const doFull = <O extends Operations, K extends keyof O & string, T>(
 ): Do<O, O[K][1]> => {
     const result: Do<O, O[K][1]> = {
         do: [cmd, payload, cont],
-        then: f => f === pure
+        flatMap: f => f === pure
             ? result
             : doFull(
                 cmd,
                 payload,
                 cont === pure
                     ? f
-                    : x => cont(x).then(f)
-            )
+                    : x => cont(x).flatMap(f)
+            ),
+        map: f => doFull(cmd, payload, x => cont(x).map(f))
     }
     return result
 }
