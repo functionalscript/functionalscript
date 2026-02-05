@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effect: do_ and other helpers [PR 654](https://github.com/functionalscript/functionalscript/pull/654)
+
 ## 0.9.0
 
 - Replace legacy fsc/fst usage with fjs CLI [PR 619](https://github.com/functionalscript/functionalscript/pull/619)
