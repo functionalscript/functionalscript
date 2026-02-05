@@ -5,10 +5,10 @@ export const asyncRun =
     async<T, E extends Effect<O, T>>(effect: Effect<O, T>): Promise<T> =>
 {
     while (true) {
-        if (effect[0] === 'pure') {
-            return effect[1]
+        if ('pure' in effect) {
+            return effect.pure
         }
-        const [, command, payload, continuation] = effect
+        const [command, payload, continuation] = effect.do
         const operation = map[command]
         const result = await operation(payload)
         effect = continuation(result)
