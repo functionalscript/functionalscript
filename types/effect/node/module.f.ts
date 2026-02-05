@@ -4,10 +4,16 @@ import { type Do, type Effect, type ToAsyncOperationMap, type Operations, do_ } 
 
 export type IoResult<T> = Result<T, unknown>
 
+export type MakeDirectoryOptions = { readonly recursive: true }
+
+export type MkdirParam = readonly[string, MakeDirectoryOptions?]
+
+export type WriteFileParam = readonly[string, Vec]
+
 export type FileOperations = {
     readonly readFile: readonly [string, IoResult<Vec>]
-    readonly writeFile: readonly [readonly [string, Vec], IoResult<void>]
-    readonly mkdir: readonly [string, IoResult<void>]
+    readonly writeFile: readonly [WriteFileParam, IoResult<void>]
+    readonly mkdir: readonly [MkdirParam, IoResult<void>]
 }
 
 export const readFile =
@@ -16,14 +22,14 @@ export const readFile =
     do_('readFile', path, f)
 
 export const writeFile =
-    (path: string, data: Vec) =>
+    (...p: WriteFileParam) =>
     <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
-    do_('writeFile', [path, data], f)
+    do_('writeFile', p, f)
 
 export const mkdir =
-    (path: string) =>
+    (...p: MkdirParam) =>
     <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
-    do_('mkdir', path, f)
+    do_('mkdir', p, f)
 
 export type ConsoleOperations = {
     readonly log: readonly [string, void]
