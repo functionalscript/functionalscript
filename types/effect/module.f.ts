@@ -38,7 +38,7 @@ const doFull = <O extends Operations, K extends keyof O & string, T>(
                 payload,
                 cont === pure
                     ? f
-                    : x => bind(cont(x), f)
+                    : x => cont(x).then(f)
             )
     }
     return result
@@ -49,27 +49,6 @@ export const do_ = <O extends Operations, K extends keyof O & string>(
     payload: O[K][0]
 ): Do<O, O[K][1]> =>
     doFull(cmd, payload, pure)
-
-export const bind = <O extends Operations, M, R>(
-    a: Effect<O, M>,
-    f: (x: M) => Effect<O, R>
-): Effect<O, R> => {
-    if (f === pure) {
-        return a as Effect<O, R & M> //< M == R
-    }
-    if ('pure' in a) {
-        return f(a.pure)
-    }
-    const [cmd, payload, cont] = a.do
-    type K = O[typeof cmd][1]
-    return doFull(
-        cmd,
-        payload,
-        cont === pure
-            ? f as (x: K) => Effect<O, R> //< M == T
-            : x => bind(cont(x), f)
-    ) as Do<O, R>
-}
 
 export type ToAsyncOperationMap<O extends Operations> = {
     readonly [K in keyof O]: (payload: O[K][0]) => Promise<O[K][1]>
