@@ -5,7 +5,7 @@ import type { Vec } from '../../bit_vec/module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
 
-const { readFile, writeFile } = promises
+const { readFile, writeFile, mkdir } = promises
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
@@ -22,7 +22,9 @@ const nodeOperationMap: NodeOperationMap = {
     readFile: (path: string): Promise<IoResult<Vec>> =>
         tc(async() => toVec(await readFile(path))),
     writeFile: ([path, data]: readonly[string, Vec]): Promise<IoResult<void>> =>
-        tc(() => writeFile(path, fromVec(data)))
+        tc(() => writeFile(path, fromVec(data))),
+    mkdir: (path: string): Promise<IoResult<void>> =>
+        tc(() => mkdir(path)),
 }
 
 const nr = asyncRun(nodeOperationMap)

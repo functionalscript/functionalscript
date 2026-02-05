@@ -7,6 +7,7 @@ export type IoResult<T> = Result<T, unknown>
 export type FileOperations = {
     readonly readFile: readonly [string, IoResult<Vec>]
     readonly writeFile: readonly [readonly [string, Vec], IoResult<void>]
+    readonly mkdir: readonly [string, IoResult<void>]
 }
 
 export const readFile =
@@ -22,6 +23,11 @@ export const writeFile =
 export type ConsoleOperations = {
     readonly log: readonly [string, void]
 }
+
+export const log =
+    (msg: string) =>
+    <O extends ConsoleOperations, T>(f: () => Effect<O, T>): Do<O, T> =>
+    do_('log', msg, f)
 
 export type NodeOperations =
     & ConsoleOperations
