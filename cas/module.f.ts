@@ -97,6 +97,7 @@ export const fileKvStore2 = <O extends FileOperations>(path: string): KvStore2<O
         const parts = p.split('/')
         const dir = `${path}/${parts.slice(0, -1).join('/')}`
         const m = mkdir<O>(dir, { recursive: true })
+        // TODO: error handling
         const w = bind(m, () => writeFile(`${path}/${p}`, value))
         return bind(w, () => pure(undefined))
     },
