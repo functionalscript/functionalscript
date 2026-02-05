@@ -22,22 +22,26 @@ export type One<O extends Operations, T, K extends keyof O & string> =
 
 export type Do<O extends Operations, T> = {
     readonly do: { readonly [K in keyof O & string]: One<O, T, K> }[keyof O & string]
-} //& Then<O, T>
+} & Then<O, T>
 
 const doFull = <O extends Operations, K extends keyof O & string, T>(
     cmd: K,
     payload: O[K][0],
-    f: (input: O[K][1]) => Effect<O, T>
+    cont: (input: O[K][1]) => Effect<O, T>
 ): Do<O, O[K][1]> => {
-    const one: One<O, T, K> = [cmd, payload, f]
-    return {
-        do: one,
-        /*then: f => {
-            if (f === pure) {
-                return [cmd, payload] as Effect<O, R & M> //< M == R
-            }
-        }*/
+    const result: Do<O, O[K][1]> = {
+        do: [cmd, payload, cont],
+        then: f => f === pure
+            ? result
+            : doFull(
+                cmd,
+                payload,
+                cont === pure
+                    ? f
+                    : x => bind(cont(x), f)
+            )
     }
+    return result
 }
 
 export const do_ = <O extends Operations, K extends keyof O & string>(
