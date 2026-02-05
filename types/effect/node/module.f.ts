@@ -20,6 +20,11 @@ export const writeFile =
     <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
     do_('writeFile', [path, data], f)
 
+export const mkdir =
+    (path: string) =>
+    <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
+    do_('mkdir', path, f)
+
 export type ConsoleOperations = {
     readonly log: readonly [string, void]
 }
