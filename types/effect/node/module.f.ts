@@ -17,28 +17,24 @@ export type FileOperations = {
 }
 
 export const readFile =
-    (path: string) =>
-    <O extends FileOperations, T>(f: (r: IoResult<Vec>) => Effect<O, T>): Do<O, T> =>
-    do_('readFile', path, f)
+    <O extends FileOperations>(path: string): Do<O, IoResult<Vec>> =>
+    do_('readFile', path)
 
 export const writeFile =
-    (...p: WriteFileParam) =>
-    <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
-    do_('writeFile', p, f)
+    <O extends FileOperations>(...p: WriteFileParam): Do<O, IoResult<void>> =>
+    do_('writeFile', p)
 
 export const mkdir =
-    (...p: MkdirParam) =>
-    <O extends FileOperations, T>(f: (r: IoResult<void>) => Effect<O, T>): Do<O, T> =>
-    do_('mkdir', p, f)
+    <O extends FileOperations>(...p: MkdirParam): Do<O, IoResult<void>> =>
+    do_('mkdir', p)
 
 export type ConsoleOperations = {
     readonly log: readonly [string, void]
 }
 
 export const log =
-    (msg: string) =>
-    <O extends ConsoleOperations, T>(f: () => Effect<O, T>): Do<O, T> =>
-    do_('log', msg, f)
+    <O extends ConsoleOperations>(msg: string): Do<O, void> =>
+    do_('log', msg)
 
 export type NodeOperations =
     & ConsoleOperations
