@@ -25,7 +25,10 @@ export type ToAsyncOperationMap<O extends Operations> = {
     readonly [K in keyof O]: (payload: O[K][0]) => Promise<O[K][1]>
 }
 
-export const bind = <O extends Operations, M, R>(a: Effect<O, M>, f: (x: M) => Effect<O, R>): Effect<O, R> => {
+export const bind = <O extends Operations, M, R>(
+    a: Effect<O, M>,
+    f: (x: M) => Effect<O, R>
+): Effect<O, R> => {
     if (f === pure) {
         return a as Effect<O, R> // M == R
     }
