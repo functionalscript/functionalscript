@@ -1,4 +1,4 @@
-import { readFile } from "./node/module.f.ts"
+import { readFile } from "./module.f.ts"
 
 export default {
     map: () => {
