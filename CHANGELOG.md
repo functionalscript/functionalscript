@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effect: `map` and `flatMap` [PR657](https://github.com/functionalscript/functionalscript/pull/657)
 - Effect: bind [PR 656](https://github.com/functionalscript/functionalscript/pull/656)
 - Effect: do_ and other helpers [PR 654](https://github.com/functionalscript/functionalscript/pull/654)
 
