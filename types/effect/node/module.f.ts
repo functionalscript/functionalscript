@@ -1,5 +1,7 @@
+import { todo } from "../../../dev/module.f.ts"
 import type { Vec } from "../../bit_vec/module.f.ts"
 import type { Result } from "../../result/module.f.ts"
+import type { MemOperationMap } from "../mock/module.f.ts"
 import { type Do, type Effect, type ToAsyncOperationMap, type Operations, do_ } from "../module.f.ts"
 
 export type IoResult<T> = Result<T, unknown>
@@ -57,3 +59,16 @@ export type NodeEffect<T> = Effect<NodeOperations, T>
 export type NodeOperationMap = ToAsyncOperationMap<NodeOperations>
 
 export type NodeProgram = (argv: readonly string[]) => NodeEffect<number>
+
+// Mock
+
+export type VirtualState = {
+    stdout: string
+}
+
+export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
+    log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
+    mkdir: (state, payload) => todo(),
+    readFile: (state, payload) => todo(),
+    writeFile: (state, payload) => todo(),
+}

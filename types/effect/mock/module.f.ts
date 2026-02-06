@@ -4,15 +4,20 @@ export type MemOperationMap<O extends Operations, S> = {
     readonly [K in keyof O]: (state: S, payload: O[K][0]) => readonly[S, O[K][1]]
 }
 
-export const run = <O extends Operations, S>(o: MemOperationMap<O, S>) => (state: S) => <T>(effect: Effect<O, T>): T => {
+export const run =
+    <O extends Operations, S>(o: MemOperationMap<O, S>) =>
+    (state: S) =>
+    <T>(effect: Effect<O, T>): readonly[S, T] =>
+{
     let s = state
+    let e = effect
     while (true) {
-        if ('pure' in effect) {
-            return effect.pure
+        if ('pure' in e) {
+            return [s, e.pure]
         }
-        const [cmd, payload, cont] = effect.do
+        const [cmd, payload, cont] = e.do
         const [ns, m] = o[cmd](s, payload)
         s = ns
-        effect = cont(m)
+        e = cont(m)
     }
 }
