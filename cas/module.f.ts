@@ -4,7 +4,7 @@ import type { Io } from "../io/module.f.ts"
 import { type Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { mkdir, readFile, writeFile, type FileOperations, type IoResult } from "../types/effect/node/module.f.ts"
+import { mkdir, readFile, writeFile, type Fs, type IoResult } from "../types/effect/node/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { fromVec, toVec } from "../types/uint8array/module.f.ts"
@@ -87,7 +87,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
     return result
 }
 
-export const fileKvStore2 = <O extends FileOperations>(path: string): KvStore2<O> => ({
+export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
         readFile<O>(toPath(key))
             .flatMap(([status, data]) => pure(status === 'error' ? undefined : data))

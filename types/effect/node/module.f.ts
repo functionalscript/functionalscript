@@ -4,41 +4,53 @@ import { type Do, type Effect, type ToAsyncOperationMap, type Operations, do_ } 
 
 export type IoResult<T> = Result<T, unknown>
 
+// readFile
+
+export type ReadFile = { readonly readFile: readonly [string, IoResult<Vec>] }
+
+export const readFile =
+    <O extends ReadFile>(path: string): Do<O, IoResult<Vec>> =>
+    do_('readFile', path)
+
+// writeFile
+
+export type WriteFileParam = readonly[string, Vec]
+
+export type WriteFile = { readonly writeFile: readonly [WriteFileParam, IoResult<void>] }
+
+export const writeFile =
+    <O extends WriteFile>(...p: WriteFileParam): Do<O, IoResult<void>> =>
+    do_('writeFile', p)
+
+// mkdir
+
 export type MakeDirectoryOptions = { readonly recursive: true }
 
 export type MkdirParam = readonly[string, MakeDirectoryOptions?]
 
-export type WriteFileParam = readonly[string, Vec]
-
-export type FileOperations = {
-    readonly readFile: readonly [string, IoResult<Vec>]
-    readonly writeFile: readonly [WriteFileParam, IoResult<void>]
-    readonly mkdir: readonly [MkdirParam, IoResult<void>]
-}
-
-export const readFile =
-    <O extends FileOperations>(path: string): Do<O, IoResult<Vec>> =>
-    do_('readFile', path)
-
-export const writeFile =
-    <O extends FileOperations>(...p: WriteFileParam): Do<O, IoResult<void>> =>
-    do_('writeFile', p)
+export type Mkdir = { readonly mkdir: readonly [MkdirParam, IoResult<void>] }
 
 export const mkdir =
-    <O extends FileOperations>(...p: MkdirParam): Do<O, IoResult<void>> =>
+    <O extends Mkdir>(...p: MkdirParam): Do<O, IoResult<void>> =>
     do_('mkdir', p)
 
-export type ConsoleOperations = {
-    readonly log: readonly [string, void]
-}
+// Fs
+
+export type Fs = Mkdir & ReadFile & WriteFile
+
+// Console
+
+export type Console = { readonly log: readonly [string, void] }
 
 export const log =
-    <O extends ConsoleOperations>(msg: string): Do<O, void> =>
+    <O extends Console>(msg: string): Do<O, void> =>
     do_('log', msg)
 
+// Node
+
 export type NodeOperations =
-    & ConsoleOperations
-    & FileOperations
+    & Console
+    & Fs
 
 export type NodeEffect<T> = Effect<NodeOperations, T>
 
