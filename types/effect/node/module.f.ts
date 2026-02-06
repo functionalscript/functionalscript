@@ -60,10 +60,15 @@ export type NodeOperationMap = ToAsyncOperationMap<NodeOperations>
 
 export type NodeProgram = (argv: readonly string[]) => NodeEffect<number>
 
-// Mock
+// Virtual
+
+export type VirtualDir = {
+    readonly[name in string]: VirtualDir | Vec
+}
 
 export type VirtualState = {
     stdout: string
+    root: VirtualDir
 }
 
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {

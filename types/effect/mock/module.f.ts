@@ -16,7 +16,8 @@ export const run =
             return [s, e.pure]
         }
         const [cmd, payload, cont] = e.do
-        const [ns, m] = o[cmd](s, payload)
+        const  operation = o[cmd]
+        const [ns, m] = operation(s, payload)
         s = ns
         e = cont(m)
     }
