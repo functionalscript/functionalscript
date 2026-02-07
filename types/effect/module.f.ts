@@ -15,7 +15,7 @@ export type Pure<O extends Operations, T> = {
 
 export const pure = <O extends Operations, T>(value: T): Pure<O, T> => ({
     pure: value,
-    flatMap: f => f(value),
+    flatMap: e => e(value),
     map: f => pure(f(value))
 })
 
@@ -32,7 +32,7 @@ const doFull = <O extends Operations, K extends keyof O & string, T>(
     cont: (input: O[K][1]) => Effect<O, T>
 ): Do<O, T> => ({
     do: [cmd, payload, cont],
-    flatMap: f => doFull(cmd, payload, x => cont(x).flatMap(f)),
+    flatMap: e => doFull(cmd, payload, x => cont(x).flatMap(e)),
     map: f => doFull(cmd, payload, x => cont(x).map(f))
 })
 
