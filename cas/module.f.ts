@@ -90,8 +90,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
 export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
         readFile<O>(toPath(key))
-            .flatMap(([status, data]) => pure(status === 'error' ? undefined : data))
-    ,
+            .flatMap(([status, data]) => pure(status === 'error' ? undefined : data)),
     write: (key: Vec, value: Vec): Effect<O, void> => {
         const p = toPath(key)
         const parts = p.split('/')
