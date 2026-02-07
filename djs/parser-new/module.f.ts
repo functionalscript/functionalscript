@@ -173,7 +173,7 @@ export const jsGrammar = (): Rule => {
         operator,
         ws,
         newLine,
-        //eof
+        eof
     }
 
     const tokens = repeat0Plus(token)

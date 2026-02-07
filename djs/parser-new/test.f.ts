@@ -23,6 +23,7 @@ export default {
                 }
             }
             
+            expect('"', false)
             expect('   true   ', true)
             expect('   tr2ue   ', true)
             expect('   2true   ', true)
