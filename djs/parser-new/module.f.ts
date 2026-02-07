@@ -1,10 +1,12 @@
 import { descentParser } from "../../bnf/data/module.f.ts"
 import {
+    eof,
     fullRange,
     join0Plus,
     max,
     none,
     not,
+    oneEncode,
     option,
     range,
     remove,
@@ -145,9 +147,13 @@ export const jsGrammar = (): Rule => {
         ':': ':'
     }
 
+    const commentEnd = {
+        ...newLine,
+        eof
+    }
+
     const comment = ['/', {
-            //TODO: add end of file
-            oneline: ['/', option(remove(fullRange, newLine)), newLine],
+            oneline: ['/', option(remove(fullRange, newLine)), commentEnd],
             multiline: [
                 '*',
                 repeat0Plus({
@@ -159,6 +165,8 @@ export const jsGrammar = (): Rule => {
         }
     ]
 
+    const endOfFile = oneEncode(eof)
+
     const token = {
         number,
         string,
@@ -166,7 +174,8 @@ export const jsGrammar = (): Rule => {
         comment,
         operator,
         ws,
-        newLine
+        newLine,
+        //endOfFile
     }
 
     const tokens = repeat0Plus(token)
