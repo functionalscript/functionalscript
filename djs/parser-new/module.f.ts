@@ -166,6 +166,7 @@ export const jsGrammar = (): Rule => {
     ]
 
     const token = {
+        //'eof': 0x110000_110000,
         number,
         string,
         id,
@@ -173,7 +174,7 @@ export const jsGrammar = (): Rule => {
         operator,
         ws,
         newLine,
-        eof
+        //eof
     }
 
     const tokens = repeat0Plus(token)

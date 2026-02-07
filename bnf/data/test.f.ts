@@ -219,11 +219,11 @@ export default {
             if (result !== '[{"tag":true,"sequence":[]},true,[65,70]]') { throw result }
         },
         () => {
-            const terminalRangeRule = range('AF')
+            const terminalRangeRule = 0x10ffff_10ffff // range('AF')
             const m = parser(terminalRangeRule)
             const mr = m("", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[65]},true,[]]') { throw result }       
+            if (result !== '[{"sequence":[65]},true,[]]') { throw result }
         },
         () => {
             const terminalRangeRule = range('AF')
@@ -407,7 +407,7 @@ export default {
             if (result !== '[{"sequence":[]},true,0]') { throw result }
         },
         () => {
-            const terminalRangeRule = range('AF')
+            const terminalRangeRule = 0x10ffff_10ffff // range('AF')
             const m = descentParser(terminalRangeRule)
             const mr = descentParserCpOnly(m, "", [65])
             const result = JSON.stringify(mr)
