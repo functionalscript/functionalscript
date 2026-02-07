@@ -86,15 +86,66 @@ export const jsGrammar = (): Rule => {
     const id = [idStart, repeat0Plus(idChar)]
 
     const operator = {
-        memberAccess: '.',
-        equalSign: ['=', { equals: option(['=', option('=')]), arrow: '>'}],
-        exclamationMark: ['!', option(['=', option('=')])],
-        greaterSign: ['>', {relational: option('='), shift: ['>', option('>'), option('=')]}],
-        lessSign: ['<', {relational: option('='), shift: ['<', option('<'), option('=')]}],
-        add: ['+', option(set('+='))],
-        substract: ['-', option(set('-='))],
-        asterix: ['*', { multiply: option('='), exp: ['*', option('=')]}],
-        slash: ['/', {
+        '.': '.',
+        '=>': '=>',
+        '===': '===',
+        '==': '==',
+        '=': '=',
+        '!==': '!==',
+        '!=': '!=',
+        '!': '!',
+        '>>>=': '>>>=',
+        '>>>': '>>>',
+        '>>=': '>>=',
+        '>>': '>>',
+        '>=': '>=',
+        '>': '>',
+        '<<<<=': '<<<=',
+        '<<<': '<<<',
+        '<<=': '<<=',
+        '<<': '<<',
+        '<=': '<=',
+        '<': '<',
+        '+=': '+=',
+        '++': '++',
+        '+': '+',
+        '-=': '-=',
+        '--': '--',
+        '-': '-',
+        '**=': '**=',
+        '**': '**',
+        '*=': '*=',
+        '*': '*',
+        '/=': '/=',
+        '/': '/',
+        '%=': '%=',
+        '%': '%',
+        '&&=': '&&=',
+        '&&': '&&',
+        '&=': '&=',
+        '&': '&',
+        '||=': '||=',
+        '||': '||',
+        '|=': '|=',
+        '|': '|',
+        '^=': '^=',
+        '^': '^',
+        '~': '~',
+        '??=': '??=',
+        '??': '??',
+        '?.': '?.',
+        '?': '?',
+        '[': '[',
+        ']': ']',
+        '{': '{',
+        '}': '}',
+        '(': '(',
+        ')': ')',
+        ',': ',',
+        ':': ':'
+    }
+
+    const comment = ['/', {
             //TODO: add end of file
             oneline: ['/', option(remove(fullRange, newLine)), newLine],
             multiline: [
@@ -104,24 +155,15 @@ export const jsGrammar = (): Rule => {
                     a: ['*', not('/')]
                 }),
                 '*/'
-            ],
-            divide: option('='),
-        }],
-        remainder: ['%', option('=')],
-        and: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
-        or: ['&', { bitwise: option('='), logical: ['&', option('=')]}],
-        xor: ['^', option('=')],
-        not: '~',
-        questionMark: ['?', { chaining: option('.'), nullish: ['?', option('=')]}],
-        grouping: set('[]{}()'),
-        comma: ',',
-        colon: ':'
-    }
+            ]
+        }
+    ]
 
     const token = {
         number,
         string,
         id,
+        comment,
         operator,
         ws,
         newLine

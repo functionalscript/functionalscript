@@ -90,7 +90,7 @@ export default {
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
             if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'asterix') throw JSON.stringify(mr)
+            if (seq.tag !== '*') throw JSON.stringify(mr)
         },
         () => {
             const m = descentParser(jsGrammar())
@@ -98,7 +98,15 @@ export default {
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
             if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'asterix') throw JSON.stringify(mr)
+            if (seq.tag !== '**') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('=>'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== '=>') throw JSON.stringify(mr)
         },
         () => {
             const m = descentParser(jsGrammar())
@@ -106,7 +114,23 @@ export default {
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
             if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'equalSign') throw JSON.stringify(mr)
+            if (seq.tag !== '==') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('==='))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== '===') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('='))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== '=') throw JSON.stringify(mr)
         },
         () => {
             const m = descentParser(jsGrammar())
@@ -126,11 +150,19 @@ export default {
         },
         () => {
             const m = descentParser(jsGrammar())
+            const cp = toArray(stringToCodePointList('/\n'))
+            const mr = descentParserCpOnly(m, '', cp)
+            const seq = mr[0].sequence[0]
+            if (seq instanceof Array) throw JSON.stringify(mr)
+            if (seq.tag !== '/') throw JSON.stringify(mr)
+        },
+        () => {
+            const m = descentParser(jsGrammar())
             const cp = toArray(stringToCodePointList('//\n'))
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
             if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'slash') throw JSON.stringify(mr)
+            if (seq.tag !== 'comment') throw JSON.stringify(mr)
         },
         () => {
             const m = descentParser(jsGrammar())
@@ -138,7 +170,7 @@ export default {
             const mr = descentParserCpOnly(m, '', cp)
             const seq = mr[0].sequence[0]
             if (seq instanceof Array) throw JSON.stringify(mr)
-            if (seq.tag !== 'slash') throw JSON.stringify(mr)
+            if (seq.tag !== 'comment') throw JSON.stringify(mr)
         }
     ]
 }
