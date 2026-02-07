@@ -165,8 +165,6 @@ export const jsGrammar = (): Rule => {
         }
     ]
 
-    const endOfFile = oneEncode(eof)
-
     const token = {
         number,
         string,
@@ -175,7 +173,7 @@ export const jsGrammar = (): Rule => {
         operator,
         ws,
         newLine,
-        //endOfFile
+        //eof
     }
 
     const tokens = repeat0Plus(token)
