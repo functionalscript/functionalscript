@@ -90,13 +90,6 @@ type RangeList = readonly TerminalRange[]
  */
 export type RangeVariant = { readonly [k in string]: TerminalRange }
 
-export const rangeToId = (r: TerminalRange): string => {
-    const ab = rangeDecode(r)
-    const [a, b] = ab
-    const cp = a === b ? [a] : ab
-    return fromCodePoint(...cp)
-}
-
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
     [r.toString(), r]
 
