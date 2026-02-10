@@ -6,6 +6,7 @@ import {
     max,
     none,
     not,
+    notSet,
     oneEncode,
     option,
     range,
@@ -157,8 +158,8 @@ export const jsGrammar = (): Rule => {
             multiline: [
                 '*',
                 repeat0Plus({
-                    na: not('*'),
-                    a: ['*', not('/')]
+                    na: notSet('*'),
+                    a: ['*', notSet('/')]
                 }),
                 '*/'
             ]
