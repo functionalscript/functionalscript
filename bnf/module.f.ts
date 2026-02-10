@@ -130,9 +130,9 @@ export const remove = (range: TerminalRange, removeSet: RangeVariant): RangeVari
     return toVariantRangeSet(result)
 }
 
-export const not = (s: string) => {
-    return remove(fullRange, set(s))
-}
+// TODO: check if the first parameter of the `remove` should also include `eof`.
+export const not = (s: string): RangeVariant =>
+    remove(fullRange, set(s))
 
 //
 
