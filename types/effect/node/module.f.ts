@@ -1,5 +1,5 @@
 import { todo } from "../../../dev/module.f.ts"
-import type { Vec } from "../../bit_vec/module.f.ts"
+import { isVec, type Vec } from "../../bit_vec/module.f.ts"
 import type { Result } from "../../result/module.f.ts"
 import type { MemOperationMap } from "../mock/module.f.ts"
 import { type Do, type Effect, type ToAsyncOperationMap, type Operations, do_ } from "../module.f.ts"
@@ -63,7 +63,7 @@ export type NodeProgram = (argv: readonly string[]) => NodeEffect<number>
 // Virtual
 
 export type VirtualDir = {
-    readonly[name in string]: VirtualDir | Vec
+    readonly[name in string]?: VirtualDir | Vec
 }
 
 export type VirtualState = {
@@ -71,9 +71,26 @@ export type VirtualState = {
     root: VirtualDir
 }
 
+const virtualMkdir = (dir: VirtualDir, path: readonly string[]): IoResult<VirtualDir> => {
+    if (path.length === 0) { return ['ok', dir] }
+    const [first, ...rest] = path
+    const subDir = dir[first]
+    if (isVec(subDir)) {
+        return ['error', `${first} is not a directory`]
+    }
+    // TODO: check if it's recursive mkdir.
+    const r = virtualMkdir(subDir === undefined ? {} : subDir, rest)
+    const [t, m] = r
+    return t === 'ok' ? ['ok', { ...dir, [first]: m }] : r
+}
+
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
-    mkdir: (state, payload) => todo(),
+    mkdir: (state, [path, p]) => {
+        const r = virtualMkdir(state.root, path.split('/'))
+        const [t, root] = r
+        return t === 'error' ? [state, r] : [{ ...state, root }, ['ok', undefined]]
+    },
     readFile: (state, payload) => todo(),
     writeFile: (state, payload) => todo(),
 }
