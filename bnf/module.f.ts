@@ -124,7 +124,7 @@ export const remove = (range: TerminalRange, v: RangeVariant): RangeVariant => {
 }
 
 export const notSet = (s: string): RangeVariant =>
-    remove(fullRange, set(s))
+    not(set(s))
 
 export const not = (v: RangeVariant): RangeVariant =>
     remove(fullRange, v)
