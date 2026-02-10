@@ -123,11 +123,11 @@ export const remove = (range: TerminalRange, v: RangeVariant): RangeVariant => {
     return toVariantRangeSet(result)
 }
 
-export const notSet = (s: string): RangeVariant =>
-    not(set(s))
-
 export const not = (v: RangeVariant): RangeVariant =>
     remove(fullRange, v)
+
+export const notSet = (s: string): RangeVariant =>
+    not(set(s))
 
 export type None = readonly[]
 
