@@ -154,6 +154,7 @@ export const jsGrammar = (): Rule => {
     }
 
     const comment = ['/', {
+            // We should either do `remove(unicode, newLine)` or `not(newLineOrEol)`.
             oneline: ['/', option(remove(unicodeRange, newLine)), commentEnd],
             multiline: [
                 '*',
