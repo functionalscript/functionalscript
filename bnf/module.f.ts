@@ -15,6 +15,8 @@ export type TerminalRange = number
 
 export const fullRange: TerminalRange = 0x000000_FFFFFF
 
+export const unicodeRange: TerminalRange = 0x000000_10FFFF
+
 export const eof = 0x110000
 
 /** A sequence of rules. */

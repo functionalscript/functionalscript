@@ -1,7 +1,6 @@
 import { descentParser } from "../../bnf/data/module.f.ts"
 import {
     eof,
-    fullRange,
     join0Plus,
     max,
     none,
@@ -15,6 +14,7 @@ import {
     repeat0Plus,
     repeat1Plus,
     set,
+    unicodeRange,
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../dev/module.f.ts"
@@ -73,7 +73,7 @@ export const jsGrammar = (): Rule => {
     const ws = set(' \t')
 
     const newLine = set('\n\r')
-    
+
     const idStart = {
         smallLetter: range('az'),
         bigLetter: range('AZ'),
@@ -154,7 +154,7 @@ export const jsGrammar = (): Rule => {
     }
 
     const comment = ['/', {
-            oneline: ['/', option(remove(fullRange, newLine)), commentEnd],
+            oneline: ['/', option(remove(unicodeRange, newLine)), commentEnd],
             multiline: [
                 '*',
                 repeat0Plus({
