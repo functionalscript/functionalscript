@@ -15,6 +15,7 @@ import {
     repeat1Plus,
     set,
     unicodeRange,
+    type RangeVariant,
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../dev/module.f.ts"
@@ -148,13 +149,13 @@ export const jsGrammar = (): Rule => {
         ':': ':'
     }
 
-    const commentEnd = {
+    const commentEnd: RangeVariant = {
         ...newLine,
         eof
     }
 
     const comment = ['/', {
-            // We should either do `remove(unicode, newLine)` or `not(newLineOrEol)`.
+            // TODO: investigate why `not(commentEnd)` instead of `remove(unicodeRange, newLine)` fail tests.
             oneline: ['/', option(remove(unicodeRange, newLine)), commentEnd],
             multiline: [
                 '*',
