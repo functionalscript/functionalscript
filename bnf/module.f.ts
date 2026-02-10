@@ -130,9 +130,8 @@ export const remove = (range: TerminalRange, removeSet: RangeVariant): RangeVari
     return toVariantRangeSet(result)
 }
 
-export const not = (s: string) => {
-    return remove(fullRange, set(s))
-}
+export const not = (s: string): RangeVariant =>
+    remove(fullRange, set(s))
 
 //
 
