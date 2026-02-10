@@ -91,7 +91,7 @@ type RangeList = readonly TerminalRange[]
 export type RangeVariant = { readonly [k in string]: TerminalRange }
 
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
-    [r.toString(), r]
+    [r.toString(16), r]
 
 const toVariantRangeSet = (r: RangeList): RangeVariant =>
     fromEntries(r.map(rangeToEntry))
