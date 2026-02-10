@@ -71,11 +71,10 @@ export type VirtualState = {
     root: VirtualDir
 }
 
-const operation = (
-    dir: VirtualDir,
-    path: readonly string[],
-    op: (dir: VirtualDir, path: readonly string[]) => IoResult<VirtualDir>
-): IoResult<VirtualDir> => todo()
+const operation =
+    (dir: VirtualDir, path: readonly string[]) =>
+    <T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]): readonly[VirtualDir, T] =>
+    todo()
 
 const virtualMkdir = (dir: VirtualDir, path: readonly string[]): IoResult<VirtualDir> => {
     if (path.length === 0) { return ['ok', dir] }
