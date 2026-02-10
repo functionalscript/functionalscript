@@ -98,7 +98,7 @@ export const rangeToId = (r: TerminalRange): string => {
 }
 
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
-    [rangeToId(r), r]
+    [r.toString(), r]
 
 const toVariantRangeSet = (r: RangeList): RangeVariant =>
     fromEntries(r.map(rangeToEntry))
