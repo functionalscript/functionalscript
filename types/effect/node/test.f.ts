@@ -21,11 +21,29 @@ export default {
             e = cont(['ok', vec8(0x15n)])
         }
     },
-    mkdir: () => {
-        const v = run(virtual)
-        const [state, [t, result]] = v(emptyState)(mkdir('a'))
-        if (t === 'error') { throw result }
-        const a = state.root.a
-        if (a === undefined || isVec(a)) { throw a }
+    mkdir: {
+        one: () => {
+            const v = run(virtual)
+            const [state, [t, result]] = v(emptyState)(mkdir('a'))
+            if (t === 'error') { throw result }
+            const a = state.root.a
+            if (a === undefined || isVec(a)) { throw a }
+        },
+        rec: () => {
+            const [state, result] = run(virtual)(emptyState)(
+                mkdir('tmp/cache', { recursive: true })
+            )
+            if (result[0] !== 'ok') { throw result }
+            const tmp = state.root.tmp
+            if (tmp === undefined || isVec(tmp)) { throw state.root }
+            const cache = tmp.cache
+            if (cache === undefined || isVec(cache)) { throw tmp }
+        },
+        nonRec: () => {
+            const [state, result] = run(virtual)(emptyState)(
+                mkdir('tmp/cache')
+            )
+            if (result[0] !== 'error') { throw result }
+        }
     }
 }
