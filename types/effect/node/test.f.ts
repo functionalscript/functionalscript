@@ -30,20 +30,21 @@ export default {
             if (a === undefined || isVec(a)) { throw a }
         },
         rec: () => {
-            const [state, result] = run(virtual)(emptyState)(
+            const [state, [t, result]] = run(virtual)(emptyState)(
                 mkdir('tmp/cache', { recursive: true })
             )
-            if (result[0] !== 'ok') { throw result }
+            if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
             if (tmp === undefined || isVec(tmp)) { throw state.root }
             const cache = tmp.cache
             if (cache === undefined || isVec(cache)) { throw tmp }
         },
         nonRec: () => {
-            const [state, result] = run(virtual)(emptyState)(
+            const [state, [t, result]] = run(virtual)(emptyState)(
                 mkdir('tmp/cache')
             )
-            if (result[0] !== 'error') { throw result }
+            if (t !== 'error') { throw result }
+            if (state.root.tmp !== undefined) { throw state.root.tmp }
         }
     }
 }
