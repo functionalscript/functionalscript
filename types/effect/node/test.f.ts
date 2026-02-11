@@ -1,6 +1,7 @@
 import { isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { run } from "../mock/module.f.ts"
-import { emptyState, mkdir, readFile, virtual, writeFile } from "./module.f.ts"
+import { mkdir, readFile, writeFile } from "./module.f.ts"
+import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
     map: () => {
