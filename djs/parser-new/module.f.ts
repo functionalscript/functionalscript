@@ -156,6 +156,7 @@ export const jsGrammar = (): Rule => {
 
     const comment = ['/', {
             // TODO: investigate why `not(commentEnd)` instead of `remove(unicodeRange, newLine)` fail tests.
+            // TODO: should it be `repeat0Plus(not(commentEnd))` instead of `option(remove(unicodeRange, newLine))`.
             oneline: ['/', option(remove(unicodeRange, newLine)), commentEnd],
             multiline: [
                 '*',
