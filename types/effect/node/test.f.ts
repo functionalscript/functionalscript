@@ -1,4 +1,4 @@
-import { uint, vec8 } from "../../bit_vec/module.f.ts"
+import { isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { run } from "../mock/module.f.ts"
 import { emptyState, mkdir, readFile, virtual } from "./module.f.ts"
 
@@ -23,6 +23,9 @@ export default {
     },
     mkdir: () => {
         const v = run(virtual)
-        const result = v(emptyState)(mkdir('a'))
+        const [state, [t, result]] = v(emptyState)(mkdir('a'))
+        if (t === 'error') { throw result }
+        const a = state.root.a
+        if (a === undefined || isVec(a)) { throw a }
     }
 }
