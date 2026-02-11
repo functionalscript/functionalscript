@@ -1,6 +1,6 @@
 import { isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { run } from "../mock/module.f.ts"
-import { emptyState, mkdir, readFile, virtual } from "./module.f.ts"
+import { emptyState, mkdir, readFile, virtual, writeFile } from "./module.f.ts"
 
 export default {
     map: () => {
@@ -80,5 +80,52 @@ export default {
             if (t !== 'error') { throw result }
             if (result !== 'no such file') { throw result }
         }
-    }
+    },
+    writeFile: {
+        one: () => {
+            const [state, [t, result]] = run(virtual)(emptyState)(
+                writeFile('hello', vec8(0x2An))
+            )
+            if (t !== 'ok') { throw result }
+            const file = state.root.hello
+            if (!isVec(file)) { throw file }
+            if (uint(file) !== 0x2An) { throw file }
+        },
+        overwrite: () => {
+            const [state, [t, result]] = run(virtual)({
+                ...emptyState,
+                root: {
+                    hello: vec8(0x15n),
+                },
+            })(
+                writeFile('hello', vec8(0x2An))
+            )
+            if (t !== 'ok') { throw result }
+            const file = state.root.hello
+            if (!isVec(file)) { throw file }
+            if (uint(file) !== 0x2An) { throw file }
+        },
+        nestedPath: () => {
+            const [state, [t, result]] = run(virtual)(emptyState)(
+                writeFile('tmp/cache', vec8(0x2An))
+            )
+            if (t !== 'error') { throw result }
+            if (result !== 'invalid file') { throw result }
+            if (state.root.tmp !== undefined) { throw state.root }
+        },
+        directory: () => {
+            const [state, [t, result]] = run(virtual)({
+                ...emptyState,
+                root: {
+                    tmp: {},
+                },
+            })(
+                writeFile('tmp', vec8(0x2An))
+            )
+            if (t !== 'error') { throw result }
+            if (result !== 'invalid file') { throw result }
+            const tmp = state.root.tmp
+            if (tmp === undefined || isVec(tmp)) { throw tmp }
+        },
+    },
 }
