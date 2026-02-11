@@ -98,6 +98,8 @@ const operation =
     }
 }
 
+const okVoid = ['ok', undefined] as const
+
 const virtualMkdir = (recursive: boolean) => operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
     let d = {}
     let i = path.length
@@ -109,7 +111,7 @@ const virtualMkdir = (recursive: boolean) => operation((dir, path): readonly[Vir
         d = { [path[i]]: d }
     }
     dir = { ...dir, ...d }
-    return [dir, ['ok', undefined]]
+    return [dir, okVoid]
 })
 
 const readFileError = ['error', 'no such file'] as const
@@ -121,9 +123,20 @@ const virtualReadFile = operation((dir, path): readonly[VirtualDir, IoResult<Vec
     return [dir, ['ok', file]]
 })
 
+const writeFileError = ['error', 'invalid file'] as const
+
+const virtualWriteFile = (payload: Vec) => operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
+    if (path.length !== 1) { return [dir, writeFileError] }
+    const [name] = path
+    const file = dir[name]
+    if (file !== undefined || !isVec(file)) { return [dir, writeFileError] }
+    dir = { ...dir, [name]: payload }
+    return [dir, okVoid]
+})
+
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
     mkdir: (state, [path, p]) => virtualMkdir(p !== undefined)(state, path),
     readFile: virtualReadFile,
-    writeFile: (state, payload) => todo(),
+    writeFile: (state, [path, payload]) => virtualWriteFile(payload)(state, path),
 }
