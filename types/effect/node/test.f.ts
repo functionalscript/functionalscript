@@ -46,5 +46,39 @@ export default {
             if (t !== 'error') { throw result }
             if (state.root.tmp !== undefined) { throw state.root.tmp }
         }
+    },
+    readFile: {
+        one: () => {
+            const v = run(virtual)
+            const initial = {
+                ...emptyState,
+                root: {
+                    hello: vec8(0x2An),
+                },
+            }
+            const [state, [t, result]] = v(initial)(readFile('hello'))
+            if (t === 'error') { throw result }
+            if (!isVec(result)) { throw result }
+            if (uint(result) !== 0x2An) { throw result }
+            if (state.root.hello === undefined) { throw state.root }
+        },
+        nested: () => {
+            const [_, [tag, result]] = run(virtual)({
+                ...emptyState,
+                root: { tmp: { cache: vec8(0x15n) } }
+            })(readFile('tmp/cache'))
+            if (tag === 'error') { throw result }
+            if (uint(result) !== 0x15n) { throw result }
+        },
+        noSuchFile: () => {
+            const [_, [t, result]] = run(virtual)(emptyState)(readFile('hello'))
+            if (t !== 'error') { throw result }
+            if (result !== 'no such file') { throw result }
+        },
+        nestedPath: () => {
+            const [_, [t, result]] = run(virtual)(emptyState)(readFile('tmp/cache'))
+            if (t !== 'error') { throw result }
+            if (result !== 'no such file') { throw result }
+        }
     }
 }
