@@ -1,6 +1,7 @@
-import type { Vec } from "../../bit_vec/module.f.ts"
-import type { Result } from "../../result/module.f.ts"
-import { type Do, type Effect, type ToAsyncOperationMap, type Operations, do_ } from "../module.f.ts"
+import { isVec, type Vec } from '../../bit_vec/module.f.ts'
+import type { Result } from '../../result/module.f.ts'
+import type { MemOperationMap } from '../mock/module.f.ts'
+import { type Do, type Effect, type ToAsyncOperationMap, do_ } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 

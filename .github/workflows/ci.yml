@@ -11,7 +11,7 @@
           "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
         },
         {
-          "uses": "dtolnay/rust-toolchain@1.92.0",
+          "uses": "dtolnay/rust-toolchain@1.93.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu"
@@ -188,7 +188,7 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.92.0",
+          "uses": "dtolnay/rust-toolchain@1.93.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -359,7 +359,7 @@
       "runs-on": "macos-15-intel",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.92.0",
+          "uses": "dtolnay/rust-toolchain@1.93.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -530,7 +530,7 @@
       "runs-on": "macos-latest",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.92.0",
+          "uses": "dtolnay/rust-toolchain@1.93.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -701,7 +701,7 @@
       "runs-on": "windows-latest",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.92.0",
+          "uses": "dtolnay/rust-toolchain@1.93.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-pc-windows-msvc"
@@ -878,7 +878,7 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.92.0",
+          "uses": "dtolnay/rust-toolchain@1.93.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"

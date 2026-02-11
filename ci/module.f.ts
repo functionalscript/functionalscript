@@ -145,7 +145,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
         ...(rust ? [{
             // wasm32-wasip1-threads doesn't work on Rust 1.91 in the release mode.
             // See https://github.com/sergey-shandar/wasmtime-crash
-            uses: 'dtolnay/rust-toolchain@1.92.0',
+            uses: 'dtolnay/rust-toolchain@1.93.0',
             with: {
                 components: 'rustfmt,clippy',
                 targets
