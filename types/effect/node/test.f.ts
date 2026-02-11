@@ -1,5 +1,6 @@
 import { uint, vec8 } from "../../bit_vec/module.f.ts"
-import { readFile } from "./module.f.ts"
+import { run } from "../mock/module.f.ts"
+import { emptyState, mkdir, readFile, virtual } from "./module.f.ts"
 
 export default {
     map: () => {
@@ -19,5 +20,9 @@ export default {
             if (p !== 'hello') { throw p }
             e = cont(['ok', vec8(0x15n)])
         }
+    },
+    mkdir: () => {
+        const v = run(virtual)
+        const result = v(emptyState)(mkdir('a'))
     }
 }

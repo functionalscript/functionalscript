@@ -71,6 +71,11 @@ export type VirtualState = {
     root: VirtualDir
 }
 
+export const emptyState: VirtualState = {
+    stdout: '',
+    root: {},
+}
+
 const operation =
     <T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]) =>
 {
@@ -91,9 +96,12 @@ const operation =
 }
 
 // TODO: check if recursion flag is set when `path.length > 1`.
-const virtualMkdir = operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
+const virtualMkdir = (recursive: boolean) => operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
     let d = {}
     let i = path.length
+    if (i > 1 && !recursive) {
+        return [dir, ['error', 'non-recursive']]
+    }
     while (i > 0) {
         i -= 1
         d = { [path[i]]: d }
@@ -105,7 +113,7 @@ const virtualMkdir = operation((dir, path): readonly[VirtualDir, IoResult<void>]
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
     mkdir: (state, [path, p]) => {
-        const [root, result] = virtualMkdir(state.root, path.split('/'))
+        const [root, result] = virtualMkdir(p !== undefined)(state.root, path.split('/'))
         return [{ ...state, root }, result]
     },
     readFile: (state, payload) => todo(),
