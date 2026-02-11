@@ -129,7 +129,8 @@ const virtualWriteFile = (payload: Vec) => operation((dir, path): readonly[Virtu
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
     const file = dir[name]
-    if (file !== undefined || !isVec(file)) { return [dir, writeFileError] }
+    // fail if the file is a directory
+    if (file !== undefined && !isVec(file)) { return [dir, writeFileError] }
     dir = { ...dir, [name]: payload }
     return [dir, okVoid]
 })
