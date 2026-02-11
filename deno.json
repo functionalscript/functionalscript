@@ -58,6 +58,7 @@
     "./types/effect/module.ts": "./types/effect/module.ts",
     "./types/effect/node/module.f.ts": "./types/effect/node/module.f.ts",
     "./types/effect/node/module.ts": "./types/effect/node/module.ts",
+    "./types/effect/node/virtual/module.f.ts": "./types/effect/node/virtual/module.f.ts",
     "./types/function/compare/module.f.ts": "./types/function/compare/module.f.ts",
     "./types/function/module.f.ts": "./types/function/module.f.ts",
     "./types/function/operator/module.f.ts": "./types/function/operator/module.f.ts",
