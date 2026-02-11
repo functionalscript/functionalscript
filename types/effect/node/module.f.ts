@@ -72,33 +72,41 @@ export type VirtualState = {
 }
 
 const operation =
-    (dir: VirtualDir, path: readonly string[]) =>
-    <T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]): readonly[VirtualDir, T] =>
+    <T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]) =>
 {
-    if (path.length === 0) {
-        return op(dir, path)
+    const f = (dir: VirtualDir, path: readonly string[]): readonly[VirtualDir, T] =>
+    {
+        if (path.length === 0) {
+            return op(dir, path)
+        }
+        const [first, ...rest] = path
+        const subDir = dir[first]
+        if (subDir === undefined || isVec(subDir)) {
+            return op(dir, path)
+        }
+        const [newSubDir, r] = f(subDir, rest)
+        return [{ ...dir, [first]: newSubDir }, r]
     }
+    return f
 }
 
-const virtualMkdir = (dir: VirtualDir, path: readonly string[]): IoResult<VirtualDir> => {
-    if (path.length === 0) { return ['ok', dir] }
-    const [first, ...rest] = path
-    const subDir = dir[first]
-    if (isVec(subDir)) {
-        return ['error', `${first} is not a directory`]
+// TODO: check if recursion flag is set when `path.length > 1`.
+const virtualMkdir = operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
+    let d = {}
+    let i = path.length
+    while (i > 0) {
+        i -= 1
+        d = { [path[i]]: d }
     }
-    // TODO: check if it's recursive mkdir.
-    const r = virtualMkdir(subDir === undefined ? {} : subDir, rest)
-    const [t, m] = r
-    return t === 'ok' ? ['ok', { ...dir, [first]: m }] : r
-}
+    dir = { ...dir, ...d }
+    return [dir, ['ok', undefined]]
+})
 
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
     mkdir: (state, [path, p]) => {
-        const r = virtualMkdir(state.root, path.split('/'))
-        const [t, root] = r
-        return t === 'error' ? [state, r] : [{ ...state, root }, ['ok', undefined]]
+        const [root, result] = virtualMkdir(state.root, path.split('/'))
+        return [{ ...state, root }, result]
     },
     readFile: (state, payload) => todo(),
     writeFile: (state, payload) => todo(),
