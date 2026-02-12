@@ -1,11 +1,10 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect } from "../types/effect/node/module.f.ts"
+import { error, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
@@ -156,5 +155,31 @@ export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
 }
 
 export const main2 = (args: readonly string[]): NodeEffect<number> => {
-    return todo()
+    switch (args[0]) {
+        default:
+            return error<NodeOperations>('not implemented').map(() => 1)
+    }
+    /*
+    switch (args[0]) {
+        case 'add':
+            return error', 'cas add command is not implemented yet']
+        case 'get': {
+            error('cas get command is not implemented yet')
+            break
+        }
+        case 'list': {
+            error('cas list command is not implemented yet')
+            break
+        }
+        case undefined: {
+            error('Error: cas command requires subcommand')
+            break
+        }
+        default: {
+            error(`Error: Unknown cas subcommand "${args[0]}"`)
+        }
+    }
+    return Promise.resolve(1)
+    */
+   return pure(1)
 }
