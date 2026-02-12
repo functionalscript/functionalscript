@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effect: `flatMap` => `pipe` [664](https://github.com/functionalscript/functionalscript/pull/664)
 - Effect: Node: readdir [663](https://github.com/functionalscript/functionalscript/pull/663)
 - Effect: Mock [658](https://github.com/functionalscript/functionalscript/pull/658)
 - Effect: `map` and `flatMap` [PR657](https://github.com/functionalscript/functionalscript/pull/657)
