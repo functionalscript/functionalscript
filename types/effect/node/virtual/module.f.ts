@@ -85,19 +85,20 @@ const invalidPath = error('invalid path')
 
 const readdir = readOperation((dir, path): IoResult<readonly string[]> => {
     if (path.length !== 0) { return invalidPath }
-    const f = (d: VirtualDir) => {
+    const f = (prefix: string, d: VirtualDir) => {
         let result: readonly string[] = []
         for (const [name, content] of Object.entries(d)) {
             if (content === undefined) { continue }
+            const fullName = `${prefix}${name}`
             if (isVec(content)) {
-                result = [...result, 'name']
+                result = [...result, fullName]
                 continue
             }
-            result = [...result, ...f(content)]
+            result = [...result, ...f(`${fullName}/`, content)]
         }
         return result
     }
-    return ok(f(dir))
+    return ok(f('', dir))
 })
 
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
