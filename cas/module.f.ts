@@ -104,6 +104,7 @@ export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     },
     list: (): Effect<O, readonly Vec[]> =>
         readdir<O>('', { recursive: true })
+        // TODO: remove unwrap
         .map(r => unwrap(r).flatMap(name =>
             toOption(cBase32ToVec(name.replaceAll('/', '')))
         )),
