@@ -1,5 +1,5 @@
 import type { Fold, Reduce, Unary } from "../types/function/operator/module.f.ts"
-import { type List, fold, last, take, length, concat as listConcat } from '../types/list/module.f.ts'
+import { type List, fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.ts'
 import { join } from "../types/string/module.f.ts"
 import { concat as stringConcat } from '../types/string/module.f.ts'
 
@@ -18,10 +18,14 @@ const foldNormalizeOp: Fold<string, List<string>>
     }
 }
 
+export const parse = (path: string): readonly string[] => {
+    const split = path.replaceAll('\\', '/').split('/')
+    return toArray(fold(foldNormalizeOp)([])(split))
+}
+
 export const normalize: Unary<string, string>
 = path => {
-    const split = path.replaceAll('\\', '/').split('/')
-    const foldResult = fold(foldNormalizeOp)([])(split)
+    const foldResult = parse(path)
     return join('/')(foldResult)
 }
 

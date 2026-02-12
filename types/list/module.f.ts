@@ -187,14 +187,14 @@ export const some: (input: List<boolean>) => boolean
 
 export const isEmpty: <T>(input: List<T>) => boolean
     = fn(map(() => true))
-        .then(some)
-        .then(logicalNot)
+        .map(some)
+        .map(logicalNot)
         .result
 
 export const every: (_: List<boolean>) => boolean
     = fn(map(logicalNot))
-        .then(some)
-        .then(logicalNot)
+        .map(some)
+        .map(logicalNot)
         .result
 
 export const includes: <T>(value: T) => (sequence: List<T>) => boolean

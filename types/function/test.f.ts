@@ -8,7 +8,7 @@ export default () => {
     const w: (x: readonly[number]) => number
         = ([x]) => x
 
-    const r = fn(f).then(g).then(w).result
+    const r = fn(f).map(g).map(w).result
 
     const result = r('hello')
     if (result !== 5) { throw r }

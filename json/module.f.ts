@@ -53,9 +53,9 @@ export const serialize
         const objectSerialize
             : (object: Object) => List<string>
             = fn(entries)
-            .then(sort)
-            .then(mapPropertySerialize)
-            .then(objectWrap)
+            .map(sort)
+            .map(mapPropertySerialize)
+            .map(objectWrap)
             .result
         const f
             : (value: Unknown) => List<string>
