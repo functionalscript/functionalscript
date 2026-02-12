@@ -83,11 +83,13 @@ const writeFile = (payload: Vec) => operation((dir, path): readonly[VirtualDir, 
 
 const invalidPath = error('invalid path')
 
+const { entries } = Object
+
 const readdir = readOperation((dir, path): IoResult<readonly string[]> => {
     if (path.length !== 0) { return invalidPath }
     const f = (prefix: string, d: VirtualDir) => {
         let result: readonly string[] = []
-        for (const [name, content] of Object.entries(d)) {
+        for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
             const fullName = `${prefix}${name}`
             if (isVec(content)) {
