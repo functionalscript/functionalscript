@@ -1,27 +1,8 @@
-import { isVec, type Vec } from '../../bit_vec/module.f.ts'
+import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
-import type { MemOperationMap } from '../mock/module.f.ts'
 import { type Do, type Effect, type ToAsyncOperationMap, do_ } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
-
-// readFile
-
-export type ReadFile = { readonly readFile: readonly [string, IoResult<Vec>] }
-
-export const readFile =
-    <O extends ReadFile>(path: string): Do<O, IoResult<Vec>> =>
-    do_('readFile', path)
-
-// writeFile
-
-export type WriteFileParam = readonly[string, Vec]
-
-export type WriteFile = { readonly writeFile: readonly [WriteFileParam, IoResult<void>] }
-
-export const writeFile =
-    <O extends WriteFile>(...p: WriteFileParam): Do<O, IoResult<void>> =>
-    do_('writeFile', p)
 
 // mkdir
 
@@ -35,9 +16,41 @@ export const mkdir =
     <O extends Mkdir>(...p: MkdirParam): Do<O, IoResult<void>> =>
     do_('mkdir', p)
 
+// readFile
+
+export type ReadFile = { readonly readFile: readonly [string, IoResult<Vec>] }
+
+export const readFile =
+    <O extends ReadFile>(path: string): Do<O, IoResult<Vec>> =>
+    do_('readFile', path)
+
+// readdir
+
+export type ReaddirOptions = { readonly recursive: true }
+
+export type ReaddirParam = readonly[string, ReaddirOptions]
+
+export type Readdir = {
+    readonly readdir: readonly[ReaddirParam, IoResult<readonly string[]>]
+}
+
+export const readdir =
+    <O extends Readdir>(...p: ReaddirParam): Do<O, IoResult<readonly string[]>> =>
+    do_('readdir', p)
+
+// writeFile
+
+export type WriteFileParam = readonly[string, Vec]
+
+export type WriteFile = { readonly writeFile: readonly [WriteFileParam, IoResult<void>] }
+
+export const writeFile =
+    <O extends WriteFile>(...p: WriteFileParam): Do<O, IoResult<void>> =>
+    do_('writeFile', p)
+
 // Fs
 
-export type Fs = Mkdir & ReadFile & WriteFile
+export type Fs = Mkdir & ReadFile & Readdir & WriteFile
 
 // Console
 

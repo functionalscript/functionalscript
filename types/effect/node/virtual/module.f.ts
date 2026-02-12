@@ -1,3 +1,4 @@
+import { todo } from "../../../../dev/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import type { MemOperationMap } from "../../mock/module.f.ts"
 import type { IoResult, NodeOperations } from "../module.f.ts"
@@ -38,6 +39,11 @@ const operation =
     }
 }
 
+// TODO: we can have a better implementation with some code shared with `operation`.
+const readOperation = <T>(op: (dir: VirtualDir, path: readonly string[]) => T) => operation(
+    (dir, path) => [dir, op(dir, path)]
+)
+
 const okVoid = ['ok', undefined] as const
 
 const mkdir = (recursive: boolean) => operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
@@ -56,11 +62,11 @@ const mkdir = (recursive: boolean) => operation((dir, path): readonly[VirtualDir
 
 const readFileError = ['error', 'no such file'] as const
 
-const readFile = operation((dir, path): readonly[VirtualDir, IoResult<Vec>] => {
-    if (path.length !== 1) { return [dir, readFileError] }
+const readFile = readOperation((dir, path): IoResult<Vec> => {
+    if (path.length !== 1) { return readFileError }
     const file = dir[path[0]]
-    if (!isVec(file)) { return [dir, readFileError] }
-    return [dir, ['ok', file]]
+    if (!isVec(file)) { return readFileError }
+    return ['ok', file]
 })
 
 const writeFileError = ['error', 'invalid file'] as const
@@ -75,9 +81,29 @@ const writeFile = (payload: Vec) => operation((dir, path): readonly[VirtualDir, 
     return [dir, okVoid]
 })
 
+const invalidPath = ['error', 'invalid path'] as const
+
+const readdir = readOperation((dir, path): IoResult<readonly string[]> => {
+    if (path.length !== 0) { return invalidPath }
+    const f = (d: VirtualDir) => {
+        let result: readonly string[] = []
+        for (const [name, content] of Object.entries(d)) {
+            if (content === undefined) { continue }
+            if (isVec(content)) {
+                result = [...result, 'name']
+                continue
+            }
+            result = [...result, ...f(content)]
+        }
+        return result
+    }
+    return ['ok', f(dir)]
+})
+
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
     mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
     readFile,
+    readdir: (state, [path]) => readdir(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
 }

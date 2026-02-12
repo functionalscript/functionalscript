@@ -1,7 +1,7 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
-import { type Vec } from "../types/bit_vec/module.f.ts"
+import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
 import { mkdir, readFile, writeFile, type Fs, type IoResult } from "../types/effect/node/module.f.ts"
