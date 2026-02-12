@@ -7,7 +7,7 @@ import { asyncRun } from '../module.ts'
 
 const { mkdir, readFile, readdir, writeFile } = promises
 
-const { log } = console
+const { error, log } = console
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
@@ -19,16 +19,12 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
 }
 
 const nodeOperationMap: NodeOperationMap = {
-    log: async (message: string): Promise<void> =>
-        log(message),
-    mkdir: (param: MkdirParam): Promise<IoResult<void>> =>
-        tc(async() => { await mkdir(...param) }),
-    readFile: (path: string): Promise<IoResult<Vec>> =>
-        tc(async() => toVec(await readFile(path))),
-    readdir: (param: ReaddirParam): Promise<IoResult<readonly string[]>> =>
-        tc(() => readdir(...param)),
-    writeFile: ([path, data]: WriteFileParam): Promise<IoResult<void>> =>
-        tc(() => writeFile(path, fromVec(data))),
+    error: async message => error(message),
+    log: async message => log(message),
+    mkdir: param => tc(async() => { await mkdir(...param) }),
+    readFile: path => tc(async() => toVec(await readFile(path))),
+    readdir: param => tc(() => readdir(...param)),
+    writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 }
 
 const nr = asyncRun(nodeOperationMap)

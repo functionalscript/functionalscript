@@ -1,10 +1,11 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
+import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { mkdir, readdir, readFile, writeFile, type Fs } from "../types/effect/node/module.f.ts"
+import { mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect } from "../types/effect/node/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
@@ -91,7 +92,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
 export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
         readFile<O>(toPath(key))
-            .pipe(([status, data]) => pure(status === 'error' ? undefined : data)),
+            .map(([status, data]) => status === 'error' ? undefined : data),
     write: (key: Vec, value: Vec): Effect<O, void> => {
         const p = toPath(key)
         const parts = parse(p)
@@ -152,4 +153,8 @@ export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
         }
     }
     return Promise.resolve(1)
+}
+
+export const main2 = (args: readonly string[]): NodeEffect<number> => {
+    return todo()
 }
