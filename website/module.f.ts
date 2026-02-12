@@ -6,6 +6,7 @@ const html: Element = ['body',
     ['a', { href: 'https://github.com/functionalscript/functionalscript' }, 'GitHub Repository']
 ]
 
-export const run: NodeProgram = () =>
-    writeFile<NodeOperations>('index.html', utf8(htmlToString(html)))
-        .map(() => 1)
+const program = writeFile<NodeOperations>('index.html', utf8(htmlToString(html)))
+    .map(() => 1)
+
+export const run: NodeProgram = () => program
