@@ -1,6 +1,6 @@
-import { isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
+import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { run } from "../mock/module.f.ts"
-import { mkdir, readFile, writeFile } from "./module.f.ts"
+import { mkdir, readdir, readFile, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -81,6 +81,38 @@ export default {
             if (t !== 'error') { throw result }
             if (result !== 'no such file') { throw result }
         }
+    },
+    readdir: {
+        one: () => {
+            const [_, [t, result]] = run(virtual)({
+                ...emptyState,
+                root: {
+                    file: vec8(0x2An),
+                    dir: {
+                        a: empty
+                    },
+                },
+            })(readdir('', { recursive: true }))
+            if (t !== 'ok') { throw result }
+            const file = result.find(x => x === 'file')
+            if (file === undefined) { throw file }
+            const dirA = result.find(x => x === 'dir/a')
+            if (dirA === undefined) { throw file }
+        },
+        nested: () => {
+            const [_, [t, result]] = run(virtual)({
+                ...emptyState,
+                root: { tmp: { cache: vec8(0x15n) } }
+            })(readdir('tmp', { recursive: true }))
+            if (t !== 'ok') { throw result }
+            if (result.length !== 1) { throw result }
+            if (result[0] !== 'cache') { throw result }
+        },
+        noSuchDir: () => {
+            const [_, [t, result]] = run(virtual)(emptyState)(readdir('tmp', { recursive: true }))
+            if (t !== 'error') { throw result }
+            if (result !== 'invalid path') { throw result }
+        },
     },
     writeFile: {
         one: () => {

@@ -249,7 +249,7 @@ const utf16ByteToCodePointOp: StateScan<U16, Utf16State, List<CodePoint>>
  *     with the `errorMask` applied.
  *   - The second element is the next state, which will always be `null` because EOF means no
  *     further processing.
- * 
+ *
  * @example
  *
  * ```js
@@ -320,7 +320,7 @@ const eofList: List<WordOrEof> = [null]
  * with surrogate pairs handled correctly. The function also handles EOF (`null`).
  * @param input - A list of UTF-16 code units (`U16`), possibly containing surrogate pairs.
  * @returns A list of Unicode code points (`CodePoint`), one for each valid code unit or surrogate pair.
- * 
+ *
  * @example
  *
  * ```ts
@@ -392,7 +392,7 @@ export const stringToCodePointList = (input: string): List<CodePoint> =>
  */
 export const listToString: (input: List<U16>) => string
     = fn(map(String.fromCharCode))
-        .then(reduce(concat)(''))
+        .map(reduce(concat)(''))
         .result
 
 /**

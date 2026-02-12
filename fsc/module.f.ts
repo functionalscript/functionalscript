@@ -47,7 +47,7 @@ const reduce = <T>(a: List<State<T>>): State<T> => {
 
 const codePointRange = fromRange(def)
 
-const range = fn(asciiRange).then(codePointRange).result
+const range = fn(asciiRange).map(codePointRange).result
 
 const rangeSet = (l: readonly string[]) => <T>(f: CreateToResult<T>): State<T> => {
 
