@@ -66,7 +66,7 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
     if (path.length !== 1) { return readFileError }
     const file = dir[path[0]]
     if (!isVec(file)) { return readFileError }
-    return ['ok', file]
+    return ok(file)
 })
 
 const writeFileError = error('invalid file')
