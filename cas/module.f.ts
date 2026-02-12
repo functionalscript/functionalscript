@@ -90,15 +90,15 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
 export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
         readFile<O>(toPath(key))
-            .flatMap(([status, data]) => pure(status === 'error' ? undefined : data)),
+            .pipe(([status, data]) => pure(status === 'error' ? undefined : data)),
     write: (key: Vec, value: Vec): Effect<O, void> => {
         const p = toPath(key)
         const parts = p.split('/')
         const dir = `${path}/${parts.slice(0, -1).join('/')}`
         // TODO: error handling
         return mkdir<O>(dir, { recursive: true })
-            .flatMap(() => writeFile(`${path}/${p}`, value))
-            .flatMap(() => pure(undefined))
+            .pipe(() => writeFile(`${path}/${p}`, value))
+            .pipe(() => pure(undefined))
     },
     list: (): Effect<O, readonly[Vec]> => todo(),
 })

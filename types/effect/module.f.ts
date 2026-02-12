@@ -5,7 +5,7 @@ export type Operations = {
 export type Effect<O extends Operations, T> = Pure<O, T> | Do<O, T>
 
 export type Map<O extends Operations, T> = {
-    readonly flatMap: <R>(f: (_: T) => Effect<O, R>) => Effect<O, R>
+    readonly pipe: <R>(f: (_: T) => Effect<O, R>) => Effect<O, R>
     readonly map: <R>(f: (_: T) => R) => Effect<O, R>
 }
 
@@ -15,7 +15,7 @@ export type Pure<O extends Operations, T> = {
 
 export const pure = <O extends Operations, T>(value: T): Pure<O, T> => ({
     pure: value,
-    flatMap: e => e(value),
+    pipe: e => e(value),
     map: f => pure(f(value))
 })
 
@@ -32,7 +32,7 @@ const doFull = <O extends Operations, K extends keyof O & string, T>(
     cont: (input: O[K][1]) => Effect<O, T>
 ): Do<O, T> => ({
     do: [cmd, payload, cont],
-    flatMap: e => doFull(cmd, payload, x => cont(x).flatMap(e)),
+    pipe: e => doFull(cmd, payload, x => cont(x).pipe(e)),
     map: f => doFull(cmd, payload, x => cont(x).map(f))
 })
 
