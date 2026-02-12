@@ -1,3 +1,4 @@
+import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
 import type { MemOperationMap } from "../../mock/module.f.ts"
@@ -34,7 +35,7 @@ const operation =
         return [{ ...dir, [first]: newSubDir }, r]
     }
     return (state: VirtualState, path: string) => {
-        const [root, result] = f(state.root, path.split('/'))
+        const [root, result] = f(state.root, parse(path))
         return [{ ...state, root }, result] as const
     }
 }
