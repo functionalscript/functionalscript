@@ -10,11 +10,13 @@ export type VirtualDir = {
 
 export type VirtualState = {
     stdout: string
+    stderr: string
     root: VirtualDir
 }
 
 export const emptyState: VirtualState = {
     stdout: '',
+    stderr: '',
     root: {},
 }
 
@@ -104,8 +106,12 @@ const readdir = readOperation((dir, path): IoResult<readonly string[]> => {
     return ok(f('', dir))
 })
 
+const console = (name: 'stderr'|'stdout') => (state: VirtualState, payload: string) =>
+    [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
+
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
-    log: (state, payload) => [{ ...state, stdout: `${state.stdout}${payload}\n` }, undefined],
+    error: console('stderr'),
+    log: console('stdout'),
     mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
     readFile,
     readdir: (state, [path]) => readdir(state, path),

@@ -54,11 +54,19 @@ export type Fs = Mkdir & ReadFile & Readdir & WriteFile
 
 // Console
 
-export type Console = { readonly log: readonly [string, void] }
+export type Error = { readonly error: readonly [string, void] }
+
+export type Log = { readonly log: readonly [string, void] }
 
 export const log =
     <O extends Console>(msg: string): Do<O, void> =>
     do_('log', msg)
+
+export const error =
+    <O extends Console>(msg: string): Do<O, void> =>
+    do_('error', msg)
+
+export type Console = Log & Error
 
 // Node
 
