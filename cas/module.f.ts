@@ -1,18 +1,19 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
+import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { mkdir, readFile, writeFile, type Fs, type IoResult } from "../types/effect/node/module.f.ts"
+import { mkdir, readdir, readFile, writeFile, type Fs } from "../types/effect/node/module.f.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
+import { unwrap } from "../types/result/module.f.ts"
 import { fromVec, toVec } from "../types/uint8array/module.f.ts"
 
 export type KvStore2<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     readonly write: (key: Vec, value: Vec) => Effect<O, void>
-    readonly list: () => Effect<O, readonly[Vec]>
+    readonly list: () => Effect<O, readonly Vec[]>
 }
 
 export type KvStore = {
@@ -58,7 +59,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
         },
         write: async (key: Vec, value: Vec) => {
             const p = toPath(key)
-            const parts = p.split('/')
+            const parts = parse(p)
             const dir = `${path}/${parts.slice(0, -1).join('/')}`
             await mkdir(dir, { recursive: true })
             await writeFile(`${path}/${p}`, fromVec(value))
@@ -90,17 +91,22 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
 export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
         readFile<O>(toPath(key))
-            .flatMap(([status, data]) => pure(status === 'error' ? undefined : data)),
+            .pipe(([status, data]) => pure(status === 'error' ? undefined : data)),
     write: (key: Vec, value: Vec): Effect<O, void> => {
         const p = toPath(key)
-        const parts = p.split('/')
+        const parts = parse(p)
         const dir = `${path}/${parts.slice(0, -1).join('/')}`
         // TODO: error handling
         return mkdir<O>(dir, { recursive: true })
-            .flatMap(() => writeFile(`${path}/${p}`, value))
-            .flatMap(() => pure(undefined))
+            .pipe(() => writeFile(`${path}/${p}`, value))
+            .map(() => undefined)
     },
-    list: (): Effect<O, readonly[Vec]> => todo(),
+    list: (): Effect<O, readonly Vec[]> =>
+        readdir<O>('', { recursive: true })
+        // TODO: remove unwrap
+        .map(r => unwrap(r).flatMap(name =>
+            toOption(cBase32ToVec(name.replaceAll('/', '')))
+        )),
 })
 
 export type Cas = {
