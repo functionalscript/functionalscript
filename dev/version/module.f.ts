@@ -1,4 +1,6 @@
-import type { NodeEffect } from "../../types/effect/node/module.f.ts"
+import { utf8ToString } from "../../text/module.f.ts"
+import { type NodeOperations, readFile, type NodeEffect } from "../../types/effect/node/module.f.ts"
+import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
 export type Buffer = object
@@ -40,5 +42,9 @@ export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
             f('deno')
         ]
     }
+
+const readJson2 = (name: string): NodeEffect<any> =>
+    readFile<NodeOperations>(jsonFile(name))
+        .map(d => parse(utf8ToString(unwrap(d))))
 
 // export const updateVersion2: NodeEffect<void> =
