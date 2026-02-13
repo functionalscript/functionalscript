@@ -24,8 +24,8 @@ const readJson: <T>(node: Fs<T>) => (name: string) => any
 
 export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
     = ({ fs }) => {
-        const f = (name: string) => {
-            return fs.writeFileSync(
+        const f = (name: string) =>
+            fs.writeFileSync(
                 jsonFile(name),
                 encodeUtf8(stringify(
                     {
@@ -34,7 +34,6 @@ export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
                     },
                     null,
                     2)))
-        }
         return [
             f('package'),
             f('deno')
