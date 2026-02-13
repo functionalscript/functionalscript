@@ -48,6 +48,7 @@ export type ToAsyncOperationMap<O extends Operations> = {
 
 const empty = pure([])
 
+// TODO: replace with either a `Do` operation or as an addition to `Pure` and `Do`.
 export const all = <O extends Operations, T>(set: readonly Effect<O, T>[]): Effect<O, readonly T[]> =>
     set.reduce(
         (previous: Effect<O, readonly T[]>, current) =>
