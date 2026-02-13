@@ -1,5 +1,5 @@
 import { htmlToString, type Element } from '../html/module.f.ts'
-import { type NodeOperations, writeFile, type NodeEffect, type NodeProgram } from '../types/effect/node/module.f.ts'
+import { type NodeOperations, writeFile, type NodeProgram } from '../types/effect/node/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
 
 const html: Element = ['body',
@@ -7,6 +7,6 @@ const html: Element = ['body',
 ]
 
 const program = writeFile<NodeOperations>('index.html', utf8(htmlToString(html)))
-    .map(() => 1)
+    .map(() => 0)
 
 export const run: NodeProgram = () => program
