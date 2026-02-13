@@ -45,3 +45,12 @@ export const do_ = <O extends Operations, K extends keyof O & string>(
 export type ToAsyncOperationMap<O extends Operations> = {
     readonly [K in keyof O]: (payload: O[K][0]) => Promise<O[K][1]>
 }
+
+const empty = pure([])
+
+// TODO: replace with either a `Do` operation or as an addition to `Pure` and `Do`.
+export const all = <O extends Operations, T>(set: readonly Effect<O, T>[]): Effect<O, readonly T[]> =>
+    set.reduce(
+        (previous: Effect<O, readonly T[]>, current) =>
+            previous.pipe(previousResult => current.map(currentResult => [...previousResult, currentResult])),
+        empty)
