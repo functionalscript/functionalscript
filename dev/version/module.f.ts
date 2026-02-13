@@ -25,7 +25,7 @@ const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 const readJson: <T>(node: Fs<T>) => (name: string) => any
     = fs => name => parse(decodeUtf8(fs.readFileSync(jsonFile(name))))
 
-export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
+export const updateVersion: <T>(node: Node<T>) => readonly T[]
     = ({ fs }) => {
         const f = (name: string) =>
             fs.writeFileSync(
@@ -51,7 +51,7 @@ const getVersion2 =
     readJson2('package')
     .map(v => v.version)
 
-const writeVersion = (version: string) => (name: string) =>
+const writeVersion = (name: string) => (version: string) =>
     readJson2(name)
     .pipe(json => writeFile(
         jsonFile(name),
@@ -63,4 +63,3 @@ const writeVersion = (version: string) => (name: string) =>
             null,
             2
         ))))
-
