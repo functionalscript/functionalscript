@@ -1,5 +1,5 @@
 import { utf8ToString } from "../../text/module.f.ts"
-import { readFile } from "../../types/effect/node/module.f.ts"
+import { type NodeOperations, readFile } from "../../types/effect/node/module.f.ts"
 import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
@@ -44,5 +44,24 @@ export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
     }
 
 const readJson2 = (name: string) =>
-    readFile(jsonFile(name))
+    readFile<NodeOperations>(jsonFile(name))
     .map(v => parse(utf8ToString(unwrap(v))))
+
+const getVersion2 =
+    readJson2('package')
+    .map(v => v.version)
+
+/*
+const writeVersion = (name: string) =>
+    readJson2(name)
+    .pipe(json => writeFile(
+        jsonFile(name),
+        utf8(stringify(
+            {
+                ...json,
+                version: getVersion(fs)
+            },
+            null,
+            2
+        ))))
+*/
