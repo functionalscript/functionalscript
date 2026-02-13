@@ -1,3 +1,4 @@
+import type { NodeEffect } from "../../types/effect/node/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
 export type Buffer = object
@@ -24,19 +25,20 @@ const readJson: <T>(node: Fs<T>) => (name: string) => any
 
 export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
     = ({ fs }) => {
-        const f = (name: string) => {
-            return fs.writeFileSync(
-                jsonFile(name),
-                encodeUtf8(stringify(
-                    {
-                        ...readJson(fs)(name),
-                        version: getVersion(fs)
-                    },
-                    null,
-                    2)))
-        }
+        const f = (name: string) => fs.writeFileSync(
+            jsonFile(name),
+            encodeUtf8(stringify(
+                {
+                    ...readJson(fs)(name),
+                    version: getVersion(fs)
+                },
+                null,
+                2))
+        )
         return [
             f('package'),
             f('deno')
         ]
     }
+
+// export const updateVersion2: NodeEffect<void> =

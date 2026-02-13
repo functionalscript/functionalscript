@@ -3,6 +3,7 @@ import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import type { Node } from './version/module.f.ts'
 import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
+import type { NodeEffect } from '../types/effect/node/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -86,3 +87,5 @@ export const index = async (io: Io): Promise<number> => {
     await io.fs.promises.writeFile(jj, encodeUtf8(json))
     return 0
 }
+
+export const index2: NodeEffect<number> = todo()
