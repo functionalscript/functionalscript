@@ -65,7 +65,7 @@ const writeVersion = (version: string) => (name: string) =>
             2
         ))))
 
-const updateVersion2 = getVersion2
+export const updateVersion2 = getVersion2
     .pipe(version => {
         const w = writeVersion(version)
         return all([w('package'), w('deno')])

@@ -68,7 +68,7 @@ const readFileError = error('no such file')
 const readFile = readOperation((dir, path): IoResult<Vec> => {
     if (path.length !== 1) { return readFileError }
     const file = dir[path[0]]
-    if (!isVec(file)) { return readFileError }
+    if (!isVec(file)) { return error(`'${path[0]}' is not a file`) }
     return ok(file)
 })
 
