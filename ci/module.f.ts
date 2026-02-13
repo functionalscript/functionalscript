@@ -1,4 +1,6 @@
 import type { Io } from '../io/module.f.ts'
+import { utf8 } from '../text/module.f.ts'
+import { type NodeOperations, writeFile, type NodeEffect, type NodeProgram } from '../types/effect/node/module.f.ts'
 import { encodeUtf8 } from '../types/uint8array/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
@@ -247,7 +249,8 @@ const gha: GitHubAction = {
     jobs,
 }
 
-export default async (io: Io): Promise<number> => {
-    io.fs.writeFileSync('.github/workflows/ci.yml', encodeUtf8(JSON.stringify(gha, null, '  ')))
-    return 0
-}
+export const effect: NodeEffect<number> =
+    writeFile<NodeOperations>('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))
+        .map(() => 0)
+
+export default () => effect

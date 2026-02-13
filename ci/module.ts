@@ -1,4 +1,4 @@
-import node from '../io/module.ts'
-import x from './module.f.ts'
+import run from './module.f.ts'
+import { nodeRun } from '../types/effect/node/module.ts'
 
-await node(x)
+await nodeRun(run)

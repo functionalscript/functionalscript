@@ -9,4 +9,4 @@ const html: Element = ['body',
 const program = writeFile<NodeOperations>('index.html', utf8(htmlToString(html)))
     .map(() => 0)
 
-export const run: NodeProgram = () => program
+export default () => program
