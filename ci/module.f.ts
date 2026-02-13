@@ -1,7 +1,5 @@
-import type { Io } from '../io/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
-import { type NodeOperations, writeFile, type NodeEffect, type NodeProgram } from '../types/effect/node/module.f.ts'
-import { encodeUtf8 } from '../types/uint8array/module.f.ts'
+import { type NodeOperations, writeFile, type NodeEffect } from '../types/effect/node/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
