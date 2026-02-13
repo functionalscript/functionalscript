@@ -1,5 +1,5 @@
-import { utf8ToString } from "../../text/module.f.ts"
-import { type NodeOperations, readFile } from "../../types/effect/node/module.f.ts"
+import { utf8, utf8ToString } from "../../text/module.f.ts"
+import { type NodeOperations, readFile, writeFile } from "../../types/effect/node/module.f.ts"
 import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
@@ -51,17 +51,16 @@ const getVersion2 =
     readJson2('package')
     .map(v => v.version)
 
-/*
-const writeVersion = (name: string) =>
+const writeVersion = (version: string) => (name: string) =>
     readJson2(name)
     .pipe(json => writeFile(
         jsonFile(name),
         utf8(stringify(
             {
                 ...json,
-                version: getVersion(fs)
+                version,
             },
             null,
             2
         ))))
-*/
+
