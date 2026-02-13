@@ -1,6 +1,6 @@
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { all } from "../../types/effect/module.f.ts"
-import { type NodeOperations, readFile, writeFile } from "../../types/effect/node/module.f.ts"
+import { type NodeEffect, type NodeOperations, readFile, writeFile } from "../../types/effect/node/module.f.ts"
 import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
@@ -62,7 +62,7 @@ const writeVersion = (version: string) => (name: string) =>
         ))
     ))
 
-export const updateVersion2 =
+export const updateVersion2: NodeEffect<number> =
     readJson2('package')
     .pipe(p => {
         const w = writeVersion(p.version)
