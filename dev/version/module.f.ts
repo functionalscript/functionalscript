@@ -1,4 +1,5 @@
 import { utf8, utf8ToString } from "../../text/module.f.ts"
+import { all } from "../../types/effect/module.f.ts"
 import { type NodeOperations, readFile, writeFile } from "../../types/effect/node/module.f.ts"
 import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
@@ -51,7 +52,7 @@ const getVersion2 =
     readJson2('package')
     .map(v => v.version)
 
-const writeVersion = (name: string) => (version: string) =>
+const writeVersion = (version: string) => (name: string) =>
     readJson2(name)
     .pipe(json => writeFile(
         jsonFile(name),
@@ -63,3 +64,10 @@ const writeVersion = (name: string) => (version: string) =>
             null,
             2
         ))))
+
+const updateVersion2 = getVersion2
+    .pipe(version => {
+        const w = writeVersion(version)
+        return all([w('package'), w('deno')])
+    })
+    .map(() => 0)
