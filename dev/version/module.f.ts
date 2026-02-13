@@ -4,8 +4,6 @@ import { type NodeEffect, type NodeOperations, readFile, writeFile } from "../..
 import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
-// type Buffer = object
-
 type Fs<T> = {
    readonly readFileSync: (name: string) => Uint8Array
    readonly writeFileSync: (name: string, content: Uint8Array) => T
