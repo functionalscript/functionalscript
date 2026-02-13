@@ -11,7 +11,7 @@ with the latest matrix of jobs and steps that we support.
   The script also knows how to set up platform specific dependencies such as
   Rust targets, Playwright browsers, and alternative runtimes (Deno and Bun).
 - `module.ts` – the Node.js entry point that runs the FunctionalScript generator
-  using the shared IO helpers from `../io/module.ts`.
+  using `Effect` from `../effect/module.f.ts`.
 
 ## Usage
 
