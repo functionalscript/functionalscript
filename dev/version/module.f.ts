@@ -4,7 +4,7 @@ import { type NodeOperations, readFile, writeFile } from "../../types/effect/nod
 import { unwrap } from "../../types/result/module.f.ts"
 import { decodeUtf8, encodeUtf8 } from "../../types/uint8array/module.f.ts"
 
-export type Buffer = object
+// type Buffer = object
 
 type Fs<T> = {
    readonly readFileSync: (name: string) => Uint8Array
@@ -17,7 +17,7 @@ export type Node<T> = {
 
 const { stringify, parse } = JSON
 
-export const getVersion
+const getVersion
     : <T>(fs: Fs<T>) => string
     = fs => readJson(fs)('package').version
 
@@ -48,10 +48,6 @@ const readJson2 = (name: string) =>
     readFile<NodeOperations>(jsonFile(name))
     .map(v => parse(utf8ToString(unwrap(v))))
 
-const getVersion2 =
-    readJson2('package')
-    .map(v => v.version)
-
 const writeVersion = (version: string) => (name: string) =>
     readJson2(name)
     .pipe(json => writeFile(
@@ -66,9 +62,10 @@ const writeVersion = (version: string) => (name: string) =>
         ))
     ))
 
-export const updateVersion2 = getVersion2
-    .pipe(version => {
-        const w = writeVersion(version)
+export const updateVersion2 =
+    readJson2('package')
+    .pipe(p => {
+        const w = writeVersion(p.version)
         return all([w('package'), w('deno')])
     })
     .map(() => 0)
