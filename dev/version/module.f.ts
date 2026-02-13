@@ -63,7 +63,8 @@ const writeVersion = (version: string) => (name: string) =>
             },
             null,
             2
-        ))))
+        ))
+    ))
 
 export const updateVersion2 = getVersion2
     .pipe(version => {
