@@ -26,9 +26,11 @@ asyncRun({
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 })
 
-export const ioRun = (io: Io): (p: NodeProgram) => Promise<number> => {
+export type NodeRun = (p: NodeProgram) => Promise<number>
+
+export const ioRun = (io: Io): NodeRun => {
     const r = fromIo(io)
     return p => r(p(io.process.argv))
 }
 
-export const nodeRun = ioRun(io)
+export const nodeRun: NodeRun = ioRun(io)
