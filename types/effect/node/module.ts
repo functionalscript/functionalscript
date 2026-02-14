@@ -31,14 +31,14 @@ const nodeOperationMap: NodeOperationMap = {
 
 const fromIo = ({
     console: { error },
-    fs: { promises: { mkdir, readFile, readdir } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile } },
 }: Io): NodeOperationMap => ({
     error: async message => error(message),
     log: async message => log(message),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
-    readdir: todo, // param => tc(() => readdir(...param)),
-    writeFile: todo,
+    readdir: param => tc(() => readdir(...param)),
+    writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 })
 
 const nr = asyncRun(nodeOperationMap)
