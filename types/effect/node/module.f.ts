@@ -26,7 +26,7 @@ export const readFile =
 
 // readdir
 
-export type ReaddirOptions = { readonly recursive: true }
+export type ReaddirOptions = { readonly recursive?: true }
 
 export type ReaddirParam = readonly[string, ReaddirOptions]
 
