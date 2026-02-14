@@ -34,7 +34,7 @@ export const env
 type ModuleArray = readonly (readonly[string, Module])[]
 
 export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
-    const { fs: { promises: { readdir }}, process: { cwd } } = io
+    const { fs: { promises: { readdir }} } = io
     const load = async(p: string): Promise<readonly string[]> => {
         let result: readonly string[] = []
         for (const i of await readdir(p, { withFileTypes: true })) {
@@ -42,7 +42,7 @@ export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
             if (name.startsWith('.')) { continue }
             const file = `${p}/${name}`
             if (i.isDirectory()) {
-                if (name === 'node_modules') { continue}
+                if (name === 'node_modules') { continue }
                 result = [...result, ...await load(file)]
                 continue
             }
