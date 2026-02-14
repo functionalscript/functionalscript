@@ -1,4 +1,3 @@
-import { argv } from 'node:process'
 import type { IoResult, NodeOperationMap, NodeProgram } from './module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
@@ -32,5 +31,3 @@ export const ioRun = (io: Io): (p: NodeProgram) => Promise<number> => {
 }
 
 export const nodeRun = ioRun(io)
-
-
