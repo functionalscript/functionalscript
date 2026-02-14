@@ -4,6 +4,8 @@ import type { IoResult, MkdirParam, NodeOperationMap, NodeProgram, ReaddirParam,
 import type { Vec } from '../../bit_vec/module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
+import type { Io } from '../../../io/module.f.ts'
+import { todo } from '../../../dev/module.f.ts'
 
 const { mkdir, readFile, readdir, writeFile } = promises
 
@@ -26,6 +28,18 @@ const nodeOperationMap: NodeOperationMap = {
     readdir: param => tc(() => readdir(...param)),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 }
+
+const fromIo = ({
+    console: { error },
+    fs: { promises: { mkdir, readFile, readdir } },
+}: Io): NodeOperationMap => ({
+    error: async message => error(message),
+    log: async message => log(message),
+    mkdir: param => tc(async() => { await mkdir(...param) }),
+    readFile: path => tc(async() => toVec(await readFile(path))),
+    readdir: todo, // param => tc(() => readdir(...param)),
+    writeFile: todo,
+})
 
 const nr = asyncRun(nodeOperationMap)
 
