@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Connect IO and Effect [670](https://github.com/functionalscript/functionalscript/pull/670)
 - Effect: Generating the website using Effects. [666](https://github.com/functionalscript/functionalscript/pull/666)
 - Effect: Node: stderr [665](https://github.com/functionalscript/functionalscript/pull/665)
 - Effect: `flatMap` => `pipe` [664](https://github.com/functionalscript/functionalscript/pull/664)
