@@ -20,8 +20,8 @@ export type MakeDirectoryOptions = {
 }
 
 export type ReadDir =
-    | ((path: string, options: { withFileTypes: true }) => Promise<Dirent[]>)
-    | ((path: string, options: { recursive: true }) => readonly string[])
+    & ((path: string, options: { withFileTypes: true }) => Promise<Dirent[]>)
+    & ((path: string, options: { recursive: true }) => Promise<readonly string[]>)
 
 /**
  * File system operations interface
