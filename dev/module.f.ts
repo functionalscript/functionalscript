@@ -3,6 +3,9 @@ import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
 import { fromIo } from '../types/effect/node/module.ts'
+import { readFile } from '../types/effect/node/module.f.ts'
+import { utf8ToString } from '../text/module.f.ts'
+import { unwrap } from '../types/result/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -71,11 +74,15 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     return Object.fromEntries(map.toSorted(cmp))
 }
 
+const denoJson = './deno.json'
+
+const index2 = updateVersion
+    .pipe(() => readFile(denoJson))
+    .map(v => JSON.parse(utf8ToString(unwrap(v))))
+
 export const index = async (io: Io): Promise<number> => {
     const runner = fromIo(io)
-    await runner(updateVersion)
-    const jj = './deno.json'
-    const jsr_json = JSON.parse(decodeUtf8(await io.fs.promises.readFile(jj)))
+    const jsr_json = await runner(index2)
     const list = (await allFiles(io)('.')).filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
     //console.log(list)
     const exportsA = list.map(v => [v, `./${v.substring(2)}`])
@@ -84,6 +91,6 @@ export const index = async (io: Io): Promise<number> => {
     // console.log(exports)
     const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
     // console.log(json)
-    await io.fs.promises.writeFile(jj, encodeUtf8(json))
+    await io.fs.promises.writeFile(denoJson, encodeUtf8(json))
     return 0
 }
