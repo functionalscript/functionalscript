@@ -21,7 +21,7 @@ export const emptyState: VirtualState = {
 }
 
 const operation =
-    <T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]) =>
+<T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]) =>
 {
     const f = (dir: VirtualDir, path: readonly string[]): readonly[VirtualDir, T] =>
     {

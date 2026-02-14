@@ -19,6 +19,10 @@ export type MakeDirectoryOptions = {
     readonly recursive?: boolean
 }
 
+export type ReadDir =
+    & ((path: string, options: { withFileTypes: true }) => Promise<Dirent[]>)
+    & ((path: string, options: { recursive: true }) => Promise<readonly string[]>)
+
 /**
  * File system operations interface
  * @see https://nodejs.org/api/fs.html
@@ -31,7 +35,7 @@ export type Fs = {
     readonly promises: {
         readonly readFile: (path: string) => Promise<Uint8Array>
         readonly writeFile: (path: string, data: Uint8Array) => Promise<void>
-        readonly readdir: (path: string, options: { withFileTypes: true }) => Promise<Dirent[]>
+        readonly readdir: ReadDir
         readonly rm: (path: string, options?: RmOptions) => Promise<void>
         readonly mkdir: (path: string, options?: MakeDirectoryOptions) => Promise<string|undefined>
         readonly copyFile: (src: string, dest: string) => Promise<void>

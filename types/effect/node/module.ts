@@ -1,32 +1,37 @@
-import { promises } from 'node:fs'
-import { argv } from 'node:process'
-import type { IoResult, MkdirParam, NodeOperationMap, NodeProgram, ReaddirParam, WriteFileParam } from './module.f.ts'
-import type { Vec } from '../../bit_vec/module.f.ts'
+import type { IoResult, NodeEffect, NodeProgram } from './module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
-
-const { mkdir, readFile, readdir, writeFile } = promises
-
-const { error, log } = console
+import type { Io } from '../../../io/module.f.ts'
+import { io } from '../../../io/module.ts'
+import { error, ok } from '../../result/module.f.ts'
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
-        const r = await f()
-        return ['ok', r]
+        return ok(await f())
     } catch (e) {
-        return ['error', e]
+        return error(e)
     }
 }
 
-const nodeOperationMap: NodeOperationMap = {
+export const fromIo = ({
+    console: { error, log },
+    fs: { promises: { mkdir, readFile, readdir, writeFile } },
+}: Io): <T>(effect: NodeEffect<T>) => Promise<T> =>
+asyncRun({
     error: async message => error(message),
     log: async message => log(message),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
     readdir: param => tc(() => readdir(...param)),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+})
+
+export type NodeRun = (p: NodeProgram) => Promise<number>
+
+export const ioRun = (io: Io): NodeRun => {
+    const r = fromIo(io)
+    const { argv } = io.process
+    return p => r(p(argv))
 }
 
-const nr = asyncRun(nodeOperationMap)
-
-export const nodeRun = (p: NodeProgram): Promise<number> => nr(p(argv))
+export const nodeRun: NodeRun = ioRun(io)
