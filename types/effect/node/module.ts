@@ -31,3 +31,8 @@ const nodeOperationMap = fromIo(io)
 const nr = asyncRun(nodeOperationMap)
 
 export const nodeRun = (p: NodeProgram): Promise<number> => nr(p(argv))
+
+export const ioRun = (io: Io): (p: NodeProgram) => Promise<number> => {
+    const nr = asyncRun(fromIo(io))
+    return p => nr(p(io.process.argv))
+}
