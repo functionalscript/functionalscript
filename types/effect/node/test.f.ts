@@ -96,7 +96,24 @@ export default {
             const file = result.find(x => x === 'file')
             if (file === undefined) { throw file }
             const dirA = result.find(x => x === 'dir/a')
-            if (dirA === undefined) { throw file }
+            if (dirA === undefined) { throw dirA }
+        },
+        nonRecursive: () => {
+            const [_, [t, result]] = run(virtual)({
+                ...emptyState,
+                root: {
+                    file: vec8(0x2An),
+                    dir: {
+                        a: empty
+                    },
+                },
+            })(readdir('', { }))
+            if (t !== 'ok') { throw result }
+            if (result.length !== 2) { throw result }
+            const file = result.find(x => x === 'file')
+            if (file === undefined) { throw file }
+            const dir = result.find(x => x === 'dir')
+            if (dir === undefined) { throw dir }
         },
         nested: () => {
             const [_, [t, result]] = run(virtual)({

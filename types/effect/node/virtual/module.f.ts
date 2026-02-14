@@ -88,7 +88,7 @@ const invalidPath = error('invalid path')
 
 const { entries } = Object
 
-const readdir = readOperation((dir, path): IoResult<readonly string[]> => {
+const readdir = (recursive: boolean) => readOperation((dir, path): IoResult<readonly string[]> => {
     if (path.length !== 0) { return invalidPath }
     const f = (prefix: string, d: VirtualDir) => {
         let result: readonly string[] = []
@@ -99,7 +99,8 @@ const readdir = readOperation((dir, path): IoResult<readonly string[]> => {
                 result = [...result, fullName]
                 continue
             }
-            result = [...result, ...f(`${fullName}/`, content)]
+            const r = recursive ? f(`${fullName}/`, content) : [fullName]
+            result = [...result, ...r]
         }
         return result
     }
@@ -114,6 +115,6 @@ export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: console('stdout'),
     mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
     readFile,
-    readdir: (state, [path]) => readdir(state, path),
+    readdir: (state, [path, { recursive }]) => readdir(recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
 }
