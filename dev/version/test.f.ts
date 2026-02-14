@@ -5,7 +5,7 @@ import { all } from '../../types/effect/module.f.ts'
 import { type NodeOperations, writeFile } from '../../types/effect/node/module.f.ts'
 import { emptyState, virtual } from '../../types/effect/node/virtual/module.f.ts'
 import * as _ from './module.f.ts'
-import { updateVersion2 } from './module.f.ts'
+import { updateVersion } from './module.f.ts'
 
 const version = '0.3.0'
 
@@ -92,7 +92,7 @@ export default {
             return writeFile<NodeOperations>(fn, utf8(JSON.stringify(x[fn])))
         }
         const [state] = rv(emptyState)(all([w('package'), w('deno')]))
-        const [newState, result] = rv(state)(updateVersion2)
+        const [newState, result] = rv(state)(updateVersion)
         if (result !== 0) { throw result }
         const vec = newState.root['package.json']
         if (!isVec(vec)) { throw vec }

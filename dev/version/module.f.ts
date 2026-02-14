@@ -7,12 +7,12 @@ const { stringify, parse } = JSON
 
 const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
-const readJson2 = (name: string) =>
+const readJson = (name: string) =>
     readFile<NodeOperations>(jsonFile(name))
     .map(v => parse(utf8ToString(unwrap(v))))
 
 const writeVersion = (version: string) => (name: string) =>
-    readJson2(name)
+    readJson(name)
     .pipe(json => writeFile(
         jsonFile(name),
         utf8(stringify(
@@ -25,8 +25,8 @@ const writeVersion = (version: string) => (name: string) =>
         ))
     ))
 
-export const updateVersion2: NodeEffect<number> =
-    readJson2('package')
+export const updateVersion: NodeEffect<number> =
+    readJson('package')
     .pipe(p => {
         const w = writeVersion(p.version)
         return all([w('package'), w('deno')])
