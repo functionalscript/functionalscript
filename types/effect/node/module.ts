@@ -27,8 +27,8 @@ asyncRun({
 })
 
 export const ioRun = (io: Io): (p: NodeProgram) => Promise<number> => {
-    const nr = fromIo(io)
-    return p => nr(p(io.process.argv))
+    const r = fromIo(io)
+    return p => r(p(io.process.argv))
 }
 
 export const nodeRun = ioRun(io)
