@@ -74,7 +74,6 @@ export default {
         noSuchFile: () => {
             const [_, [t, result]] = run(virtual)(emptyState)(readFile('hello'))
             if (t !== 'error') { throw result }
-            // if (result !== 'no such file') { throw result }
         },
         nestedPath: () => {
             const [_, [t, result]] = run(virtual)(emptyState)(readFile('tmp/cache'))
