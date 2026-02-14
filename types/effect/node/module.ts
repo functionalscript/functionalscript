@@ -30,7 +30,8 @@ export type NodeRun = (p: NodeProgram) => Promise<number>
 
 export const ioRun = (io: Io): NodeRun => {
     const r = fromIo(io)
-    return p => r(p(io.process.argv))
+    const { argv } = io.process
+    return p => r(p(argv))
 }
 
 export const nodeRun: NodeRun = ioRun(io)
