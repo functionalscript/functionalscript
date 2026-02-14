@@ -3,17 +3,17 @@ import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
 import type { Io } from '../../../io/module.f.ts'
 import { io } from '../../../io/module.ts'
+import { error, ok } from '../../result/module.f.ts'
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
-        const r = await f()
-        return ['ok', r]
+        return ok(await f())
     } catch (e) {
-        return ['error', e]
+        return error(e)
     }
 }
 
-const fromIo = ({
+export const fromIo = ({
     console: { error, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile } },
 }: Io): NodeOperationMap => ({
