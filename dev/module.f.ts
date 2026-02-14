@@ -84,7 +84,7 @@ export const index = async (io: Io): Promise<number> => {
     const runner = fromIo(io)
     const jsr_json = await runner(index2)
     const list = (await allFiles(io)('.')).filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
-    //console.log(list)
+    // console.log(list)
     const exportsA = list.map(v => [v, `./${v.substring(2)}`])
     // console.log(exportsA)
     const exports = Object.fromEntries(exportsA)
