@@ -1,15 +1,9 @@
-import { promises } from 'node:fs'
 import { argv } from 'node:process'
-import type { IoResult, MkdirParam, NodeOperationMap, NodeProgram, ReaddirParam, WriteFileParam } from './module.f.ts'
-import type { Vec } from '../../bit_vec/module.f.ts'
+import type { IoResult, NodeOperationMap, NodeProgram } from './module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
 import type { Io } from '../../../io/module.f.ts'
-import { todo } from '../../../dev/module.f.ts'
-
-const { mkdir, readFile, readdir, writeFile } = promises
-
-const { error, log } = console
+import { io } from '../../../io/module.ts'
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
@@ -20,17 +14,8 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     }
 }
 
-const nodeOperationMap: NodeOperationMap = {
-    error: async message => error(message),
-    log: async message => log(message),
-    mkdir: param => tc(async() => { await mkdir(...param) }),
-    readFile: path => tc(async() => toVec(await readFile(path))),
-    readdir: param => tc(() => readdir(...param)),
-    writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
-}
-
 const fromIo = ({
-    console: { error },
+    console: { error, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile } },
 }: Io): NodeOperationMap => ({
     error: async message => error(message),
@@ -40,6 +25,8 @@ const fromIo = ({
     readdir: param => tc(() => readdir(...param)),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 })
+
+const nodeOperationMap = fromIo(io)
 
 const nr = asyncRun(nodeOperationMap)
 
