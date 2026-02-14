@@ -1,4 +1,4 @@
-import type { IoResult, NodeEffect, NodeOperationMap, NodeProgram } from './module.f.ts'
+import type { IoResult, NodeEffect, NodeProgram } from './module.f.ts'
 import { fromVec, toVec } from '../../uint8array/module.f.ts'
 import { asyncRun } from '../module.ts'
 import type { Io } from '../../../io/module.f.ts'
