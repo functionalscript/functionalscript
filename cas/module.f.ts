@@ -4,7 +4,8 @@ import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { error, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
+import { error, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
+import { fromIo } from "../types/effect/node/module.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
@@ -128,58 +129,26 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
     return f
 }
 
-export const main = (io: Io) => (args: readonly string[]): Promise<number> => {
-    const { error } = io.console
+export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
+    fromIo(io)(main2(io.process.argv))
+
+const e = <O extends Error>(s: string) => error<O>(s).map(() => 1)
+
+export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect<O, number> => {
     switch (args[0]) {
         case 'add': {
-            error('cas add command is not implemented yet')
-            break
+            return e('cas add command is not implemented yet')
         }
         case 'get': {
-            error('cas get command is not implemented yet')
-            break
+            return e('cas get command is not implemented yet')
         }
         case 'list': {
-            error('cas list command is not implemented yet')
-            break
+            return e('cas list command is not implemented yet')
         }
         case undefined: {
-            error('Error: cas command requires subcommand')
-            break
+            return e('Error: cas command requires subcommand')
         }
-        default: {
-            error(`Error: Unknown cas subcommand "${args[0]}"`)
-        }
-    }
-    return Promise.resolve(1)
-}
-
-export const main2 = (args: readonly string[]): NodeEffect<number> => {
-    switch (args[0]) {
         default:
-            return error<NodeOperations>('not implemented').map(() => 1)
+            return e(`Error: Unknown cas subcommand "${args[0]}"`)
     }
-    /*
-    switch (args[0]) {
-        case 'add':
-            return error', 'cas add command is not implemented yet']
-        case 'get': {
-            error('cas get command is not implemented yet')
-            break
-        }
-        case 'list': {
-            error('cas list command is not implemented yet')
-            break
-        }
-        case undefined: {
-            error('Error: cas command requires subcommand')
-            break
-        }
-        default: {
-            error(`Error: Unknown cas subcommand "${args[0]}"`)
-        }
-    }
-    return Promise.resolve(1)
-    */
-   return pure(1)
 }
