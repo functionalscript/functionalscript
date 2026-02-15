@@ -130,7 +130,7 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
 }
 
 export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
-    fromIo(io)(main2(io.process.argv))
+    fromIo(io)(main2(args))
 
 const e = <O extends Error>(s: string) => error<O>(s).map(() => 1)
 
@@ -149,6 +149,6 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
             return e('Error: cas command requires subcommand')
         }
         default:
-            return e(`Error: Unknown cas subcommand "${args[0]}"`)
+            return e(`Error: Unknown CAS subcommand "${args[0]}"`)
     }
 }
