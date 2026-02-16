@@ -142,7 +142,8 @@ export const cas2 = (sha2: Sha2) => {
         read,
         write: (value: Vec) => {
             const hash = compute([value])
-            return write(hash, value).map(() => hash)
+            return write(hash, value)
+                .map(() => hash)
         },
         list,
     })
