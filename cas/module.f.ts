@@ -1,11 +1,11 @@
-import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
+import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { type Effect, type Operations } from "../types/effect/module.f.ts"
-import { error, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeOperations } from "../types/effect/node/module.f.ts"
+import { error, log, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { fromIo } from "../types/effect/node/module.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
@@ -155,9 +155,20 @@ export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
 const e = <O extends Error>(s: string) => error<O>(s).map(() => 1)
 
 export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect<O, number> => {
-    switch (args[0]) {
+    const c = cas2(sha256)(fileKvStore2<O>('.'))
+    const [cmd, ...options] = args
+    switch (cmd) {
         case 'add': {
-            return e('cas add command is not implemented yet')
+            if (options.length === 1) {
+                return e("'cas add' expects one parameter")
+            }
+            const [path] = options
+            return readFile<O>(path)
+                .pipe(v => c.write(unwrap(v)))
+                .pipe(hash => log<O>(vecToCBase32(hash)))
+                .map(() => 0)
+            // return c.write()
+            // return e('cas add command is not implemented yet')
         }
         case 'get': {
             return e('cas get command is not implemented yet')
