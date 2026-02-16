@@ -159,7 +159,7 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
     const [cmd, ...options] = args
     switch (cmd) {
         case 'add': {
-            if (options.length === 1) {
+            if (options.length !== 1) {
                 return e("'cas add' expects one parameter")
             }
             const [path] = options
@@ -167,11 +167,19 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
                 .pipe(v => c.write(unwrap(v)))
                 .pipe(hash => log<O>(vecToCBase32(hash)))
                 .map(() => 0)
-            // return c.write()
-            // return e('cas add command is not implemented yet')
         }
         case 'get': {
-            return e('cas get command is not implemented yet')
+            if (options.length !== 2) {
+                return e("'cas get' expects two parameters")
+            }
+            const [hashCBase32, path] = options
+            const hash = cBase32ToVec(hashCBase32)
+            if (hash === null) { return e(`invalid hash format ${hashCBase32}`) }
+            return c.read(hash)
+                .pipe(v => v === undefined
+                    ? e('no such hash')
+                    : writeFile<O>(path, v).map(() => 0)
+                )
         }
         case 'list': {
             return e('cas list command is not implemented yet')
