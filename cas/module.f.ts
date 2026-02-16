@@ -1,10 +1,11 @@
 import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
+import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
-import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { error, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
+import { type Effect, type Operations } from "../types/effect/module.f.ts"
+import { error, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { fromIo } from "../types/effect/node/module.ts"
 import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
@@ -116,6 +117,12 @@ export type Cas = {
     readonly list: () => Promise<Iterable<Vec>>
 }
 
+export type Cas2<O extends Operations> = {
+    readonly read: (key: Vec) => Effect<O, Vec|undefined>
+    readonly write: (value: Vec) => Effect<O, Vec>
+    readonly list: () => Effect<O, readonly Vec[]>
+}
+
 export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
     const compute = computeSync(sha2)
     const f = ({ read, list, write }: KvStore): Cas => ({
@@ -127,6 +134,18 @@ export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
         list,
     })
     return f
+}
+
+export const cas2 = (sha2: Sha2) => {
+    const compute = computeSync(sha2)
+    return <O extends Operations>({ read, write, list }: KvStore2<O>): Cas2<O> => ({
+        read,
+        write: (value: Vec) => {
+            const hash = compute([value])
+            return write(hash, value).map(() => hash)
+        },
+        list,
+    })
 }
 
 export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
