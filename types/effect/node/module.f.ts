@@ -13,7 +13,7 @@ export type MkdirParam = readonly[string, MakeDirectoryOptions?]
 export type Mkdir = { readonly mkdir: readonly [MkdirParam, IoResult<void>] }
 
 export const mkdir =
-    <O extends Mkdir>(...p: MkdirParam): Do<O, IoResult<void>> =>
+    (...p: MkdirParam): Do<Mkdir, IoResult<void>> =>
     do_('mkdir', p)
 
 // readFile
@@ -21,7 +21,7 @@ export const mkdir =
 export type ReadFile = { readonly readFile: readonly [string, IoResult<Vec>] }
 
 export const readFile =
-    <O extends ReadFile>(path: string): Do<O, IoResult<Vec>> =>
+    (path: string): Do<ReadFile, IoResult<Vec>> =>
     do_('readFile', path)
 
 // readdir
@@ -63,7 +63,7 @@ export const log =
     do_('log', msg)
 
 export const error =
-    <O extends Error>(msg: string): Do<O, void> =>
+    (msg: string): Do<Error, void> =>
     do_('error', msg)
 
 export type Console = Log & Error

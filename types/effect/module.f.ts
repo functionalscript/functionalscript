@@ -5,8 +5,8 @@ export type Operations = {
 export type Effect<O extends Operations, T> = Pure<O, T> | Do<O, T>
 
 export type Map<O extends Operations, T> = {
-    readonly pipe: <R>(f: (_: T) => Effect<O, R>) => Effect<O, R>
-    readonly map: <R>(f: (_: T) => R) => Effect<O, R>
+    readonly pipe: <O1 extends Operations, R>(f: (_: T) => Effect<O1, R>) => Effect<O | O1, R>
+    readonly map: <O1 extends Operations, R>(f: (_: T) => R) => Effect<O | O1, R>
 }
 
 export type Pure<O extends Operations, T> = {

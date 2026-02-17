@@ -8,7 +8,7 @@ const { stringify, parse } = JSON
 const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
 const readJson = (name: string) =>
-    readFile<NodeOperations>(jsonFile(name))
+    readFile(jsonFile(name))
     .map(v => parse(utf8ToString(unwrap(v))))
 
 const writeVersion = (version: string) => (name: string) =>
