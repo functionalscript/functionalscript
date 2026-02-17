@@ -105,7 +105,7 @@ export const main2 = (args: readonly string[]): Effect<NodeOperations, number> =
             return c.read(hash)
                 .pipe(v => v === undefined
                     ? e('no such hash')
-                    : writeFile<NodeOperations>(path, v).map(() => 0)
+                    : writeFile(path, v).map(() => 0)
                 )
         }
         case 'list': {

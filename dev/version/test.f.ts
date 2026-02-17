@@ -88,7 +88,7 @@ export default {
         const rv = run(virtual)
         const w = (name: string) => {
             const fn = `${name}.json`
-            return writeFile<NodeOperations>(fn, utf8(JSON.stringify(x[fn])))
+            return writeFile(fn, utf8(JSON.stringify(x[fn])))
         }
         const [state] = rv(emptyState)(all([w('package'), w('deno')]))
         const [newState, result] = rv(state)(updateVersion)
