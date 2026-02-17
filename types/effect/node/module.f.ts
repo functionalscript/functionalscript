@@ -35,7 +35,7 @@ export type Readdir = {
 }
 
 export const readdir =
-    <O extends Readdir>(...p: ReaddirParam): Do<O, IoResult<readonly string[]>> =>
+    (...p: ReaddirParam): Do<Readdir, IoResult<readonly string[]>> =>
     do_('readdir', p)
 
 // writeFile
@@ -45,26 +45,30 @@ export type WriteFileParam = readonly[string, Vec]
 export type WriteFile = { readonly writeFile: readonly [WriteFileParam, IoResult<void>] }
 
 export const writeFile =
-    <O extends WriteFile>(...p: WriteFileParam): Do<O, IoResult<void>> =>
+    (...p: WriteFileParam): Do<WriteFile, IoResult<void>> =>
     do_('writeFile', p)
 
 // Fs
 
 export type Fs = Mkdir & ReadFile & Readdir & WriteFile
 
-// Console
+// error
 
 export type Error = { readonly error: readonly [string, void] }
-
-export type Log = { readonly log: readonly [string, void] }
-
-export const log =
-    <O extends Log>(msg: string): Do<O, void> =>
-    do_('log', msg)
 
 export const error =
     (msg: string): Do<Error, void> =>
     do_('error', msg)
+
+// log
+
+export type Log = { readonly log: readonly [string, void] }
+
+export const log =
+    (msg: string): Do<Log, void> =>
+    do_('log', msg)
+
+// Console
 
 export type Console = Log & Error
 
