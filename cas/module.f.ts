@@ -4,7 +4,7 @@ import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeOperations } from "../types/effect/node/module.f.ts"
+import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { fromIo } from "../types/effect/node/module.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
@@ -103,10 +103,12 @@ export const main2 = (args: readonly string[]): Effect<NodeOperations, number> =
                 return e(`invalid hash format ${hashCBase32}`)
             }
             return c.read(hash)
-                .pipe(v => v === undefined
-                    ? e('no such hash')
-                    : writeFile(path, v).map(() => 0)
-                )
+                .pipe(v => {
+                    const result: NodeEffect<number> = v === undefined
+                        ? e('no such hash')
+                        : writeFile(path, v).map(() => 0)
+                    return result
+                })
         }
         case 'list': {
             return c.list()
