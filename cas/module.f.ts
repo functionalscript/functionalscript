@@ -4,7 +4,7 @@ import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
-import { error, log, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeOperations } from "../types/effect/node/module.f.ts"
+import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { fromIo } from "../types/effect/node/module.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
@@ -28,21 +28,21 @@ const toPath = (key: Vec): string => {
     return `${a}/${b}/${c}`
 }
 
-export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
-    read: (key: Vec): Effect<O, Vec|undefined> =>
-        readFile<O>(toPath(key))
+export const fileKvStore2 = (path: string): KvStore2<Fs> => ({
+    read: (key: Vec): Effect<Fs, Vec|undefined> =>
+        readFile(toPath(key))
             .map(([status, data]) => status === 'error' ? undefined : data),
-    write: (key: Vec, value: Vec): Effect<O, void> => {
+    write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
         const parts = parse(p)
         const dir = `${path}/${parts.slice(0, -1).join('/')}`
         // TODO: error handling
-        return mkdir<O>(dir, { recursive: true })
+        return mkdir(dir, { recursive: true })
             .pipe(() => writeFile(`${path}/${p}`, value))
             .map(() => undefined)
     },
-    list: (): Effect<O, readonly Vec[]> =>
-        readdir<O>('', { recursive: true })
+    list: (): Effect<Fs, readonly Vec[]> =>
+        readdir('', { recursive: true })
         // TODO: remove unwrap
         .map(r => unwrap(r).flatMap(name =>
             toOption(cBase32ToVec(name.replaceAll('/', '')))
@@ -77,10 +77,10 @@ export const cas2 = (sha2: Sha2): <O extends Operations>(_: KvStore2<O>) => Cas2
 export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
     fromIo(io)(main2(args))
 
-const e = <O extends Error>(s: string) => error<O>(s).map(() => 1)
+const e = (s: string): Effect<NodeOperations, number> => error(s).map(() => 1)
 
-export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect<O, number> => {
-    const c = cas2(sha256)(fileKvStore2<O>('.'))
+export const main2 = (args: readonly string[]): Effect<NodeOperations, number> => {
+    const c = cas2(sha256)(fileKvStore2('.'))
     const [cmd, ...options] = args
     switch (cmd) {
         case 'add': {
@@ -88,9 +88,9 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
                 return e("'cas add' expects one parameter")
             }
             const [path] = options
-            return readFile<O>(path)
+            return readFile(path)
                 .pipe(v => c.write(unwrap(v)))
-                .pipe(hash => log<O>(vecToCBase32(hash)))
+                .pipe(hash => log(vecToCBase32(hash)))
                 .map(() => 0)
         }
         case 'get': {
@@ -103,15 +103,18 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
                 return e(`invalid hash format ${hashCBase32}`)
             }
             return c.read(hash)
-                .pipe(v => v === undefined
-                    ? e('no such hash')
-                    : writeFile<O>(path, v).map(() => 0)
-                )
+                .pipe(v => {
+                    const result: NodeEffect<number> = v === undefined
+                        ? e('no such hash')
+                        : writeFile(path, v).map(() => 0)
+                    return result
+                })
         }
         case 'list': {
             return c.list()
                 .pipe(v => {
-                    let i: Effect<O, void> = pure(undefined)
+                    // TODO: make it lazy.
+                    let i: Effect<NodeOperations, void> = pure(undefined)
                     for (const j of v) {
                         i = i.pipe(() => log(vecToCBase32(j)))
                     }

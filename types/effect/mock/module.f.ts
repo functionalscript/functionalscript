@@ -7,7 +7,7 @@ export type MemOperationMap<O extends Operations, S> = {
 export const run =
     <O extends Operations, S>(o: MemOperationMap<O, S>) =>
     (state: S) =>
-    <T>(effect: Effect<O, T>): readonly[S, T] =>
+    <O1 extends O, T>(effect: Effect<O1, T>): readonly[S, T] =>
 {
     let s = state
     let e = effect

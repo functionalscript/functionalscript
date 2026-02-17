@@ -248,7 +248,7 @@ const gha: GitHubAction = {
 }
 
 export const effect: NodeEffect<number> =
-    writeFile<NodeOperations>('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))
+    writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))
         .map(() => 0)
 
 export default () => effect
