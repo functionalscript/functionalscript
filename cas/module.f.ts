@@ -3,13 +3,11 @@ import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
-import { type Effect, type Operations } from "../types/effect/module.f.ts"
+import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
 import { error, log, mkdir, readdir, readFile, writeFile, type Error, type Fs, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { fromIo } from "../types/effect/node/module.ts"
-import { compose } from "../types/function/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
-import { fromVec, toVec } from "../types/uint8array/module.f.ts"
 
 export type KvStore2<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
@@ -29,49 +27,6 @@ const toPath = (key: Vec): string => {
     const [b, c] = split(bc)
     return `${a}/${b}/${c}`
 }
-
-/*
-export const fileKvStore = (io: Io) => (path: string): KvStore => {
-    const { readdir, readFile, writeFile, mkdir } = io.fs.promises
-    const { asyncTryCatch } = io
-    const result: KvStore = {
-        read: async (key: Vec) => {
-            const p = toPath(key)
-            const [s, v] = await asyncTryCatch(() => readFile(`${path}/${p}`))
-            if (s === 'error') { return undefined }
-            return toVec(v)
-        },
-        write: async (key: Vec, value: Vec) => {
-            const p = toPath(key)
-            const parts = parse(p)
-            const dir = `${path}/${parts.slice(0, -1).join('/')}`
-            await mkdir(dir, { recursive: true })
-            await writeFile(`${path}/${p}`, fromVec(value))
-            return result
-        },
-        list: async () => {
-            const f = async (p: string): Promise<readonly string[]> => {
-                const dir = await readdir(p, o)
-                let result: readonly string[] = []
-                for (const entry of dir) {
-                    const { name } = entry
-                    if (entry.isFile()) {
-                        result = [...result, name]
-                        continue
-                    }
-                    // directory
-                    const sub = await f(`${p}/${name}`)
-                    result = [...result, ...sub.map(x => `${name}${x}`)]
-                }
-                return result
-            }
-            const all = await f(path)
-            return all.flatMap(compose(cBase32ToVec)(toOption))
-        },
-    }
-    return result
-}
-*/
 
 export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
@@ -154,7 +109,15 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
                 )
         }
         case 'list': {
-            return e('cas list command is not implemented yet')
+            return c.list()
+                .pipe(v => {
+                    let i: Effect<O, void> = pure(undefined)
+                    for (const j of v) {
+                        i = i.pipe(() => log(vecToCBase32(j)))
+                    }
+                    return i
+                })
+                .map(() => 0)
         }
         case undefined: {
             return e('Error: cas command requires subcommand')
