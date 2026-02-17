@@ -61,9 +61,9 @@ export type Cas2<O extends Operations> = {
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
-export const cas2 = (sha2: Sha2) => {
+export const cas2 = (sha2: Sha2): <O extends Operations>(_: KvStore2<O>) => Cas2<O> => {
     const compute = computeSync(sha2)
-    return <O extends Operations>({ read, write, list }: KvStore2<O>): Cas2<O> => ({
+    return ({ read, write, list }) => ({
         read,
         write: (value: Vec) => {
             const hash = compute([value])
