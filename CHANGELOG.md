@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- CAS: read/write implementation [673](https://github.com/functionalscript/functionalscript/pull/673)
 - Effect: Effect: readdir w/o recursive flag. [671](https://github.com/functionalscript/functionalscript/pull/671)
 - Connect IO and Effect [670](https://github.com/functionalscript/functionalscript/pull/670)
 - Effect: Generating the website using Effects. [666](https://github.com/functionalscript/functionalscript/pull/666)
