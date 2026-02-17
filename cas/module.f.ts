@@ -1,5 +1,4 @@
 import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { todo } from "../dev/module.f.ts"
 import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
@@ -18,25 +17,7 @@ export type KvStore2<O extends Operations> = {
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
-export type KvStore = {
-    readonly read: (key: Vec) => Promise<Vec|undefined>
-    readonly write: (key: Vec, value: Vec) => Promise<KvStore>
-    readonly list: () => Promise<Iterable<Vec>>
-}
-
 export type Kv = readonly[Vec, Vec];
-
-export const memKvStore = (): KvStore => {
-    const create = (...i: readonly Kv[]): KvStore => {
-        const store = new Map(i);
-        return {
-            read: async (key: Vec) => store.get(key),
-            write: async (...kv: Kv) => create(...store, kv),
-            list: async () => store.keys(),
-        }
-    }
-    return create();
-}
 
 const o = { withFileTypes: true } as const
 
@@ -49,6 +30,7 @@ const toPath = (key: Vec): string => {
     return `${a}/${b}/${c}`
 }
 
+/*
 export const fileKvStore = (io: Io) => (path: string): KvStore => {
     const { readdir, readFile, writeFile, mkdir } = io.fs.promises
     const { asyncTryCatch } = io
@@ -89,6 +71,7 @@ export const fileKvStore = (io: Io) => (path: string): KvStore => {
     }
     return result
 }
+*/
 
 export const fileKvStore2 = <O extends Fs>(path: string): KvStore2<O> => ({
     read: (key: Vec): Effect<O, Vec|undefined> =>
@@ -121,19 +104,6 @@ export type Cas2<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     readonly write: (value: Vec) => Effect<O, Vec>
     readonly list: () => Effect<O, readonly Vec[]>
-}
-
-export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
-    const compute = computeSync(sha2)
-    const f = ({ read, list, write }: KvStore): Cas => ({
-        read,
-        write: async (value: Vec) => {
-            const hash = compute([value])
-            return [f(await write(hash, value)), hash]
-        },
-        list,
-    })
-    return f
 }
 
 export const cas2 = (sha2: Sha2) => {
