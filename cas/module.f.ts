@@ -144,12 +144,13 @@ export const main2 = <O extends NodeOperations>(args: readonly string[]): Effect
             }
             const [hashCBase32, path] = options
             const hash = cBase32ToVec(hashCBase32)
-            if (hash === null) { return e(`invalid hash format ${hashCBase32}`) }
-            return c.read(hash)
-                .pipe(v => v === undefined
-                    ? e('no such hash')
-                    : writeFile<O>(path, v).map(() => 0)
-                )
+            return hash === null
+                ? e(`invalid hash format ${hashCBase32}`)
+                : c.read(hash)
+                    .pipe(v => v === undefined
+                        ? e('no such hash')
+                        : writeFile<O>(path, v).map(() => 0)
+                    )
         }
         case 'list': {
             return e('cas list command is not implemented yet')
