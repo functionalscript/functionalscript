@@ -111,6 +111,7 @@ export const main2 = (args: readonly string[]): Effect<NodeOperations, number> =
         case 'list': {
             return c.list()
                 .pipe(v => {
+                    // TODO: make it lazy.
                     let i: Effect<NodeOperations, void> = pure(undefined)
                     for (const j of v) {
                         i = i.pipe(() => log(vecToCBase32(j)))

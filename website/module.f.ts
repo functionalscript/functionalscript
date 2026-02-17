@@ -6,7 +6,7 @@ const html: Element = ['body',
     ['a', { href: 'https://github.com/functionalscript/functionalscript' }, 'GitHub Repository']
 ]
 
-const program: NodeEffect<number> = writeFile<NodeOperations>('index.html', utf8(htmlToString(html)))
+const program: NodeEffect<number> = writeFile('index.html', utf8(htmlToString(html)))
     .map(() => 0)
 
 export default () => program
