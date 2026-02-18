@@ -9,7 +9,7 @@ import { fromIo } from "../types/effect/node/module.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
 
-export type KvStore2<O extends Operations> = {
+export type KvStore<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     readonly write: (key: Vec, value: Vec) => Effect<O, void>
     readonly list: () => Effect<O, readonly Vec[]>
@@ -28,10 +28,10 @@ const toPath = (key: Vec): string => {
     return `${a}/${b}/${c}`
 }
 
-export const fileKvStore2 = (path: string): KvStore2<Fs> => ({
+export const fileKvStore = (path: string): KvStore<Fs> => ({
     read: (key: Vec): Effect<Fs, Vec|undefined> =>
         readFile(toPath(key))
-            .map(([status, data]) => status === 'error' ? undefined : data),
+        .map(([status, data]) => status === 'error' ? undefined : data),
     write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
         const parts = parse(p)
@@ -49,19 +49,13 @@ export const fileKvStore2 = (path: string): KvStore2<Fs> => ({
         )),
 })
 
-export type Cas = {
-    readonly read: (key: Vec) => Promise<Vec|undefined>
-    readonly write: (value: Vec) => Promise<readonly[Cas, Vec]>
-    readonly list: () => Promise<Iterable<Vec>>
-}
-
-export type Cas2<O extends Operations> = {
+export type Cas<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     readonly write: (value: Vec) => Effect<O, Vec>
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
-export const cas2 = (sha2: Sha2): <O extends Operations>(_: KvStore2<O>) => Cas2<O> => {
+export const cas = (sha2: Sha2): <O extends Operations>(_: KvStore<O>) => Cas<O> => {
     const compute = computeSync(sha2)
     return ({ read, write, list }) => ({
         read,
@@ -80,7 +74,7 @@ export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
 const e = (s: string): Effect<NodeOperations, number> => error(s).map(() => 1)
 
 export const main2 = (args: readonly string[]): Effect<NodeOperations, number> => {
-    const c = cas2(sha256)(fileKvStore2('.'))
+    const c = cas(sha256)(fileKvStore('.'))
     const [cmd, ...options] = args
     switch (cmd) {
         case 'add': {
