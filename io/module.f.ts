@@ -1,3 +1,4 @@
+import { normalize } from '../path/module.f.ts'
 import { asyncRun } from '../types/effect/module.ts'
 import type { IoResult, NodeEffect } from '../types/effect/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
@@ -147,6 +148,6 @@ asyncRun({
     log: async message => log(message),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
-    readdir: param => tc(() => readdir(...param)),
+    readdir: param => tc(async() => (await readdir(...param)).map(normalize)),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 })

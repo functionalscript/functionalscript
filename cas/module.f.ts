@@ -19,11 +19,13 @@ const o = { withFileTypes: true } as const
 
 const split = (s: string) => [s.substring(0, 2), s.substring(2)]
 
+const prefix = '.cas'
+
 const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
     const [a, bc] = split(s)
     const [b, c] = split(bc)
-    return `${a}/${b}/${c}`
+    return `${prefix}/${a}/${b}/${c}`
 }
 
 export const fileKvStore = (path: string): KvStore<Fs> => ({
@@ -40,11 +42,11 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
             .map(() => undefined)
     },
     list: (): Effect<Fs, readonly Vec[]> =>
-        readdir('', { recursive: true })
+        readdir('.cas', { recursive: true })
         // TODO: remove unwrap
         .map(r => unwrap(r).flatMap(name =>
-            toOption(cBase32ToVec(name.replaceAll('/', '')))
-        )),
+                toOption(cBase32ToVec(name.replaceAll('/', ''))))
+        ),
 })
 
 export type Cas<O extends Operations> = {
