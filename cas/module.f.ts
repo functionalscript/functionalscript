@@ -120,7 +120,7 @@ export const main = (args: readonly string[]): Effect<NodeOperations, number> =>
                 .map(() => 0)
         }
         case undefined: {
-            return e('Error: cas command requires subcommand')
+            return e('Error: CAS command requires subcommand')
         }
         default:
             return e(`Error: Unknown CAS subcommand "${args[0]}"`)
