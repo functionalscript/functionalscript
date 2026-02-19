@@ -2,7 +2,7 @@ import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
 import type { MemOperationMap } from "../../mock/module.f.ts"
-import type { IoResult, NodeOperations } from "../module.f.ts"
+import type { Dirent, IoResult, NodeOperations } from "../module.f.ts"
 
 export type VirtualDir = {
     readonly[name in string]?: VirtualDir | Vec
@@ -88,18 +88,18 @@ const invalidPath = error('invalid path')
 
 const { entries } = Object
 
-const readdir = (recursive: boolean) => readOperation((dir, path): IoResult<readonly string[]> => {
+const readdir = (recursive: boolean) => readOperation((dir, path): IoResult<readonly Dirent[]> => {
     if (path.length !== 0) { return invalidPath }
     const f = (prefix: string, d: VirtualDir) => {
-        let result: readonly string[] = []
-        for (const [name, content] of entries(d)) {
+        let result: readonly Dirent[] = []
+        for (const [n, content] of entries(d)) {
             if (content === undefined) { continue }
-            const fullName = `${prefix}${name}`
+            const name = `${prefix}${n}`
             if (isVec(content)) {
-                result = [...result, fullName]
+                result = [...result, { name, isFile: true }]
                 continue
             }
-            const r = recursive ? f(`${fullName}/`, content) : [fullName]
+            const r = recursive ? f(`${name}/`, content) : [{ name, isFile: false }]
             result = [...result, ...r]
         }
         return result

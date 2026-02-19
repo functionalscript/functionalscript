@@ -148,6 +148,9 @@ asyncRun({
     log: async message => log(message),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
-    readdir: param => tc(async() => (await readdir(...param)).map(normalize)),
+    readdir: ([path, r]) => tc(async() =>
+        (await readdir(path, { ...r, withFileTypes: true }))
+        .map(v => ({ name: normalize(v.name), isFile: v.isFile() }))
+    ),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 })

@@ -35,16 +35,18 @@ export type Dirent = {
     readonly isFile: boolean
 }
 
-export type ReaddirOptions = { readonly recursive?: true }
+export type ReaddirOptions = {
+    readonly recursive?: true
+}
 
 export type ReaddirParam = readonly[string, ReaddirOptions]
 
 export type Readdir = {
-    readonly readdir: readonly[ReaddirParam, IoResult<readonly string[]>]
+    readonly readdir: readonly[ReaddirParam, IoResult<readonly Dirent[]>]
 }
 
 export const readdir =
-    (...p: ReaddirParam): Do<Readdir, IoResult<readonly string[]>> =>
+    (...p: ReaddirParam): Do<Readdir, IoResult<readonly Dirent[]>> =>
     do_('readdir', p)
 
 // writeFile
