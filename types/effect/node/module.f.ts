@@ -32,6 +32,7 @@ export const readFile =
  */
 export type Dirent = {
     readonly name: string
+    readonly parentPath: string
     readonly isFile: boolean
 }
 

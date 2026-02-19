@@ -90,17 +90,15 @@ const { entries } = Object
 
 const readdir = (recursive: boolean) => readOperation((dir, path): IoResult<readonly Dirent[]> => {
     if (path.length !== 0) { return invalidPath }
-    const f = (prefix: string, d: VirtualDir) => {
+    const f = (parentPath: string, d: VirtualDir) => {
         let result: readonly Dirent[] = []
-        for (const [n, content] of entries(d)) {
+        for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const name = `${prefix}${n}`
-            if (isVec(content)) {
-                result = [...result, { name, isFile: true }]
-                continue
+            const isFile = isVec(content)
+            result = [...result, { name, parentPath, isFile }]
+            if (!isFile && recursive) {
+                result = [...result, ...f(`${parentPath}/${name}`, content)]
             }
-            const r = recursive ? f(`${name}/`, content) : [{ name, isFile: false }]
-            result = [...result, ...r]
         }
         return result
     }

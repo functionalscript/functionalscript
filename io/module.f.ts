@@ -10,6 +10,7 @@ import { fromVec, toVec } from '../types/uint8array/module.f.ts'
  */
 export type Dirent = {
     readonly name: string
+    readonly parentPath: string
     readonly isDirectory: () => boolean
     readonly isFile: () => boolean
 }
@@ -150,7 +151,7 @@ asyncRun({
     readFile: path => tc(async() => toVec(await readFile(path))),
     readdir: ([path, r]) => tc(async() =>
         (await readdir(path, { ...r, withFileTypes: true }))
-        .map(v => ({ name: normalize(v.name), isFile: v.isFile() }))
+        .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
     ),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
 })
