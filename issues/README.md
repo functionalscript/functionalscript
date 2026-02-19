@@ -263,6 +263,15 @@ require setting a flag when walking through a test free as soon as a node has a 
   2. Validating type match at run-time.
 - [ ] 116. Report the TSGO regression (see `btree`).
 - [ ] 117. Should we remove `map` and `pipe` functions from `Effect`?
+  ```ts
+  // current
+  readFile('a.txt')
+    .pipe(v => writeFile('b', v))
+  // proposal
+  effect(readFile('a.txt'))
+    .pipe(v => writeFile('b', v))
+    .result
+  ```
 
 ## Language Specification
 
