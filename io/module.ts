@@ -1,7 +1,8 @@
-import { type Io, type Module, type Run, run } from './module.f.ts'
+import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from "node:process"
 import { concat } from '../path/module.f.ts'
+import type { NodeProgram } from '../types/effect/node/module.f.ts'
 
 const prefix = 'file:///'
 
@@ -35,3 +36,13 @@ export const io: Io = {
 const runDefault: Run = run(io)
 
 export default runDefault
+
+export type NodeRun = (p: NodeProgram) => Promise<number>
+
+export const ioRun = (io: Io): NodeRun => {
+    const r = fromIo(io)
+    const { argv } = io.process
+    return p => r(p(argv))
+}
+
+export const nodeRun: NodeRun = ioRun(io)
