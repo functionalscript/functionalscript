@@ -44,8 +44,8 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
     list: (): Effect<Fs, readonly Vec[]> =>
         readdir('.cas', { recursive: true })
         // TODO: remove unwrap
-        .map(r => unwrap(r).flatMap(name =>
-                toOption(cBase32ToVec(name.replaceAll('/', ''))))
+        .map(r => unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                toOption(isFile ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name) : null))
         ),
 })
 

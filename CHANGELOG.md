@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.2
+
+- Effect: Node: Add `Dirent` to the `readdir` result [676](https://github.com/functionalscript/functionalscript/pull/676)
 - Effect: move `IO` related functions to `./io` [675](https://github.com/functionalscript/functionalscript/pull/675)
 - Effect: Remove one type parameter from operations [674](https://github.com/functionalscript/functionalscript/pull/674)
 - CAS: read/write/list implementation [673](https://github.com/functionalscript/functionalscript/pull/673)
@@ -34,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A compact version of Bit Vector [PR 575](https://github.com/functionalscript/functionalscript/pull/575)
 - Running tests in browsers [PR 572](https://github.com/functionalscript/functionalscript/pull/572)
 - Generating a GitHub CI file [PR 569](https://github.com/functionalscript/functionalscript/pull/569)
-- New Nominal type that prohibits '<' operations in Type Script
+- New Nominal type that prohibits `<` operations in Type Script
   [PR 567](https://github.com/functionalscript/functionalscript/pull/567).
 
 ## 0.8.0

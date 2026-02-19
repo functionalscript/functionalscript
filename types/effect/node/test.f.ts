@@ -93,10 +93,10 @@ export default {
                 },
             })(readdir('', { recursive: true }))
             if (t !== 'ok') { throw result }
-            const file = result.find(x => x === 'file')
-            if (file === undefined) { throw file }
-            const dirA = result.find(x => x === 'dir/a')
-            if (dirA === undefined) { throw dirA }
+            const file = result.find(x => x.name === 'file')
+            if (file === undefined || file.parentPath !== '' || !file.isFile) { throw `file: ${file}` }
+            const dirA = result.find(x => x.name === 'a')
+            if (dirA === undefined || dirA.parentPath !== '/dir') { throw `dirA: ${dirA?.parentPath}` }
         },
         nonRecursive: () => {
             const [_, [t, result]] = run(virtual)({
@@ -110,9 +110,9 @@ export default {
             })(readdir('', { }))
             if (t !== 'ok') { throw result }
             if (result.length !== 2) { throw result }
-            const file = result.find(x => x === 'file')
+            const file = result.find(x => x.name === 'file')
             if (file === undefined) { throw file }
-            const dir = result.find(x => x === 'dir')
+            const dir = result.find(x => x.name === 'dir')
             if (dir === undefined) { throw dir }
         },
         nested: () => {
@@ -122,7 +122,9 @@ export default {
             })(readdir('tmp', { recursive: true }))
             if (t !== 'ok') { throw result }
             if (result.length !== 1) { throw result }
-            if (result[0] !== 'cache') { throw result }
+            const [r0] = result
+            if (r0.name !== 'cache') { throw r0 }
+            if (r0.parentPath !== 'tmp') { throw r0 }
         },
         noSuchDir: () => {
             const [_, [t, result]] = run(virtual)(emptyState)(readdir('tmp', { recursive: true }))

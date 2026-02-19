@@ -2,7 +2,7 @@ import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
 import type { MemOperationMap } from "../../mock/module.f.ts"
-import type { IoResult, NodeOperations } from "../module.f.ts"
+import type { Dirent, IoResult, NodeOperations } from "../module.f.ts"
 
 export type VirtualDir = {
     readonly[name in string]?: VirtualDir | Vec
@@ -88,23 +88,21 @@ const invalidPath = error('invalid path')
 
 const { entries } = Object
 
-const readdir = (recursive: boolean) => readOperation((dir, path): IoResult<readonly string[]> => {
+const readdir = (base: string, recursive: boolean) => readOperation((dir, path): IoResult<readonly Dirent[]> => {
     if (path.length !== 0) { return invalidPath }
-    const f = (prefix: string, d: VirtualDir) => {
-        let result: readonly string[] = []
+    const f = (parentPath: string, d: VirtualDir) => {
+        let result: readonly Dirent[] = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const fullName = `${prefix}${name}`
-            if (isVec(content)) {
-                result = [...result, fullName]
-                continue
+            const isFile = isVec(content)
+            result = [...result, { name, parentPath, isFile }]
+            if (!isFile && recursive) {
+                result = [...result, ...f(`${parentPath}/${name}`, content)]
             }
-            const r = recursive ? f(`${fullName}/`, content) : [fullName]
-            result = [...result, ...r]
         }
         return result
     }
-    return ok(f('', dir))
+    return ok(f(base, dir))
 })
 
 const console = (name: 'stderr'|'stdout') => (state: VirtualState, payload: string) =>
@@ -115,6 +113,6 @@ export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     log: console('stdout'),
     mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
     readFile,
-    readdir: (state, [path, { recursive }]) => readdir(recursive === true)(state, path),
+    readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
 }
