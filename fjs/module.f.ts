@@ -1,4 +1,4 @@
-import type { Io } from '../io/module.f.ts'
+import { fromIo, type Io } from '../io/module.f.ts'
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'
 import { main as casMain } from '../cas/module.f.ts'
@@ -15,7 +15,7 @@ export const main = (io: Io): Promise<number> => {
             return compile(io)(rest)
         case 'cas':
         case 's':
-            return casMain(io)(rest)
+            return fromIo(io)(casMain(rest))
         case undefined:
             error('Error: command is required')
             return Promise.resolve(1)

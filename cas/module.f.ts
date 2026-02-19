@@ -1,15 +1,13 @@
 import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
-import type { Io } from "../io/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
 import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
 import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
-import { fromIo } from "../types/effect/node/module.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
 
-export type KvStore2<O extends Operations> = {
+export type KvStore<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     readonly write: (key: Vec, value: Vec) => Effect<O, void>
     readonly list: () => Effect<O, readonly Vec[]>
@@ -21,14 +19,16 @@ const o = { withFileTypes: true } as const
 
 const split = (s: string) => [s.substring(0, 2), s.substring(2)]
 
+const prefix = '.cas'
+
 const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
     const [a, bc] = split(s)
     const [b, c] = split(bc)
-    return `${a}/${b}/${c}`
+    return `${prefix}/${a}/${b}/${c}`
 }
 
-export const fileKvStore2 = (path: string): KvStore2<Fs> => ({
+export const fileKvStore = (path: string): KvStore<Fs> => ({
     read: (key: Vec): Effect<Fs, Vec|undefined> =>
         readFile(toPath(key))
             .map(([status, data]) => status === 'error' ? undefined : data),
@@ -42,26 +42,20 @@ export const fileKvStore2 = (path: string): KvStore2<Fs> => ({
             .map(() => undefined)
     },
     list: (): Effect<Fs, readonly Vec[]> =>
-        readdir('', { recursive: true })
+        readdir('.cas', { recursive: true })
         // TODO: remove unwrap
         .map(r => unwrap(r).flatMap(name =>
-            toOption(cBase32ToVec(name.replaceAll('/', '')))
-        )),
+                toOption(cBase32ToVec(name.replaceAll('/', ''))))
+        ),
 })
 
-export type Cas = {
-    readonly read: (key: Vec) => Promise<Vec|undefined>
-    readonly write: (value: Vec) => Promise<readonly[Cas, Vec]>
-    readonly list: () => Promise<Iterable<Vec>>
-}
-
-export type Cas2<O extends Operations> = {
+export type Cas<O extends Operations> = {
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
     readonly write: (value: Vec) => Effect<O, Vec>
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
-export const cas2 = (sha2: Sha2): <O extends Operations>(_: KvStore2<O>) => Cas2<O> => {
+export const cas = (sha2: Sha2): <O extends Operations>(_: KvStore<O>) => Cas<O> => {
     const compute = computeSync(sha2)
     return ({ read, write, list }) => ({
         read,
@@ -74,13 +68,10 @@ export const cas2 = (sha2: Sha2): <O extends Operations>(_: KvStore2<O>) => Cas2
     })
 }
 
-export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
-    fromIo(io)(main2(args))
-
 const e = (s: string): Effect<NodeOperations, number> => error(s).map(() => 1)
 
-export const main2 = (args: readonly string[]): Effect<NodeOperations, number> => {
-    const c = cas2(sha256)(fileKvStore2('.'))
+export const main = (args: readonly string[]): Effect<NodeOperations, number> => {
+    const c = cas(sha256)(fileKvStore('.'))
     const [cmd, ...options] = args
     switch (cmd) {
         case 'add': {
@@ -100,12 +91,12 @@ export const main2 = (args: readonly string[]): Effect<NodeOperations, number> =
             const [hashCBase32, path] = options
             const hash = cBase32ToVec(hashCBase32)
             if (hash === null) {
-                return e(`invalid hash format ${hashCBase32}`)
+                return e(`invalid hash format: ${hashCBase32}`)
             }
             return c.read(hash)
                 .pipe(v => {
                     const result: NodeEffect<number> = v === undefined
-                        ? e('no such hash')
+                        ? e(`no such hash: ${hashCBase32}`)
                         : writeFile(path, v).map(() => 0)
                     return result
                 })
@@ -123,7 +114,7 @@ export const main2 = (args: readonly string[]): Effect<NodeOperations, number> =
                 .map(() => 0)
         }
         case undefined: {
-            return e('Error: cas command requires subcommand')
+            return e('Error: CAS command requires subcommand')
         }
         default:
             return e(`Error: Unknown CAS subcommand "${args[0]}"`)
