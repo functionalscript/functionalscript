@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effect: move `IO` related functions to `./io` [675](https://github.com/functionalscript/functionalscript/pull/675)
 - Effect: Remove one type parameter from operations [674](https://github.com/functionalscript/functionalscript/pull/674)
 - CAS: read/write/list implementation [673](https://github.com/functionalscript/functionalscript/pull/673)
 - Effect: Effect: readdir w/o recursive flag. [671](https://github.com/functionalscript/functionalscript/pull/671)
