@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.2
+
 - Effect: Node: Add `Dirent` to the `readdir` result [676](https://github.com/functionalscript/functionalscript/pull/676)
 - Effect: move `IO` related functions to `./io` [675](https://github.com/functionalscript/functionalscript/pull/675)
 - Effect: Remove one type parameter from operations [674](https://github.com/functionalscript/functionalscript/pull/674)
