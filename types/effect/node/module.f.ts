@@ -26,6 +26,15 @@ export const readFile =
 
 // readdir
 
+/**
+ * Represents a directory entry (file or directory) in the filesystem
+ * @see https://nodejs.org/api/fs.html#class-fsdirent
+ */
+export type Dirent = {
+    readonly name: string
+    readonly isFile: boolean
+}
+
 export type ReaddirOptions = { readonly recursive?: true }
 
 export type ReaddirParam = readonly[string, ReaddirOptions]
