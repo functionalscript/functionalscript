@@ -26,7 +26,7 @@ This repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo) and dist
 Install FunctionalScript via npm:
 
 ```bash
-npm install functionalscript
+npm install -g functionalscript
 ```
 
 The FunctionalScript compiler command (`fjs compile`) currently supports:
@@ -39,9 +39,9 @@ It does **not** yet support functions or complex expressions.
 Example usage with `fjs`:
 
 ```bash
-npx fjs compile example.f.js output.json
+fjs compile example.f.js output.json
 # or
-npx fjs compile example.f.js output.f.js
+fjs compile example.f.js output.f.js
 ```
 
 FunctionalScript code can be compiled directly into either JSON or JavaScript without imports.
