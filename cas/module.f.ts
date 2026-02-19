@@ -74,12 +74,9 @@ export const cas2 = (sha2: Sha2): <O extends Operations>(_: KvStore2<O>) => Cas2
     })
 }
 
-export const main = (io: Io) => (args: readonly string[]): Promise<number> =>
-    fromIo(io)(main2(args))
-
 const e = (s: string): Effect<NodeOperations, number> => error(s).map(() => 1)
 
-export const main2 = (args: readonly string[]): Effect<NodeOperations, number> => {
+export const main = (args: readonly string[]): Effect<NodeOperations, number> => {
     const c = cas2(sha256)(fileKvStore2('.'))
     const [cmd, ...options] = args
     switch (cmd) {
