@@ -58,7 +58,7 @@ const round8 = ({ length, uint }: Unpacked): Round8 => {
 }
 
 const lenEncode = (uint: bigint): Vec => {
-    if (uint < 0x100n) {
+    if (uint < 0x80n) {
         return vec8(uint)
     }
     const { byteLen, v } = round8({ length: bitLength(uint), uint })
