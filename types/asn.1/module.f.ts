@@ -1,6 +1,5 @@
-import { todo } from "../../dev/module.f.ts"
 import { bitLength } from "../bigint/module.f.ts"
-import { length, listToVec, msb, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 
 const eoc = 0x00
 const boolean = 0x01
