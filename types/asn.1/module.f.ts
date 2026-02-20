@@ -4,7 +4,7 @@ import { length, listToVec, msb, uint, unpack, vec, vec8, type Unpacked, type Ve
 
 const eoc = 0x00
 const boolean = 0x01
-const integer = 0x02
+export const integer = 0x02
 const bitString = 0x03
 const octetString = 0x04
 const null_ = 0x05
