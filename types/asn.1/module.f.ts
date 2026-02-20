@@ -1,5 +1,6 @@
 import { todo } from "../../dev/module.f.ts"
-import { length, listToVec, msb, vec8, type Vec } from "../bit_vec/module.f.ts"
+import { bitLength } from "../bigint/module.f.ts"
+import { length, listToVec, msb, uint, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 
 const eoc = 0x00
 const boolean = 0x01
@@ -46,11 +47,21 @@ export type Tag = number
 
 const concat = listToVec(msb)
 
+const len8 = (bitLen: bigint) => (bitLen + 7n) >> 3n
+
+const lenEncode = (len: bigint): Vec => {
+    if (len < 127n) {
+        return vec8(len)
+    }
+    const lenLen = len8(bitLength(len))
+    const header = 0x80n | lenLen
+    return concat([vec8(header), vec(lenLen << 3n)(len)])
+}
+
 export const encode = (tag: Tag, value: Vec): Vec => {
     const tag0 = vec8(BigInt(tag))
-    const len = length(value) / 8n
-    const len1 = len < 128 ? vec8(BigInt(len)) : todo()
-    return concat([tag0, len1, value])
+    const len = len8(length(value))
+    return concat([tag0, lenEncode(len), vec(len << 3n)(uint(value))])
 }
 
 export const decode = (v: Vec): readonly[number, Vec] => todo()
