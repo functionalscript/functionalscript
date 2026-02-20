@@ -34,3 +34,83 @@ const dateTime = 0x21
 const duration = 0x22
 const oidIri = 0x23
 const relativeOidIri = 0x24
+
+const constructed = 0x20
+
+const constructedSequence = constructed | sequence
+
+/*
+TimeStampReq ::= SEQUENCE {
+   version        INTEGER { v1(1) },
+   messageImprint MessageImprint,
+   reqPolicy      TSAPolicyId OPTIONAL,
+   nonce          INTEGER OPTIONAL,
+   certReq        BOOLEAN DEFAULT FALSE,
+   extensions     [0] IMPLICIT Extensions OPTIONAL
+}
+
+MessageImprint ::= SEQUENCE {
+   hashAlgorithm  AlgorithmIdentifier,
+   hashedMessage  OCTET STRING
+}
+
+TSAPolicyId ::= OBJECT IDENTIFIER
+*/
+
+/*
+TimeStampResp ::= SEQUENCE {
+   status          PKIStatusInfo,
+   timeStampToken  TimeStampToken OPTIONAL
+}
+
+PKIStatusInfo ::= SEQUENCE {
+   status        PKIStatus,
+   statusString  PKIFreeText OPTIONAL,
+   failInfo      PKIFailureInfo OPTIONAL
+}
+
+PKIStatus ::= INTEGER {
+   granted                (0),
+   grantedWithMods        (1),
+   rejection              (2),
+   waiting                (3),
+   revocationWarning      (4),
+   revocationNotification (5)
+}
+
+TimeStampToken ::= ContentInfo
+
+ContentInfo ::= SEQUENCE {
+   contentType ContentType,
+   content     [0] EXPLICIT ANY DEFINED BY contentType
+}
+
+ContentType ::= OBJECT IDENTIFIER
+
+SignedData ::= SEQUENCE {
+   version CMSVersion,
+   digestAlgorithms SET OF DigestAlgorithmIdentifier,
+   encapContentInfo EncapsulatedContentInfo,
+   certificates     [0] IMPLICIT CertificateSet OPTIONAL,
+   crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+   signerInfos      SET OF SignerInfo
+}
+
+EncapsulatedContentInfo ::= SEQUENCE {
+   eContentType ContentType,
+   eContent     [0] EXPLICIT OCTET STRING OPTIONAL
+}
+
+TSTInfo ::= SEQUENCE  {
+   version        INTEGER  { v1(1) },
+   policy         TSAPolicyId,
+   messageImprint MessageImprint,
+   serialNumber   INTEGER,
+   genTime        GeneralizedTime,
+   accuracy       Accuracy OPTIONAL,
+   ordering       BOOLEAN DEFAULT FALSE,
+   nonce          INTEGER OPTIONAL,
+   tsa            [0] GeneralName OPTIONAL,
+   extensions     [1] IMPLICIT Extensions OPTIONAL
+}
+*/
