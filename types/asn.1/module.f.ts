@@ -74,9 +74,9 @@ const lenDecode = (v: Vec): readonly[bigint, Vec] => {
     return [byteLen << 3n, v2]
 }
 
-export const encode = (tag: Tag) => {
+export const encode = (tag: Tag): (value: Vec) => Vec => {
     const tag0 = vec8(BigInt(tag))
-    return (value: Vec): Vec => {
+    return value => {
         const { byteLen, v } = round8(unpack(value))
         return concat([tag0, lenEncode(byteLen), v])
     }
