@@ -49,4 +49,21 @@ export default {
         if (intLen !== valueLen) { throw intLen }
         if (uint !== value) { throw uint }
     },
+    encodeFF: () => {
+        const valueLen = 0xFFn << 3n
+        const value = 0x123456n
+        const v = vec(valueLen)(value)
+        const x = encode(integer, v)
+        const lx = length(x)
+        if (lx !== (0xFFn + 3n) << 3n) { throw `lx: ${lx}` }
+        const [tag, x1] = pop8(x)
+        if (tag !== BigInt(integer)) { throw tag }
+        const [lenLen, x2] = pop8(x1)
+        if (lenLen !== 0x81n) { throw lenLen }
+        const [len, x3] = pop8(x2)
+        if (len !== 0xFFn) { throw len }
+        const { length: intLen, uint } = unpack(x3)
+        if (intLen !== valueLen) { throw intLen }
+        if (uint !== value) { throw uint }
+    },
 }
