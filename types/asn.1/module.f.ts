@@ -1,5 +1,5 @@
 import { todo } from "../../dev/module.f.ts"
-import type { Vec } from "../bit_vec/module.f.ts"
+import { length, msb, vec8, type Vec } from "../bit_vec/module.f.ts"
 
 const eoc = 0x00
 const boolean = 0x01
@@ -44,7 +44,14 @@ const constructedSequence = constructed | sequence
 
 export type Tag = number
 
-export const encode = (tag: Tag, value: Vec): Vec => todo()
+const { concat } = msb
+
+export const encode = (tag: Tag, value: Vec): Vec => {
+    const tag0 = vec8(BigInt(tag))
+    const len = length(value) / 8n
+    const len1 = len < 128 ? vec8(BigInt(len)) : todo()
+    return concat(concat(tag0)(len1))(value)
+}
 
 export const decode = (v: Vec): readonly[number, Vec] => todo()
 
