@@ -1,7 +1,8 @@
 import { length, msb, unpack, vec, vec8 } from "../bit_vec/module.f.ts"
 import { encode, integer } from "./module.f.ts"
 
-const pop8 = msb.popFront(8n)
+const pop = msb.popFront
+const pop8 = pop(8n)
 
 export default {
     encodeSmall: () => {
@@ -55,13 +56,30 @@ export default {
         const v = vec(valueLen)(value)
         const x = encode(integer, v)
         const lx = length(x)
-        if (lx !== (0xFFn + 3n) << 3n) { throw `lx: ${lx}` }
+        if (lx !== valueLen + (3n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
         if (tag !== BigInt(integer)) { throw tag }
         const [lenLen, x2] = pop8(x1)
         if (lenLen !== 0x81n) { throw lenLen }
         const [len, x3] = pop8(x2)
         if (len !== 0xFFn) { throw len }
+        const { length: intLen, uint } = unpack(x3)
+        if (intLen !== valueLen) { throw intLen }
+        if (uint !== value) { throw uint }
+    },
+    encode103: () => {
+        const valueLen = 0x103n << 3n
+        const value = 0x123456n
+        const v = vec(valueLen)(value)
+        const x = encode(integer, v)
+        const lx = length(x)
+        if (lx !== valueLen + (4n << 3n)) { throw `lx: ${lx}` }
+        const [tag, x1] = pop8(x)
+        if (tag !== BigInt(integer)) { throw tag }
+        const [lenLen, x2] = pop8(x1)
+        if (lenLen !== 0x82n) { throw lenLen }
+        const [len, x3] = pop(16n)(x2)
+        if (len !== 0x103n) { throw len }
         const { length: intLen, uint } = unpack(x3)
         if (intLen !== valueLen) { throw intLen }
         if (uint !== value) { throw uint }
