@@ -70,19 +70,22 @@ const pop8 = pop(8n)
 
 const lenDecode = (v: Vec): readonly[bigint, Vec] => {
     const [first, v1] = pop8(v)
-    return first < 0x80n ? [first, v1] : pop((first & 0x7Fn) << 3n)(v1)
+    const [byteLen, v2] = first < 0x80n ? [first, v1] : pop((first & 0x7Fn) << 3n)(v1)
+    return [byteLen << 3n, v2]
 }
 
-export const encode = (tag: Tag, value: Vec): Vec => {
+export const encode = (tag: Tag) => {
     const tag0 = vec8(BigInt(tag))
-    const { byteLen, v } = round8(unpack(value))
-    return concat([tag0, lenEncode(byteLen), v])
+    return (value: Vec): Vec => {
+        const { byteLen, v } = round8(unpack(value))
+        return concat([tag0, lenEncode(byteLen), v])
+    }
 }
 
 export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
     const [tag, v1] = pop8(v)
     const [len, v2] = lenDecode(v1)
-    const [result, next] = pop(len << 3n)(v2)
+    const [result, next] = pop(len)(v2)
     return [Number(tag), vec(len)(result), next]
 }
 
