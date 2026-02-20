@@ -65,13 +65,27 @@ const lenEncode = (uint: bigint): Vec => {
     return concat([vec8(0x80n | byteLen), v])
 }
 
+const pop = msb.popFront
+
+const pop8 = pop(8n)
+
+const lenDecode = (v: Vec): readonly[bigint, Vec] => {
+    const [first, v1] = pop8(v)
+    return first < 0x80n ? [first, v1] : pop((first & 0x7Fn) << 3n)(v1)
+}
+
 export const encode = (tag: Tag, value: Vec): Vec => {
     const tag0 = vec8(BigInt(tag))
     const { byteLen, v } = round8(unpack(value))
     return concat([tag0, lenEncode(byteLen), v])
 }
 
-export const decode = (v: Vec): readonly[number, Vec] => todo()
+export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
+    const [tag, v1] = pop8(v)
+    const [len, v2] = lenDecode(v1)
+    const [result, next] = pop(len << 3n)(v2)
+    return [Number(tag), vec(len)(result), next]
+}
 
 /*
 TimeStampReq ::= SEQUENCE {
