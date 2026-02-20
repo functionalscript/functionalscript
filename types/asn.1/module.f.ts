@@ -34,17 +34,3 @@ const dateTime = 0x21
 const duration = 0x22
 const oidIri = 0x23
 const relativeOidIri = 0x24
-
-const tags = [
-    eoc,
-    boolean,
-    integer,
-    bitString,
-    octetString,
-    null_,
-    objectIdentifier,
-    objectDescriptor,
-    external,
-    real,
-
-] as const
