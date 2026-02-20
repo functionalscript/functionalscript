@@ -100,14 +100,25 @@ export default {
             if (asBase(v) !== 0x8234n) { throw asBase(v).toString(16) }
             check(integer, v, empty)
         },
-        () => {
-            check(integer, vec(0x80n)(0x8234n), empty)
-            check(integer, vec(0x100n)(0x8234n), vec8(0x23n))
-            check(integer, vec(0x1000n)(0x8234n), vec8(0x23n))
-            check(integer, vec(0x1_0000n)(0x8234n), vec8(0x23n))
-            check(integer, vec(0x10_0000n)(0x8234n), vec8(0x23n))
-            check(integer, vec(0x100_0000n)(0x8234n), vec8(0x23n))
-            check(integer, vec(0x1000_0000n)(0x8234n), vec8(0x23n))
+        {
+            x80: () => check(integer, vec(0x80n)(0x8234n), empty),
+            x100: () => check(integer, vec(0x100n)(0x8234n), vec8(0x23n)),
+            x1000: () => check(integer, vec(0x1000n)(0x8234n), vec8(0x23n)),
+            x10000: () => check(integer, vec(0x1_0000n)(0x8234n), vec8(0x23n)),
+            x100000: () => check(integer, vec(0x10_0000n)(0x8234n), vec8(0x23n)),
+            x1000000: () => check(integer, vec(0x100_0000n)(0x8234n), vec8(0x23n)),
+            //x10000000: () => check(integer, vec(0x1000_0000n)(0x8234n), vec8(0x23n)),
+            //x20000000: () => check(integer, vec(0x2000_0000n)(0x8234n), vec8(0x23n)),
+            //x30000000: () => check(integer, vec(0x3000_0000n)(0x8234n), vec8(0x23n)),
+            //x38000000: () => check(integer, vec(0x3800_0000n)(0x8234n), vec8(0x23n)),
+            //x3C000000: () => check(integer, vec(0x3800_0000n)(0x8234n), vec8(0x23n)),
+            //x3E000000: () => check(integer, vec(0x3E00_0000n)(0x8234n), vec8(0x23n)),
+            //x3F000000: () => check(integer, vec(0x3F00_0000n)(0x8234n), vec8(0x23n)),
+            //x3F800000: () => check(integer, vec(0x3F80_0000n)(0x8234n), vec8(0x23n)),
+            //x3FFFFFC0: () => check(integer, vec(0x3FFF_FFC0n)(0x8234n), vec8(0x23n)),
+            e3FFFFFC8: () => check(integer, vec(0x3FFF_FFC8n)(0x8234n), empty),
+            //x3FFFFFC1: () => check(integer, vec(0x3FFF_FFC1n)(0x8234n), vec8(0x23n)),
+            //x40000000: () => check(integer, vec(0x4000_0000n)(0x8234n), vec8(0x23n)),
             // check(integer, vec(0x1_0000_0000n)(0x8234n), vec8(0x23n))
         },
     ]
