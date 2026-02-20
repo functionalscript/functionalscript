@@ -113,4 +113,7 @@ TSTInfo ::= SEQUENCE  {
    tsa            [0] GeneralName OPTIONAL,
    extensions     [1] IMPLICIT Extensions OPTIONAL
 }
+
+Bits:  8 7   | 6    | 5 4 3 2 1
+       Class | P/C  | Tag number
 */
