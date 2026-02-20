@@ -43,6 +43,7 @@
     "./text/utf16/module.f.ts": "./text/utf16/module.f.ts",
     "./text/utf8/module.f.ts": "./text/utf8/module.f.ts",
     "./types/array/module.f.ts": "./types/array/module.f.ts",
+    "./types/asn.1/module.f.ts": "./types/asn.1/module.f.ts",
     "./types/bigfloat/module.f.ts": "./types/bigfloat/module.f.ts",
     "./types/bigint/module.f.ts": "./types/bigint/module.f.ts",
     "./types/bit_vec/module.f.ts": "./types/bit_vec/module.f.ts",
