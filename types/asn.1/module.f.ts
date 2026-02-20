@@ -1,3 +1,6 @@
+import { todo } from "../../dev/module.f.ts"
+import type { Vec } from "../bit_vec/module.f.ts"
+
 const eoc = 0x00
 const boolean = 0x01
 const integer = 0x02
@@ -38,6 +41,12 @@ const relativeOidIri = 0x24
 const constructed = 0x20
 
 const constructedSequence = constructed | sequence
+
+export type Tag = number
+
+export const encode = (tag: Tag, value: Vec): Vec => todo()
+
+export const decode = (v: Vec): readonly[number, Vec] => todo()
 
 /*
 TimeStampReq ::= SEQUENCE {
