@@ -93,10 +93,22 @@ export default {
         if (intLen !== valueLen) { throw intLen }
         if (uint !== value) { throw uint }
     },
-    ed: () => {
-        const tag = integer
-        const v = vec(0x10n)(0x8234n)
-        if (asBase(v) !== 0x8234n) { throw asBase(v).toString(16) }
-        check(integer, vec(0x10n)(0x8234n), empty)
-    }
+    ed: [
+        () => {
+            const tag = integer
+            const v = vec(0x10n)(0x8234n)
+            if (asBase(v) !== 0x8234n) { throw asBase(v).toString(16) }
+            check(integer, v, empty)
+        },
+        () => {
+            check(integer, vec(0x80n)(0x8234n), empty)
+            check(integer, vec(0x100n)(0x8234n), vec8(0x23n))
+            check(integer, vec(0x1000n)(0x8234n), vec8(0x23n))
+            check(integer, vec(0x1_0000n)(0x8234n), vec8(0x23n))
+            check(integer, vec(0x10_0000n)(0x8234n), vec8(0x23n))
+            check(integer, vec(0x100_0000n)(0x8234n), vec8(0x23n))
+            check(integer, vec(0x1000_0000n)(0x8234n), vec8(0x23n))
+            // check(integer, vec(0x1_0000_0000n)(0x8234n), vec8(0x23n))
+        },
+    ]
 }
