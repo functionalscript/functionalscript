@@ -1,6 +1,6 @@
 import { empty, length, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decode, encode, encodeInteger, integer } from "./module.f.ts"
+import { decode, decodeInteger, encode, encodeInteger, integer } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const pop8 = pop(8n)
@@ -11,6 +11,13 @@ const check = (tag: number, v: Vec, rest: Vec) => {
         if (t0 !== tag) { throw `t0: ${t0}` }
         if (v0 !== v) { throw `v0: ${asBase(v0)}` }
         if (r !== rest) { throw `r: ${asBase(r)}` }
+}
+
+const integerCheck = (i: bigint, v: Vec) => {
+    const v0 = encodeInteger(i)
+    if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
+    const i0 = decodeInteger(v)
+    if (i !== i0) { throw [i, i0] }
 }
 
 export default {
@@ -138,55 +145,17 @@ export default {
         },
     ],
     encodeInteger: {
-        zero: () => {
-            const v = encodeInteger(0n)
-            if (v !== vec8(0n)) { throw v }
-        },
-        one: () => {
-            const v = encodeInteger(1n)
-            if (v !== vec8(1n)) { throw v }
-        },
-        minusOne: () => {
-            const v = encodeInteger(-1n)
-            if (v !== vec8(0xFFn)) { throw asBase(v).toString(16) }
-        },
-        x7F: () => {
-            const v = encodeInteger(0x7Fn)
-            if (v !== vec8(0x7Fn)) { throw asBase(v).toString(16) }
-        },
-        x80: () => {
-            const v = encodeInteger(0x80n)
-            if (length(v) !== 16n) { throw length(v) }
-            if (v !== vec(16n)(0x80n)) { throw asBase(v).toString(16) }
-        },
-        xFF: () => {
-            const v = encodeInteger(0xFFn)
-            if (length(v) !== 16n) { throw length(v) }
-            if (v !== vec(16n)(0xFFn)) { throw asBase(v).toString(16) }
-        },
-        nx7F: () => {
-            const v = encodeInteger(-0x7Fn)
-            if (v !== vec8(0x81n)) { throw asBase(v).toString(16) }
-        },
-        nx80: () => {
-            const v = encodeInteger(-0x80n)
-            if (v !== vec8(0x80n)) { throw asBase(v).toString(16) }
-        },
-        nx81: () => {
-            const v = encodeInteger(-0x81n)
-            if (v !== vec(16n)(0xFF7Fn)) { throw asBase(v).toString(16) }
-        },
-        nx7FFF: () => {
-            const v = encodeInteger(-0x7FFFn)
-            if (v !== vec(16n)(0x8001n)) { throw asBase(v).toString(16) }
-        },
-        nx8000: () => {
-            const v = encodeInteger(-0x8000n)
-            if (v !== vec(16n)(0x8000n)) { throw asBase(v).toString(16) }
-        },
-        nx8001: () => {
-            const v = encodeInteger(-0x8001n)
-            if (v !== vec(24n)(0xFF7FFFn)) { throw asBase(v).toString(16) }
-        },
+        zero: () => integerCheck(0n, vec8(0n)),
+        one: () => integerCheck(1n, vec8(1n)),
+        minusOne: () => integerCheck(-1n, vec8(0xFFn)),
+        x7F: () => integerCheck(0x7Fn, vec8(0x7Fn)),
+        x80: () => integerCheck(0x80n, vec(16n)(0x80n)),
+        xFF: () => integerCheck(0xFFn, vec(16n)(0xFFn)),
+        nx7F: () => integerCheck(-0x7Fn, vec8(0x81n)),
+        nx80: () => integerCheck(-0x80n, vec8(0x80n)),
+        nx81: () => integerCheck(-0x81n, vec(16n)(0xFF7Fn)),
+        nx7FFF: () => integerCheck(-0x7FFFn, vec(16n)(0x8001n)),
+        nx8000: () => integerCheck(-0x8000n, vec(16n)(0x8000n)),
+        nx8001: () => integerCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
     }
 }
