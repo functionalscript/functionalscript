@@ -1,6 +1,6 @@
 import { empty, length, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decode, encode, integer } from "./module.f.ts"
+import { decode, encode, encodeInteger, integer } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const pop8 = pop(8n)
@@ -136,5 +136,19 @@ export default {
             //x40000000: () => check(integer, vec(0x4000_0000n)(0x8234n), vec8(0x23n)),
             // check(integer, vec(0x1_0000_0000n)(0x8234n), vec8(0x23n))
         },
-    ]
+    ],
+    encodeInteger: {
+        zero: () => {
+            const v = encodeInteger(0n)
+            if (v !== vec8(0n)) { throw v }
+        },
+        one: () => {
+            const v = encodeInteger(1n)
+            if (v !== vec8(1n)) { throw v }
+        },
+        minusOne: () => {
+            const v = encodeInteger(-1n)
+            if (v !== vec8(0xFFn)) { throw asBase(v).toString(16) }
+        }
+    }
 }

@@ -264,12 +264,12 @@ export default {
         const c = (len: bigint) => (ui: bigint) => (raw: bigint) => {
             const v = vec(len)(ui)
             const x = asBase(v)
-            if (x !== raw) { throw x }
+            if (x !== raw) { throw `x: ${x}, raw: ${raw}` }
             const len2 = length(v)
             if (len2 !== len) { throw len2 }
             const u = uint(v)
-            const mui = mask(len) & abs(ui)
-            if (u !== mui) { throw u }
+            const mui = mask(len) & ui
+            if (u !== mui) { throw [u, mui] }
         }
         // 0n
         for (const i of [0n, 1n, -1n, 2n, -2n, 3n, -3n]) {
@@ -285,7 +285,14 @@ export default {
             () => c(2n)(1n)(-0b11n),
             () => c(2n)(0b10n)(0b10n),
             () => c(2n)(0b11n)(0b11n),
-            () => c(2n)(-0b111n)(0b11n), //< overflow
+            // -1 is 0b.....1
+            // -2 is 0b....10
+            // -3 is 0b...101
+            // -4 is 0b...100
+            // -5 is 0b..1011
+            // -6 is 0b..1010
+            // -7 is 0b..1011, cut 0b11, vec: 0b11
+            () => c(2n)(-0b111n)(-0b11n), //< overflow.
         ]
     },
     concat2: () => {

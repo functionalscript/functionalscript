@@ -1,4 +1,5 @@
-import { bitLength } from "../bigint/module.f.ts"
+import { todo } from "../../dev/module.f.ts"
+import { abs, bitLength } from "../bigint/module.f.ts"
 import { listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 
 const eoc = 0x00
@@ -90,24 +91,22 @@ export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
 }
 
 // two's compliment
-const encodeInteger = (v: bigint): Vec => {
-      const { byteLen, v: v8 } = round8({ length: bitLength(v), uint: v })
-      return v < 0n ? concat([vec8(0xFFn), v8]) : v8
-}
+export const encodeInteger = (i: bigint): Vec =>
+    round8({ length: bitLength(i) + 1n, uint: i }).v
 
 /*
 TimeStampReq ::= SEQUENCE {
-   version        INTEGER { v1(1) },
-   messageImprint MessageImprint,
-   reqPolicy      TSAPolicyId OPTIONAL,
-   nonce          INTEGER OPTIONAL,
-   certReq        BOOLEAN DEFAULT FALSE,
-   extensions     [0] IMPLICIT Extensions OPTIONAL
+    version        INTEGER { v1(1) },
+    messageImprint MessageImprint,
+    reqPolicy      TSAPolicyId OPTIONAL,
+    nonce          INTEGER OPTIONAL,
+    certReq        BOOLEAN DEFAULT FALSE,
+    extensions     [0] IMPLICIT Extensions OPTIONAL
 }
 
 MessageImprint ::= SEQUENCE {
-   hashAlgorithm  AlgorithmIdentifier,
-   hashedMessage  OCTET STRING
+    hashAlgorithm  AlgorithmIdentifier,
+    hashedMessage  OCTET STRING
 }
 
 TSAPolicyId ::= OBJECT IDENTIFIER
@@ -115,59 +114,59 @@ TSAPolicyId ::= OBJECT IDENTIFIER
 
 /*
 TimeStampResp ::= SEQUENCE {
-   status          PKIStatusInfo,
-   timeStampToken  TimeStampToken OPTIONAL
+    status          PKIStatusInfo,
+    timeStampToken  TimeStampToken OPTIONAL
 }
 
 PKIStatusInfo ::= SEQUENCE {
-   status        PKIStatus,
-   statusString  PKIFreeText OPTIONAL,
-   failInfo      PKIFailureInfo OPTIONAL
+    status        PKIStatus,
+    statusString  PKIFreeText OPTIONAL,
+    failInfo      PKIFailureInfo OPTIONAL
 }
 
 PKIStatus ::= INTEGER {
-   granted                (0),
-   grantedWithMods        (1),
-   rejection              (2),
-   waiting                (3),
-   revocationWarning      (4),
-   revocationNotification (5)
+    granted                (0),
+    grantedWithMods        (1),
+    rejection              (2),
+    waiting                (3),
+    revocationWarning      (4),
+    revocationNotification (5)
 }
 
 TimeStampToken ::= ContentInfo
 
 ContentInfo ::= SEQUENCE {
-   contentType ContentType,
-   content     [0] EXPLICIT ANY DEFINED BY contentType
+    contentType ContentType,
+    content     [0] EXPLICIT ANY DEFINED BY contentType
 }
 
 ContentType ::= OBJECT IDENTIFIER
 
 SignedData ::= SEQUENCE {
-   version CMSVersion,
-   digestAlgorithms SET OF DigestAlgorithmIdentifier,
-   encapContentInfo EncapsulatedContentInfo,
-   certificates     [0] IMPLICIT CertificateSet OPTIONAL,
-   crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
-   signerInfos      SET OF SignerInfo
+    version CMSVersion,
+    digestAlgorithms SET OF DigestAlgorithmIdentifier,
+    encapContentInfo EncapsulatedContentInfo,
+    certificates     [0] IMPLICIT CertificateSet OPTIONAL,
+    crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+    signerInfos      SET OF SignerInfo
 }
 
 EncapsulatedContentInfo ::= SEQUENCE {
-   eContentType ContentType,
-   eContent     [0] EXPLICIT OCTET STRING OPTIONAL
+    eContentType ContentType,
+    eContent     [0] EXPLICIT OCTET STRING OPTIONAL
 }
 
 TSTInfo ::= SEQUENCE  {
-   version        INTEGER  { v1(1) },
-   policy         TSAPolicyId,
-   messageImprint MessageImprint,
-   serialNumber   INTEGER,
-   genTime        GeneralizedTime,
-   accuracy       Accuracy OPTIONAL,
-   ordering       BOOLEAN DEFAULT FALSE,
-   nonce          INTEGER OPTIONAL,
-   tsa            [0] GeneralName OPTIONAL,
-   extensions     [1] IMPLICIT Extensions OPTIONAL
+    version        INTEGER  { v1(1) },
+    policy         TSAPolicyId,
+    messageImprint MessageImprint,
+    serialNumber   INTEGER,
+    genTime        GeneralizedTime,
+    accuracy       Accuracy OPTIONAL,
+    ordering       BOOLEAN DEFAULT FALSE,
+    nonce          INTEGER OPTIONAL,
+    tsa            [0] GeneralName OPTIONAL,
+    extensions     [1] IMPLICIT Extensions OPTIONAL
 }
 
 Bits:  8 7   | 6    | 5 4 3 2 1

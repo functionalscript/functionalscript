@@ -66,7 +66,7 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
     const lastBit = 1n << last
     return ui => {
         // normalize `u`
-        const u = m & abs(ui)
+        const u = m & ui
         //
         const sign = u >> last
         const x = sign !== 0n ? u : -(u ^ lastBit)
