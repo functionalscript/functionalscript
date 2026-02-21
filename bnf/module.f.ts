@@ -52,7 +52,7 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
     if (!isValid(a) || !isValid(b) || a > b) {
         throw `Invalid range ${a} ${b}.`
     }
-    return (a << offset) | b
+    return ((a << offset) | b) >>> 0
 }
 
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
