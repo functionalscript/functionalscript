@@ -3,7 +3,7 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { identity } from '../../types/function/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { join0Plus, oneEncode, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
+import { join0Plus, oneEncode, option, range, rangeDecode, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
 
@@ -16,15 +16,10 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
 
 export default {
     rangeDecode: () => {
-        const offset = 24
-        const mask = (1 << offset) - 1
-
-        const r1 = 0x000079_000087
-        const decoded1 = stringify(sort)([r1 >>> offset, r1 & mask])
+        const decoded1 = stringify(sort)(rangeDecode(0x000079_000087))
         if (decoded1 !== '[121,135]') { throw decoded1 }
 
-        const r2 = 0x000080_000087
-        const decoded2 = stringify(sort)([r2 >>> offset, r2 & mask])
+        const decoded2 = stringify(sort)(rangeDecode(0x000080_000087))
         if (decoded2 !== '[128,135]') { throw decoded2 }
     },
     rangeEncode: () => {
