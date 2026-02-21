@@ -91,8 +91,10 @@ export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
 }
 
 // two's compliment
-export const encodeInteger = (i: bigint): Vec =>
-    round8({ length: bitLength(i) + 1n, uint: i }).v
+export const encodeInteger = (i: bigint): Vec => {
+    const offset = i < 0n ? 1n : 0n
+    return round8({ length: bitLength(i + offset) + 1n, uint: i }).v
+}
 
 /*
 TimeStampReq ::= SEQUENCE {

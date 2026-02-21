@@ -149,6 +149,44 @@ export default {
         minusOne: () => {
             const v = encodeInteger(-1n)
             if (v !== vec8(0xFFn)) { throw asBase(v).toString(16) }
-        }
+        },
+        x7F: () => {
+            const v = encodeInteger(0x7Fn)
+            if (v !== vec8(0x7Fn)) { throw asBase(v).toString(16) }
+        },
+        x80: () => {
+            const v = encodeInteger(0x80n)
+            if (length(v) !== 16n) { throw length(v) }
+            if (v !== vec(16n)(0x80n)) { throw asBase(v).toString(16) }
+        },
+        xFF: () => {
+            const v = encodeInteger(0xFFn)
+            if (length(v) !== 16n) { throw length(v) }
+            if (v !== vec(16n)(0xFFn)) { throw asBase(v).toString(16) }
+        },
+        nx7F: () => {
+            const v = encodeInteger(-0x7Fn)
+            if (v !== vec8(0x81n)) { throw asBase(v).toString(16) }
+        },
+        nx80: () => {
+            const v = encodeInteger(-0x80n)
+            if (v !== vec8(0x80n)) { throw asBase(v).toString(16) }
+        },
+        nx81: () => {
+            const v = encodeInteger(-0x81n)
+            if (v !== vec(16n)(0xFF7Fn)) { throw asBase(v).toString(16) }
+        },
+        nx7FFF: () => {
+            const v = encodeInteger(-0x7FFFn)
+            if (v !== vec(16n)(0x8001n)) { throw asBase(v).toString(16) }
+        },
+        nx8000: () => {
+            const v = encodeInteger(-0x8000n)
+            if (v !== vec(16n)(0x8000n)) { throw asBase(v).toString(16) }
+        },
+        nx8001: () => {
+            const v = encodeInteger(-0x8001n)
+            if (v !== vec(24n)(0xFF7FFFn)) { throw asBase(v).toString(16) }
+        },
     }
 }
