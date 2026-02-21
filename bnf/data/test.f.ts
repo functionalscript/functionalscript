@@ -219,14 +219,21 @@ export default {
             if (result !== '[{"tag":true,"sequence":[]},true,[65,70]]') { throw result }
         },
         () => {
-            const terminalRangeRule = 0x10ffff_10ffff // range('AF')
+            const terminalRangeRule = range('AF')
             const m = parser(terminalRangeRule)
             const mr = m("", [65])
             const result = JSON.stringify(mr)
             if (result !== '[{"sequence":[65]},true,[]]') { throw result }
         },
         () => {
-            const terminalRangeRule = range('AF')
+            const terminalRangeRule = 0x000079_000087
+            const m = parser(terminalRangeRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,[64]]') { throw result }       
+        },
+        () => {
+            const terminalRangeRule = 0x000080_000087 //broken range
             const m = parser(terminalRangeRule)
             const mr = m("", [64])
             const result = JSON.stringify(mr)
