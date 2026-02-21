@@ -96,6 +96,12 @@ export const encodeInteger = (i: bigint): Vec => {
     return round8({ length: bitLength(i + offset) + 1n, uint: i }).v
 }
 
+export const decodeInteger = (v: Vec): bigint => {
+    const { length, uint } = unpack(v)
+    const sign = uint >> (length - 1n)
+    return sign === 0n ? uint : uint - (1n << length)
+}
+
 /*
 TimeStampReq ::= SEQUENCE {
     version        INTEGER { v1(1) },
