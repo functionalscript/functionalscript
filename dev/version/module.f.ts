@@ -1,40 +1,34 @@
-export type Buffer = object
-
-type Fs<T> = {
-   readonly readFileSync: (name: string, encoding: 'utf8') => string
-   readonly writeFileSync: (name: string, content: string) => T
-}
-
-export type Node<T> = {
-   readonly fs: Fs<T>
-}
+import { utf8, utf8ToString } from "../../text/module.f.ts"
+import { all } from "../../types/effect/module.f.ts"
+import { type NodeEffect, type NodeOperations, readFile, writeFile } from "../../types/effect/node/module.f.ts"
+import { unwrap } from "../../types/result/module.f.ts"
 
 const { stringify, parse } = JSON
 
-export const getVersion
-    : <T>(fs: Fs<T>) => string
-    = fs => readJson(fs)('package').version
-
 const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
-const readJson: <T>(node: Fs<T>) => (name: string) => any
-    = fs => name => parse(fs.readFileSync(jsonFile(name), 'utf8'))
+const readJson = (name: string) =>
+    readFile(jsonFile(name))
+    .map(v => parse(utf8ToString(unwrap(v))))
 
-export const updateVersion: <T>(node: Node<T>) => readonly[T, T]
-    = ({ fs }) => {
-        const f = (name: string) => {
-            return fs.writeFileSync(
-                jsonFile(name),
-                stringify(
-                    {
-                        ...readJson(fs)(name),
-                        version: getVersion(fs)
-                    },
-                    null,
-                    2))
-        }
-        return [
-            f('package'),
-            f('deno')
-        ]
-    }
+const writeVersion = (version: string) => (name: string) =>
+    readJson(name)
+    .pipe(json => writeFile(
+        jsonFile(name),
+        utf8(stringify(
+            {
+                ...json,
+                version,
+            },
+            null,
+            2
+        ))
+    ))
+
+export const updateVersion: NodeEffect<number> =
+    readJson('package')
+    .pipe(p => {
+        const w = writeVersion(p.version)
+        return all([w('package'), w('deno')])
+    })
+    .map(() => 0)

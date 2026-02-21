@@ -124,7 +124,7 @@ require setting a flag when walking through a test free as soon as a node has a 
 - [x] [./074-bast-tag.md](./074-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
   - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
-  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files.
+  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files. See the proposal.
   - Browsers don't support type annotations and `.ts` files.
 - [ ] 76. Serialization mapping should be done only once. For example, instead of
   ```rust
@@ -247,20 +247,31 @@ require setting a flag when walking through a test free as soon as a node has a 
       }
   }
   ```
-- [ ] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
+- [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
 - [ ] 91. Create a separate nominal type for UTF-8.
 - [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
 - [ ] 101. Monad's IO design.
-- [X] 105. Create the `types/uint8array/module.f.ts` that can convert:
-  - `UInt8Array` to `Vec` from `bit_vec`.
-  - `Vec` to `UInt8Array`.
-- [ ] 106. Add conversion from CBase32 to Vec of a specific length.
-- [ ] 107. Remove UTF-8 encoding function signatures from `Io`. Always read/write binary data and use algorithms to decode/encode to UTF-8.
-- [ ] 108. Introduce type `Option<T> = (readonly[T]) | (readonly[])` as an alternative to `Nullable`. The main reason is compatibility with `flatMap`.
-- [ ] 109. Replace `Result<>` in `fromCBase32` with `Nullable<>`.
+- [X] 111. Fix `npm` publishing.
+- [ ] 112. CAS
+- [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
+- [ ] 114. A generic command line parse that can produce help.
+- [ ] 115. Run-time types. See also https://arktype.io/
+  1. We need more powerful type system than TS. See `bnf` or `effects`.
+  2. Validating type match at run-time.
+- [ ] 116. Report the TSGO regression (see `btree`).
+- [ ] 117. Should we remove `map` and `pipe` functions from `Effect`?
+  ```ts
+  // current
+  readFile('a.txt')
+    .pipe(v => writeFile('b', v))
+  // proposal
+  effect(readFile('a.txt'))
+    .pipe(v => writeFile('b', v))
+    .result
+  ```
 
 ## Language Specification
 

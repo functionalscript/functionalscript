@@ -1,94 +1,122 @@
-import { computeSync, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { todo } from "../dev/module.f.ts"
-import type { Io } from "../io/module.f.ts"
-import { type Vec } from "../types/bit_vec/module.f.ts"
-import { fromCBase32, toCBase32 } from "../types/cbase32/module.f.ts"
-import { compose } from "../types/function/module.f.ts"
+import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
+import { parse } from "../path/module.f.ts"
+import type { Vec } from "../types/bit_vec/module.f.ts"
+import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
+import { pure, type Effect, type Operations } from "../types/effect/module.f.ts"
+import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effect/node/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
+import { unwrap } from "../types/result/module.f.ts"
 
-export type KvStore = {
-    readonly read: (key: Vec) => Promise<Vec|undefined>
-    readonly write: (key: Vec, value: Vec) => Promise<KvStore>
-    readonly list: () => Promise<Iterable<Vec>>
+export type KvStore<O extends Operations> = {
+    readonly read: (key: Vec) => Effect<O, Vec|undefined>
+    readonly write: (key: Vec, value: Vec) => Effect<O, void>
+    readonly list: () => Effect<O, readonly Vec[]>
 }
 
 export type Kv = readonly[Vec, Vec];
-
-export const memKvStore = (): KvStore => {
-    const create = (...i: readonly Kv[]): KvStore => {
-        const store = new Map(i);
-        return {
-            read: async (key: Vec) => store.get(key),
-            write: async (...kv: Kv) => create(...store, kv),
-            list: async () => store.keys(),
-        }
-    }
-    return create();
-}
 
 const o = { withFileTypes: true } as const
 
 const split = (s: string) => [s.substring(0, 2), s.substring(2)]
 
+const prefix = '.cas'
+
 const toPath = (key: Vec): string => {
-    const s = toCBase32(key)
+    const s = vecToCBase32(key)
     const [a, bc] = split(s)
     const [b, c] = split(bc)
-    return `${a}/${b}/${c}`
+    return `${prefix}/${a}/${b}/${c}`
 }
 
-export const fileKvStore = (io: Io) => (path: string): KvStore => {
-    const { readdir, readFile } = io.fs.promises
-    const { asyncTryCatch } = io
-    const result: KvStore = {
-        read: async (key: Vec) => {
-            const p = toPath(key)
-            const [s, v] = await asyncTryCatch(() => readFile(`${path}/${p}`))
-            if (s === 'error') { return undefined }
-            return todo()
-        },
-        write: async (key: Vec, value: Vec) => {
-            const p = toPath(key)
-            return result
-        },
-        list: async () => {
-            const f = async (p: string): Promise<readonly string[]> => {
-                const dir = await readdir(p, o)
-                let result: readonly string[] = []
-                for (const entry of dir) {
-                    const { name } = entry
-                    if (entry.isFile()) {
-                        result = [...result, name]
-                        continue
-                    }
-                    // directory
-                    const sub = await f(`${p}/${name}`)
-                    result = [...result, ...sub.map(x => `${name}${x}`)]
-                }
-                return result
-            }
-            const all = await f(path)
-            return all.flatMap(compose(fromCBase32)(toOption))
-        },
-    }
-    return result
+export const fileKvStore = (path: string): KvStore<Fs> => ({
+    read: (key: Vec): Effect<Fs, Vec|undefined> =>
+        readFile(toPath(key))
+            .map(([status, data]) => status === 'error' ? undefined : data),
+    write: (key: Vec, value: Vec): Effect<Fs, void> => {
+        const p = toPath(key)
+        const parts = parse(p)
+        const dir = `${path}/${parts.slice(0, -1).join('/')}`
+        // TODO: error handling
+        return mkdir(dir, { recursive: true })
+            .pipe(() => writeFile(`${path}/${p}`, value))
+            .map(() => undefined)
+    },
+    list: (): Effect<Fs, readonly Vec[]> =>
+        readdir('.cas', { recursive: true })
+        // TODO: remove unwrap
+        .map(r => unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                toOption(isFile ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name) : null))
+        ),
+})
+
+export type Cas<O extends Operations> = {
+    readonly read: (key: Vec) => Effect<O, Vec|undefined>
+    readonly write: (value: Vec) => Effect<O, Vec>
+    readonly list: () => Effect<O, readonly Vec[]>
 }
 
-export type Cas = {
-    readonly read: (key: Vec) => Promise<Vec|undefined>
-    readonly write: (value: Vec) => Promise<readonly[Cas, Vec]>
-    readonly list: () => Promise<Iterable<Vec>>
-}
-
-export const cas = (sha2: Sha2): (s: KvStore) => Cas => {
+export const cas = (sha2: Sha2): <O extends Operations>(_: KvStore<O>) => Cas<O> => {
     const compute = computeSync(sha2)
-    const f = ({ read, list, write }: KvStore): Cas => ({
+    return ({ read, write, list }) => ({
         read,
-        write: async (value: Vec) => {
+        write: (value: Vec) => {
             const hash = compute([value])
-            return [f(await write(hash, value)), hash]
+            return write(hash, value)
+                .map(() => hash)
         },
         list,
     })
-    return f
+}
+
+const e = (s: string): Effect<NodeOperations, number> => error(s).map(() => 1)
+
+export const main = (args: readonly string[]): Effect<NodeOperations, number> => {
+    const c = cas(sha256)(fileKvStore('.'))
+    const [cmd, ...options] = args
+    switch (cmd) {
+        case 'add': {
+            if (options.length !== 1) {
+                return e("'cas add' expects one parameter")
+            }
+            const [path] = options
+            return readFile(path)
+                .pipe(v => c.write(unwrap(v)))
+                .pipe(hash => log(vecToCBase32(hash)))
+                .map(() => 0)
+        }
+        case 'get': {
+            if (options.length !== 2) {
+                return e("'cas get' expects two parameters")
+            }
+            const [hashCBase32, path] = options
+            const hash = cBase32ToVec(hashCBase32)
+            if (hash === null) {
+                return e(`invalid hash format: ${hashCBase32}`)
+            }
+            return c.read(hash)
+                .pipe(v => {
+                    const result: NodeEffect<number> = v === undefined
+                        ? e(`no such hash: ${hashCBase32}`)
+                        : writeFile(path, v).map(() => 0)
+                    return result
+                })
+        }
+        case 'list': {
+            return c.list()
+                .pipe(v => {
+                    // TODO: make it lazy.
+                    let i: Effect<NodeOperations, void> = pure(undefined)
+                    for (const j of v) {
+                        i = i.pipe(() => log(vecToCBase32(j)))
+                    }
+                    return i
+                })
+                .map(() => 0)
+        }
+        case undefined: {
+            return e('Error: CAS command requires subcommand')
+        }
+        default:
+            return e(`Error: Unknown CAS subcommand "${args[0]}"`)
+    }
 }

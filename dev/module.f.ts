@@ -1,7 +1,11 @@
-import type { Io } from '../io/module.f.ts'
+import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
-import type { Node } from './version/module.f.ts'
+import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
+import { readFile, type ReadFile } from '../types/effect/node/module.f.ts'
+import { utf8ToString } from '../text/module.f.ts'
+import { unwrap } from '../types/result/module.f.ts'
+import type { Effect } from '../types/effect/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -30,7 +34,7 @@ export const env
 type ModuleArray = readonly (readonly[string, Module])[]
 
 export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
-    const { fs: { promises: { readdir }}, process: { cwd } } = io
+    const { fs: { promises: { readdir }} } = io
     const load = async(p: string): Promise<readonly string[]> => {
         let result: readonly string[] = []
         for (const i of await readdir(p, { withFileTypes: true })) {
@@ -38,7 +42,7 @@ export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
             if (name.startsWith('.')) { continue }
             const file = `${p}/${name}`
             if (i.isDirectory()) {
-                if (name === 'node_modules') { continue}
+                if (name === 'node_modules') { continue }
                 result = [...result, ...await load(file)]
                 continue
             }
@@ -70,18 +74,23 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     return Object.fromEntries(map.toSorted(cmp))
 }
 
+const denoJson = './deno.json'
+
+const index2: Effect<ReadFile, unknown> = updateVersion
+    .pipe(() => readFile(denoJson))
+    .map(v => JSON.parse(utf8ToString(unwrap(v))))
+
 export const index = async (io: Io): Promise<number> => {
-    updateVersion(io as Node<void>)
-    const jj = './deno.json'
-    const jsr_json = JSON.parse(await io.fs.promises.readFile(jj, 'utf8'))
+    const runner = fromIo(io)
+    const jsr_json = await runner(index2)
     const list = (await allFiles(io)('.')).filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
-    //console.log(list)
+    // console.log(list)
     const exportsA = list.map(v => [v, `./${v.substring(2)}`])
     // console.log(exportsA)
     const exports = Object.fromEntries(exportsA)
     // console.log(exports)
-    const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
+    const json = JSON.stringify({ ...jsr_json as any, exports }, null, 2)
     // console.log(json)
-    await io.fs.promises.writeFile(jj, json, 'utf8')
+    await io.fs.promises.writeFile(denoJson, encodeUtf8(json))
     return 0
 }

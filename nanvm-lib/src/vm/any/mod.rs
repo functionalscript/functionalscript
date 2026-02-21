@@ -1,5 +1,4 @@
 mod from;
-mod mul;
 mod neg;
 mod partial_eq;
 

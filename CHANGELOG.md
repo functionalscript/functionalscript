@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- ASN.1: basic encoding/decoding [678](https://github.com/functionalscript/functionalscript/pull/678)
+
+## 0.9.2
+
+- Effect: Node: Add `Dirent` to the `readdir` result [676](https://github.com/functionalscript/functionalscript/pull/676)
+- Effect: move `IO` related functions to `./io` [675](https://github.com/functionalscript/functionalscript/pull/675)
+- Effect: Remove one type parameter from operations [674](https://github.com/functionalscript/functionalscript/pull/674)
+- CAS: read/write/list implementation [673](https://github.com/functionalscript/functionalscript/pull/673)
+- Effect: Effect: readdir w/o recursive flag. [671](https://github.com/functionalscript/functionalscript/pull/671)
+- Connect IO and Effect [670](https://github.com/functionalscript/functionalscript/pull/670)
+- Effect: Generating the website using Effects. [666](https://github.com/functionalscript/functionalscript/pull/666)
+- Effect: Node: stderr [665](https://github.com/functionalscript/functionalscript/pull/665)
+- Effect: `flatMap` => `pipe` [664](https://github.com/functionalscript/functionalscript/pull/664)
+- Effect: Node: readdir [663](https://github.com/functionalscript/functionalscript/pull/663)
+- Effect: Mock [658](https://github.com/functionalscript/functionalscript/pull/658)
+- Effect: `map` and `flatMap` [PR657](https://github.com/functionalscript/functionalscript/pull/657)
+- Effect: bind [PR 656](https://github.com/functionalscript/functionalscript/pull/656)
+- Effect: do_ and other helpers [PR 654](https://github.com/functionalscript/functionalscript/pull/654)
+
 ## 0.9.0
 
 - Replace legacy fsc/fst usage with fjs CLI [PR 619](https://github.com/functionalscript/functionalscript/pull/619)
@@ -20,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A compact version of Bit Vector [PR 575](https://github.com/functionalscript/functionalscript/pull/575)
 - Running tests in browsers [PR 572](https://github.com/functionalscript/functionalscript/pull/572)
 - Generating a GitHub CI file [PR 569](https://github.com/functionalscript/functionalscript/pull/569)
-- New Nominal type that prohibits '<' operations in Type Script
+- New Nominal type that prohibits `<` operations in Type Script
   [PR 567](https://github.com/functionalscript/functionalscript/pull/567).
 
 ## 0.8.0

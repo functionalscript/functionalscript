@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.9.0",
+  "version": "0.9.2",
   "license": "MIT",
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
@@ -19,6 +19,7 @@
     "./djs/ast/module.f.ts": "./djs/ast/module.f.ts",
     "./djs/module.f.ts": "./djs/module.f.ts",
     "./djs/parser/module.f.ts": "./djs/parser/module.f.ts",
+    "./djs/parser-new/module.f.ts": "./djs/parser-new/module.f.ts",
     "./djs/serializer/module.f.ts": "./djs/serializer/module.f.ts",
     "./djs/tokenizer/module.f.ts": "./djs/tokenizer/module.f.ts",
     "./djs/transpiler/module.f.ts": "./djs/transpiler/module.f.ts",
@@ -42,6 +43,7 @@
     "./text/utf16/module.f.ts": "./text/utf16/module.f.ts",
     "./text/utf8/module.f.ts": "./text/utf8/module.f.ts",
     "./types/array/module.f.ts": "./types/array/module.f.ts",
+    "./types/asn.1/module.f.ts": "./types/asn.1/module.f.ts",
     "./types/bigfloat/module.f.ts": "./types/bigfloat/module.f.ts",
     "./types/bigint/module.f.ts": "./types/bigint/module.f.ts",
     "./types/bit_vec/module.f.ts": "./types/bit_vec/module.f.ts",
@@ -52,6 +54,11 @@
     "./types/btree/types/module.f.ts": "./types/btree/types/module.f.ts",
     "./types/byte_set/module.f.ts": "./types/byte_set/module.f.ts",
     "./types/cbase32/module.f.ts": "./types/cbase32/module.f.ts",
+    "./types/effect/mock/module.f.ts": "./types/effect/mock/module.f.ts",
+    "./types/effect/module.f.ts": "./types/effect/module.f.ts",
+    "./types/effect/module.ts": "./types/effect/module.ts",
+    "./types/effect/node/module.f.ts": "./types/effect/node/module.f.ts",
+    "./types/effect/node/virtual/module.f.ts": "./types/effect/node/virtual/module.f.ts",
     "./types/function/compare/module.f.ts": "./types/function/compare/module.f.ts",
     "./types/function/module.f.ts": "./types/function/module.f.ts",
     "./types/function/operator/module.f.ts": "./types/function/operator/module.f.ts",
@@ -74,7 +81,9 @@
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
-    "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts"
+    "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts",
+    "./website/module.f.ts": "./website/module.f.ts",
+    "./website/module.ts": "./website/module.ts"
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",

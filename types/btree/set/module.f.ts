@@ -1,5 +1,5 @@
-import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
-import { find, type PathItem } from '../find/module.f.ts'
+import type { Branch1, Branch3, Branch5, Branch7, Leaf2, TNode, Tree } from '../types/module.f.ts'
+import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
 
@@ -35,8 +35,21 @@ const reduceBranch = fold(reduceOp)
 
 const nodeSet
     = <T>(c: Compare<T>) => (g: (value: T | null) => T) => (node: TNode<T>): TNode<T> => {
-    const { first, tail } = find(c)(node)
-    const [i, x] = first;
+    // export type Result<T> = {
+    //    readonly first: First<T>,
+    //    readonly tail: Path<T>
+    //}
+    const { first, tail }: Result<T> = find(c)(node)
+    // export type Index2 = 0 | 1
+    // export type Index3 = Index2 | 2 // 0 | 1 | 2
+    // export type Index4 = Index3 | 3 // 0 | 1 | 2 | 3
+    // export type Index5 = Index4 | 4 // 0 | 1 | 2 | 3 | 4
+    // type FirstLeaf1<T> = readonly[Index3, Leaf1<T>]
+    // type FirstBranch3<T> = readonly[1, Branch3<T>]
+    // type FirstLeaf2<T> = readonly[Index5, Leaf2<T>]
+    // type FirstBranch5<T> = readonly[1|3, Branch5<T>]
+    // export type First<T> = FirstLeaf1<T> | FirstBranch3<T> | FirstLeaf2<T> | FirstBranch5<T>
+    const [i, x]: First<T> = first;
     const f = (): Branch1To3<T> => {
         switch (i) {
             case 0: {
@@ -59,17 +72,25 @@ const nodeSet
             case 2: {
                 // insert
                 const value = g(null)
+                // TODO: remove after TSGO fix the regression.
+                const _xl: 1|2 = x.length
                 switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
                 }
+                // TODO: remove after TSGO fix the regression.
+                throw 'unreachable'
             }
             case 3: {
                 // replace
+                // TODO: remove after TSGO fix the regression.
+                const _xl: 2|5 = x.length
                 switch (x.length) {
                     case 2: { return [[x[0], g(x[1])]] }
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]]}
                 }
+                // TODO: remove after TSGO fix the regression.
+                throw 'unreachable'
             }
             case 4: {
                 // insert

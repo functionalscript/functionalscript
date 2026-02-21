@@ -13,7 +13,9 @@ import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
  */
 export type TerminalRange = number
 
-export const fullRange: TerminalRange = 0x000000_10FFFF
+export const fullRange: TerminalRange = 0x000000_FFFFFF
+
+export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
 /** A sequence of rules. */
 export type Sequence = readonly Rule[]
@@ -90,15 +92,8 @@ type RangeList = readonly TerminalRange[]
  */
 export type RangeVariant = { readonly [k in string]: TerminalRange }
 
-export const rangeToId = (r: TerminalRange): string => {
-    const ab = rangeDecode(r)
-    const [a, b] = ab
-    const cp = a === b ? [a] : ab
-    return fromCodePoint(...cp)
-}
-
 const rangeToEntry = (r: TerminalRange): readonly [string, TerminalRange] =>
-    [rangeToId(r), r]
+    ['0x' + r.toString(16), r]
 
 const toVariantRangeSet = (r: RangeList): RangeVariant =>
     fromEntries(r.map(rangeToEntry))
@@ -122,19 +117,19 @@ const removeOne = (list: RangeList, ab: number): RangeList => {
     return result
 }
 
-export const remove = (range: TerminalRange, removeSet: RangeVariant): RangeVariant => {
+export const remove = (range: TerminalRange, v: RangeVariant): RangeVariant => {
     let result: RangeList = [range]
-    for (const r of values(removeSet)) {
+    for (const r of values(v)) {
         result = removeOne(result, r)
     }
     return toVariantRangeSet(result)
 }
 
-export const not = (s: string) => {
-    return remove(fullRange, set(s))
-}
+export const not = (v: RangeVariant): RangeVariant =>
+    remove(fullRange, v)
 
-//
+export const notSet = (s: string): RangeVariant =>
+    not(set(s))
 
 export type None = readonly[]
 

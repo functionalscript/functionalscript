@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use crate::vm::{Any, BigInt, IVm, ToAny};
 
 /// <https://tc39.es/ecma262/#sec-tonumeric>
@@ -9,7 +11,7 @@ pub enum Numeric<A: IVm> {
     BigInt(BigInt<A>),
 }
 
-impl<A: IVm> std::ops::Mul for Numeric<A> {
+impl<A: IVm> Mul for Numeric<A> {
     type Output = Result<Any<A>, Any<A>>;
 
     fn mul(self, rhs: Self) -> Self::Output {

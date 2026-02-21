@@ -28,7 +28,7 @@ export const flip
  */
 type Fn<I, O> = {
     readonly result: Func<I, O>
-    readonly then: <T>(g: Func<O, T>) => Fn<I, T>
+    readonly map: <T>(g: Func<O, T>) => Fn<I, T>
 }
 
 /**
@@ -36,5 +36,5 @@ type Fn<I, O> = {
  */
 export const fn = <I, O>(result: Func<I, O>): Fn<I, O> => ({
     result,
-    then: g => fn(compose(result)(g))
+    map: g => fn(compose(result)(g))
 })

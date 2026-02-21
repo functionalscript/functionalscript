@@ -132,3 +132,7 @@ _*
 
 deno.lock
 test-results/
+
+index.html
+
+.cas/

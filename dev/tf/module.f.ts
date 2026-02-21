@@ -8,8 +8,6 @@ type DependencyMap = {
    readonly[k in string]?: Module
 }
 
-// type Log<T> = (v: string) => (state: T) => T
-
 type Log<T> = CsiConsole
 
 type Measure<T> = <R>(f: () => R) => (state: T) => readonly[R, number, T]

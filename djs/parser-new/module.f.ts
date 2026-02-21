@@ -1,11 +1,11 @@
 import { descentParser } from "../../bnf/data/module.f.ts"
 import {
     eof,
-    fullRange,
     join0Plus,
     max,
     none,
     not,
+    notSet,
     oneEncode,
     option,
     range,
@@ -14,6 +14,8 @@ import {
     repeat0Plus,
     repeat1Plus,
     set,
+    unicodeRange,
+    type RangeVariant,
     type Rule
 } from "../../bnf/module.f.ts"
 import { todo } from "../../dev/module.f.ts"
@@ -72,7 +74,7 @@ export const jsGrammar = (): Rule => {
     const ws = set(' \t')
 
     const newLine = set('\n\r')
-    
+
     const idStart = {
         smallLetter: range('az'),
         bigLetter: range('AZ'),
@@ -147,18 +149,20 @@ export const jsGrammar = (): Rule => {
         ':': ':'
     }
 
-    const commentEnd = {
+    const commentEnd: RangeVariant = {
         ...newLine,
         eof
     }
 
     const comment = ['/', {
-            oneline: ['/', option(remove(fullRange, newLine)), commentEnd],
+            // TODO: investigate why `not(commentEnd)` instead of `remove(unicodeRange, newLine)` fail tests.
+            // TODO: should it be `repeat0Plus(not(commentEnd))` instead of `option(remove(unicodeRange, newLine))`.
+            oneline: ['/', option(remove(unicodeRange, newLine)), commentEnd],
             multiline: [
                 '*',
                 repeat0Plus({
-                    na: not('*'),
-                    a: ['*', not('/')]
+                    na: notSet('*'),
+                    a: ['*', notSet('/')]
                 }),
                 '*/'
             ]

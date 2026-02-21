@@ -1,10 +1,8 @@
-import type { Result } from '../types/result/module.f.ts'
-
-/**
- * Standard Node.js buffer encoding type
- * @see https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings
- */
-export type BufferEncoding = 'utf8'
+import { normalize } from '../path/module.f.ts'
+import { asyncRun } from '../types/effect/module.ts'
+import type { IoResult, NodeEffect } from '../types/effect/node/module.f.ts'
+import { error, ok, type Result } from '../types/result/module.f.ts'
+import { fromVec, toVec } from '../types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
@@ -12,6 +10,7 @@ export type BufferEncoding = 'utf8'
  */
 export type Dirent = {
     readonly name: string
+    readonly parentPath: string
     readonly isDirectory: () => boolean
     readonly isFile: () => boolean
 }
@@ -25,7 +24,9 @@ export type MakeDirectoryOptions = {
     readonly recursive?: boolean
 }
 
-export type ReadFile = ((path: string, options: BufferEncoding) => Promise<string>) & ((path: string) => Promise<Uint8Array>)
+export type ReadDir =
+    & ((path: string, options: { withFileTypes: true }) => Promise<Dirent[]>)
+    & ((path: string, options: { recursive?: true }) => Promise<readonly string[]>)
 
 /**
  * File system operations interface
@@ -33,13 +34,13 @@ export type ReadFile = ((path: string, options: BufferEncoding) => Promise<strin
  */
 export type Fs = {
     readonly writeSync: (fd:number, s: string) => void
-    readonly writeFileSync: (file: string, data: string) => void
-    readonly readFileSync: (path: string, options: BufferEncoding) => string | null
+    readonly writeFileSync: (file: string, data: Uint8Array) => void
+    readonly readFileSync: (path: string) => Uint8Array | null
     readonly existsSync: (path: string) => boolean
     readonly promises: {
-        readonly readFile: ReadFile
-        readonly writeFile: (path: string, data: string, options: BufferEncoding) => Promise<void>
-        readonly readdir: (path: string, options: { withFileTypes: true }) => Promise<Dirent[]>
+        readonly readFile: (path: string) => Promise<Uint8Array>
+        readonly writeFile: (path: string, data: Uint8Array) => Promise<void>
+        readonly readdir: ReadDir
         readonly rm: (path: string, options?: RmOptions) => Promise<void>
         readonly mkdir: (path: string, options?: MakeDirectoryOptions) => Promise<string|undefined>
         readonly copyFile: (src: string, dest: string) => Promise<void>
@@ -130,3 +131,27 @@ export const run = (io: Io): Run => {
     }
     return async f => io.process.exit(code(await io.asyncTryCatch(() => f(io))))
 }
+
+const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
+    try {
+        return ok(await f())
+    } catch (e) {
+        return error(e)
+    }
+}
+
+export const fromIo = ({
+    console: { error, log },
+    fs: { promises: { mkdir, readFile, readdir, writeFile } },
+}: Io): <T>(effect: NodeEffect<T>) => Promise<T> =>
+asyncRun({
+    error: async message => error(message),
+    log: async message => log(message),
+    mkdir: param => tc(async() => { await mkdir(...param) }),
+    readFile: path => tc(async() => toVec(await readFile(path))),
+    readdir: ([path, r]) => tc(async() =>
+        (await readdir(path, { ...r, withFileTypes: true }))
+        .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
+    ),
+    writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+})

@@ -1,4 +1,10 @@
-import * as _ from './module.f.ts'
+import { utf8, utf8ToString } from '../../text/module.f.ts'
+import { isVec } from '../../types/bit_vec/module.f.ts'
+import { run } from '../../types/effect/mock/module.f.ts'
+import { all } from '../../types/effect/module.f.ts'
+import { type NodeOperations, writeFile } from '../../types/effect/node/module.f.ts'
+import { emptyState, virtual } from '../../types/effect/node/virtual/module.f.ts'
+import { updateVersion } from './module.f.ts'
 
 const version = '0.3.0'
 
@@ -77,15 +83,19 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-export default () => {
-    const node
-        : _.Node<string>
-        = {
-        fs: {
-            readFileSync: n => JSON.stringify(x[n]),
-            writeFileSync: (_, content) => content
+export default {
+    new: () => {
+        const rv = run(virtual)
+        const w = (name: string) => {
+            const fn = `${name}.json`
+            return writeFile(fn, utf8(JSON.stringify(x[fn])))
         }
+        const [state] = rv(emptyState)(all([w('package'), w('deno')]))
+        const [newState, result] = rv(state)(updateVersion)
+        if (result !== 0) { throw result }
+        const vec = newState.root['package.json']
+        if (!isVec(vec)) { throw vec }
+        const n = utf8ToString(vec)
+        if (n !== e) { throw [n, e] }
     }
-    const [n, d] = _.updateVersion(node)
-    if (n !== e) { throw [n, e] }
 }
