@@ -60,7 +60,7 @@ export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 export const eof = oneEncode(0x110000)
 
 export const rangeDecode = (r: number): Array2<number> =>
-    [r >> offset, r & mask]
+    [r >>> offset, r & mask]
 
 const mapOneEncode = map(oneEncode)
 
