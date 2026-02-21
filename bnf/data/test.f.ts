@@ -21,13 +21,19 @@ export default {
 
         const decoded2 = stringify(sort)(rangeDecode(0x000080_000087))
         if (decoded2 !== '[128,135]') { throw decoded2 }
+
+        const decoded3 = stringify(sort)(rangeDecode(0x10FFFF_10FFFF))
+        if (decoded3 !== '[1114111,1114111]') { throw decoded3 }
     },
     rangeEncode: () => {
-        const encode1 = oneEncode(0x79)
-        if (encode1 !== 0x000079_000079) {throw encode1}
+        const encoded1 = oneEncode(0x79)
+        if (encoded1 !== 0x000079_000079) {throw encoded1}
 
-        const encode2 = oneEncode(0x80)
-        if (encode2 !== 0x000080_000080) {throw encode2}
+        const encoded2 = oneEncode(0x80)
+        if (encoded2 !== 0x000080_000080) {throw encoded2}
+
+        const encoded3 = oneEncode(0x10FFFF)
+        if (encoded3 !== 0x10FFFF_10FFFF) {throw encoded3}
     },
     toData: [
         () => {
