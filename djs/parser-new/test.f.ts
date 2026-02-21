@@ -19,7 +19,7 @@ export default {
                 const mr = descentParserCpOnly(m, '', cp)
                 const success = mr[1] && mr[2] === cp.length
                 if (success !== expected) {
-                    throw JSON.stringify(mr)
+                    throw JSON.stringify([s, mr])
                 }
             }
             
