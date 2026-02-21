@@ -3,7 +3,7 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { identity } from '../../types/function/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { join0Plus, option, range, repeat0Plus, type Rule, set } from '../module.f.ts'
+import { join0Plus, oneEncode, option, range, rangeDecode, repeat0Plus, type Rule, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
 
@@ -15,6 +15,26 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
 }
 
 export default {
+    rangeDecode: () => {
+        const decoded1 = stringify(sort)(rangeDecode(0x000079_000087))
+        if (decoded1 !== '[121,135]') { throw decoded1 }
+
+        const decoded2 = stringify(sort)(rangeDecode(0x000080_000087))
+        if (decoded2 !== '[128,135]') { throw decoded2 }
+
+        const decoded3 = stringify(sort)(rangeDecode(0x10FFFF_10FFFF))
+        if (decoded3 !== '[1114111,1114111]') { throw decoded3 }
+    },
+    rangeEncode: () => {
+        const encoded1 = oneEncode(0x79)
+        if (encoded1 !== 0x000079_000079) {throw encoded1}
+
+        const encoded2 = oneEncode(0x80)
+        if (encoded2 !== 0x000080_000080) {throw encoded2}
+
+        const encoded3 = oneEncode(0x10FFFF)
+        if (encoded3 !== 0x10FFFF_10FFFF) {throw encoded3}
+    },
     toData: [
         () => {
             const c = toData(classic())
@@ -223,10 +243,17 @@ export default {
             const m = parser(terminalRangeRule)
             const mr = m("", [65])
             const result = JSON.stringify(mr)
-            if (result !== '[{"sequence":[65]},true,[]]') { throw result }       
+            if (result !== '[{"sequence":[65]},true,[]]') { throw result }
         },
         () => {
-            const terminalRangeRule = range('AF')
+            const terminalRangeRule = 0x000079_000087
+            const m = parser(terminalRangeRule)
+            const mr = m("", [64])
+            const result = JSON.stringify(mr)
+            if (result !== '[{"sequence":[]},false,[64]]') { throw result }       
+        },
+        () => {
+            const terminalRangeRule = 0x000080_000087 //broken range
             const m = parser(terminalRangeRule)
             const mr = m("", [64])
             const result = JSON.stringify(mr)
