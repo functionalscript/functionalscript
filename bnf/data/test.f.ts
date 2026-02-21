@@ -15,6 +15,18 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
 }
 
 export default {
+    range: () => {
+        const offset = 24
+        const mask = (1 << offset) - 1
+
+        const r1 = 0x000079_000087
+        const decoded1 = stringify(sort)([r1 >> offset, r1 & mask])
+        if (decoded1 !== '[121,135]') { throw decoded1 }
+
+        const r2 = 0x000080_000087
+        const decoded2 = stringify(sort)([r2 >> offset, r2 & mask])
+        if (decoded2 !== '[128,135]') { throw decoded2 }
+    },
     toData: [
         () => {
             const c = toData(classic())
