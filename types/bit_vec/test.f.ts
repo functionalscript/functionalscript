@@ -291,7 +291,7 @@ export default {
             // -4 is 0b...100
             // -5 is 0b..1011
             // -6 is 0b..1010
-            // -7 is 0b..1011, cut 0b11, vec: 0b11
+            // -7 is 0b..1011, cut 0b11, vec: -0b11
             () => c(2n)(-0b111n)(-0b11n), //< overflow.
         ]
     },
