@@ -1,6 +1,6 @@
 import { todo } from "../../dev/module.f.ts"
 import { abs, bitLength } from "../bigint/module.f.ts"
-import { listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { length, listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import type { Nullable } from "../nullable/module.f.ts"
 
 const eoc = 0x00
@@ -42,7 +42,7 @@ const relativeOidIri = 0x24
 
 const constructed = 0x20
 
-const constructedSequence = 0x30 // constructed | sequence
+export const constructedSequence = 0x30 // constructed | sequence
 
 export type Tag = number
 
@@ -106,8 +106,16 @@ export const decodeInteger = (v: Vec): bigint => {
 export const encodeSequence = (...records: readonly Record[]): Vec =>
     encodeRaw([constructedSequence, concat(records.map(encode))])
 
-export const decodeSequence = (v: Vec): readonly Record[] =>
-    todo()
+export const decodeSequence = (v: Vec): readonly Record[] => {
+    let result: readonly Record[] = []
+    while (true) {
+        const len = length(v)
+        if (len === 0n) { return result }
+        const [record, rest] = decode(v)
+        result = [...result, record]
+        v = rest
+    }
+}
 
 export type Record =
     | readonly[typeof integer, bigint]

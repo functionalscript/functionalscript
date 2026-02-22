@@ -1,6 +1,6 @@
 import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode } from "./module.f.ts"
+import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode, constructedSequence } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
@@ -21,13 +21,19 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     if (i !== i0) { throw [i, i0] }
 }
 
-const ch = (r: Record, v: Vec, rest: Vec) => {
+const ch0 = (r: Record, v: Vec, rest: Vec) => {
     const [r0, rest0] = decode(concat(v)(rest))
     if (rest0 !== rest) { throw `rest: ${asBase(rest0)}` }
     const v0 = encode(r)
     const v1 = encode(r0)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
     if (v !== v1) { throw `encode: ${asBase(v)}, ${asBase(v1)}` }
+}
+
+const ch = (r: Record, v: Vec) => {
+    ch0(r, v, empty)
+    ch0(r, v, vec8(0x23n))
+    ch0(r, v, vec(16n)(0x2345n))
 }
 
 export default {
@@ -170,7 +176,15 @@ export default {
     },
     encodeDecode: {
         integer: () => {
-            ch([integer, 0n], cat([vec8(BigInt(integer)), vec8(1n), vec8(0n)]), empty)
+            ch([integer, 0n], cat([vec8(BigInt(integer)), vec8(1n), vec8(0n)]))
+            ch([integer, 1n], cat([vec8(BigInt(integer)), vec8(1n), vec8(1n)]))
+        },
+        sequence: () => {
+            ch([constructedSequence, []], cat([vec8(BigInt(constructedSequence)), vec8(0n)]))
+            ch(
+                [constructedSequence, [[integer, 0n]]],
+                cat([vec8(BigInt(constructedSequence)), vec8(3n), encode([integer, 0n])])
+            )
         }
     }
 }
