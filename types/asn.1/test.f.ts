@@ -1,6 +1,6 @@
 import { empty, length, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decode, decodeInteger, encode, encodeInteger, integer } from "./module.f.ts"
+import { decode, decodeIntegerValue, encode, encodeIntegerValue, integer } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const pop8 = pop(8n)
@@ -14,9 +14,9 @@ const check = (tag: number, v: Vec, rest: Vec) => {
 }
 
 const integerCheck = (i: bigint, v: Vec) => {
-    const v0 = encodeInteger(i)
+    const v0 = encodeIntegerValue(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
-    const i0 = decodeInteger(v)
+    const i0 = decodeIntegerValue(v)
     if (i !== i0) { throw [i, i0] }
 }
 

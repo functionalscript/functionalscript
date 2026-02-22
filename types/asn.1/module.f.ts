@@ -91,15 +91,23 @@ export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
 }
 
 // two's compliment
-export const encodeInteger = (i: bigint): Vec => {
+export const encodeIntegerValue = (i: bigint): Vec => {
     const offset = i < 0n ? 1n : 0n
     return round8({ length: bitLength(i + offset) + 1n, uint: i }).v
 }
 
-export const decodeInteger = (v: Vec): bigint => {
+export const decodeIntegerValue = (v: Vec): bigint => {
     const { length, uint } = unpack(v)
     const sign = uint >> (length - 1n)
     return sign === 0n ? uint : uint - (1n << length)
+}
+
+export const encodeInteger = (i: bigint): Vec => encode(integer)(encodeIntegerValue(i))
+
+export const decodeInteger = (s: Vec): readonly [bigint|undefined, Vec] => {
+    const [tag, v, rest] = decode(s)
+    if (tag !== integer) { return [undefined, s] }
+    return [decodeIntegerValue(v), rest]
 }
 
 /*
