@@ -13,7 +13,7 @@ const check = (tag: number, v: Vec, rest: Vec) => {
         if (r !== rest) { throw `r: ${asBase(r)}` }
 }
 
-const integerCheck = (i: bigint, v: Vec) => {
+const integerValueCheck = (i: bigint, v: Vec) => {
     const v0 = encodeIntegerValue(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
     const i0 = decodeIntegerValue(v)
@@ -144,18 +144,18 @@ export default {
             // check(integer, vec(0x1_0000_0000n)(0x8234n), vec8(0x23n))
         },
     ],
-    encodeInteger: {
-        zero: () => integerCheck(0n, vec8(0n)),
-        one: () => integerCheck(1n, vec8(1n)),
-        minusOne: () => integerCheck(-1n, vec8(0xFFn)),
-        x7F: () => integerCheck(0x7Fn, vec8(0x7Fn)),
-        x80: () => integerCheck(0x80n, vec(16n)(0x80n)),
-        xFF: () => integerCheck(0xFFn, vec(16n)(0xFFn)),
-        nx7F: () => integerCheck(-0x7Fn, vec8(0x81n)),
-        nx80: () => integerCheck(-0x80n, vec8(0x80n)),
-        nx81: () => integerCheck(-0x81n, vec(16n)(0xFF7Fn)),
-        nx7FFF: () => integerCheck(-0x7FFFn, vec(16n)(0x8001n)),
-        nx8000: () => integerCheck(-0x8000n, vec(16n)(0x8000n)),
-        nx8001: () => integerCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
+    encodeIntegerValue: {
+        zero: () => integerValueCheck(0n, vec8(0n)),
+        one: () => integerValueCheck(1n, vec8(1n)),
+        minusOne: () => integerValueCheck(-1n, vec8(0xFFn)),
+        x7F: () => integerValueCheck(0x7Fn, vec8(0x7Fn)),
+        x80: () => integerValueCheck(0x80n, vec(16n)(0x80n)),
+        xFF: () => integerValueCheck(0xFFn, vec(16n)(0xFFn)),
+        nx7F: () => integerValueCheck(-0x7Fn, vec8(0x81n)),
+        nx80: () => integerValueCheck(-0x80n, vec8(0x80n)),
+        nx81: () => integerValueCheck(-0x81n, vec(16n)(0xFF7Fn)),
+        nx7FFF: () => integerValueCheck(-0x7FFFn, vec(16n)(0x8001n)),
+        nx8000: () => integerValueCheck(-0x8000n, vec(16n)(0x8000n)),
+        nx8001: () => integerValueCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
     }
 }
