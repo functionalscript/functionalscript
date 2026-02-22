@@ -1,6 +1,6 @@
 import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer } from "./module.f.ts"
+import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
@@ -21,15 +21,14 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     if (i !== i0) { throw [i, i0] }
 }
 
-/*
-const integerCheck = (i: bigint, v: Vec) => {
-    const v0 = encodeInteger(i)
+const ch = (r: Record, v: Vec, rest: Vec) => {
+    const [r0, rest0] = decode(concat(v)(rest))
+    if (rest0 !== rest) { throw `rest: ${asBase(rest0)}` }
+    const v0 = encode(r)
+    const v1 = encode(r0)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
-    const [i0, rest] = decodeInteger(v)
-    if (i0 !== i) { throw `decode: ${i}, ${i0}` }
-    if (rest !== empty) { throw `rest: ${asBase(rest)}` }
+    if (v !== v1) { throw `encode: ${asBase(v)}, ${asBase(v1)}` }
 }
-    */
 
 export default {
     encodeSmall: () => {
@@ -169,4 +168,9 @@ export default {
         nx8000: () => integerValueCheck(-0x8000n, vec(16n)(0x8000n)),
         nx8001: () => integerValueCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
     },
+    encodeDecode: {
+        integer: () => {
+            ch([integer, 0n], cat([vec8(BigInt(integer)), vec8(1n), vec8(0n)]), empty)
+        }
+    }
 }

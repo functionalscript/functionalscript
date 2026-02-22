@@ -117,7 +117,7 @@ const recordToRaw = ([tag, value]: Record): Raw => {
     switch (tag) {
         case integer: return [integer, encodeInteger(value)]
         case constructedSequence: return [constructedSequence, concat(value.map(encode))]
-        default: throw `Unsupported tag: ${tag}`
+        // default: throw `Unsupported tag: ${tag}`
     }
 }
 
