@@ -1,6 +1,7 @@
 import { todo } from "../../dev/module.f.ts"
 import { abs, bitLength } from "../bigint/module.f.ts"
 import { listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import type { Nullable } from "../nullable/module.f.ts"
 
 const eoc = 0x00
 const boolean = 0x01
@@ -41,7 +42,7 @@ const relativeOidIri = 0x24
 
 const constructed = 0x20
 
-const constructedSequence = constructed | sequence
+const constructedSequence = 0x30 // constructed | sequence
 
 export type Tag = number
 
@@ -75,39 +76,65 @@ const lenDecode = (v: Vec): readonly[bigint, Vec] => {
     return [byteLen << 3n, v2]
 }
 
-export const encode = (tag: Tag): (value: Vec) => Vec => {
+export type Raw = readonly [Tag, Vec]
+
+export const encodeRaw = ([tag, value]: Raw): Vec => {
     const tag0 = vec8(BigInt(tag))
-    return value => {
-        const { byteLen, v } = round8(unpack(value))
-        return concat([tag0, lenEncode(byteLen), v])
-    }
+    const { byteLen, v } = round8(unpack(value))
+    return concat([tag0, lenEncode(byteLen), v])
 }
 
-export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
+export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     const [tag, v1] = pop8(v)
     const [len, v2] = lenDecode(v1)
     const [result, next] = pop(len)(v2)
-    return [Number(tag), vec(len)(result), next]
+    return [[Number(tag), vec(len)(result)], next]
 }
 
 // two's compliment
-export const encodeIntegerValue = (i: bigint): Vec => {
-    const offset = i < 0n ? 1n : 0n
-    return round8({ length: bitLength(i + offset) + 1n, uint: i }).v
+export const encodeInteger = (uint: bigint): Vec => {
+    const offset = uint < 0n ? 1n : 0n
+    return round8({ length: bitLength(uint + offset) + 1n, uint }).v
 }
 
-export const decodeIntegerValue = (v: Vec): bigint => {
+export const decodeInteger = (v: Vec): bigint => {
     const { length, uint } = unpack(v)
     const sign = uint >> (length - 1n)
     return sign === 0n ? uint : uint - (1n << length)
 }
 
-export const encodeInteger = (i: bigint): Vec => encode(integer)(encodeIntegerValue(i))
+export const encodeSequence = (...records: readonly Record[]): Vec =>
+    encodeRaw([constructedSequence, concat(records.map(encode))])
 
-export const decodeInteger = (s: Vec): readonly [bigint|undefined, Vec] => {
-    const [tag, v, rest] = decode(s)
-    if (tag !== integer) { return [undefined, s] }
-    return [decodeIntegerValue(v), rest]
+export const decodeSequence = (v: Vec): readonly Record[] =>
+    todo()
+
+export type Record =
+    | readonly[typeof integer, bigint]
+    | readonly[typeof constructedSequence, readonly Record[]]
+
+const recordToRaw = ([tag, value]: Record): Raw => {
+    switch (tag) {
+        case integer: return [integer, encodeInteger(value)]
+        case constructedSequence: return [constructedSequence, concat(value.map(encode))]
+        default: throw `Unsupported tag: ${tag}`
+    }
+}
+
+export const encode = (record: Record): Vec =>
+    encodeRaw(recordToRaw(record))
+
+const rawToRecord = ([tag, value]: Raw): Record => {
+    switch (tag) {
+        case integer: return [integer, decodeInteger(value)]
+        case constructedSequence: return [constructedSequence, decodeSequence(value)]
+        default: throw `Unsupported tag: ${tag}`
+    }
+}
+
+export const decode = (v: Vec): readonly[Record, Vec] => {
+    const [raw, rest] = decodeRaw(v)
+    return [rawToRecord(raw), rest]
 }
 
 /*

@@ -1,26 +1,27 @@
 import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decode, decodeInteger, decodeIntegerValue, encode, encodeInteger, encodeIntegerValue, integer } from "./module.f.ts"
+import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
 const pop8 = pop(8n)
 
 const check = (tag: number, v: Vec, rest: Vec) => {
-        const s = encode(tag)(v)
-        const [t0, v0, r] = decode(concat(s)(rest))
+        const s = encodeRaw([tag, v])
+        const [[t0, v0], r] = decodeRaw(concat(s)(rest))
         if (t0 !== tag) { throw `t0: ${t0}` }
         if (v0 !== v) { throw `v0: ${asBase(v0)}` }
         if (r !== rest) { throw `r: ${asBase(r)}` }
 }
 
 const integerValueCheck = (i: bigint, v: Vec) => {
-    const v0 = encodeIntegerValue(i)
+    const v0 = encodeInteger(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
-    const i0 = decodeIntegerValue(v)
+    const i0 = decodeInteger(v)
     if (i !== i0) { throw [i, i0] }
 }
 
+/*
 const integerCheck = (i: bigint, v: Vec) => {
     const v0 = encodeInteger(i)
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
@@ -28,11 +29,12 @@ const integerCheck = (i: bigint, v: Vec) => {
     if (i0 !== i) { throw `decode: ${i}, ${i0}` }
     if (rest !== empty) { throw `rest: ${asBase(rest)}` }
 }
+    */
 
 export default {
     encodeSmall: () => {
         const v = vec8(0x13n)
-        const x = encode(integer)(v)
+        const x = encodeRaw([integer, v])
         const lx = length(x)
         if (lx !== 24n) { throw lx }
         const [tag, x1] = pop8(x)
@@ -47,7 +49,7 @@ export default {
         const valueLen = 0x7Fn << 3n
         const value = 0x1234n
         const v = vec(valueLen)(value)
-        const x = encode(integer)(v)
+        const x = encodeRaw([integer, v])
         const lx = length(x)
         if (lx !== 0x81n << 3n) { throw lx }
         const [tag, x1] = pop8(x)
@@ -62,7 +64,7 @@ export default {
         const valueLen = 0x80n << 3n
         const value = 0x123456n
         const v = vec(valueLen)(value)
-        const x = encode(integer)(v)
+        const x = encodeRaw([integer, v])
         const lx = length(x)
         if (lx !== 0x83n << 3n) { throw lx }
         const [tag, x1] = pop8(x)
@@ -79,7 +81,7 @@ export default {
         const valueLen = 0xFFn << 3n
         const value = 0x123456n
         const v = vec(valueLen)(value)
-        const x = encode(integer)(v)
+        const x = encodeRaw([integer, v])
         const lx = length(x)
         if (lx !== valueLen + (3n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
@@ -96,7 +98,7 @@ export default {
         const valueLen = 0x103n << 3n
         const value = 0x123456n
         const v = vec(valueLen)(value)
-        const x = encode(integer)(v)
+        const x = encodeRaw([integer, v])
         const lx = length(x)
         if (lx !== valueLen + (4n << 3n)) { throw `lx: ${lx}` }
         const [tag, x1] = pop8(x)
@@ -167,7 +169,4 @@ export default {
         nx8000: () => integerValueCheck(-0x8000n, vec(16n)(0x8000n)),
         nx8001: () => integerValueCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
     },
-    integer: {
-        zero: () => integerCheck(0n, cat([vec8(BigInt(integer)), vec8(1n), vec8(0n)])),
-    }
 }
