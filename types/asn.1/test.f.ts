@@ -185,6 +185,10 @@ export default {
                 [constructedSequence, [[integer, 0n]]],
                 cat([vec8(BigInt(constructedSequence)), vec8(3n), encode([integer, 0n])])
             )
+            ch(
+                [constructedSequence, [[integer, 1n], [integer, 2n]]],
+                cat([vec8(BigInt(constructedSequence)), vec8(6n), encode([integer, 1n]), encode([integer, 2n])])
+            )
         }
     }
 }
