@@ -1,8 +1,9 @@
-import { empty, length, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
+import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decode, decodeIntegerValue, encode, encodeIntegerValue, integer } from "./module.f.ts"
+import { decode, decodeInteger, decodeIntegerValue, encode, encodeInteger, encodeIntegerValue, integer } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
+const cat = listToVec(msb)
 const pop8 = pop(8n)
 
 const check = (tag: number, v: Vec, rest: Vec) => {
@@ -18,6 +19,14 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
     const i0 = decodeIntegerValue(v)
     if (i !== i0) { throw [i, i0] }
+}
+
+const integerCheck = (i: bigint, v: Vec) => {
+    const v0 = encodeInteger(i)
+    if (v !== v0) { throw `encode: ${asBase(v)}, ${asBase(v0)}` }
+    const [i0, rest] = decodeInteger(v)
+    if (i0 !== i) { throw `decode: ${i}, ${i0}` }
+    if (rest !== empty) { throw `rest: ${asBase(rest)}` }
 }
 
 export default {
@@ -144,7 +153,7 @@ export default {
             // check(integer, vec(0x1_0000_0000n)(0x8234n), vec8(0x23n))
         },
     ],
-    encodeIntegerValue: {
+    integerValue: {
         zero: () => integerValueCheck(0n, vec8(0n)),
         one: () => integerValueCheck(1n, vec8(1n)),
         minusOne: () => integerValueCheck(-1n, vec8(0xFFn)),
@@ -157,5 +166,8 @@ export default {
         nx7FFF: () => integerValueCheck(-0x7FFFn, vec(16n)(0x8001n)),
         nx8000: () => integerValueCheck(-0x8000n, vec(16n)(0x8000n)),
         nx8001: () => integerValueCheck(-0x8001n, vec(24n)(0xFF7FFFn)),
+    },
+    integer: {
+        zero: () => integerCheck(0n, cat([vec8(BigInt(integer)), vec8(1n), vec8(0n)])),
     }
 }
