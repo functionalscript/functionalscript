@@ -120,10 +120,10 @@ export const decodeOctetString = (v: Vec): Vec => v
 
 // sequence
 
-export const encodeSequence = (...records: readonly Record[]): Vec =>
+export const encodeSequence = (...records: Sequence): Vec =>
     concat(records.map(encode))
 
-export const decodeSequence = (v: Vec): readonly Record[] => {
+export const decodeSequence = (v: Vec): Sequence => {
     let result: readonly Record[] = []
     while (true) {
         const len = length(v)
@@ -136,9 +136,9 @@ export const decodeSequence = (v: Vec): readonly Record[] => {
 
 // object identifier
 
-export const encodeObjectIdentifier = (oid: readonly bigint[]): Vec => todo()
+export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => todo()
 
-export const decodeObjectIdentifier = (v: Vec): readonly bigint[] => todo()
+export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => todo()
 
 // Record
 
