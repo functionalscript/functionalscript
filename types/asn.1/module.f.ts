@@ -136,7 +136,13 @@ export const decodeSequence = (v: Vec): Sequence => {
 
 // object identifier
 
-export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => todo()
+
+export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
+    const [first, second, ...rest] = oid
+    const firstByte = first * 40n + second
+    return todo()
+}
+
 
 export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => todo()
 
