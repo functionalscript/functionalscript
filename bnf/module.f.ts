@@ -57,7 +57,7 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
 
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
-export const eof = oneEncode(0x110000)
+export const eof: number = oneEncode(0x110000)
 
 export const rangeDecode = (r: number): Array2<number> =>
     [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
