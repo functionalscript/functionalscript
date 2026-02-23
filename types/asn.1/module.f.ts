@@ -1,13 +1,13 @@
 import { todo } from "../../dev/module.f.ts"
 import { abs, bitLength } from "../bigint/module.f.ts"
-import { length, listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { length, listToVec, msb, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import type { Nullable } from "../nullable/module.f.ts"
 
 const eoc = 0x00
-const boolean = 0x01
+export const boolean = 0x01
 export const integer = 0x02
 const bitString = 0x03
-const octetString = 0x04
+export const octetString = 0x04
 const null_ = 0x05
 const objectIdentifier = 0x06
 const objectDescriptor = 0x07
@@ -91,6 +91,10 @@ export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     return [[Number(tag), vec(len)(result)], next]
 }
 
+export const encodeBoolean = (b: boolean): Vec => vec8(b ? 0xFFn : 0x00n)
+
+export const decodeBoolean = (v: Vec): boolean => uint(v) !== 0n
+
 // two's compliment
 export const encodeInteger = (uint: bigint): Vec => {
     const offset = uint < 0n ? 1n : 0n
@@ -102,6 +106,10 @@ export const decodeInteger = (v: Vec): bigint => {
     const sign = uint >> (length - 1n)
     return sign === 0n ? uint : uint - (1n << length)
 }
+
+export const encodeOctetString = (v: Vec): Vec => v
+
+export const decodeOctetString = (v: Vec): Vec => v
 
 export const encodeSequence = (...records: readonly Record[]): Vec =>
     concat(records.map(encode))
@@ -117,20 +125,18 @@ export const decodeSequence = (v: Vec): readonly Record[] => {
     }
 }
 
-export const encodeOctetString = (v: Vec): Vec => v
-
-export const decodeOctetString = (v: Vec): Vec => v
-
 export type Record =
+    | readonly[typeof boolean, boolean]
     | readonly[typeof integer, bigint]
-    | readonly[typeof constructedSequence, readonly Record[]]
     | readonly[typeof octetString, Vec]
+    | readonly[typeof constructedSequence, readonly Record[]]
 
 const recordToRaw = ([tag, value]: Record): Vec => {
     switch (tag) {
+        case boolean: return encodeBoolean(value)
+        case octetString: return encodeOctetString(value)
         case integer: return encodeInteger(value)
         case constructedSequence: return encodeSequence(...value)
-        case octetString: return encodeOctetString(value)
         // default: throw `Unsupported tag: ${tag}`
     }
 }
@@ -140,9 +146,10 @@ export const encode = (record: Record): Vec =>
 
 const rawToRecord = ([tag, value]: Raw): Record => {
     switch (tag) {
+        case boolean: return [boolean, decodeBoolean(value)]
         case integer: return [integer, decodeInteger(value)]
-        case constructedSequence: return [constructedSequence, decodeSequence(value)]
         case octetString: return [octetString, decodeOctetString(value)]
+        case constructedSequence: return [constructedSequence, decodeSequence(value)]
         default: throw `Unsupported tag: ${tag}`
     }
 }
@@ -154,10 +161,10 @@ export const decode = (v: Vec): readonly[Record, Vec] => {
 
 /*
 TimeStampReq ::= SEQUENCE {
-    version        INTEGER { v1(1) },
+    version        INTEGER { v1(1) },    // [x]
     messageImprint MessageImprint,
     reqPolicy      TSAPolicyId OPTIONAL,
-    nonce          INTEGER OPTIONAL,
+    nonce          INTEGER OPTIONAL,     // [X]
     certReq        BOOLEAN DEFAULT FALSE,
     extensions     [0] IMPLICIT Extensions OPTIONAL
 }
