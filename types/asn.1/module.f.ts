@@ -104,7 +104,7 @@ export const decodeInteger = (v: Vec): bigint => {
 }
 
 export const encodeSequence = (...records: readonly Record[]): Vec =>
-    encodeRaw([constructedSequence, concat(records.map(encode))])
+    concat(records.map(encode))
 
 export const decodeSequence = (v: Vec): readonly Record[] => {
     let result: readonly Record[] = []
@@ -117,25 +117,32 @@ export const decodeSequence = (v: Vec): readonly Record[] => {
     }
 }
 
+export const encodeOctetString = (v: Vec): Vec => v
+
+export const decodeOctetString = (v: Vec): Vec => v
+
 export type Record =
     | readonly[typeof integer, bigint]
     | readonly[typeof constructedSequence, readonly Record[]]
+    | readonly[typeof octetString, Vec]
 
-const recordToRaw = ([tag, value]: Record): Raw => {
+const recordToRaw = ([tag, value]: Record): Vec => {
     switch (tag) {
-        case integer: return [integer, encodeInteger(value)]
-        case constructedSequence: return [constructedSequence, concat(value.map(encode))]
+        case integer: return encodeInteger(value)
+        case constructedSequence: return encodeSequence(...value)
+        case octetString: return encodeOctetString(value)
         // default: throw `Unsupported tag: ${tag}`
     }
 }
 
 export const encode = (record: Record): Vec =>
-    encodeRaw(recordToRaw(record))
+    encodeRaw([record[0], recordToRaw(record)])
 
 const rawToRecord = ([tag, value]: Raw): Record => {
     switch (tag) {
         case integer: return [integer, decodeInteger(value)]
         case constructedSequence: return [constructedSequence, decodeSequence(value)]
+        case octetString: return [octetString, decodeOctetString(value)]
         default: throw `Unsupported tag: ${tag}`
     }
 }
