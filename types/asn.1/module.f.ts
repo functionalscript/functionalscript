@@ -1,5 +1,5 @@
 import { todo } from "../../dev/module.f.ts"
-import { abs, bitLength } from "../bigint/module.f.ts"
+import { abs, bitLength, mask } from "../bigint/module.f.ts"
 import { length, listToVec, msb, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 
 const eoc = 0x00
@@ -136,6 +136,26 @@ export const decodeSequence = (v: Vec): Sequence => {
 
 // object identifier
 
+const base128Encode = (uint: bigint): Vec => {
+    const len = bitLength(uint)
+    if (len <= 7n) {
+        return vec8(uint)
+    }
+    const shift = (len / 7n) * 7n
+    const head = uint >> shift
+    const tail = uint & mask(shift)
+    return concat([vec8(0x80n | head), base128Encode(tail)])
+}
+
+const base128Decode = (uint: Vec): readonly[bigint, Vec] => {
+    const [first, rest] = pop8(uint)
+    const result = first & 0x7Fn
+    if (first < 0x80n) {
+        return [result, rest]
+    }
+    const [tail, next] = base128Decode(rest)
+    return [(result << 7n) | tail, next]
+}
 
 export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     const [first, second, ...rest] = oid
