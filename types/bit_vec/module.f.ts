@@ -21,12 +21,13 @@
  *
  * @module
  */
-import { abs, bitLength, mask, max, xor, type Reduce as BigintReduce } from "../bigint/module.f.ts"
-import { flip } from "../function/module.f.ts"
-import type { Binary, Fold, Reduce as OpReduce } from "../function/operator/module.f.ts"
-import { fold, type List, type Thunk } from "../list/module.f.ts"
-import { asBase, asNominal, type Nominal } from "../nominal/module.f.ts"
-import { repeat as mRepeat } from "../monoid/module.f.ts"
+import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
+import { flip } from '../function/module.f.ts'
+import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
+import { fold, type List, type Thunk } from '../list/module.f.ts'
+import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
+import { repeat as mRepeat } from '../monoid/module.f.ts'
+import { cmp, type Sign } from '../function/compare/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -66,7 +67,7 @@ export const vec = (len: bigint): (ui: bigint) => Vec => {
     const lastBit = 1n << last
     return ui => {
         // normalize `u`
-        const u = m & abs(ui)
+        const u = m & ui
         //
         const sign = u >> last
         const x = sign !== 0n ? u : -(u ^ lastBit)
@@ -334,6 +335,27 @@ export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
 /**
  * Repeats a vector to create a padded block of the desired length.
  */
-export const repeat: Fold<bigint, Vec> = mRepeat({ identity: empty, operation: lsb.concat })
+export const repeat: Fold<bigint, Vec> =
+    mRepeat({ identity: empty, operation: lsb.concat })
 
-export const isVec = <T>(v: Vec | T): v is Vec => typeof v === 'bigint'
+export const isVec = <T>(v: Vec | T): v is Vec =>
+    typeof v === 'bigint'
+
+/**
+ * Lexically compares two vectors based on their unsigned integer values,
+ * normalizing them to the same length. If the values are equal,
+ * the shorter vector is considered smaller.
+ *
+ * a < b => -1
+ * a > b => 1
+ * a === b => 0
+ */
+export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
+    const au = unpack(av)
+    const bu = unpack(bv)
+    const { length: al } = au
+    const { length: bl } = bu
+    const { a, b } = msbNorm(au)(bu)(min(al)(bl))
+    const result = cmp(a)(b)
+    return result !== 0 ? result : cmp(al)(bl)
+}

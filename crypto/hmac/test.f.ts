@@ -1,5 +1,5 @@
 import { utf8 } from '../../text/module.f.ts'
-import { length, uint, vec, type Vec } from '../../types/bit_vec/module.f.ts'
+import { uint, vec, type Vec } from '../../types/bit_vec/module.f.ts'
 import { sha256, sha384, sha512 } from '../sha2/module.f.ts'
 import { hmac } from './module.f.ts'
 
