@@ -42,6 +42,7 @@ const relativeOidIri = 0x24
 const constructed = 0x20
 
 export const constructedSequence = 0x30 // constructed | sequence
+export const constructedSet = 0x31      // constructed | set
 
 export type Tag = number
 
@@ -118,22 +119,6 @@ export const encodeOctetString = (v: Vec): Vec => v
 
 export const decodeOctetString = (v: Vec): Vec => v
 
-// sequence
-
-export const encodeSequence = (...records: Sequence): Vec =>
-    concat(records.map(encode))
-
-export const decodeSequence = (v: Vec): Sequence => {
-    let result: readonly Record[] = []
-    while (true) {
-        const len = length(v)
-        if (len === 0n) { return result }
-        const [record, rest] = decode(v)
-        result = [...result, record]
-        v = rest
-    }
-}
-
 // object identifier
 
 const base128Encode = (uint: bigint): Vec => {
@@ -179,6 +164,32 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
     return result
 }
 
+// sequence
+
+export const encodeSequence = (...records: Sequence): Vec =>
+    concat(records.map(encode))
+
+export const decodeSequence = (v: Vec): Sequence => {
+    let result: readonly Record[] = []
+    while (length(v) !== 0n) {
+        const [record, rest] = decode(v)
+        result = [...result, record]
+        v = rest
+    }
+    return result
+}
+
+// set
+
+export type Set = Sequence
+
+export const encodeSet = (...records: Sequence): Vec => {
+    const sorted = records.map(encode).sort((a, b) => todo())
+    return todo()
+}
+
+export const decodeSet: (v: Vec) => Sequence = decodeSequence
+
 // Record
 
 export type ObjectIdentifier = readonly bigint[]
@@ -191,6 +202,7 @@ export type Record =
     | readonly[typeof octetString, Vec]
     | readonly[typeof objectIdentifier, ObjectIdentifier]
     | readonly[typeof constructedSequence, Sequence]
+    | readonly[typeof constructedSet, Set]
 
 // encode
 
@@ -201,6 +213,7 @@ const recordToRaw = ([tag, value]: Record): Vec => {
         case octetString: return encodeOctetString(value)
         case objectIdentifier: return encodeObjectIdentifier(value)
         case constructedSequence: return encodeSequence(...value)
+        case constructedSet: return encodeSet(...value)
         // default: throw `Unsupported tag: ${tag}`
     }
 }
@@ -217,6 +230,7 @@ const rawToRecord = ([tag, value]: Raw): Record => {
         case octetString: return [octetString, decodeOctetString(value)]
         case objectIdentifier: return [objectIdentifier, decodeObjectIdentifier(value)]
         case constructedSequence: return [constructedSequence, decodeSequence(value)]
+        case constructedSet: return [constructedSet, decodeSet(value)]
         default: throw `Unsupported tag: ${tag}`
     }
 }
@@ -228,20 +242,20 @@ export const decode = (v: Vec): readonly[Record, Vec] => {
 
 /*
 TimeStampReq ::= SEQUENCE {
-    version        INTEGER { v1(1) },    // [x]
+    version        INTEGER { v1(1) },               // [x]
     messageImprint MessageImprint,
     reqPolicy      TSAPolicyId OPTIONAL,
-    nonce          INTEGER OPTIONAL,     // [X]
-    certReq        BOOLEAN DEFAULT FALSE,
-    extensions     [0] IMPLICIT Extensions OPTIONAL
+    nonce          INTEGER OPTIONAL,                // [X]
+    certReq        BOOLEAN DEFAULT FALSE,           // [X]
+    extensions     [0] IMPLICIT Extensions OPTIONAL // [X]
 }
 
 MessageImprint ::= SEQUENCE {
     hashAlgorithm  AlgorithmIdentifier,
-    hashedMessage  OCTET STRING
+    hashedMessage  OCTET STRING         // [X]
 }
 
-TSAPolicyId ::= OBJECT IDENTIFIER
+TSAPolicyId ::= OBJECT IDENTIFIER // [X]
 */
 
 /*
@@ -256,7 +270,7 @@ PKIStatusInfo ::= SEQUENCE {
     failInfo      PKIFailureInfo OPTIONAL
 }
 
-PKIStatus ::= INTEGER {
+PKIStatus ::= INTEGER {         // [X]
     granted                (0),
     grantedWithMods        (1),
     rejection              (2),
@@ -275,7 +289,7 @@ ContentInfo ::= SEQUENCE {
 ContentType ::= OBJECT IDENTIFIER
 
 SignedData ::= SEQUENCE {
-    version CMSVersion,
+    version          CMSVersion,
     digestAlgorithms SET OF DigestAlgorithmIdentifier,
     encapContentInfo EncapsulatedContentInfo,
     certificates     [0] IMPLICIT CertificateSet OPTIONAL,

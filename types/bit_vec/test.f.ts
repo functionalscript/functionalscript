@@ -1,6 +1,7 @@
 import { abs, mask } from '../bigint/module.f.ts'
+import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8 } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp } from './module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -328,5 +329,17 @@ export default {
     repeat: () => {
         if (repeat(4n)(vec8(0xA5n)) !== vec(32n)(0xA5A5A5A5n)) { throw 'repeat failed' }
         if (repeat(7n)(vec(5n)(0x13n)) !== vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n)) { throw 'repeat failed' }
+    },
+    msbCmp: () => {
+        const c = (a: Vec) => (b: Vec) => (r: Sign) => {
+            const result = msbCmp(a)(b)
+            if (result !== r) { throw `result: ${result}, expected: ${r}` }
+        }
+        c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)  // 0b0101 == 0b0101
+        c(vec(4n)(0x5n))(vec(4n)(0x6n))(-1) // 0b0101 < 0b0110
+        c(vec(4n)(0x6n))(vec(4n)(0x5n))(1)  // 0b0110 > 0b0101
+        c(vec(4n)(0x5n))(vec(5n)(0x5n))(1)  // 0b0101_ < 0b00101
+        c(vec(5n)(0x5n))(vec(4n)(0x5n))(-1) // 0b00101 < 0b0101_
+        c(vec(4n)(0x5n))(vec(5n)(0xAn))(-1) // 0b0101_ < 0b01010
     }
 }
