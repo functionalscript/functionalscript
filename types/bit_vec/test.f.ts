@@ -1,4 +1,4 @@
-import { abs, mask } from '../bigint/module.f.ts'
+import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
 import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp } from './module.f.ts'

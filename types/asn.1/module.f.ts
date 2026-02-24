@@ -291,11 +291,11 @@ ContentType ::= OBJECT IDENTIFIER
 
 SignedData ::= SEQUENCE {
     version          CMSVersion,
-    digestAlgorithms SET OF DigestAlgorithmIdentifier,
+    digestAlgorithms SET OF DigestAlgorithmIdentifier,            // [X]
     encapContentInfo EncapsulatedContentInfo,
     certificates     [0] IMPLICIT CertificateSet OPTIONAL,
     crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
-    signerInfos      SET OF SignerInfo
+    signerInfos      SET OF SignerInfo                            // [X]
 }
 
 EncapsulatedContentInfo ::= SEQUENCE {
