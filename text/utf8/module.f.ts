@@ -13,7 +13,7 @@ export type U8 = number
 export type I32 = number
 
 /**
- * Represents an unsigend 8-bit type - U8 or the end-of-file indicator.
+ * Represents an unsigned 8-bit type - U8 or the end-of-file indicator.
  * The U8 represents the byte itself, and null indicates that reading does not return anything else.
  */
 export type ByteOrEof = U8 | null

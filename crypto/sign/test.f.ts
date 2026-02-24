@@ -1,8 +1,8 @@
 import { utf8 } from "../../text/module.f.ts"
-import type { Array3, Array4 } from "../../types/array/module.f.ts"
+import type { Array4 } from "../../types/array/module.f.ts"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"
-import { curve, secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.ts"
+import { secp192r1, secp256r1, secp384r1, secp521r1, type Curve } from "../secp/module.f.ts"
 import { computeSync, sha224, sha256, sha384, sha512, type Sha2 } from "../sha2/module.f.ts"
 import { all, concat, computeK, fromCurve, sign } from "./module.f.ts"
 

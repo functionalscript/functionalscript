@@ -1,13 +1,18 @@
-import { bitLength } from "../bigint/module.f.ts"
-import { listToVec, msb, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { bitLength, mask } from "../bigint/module.f.ts"
+import { length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { identity } from "../function/module.f.ts"
 
 const eoc = 0x00
-const boolean = 0x01
+/** ASN.1 universal BOOLEAN tag. */
+export const boolean = 0x01
+/** ASN.1 universal INTEGER tag. */
 export const integer = 0x02
 const bitString = 0x03
-const octetString = 0x04
+/** ASN.1 universal OCTET STRING tag. */
+export const octetString = 0x04
 const null_ = 0x05
-const objectIdentifier = 0x06
+/** ASN.1 universal OBJECT IDENTIFIER tag. */
+export const objectIdentifier = 0x06
 const objectDescriptor = 0x07
 const external = 0x08
 const real = 0x09
@@ -40,8 +45,10 @@ const relativeOidIri = 0x24
 
 const constructed = 0x20
 
-const constructedSequence = constructed | sequence
+export const constructedSequence = 0x30 // constructed | sequence
+export const constructedSet = 0x31      // constructed | set
 
+/** ASN.1 tag number. */
 export type Tag = number
 
 const concat = listToVec(msb)
@@ -74,94 +81,265 @@ const lenDecode = (v: Vec): readonly[bigint, Vec] => {
     return [byteLen << 3n, v2]
 }
 
-export const encode = (tag: Tag): (value: Vec) => Vec => {
+// raw
+
+/** Raw ASN.1 TLV tuple. */
+export type Raw = readonly [Tag, Vec]
+
+/** Encodes a raw ASN.1 TLV tuple into a bit vector. */
+export const encodeRaw = ([tag, value]: Raw): Vec => {
     const tag0 = vec8(BigInt(tag))
-    return value => {
-        const { byteLen, v } = round8(unpack(value))
-        return concat([tag0, lenEncode(byteLen), v])
-    }
+    const { byteLen, v } = round8(unpack(value))
+    return concat([tag0, lenEncode(byteLen), v])
 }
 
-export const decode = (v: Vec): readonly[Tag, Vec, Vec] => {
+/** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
+export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     const [tag, v1] = pop8(v)
     const [len, v2] = lenDecode(v1)
     const [result, next] = pop(len)(v2)
-    return [Number(tag), vec(len)(result), next]
+    return [[Number(tag), vec(len)(result)], next]
+}
+
+// boolean
+
+/** Encodes a JavaScript boolean as an ASN.1 BOOLEAN value. */
+export const encodeBoolean = (b: boolean): Vec => vec8(b ? 0xFFn : 0x00n)
+
+/** Decodes an ASN.1 BOOLEAN value. */
+export const decodeBoolean = (v: Vec): boolean => uint(v) !== 0n
+
+// integer
+
+// two's compliment
+/** Encodes a signed bigint using ASN.1 INTEGER two's complement representation. */
+export const encodeInteger = (uint: bigint): Vec => {
+    const offset = uint < 0n ? 1n : 0n
+    return round8({ length: bitLength(uint + offset) + 1n, uint }).v
+}
+
+/** Decodes an ASN.1 INTEGER encoded in two's complement. */
+export const decodeInteger = (v: Vec): bigint => {
+    const { length, uint } = unpack(v)
+    const sign = uint >> (length - 1n)
+    return sign === 0n ? uint : uint - (1n << length)
+}
+
+// octet string
+
+/** Encodes an OCTET STRING value. */
+export const encodeOctetString = (v: Vec): Vec => v
+
+/** Decodes an OCTET STRING value. */
+export const decodeOctetString = (v: Vec): Vec => v
+
+// object identifier
+
+const base128Encode = (uint: bigint): Vec => {
+    const len = bitLength(uint)
+    if (len <= 7n) {
+        return vec8(uint)
+    }
+    const shift = (len / 7n) * 7n
+    const head = uint >> shift
+    const tail = uint & mask(shift)
+    // TODO: optimize by using a loop instead of recursion
+    return concat([vec8(0x80n | head), base128Encode(tail)])
+}
+
+const base128Decode = (uint: Vec): readonly[bigint, Vec] => {
+    const [first, rest] = pop8(uint)
+    const result = first & 0x7Fn
+    if (first < 0x80n) {
+        return [result, rest]
+    }
+    // TODO: optimize by using a loop instead of recursion
+    const [tail, next] = base128Decode(rest)
+    return [(result << 7n) | tail, next]
+}
+
+/** Encodes an OBJECT IDENTIFIER value. */
+export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
+    const [first, second, ...rest] = oid
+    const firstByte = first * 40n + second
+    return concat([vec8(firstByte), ...rest.map(base128Encode)])
+}
+
+/** Decodes an OBJECT IDENTIFIER value. */
+export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
+    const [firstByte, rest] = pop8(v)
+    const first = firstByte / 40n
+    const second = firstByte % 40n
+    let result: ObjectIdentifier = [first, second]
+    let tail = rest
+    while (length(tail) > 0n) {
+        const [value, next] = base128Decode(tail)
+        result = [...result, value]
+        tail = next
+    }
+    return result
+}
+
+// sequence
+
+const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
+    concat(map(records.map(encode)))
+
+/** Encodes a SEQUENCE payload from ordered records. */
+export const encodeSequence: (...records: Sequence) => Vec =
+    genericEncodeSequence(identity)
+
+/** Decodes a SEQUENCE payload into records. */
+export const decodeSequence = (v: Vec): Sequence => {
+    let result: readonly Record[] = []
+    while (length(v) !== 0n) {
+        const [record, rest] = decode(v)
+        result = [...result, record]
+        v = rest
+    }
+    return result
+}
+
+// set
+
+/** ASN.1 SET represented as a sequence of records. */
+export type Set = Sequence
+
+/** Encodes a SET payload with canonical byte ordering. */
+export const encodeSet: (...records: Sequence) => Vec =
+    genericEncodeSequence(vecs => vecs.toSorted((a, b) => msbCmp(a)(b)))
+
+/** Decodes a SET payload. */
+export const decodeSet: (v: Vec) => Sequence = decodeSequence
+
+// Record
+
+/** ASN.1 OBJECT IDENTIFIER components. */
+export type ObjectIdentifier = readonly bigint[]
+
+/** ASN.1 ordered collection of records. */
+export type Sequence = readonly Record[]
+
+/** Supported ASN.1 record variants. */
+export type Record =
+    | readonly[typeof boolean, boolean]
+    | readonly[typeof integer, bigint]
+    | readonly[typeof octetString, Vec]
+    | readonly[typeof objectIdentifier, ObjectIdentifier]
+    | readonly[typeof constructedSequence, Sequence]
+    | readonly[typeof constructedSet, Set]
+
+// encode
+
+const recordToRaw = ([tag, value]: Record): Vec => {
+    switch (tag) {
+        case boolean: return encodeBoolean(value)
+        case integer: return encodeInteger(value)
+        case octetString: return encodeOctetString(value)
+        case objectIdentifier: return encodeObjectIdentifier(value)
+        case constructedSequence: return encodeSequence(...value)
+        case constructedSet: return encodeSet(...value)
+        // default: throw `Unsupported tag: ${tag}`
+    }
+}
+
+/** Encodes a supported ASN.1 record as TLV. */
+export const encode = (record: Record): Vec =>
+    encodeRaw([record[0], recordToRaw(record)])
+
+// decode
+
+const rawToRecord = ([tag, value]: Raw): Record => {
+    switch (tag) {
+        case boolean: return [boolean, decodeBoolean(value)]
+        case integer: return [integer, decodeInteger(value)]
+        case octetString: return [octetString, decodeOctetString(value)]
+        case objectIdentifier: return [objectIdentifier, decodeObjectIdentifier(value)]
+        case constructedSequence: return [constructedSequence, decodeSequence(value)]
+        case constructedSet: return [constructedSet, decodeSet(value)]
+        default: throw `Unsupported tag: ${tag}`
+    }
+}
+
+/** Decodes one supported ASN.1 record and returns the remaining input. */
+export const decode = (v: Vec): readonly[Record, Vec] => {
+    const [raw, rest] = decodeRaw(v)
+    return [rawToRecord(raw), rest]
 }
 
 /*
 TimeStampReq ::= SEQUENCE {
-   version        INTEGER { v1(1) },
-   messageImprint MessageImprint,
-   reqPolicy      TSAPolicyId OPTIONAL,
-   nonce          INTEGER OPTIONAL,
-   certReq        BOOLEAN DEFAULT FALSE,
-   extensions     [0] IMPLICIT Extensions OPTIONAL
+    version        INTEGER { v1(1) },               // [x]
+    messageImprint MessageImprint,
+    reqPolicy      TSAPolicyId OPTIONAL,
+    nonce          INTEGER OPTIONAL,                // [X]
+    certReq        BOOLEAN DEFAULT FALSE,           // [X]
+    extensions     [0] IMPLICIT Extensions OPTIONAL // [X]
 }
 
 MessageImprint ::= SEQUENCE {
-   hashAlgorithm  AlgorithmIdentifier,
-   hashedMessage  OCTET STRING
+    hashAlgorithm  AlgorithmIdentifier,
+    hashedMessage  OCTET STRING         // [X]
 }
 
-TSAPolicyId ::= OBJECT IDENTIFIER
+TSAPolicyId ::= OBJECT IDENTIFIER // [X]
 */
 
 /*
 TimeStampResp ::= SEQUENCE {
-   status          PKIStatusInfo,
-   timeStampToken  TimeStampToken OPTIONAL
+    status          PKIStatusInfo,
+    timeStampToken  TimeStampToken OPTIONAL
 }
 
 PKIStatusInfo ::= SEQUENCE {
-   status        PKIStatus,
-   statusString  PKIFreeText OPTIONAL,
-   failInfo      PKIFailureInfo OPTIONAL
+    status        PKIStatus,
+    statusString  PKIFreeText OPTIONAL,
+    failInfo      PKIFailureInfo OPTIONAL
 }
 
-PKIStatus ::= INTEGER {
-   granted                (0),
-   grantedWithMods        (1),
-   rejection              (2),
-   waiting                (3),
-   revocationWarning      (4),
-   revocationNotification (5)
+PKIStatus ::= INTEGER {         // [X]
+    granted                (0),
+    grantedWithMods        (1),
+    rejection              (2),
+    waiting                (3),
+    revocationWarning      (4),
+    revocationNotification (5)
 }
 
 TimeStampToken ::= ContentInfo
 
 ContentInfo ::= SEQUENCE {
-   contentType ContentType,
-   content     [0] EXPLICIT ANY DEFINED BY contentType
+    contentType ContentType,
+    content     [0] EXPLICIT ANY DEFINED BY contentType
 }
 
 ContentType ::= OBJECT IDENTIFIER
 
 SignedData ::= SEQUENCE {
-   version CMSVersion,
-   digestAlgorithms SET OF DigestAlgorithmIdentifier,
-   encapContentInfo EncapsulatedContentInfo,
-   certificates     [0] IMPLICIT CertificateSet OPTIONAL,
-   crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
-   signerInfos      SET OF SignerInfo
+    version          CMSVersion,
+    digestAlgorithms SET OF DigestAlgorithmIdentifier,            // [X]
+    encapContentInfo EncapsulatedContentInfo,
+    certificates     [0] IMPLICIT CertificateSet OPTIONAL,
+    crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+    signerInfos      SET OF SignerInfo                            // [X]
 }
 
 EncapsulatedContentInfo ::= SEQUENCE {
-   eContentType ContentType,
-   eContent     [0] EXPLICIT OCTET STRING OPTIONAL
+    eContentType ContentType,
+    eContent     [0] EXPLICIT OCTET STRING OPTIONAL
 }
 
 TSTInfo ::= SEQUENCE  {
-   version        INTEGER  { v1(1) },
-   policy         TSAPolicyId,
-   messageImprint MessageImprint,
-   serialNumber   INTEGER,
-   genTime        GeneralizedTime,
-   accuracy       Accuracy OPTIONAL,
-   ordering       BOOLEAN DEFAULT FALSE,
-   nonce          INTEGER OPTIONAL,
-   tsa            [0] GeneralName OPTIONAL,
-   extensions     [1] IMPLICIT Extensions OPTIONAL
+    version        INTEGER  { v1(1) },
+    policy         TSAPolicyId,
+    messageImprint MessageImprint,
+    serialNumber   INTEGER,
+    genTime        GeneralizedTime,
+    accuracy       Accuracy OPTIONAL,
+    ordering       BOOLEAN DEFAULT FALSE,
+    nonce          INTEGER OPTIONAL,
+    tsa            [0] GeneralName OPTIONAL,
+    extensions     [1] IMPLICIT Extensions OPTIONAL
 }
 
 Bits:  8 7   | 6    | 5 4 3 2 1

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- ASN.1: integer, boolean, sequence, set [679](https://github.com/functionalscript/functionalscript/pull/679)
 - ASN.1: basic encoding/decoding [678](https://github.com/functionalscript/functionalscript/pull/678)
 
 ## 0.9.2

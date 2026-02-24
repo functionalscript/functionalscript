@@ -1,4 +1,4 @@
-import type { Branch1, Branch3, Branch5, Branch7, Leaf2, TNode, Tree } from '../types/module.f.ts'
+import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
 import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
