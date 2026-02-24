@@ -1,6 +1,6 @@
-import { todo } from "../../dev/module.f.ts"
-import { abs, bitLength, mask } from "../bigint/module.f.ts"
+import { bitLength, mask } from "../bigint/module.f.ts"
 import { length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { identity } from "../function/module.f.ts"
 
 const eoc = 0x00
 export const boolean = 0x01
@@ -166,8 +166,11 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
 
 // sequence
 
-export const encodeSequence = (...records: Sequence): Vec =>
-    concat(records.map(encode))
+const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
+    concat(map(records.map(encode)))
+
+export const encodeSequence: (...records: Sequence) => Vec =
+    genericEncodeSequence(identity)
 
 export const decodeSequence = (v: Vec): Sequence => {
     let result: readonly Record[] = []
@@ -183,8 +186,8 @@ export const decodeSequence = (v: Vec): Sequence => {
 
 export type Set = Sequence
 
-export const encodeSet = (...records: Sequence): Vec =>
-    concat(records.map(encode).toSorted((a, b) => msbCmp(a)(b)))
+export const encodeSet: (...records: Sequence) => Vec =
+    genericEncodeSequence(vecs => vecs.toSorted((a, b) => msbCmp(a)(b)))
 
 export const decodeSet: (v: Vec) => Sequence = decodeSequence
 
