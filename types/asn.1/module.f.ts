@@ -3,11 +3,15 @@ import { length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked,
 import { identity } from "../function/module.f.ts"
 
 const eoc = 0x00
+/** ASN.1 universal BOOLEAN tag. */
 export const boolean = 0x01
+/** ASN.1 universal INTEGER tag. */
 export const integer = 0x02
 const bitString = 0x03
+/** ASN.1 universal OCTET STRING tag. */
 export const octetString = 0x04
 const null_ = 0x05
+/** ASN.1 universal OBJECT IDENTIFIER tag. */
 export const objectIdentifier = 0x06
 const objectDescriptor = 0x07
 const external = 0x08
@@ -44,6 +48,7 @@ const constructed = 0x20
 export const constructedSequence = 0x30 // constructed | sequence
 export const constructedSet = 0x31      // constructed | set
 
+/** ASN.1 tag number. */
 export type Tag = number
 
 const concat = listToVec(msb)
@@ -78,14 +83,17 @@ const lenDecode = (v: Vec): readonly[bigint, Vec] => {
 
 // raw
 
+/** Raw ASN.1 TLV tuple. */
 export type Raw = readonly [Tag, Vec]
 
+/** Encodes a raw ASN.1 TLV tuple into a bit vector. */
 export const encodeRaw = ([tag, value]: Raw): Vec => {
     const tag0 = vec8(BigInt(tag))
     const { byteLen, v } = round8(unpack(value))
     return concat([tag0, lenEncode(byteLen), v])
 }
 
+/** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
 export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     const [tag, v1] = pop8(v)
     const [len, v2] = lenDecode(v1)
@@ -95,18 +103,22 @@ export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
 
 // boolean
 
+/** Encodes a JavaScript boolean as an ASN.1 BOOLEAN value. */
 export const encodeBoolean = (b: boolean): Vec => vec8(b ? 0xFFn : 0x00n)
 
+/** Decodes an ASN.1 BOOLEAN value. */
 export const decodeBoolean = (v: Vec): boolean => uint(v) !== 0n
 
 // integer
 
 // two's compliment
+/** Encodes a signed bigint using ASN.1 INTEGER two's complement representation. */
 export const encodeInteger = (uint: bigint): Vec => {
     const offset = uint < 0n ? 1n : 0n
     return round8({ length: bitLength(uint + offset) + 1n, uint }).v
 }
 
+/** Decodes an ASN.1 INTEGER encoded in two's complement. */
 export const decodeInteger = (v: Vec): bigint => {
     const { length, uint } = unpack(v)
     const sign = uint >> (length - 1n)
@@ -115,8 +127,10 @@ export const decodeInteger = (v: Vec): bigint => {
 
 // octet string
 
+/** Encodes an OCTET STRING value. */
 export const encodeOctetString = (v: Vec): Vec => v
 
+/** Decodes an OCTET STRING value. */
 export const decodeOctetString = (v: Vec): Vec => v
 
 // object identifier
@@ -144,12 +158,14 @@ const base128Decode = (uint: Vec): readonly[bigint, Vec] => {
     return [(result << 7n) | tail, next]
 }
 
+/** Encodes an OBJECT IDENTIFIER value. */
 export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     const [first, second, ...rest] = oid
     const firstByte = first * 40n + second
     return concat([vec8(firstByte), ...rest.map(base128Encode)])
 }
 
+/** Decodes an OBJECT IDENTIFIER value. */
 export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
     const [firstByte, rest] = pop8(v)
     const first = firstByte / 40n
@@ -169,9 +185,11 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
 const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
     concat(map(records.map(encode)))
 
+/** Encodes a SEQUENCE payload from ordered records. */
 export const encodeSequence: (...records: Sequence) => Vec =
     genericEncodeSequence(identity)
 
+/** Decodes a SEQUENCE payload into records. */
 export const decodeSequence = (v: Vec): Sequence => {
     let result: readonly Record[] = []
     while (length(v) !== 0n) {
@@ -184,19 +202,25 @@ export const decodeSequence = (v: Vec): Sequence => {
 
 // set
 
+/** ASN.1 SET represented as a sequence of records. */
 export type Set = Sequence
 
+/** Encodes a SET payload with canonical byte ordering. */
 export const encodeSet: (...records: Sequence) => Vec =
     genericEncodeSequence(vecs => vecs.toSorted((a, b) => msbCmp(a)(b)))
 
+/** Decodes a SET payload. */
 export const decodeSet: (v: Vec) => Sequence = decodeSequence
 
 // Record
 
+/** ASN.1 OBJECT IDENTIFIER components. */
 export type ObjectIdentifier = readonly bigint[]
 
+/** ASN.1 ordered collection of records. */
 export type Sequence = readonly Record[]
 
+/** Supported ASN.1 record variants. */
 export type Record =
     | readonly[typeof boolean, boolean]
     | readonly[typeof integer, bigint]
@@ -219,6 +243,7 @@ const recordToRaw = ([tag, value]: Record): Vec => {
     }
 }
 
+/** Encodes a supported ASN.1 record as TLV. */
 export const encode = (record: Record): Vec =>
     encodeRaw([record[0], recordToRaw(record)])
 
@@ -236,6 +261,7 @@ const rawToRecord = ([tag, value]: Raw): Record => {
     }
 }
 
+/** Decodes one supported ASN.1 record and returns the remaining input. */
 export const decode = (v: Vec): readonly[Record, Vec] => {
     const [raw, rest] = decodeRaw(v)
     return [rawToRecord(raw), rest]
