@@ -144,6 +144,7 @@ const base128Encode = (uint: bigint): Vec => {
     const shift = (len / 7n) * 7n
     const head = uint >> shift
     const tail = uint & mask(shift)
+    // TODO: optimize by using a loop instead of recursion
     return concat([vec8(0x80n | head), base128Encode(tail)])
 }
 
@@ -153,6 +154,7 @@ const base128Decode = (uint: Vec): readonly[bigint, Vec] => {
     if (first < 0x80n) {
         return [result, rest]
     }
+    // TODO: optimize by using a loop instead of recursion
     const [tail, next] = base128Decode(rest)
     return [(result << 7n) | tail, next]
 }
@@ -160,11 +162,22 @@ const base128Decode = (uint: Vec): readonly[bigint, Vec] => {
 export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     const [first, second, ...rest] = oid
     const firstByte = first * 40n + second
-    return todo()
+    return concat([vec8(firstByte), ...rest.map(base128Encode)])
 }
 
-
-export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => todo()
+export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
+    const [firstByte, rest] = pop8(v)
+    const first = firstByte / 40n
+    const second = firstByte % 40n
+    let result: ObjectIdentifier = [first, second]
+    let tail = rest
+    while (length(tail) > 0n) {
+        const [value, next] = base128Decode(tail)
+        result = [...result, value]
+        tail = next
+    }
+    return result
+}
 
 // Record
 
