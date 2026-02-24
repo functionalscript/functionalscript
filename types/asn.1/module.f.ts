@@ -1,6 +1,6 @@
 import { todo } from "../../dev/module.f.ts"
 import { abs, bitLength, mask } from "../bigint/module.f.ts"
-import { length, listToVec, msb, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 
 const eoc = 0x00
 export const boolean = 0x01
@@ -183,10 +183,8 @@ export const decodeSequence = (v: Vec): Sequence => {
 
 export type Set = Sequence
 
-export const encodeSet = (...records: Sequence): Vec => {
-    const sorted = records.map(encode).sort((a, b) => todo())
-    return todo()
-}
+export const encodeSet = (...records: Sequence): Vec =>
+    concat(records.map(encode).toSorted((a, b) => msbCmp(a)(b)))
 
 export const decodeSet: (v: Vec) => Sequence = decodeSequence
 
