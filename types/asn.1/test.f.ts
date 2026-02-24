@@ -1,6 +1,6 @@
 import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode, constructedSequence, octetString, boolean } from "./module.f.ts"
+import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode, constructedSequence, octetString, boolean, constructedSet } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
@@ -199,6 +199,10 @@ export default {
                     encode([boolean, false]),
                 ])
             )
+        },
+        set: () => {
+            ch([constructedSet, [[integer, 2n], [integer, 1n]]],
+                cat([vec8(BigInt(constructedSet)), vec8(6n), encode([integer, 1n]), encode([integer, 2n])]))
         }
     }
 }
