@@ -17,8 +17,6 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
 
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
-export const eof = 0x110000
-
 /** A sequence of rules. */
 export type Sequence = readonly Rule[]
 
@@ -54,13 +52,15 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
     if (!isValid(a) || !isValid(b) || a > b) {
         throw `Invalid range ${a} ${b}.`
     }
-    return (a << offset) | b
+    return Number((BigInt(a) << BigInt(offset)) | BigInt(b))
 }
 
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
+export const eof: TerminalRange = oneEncode(0x110000)
+
 export const rangeDecode = (r: number): Array2<number> =>
-    [r >> offset, r & mask]
+    [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
 
 const mapOneEncode = map(oneEncode)
 
