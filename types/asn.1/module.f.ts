@@ -48,6 +48,8 @@ const constructed = 0x20
 export const constructedSequence = 0x30 // constructed | sequence
 export const constructedSet = 0x31      // constructed | set
 
+export const unknown = -1
+
 /** ASN.1 tag number. */
 export type Tag = number
 
@@ -228,6 +230,9 @@ export type Record =
     | readonly[typeof objectIdentifier, ObjectIdentifier]
     | readonly[typeof constructedSequence, Sequence]
     | readonly[typeof constructedSet, Set]
+    // for unsupported tags, we just store the raw value including the tag and length,
+    // so that it can be re-encoded without loss of information
+    | readonly[typeof unknown, Vec]
 
 // encode
 
@@ -239,7 +244,7 @@ const recordToRaw = ([tag, value]: Record): Vec => {
         case objectIdentifier: return encodeObjectIdentifier(value)
         case constructedSequence: return encodeSequence(...value)
         case constructedSet: return encodeSet(...value)
-        // default: throw `Unsupported tag: ${tag}`
+        case unknown: return value
     }
 }
 
@@ -249,7 +254,8 @@ export const encode = (record: Record): Vec =>
 
 // decode
 
-const rawToRecord = ([tag, value]: Raw): Record => {
+const rawToRecord = (raw: Raw): Record => {
+    const [tag, value] = raw
     switch (tag) {
         case boolean: return [boolean, decodeBoolean(value)]
         case integer: return [integer, decodeInteger(value)]
@@ -257,7 +263,7 @@ const rawToRecord = ([tag, value]: Raw): Record => {
         case objectIdentifier: return [objectIdentifier, decodeObjectIdentifier(value)]
         case constructedSequence: return [constructedSequence, decodeSequence(value)]
         case constructedSet: return [constructedSet, decodeSet(value)]
-        default: throw `Unsupported tag: ${tag}`
+        default: return [unknown, encodeRaw(raw)]
     }
 }
 
