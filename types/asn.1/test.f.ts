@@ -1,6 +1,6 @@
 import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode, constructedSequence, octetString, boolean, constructedSet } from "./module.f.ts"
+import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type SupportedRecord, encode, decode, constructedSequence, octetString, boolean, constructedSet } from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
@@ -21,7 +21,7 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     if (i !== i0) { throw [i, i0] }
 }
 
-const ch0 = (r: Record, v: Vec, rest: Vec) => {
+const ch0 = (r: SupportedRecord, v: Vec, rest: Vec) => {
     const [r0, rest0] = decode(concat(v)(rest))
     if (rest0 !== rest) { throw `rest: ${asBase(rest0)}` }
     const v0 = encode(r)
@@ -30,7 +30,7 @@ const ch0 = (r: Record, v: Vec, rest: Vec) => {
     if (v !== v1) { throw `encode: ${asBase(v)}, ${asBase(v1)}` }
 }
 
-const ch = (r: Record, v: Vec) => {
+const ch = (r: SupportedRecord, v: Vec) => {
     ch0(r, v, empty)
     ch0(r, v, vec8(0x23n))
     ch0(r, v, vec(16n)(0x2345n))

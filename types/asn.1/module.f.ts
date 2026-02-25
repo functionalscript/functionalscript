@@ -137,6 +137,9 @@ export const decodeOctetString = (v: Vec): Vec => v
 
 // object identifier
 
+/** ASN.1 OBJECT IDENTIFIER components. */
+export type ObjectIdentifier = readonly bigint[]
+
 const base128Encode = (uint: bigint): Vec => {
     const len = bitLength(uint)
     if (len <= 7n) {
@@ -184,6 +187,9 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
 
 // sequence
 
+/** ASN.1 ordered collection of records. */
+export type Sequence = readonly Record[]
+
 const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
     concat(map(records.map(encode)))
 
@@ -216,27 +222,26 @@ export const decodeSet: (v: Vec) => Sequence = decodeSequence
 
 // Record
 
-/** ASN.1 OBJECT IDENTIFIER components. */
-export type ObjectIdentifier = readonly bigint[]
-
-/** ASN.1 ordered collection of records. */
-export type Sequence = readonly Record[]
-
 /** Supported ASN.1 record variants. */
-export type Record =
+export type SupportedRecord =
     | readonly[typeof boolean, boolean]
     | readonly[typeof integer, bigint]
     | readonly[typeof octetString, Vec]
     | readonly[typeof objectIdentifier, ObjectIdentifier]
     | readonly[typeof constructedSequence, Sequence]
     | readonly[typeof constructedSet, Set]
-    // for unsupported tags, we just store the raw value including the tag and length,
-    // so that it can be re-encoded without loss of information
-    | readonly[typeof unknown, Vec]
+
+/**
+ * For unsupported tags, we just store the raw value including the tag and length,
+ * so that it can be re-encoded without loss of information.
+ */
+export type UnsupportedRecord = readonly[typeof unknown, Vec]
+
+export type Record = SupportedRecord | UnsupportedRecord
 
 // encode
 
-const recordToRaw = ([tag, value]: Record): Vec => {
+const recordToRaw = ([tag, value]: SupportedRecord): Vec => {
     switch (tag) {
         case boolean: return encodeBoolean(value)
         case integer: return encodeInteger(value)
@@ -244,13 +249,12 @@ const recordToRaw = ([tag, value]: Record): Vec => {
         case objectIdentifier: return encodeObjectIdentifier(value)
         case constructedSequence: return encodeSequence(...value)
         case constructedSet: return encodeSet(...value)
-        case unknown: return value
     }
 }
 
 /** Encodes a supported ASN.1 record as TLV. */
 export const encode = (record: Record): Vec =>
-    encodeRaw([record[0], recordToRaw(record)])
+    record[0] === unknown ? record[1] : encodeRaw([record[0], recordToRaw(record)])
 
 // decode
 
