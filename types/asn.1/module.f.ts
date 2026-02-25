@@ -1,5 +1,5 @@
 import { bitLength, mask } from "../bigint/module.f.ts"
-import { length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
 
 const eoc = 0x00
@@ -235,7 +235,7 @@ export type SupportedRecord =
  * For unsupported tags, we just store the raw value including the tag and length,
  * so that it can be re-encoded without loss of information.
  */
-export type UnsupportedRecord = readonly[typeof unknown, Vec]
+export type UnsupportedRecord = Vec
 
 export type Record = SupportedRecord | UnsupportedRecord
 
@@ -254,7 +254,7 @@ const recordToRaw = ([tag, value]: SupportedRecord): Vec => {
 
 /** Encodes a supported ASN.1 record as TLV. */
 export const encode = (record: Record): Vec =>
-    record[0] === unknown ? record[1] : encodeRaw([record[0], recordToRaw(record)])
+    isVec(record) ? record : encodeRaw([record[0], recordToRaw(record)])
 
 // decode
 
@@ -267,7 +267,7 @@ const rawToRecord = (raw: Raw): Record => {
         case objectIdentifier: return [objectIdentifier, decodeObjectIdentifier(value)]
         case constructedSequence: return [constructedSequence, decodeSequence(value)]
         case constructedSet: return [constructedSet, decodeSet(value)]
-        default: return [unknown, encodeRaw(raw)]
+        default: return encodeRaw(raw)
     }
 }
 
