@@ -209,7 +209,7 @@ export type Set = Sequence
 
 /** Encodes a SET payload with canonical byte ordering. */
 export const encodeSet: (...records: Sequence) => Vec =
-    genericEncodeSequence(vecs => vecs.toSorted((a, b) => msbCmp(a)(b)))
+    genericEncodeSequence(v => v.toSorted((a, b) => msbCmp(a)(b)))
 
 /** Decodes a SET payload. */
 export const decodeSet: (v: Vec) => Sequence = decodeSequence
