@@ -2,6 +2,13 @@ import { bitLength, mask } from "../bigint/module.f.ts"
 import { isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
 
+type Class = 0n | 1n | 2n | 3n
+
+type Pc = 0n | 1n
+
+const tag = (class_: Class, pc: Pc, tagNumber: bigint): bigint =>
+    (tagNumber << 4n) | (class_ << 1n) | pc
+
 const eoc = 0x00
 /** ASN.1 universal BOOLEAN tag. */
 export const boolean = 0x01
@@ -93,6 +100,8 @@ export const encodeRaw = ([tag, value]: Raw): Vec => {
     return concat([tag0, lenEncode(byteLen), v])
 }
 
+// TODO: Parse multibyte tags:
+//       Check if `tag & 0x1F === 0x1F` and use base128 encoding for the tag number.
 /** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
 export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     const [tag, v1] = pop8(v)
@@ -109,9 +118,8 @@ export const encodeBoolean = (b: boolean): Vec => vec8(b ? 0xFFn : 0x00n)
 /** Decodes an ASN.1 BOOLEAN value. */
 export const decodeBoolean = (v: Vec): boolean => uint(v) !== 0n
 
-// integer
+// integer (two's compliment)
 
-// two's compliment
 /** Encodes a signed bigint using ASN.1 INTEGER two's complement representation. */
 export const encodeInteger = (uint: bigint): Vec => {
     const offset = uint < 0n ? 1n : 0n
@@ -228,6 +236,19 @@ export type SupportedRecord =
     | readonly[typeof objectIdentifier, ObjectIdentifier]
     | readonly[typeof constructedSequence, Sequence]
     | readonly[typeof constructedSet, Set]
+
+// Alternative:
+//
+// export type SupportedRecord =
+//     | boolean
+//     | bigint                                                    // integer
+//     | { tag: typeof octetString, value: Vec }
+//     | { tag: typeof objectIdentifier, value: ObjectIdentifier }
+//     | readonly Record[]                                         // sequence
+//     | { tag: typeof constructedSet, value: readonly Record[] }
+//
+// export type UnsupportedRecord =
+//     | { tag: null, value: Vec }
 
 /**
  * For unsupported tags, we just store the raw value including the tag and length,
