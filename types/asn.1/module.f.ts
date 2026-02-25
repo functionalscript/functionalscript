@@ -48,8 +48,6 @@ const constructed = 0x20
 export const constructedSequence = 0x30 // constructed | sequence
 export const constructedSet = 0x31      // constructed | set
 
-export const unknown = -1
-
 /** ASN.1 tag number. */
 export type Tag = number
 
