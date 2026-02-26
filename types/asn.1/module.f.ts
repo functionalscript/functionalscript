@@ -6,20 +6,20 @@ type Class = 0n | 1n | 2n | 3n
 
 type Pc = 0n | 1n
 
-const tag = (class_: Class, pc: Pc, tagNumber: bigint): bigint =>
+const tag = (class_: Class) => (pc: Pc) => (tagNumber: bigint): bigint =>
     (tagNumber << 4n) | (class_ << 1n) | pc
 
-const eoc = 0x00
+const eoc = 0x00n
 /** ASN.1 universal BOOLEAN tag. */
-export const boolean = 0x01
+export const boolean = 0x01n
 /** ASN.1 universal INTEGER tag. */
-export const integer = 0x02
-const bitString = 0x03
+export const integer = 0x02n
+const bitString = 0x03n
 /** ASN.1 universal OCTET STRING tag. */
-export const octetString = 0x04
+export const octetString = 0x04n
 const null_ = 0x05
 /** ASN.1 universal OBJECT IDENTIFIER tag. */
-export const objectIdentifier = 0x06
+export const objectIdentifier = 0x06n
 const objectDescriptor = 0x07
 const external = 0x08
 const real = 0x09
@@ -52,11 +52,11 @@ const relativeOidIri = 0x24
 
 const constructed = 0x20
 
-export const constructedSequence = 0x30 // constructed | sequence
-export const constructedSet = 0x31      // constructed | set
+export const constructedSequence = 0x30n // constructed | sequence
+export const constructedSet = 0x31n      // constructed | set
 
 /** ASN.1 tag number. */
-export type Tag = number
+export type Tag = bigint
 
 const concat = listToVec(msb)
 
@@ -95,7 +95,7 @@ export type Raw = readonly [Tag, Vec]
 
 /** Encodes a raw ASN.1 TLV tuple into a bit vector. */
 export const encodeRaw = ([tag, value]: Raw): Vec => {
-    const tag0 = vec8(BigInt(tag))
+    const tag0 = vec8(tag)
     const { byteLen, v } = round8(unpack(value))
     return concat([tag0, lenEncode(byteLen), v])
 }
@@ -107,7 +107,7 @@ export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     const [tag, v1] = pop8(v)
     const [len, v2] = lenDecode(v1)
     const [result, next] = pop(len)(v2)
-    return [[Number(tag), vec(len)(result)], next]
+    return [[tag, vec(len)(result)], next]
 }
 
 // boolean

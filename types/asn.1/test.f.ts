@@ -6,7 +6,7 @@ const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
 const pop8 = pop(8n)
 
-const check = (tag: number, v: Vec, rest: Vec) => {
+const check = (tag: bigint, v: Vec, rest: Vec) => {
         const s = encodeRaw([tag, v])
         const [[t0, v0], r] = decodeRaw(concat(s)(rest))
         if (t0 !== tag) { throw `t0: ${t0}` }
