@@ -200,7 +200,12 @@ export default {
             )
             ch(
                 [constructedSequence, [[integer, 1n], [integer, 2n]]],
-                cat([vec8(BigInt(constructedSequence)), vec8(6n), encode([integer, 1n]), encode([integer, 2n])])
+                cat([
+                    vec8(BigInt(constructedSequence)),
+                    vec8(6n),
+                    encode([integer, 1n]),
+                    encode([integer, 2n])
+                ])
             )
             ch(
                 [constructedSequence, [[octetString, vec8(0x23n)], [boolean, true], [boolean, false]]],
@@ -215,7 +220,13 @@ export default {
         },
         set: () => {
             ch([constructedSet, [[integer, 2n], [integer, 1n]]],
-                cat([vec8(BigInt(constructedSet)), vec8(6n), encode([integer, 1n]), encode([integer, 2n])]))
+                cat([
+                    vec8(BigInt(constructedSet)),
+                    vec8(6n),
+                    encode([integer, 1n]),
+                    encode([integer, 2n])
+                ])
+            )
         }
     }
 }
