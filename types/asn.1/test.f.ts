@@ -1,6 +1,19 @@
 import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type SupportedRecord, encode, decode, constructedSequence, octetString, boolean, constructedSet } from "./module.f.ts"
+import {
+    decodeRaw,
+    decodeInteger,
+    encodeRaw,
+    encodeInteger,
+    integer,
+    type SupportedRecord,
+    encode,
+    decode,
+    constructedSequence,
+    octetString,
+    boolean,
+    constructedSet
+} from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
