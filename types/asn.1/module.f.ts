@@ -2,6 +2,12 @@ import { bitLength, mask } from "../bigint/module.f.ts"
 import { isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
 
+const pop = msb.popFront
+
+const pop8 = pop(8n)
+
+//
+
 type Class = 0n | 1n | 2n | 3n
 
 type Pc = 0n | 1n
@@ -58,6 +64,12 @@ export const constructedSet = 0x31n      // constructed | set
 /** ASN.1 tag number. */
 export type Tag = bigint
 
+const tagEncode = vec8
+
+const tagDecode = pop8
+
+//
+
 const concat = listToVec(msb)
 
 type Round8 = {
@@ -78,13 +90,10 @@ const lenEncode = (uint: bigint): Vec => {
     return concat([vec8(0x80n | byteLen), v])
 }
 
-const pop = msb.popFront
-
-const pop8 = pop(8n)
-
 const lenDecode = (v: Vec): readonly[bigint, Vec] => {
-    const [first, v1] = pop8(v)
-    const [byteLen, v2] = first < 0x80n ? [first, v1] : pop((first & 0x7Fn) << 3n)(v1)
+    const first1 = pop8(v)
+    const [first, v1] = first1
+    const [byteLen, v2] = first < 0x80n ? first1 : pop((first & 0x7Fn) << 3n)(v1)
     return [byteLen << 3n, v2]
 }
 
@@ -95,16 +104,16 @@ export type Raw = readonly [Tag, Vec]
 
 /** Encodes a raw ASN.1 TLV tuple into a bit vector. */
 export const encodeRaw = ([tag, value]: Raw): Vec => {
-    const tag0 = vec8(tag)
+    const tagVec = tagEncode(tag)
     const { byteLen, v } = round8(unpack(value))
-    return concat([tag0, lenEncode(byteLen), v])
+    return concat([tagVec, lenEncode(byteLen), v])
 }
 
 // TODO: Parse multibyte tags:
 //       Check if `tag & 0x1F === 0x1F` and use base128 encoding for the tag number.
 /** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
 export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
-    const [tag, v1] = pop8(v)
+    const [tag, v1] = tagDecode(v)
     const [len, v2] = lenDecode(v1)
     const [result, next] = pop(len)(v2)
     return [[tag, vec(len)(result)], next]
