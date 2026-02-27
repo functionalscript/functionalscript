@@ -6,14 +6,49 @@ const pop = msb.popFront
 
 const pop8 = pop(8n)
 
-//
+// tag
 
 type Class = 0n | 1n | 2n | 3n
 
 type Pc = 0n | 1n
 
-const tag = (class_: Class) => (pc: Pc) => (tagNumber: bigint): bigint =>
-    (tagNumber << 4n) | (class_ << 1n) | pc
+type ParsedTag = {
+    class: Class
+    pc: Pc
+    number: bigint
+}
+
+const isLowTag = (tag: bigint): boolean => (tag & 0x1Fn) !== 0x1Fn
+
+const highTag = (n: bigint): bigint => ((n - 0x1Fn) << 8n) | 0x1Fn
+
+const tag = ({class: c, pc, number: n }: ParsedTag) =>
+    (c << 6n) |
+    (pc << 5n) |
+    (n < 0x20n ? n : highTag(n))
+
+const parseTag = (tag: bigint): ParsedTag => ({
+    class: ((tag >> 6n) & 0x3n) as Class,
+    pc: ((tag >> 5n) & 0x1n) as Pc,
+    number: isLowTag(tag) ? tag & 0x1Fn : (tag >> 8n) + 0x1Fn
+})
+
+/** ASN.1 tag number. */
+export type Tag = bigint
+
+const tagEncode = (tag: Tag): Vec =>
+    isLowTag(tag) ? vec8(tag) : concat([vec8(0x1Fn), base128Encode((tag >> 8n) + 0x1Fn)])
+
+const tagDecode = (v: Vec): readonly[Tag, Vec] => {
+    const [first, rest] = pop8(v)
+    if (isLowTag(first)) {
+        return [first, rest]
+    }
+    const [num, next] = base128Decode(rest)
+    return [highTag(num), next]
+}
+
+//
 
 const eoc = 0x00n
 /** ASN.1 universal BOOLEAN tag. */
@@ -60,13 +95,6 @@ const constructed = 0x20
 
 export const constructedSequence = 0x30n // constructed | sequence
 export const constructedSet = 0x31n      // constructed | set
-
-/** ASN.1 tag number. */
-export type Tag = bigint
-
-const tagEncode = vec8
-
-const tagDecode = pop8
 
 //
 
