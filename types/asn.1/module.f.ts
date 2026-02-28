@@ -1,6 +1,7 @@
-import { bitLength, mask } from "../bigint/module.f.ts"
+import { bitLength } from "../bigint/module.f.ts"
 import { isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
+import { encode as b128encode, decode as b128decode } from "../base128/module.f.ts"
 
 const pop = msb.popFront
 
@@ -12,15 +13,20 @@ type Class = 0n | 1n | 2n | 3n
 
 type Pc = 0n | 1n
 
+/** ASN.1 tag number. */
+export type Tag = bigint
+
 type ParsedTag = {
     class: Class
     pc: Pc
     number: bigint
 }
 
-const isLowTag = (tag: bigint): boolean => (tag & 0x1Fn) !== 0x1Fn
+const isLowTag = (tag: Tag): boolean => (tag & 0x1Fn) !== 0x1Fn
 
-const highTag = (n: bigint): bigint => ((n - 0x1Fn) << 8n) | 0x1Fn
+const highTag = (n: bigint): Tag => ((n - 0x1Fn) << 8n) | 0x1Fn
+
+const highTagNumber = (tag: Tag): bigint => (tag >> 8n) + 0x1Fn
 
 const tag = ({class: c, pc, number: n }: ParsedTag) =>
     (c << 6n) |
@@ -30,22 +36,21 @@ const tag = ({class: c, pc, number: n }: ParsedTag) =>
 const parseTag = (tag: bigint): ParsedTag => ({
     class: ((tag >> 6n) & 0x3n) as Class,
     pc: ((tag >> 5n) & 0x1n) as Pc,
-    number: isLowTag(tag) ? tag & 0x1Fn : (tag >> 8n) + 0x1Fn
+    number: isLowTag(tag) ? tag & 0x1Fn : highTagNumber(tag)
 })
 
-/** ASN.1 tag number. */
-export type Tag = bigint
-
-const tagEncode = (tag: Tag): Vec =>
-    isLowTag(tag) ? vec8(tag) : concat([vec8(0x1Fn), base128Encode((tag >> 8n) + 0x1Fn)])
+const tagEncode = (tag: Tag): Vec => {
+    const first = vec8(tag)
+    return isLowTag(tag) ? first : concat([first, b128encode(highTagNumber(tag))])
+}
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
     const [first, rest] = pop8(v)
     if (isLowTag(first)) {
         return [first, rest]
     }
-    const [num, next] = base128Decode(rest)
-    return [highTag(num), next]
+    const [n, next] = b128decode(rest)
+    return [highTag(n) | (first & 0xE0n), next]
 }
 
 //
@@ -183,34 +188,11 @@ export const decodeOctetString = (v: Vec): Vec => v
 /** ASN.1 OBJECT IDENTIFIER components. */
 export type ObjectIdentifier = readonly bigint[]
 
-const base128Encode = (uint: bigint): Vec => {
-    const len = bitLength(uint)
-    if (len <= 7n) {
-        return vec8(uint)
-    }
-    const shift = (len / 7n) * 7n
-    const head = uint >> shift
-    const tail = uint & mask(shift)
-    // TODO: optimize by using a loop instead of recursion
-    return concat([vec8(0x80n | head), base128Encode(tail)])
-}
-
-const base128Decode = (uint: Vec): readonly[bigint, Vec] => {
-    const [first, rest] = pop8(uint)
-    const result = first & 0x7Fn
-    if (first < 0x80n) {
-        return [result, rest]
-    }
-    // TODO: optimize by using a loop instead of recursion
-    const [tail, next] = base128Decode(rest)
-    return [(result << 7n) | tail, next]
-}
-
 /** Encodes an OBJECT IDENTIFIER value. */
 export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     const [first, second, ...rest] = oid
     const firstByte = first * 40n + second
-    return concat([vec8(firstByte), ...rest.map(base128Encode)])
+    return concat([vec8(firstByte), ...rest.map(b128encode)])
 }
 
 /** Decodes an OBJECT IDENTIFIER value. */
@@ -221,7 +203,7 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
     let result: ObjectIdentifier = [first, second]
     let tail = rest
     while (length(tail) > 0n) {
-        const [value, next] = base128Decode(tail)
+        const [value, next] = b128decode(tail)
         result = [...result, value]
         tail = next
     }
