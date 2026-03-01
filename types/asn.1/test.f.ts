@@ -232,11 +232,23 @@ export default {
     raw: [
         () => {
             const e = encodeRaw([0x00n, vec8(0x23n)])
-            if (e !== cat([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e) / 2n}: ${uint(e).toString(2)}` }
+            if (e !== cat([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e)}: ${uint(e).toString(2)}` }
             const [[tag, value], rest] = decodeRaw(e)
             if (rest !== empty) { throw `rest: ${asBase(rest)}` }
             if (tag !== 0x00n) { throw `tag: ${tag}` }
             if (value !== vec8(0x23n)) { throw `value: ${asBase(value)}` }
+        },
+        () => {
+            const e = encodeRaw([0x1F20n, vec(16n)(0x1234n)])
+            if (e !== cat([vec8(0x1Fn), vec8(0x20n), vec8(2n), vec(16n)(0x1234n)])) {
+                const l = length(e)
+                const u = uint(e)
+                throw `encode: ${l}: ${u.toString(16)}`
+            }
+            const [[tag, value], rest] = decodeRaw(e)
+            if (rest !== empty) { throw `rest: ${asBase(rest)}` }
+            if (tag !== 0x1F20n) { throw `tag: ${tag}` }
+            if (value !== vec(16n)(0x1234n)) { throw `value: ${asBase(value)}` }
         }
     ]
 }
