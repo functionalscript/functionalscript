@@ -11,19 +11,19 @@ const concat = listToVec(msb)
 
 // tag
 
-type Class = 0n | 10n | 20n | 30n
-
-type Pc = 0n | 1n
-
 type ClassPc =
-    | 0b000n
-    | 0b001n
-    | 0b010n
-    | 0b011n
-    | 0b100n
-    | 0b101n
-    | 0b110n
-    | 0b111n
+    | 0b000_00000n
+    | 0b001_00000n
+    | 0b010_00000n
+    | 0b011_00000n
+    | 0b100_00000n
+    | 0b101_00000n
+    | 0b110_00000n
+    | 0b111_00000n
+
+const classPcMask = 0b111_00000n
+
+const tagNumberMask = 0b000_11111n
 
 type ParsedTag = readonly[ClassPc, bigint]
 
@@ -31,15 +31,15 @@ type ParsedTag = readonly[ClassPc, bigint]
 type Tag = bigint
 
 const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
-    const [n, rest] = number < 0x1Fn ? [number, empty] : [0x1Fn, b128encode(number)]
-    return concat([vec8((classPc << 5n) | n), rest])
+    const [n, rest] = number < tagNumberMask ? [number, empty] : [0x1Fn, b128encode(number)]
+    return concat([vec8(classPc | n), rest])
 }
 
 const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
     const [first, rest] = pop8(v)
-    const classPc = (first >> 5n) as ClassPc
-    const firstNumber = first & 0x1Fn
-    const [number, rest1] = firstNumber < 0x1Fn ? [firstNumber, rest] : b128decode(rest)
+    const classPc = (first & classPcMask) as ClassPc
+    const firstNumber = first & tagNumberMask
+    const [number, rest1] = firstNumber < tagNumberMask ? [firstNumber, rest] : b128decode(rest)
     return [[classPc, number], rest1]
 }
 
@@ -49,8 +49,8 @@ const tagEncode = (tag: Tag): Vec => {
 }
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
-    const [parsedTag1, rest] = parsedTagDecode(v)
-    return [uint(parsedTagEncode(parsedTag1)), rest]
+    const [parsedTag, rest] = parsedTagDecode(v)
+    return [uint(parsedTagEncode(parsedTag)), rest]
 }
 
 //
