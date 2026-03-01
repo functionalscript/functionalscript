@@ -1,4 +1,4 @@
-import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
+import { empty, length, listToVec, msb, uint, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
 import {
     decodeRaw,
@@ -151,7 +151,7 @@ export default {
             xFFF80: () => check(integer, vec(0xF_FF80n)(0x8234n), empty),
             xFFFC0: () => check(integer, vec(0xF_FFC0n)(0x8234n), empty),
             xFFFD0: () => check(integer, vec(0xF_FFD0n)(0x8234n), empty),
-            //// fail on Bun
+            //// fail on Bun because it has a smaller limit for BigInt
             //xFFFD8: () => check(integer, vec(0xF_FFD8n)(0x8234n), empty),
             //xFFFE0: () => check(integer, vec(0xF_FFE0n)(0x8234n), empty),
             //e100000: () => check(integer, vec(0x10_0000n)(0x8234n), empty),
@@ -227,6 +227,16 @@ export default {
                     encode([integer, 2n])
                 ])
             )
+        },
+    },
+    raw: [
+        () => {
+            const e = encodeRaw([0x00n, vec8(0x23n)])
+            if (e !== cat([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e) / 2n}: ${uint(e).toString(2)}` }
+            const [[tag, value], rest] = decodeRaw(e)
+            if (rest !== empty) { throw `rest: ${asBase(rest)}` }
+            if (tag !== 0x00n) { throw `tag: ${tag}` }
+            if (value !== vec8(0x23n)) { throw `value: ${asBase(value)}` }
         }
-    }
+    ]
 }

@@ -1,4 +1,4 @@
-import { bitLength, min } from "../bigint/module.f.ts"
+import { bitLength, max } from "../bigint/module.f.ts"
 import { empty, isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
 import { encode as b128encode, decode as b128decode } from "../base128/module.f.ts"
@@ -31,21 +31,21 @@ type ParsedTag = readonly[ClassPc, bigint]
 type Tag = bigint
 
 const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
-    const [n, rest] = number < tagNumberMask ? [number, empty] : [0x1Fn, b128encode(number)]
-    return concat([vec8(classPc | n), rest])
+    const [firstByteNumber, rest] = number < tagNumberMask ? [number, empty] : [tagNumberMask, b128encode(number)]
+    return concat([vec8(classPc | firstByteNumber), rest])
 }
 
 const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
-    const [first, rest] = pop8(v)
-    const classPc = (first & classPcMask) as ClassPc
-    const firstNumber = first & tagNumberMask
-    const [number, rest1] = firstNumber < tagNumberMask ? [firstNumber, rest] : b128decode(rest)
+    const [firstByte, rest] = pop8(v)
+    const classPc = (firstByte & classPcMask) as ClassPc
+    const firstByteNumber = firstByte & tagNumberMask
+    const [number, rest1] = firstByteNumber < tagNumberMask ? [firstByteNumber, rest] : b128decode(rest)
     return [[classPc, number], rest1]
 }
 
 const tagEncode = (tag: Tag): Vec => {
     const byteLength = (bitLength(tag) + 7n) >> 3n
-    return vec(min(byteLength)(1n) << 3n)(tag)
+    return vec(max(byteLength)(1n) << 3n)(tag)
 }
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
