@@ -1,5 +1,5 @@
-import { bitLength } from "../bigint/module.f.ts"
-import { isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import { bitLength, min } from "../bigint/module.f.ts"
+import { empty, isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
 import { encode as b128encode, decode as b128decode } from "../base128/module.f.ts"
 
@@ -7,50 +7,50 @@ const pop = msb.popFront
 
 const pop8 = pop(8n)
 
+const concat = listToVec(msb)
+
 // tag
 
-type Class = 0n | 1n | 2n | 3n
+type Class = 0n | 10n | 20n | 30n
 
 type Pc = 0n | 1n
 
-/** ASN.1 tag number. */
-export type Tag = bigint
+type ClassPc =
+    | 0b000n
+    | 0b001n
+    | 0b010n
+    | 0b011n
+    | 0b100n
+    | 0b101n
+    | 0b110n
+    | 0b111n
 
-type ParsedTag = {
-    class: Class
-    pc: Pc
-    number: bigint
+type ParsedTag = readonly[ClassPc, bigint]
+
+/** ASN.1 tag number. */
+type Tag = bigint
+
+const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
+    const [n, rest] = number < 0x1Fn ? [number, empty] : [0x1Fn, b128encode(number)]
+    return concat([vec8((classPc << 5n) | n), rest])
 }
 
-const isLowTag = (tag: Tag): boolean => (tag & 0x1Fn) !== 0x1Fn
-
-const highTag = (n: bigint): Tag => ((n - 0x1Fn) << 8n) | 0x1Fn
-
-const highTagNumber = (tag: Tag): bigint => (tag >> 8n) + 0x1Fn
-
-const tag = ({class: c, pc, number: n }: ParsedTag) =>
-    (c << 6n) |
-    (pc << 5n) |
-    (n < 0x20n ? n : highTag(n))
-
-const parseTag = (tag: bigint): ParsedTag => ({
-    class: ((tag >> 6n) & 0x3n) as Class,
-    pc: ((tag >> 5n) & 0x1n) as Pc,
-    number: isLowTag(tag) ? tag & 0x1Fn : highTagNumber(tag)
-})
+const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
+    const [first, rest] = pop8(v)
+    const classPc = (first >> 5n) as ClassPc
+    const firstNumber = first & 0x1Fn
+    const [number, rest1] = firstNumber < 0x1Fn ? [firstNumber, rest] : b128decode(rest)
+    return [[classPc, number], rest1]
+}
 
 const tagEncode = (tag: Tag): Vec => {
-    const first = vec8(tag)
-    return isLowTag(tag) ? first : concat([first, b128encode(highTagNumber(tag))])
+    const byteLength = (bitLength(tag) + 7n) >> 3n
+    return vec(min(byteLength)(1n) << 3n)(tag)
 }
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
-    const [first, rest] = pop8(v)
-    if (isLowTag(first)) {
-        return [first, rest]
-    }
-    const [n, next] = b128decode(rest)
-    return [highTag(n) | (first & 0xE0n), next]
+    const [parsedTag1, rest] = parsedTagDecode(v)
+    return [uint(parsedTagEncode(parsedTag1)), rest]
 }
 
 //
@@ -102,8 +102,6 @@ export const constructedSequence = 0x30n // constructed | sequence
 export const constructedSet = 0x31n      // constructed | set
 
 //
-
-const concat = listToVec(msb)
 
 type Round8 = {
     readonly byteLen: bigint
