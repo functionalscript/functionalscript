@@ -5,7 +5,7 @@
 - [ ] 10. Short URL table.
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
-- [ ] 16. License in JSR file?
+- [x] 16. License in JSR file?
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] P5 20. Test framework should be able to run a subset of tests.
 - [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
@@ -31,7 +31,7 @@
 For example, 'throw' field could be not an immediate function but a reference to a helper function that throws
 (e.g. 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
-require setting a flag when walking through a test free as soon as a node has a 'throw' as its name.
+require setting a flag when walking through a test tree as soon as a node has a 'throw' as its name.
 - [ ] [031-formal-grammar](./031-formal-grammar.md).
 - [ ] 032. implement a stupid, non-deterministic parser using [031-formal-grammar](./031-formal-grammar.md).
 - [ ] 033. Rust: VM: implement `Any` and other types as wrappers
@@ -146,7 +146,7 @@ require setting a flag when walking through a test free as soon as a node has a 
   // `instant_property(a, "b")`
   const c0 = a.b
   // Only strings are allowed excluding a list of specific strings. Operator:
-  // `instant_property(a, "b")`
+  // `instant_property(a, "c")`
   const c1 = a["c"]
   // Operator:
   // `at(c1, +0)`
