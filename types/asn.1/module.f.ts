@@ -1,5 +1,18 @@
 import { bitLength, max } from "../bigint/module.f.ts"
-import { empty, isVec, length, listToVec, msb, msbCmp, uint, unpack, vec, vec8, type Unpacked, type Vec } from "../bit_vec/module.f.ts"
+import {
+    empty,
+    isVec,
+    length,
+    listToVec,
+    msb,
+    msbCmp,
+    uint,
+    unpack,
+    vec,
+    vec8,
+    type Unpacked,
+    type Vec
+} from "../bit_vec/module.f.ts"
 import { identity } from "../function/module.f.ts"
 import { encode as b128encode, decode as b128decode } from "../base128/module.f.ts"
 
@@ -25,13 +38,17 @@ const classPcMask = 0b111_00000n
 
 const tagNumberMask = 0b000_11111n
 
+// Note: the tag number (the second parameter) can be arbitrarily large,
+//       so we can't just use a single byte to represent it.
 type ParsedTag = readonly[ClassPc, bigint]
 
 /** ASN.1 tag number. */
 type Tag = bigint
 
 const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
-    const [firstByteNumber, rest] = number < tagNumberMask ? [number, empty] : [tagNumberMask, b128encode(number)]
+    const [firstByteNumber, rest] = number < tagNumberMask
+        ? [number, empty]
+        : [tagNumberMask, b128encode(number)]
     return concat([vec8(classPc | firstByteNumber), rest])
 }
 
@@ -39,14 +56,14 @@ const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
     const [firstByte, rest] = pop8(v)
     const classPc = (firstByte & classPcMask) as ClassPc
     const firstByteNumber = firstByte & tagNumberMask
-    const [number, rest1] = firstByteNumber < tagNumberMask ? [firstByteNumber, rest] : b128decode(rest)
+    const [number, rest1] = firstByteNumber < tagNumberMask
+        ? [firstByteNumber, rest]
+        : b128decode(rest)
     return [[classPc, number], rest1]
 }
 
-const tagEncode = (tag: Tag): Vec => {
-    const byteLength = (bitLength(tag) + 7n) >> 3n
-    return vec(max(byteLength)(1n) << 3n)(tag)
-}
+const tagEncode = (tag: Tag): Vec =>
+    vec(max((bitLength(tag) + 7n) >> 3n)(1n) << 3n)(tag)
 
 const tagDecode = (v: Vec): readonly[Tag, Vec] => {
     const [parsedTag, rest] = parsedTagDecode(v)
@@ -121,11 +138,17 @@ const lenEncode = (uint: bigint): Vec => {
     return concat([vec8(0x80n | byteLen), v])
 }
 
+/**
+ * Decodes the length field of an ASN.1 TLV and returns the length in bits and the remaining input.
+ *
+ * @param v - The input bit vector starting with the length field.
+ * @returns A tuple containing the length in bits and the remaining input after the length field.
+ */
 const lenDecode = (v: Vec): readonly[bigint, Vec] => {
-    const first1 = pop8(v)
-    const [first, v1] = first1
-    const [byteLen, v2] = first < 0x80n ? first1 : pop((first & 0x7Fn) << 3n)(v1)
-    return [byteLen << 3n, v2]
+    const firstAndRest = pop8(v)
+    const [first, rest1] = firstAndRest
+    const [byteLen, rest2] = first < 0x80n ? firstAndRest : pop((first & 0x7Fn) << 3n)(rest1)
+    return [byteLen << 3n, rest2]
 }
 
 // raw
@@ -140,8 +163,6 @@ export const encodeRaw = ([tag, value]: Raw): Vec => {
     return concat([tagVec, lenEncode(byteLen), v])
 }
 
-// TODO: Parse multibyte tags:
-//       Check if `tag & 0x1F === 0x1F` and use base128 encoding for the tag number.
 /** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
 export const decodeRaw = (v: Vec): readonly[Raw, Vec] => {
     const [tag, v1] = tagDecode(v)
