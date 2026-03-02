@@ -147,6 +147,14 @@ export const fromIo = ({
 asyncRun({
     error: async message => error(message),
     log: async message => log(message),
+    fetch: async url => tc(async() => {
+        const response = await globalThis.fetch(url)
+        if (!response.ok) {
+            throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
+        }
+        const data = new Uint8Array(await response.arrayBuffer())
+        return toVec(data)
+    }),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
     readdir: ([path, r]) => tc(async() =>
