@@ -1,6 +1,6 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { run } from "../mock/module.f.ts"
-import { mkdir, readdir, readFile, writeFile } from "./module.f.ts"
+import { fetch, mkdir, readdir, readFile, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -21,6 +21,18 @@ export default {
             if (p !== 'hello') { throw p }
             e = cont(['ok', vec8(0x15n)])
         }
+    },
+    fetch: () => {
+        const v = run(virtual)
+        const [_, [t, result]] = v({
+            ...emptyState,
+            internet: {
+                'https://example.com/data': vec8(0x2An),
+            },
+        })(fetch('https://example.com/data'))
+        if (t === 'error') { throw result }
+        if (!isVec(result)) { throw result }
+        if (uint(result) !== 0x2An) { throw result }
     },
     mkdir: {
         one: () => {

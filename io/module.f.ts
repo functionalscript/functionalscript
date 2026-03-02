@@ -143,10 +143,18 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
 export const fromIo = ({
     console: { error, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile } },
+    fetch,
 }: Io): <T>(effect: NodeEffect<T>) => Promise<T> =>
 asyncRun({
     error: async message => error(message),
     log: async message => log(message),
+    fetch: async url => tc(async() => {
+        const response = await fetch(url)
+        if (!response.ok) {
+            throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
+        }
+        return toVec(new Uint8Array(await response.arrayBuffer()))
+    }),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
     readdir: ([path, r]) => tc(async() =>
