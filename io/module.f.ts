@@ -152,8 +152,7 @@ asyncRun({
         if (!response.ok) {
             throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
         }
-        const data = new Uint8Array(await response.arrayBuffer())
-        return toVec(data)
+        return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
     mkdir: param => tc(async() => { await mkdir(...param) }),
     readFile: path => tc(async() => toVec(await readFile(path))),
