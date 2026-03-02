@@ -116,8 +116,8 @@ then providing exact that number of argument descriptors. As before, we might wa
 shorthand instructions for cases with small number of elements in the compound object being created.
 
 TODO: we should keep on the table the normal Polish notation idea for instructions, with that
-the example in the previous paragraph does not play well. Wiht the normal Polist notation there is
-a struture of nested commands: e.g. we start with a command to create a new N-element array and that
+the example in the previous paragraph does not play well. With the normal Polish notation there is
+a structure of nested commands: e.g. we start with a command to create a new N-element array and that
 command has N nested command specifying element values. As the result of execution of that compound
 we get the newly created and initialized array available.
 
@@ -230,7 +230,7 @@ frame, focusing on locals only.
 
 A simple VM implementation calculates the size of a function body's stack frame by allocating one
 slot for each local in the body, maybe reusing slots in cases when one local stops being used at
-some well defined pont within the body, so another local defined below that point can safely reuse
+some well defined point within the body, so another local defined below that point can safely reuse
 same slot. When finishing body processing, the parser places the required capacity of
 function's stack frame into function's metadata. When processing a call into that function, the VM
 allocates a new array with the given capacity, switching to that array as the current stack frame
