@@ -37,6 +37,7 @@ ENV PATH="$BUN_INSTALL/bin:$PATH"
 
 # Install Claude CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/root/.local/bin:${PATH}"
 
 # Clone FunctionalScript
 RUN git clone https://github.com/functionalscript/functionalscript
