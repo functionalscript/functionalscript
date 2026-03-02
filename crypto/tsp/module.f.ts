@@ -2,7 +2,7 @@
  * RFC 3161 Time-Stamp Protocol (TSP) – Trusted Timestamps.
  *
  * Encodes `TimeStampReq` and decodes `TimeStampResp` using DER, and provides
- * an HTTP helper that calls a Timestamp Authority (TSA).
+ * an effect-based `request` that calls a Timestamp Authority (TSA).
  *
  * ```
  * TimeStampReq ::= SEQUENCE {
@@ -56,7 +56,9 @@ import {
     type Sequence,
 } from '../../types/asn.1/module.f.ts'
 import { isVec, listToVec, msb, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
-import { fromVec, toVec } from '../../types/uint8array/module.f.ts'
+import { fetch as fetch_, type Fetch, type IoResult } from '../../types/effect/node/module.f.ts'
+import type { Effect } from '../../types/effect/module.f.ts'
+import { ok } from '../../types/result/module.f.ts'
 
 const cat = listToVec(msb)
 
@@ -184,46 +186,19 @@ export const decodeResponse = (v: Vec): TimeStampResp => {
     return { status, token }
 }
 
-/**
- * A function that sends a POST request to a TSA and returns the raw response bytes.
- *
- * Use `sendFromFetch` to create one from the standard `fetch` API.
- */
-export type Send = (url: string) => (body: Uint8Array) => Promise<Uint8Array>
+const tspHeaders = {
+    'Content-Type': 'application/timestamp-query',
+    'Accept': 'application/timestamp-reply',
+} as const
 
 /**
- * Creates a `Send` from a standard `fetch` implementation.
+ * Sends a `TimeStampReq` to a TSA and decodes the `TimeStampResp` as an effect.
  *
- * @example
- *
- * ```ts
- * const send = sendFromFetch(fetch)
- * const resp = await request(send)('https://freetsa.org/tsr')(sha256AlgorithmIdentifier)(hash)()
- * ```
- */
-export const sendFromFetch =
-    (fetch: (url: string, init: RequestInit) => Promise<Response>): Send =>
-    url => async body => {
-        const r = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/timestamp-query',
-                'Accept': 'application/timestamp-reply',
-            },
-            body: body.buffer as BodyInit,
-        })
-        return new Uint8Array(await r.arrayBuffer())
-    }
-
-/**
- * Sends a `TimeStampReq` to a TSA and decodes the `TimeStampResp`.
- *
- * @param send - A `Send` function (see `sendFromFetch`).
  * @param url - The TSA endpoint URL.
  * @param algId - Pre-encoded `AlgorithmIdentifier`.
  * @param hashedMessage - The hash of the data to timestamp.
  * @param certReq - Request TSA's certificate chain. Default: `true`.
- * @returns A promise resolving to the decoded `TimeStampResp`.
+ * @returns An effect that yields `IoResult<TimeStampResp>`.
  *
  * @example
  *
@@ -232,18 +207,21 @@ export const sendFromFetch =
  * import { utf8 } from '../../text/module.f.ts'
  *
  * const hash = computeSync(sha256)([utf8('hello')])
- * const send = sendFromFetch(fetch)
- * const { status, token } = await request(send)('https://freetsa.org/tsr')(sha256AlgorithmIdentifier)(hash)()
- * if (status !== 'granted') { throw status }
+ * const effect = request('https://freetsa.org/tsr')(sha256AlgorithmIdentifier)(hash)()
+ * // run with: fromIo(io)(effect)
  * ```
  */
 export const request =
-    (send: Send) =>
     (url: string) =>
     (algId: Vec) =>
     (hashedMessage: Vec) =>
-    (certReq = true): Promise<TimeStampResp> => {
-        const reqVec = encodeRequest(algId)(hashedMessage)(certReq)
-        const reqBytes = fromVec(reqVec)
-        return send(url)(reqBytes).then(responseBytes => decodeResponse(toVec(responseBytes)))
-    }
+    (certReq = true): Effect<Fetch, IoResult<TimeStampResp>> =>
+        fetch_({
+            url,
+            method: 'POST',
+            headers: tspHeaders,
+            body: encodeRequest(algId)(hashedMessage)(certReq),
+        }).map(result => {
+            if (result[0] === 'error') { return result }
+            return ok(decodeResponse(result[1].body))
+        })

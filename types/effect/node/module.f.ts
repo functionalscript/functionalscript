@@ -84,11 +84,32 @@ export const log =
 
 export type Console = Log & Error
 
+// fetch
+
+export type FetchRequest = {
+    readonly url: string
+    readonly method: string
+    readonly headers: { readonly [k: string]: string }
+    readonly body: Vec
+}
+
+export type FetchResponse = {
+    readonly status: number
+    readonly body: Vec
+}
+
+export type Fetch = { readonly fetch: readonly [FetchRequest, IoResult<FetchResponse>] }
+
+export const fetch =
+    (req: FetchRequest): Do<Fetch, IoResult<FetchResponse>> =>
+    do_('fetch', req)
+
 // Node
 
 export type NodeOperations =
     & Console
     & Fs
+    & Fetch
 
 export type NodeEffect<T> = Effect<NodeOperations, T>
 

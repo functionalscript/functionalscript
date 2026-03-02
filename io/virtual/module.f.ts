@@ -32,7 +32,7 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     performance: {
         now: () => 0,
     },
-    fetch: () => Promise.reject(),
+    fetch: (_url, _init) => Promise.reject(),
     tryCatch: f => ['ok', f()],
     asyncTryCatch: async f => ['ok', await f()],
 })

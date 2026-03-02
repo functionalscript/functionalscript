@@ -100,7 +100,7 @@ export type Io = {
     readonly process: Process
     readonly asyncImport: (s: string) => Promise<Module>
     readonly performance: Performance
-    readonly fetch: (url: string) => Promise<Response>
+    readonly fetch: (url: string, init?: RequestInit) => Promise<Response>
     readonly tryCatch: TryCatch
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
 }
@@ -143,6 +143,7 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
 export const fromIo = ({
     console: { error, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile } },
+    fetch: fetchImpl,
 }: Io): <T>(effect: NodeEffect<T>) => Promise<T> =>
 asyncRun({
     error: async message => error(message),
@@ -154,4 +155,8 @@ asyncRun({
         .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
     ),
     writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+    fetch: ({ url, method, headers, body }) => tc(async() => {
+        const r = await fetchImpl(url, { method, headers, body: fromVec(body).buffer as BodyInit })
+        return { status: r.status, body: toVec(new Uint8Array(await r.arrayBuffer())) }
+    }),
 })

@@ -108,6 +108,8 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
 const console = (name: 'stderr'|'stdout') => (state: VirtualState, payload: string) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
+const fetchError = error('fetch not available in virtual')
+
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     error: console('stderr'),
     log: console('stdout'),
@@ -115,4 +117,5 @@ export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     readFile,
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
+    fetch: (state, _req) => [state, fetchError],
 }
