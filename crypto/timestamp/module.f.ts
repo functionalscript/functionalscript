@@ -25,14 +25,16 @@ import { ok, error, type Result } from '../../types/result/module.f.ts'
 
 // SHA-2 OIDs per RFC 5758
 
+const idSha2 = (v: bigint) => [2n, 16n, 840n, 1n, 101n, 3n, 4n, 2n, v]
+
 /** SHA-256 algorithm OID: 2.16.840.1.101.3.4.2.1 */
-export const sha256Oid: ObjectIdentifier = [2n, 16n, 840n, 1n, 101n, 3n, 4n, 2n, 1n]
+export const sha256Oid: ObjectIdentifier = idSha2(1n)
 
 /** SHA-384 algorithm OID: 2.16.840.1.101.3.4.2.2 */
-export const sha384Oid: ObjectIdentifier = [2n, 16n, 840n, 1n, 101n, 3n, 4n, 2n, 2n]
+export const sha384Oid: ObjectIdentifier = idSha2(2n)
 
 /** SHA-512 algorithm OID: 2.16.840.1.101.3.4.2.3 */
-export const sha512Oid: ObjectIdentifier = [2n, 16n, 840n, 1n, 101n, 3n, 4n, 2n, 3n]
+export const sha512Oid: ObjectIdentifier = idSha2(3n)
 
 /**
  * PKI status values per RFC 3161 section 2.4.2.
