@@ -23,6 +23,12 @@ export const encode = (uint: bigint): Vec => {
     }
 }
 
+/**
+ * Decodes an MSB Base128 vector into a bigint.
+ * 
+ * @param v The MSB Base128 vector to decode.
+ * @returns A tuple containing the decoded bigint and the remaining vector.
+ */
 export const decode = (v: Vec): readonly[bigint, Vec] => {
     let result = 0n
     while (true) {
