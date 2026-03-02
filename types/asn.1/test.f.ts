@@ -1,12 +1,25 @@
-import { empty, length, listToVec, msb, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
+import { empty, length, listToVec, msb, uint, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
 import { asBase } from "../nominal/module.f.ts"
-import { decodeRaw, decodeInteger, encodeRaw, encodeInteger, integer, type Record, encode, decode, constructedSequence, octetString, boolean, constructedSet } from "./module.f.ts"
+import {
+    decodeRaw,
+    decodeInteger,
+    encodeRaw,
+    encodeInteger,
+    integer,
+    type SupportedRecord,
+    encode,
+    decode,
+    constructedSequence,
+    octetString,
+    boolean,
+    constructedSet
+} from "./module.f.ts"
 
 const { concat, popFront: pop } = msb
 const cat = listToVec(msb)
 const pop8 = pop(8n)
 
-const check = (tag: number, v: Vec, rest: Vec) => {
+const check = (tag: bigint, v: Vec, rest: Vec) => {
         const s = encodeRaw([tag, v])
         const [[t0, v0], r] = decodeRaw(concat(s)(rest))
         if (t0 !== tag) { throw `t0: ${t0}` }
@@ -21,7 +34,7 @@ const integerValueCheck = (i: bigint, v: Vec) => {
     if (i !== i0) { throw [i, i0] }
 }
 
-const ch0 = (r: Record, v: Vec, rest: Vec) => {
+const ch0 = (r: SupportedRecord, v: Vec, rest: Vec) => {
     const [r0, rest0] = decode(concat(v)(rest))
     if (rest0 !== rest) { throw `rest: ${asBase(rest0)}` }
     const v0 = encode(r)
@@ -30,7 +43,7 @@ const ch0 = (r: Record, v: Vec, rest: Vec) => {
     if (v !== v1) { throw `encode: ${asBase(v)}, ${asBase(v1)}` }
 }
 
-const ch = (r: Record, v: Vec) => {
+const ch = (r: SupportedRecord, v: Vec) => {
     ch0(r, v, empty)
     ch0(r, v, vec8(0x23n))
     ch0(r, v, vec(16n)(0x2345n))
@@ -138,7 +151,7 @@ export default {
             xFFF80: () => check(integer, vec(0xF_FF80n)(0x8234n), empty),
             xFFFC0: () => check(integer, vec(0xF_FFC0n)(0x8234n), empty),
             xFFFD0: () => check(integer, vec(0xF_FFD0n)(0x8234n), empty),
-            //// fail on Bun
+            //// fail on Bun because it has a smaller limit for BigInt
             //xFFFD8: () => check(integer, vec(0xF_FFD8n)(0x8234n), empty),
             //xFFFE0: () => check(integer, vec(0xF_FFE0n)(0x8234n), empty),
             //e100000: () => check(integer, vec(0x10_0000n)(0x8234n), empty),
@@ -187,7 +200,12 @@ export default {
             )
             ch(
                 [constructedSequence, [[integer, 1n], [integer, 2n]]],
-                cat([vec8(BigInt(constructedSequence)), vec8(6n), encode([integer, 1n]), encode([integer, 2n])])
+                cat([
+                    vec8(BigInt(constructedSequence)),
+                    vec8(6n),
+                    encode([integer, 1n]),
+                    encode([integer, 2n])
+                ])
             )
             ch(
                 [constructedSequence, [[octetString, vec8(0x23n)], [boolean, true], [boolean, false]]],
@@ -202,7 +220,35 @@ export default {
         },
         set: () => {
             ch([constructedSet, [[integer, 2n], [integer, 1n]]],
-                cat([vec8(BigInt(constructedSet)), vec8(6n), encode([integer, 1n]), encode([integer, 2n])]))
+                cat([
+                    vec8(BigInt(constructedSet)),
+                    vec8(6n),
+                    encode([integer, 1n]),
+                    encode([integer, 2n])
+                ])
+            )
+        },
+    },
+    raw: [
+        () => {
+            const e = encodeRaw([0x00n, vec8(0x23n)])
+            if (e !== cat([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e)}: ${uint(e).toString(2)}` }
+            const [[tag, value], rest] = decodeRaw(e)
+            if (rest !== empty) { throw `rest: ${asBase(rest)}` }
+            if (tag !== 0x00n) { throw `tag: ${tag}` }
+            if (value !== vec8(0x23n)) { throw `value: ${asBase(value)}` }
+        },
+        () => {
+            const e = encodeRaw([0x1F20n, vec(16n)(0x1234n)])
+            if (e !== cat([vec8(0x1Fn), vec8(0x20n), vec8(2n), vec(16n)(0x1234n)])) {
+                const l = length(e)
+                const u = uint(e)
+                throw `encode: ${l}: ${u.toString(16)}`
+            }
+            const [[tag, value], rest] = decodeRaw(e)
+            if (rest !== empty) { throw `rest: ${asBase(rest)}` }
+            if (tag !== 0x1F20n) { throw `tag: ${tag}` }
+            if (value !== vec(16n)(0x1234n)) { throw `value: ${asBase(value)}` }
         }
-    }
+    ]
 }

@@ -353,8 +353,8 @@ export const isVec = <T>(v: Vec | T): v is Vec =>
 export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
     const au = unpack(av)
     const bu = unpack(bv)
-    const { length: al } = au
-    const { length: bl } = bu
+    const al = au.length
+    const bl = bu.length
     const { a, b } = msbNorm(au)(bu)(min(al)(bl))
     const result = cmp(a)(b)
     return result !== 0 ? result : cmp(al)(bl)
