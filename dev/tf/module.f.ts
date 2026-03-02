@@ -103,7 +103,7 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
                     if (isGitHub) {
                         // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
                         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                        error(`::error file=${k},line=1,title=[3]['a']()::${r}`)
+                        error(`::error file=${k},line=1,title=${i}()::${r}`)
                     } else {
                         error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
                         error(`${fgRed}${r}${reset}`)

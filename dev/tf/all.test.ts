@@ -30,13 +30,13 @@ const createFramework = (fw: typeof nodeTest): CommonFramework =>
 const createBunFramework = (fw: typeof nodeTest): CommonFramework =>
     (prefix, f) => f((name, v) => fw.test(`${prefix}: ${name}`, v))
 
-const createPlaywrihtFramework = async (): Promise<CommonFramework> => {
+const createPlaywrightFramework = async (): Promise<CommonFramework> => {
     const pwTest = (await import('@playwright/test')).test
     return (prefix, f) => f((name, v) => pwTest(`${prefix}: ${name}`, v))
 }
 
 const framework: CommonFramework =
-    isPlaywright ? await createPlaywrihtFramework() :
+    isPlaywright ? await createPlaywrightFramework() :
     isBun ? createBunFramework(nodeTest) :
         createFramework(nodeTest)
 
