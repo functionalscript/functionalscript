@@ -18,8 +18,8 @@ Where `./a.f.js` may look like this:
 export default null
 ```
 
-FunctionalScript should use namespace import only as a mechanism to reference type definitions. Since, VM doesn't analyze types, namespace import can be ignored be VM. However different linters, such as TypeScript, can use the information.
+FunctionalScript should use namespace import only as a mechanism to reference type definitions. Since, VM doesn't analyze types, namespace import can be ignored by VM. However different linters, such as TypeScript, can use the information.
 
-Depends on [default-import](./2110-default-export.md).
+Depends on [default-import](./2130-default-import.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#namespace_import
