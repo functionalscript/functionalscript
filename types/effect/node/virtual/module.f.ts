@@ -12,12 +12,16 @@ export type VirtualState = {
     stdout: string
     stderr: string
     root: VirtualDir
+    internet: {
+        readonly[url: string]: Vec
+    }
 }
 
 export const emptyState: VirtualState = {
     stdout: '',
     stderr: '',
     root: {},
+    internet: {},
 }
 
 const operation =
@@ -111,6 +115,10 @@ const console = (name: 'stderr'|'stdout') => (state: VirtualState, payload: stri
 export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     error: console('stderr'),
     log: console('stdout'),
+    fetch: (state, url) => {
+        const result = state.internet[url]
+        return result === undefined ? [state, error('not found')] : [state, ok(result)]
+    },
     mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
     readFile,
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),

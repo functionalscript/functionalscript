@@ -4,6 +4,14 @@ import { type Do, type Effect, type ToAsyncOperationMap, do_ } from '../module.f
 
 export type IoResult<T> = Result<T, unknown>
 
+// fetch
+
+export type Fetch = { readonly fetch: readonly [string, IoResult<Vec>] }
+
+export const fetch =
+    (url: string): Do<Fetch, IoResult<Vec>> =>
+    do_('fetch', url)
+
 // mkdir
 
 export type MakeDirectoryOptions = { readonly recursive: true }
@@ -87,6 +95,7 @@ export type Console = Log & Error
 // Node
 
 export type NodeOperations =
+    & Fetch
     & Console
     & Fs
 
