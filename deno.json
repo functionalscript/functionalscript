@@ -12,6 +12,7 @@
     "./crypto/secp/module.f.ts": "./crypto/secp/module.f.ts",
     "./crypto/sha2/module.f.ts": "./crypto/sha2/module.f.ts",
     "./crypto/sign/module.f.ts": "./crypto/sign/module.f.ts",
+    "./crypto/timestamp/module.f.ts": "./crypto/timestamp/module.f.ts",
     "./dev/index/module.ts": "./dev/index/module.ts",
     "./dev/module.f.ts": "./dev/module.f.ts",
     "./dev/tf/module.f.ts": "./dev/tf/module.f.ts",
