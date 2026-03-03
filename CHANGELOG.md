@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.1
+
+- FJS: running Node programs [696](https://github.com/functionalscript/functionalscript/pull/696)
+
 ## 0.10.0
 
 - IO: effects by default [695](https://github.com/functionalscript/functionalscript/pull/695)
