@@ -17,15 +17,15 @@ type Architecture = typeof architecture[number]
 // https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 const images = {
     ubuntu: {
-        intel: 'ubuntu-latest',
+        intel: 'ubuntu-24.04',
         arm: 'ubuntu-24.04-arm'
     },
     macos: {
-        intel: 'macos-15-intel',
-        arm: 'macos-latest'
+        intel: 'macos-26-intel',
+        arm: 'macos-26'
     },
     windows: {
-        intel: 'windows-latest',
+        intel: 'windows-2025',
         arm: 'windows-11-arm',
     }
 } as const
@@ -185,7 +185,7 @@ const nodeSteps = (v: string) => [
 ]
 
 const ubuntu = (ms: readonly MetaStep[]): Job => ({
-    'runs-on': 'ubuntu-latest',
+    'runs-on': 'ubuntu-24.04',
     steps: toSteps(ms)
 })
 
@@ -193,6 +193,7 @@ const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu
 
 const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
     const id = `${v}-${a}`
+    const image = images[v][a]
     const result: readonly MetaStep[] = [
         // Rust
         test({ run: 'cargo fmt -- --check' }),
@@ -219,7 +220,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
             // Playwright
-            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${id}-${playwright}` } }),
+            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${image}-${playwright}` } }),
             install({ run: `npm install -g ${playwright}`}),
             install({ run: 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
@@ -247,7 +248,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             test({ run: 'bun ./fjs/module.ts t' }),
         ]),
     ]
-    return [id, { 'runs-on': images[v][a], steps: toSteps(result) }]
+    return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
 const jobs = {
