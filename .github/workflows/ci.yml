@@ -1022,13 +1022,6 @@
           }
         },
         {
-          "uses": "actions/cache@v4",
-          "with": {
-            "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-24.04-playwright@1.58.2"
-          }
-        },
-        {
           "run": "npm install -g playwright@1.58.2"
         },
         {

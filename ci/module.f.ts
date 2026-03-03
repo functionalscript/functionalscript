@@ -183,8 +183,10 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
-const playwright: Job = ubuntu(basicNode('24')([
-    install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
+const defaultNodeVersion = '24'
+
+const playwright: Job = ubuntu(basicNode(defaultNodeVersion)([
+    //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
@@ -222,7 +224,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ...wasmTarget('wasm32-wasip1-threads'),
         ...i686(a, v),
         // Node.js
-        ...node('24')([
+        ...node(defaultNodeVersion)([
             // TypeScript Preview
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
