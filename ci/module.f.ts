@@ -231,7 +231,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             // so --with-deps is unnecessary and slow (~3min) on Windows.
             install({ run: v === 'windows' ? 'playwright install' : 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
-                (test({ run: `npx playwright test --browser=${browser}` }))),
+                (test({ run: `playwright test --browser=${browser}` }))),
             // publishing
             test({ run: 'npm pack' }),
             test({ run: `npm install -g ${findTgz(v)}` }),
