@@ -14,7 +14,7 @@ import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 export type TerminalRange = number
 
 /**
- * Full 24-bit code point range packed into a single {@link TerminalRange}.
+ * Full 24-bit symbol range packed into a single {@link TerminalRange}.
  */
 export const fullRange: TerminalRange = 0x000000_FFFFFF
 
@@ -24,7 +24,7 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
 /**
- * Maximal non-unicode code point encoded as a string value.
+ * Maximal non-unicode symbol encoded as a string value.
  */
 export const max: string = codePointListToString([0xFFFFFF])
 
@@ -79,7 +79,7 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
 }
 
 /**
- * Encodes a single symbol code point as a {@link TerminalRange}.
+ * Encodes a single symbol as a {@link TerminalRange}.
  */
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
@@ -89,7 +89,7 @@ export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 export const eof: TerminalRange = oneEncode(0x110000)
 
 /**
- * Decodes a packed range into `[start, end]` code points.
+ * Decodes a packed range into `[start, end]` symbols.
  */
 export const rangeDecode = (r: number): Array2<number> =>
     [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
@@ -100,9 +100,9 @@ export const toSequence = (s: string): readonly TerminalRange[] =>
     toArray(mapOneEncode(stringToCodePointList(s)))
 
 /**
- * Converts a string to a rule:
- * - a single {@link TerminalRange} for one code point,
- * - a sequence for multiple code points.
+ * Converts the whole string into one rule:
+ * - a single {@link TerminalRange} when the string has one symbol,
+ * - a sequence of {@link TerminalRange} values when the string has multiple symbols.
  */
 export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
     const x = toSequence(s)
@@ -112,13 +112,13 @@ export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
 const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 
 /**
- * Converts a string into a variant that maps each character to its code-point range.
+ * Converts a string into a variant that maps each character to its symbol range.
  */
 export const set = (s: string): RangeVariant =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
 /**
- * Encodes a two-character string into a terminal range.
+ * Encodes a two-symbol string into a terminal range.
  *
  * @throws If `ab` does not contain exactly two unicode code points.
  */
