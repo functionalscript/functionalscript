@@ -141,15 +141,7 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const playwrightVersion = '1.58.2'
 
-const playwright = `playwright@${playwrightVersion}`
-
-const playwrightCachePath = (v: Os) => {
-    switch (v) {
-        case 'macos': return '~/Library/Caches/ms-playwright'
-        case 'windows': return '~/AppData/Local/ms-playwright'
-        default: return '~/.cache/ms-playwright'
-    }
-}
+const playwrightAndVersion = `playwright@${playwrightVersion}`
 
 const rustToolchain = '1.93.1'
 
@@ -191,6 +183,16 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
+const playwright: Job = ubuntu(basicNode('24')([
+    install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
+    install({ run: `npm install -g ${playwrightAndVersion}` }),
+    install({ run: 'playwright install --with-deps' }),
+    // we have to use `npx` to make sure that we respect `@playwright/test` version from
+    // the `package.json`.
+    ...['chromium', 'firefox', 'webkit'].map(browser =>
+        test({ run: `npx playwright test --browser=${browser}` })),
+]))
+
 const i686 = (a: Architecture, v: Os) => {
     if (a === 'intel') {
         switch (v) {
@@ -224,16 +226,6 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             // TypeScript Preview
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
-            // Playwright
-            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${image}-${playwright}` } }),
-            install({ run: `npm install -g ${playwright}`}),
-            // Windows runner images already include required features (e.g. Media Foundation),
-            // so --with-deps is unnecessary and slow (~3min) on Windows.
-            install({ run: v === 'windows' ? 'playwright install' : 'playwright install --with-deps' }),
-            // we have to use `npx` to make sure that we respect `@playwright/test` version from
-            // the `package.json`.
-            ...['chromium', 'firefox', 'webkit'].map(browser =>
-                (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing
             test({ run: 'npm pack' }),
             test({ run: `npm install -g ${findTgz(v)}` }),
@@ -263,6 +255,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
 const jobs = {
     ...Object.fromEntries(os.flatMap(v => architecture.map(job(v)))),
     ...nodeVersions,
+    playwright,
 }
 
 const gha: GitHubAction = {
