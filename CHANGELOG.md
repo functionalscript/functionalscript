@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- IO: effects by default [695](https://github.com/functionalscript/functionalscript/pull/695)
 - CI: Cache for Playwright [691](https://github.com/functionalscript/functionalscript/pull/691)
 - Add module-level JSDoc headers across many modules [690](https://github.com/functionalscript/functionalscript/pull/690)
 
