@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- CI: Cache for Playwright [691](https://github.com/functionalscript/functionalscript/pull/691)
+- Add module-level JSDoc headers across many modules [690](https://github.com/functionalscript/functionalscript/pull/690)
+
 ## 0.9.3
 
 - Base128: bug fix [688](https://github.com/functionalscript/functionalscript/pull/688)

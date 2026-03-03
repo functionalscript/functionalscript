@@ -261,7 +261,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
 }
 
 const jobs = {
-    ...Object.fromEntries(os.flatMap(v => architecture.map(a => job(v)(a)))),
+    ...Object.fromEntries(os.flatMap(v => architecture.map(job(v)))),
     ...nodeVersions,
 }
 
