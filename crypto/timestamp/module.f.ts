@@ -131,52 +131,72 @@ const decodePkiStatus = (n: bigint): R<PkiStatus> => {
     }
 }
 
-const parseTstInfo = (seq: Sequence): R<TstInfo> => {
-    const versionR = asInteger(seq[0])
-    if (versionR[0] === 'error') { return versionR }
-    const version = versionR[1]
+/** Creates a sequential cursor that pops and parses records from a Sequence. */
+const takeFrom = (seq: Sequence) => {
+    let i = 0
+    return {
+        take: <T>(parse: (r: Record) => R<T>): R<T> => {
+            if (i >= seq.length) { return error('unexpected end of sequence') }
+            return parse(seq[i++])
+        },
+        remaining: (): Sequence => seq.slice(i),
+    }
+}
 
-    const policyR = asOid(seq[1])
-    if (policyR[0] === 'error') { return policyR }
-    const policy = policyR[1]
+const parseAlgorithmIdentifier = (seq: Sequence): R<ObjectIdentifier> =>
+    takeFrom(seq).take(asOid)
 
-    const msgImprintR = asSequence(seq[2])
-    if (msgImprintR[0] === 'error') { return msgImprintR }
-    const msgImprint = msgImprintR[1]
+const parseMessageImprint = (seq: Sequence): R<TstInfo['messageImprint']> => {
+    const { take } = takeFrom(seq)
 
-    const hashAlgoSeqR = asSequence(msgImprint[0])
+    const hashAlgoSeqR = take(asSequence)
     if (hashAlgoSeqR[0] === 'error') { return hashAlgoSeqR }
-    const hashAlgoSeq = hashAlgoSeqR[1]
-
-    const hashAlgorithmR = asOid(hashAlgoSeq[0])
+    const hashAlgorithmR = parseAlgorithmIdentifier(hashAlgoSeqR[1])
     if (hashAlgorithmR[0] === 'error') { return hashAlgorithmR }
     const hashAlgorithm = hashAlgorithmR[1]
 
-    const hashedMessageR = asOctetString(msgImprint[1])
+    const hashedMessageR = take(asOctetString)
     if (hashedMessageR[0] === 'error') { return hashedMessageR }
     const hashedMessage = hashedMessageR[1]
 
-    const serialNumberR = asInteger(seq[3])
+    return ok({ hashAlgorithm, hashedMessage })
+}
+
+const parseTstInfo = (seq: Sequence): R<TstInfo> => {
+    const { take, remaining } = takeFrom(seq)
+
+    const versionR = take(asInteger)
+    if (versionR[0] === 'error') { return versionR }
+    const version = versionR[1]
+
+    const policyR = take(asOid)
+    if (policyR[0] === 'error') { return policyR }
+    const policy = policyR[1]
+
+    const msgImprintSeqR = take(asSequence)
+    if (msgImprintSeqR[0] === 'error') { return msgImprintSeqR }
+    const messageImprintR = parseMessageImprint(msgImprintSeqR[1])
+    if (messageImprintR[0] === 'error') { return messageImprintR }
+    const messageImprint = messageImprintR[1]
+
+    const serialNumberR = take(asInteger)
     if (serialNumberR[0] === 'error') { return serialNumberR }
     const serialNumber = serialNumberR[1]
 
-    const genTimeR = decodeGeneralizedTime(seq[4])
+    const genTimeR = take(decodeGeneralizedTime)
     if (genTimeR[0] === 'error') { return genTimeR }
     const genTime = genTimeR[1]
 
+    // nonce is optional; scan remaining fields (past accuracy/ordering) for an INTEGER
     let nonce: bigint | undefined
-    for (let i = 5; i < seq.length; i++) {
-        const r = seq[i]
-        if (!isVec(r) && r[0] === integer) {
-            nonce = r[1]
-            break
-        }
+    for (const r of remaining()) {
+        if (!isVec(r) && r[0] === integer) { nonce = r[1]; break }
     }
 
     return ok({
         version,
         policy,
-        messageImprint: { hashAlgorithm, hashedMessage },
+        messageImprint,
         serialNumber,
         genTime,
         ...(nonce !== undefined ? { nonce } : {}),
