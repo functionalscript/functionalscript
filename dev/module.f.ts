@@ -7,10 +7,10 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
-import { readFile, type ReadFile } from '../types/effect/node/module.f.ts'
+import { readFile, type ReadFile } from '../types/effects/node/module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import type { Effect } from '../types/effect/module.f.ts'
+import type { Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
