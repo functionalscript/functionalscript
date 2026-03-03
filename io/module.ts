@@ -43,4 +43,6 @@ export const ioRun = (io: Io): NodeRun => {
     return p => r(p(argv))
 }
 
-export default ioRun(io)
+const effectRun: NodeRun = ioRun(io)
+
+export default effectRun
