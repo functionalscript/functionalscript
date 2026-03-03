@@ -136,6 +136,8 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const playwrightVersion = '1.58.2'
 
+const playwright = `playwright@${playwrightVersion}`
+
 const playwrightCachePath = (v: Os) => {
     switch (v) {
         case 'macos': return '~/Library/Caches/ms-playwright'
@@ -184,7 +186,8 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
-const steps = (v: Os) => (a: Architecture): readonly Step[] => {
+const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
+    const id = `${v}-${a}`
     const result: readonly MetaStep[] = [
         // Rust
         test({ run: 'cargo fmt -- --check' }),
@@ -211,8 +214,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
             // Playwright
-            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${v}-${a}-playwright-${playwrightVersion}` } }),
-            install({ run: `npm install -g playwright@${playwrightVersion}`}),
+            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${id}-${playwright}` } }),
+            install({ run: `npm install -g ${playwright}`}),
             install({ run: 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
                 (test({ run: `npx playwright test --browser=${browser}` }))),
@@ -239,16 +242,11 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             test({ run: 'bun ./fjs/module.ts t' }),
         ]),
     ]
-    return toSteps(result)
+    return [id, { 'runs-on': images[v][a], steps: toSteps(result) }]
 }
 
 const jobs = {
-    ...Object.fromEntries([
-        ...os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
-            'runs-on': images[v][a],
-            steps: steps(v)(a),
-        }]))
-    ]),
+    ...Object.fromEntries(os.flatMap(v => architecture.map(a => job(v)(a)))),
     ...nodeVersions,
 }
 
