@@ -191,6 +191,19 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
+const i686 = (a: Architecture, v: Os) => {
+    if (a === 'intel') {
+        switch (v) {
+            case 'windows': return customTarget('i686-pc-windows-msvc')
+            case 'ubuntu': return [
+                { type: 'apt-get', package: 'libc6-dev-i386' } as const,
+                ...customTarget('i686-unknown-linux-gnu'),
+            ]
+        }
+    }
+    return []
+}
+
 const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
     const id = `${v}-${a}`
     const image = images[v][a]
@@ -205,15 +218,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ...wasmTarget('wasm32-wasip2'),
         ...wasmTarget('wasm32-unknown-unknown'),
         ...wasmTarget('wasm32-wasip1-threads'),
-        ...(a !== 'intel' ? [] :
-            v === 'windows' ?
-                customTarget('i686-pc-windows-msvc') :
-            v === 'ubuntu' ? [
-                { type: 'apt-get', package: 'libc6-dev-i386' } as const,
-                ...customTarget('i686-unknown-linux-gnu'),
-            ]:
-            []
-        ),
+        ...i686(a, v),
         // Node.js
         ...node('24')([
             // TypeScript Preview
