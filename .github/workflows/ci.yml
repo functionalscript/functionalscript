@@ -33,7 +33,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/.cache/ms-playwright",
+            "key": "ubuntu-intel-playwright-1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -210,7 +217,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/.cache/ms-playwright",
+            "key": "ubuntu-arm-playwright-1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -381,7 +395,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/Library/Caches/ms-playwright",
+            "key": "macos-intel-playwright-1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -552,7 +573,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/Library/Caches/ms-playwright",
+            "key": "macos-arm-playwright-1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -723,7 +751,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/AppData/Local/ms-playwright",
+            "key": "windows-intel-playwright-1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -900,7 +935,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/AppData/Local/ms-playwright",
+            "key": "windows-arm-playwright-1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"

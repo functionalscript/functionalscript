@@ -134,6 +134,18 @@ const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaSte
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
+const playwrightVersion = '1.58.2'
+
+const playwrightCachePath = (v: Os) => {
+    switch (v) {
+        case 'macos': return '~/Library/Caches/ms-playwright'
+        case 'windows': return '~/AppData/Local/ms-playwright'
+        default: return '~/.cache/ms-playwright'
+    }
+}
+
+const rustToolchain = '1.93.1'
+
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
@@ -143,7 +155,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
         ...(rust ? [{
-            uses: 'dtolnay/rust-toolchain@1.93.1',
+            uses: `dtolnay/rust-toolchain@${rustToolchain}`,
             with: {
                 components: 'rustfmt,clippy',
                 targets
@@ -199,7 +211,8 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
             // Playwright
-            install({ run: 'npm install -g playwright'}),
+            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${v}-${a}-playwright-${playwrightVersion}` } }),
+            install({ run: `npm install -g playwright@${playwrightVersion}`}),
             install({ run: 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
                 (test({ run: `npx playwright test --browser=${browser}` }))),
