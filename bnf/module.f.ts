@@ -17,6 +17,10 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
 
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
+export const max: string = codePointListToString([0xFFFFFF])
+
+export const unicodeMax: string = codePointListToString([0x10FFFF])
+
 /** A sequence of rules. */
 export type Sequence = readonly Rule[]
 
@@ -45,8 +49,6 @@ const offset = 24
 const mask = (1 << offset) - 1
 
 const isValid = (r: number): boolean => r >= 0 && r <= mask
-
-export const max: string = codePointListToString([0x10FFFF])
 
 export const rangeEncode = (a: number, b: number): TerminalRange => {
     if (!isValid(a) || !isValid(b) || a > b) {
