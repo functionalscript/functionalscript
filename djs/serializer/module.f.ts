@@ -1,3 +1,8 @@
+/**
+ * DJS serializer for formatting AST values back to source text.
+ *
+ * @module
+ */
 import type { Unknown, Object } from '../module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.ts'
 import type { Entry as ObjectEntry } from '../../types/object/module.f.ts'

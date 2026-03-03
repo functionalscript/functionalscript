@@ -1,3 +1,8 @@
+/**
+ * Content-addressable Base32 encoding and decoding helpers.
+ *
+ * @module
+ */
 import { msb, lsb, type Vec, length, vec, empty } from "../bit_vec/module.f.ts"
 import type { Nullable } from "../nullable/module.f.ts"
 

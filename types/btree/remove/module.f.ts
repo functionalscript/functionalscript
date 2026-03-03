@@ -1,3 +1,8 @@
+/**
+ * Removal operations for persistent B-tree structures.
+ *
+ * @module
+ */
 import type { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { type Path, type PathItem, find } from '../find/module.f.ts'

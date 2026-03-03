@@ -1,3 +1,8 @@
+/**
+ * Tokenizer for converting DJS source text into lexical tokens.
+ *
+ * @module
+ */
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import { empty, flat, map, stateScan, type List } from '../../types/list/module.f.ts'
 import { multiply } from '../../types/bigfloat/module.f.ts'

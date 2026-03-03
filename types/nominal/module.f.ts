@@ -1,3 +1,8 @@
+/**
+ * Nominal typing helpers for branded TypeScript types.
+ *
+ * @module
+ */
 /// Nominal type.
 ///
 /// It doesn't allow `===` between different nominal types.

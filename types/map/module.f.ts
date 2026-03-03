@@ -1,3 +1,8 @@
+/**
+ * Persistent map operations built on ordered collections.
+ *
+ * @module
+ */
 const concat = <T>(x: Iterable<T>, y: Iterable<T>): Iterable<T> => ({
     *[Symbol.iterator]() {
         yield* x

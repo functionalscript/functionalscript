@@ -1,3 +1,8 @@
+/**
+ * Continuous integration helper commands for repository automation tasks.
+ *
+ * @module
+ */
 import { utf8 } from '../text/module.f.ts'
 import { writeFile, type NodeEffect } from '../types/effect/node/module.f.ts'
 

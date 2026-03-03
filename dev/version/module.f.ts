@@ -1,3 +1,8 @@
+/**
+ * Version management helpers for updating project package versions.
+ *
+ * @module
+ */
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { all } from "../../types/effect/module.f.ts"
 import { type NodeEffect, readFile, writeFile } from "../../types/effect/node/module.f.ts"

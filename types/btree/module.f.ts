@@ -1,3 +1,8 @@
+/**
+ * Core persistent B-tree construction and traversal helpers.
+ *
+ * @module
+ */
 import { flat, type List, type Thunk } from '../list/module.f.ts'
 import { map } from '../nullable/module.f.ts'
 import type { TNode, Tree } from './types/module.f.ts'

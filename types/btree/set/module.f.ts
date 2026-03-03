@@ -1,3 +1,8 @@
+/**
+ * Insertion and update operations for persistent B-tree structures.
+ *
+ * @module
+ */
 import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
 import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'

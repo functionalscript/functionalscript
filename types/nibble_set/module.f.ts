@@ -1,3 +1,8 @@
+/**
+ * Nibble-set operations for compact 4-bit membership tracking.
+ *
+ * @module
+ */
 export type NibbleSet = number
 export type Nibble = number
 
