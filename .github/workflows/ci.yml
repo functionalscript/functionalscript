@@ -5,7 +5,7 @@
   },
   "jobs": {
     "ubuntu-intel": {
-      "runs-on": "ubuntu-latest",
+      "runs-on": "ubuntu-24.04",
       "steps": [
         {
           "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
@@ -33,7 +33,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/.cache/ms-playwright",
+            "key": "ubuntu-24.04-playwright@1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -210,7 +217,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/.cache/ms-playwright",
+            "key": "ubuntu-24.04-arm-playwright@1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -356,7 +370,7 @@
       ]
     },
     "macos-intel": {
-      "runs-on": "macos-15-intel",
+      "runs-on": "macos-26-intel",
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.93.1",
@@ -381,7 +395,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/Library/Caches/ms-playwright",
+            "key": "macos-26-intel-playwright@1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -527,7 +548,7 @@
       ]
     },
     "macos-arm": {
-      "runs-on": "macos-latest",
+      "runs-on": "macos-26",
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.93.1",
@@ -552,7 +573,14 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/Library/Caches/ms-playwright",
+            "key": "macos-26-playwright@1.58.2"
+          }
+        },
+        {
+          "run": "npm install -g playwright@1.58.2"
         },
         {
           "run": "playwright install --with-deps"
@@ -698,7 +726,7 @@
       ]
     },
     "windows-intel": {
-      "runs-on": "windows-latest",
+      "runs-on": "windows-2025",
       "steps": [
         {
           "uses": "dtolnay/rust-toolchain@1.93.1",
@@ -723,10 +751,17 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/AppData/Local/ms-playwright",
+            "key": "windows-2025-playwright@1.58.2"
+          }
         },
         {
-          "run": "playwright install --with-deps"
+          "run": "npm install -g playwright@1.58.2"
+        },
+        {
+          "run": "playwright install"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -900,10 +935,17 @@
           "run": "npm install -g @typescript/native-preview"
         },
         {
-          "run": "npm install -g playwright"
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "~/AppData/Local/ms-playwright",
+            "key": "windows-11-arm-playwright@1.58.2"
+          }
         },
         {
-          "run": "playwright install --with-deps"
+          "run": "npm install -g playwright@1.58.2"
+        },
+        {
+          "run": "playwright install"
         },
         {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
@@ -1043,7 +1085,7 @@
       ]
     },
     "node20": {
-      "runs-on": "ubuntu-latest",
+      "runs-on": "ubuntu-24.04",
       "steps": [
         {
           "uses": "actions/setup-node@v6",
@@ -1063,7 +1105,7 @@
       ]
     },
     "node22": {
-      "runs-on": "ubuntu-latest",
+      "runs-on": "ubuntu-24.04",
       "steps": [
         {
           "uses": "actions/setup-node@v6",
@@ -1083,7 +1125,7 @@
       ]
     },
     "node25": {
-      "runs-on": "ubuntu-latest",
+      "runs-on": "ubuntu-24.04",
       "steps": [
         {
           "uses": "actions/setup-node@v6",

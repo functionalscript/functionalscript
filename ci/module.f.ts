@@ -17,15 +17,15 @@ type Architecture = typeof architecture[number]
 // https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 const images = {
     ubuntu: {
-        intel: 'ubuntu-latest',
+        intel: 'ubuntu-24.04',
         arm: 'ubuntu-24.04-arm'
     },
     macos: {
-        intel: 'macos-15-intel',
-        arm: 'macos-latest'
+        intel: 'macos-26-intel',
+        arm: 'macos-26'
     },
     windows: {
-        intel: 'windows-latest',
+        intel: 'windows-2025',
         arm: 'windows-11-arm',
     }
 } as const
@@ -139,6 +139,20 @@ const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaSte
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
+const playwrightVersion = '1.58.2'
+
+const playwright = `playwright@${playwrightVersion}`
+
+const playwrightCachePath = (v: Os) => {
+    switch (v) {
+        case 'macos': return '~/Library/Caches/ms-playwright'
+        case 'windows': return '~/AppData/Local/ms-playwright'
+        default: return '~/.cache/ms-playwright'
+    }
+}
+
+const rustToolchain = '1.93.1'
+
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
@@ -148,7 +162,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
         ...(rust ? [{
-            uses: 'dtolnay/rust-toolchain@1.93.1',
+            uses: `dtolnay/rust-toolchain@${rustToolchain}`,
             with: {
                 components: 'rustfmt,clippy',
                 targets
@@ -171,13 +185,28 @@ const nodeSteps = (v: string) => [
 ]
 
 const ubuntu = (ms: readonly MetaStep[]): Job => ({
-    'runs-on': 'ubuntu-latest',
+    'runs-on': 'ubuntu-24.04',
     steps: toSteps(ms)
 })
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
-const steps = (v: Os) => (a: Architecture): readonly Step[] => {
+const i686 = (a: Architecture, v: Os) => {
+    if (a === 'intel') {
+        switch (v) {
+            case 'windows': return customTarget('i686-pc-windows-msvc')
+            case 'ubuntu': return [
+                { type: 'apt-get', package: 'libc6-dev-i386' } as const,
+                ...customTarget('i686-unknown-linux-gnu'),
+            ]
+        }
+    }
+    return []
+}
+
+const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
+    const id = `${v}-${a}`
+    const image = images[v][a]
     const result: readonly MetaStep[] = [
         // Rust
         test({ run: 'cargo fmt -- --check' }),
@@ -189,23 +218,20 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
         ...wasmTarget('wasm32-wasip2'),
         ...wasmTarget('wasm32-unknown-unknown'),
         ...wasmTarget('wasm32-wasip1-threads'),
-        ...(a !== 'intel' ? [] :
-            v === 'windows' ?
-                customTarget('i686-pc-windows-msvc') :
-            v === 'ubuntu' ? [
-                { type: 'apt-get', package: 'libc6-dev-i386' } as const,
-                ...customTarget('i686-unknown-linux-gnu'),
-            ]:
-            []
-        ),
+        ...i686(a, v),
         // Node.js
         ...node('24')([
             // TypeScript Preview
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
             // Playwright
-            install({ run: 'npm install -g playwright'}),
-            install({ run: 'playwright install --with-deps' }),
+            install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${image}-${playwright}` } }),
+            install({ run: `npm install -g ${playwright}`}),
+            // Windows runner images already include required features (e.g. Media Foundation),
+            // so --with-deps is unnecessary and slow (~3min) on Windows.
+            install({ run: v === 'windows' ? 'playwright install' : 'playwright install --with-deps' }),
+            // we have to use `npx` to make sure that we respect `@playwright/test` version from
+            // the `package.json`.
             ...['chromium', 'firefox', 'webkit'].map(browser =>
                 (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing
@@ -231,16 +257,11 @@ const steps = (v: Os) => (a: Architecture): readonly Step[] => {
             test({ run: 'bun ./fjs/module.ts t' }),
         ]),
     ]
-    return toSteps(result)
+    return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
 const jobs = {
-    ...Object.fromEntries([
-        ...os.flatMap(v => architecture.map(a => [`${v}-${a}`, {
-            'runs-on': images[v][a],
-            steps: steps(v)(a),
-        }]))
-    ]),
+    ...Object.fromEntries(os.flatMap(v => architecture.map(job(v)))),
     ...nodeVersions,
 }
 
