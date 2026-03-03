@@ -1,3 +1,8 @@
+/**
+ * Virtual Node-effect operations for filesystem and process tests.
+ *
+ * @module
+ */
 import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"

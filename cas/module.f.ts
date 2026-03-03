@@ -1,3 +1,8 @@
+/**
+ * Content-addressable storage utilities for hashing, addressing, and path parsing.
+ *
+ * @module
+ */
 import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"

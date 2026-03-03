@@ -1,3 +1,8 @@
+/**
+ * FunctionalScript command utilities for compile workflows.
+ *
+ * @module
+ */
 import { strictEqual } from '../types/function/operator/module.f.ts'
 import {
     merge as rangeMapMerge,

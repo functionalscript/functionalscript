@@ -1,3 +1,8 @@
+/**
+ * Comparison function types and helpers.
+ *
+ * @module
+ */
 import type { Index3, Index5, Array2 } from '../../array/module.f.ts'
 
 export type Sign = -1|0|1

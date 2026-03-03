@@ -1,3 +1,8 @@
+/**
+ * Mock effect runtimes for testing effectful programs.
+ *
+ * @module
+ */
 import type { Effect, Operations } from "../module.f.ts"
 
 export type MemOperationMap<O extends Operations, S> = {

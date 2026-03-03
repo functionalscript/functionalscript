@@ -1,3 +1,8 @@
+/**
+ * Virtual I/O adapter implementations for deterministic testing.
+ *
+ * @module
+ */
 import type { Io, MakeDirectoryOptions, RmOptions } from '../module.f.ts'
 import { at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 

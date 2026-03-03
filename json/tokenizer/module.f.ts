@@ -1,3 +1,8 @@
+/**
+ * Tokenizer for JSON lexical analysis.
+ *
+ * @module
+ */
 import { type StateScan } from '../../types/function/operator/module.f.ts'
 import { concat, empty, flat, stateScan, type List } from '../../types/list/module.f.ts'
 import { multiply } from '../../types/bigfloat/module.f.ts'

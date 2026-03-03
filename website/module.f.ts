@@ -1,3 +1,8 @@
+/**
+ * Static website generation program for project landing content.
+ *
+ * @module
+ */
 import { htmlToString, type Element } from '../html/module.f.ts'
 import { type NodeEffect, writeFile } from '../types/effect/node/module.f.ts'
 import { utf8 } from '../text/module.f.ts'

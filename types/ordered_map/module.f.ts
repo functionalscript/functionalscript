@@ -1,3 +1,8 @@
+/**
+ * Ordered map operations with deterministic key traversal.
+ *
+ * @module
+ */
 import type { Tree } from '../btree/types/module.f.ts'
 import { value, find } from '../btree/find/module.f.ts'
 import { set } from '../btree/set/module.f.ts'

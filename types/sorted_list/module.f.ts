@@ -1,3 +1,8 @@
+/**
+ * Sorted immutable list helpers and merge operations.
+ *
+ * @module
+ */
 import type { Sign } from '../function/compare/module.f.ts'
 import { type List, next } from '../list/module.f.ts'
 import type { Nullable } from '../nullable/module.f.ts'

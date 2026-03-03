@@ -1,3 +1,8 @@
+/**
+ * Signing helpers built on secp256k1 and SHA-256 primitives.
+ *
+ * @module
+ */
 import type { Array2 } from '../../types/array/module.f.ts'
 import { bitLength, divUp, roundUp, type Unary } from '../../types/bigint/module.f.ts'
 import { empty, length, listToVec, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'

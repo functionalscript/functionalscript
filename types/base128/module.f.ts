@@ -1,3 +1,8 @@
+/**
+ * Base-128 encoding and decoding utilities over bit vectors.
+ *
+ * @module
+ */
 import { bitLength, mask } from '../bigint/module.f.ts'
 import { vec8, type Vec, msb } from '../bit_vec/module.f.ts'
 
