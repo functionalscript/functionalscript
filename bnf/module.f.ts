@@ -13,12 +13,24 @@ import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
  */
 export type TerminalRange = number
 
+/**
+ * Full 24-bit code point range packed into a single {@link TerminalRange}.
+ */
 export const fullRange: TerminalRange = 0x000000_FFFFFF
 
+/**
+ * Unicode scalar value range packed into a single {@link TerminalRange}.
+ */
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
+/**
+ * Maximal non-unicode code point encoded as a string value.
+ */
 export const max: string = codePointListToString([0xFFFFFF])
 
+/**
+ * Maximal unicode code point encoded as a string value.
+ */
 export const unicodeMax: string = codePointListToString([0x10FFFF])
 
 /** A sequence of rules. */
@@ -29,10 +41,19 @@ export type Variant = {
     readonly[k in string]: Rule
 }
 
+/**
+ * Data-only grammar rule.
+ */
 export type DataRule = Variant | Sequence | TerminalRange | string
 
+/**
+ * Lazily evaluated grammar rule.
+ */
 export type LazyRule = () => DataRule
 
+/**
+ * Grammar rule, either immediate data or lazy rule factory.
+ */
 export type Rule = DataRule | LazyRule
 
 // Internals:
@@ -57,10 +78,19 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
     return Number((BigInt(a) << BigInt(offset)) | BigInt(b))
 }
 
+/**
+ * Encodes a single symbol code point as a {@link TerminalRange}.
+ */
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
+/**
+ * End-of-file marker represented as one code point beyond unicode range.
+ */
 export const eof: TerminalRange = oneEncode(0x110000)
 
+/**
+ * Decodes a packed range into `[start, end]` code points.
+ */
 export const rangeDecode = (r: number): Array2<number> =>
     [Number(BigInt(r) >> BigInt(offset)), Number(BigInt(r) & BigInt(mask))]
 
@@ -69,6 +99,11 @@ const mapOneEncode = map(oneEncode)
 export const toSequence = (s: string): readonly TerminalRange[] =>
     toArray(mapOneEncode(stringToCodePointList(s)))
 
+/**
+ * Converts a string to a rule:
+ * - a single {@link TerminalRange} for one code point,
+ * - a sequence for multiple code points.
+ */
 export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
     const x = toSequence(s)
     return x.length === 1 ? x[0] : x
@@ -76,9 +111,17 @@ export const str = (s: string): readonly TerminalRange[] | TerminalRange => {
 
 const mapEntry = map((v: number) => [fromCodePoint(v), oneEncode(v)])
 
+/**
+ * Converts a string into a variant that maps each character to its code-point range.
+ */
 export const set = (s: string): RangeVariant =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
+/**
+ * Encodes a two-character string into a terminal range.
+ *
+ * @throws If `ab` does not contain exactly two unicode code points.
+ */
 export const range = (ab: string): TerminalRange => {
     const a = toArray(stringToCodePointList(ab))
     if (!isArray2(a)) {
@@ -127,21 +170,39 @@ export const remove = (range: TerminalRange, v: RangeVariant): RangeVariant => {
     return toVariantRangeSet(result)
 }
 
+/**
+ * Returns the complement set of the provided ranges over {@link fullRange}.
+ */
 export const not = (v: RangeVariant): RangeVariant =>
     remove(fullRange, v)
 
+/**
+ * Returns the complement set of a character set over {@link fullRange}.
+ */
 export const notSet = (s: string): RangeVariant =>
     not(set(s))
 
+/**
+ * Empty sequence type for optional grammar branches.
+ */
 export type None = readonly[]
 
+/**
+ * Shared empty sequence literal.
+ */
 export const none: None = []
 
+/**
+ * Optional grammar branch.
+ */
 export type Option<S> = {
     some: S
     none: None
 }
 
+/**
+ * Creates an option value from a required branch.
+ */
 export const option = <S extends Rule>(some: S): Option<S> => ({
     some,
     none,
@@ -173,19 +234,31 @@ export const repeat1Plus = <T extends Rule>(some: T): Repeat1Plus<T> =>
 
 export type Join1Plus<T, S> = readonly[T, Repeat0Plus<readonly[S, T]>]
 
+/**
+ * Repeats `some` one or more times separated by `separator`.
+ */
 export const join1Plus = <T extends Rule, S extends Rule>(some: T, separator: S): Join1Plus<T, S> =>
     [some, repeat0Plus([separator, some])]
 
 export type Join0Plus<T, S> = Option<readonly[T, Repeat0Plus<readonly[S, T]>]>
 
+/**
+ * Repeats `some` zero or more times separated by `separator`.
+ */
 export const join0Plus = <T extends Rule, S extends Rule>(some: T, separator: S): Rule =>
     option(join1Plus(some, separator))
 
 export type Repeat<T> = readonly T[]
 
+/**
+ * Repeats a rule a fixed number of times.
+ */
 export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
     toArray(listRepeat(some)(n))
 
+/**
+ * Determines whether a rule produces an empty sequence or empty string.
+ */
 export const isEmpty = (rule: Rule): boolean => {
     const d = typeof rule === 'function' ? rule() : rule
     return d === '' || (d instanceof Array && d.length === 0)
