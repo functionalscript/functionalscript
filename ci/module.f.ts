@@ -227,7 +227,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             // Playwright
             install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${image}-${playwright}` } }),
             install({ run: `npm install -g ${playwright}`}),
-            install({ run: 'playwright install --with-deps' }),
+            install({ run: v === 'windows' ? 'playwright install' : 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
                 (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing

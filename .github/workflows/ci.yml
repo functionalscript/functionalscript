@@ -761,7 +761,7 @@
           "run": "npm install -g playwright@1.58.2"
         },
         {
-          "run": "playwright install --with-deps"
+          "run": "playwright install"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -945,7 +945,7 @@
           "run": "npm install -g playwright@1.58.2"
         },
         {
-          "run": "playwright install --with-deps"
+          "run": "playwright install"
         },
         {
           "run": "irm deno.land/install.ps1 | iex; \"$env:USERPROFILE\\.deno\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
