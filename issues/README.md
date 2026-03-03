@@ -253,7 +253,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
-- [ ] 101. Monad's IO design.
+- [X] 101. Monad's IO design. Using Effects.
 - [X] 111. Fix `npm` publishing.
 - [ ] 112. CAS
 - [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
@@ -272,6 +272,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
     .pipe(v => writeFile('b', v))
     .result
   ```
+- [ ] 118. Create example repository and use it in CI.
 
 ## Language Specification
 
