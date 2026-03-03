@@ -136,13 +136,13 @@
           "run": "tsgo"
         },
         {
-          "run": "playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -314,13 +314,13 @@
           "run": "tsgo"
         },
         {
-          "run": "playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -492,13 +492,13 @@
           "run": "tsgo"
         },
         {
-          "run": "playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -670,13 +670,13 @@
           "run": "tsgo"
         },
         {
-          "run": "playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -854,13 +854,13 @@
           "run": "tsgo"
         },
         {
-          "run": "playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
@@ -1029,13 +1029,13 @@
           "run": "tsgo"
         },
         {
-          "run": "playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "npm pack"
