@@ -91,11 +91,7 @@ const installBun = installOnWindowsArm({
     path: 'bun.sh'
 })
 
-const installDeno = installOnWindowsArm({
-    def: { uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } },
-    name: 'deno',
-    path: 'deno.land'
-})
+const installDeno = install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } })
 
 const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
     const to = target ? ` --target ${target}` : ''
@@ -237,7 +233,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ]),
         // Deno
         ...clean([
-            installDeno(v)(a),
+            installDeno,
             test({ run: 'deno install' }),
             test({ run: 'deno task test' }),
             test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
