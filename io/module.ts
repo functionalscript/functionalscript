@@ -33,9 +33,7 @@ export const io: Io = {
     },
 }
 
-const runDefault: Run = run(io)
-
-export default runDefault
+export const legacyRun: Run = run(io)
 
 export type NodeRun = (p: NodeProgram) => Promise<number>
 
@@ -45,4 +43,4 @@ export const ioRun = (io: Io): NodeRun => {
     return p => r(p(argv))
 }
 
-export const nodeRun: NodeRun = ioRun(io)
+export default ioRun(io)
