@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import process from "node:process"
 import { concat } from '../path/module.f.ts'
 import type { NodeProgram } from '../types/effect/node/module.f.ts'
+import { error, ok } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
 
@@ -19,23 +20,21 @@ export const io: Io = {
     fetch,
     tryCatch: f => {
         try {
-            return ['ok', f()]
+            return ok(f())
         } catch (e) {
-            return ['error', e]
+            return error(e)
         }
     },
     asyncTryCatch: async f => {
         try {
-            return ['ok', await f()]
+            return ok(await f())
         } catch (e) {
-            return ['error', e]
+            return error(e)
         }
     },
 }
 
-const runDefault: Run = run(io)
-
-export default runDefault
+export const legacyRun: Run = run(io)
 
 export type NodeRun = (p: NodeProgram) => Promise<number>
 
@@ -45,4 +44,6 @@ export const ioRun = (io: Io): NodeRun => {
     return p => r(p(argv))
 }
 
-export const nodeRun: NodeRun = ioRun(io)
+const effectRun: NodeRun = ioRun(io)
+
+export default effectRun

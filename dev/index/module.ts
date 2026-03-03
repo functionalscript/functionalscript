@@ -1,4 +1,4 @@
 import { index } from "../module.f.ts"
-import node from '../../io/module.ts'
+import { legacyRun } from '../../io/module.ts'
 
-await node(index)
+legacyRun(index)

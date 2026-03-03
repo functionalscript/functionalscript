@@ -1,4 +1,4 @@
-import { nodeRun } from '../io/module.ts'
-import run from './module.f.ts'
+import run from '../io/module.ts'
+import app from './module.f.ts'
 
-await nodeRun(run)
+run(app)
