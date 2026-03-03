@@ -227,6 +227,8 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             // Playwright
             install({ uses: 'actions/cache@v4', with: { path: playwrightCachePath(v), key: `${image}-${playwright}` } }),
             install({ run: `npm install -g ${playwright}`}),
+            // Windows runner images already include required features (e.g. Media Foundation),
+            // so --with-deps is unnecessary and slow (~3min) on Windows.
             install({ run: v === 'windows' ? 'playwright install' : 'playwright install --with-deps' }),
             ...['chromium', 'firefox', 'webkit'].map(browser =>
                 (test({ run: `npx playwright test --browser=${browser}` }))),
