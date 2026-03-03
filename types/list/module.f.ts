@@ -1,3 +1,8 @@
+/**
+ * Immutable list data structure utilities and combinators.
+ *
+ * @module
+ */
 import { identity, fn, compose } from '../function/module.f.ts'
 import {
     addition,

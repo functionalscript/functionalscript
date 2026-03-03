@@ -1,3 +1,8 @@
+/**
+ * High-level DJS API for parsing, transpiling, and serializing modules.
+ *
+ * @module
+ */
 import type { Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'

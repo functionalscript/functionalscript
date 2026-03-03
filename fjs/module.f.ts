@@ -1,3 +1,8 @@
+/**
+ * FunctionalScript compiler entry points and command handlers.
+ *
+ * @module
+ */
 import { fromIo, type Io } from '../io/module.f.ts'
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'

@@ -1,3 +1,8 @@
+/**
+ * DJS parser that builds structured trees from DJS tokens.
+ *
+ * @module
+ */
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { fold, first, drop, toArray, length, concat, type List } from '../../types/list/module.f.ts'
 import type { Fold } from '../../types/function/operator/module.f.ts'

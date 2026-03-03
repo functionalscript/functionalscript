@@ -1,3 +1,8 @@
+/**
+ * Core effect type constructors and combinators.
+ *
+ * @module
+ */
 export type Operations = {
     readonly [command in string]: readonly [input: unknown, output: unknown]
 }

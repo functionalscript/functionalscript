@@ -1,3 +1,8 @@
+/**
+ * Experimental DJS parser implementation.
+ *
+ * @module
+ */
 import { descentParser } from "../../bnf/data/module.f.ts"
 import {
     eof,

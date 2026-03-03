@@ -1,3 +1,8 @@
+/**
+ * DJS transpiler for transforming parsed trees into JavaScript output.
+ *
+ * @module
+ */
 import { type Unknown } from '../module.f.ts'
 import { type Result, error, ok } from '../../types/result/module.f.ts'
 import { fold, drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'

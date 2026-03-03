@@ -1,3 +1,8 @@
+/**
+ * Utilities for nullable (`null`/`undefined`) value handling.
+ *
+ * @module
+ */
 import type { Option } from '../option/module.f.ts'
 
 export type Nullable<T> = T | null

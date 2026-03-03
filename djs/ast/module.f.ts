@@ -1,3 +1,8 @@
+/**
+ * AST types and helpers for the DJS representation.
+ *
+ * @module
+ */
 import type { Primitive, Array, Unknown } from '../module.f.ts'
 import { type List, concat, fold, last, map, take, toArray } from '../../types/list/module.f.ts'
 import type { Entry } from '../../types/ordered_map/module.f.ts'

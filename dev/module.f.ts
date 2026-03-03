@@ -1,3 +1,8 @@
+/**
+ * Development utilities for indexing modules and loading FunctionalScript files.
+ *
+ * @module
+ */
 import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'

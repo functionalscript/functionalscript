@@ -1,3 +1,8 @@
+/**
+ * Shared type definitions for persistent B-tree modules.
+ *
+ * @module
+ */
 import type { Array1, Array2 } from '../../array/module.f.ts'
 
 export type Leaf1<T> = Array1<T>

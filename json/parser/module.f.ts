@@ -1,3 +1,8 @@
+/**
+ * JSON parser that consumes tokenizer output into JSON values.
+ *
+ * @module
+ */
 import { error, ok, type Result } from '../../types/result/module.f.ts'
 import { type List, fold, first, drop, toArray, concat } from '../../types/list/module.f.ts'
 import { type Fold } from '../../types/function/operator/module.f.ts'

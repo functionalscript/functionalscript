@@ -1,3 +1,8 @@
+/**
+ * Big-float helpers built from bigint mantissa and exponent parts.
+ *
+ * @module
+ */
 import { abs, sign } from '../bigint/module.f.ts'
 
 export type BigFloat = readonly[bigint,number]
