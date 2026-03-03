@@ -230,8 +230,10 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             // Windows runner images already include required features (e.g. Media Foundation),
             // so --with-deps is unnecessary and slow (~3min) on Windows.
             install({ run: v === 'windows' ? 'playwright install' : 'playwright install --with-deps' }),
+            // we have to use `npx` to make sure that we respect `@playwright/test` version from
+            // the `package.json`.
             ...['chromium', 'firefox', 'webkit'].map(browser =>
-                (test({ run: `playwright test --browser=${browser}` }))),
+                (test({ run: `npx playwright test --browser=${browser}` }))),
             // publishing
             test({ run: 'npm pack' }),
             test({ run: `npm install -g ${findTgz(v)}` }),
