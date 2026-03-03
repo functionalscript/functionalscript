@@ -268,7 +268,8 @@ require setting a flag when walking through a test tree as soon as a node has a 
   readFile('a.txt')
     .pipe(v => writeFile('b', v))
   // proposal
-  effect(readFile('a.txt'))
+  effect
+    .pipe(() => readFile('a.txt'))
     .pipe(v => writeFile('b', v))
     .result
   ```
