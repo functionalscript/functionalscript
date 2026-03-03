@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Base128: bug fix [688](https://github.com/functionalscript/functionalscript/pull/688)
 - Effect: `fetch` [684](https://github.com/functionalscript/functionalscript/pull/684)
 - ASN.1: Unsupported tags. New module: Base128 [682](https://github.com/functionalscript/functionalscript/pull/682)
 - ASN.1: integer, boolean, sequence, set [679](https://github.com/functionalscript/functionalscript/pull/679)
