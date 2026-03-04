@@ -10,7 +10,7 @@ import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
 import { readFile, type ReadFile } from '../types/effects/node/module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import type { Effect } from '../types/effects/module.f.ts'
+import { map, step, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -72,7 +72,6 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
         if (f.endsWith('.f.js') ||
             (f.endsWith('.f.ts') && !existsSync(f.substring(0, f.length - 3) + '.js'))
         ) {
-            console.log(f)
             const source = await asyncImport(f)
             map = [...map, [f, source]]
         }
@@ -82,9 +81,7 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
 
 const denoJson = './deno.json'
 
-const index2: Effect<ReadFile, unknown> = updateVersion
-    .pipe(() => readFile(denoJson))
-    .map(v => JSON.parse(utf8ToString(unwrap(v))))
+const index2: Effect<ReadFile, unknown> = step(updateVersion)(() => map(readFile(denoJson))(v => JSON.parse(utf8ToString(unwrap(v)))))
 
 export const index = async (io: Io): Promise<number> => {
     const runner = fromIo(io)
