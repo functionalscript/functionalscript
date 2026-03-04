@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.10.1",
+  "version": "0.10.3",
   "type": "module",
   "files": [
     "**/*.js",
@@ -14,9 +14,9 @@
     "index": "node ./dev/index/module.ts",
     "fst": "node ./fjs/module.ts t",
     "fjs": "node ./fjs/module.ts",
-    "ci-update": "node ./ci/module.ts",
+    "ci-update": "node ./fjs/module.ts r ./ci/module.f.ts",
     "update": "git clean -fdx && npm install && npm run index && npm run ci-update",
-    "website": "node --experimental-strip-types ./website/module.ts"
+    "website": "node --experimental-strip-types ./fjs/module.ts r ./website/module.f.ts"
   },
   "engines": {
     "node": ">=20"
