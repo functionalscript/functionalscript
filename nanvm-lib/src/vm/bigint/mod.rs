@@ -57,34 +57,41 @@ impl<A: IVm> BigInt<A> {
 
     // NOTE: use .index_iter in abs_* helpers.
 
+    /// Panics if this BigInt is not normalized, i.e. if it has leading
+    /// (most-significant) zero words.
+    fn assert_normalized(&self) {
+        let items = self.0.items();
+        let len = items.length();
+        if len > 0 && items[len - 1] == 0 {
+            panic!("BigInt is not normalized (has leading zero words)");
+        }
+    }
+
+    /// Compare absolute values by looking at the most-significant words first.
+    ///
+    /// Precondition: both `self` and `rhs` must be normalized, i.e. they must
+    /// not contain leading (most-significant) zero words.
     fn abs_cmp_vec(self, rhs: Self) -> Ordering {
-        // Compare absolute values by looking at the most-significant words first.
-        // We obtain the underlying word slices directly and ignore any trailing
-        // zeros before performing a length and lexicographic comparison.
+        self.assert_normalized();
+        rhs.assert_normalized();
+
         let a = self.0.items();
         let b = rhs.0.items();
 
-        // Compute effective lengths without trailing zero words.
-        let mut len_a = a.length();
-        let mut len_b = b.length();
+        let len_a = a.length();
+        let len_b = b.length();
 
-        while len_a > 0 && a[len_a - 1] == 0 {
-            len_a -= 1;
-        }
-        while len_b > 0 && b[len_b - 1] == 0 {
-            len_b -= 1;
-        }
-
-        // Different effective lengths: the longer one (more significant words) is greater.
+        // Different lengths: the longer one (more significant words) is greater.
         if len_a != len_b {
             return len_a.cmp(&len_b);
         }
 
-        // Same effective length: compare from most-significant word down to least-significant.
-        while len_a > 0 {
-            len_a -= 1;
-            let wa = a[len_a];
-            let wb = b[len_a];
+        // Same length: compare from most-significant word down to least-significant.
+        let mut i = len_a;
+        while i > 0 {
+            i -= 1;
+            let wa = a[i];
+            let wb = b[i];
             if wa != wb {
                 return wa.cmp(&wb);
             }
@@ -94,6 +101,10 @@ impl<A: IVm> BigInt<A> {
     }
 
     fn abs_add_vec(self, rhs: Self) -> Vec<u64> {
+        // Precondition: both operands must be normalized.
+        self.assert_normalized();
+        rhs.assert_normalized();
+
         let mut iter_a = self.index_iter();
         let mut iter_b = rhs.index_iter();
         let mut carry: u128 = 0;
@@ -118,10 +129,17 @@ impl<A: IVm> BigInt<A> {
         if carry > 0 {
             out.push(carry as u64);
         }
+
+        // Postcondition: result must be normalized.
+        assert_vec_normalized(&out);
         out
     }
 
     fn abs_sub_vec(self, rhs: Self) -> Vec<u64> {
+        // Precondition: both operands must be normalized.
+        self.assert_normalized();
+        rhs.assert_normalized();
+
         let mut iter_a = self.index_iter();
         let mut iter_b = rhs.index_iter();
         let mut borrow: u64 = 0;
@@ -159,7 +177,21 @@ impl<A: IVm> BigInt<A> {
                 break;
             }
         }
+
+        // Postcondition: result must be normalized.
+        assert_vec_normalized(&out);
         out
+    }
+}
+
+/// Panics if the slice is not normalized, i.e. if it has leading
+/// (most-significant) zero words.
+/// TODO: merge assert_vec_normalized, assert_normalized logic.
+fn assert_vec_normalized(v: &[u64]) {
+    if let Some(&last) = v.last() {
+        if last == 0 {
+            panic!("BigInt is not normalized (has leading zero words)");
+        }
     }
 }
 
@@ -274,7 +306,7 @@ mod tests {
         // Since higher word is more significant, self should be greater despite lower word being smaller
         let self_val = TestBigInt::new(crate::sign::Sign::Positive, vec![5u64, 10u64]);
         let rhs_val = TestBigInt::new(crate::sign::Sign::Positive, vec![20u64, 9u64]);
-        
+
         assert_eq!(self_val.abs_cmp_vec(rhs_val), Ordering::Greater);
     }
 
