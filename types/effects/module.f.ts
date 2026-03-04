@@ -7,16 +7,16 @@ export type Operations = {
     readonly [command in string]: readonly [input: unknown, output: unknown]
 }
 
-export type Effect<O extends Operations, T> = Pure<T> | Do<O, T>
+export type Effect<O extends Operations, T> = Pure<O, T> | Do<O, T>
 
-export type Pure<T> = readonly [T]
+export type Pure<O, T> = readonly [T]
 
 export type One<O extends Operations, T, K extends keyof O & string> =
     readonly [K, O[K][0], (input: O[K][1]) => Effect<O, T>]
 
 export type Do<O extends Operations, T> = { readonly [K in keyof O & string]: One<O, T, K> }[keyof O & string]
 
-export const pure = <T>(value: T): Pure<T> => [value]
+export const pure = <O extends Operations, T>(value: T): Pure<O, T> => [value]
 
 const doFull = <O extends Operations, K extends keyof O & string, T>(
     cmd: K,

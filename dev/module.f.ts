@@ -10,7 +10,7 @@ import { encodeUtf8 } from '../types/uint8array/module.f.ts'
 import { all, readdir, readFile, writeFile, type All, type Readdir, type ReadFile } from '../types/effects/node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { fluent, pure, type Effect } from '../types/effects/module.f.ts'
+import { fluent, pure, type Do, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -38,11 +38,11 @@ export const env
 
 type ModuleArray = readonly (readonly[string, Module])[]
 
-export const allFiles2 = (s: string): Effect<Readdir|All, readonly string[]> => {
-    const load = (p: string): Effect<Readdir|All, readonly string[]> => fluent
+export const allFiles2 = (s: string): Effect<Readdir & All, readonly string[]> => {
+    const load = (p: string): Effect<Readdir & All, readonly string[]> => fluent
         .step(() => readdir(p, {}))
         .step(d => {
-            let result: readonly Effect<Readdir|All, readonly string[]>[] = []
+            let result: readonly Effect<Readdir & All, readonly string[]>[] = []
             for (const i of unwrap(d)) {
                 const { name } = i
                 if (name.startsWith('.')) { continue }
