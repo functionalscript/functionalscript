@@ -1,3 +1,10 @@
+/**
+ * @module
+ * Core BNF grammar primitives and helpers for describing parser rules.
+ *
+ * The module provides terminal-range encoding utilities, rule composition
+ * types, and set/range helpers used by FunctionalScript grammar definitions.
+ */
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
 import { type Array2, isArray2 } from '../types/array/module.f.ts'
 import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
