@@ -3,4 +3,4 @@
 import { main } from './module.f.ts'
 import { legacyRun } from '../io/module.ts'
 
-legacyRun(main)
+await legacyRun(main)
