@@ -24,8 +24,7 @@ export default {
         }
     },
     fetch: () => {
-        const v = run(virtual)
-        const [_, [t, result]] = v({
+        const [_, [t, result]] = virtual({
             ...emptyState,
             internet: {
                 'https://example.com/data': vec8(0x2An),
@@ -37,14 +36,13 @@ export default {
     },
     mkdir: {
         one: () => {
-            const v = run(virtual)
-            const [state, [t, result]] = v(emptyState)(mkdir('a'))
+            const [state, [t, result]] = virtual(emptyState)(mkdir('a'))
             if (t === 'error') { throw result }
             const a = state.root.a
             if (a === undefined || isVec(a)) { throw a }
         },
         rec: () => {
-            const [state, [t, result]] = run(virtual)(emptyState)(
+            const [state, [t, result]] = virtual(emptyState)(
                 mkdir('tmp/cache', { recursive: true })
             )
             if (t !== 'ok') { throw result }
@@ -54,7 +52,7 @@ export default {
             if (cache === undefined || isVec(cache)) { throw tmp }
         },
         nonRec: () => {
-            const [state, [t, result]] = run(virtual)(emptyState)(
+            const [state, [t, result]] = virtual(emptyState)(
                 mkdir('tmp/cache')
             )
             if (t !== 'error') { throw result }
@@ -63,21 +61,20 @@ export default {
     },
     readFile: {
         one: () => {
-            const v = run(virtual)
             const initial = {
                 ...emptyState,
                 root: {
                     hello: vec8(0x2An),
                 },
             }
-            const [state, [t, result]] = v(initial)(readFile('hello'))
+            const [state, [t, result]] = virtual(initial)(readFile('hello'))
             if (t === 'error') { throw result }
             if (!isVec(result)) { throw result }
             if (uint(result) !== 0x2An) { throw result }
             if (state.root.hello === undefined) { throw state.root }
         },
         nested: () => {
-            const [_, [tag, result]] = run(virtual)({
+            const [_, [tag, result]] = virtual({
                 ...emptyState,
                 root: { tmp: { cache: vec8(0x15n) } }
             })(readFile('tmp/cache'))
@@ -85,18 +82,18 @@ export default {
             if (uint(result) !== 0x15n) { throw result }
         },
         noSuchFile: () => {
-            const [_, [t, result]] = run(virtual)(emptyState)(readFile('hello'))
+            const [_, [t, result]] = virtual(emptyState)(readFile('hello'))
             if (t !== 'error') { throw result }
         },
         nestedPath: () => {
-            const [_, [t, result]] = run(virtual)(emptyState)(readFile('tmp/cache'))
+            const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             if (t !== 'error') { throw result }
             if (result !== 'no such file') { throw result }
         }
     },
     readdir: {
         one: () => {
-            const [_, [t, result]] = run(virtual)({
+            const [_, [t, result]] = virtual({
                 ...emptyState,
                 root: {
                     file: vec8(0x2An),
@@ -112,7 +109,7 @@ export default {
             if (dirA === undefined || dirA.parentPath !== '/dir') { throw `dirA: ${dirA?.parentPath}` }
         },
         nonRecursive: () => {
-            const [_, [t, result]] = run(virtual)({
+            const [_, [t, result]] = virtual({
                 ...emptyState,
                 root: {
                     file: vec8(0x2An),
@@ -129,7 +126,7 @@ export default {
             if (dir === undefined) { throw dir }
         },
         nested: () => {
-            const [_, [t, result]] = run(virtual)({
+            const [_, [t, result]] = virtual({
                 ...emptyState,
                 root: { tmp: { cache: vec8(0x15n) } }
             })(readdir('tmp', { recursive: true }))
@@ -140,14 +137,14 @@ export default {
             if (r0.parentPath !== 'tmp') { throw r0 }
         },
         noSuchDir: () => {
-            const [_, [t, result]] = run(virtual)(emptyState)(readdir('tmp', { recursive: true }))
+            const [_, [t, result]] = virtual(emptyState)(readdir('tmp', { recursive: true }))
             if (t !== 'error') { throw result }
             if (result !== 'invalid path') { throw result }
         },
     },
     writeFile: {
         one: () => {
-            const [state, [t, result]] = run(virtual)(emptyState)(
+            const [state, [t, result]] = virtual(emptyState)(
                 writeFile('hello', vec8(0x2An))
             )
             if (t !== 'ok') { throw result }
@@ -156,7 +153,7 @@ export default {
             if (uint(file) !== 0x2An) { throw file }
         },
         overwrite: () => {
-            const [state, [t, result]] = run(virtual)({
+            const [state, [t, result]] = virtual({
                 ...emptyState,
                 root: {
                     hello: vec8(0x15n),
@@ -170,7 +167,7 @@ export default {
             if (uint(file) !== 0x2An) { throw file }
         },
         nestedPath: () => {
-            const [state, [t, result]] = run(virtual)(emptyState)(
+            const [state, [t, result]] = virtual(emptyState)(
                 writeFile('tmp/cache', vec8(0x2An))
             )
             if (t !== 'error') { throw result }
@@ -178,7 +175,7 @@ export default {
             if (state.root.tmp !== undefined) { throw state.root }
         },
         directory: () => {
-            const [state, [t, result]] = run(virtual)({
+            const [state, [t, result]] = virtual({
                 ...emptyState,
                 root: {
                     tmp: {},

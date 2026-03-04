@@ -1,8 +1,6 @@
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { isVec } from '../../types/bit_vec/module.f.ts'
-import { run } from '../../types/effects/mock/module.f.ts'
-import { all } from '../../types/effects/module.f.ts'
-import { writeFile } from '../../types/effects/node/module.f.ts'
+import { all, writeFile } from '../../types/effects/node/module.f.ts'
 import { emptyState, virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { updateVersion } from './module.f.ts'
 
@@ -85,13 +83,12 @@ const e = '{\n' +
 
 export default {
     new: () => {
-        const rv = run(virtual)
         const w = (name: string) => {
             const fn = `${name}.json`
             return writeFile(fn, utf8(JSON.stringify(x[fn])))
         }
-        const [state] = rv(emptyState)(all([w('package'), w('deno')]))
-        const [newState, result] = rv(state)(updateVersion)
+        const [state] = virtual(emptyState)(all(w('package'), w('deno')))
+        const [newState, result] = virtual(state)(updateVersion)
         if (result !== 0) { throw result }
         const vec = newState.root['package.json']
         if (!isVec(vec)) { throw vec }

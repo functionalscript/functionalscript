@@ -6,23 +6,24 @@
 import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
-import type { MemOperationMap } from "../../mock/module.f.ts"
+import { run, type MemOperationMap, type RunInstance } from "../../mock/module.f.ts"
+import { pure } from "../../module.f.ts"
 import type { Dirent, IoResult, NodeOperations } from "../module.f.ts"
 
-export type VirtualDir = {
-    readonly[name in string]?: VirtualDir | Vec
+export type Dir = {
+    readonly[name in string]?: Dir | Vec
 }
 
-export type VirtualState = {
+export type State = {
     stdout: string
     stderr: string
-    root: VirtualDir
+    root: Dir
     internet: {
         readonly[url: string]: Vec
     }
 }
 
-export const emptyState: VirtualState = {
+export const emptyState: State = {
     stdout: '',
     stderr: '',
     root: {},
@@ -30,9 +31,9 @@ export const emptyState: VirtualState = {
 }
 
 const operation =
-<T>(op: (dir: VirtualDir, path: readonly string[]) => readonly[VirtualDir, T]) =>
+<T>(op: (dir: Dir, path: readonly string[]) => readonly[Dir, T]) =>
 {
-    const f = (dir: VirtualDir, path: readonly string[]): readonly[VirtualDir, T] =>
+    const f = (dir: Dir, path: readonly string[]): readonly[Dir, T] =>
     {
         if (path.length === 0) {
             return op(dir, path)
@@ -45,20 +46,19 @@ const operation =
         const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
-    return (state: VirtualState, path: string) => {
+    return (state: State, path: string) => {
         const [root, result] = f(state.root, parse(path))
         return [{ ...state, root }, result] as const
     }
 }
 
-// TODO: we can have a better implementation with some code shared with `operation`.
-const readOperation = <T>(op: (dir: VirtualDir, path: readonly string[]) => T) => operation(
+const readOperation = <T>(op: (dir: Dir, path: readonly string[]) => T) => operation(
     (dir, path) => [dir, op(dir, path)]
 )
 
 const okVoid = ok(undefined)
 
-const mkdir = (recursive: boolean) => operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
+const mkdir = (recursive: boolean) => operation((dir, path): readonly[Dir, IoResult<void>] => {
     let d = {}
     let i = path.length
     if (i > 1 && !recursive) {
@@ -83,7 +83,7 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
 
 const writeFileError = error('invalid file')
 
-const writeFile = (payload: Vec) => operation((dir, path): readonly[VirtualDir, IoResult<void>] => {
+const writeFile = (payload: Vec) => operation((dir, path): readonly[Dir, IoResult<void>] => {
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
     const file = dir[name]
@@ -99,7 +99,7 @@ const { entries } = Object
 
 const readdir = (base: string, recursive: boolean) => readOperation((dir, path): IoResult<readonly Dirent[]> => {
     if (path.length !== 0) { return invalidPath }
-    const f = (parentPath: string, d: VirtualDir) => {
+    const f = (parentPath: string, d: Dir) => {
         let result: readonly Dirent[] = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
@@ -114,10 +114,19 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
     return ok(f(base, dir))
 })
 
-const console = (name: 'stderr'|'stdout') => (state: VirtualState, payload: string) =>
+const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
-export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
+const map: MemOperationMap<NodeOperations, State> = {
+    all: (state, a) => {
+        let e: readonly unknown[] = []
+        for (const i of a) {
+            const [ns, ei] = virtual(state)(i)
+            state = ns
+            e = [...e, ei]
+        }
+        return [state, pure(e)]
+    },
     error: console('stderr'),
     log: console('stdout'),
     fetch: (state, url) => {
@@ -129,3 +138,5 @@ export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
 }
+
+export const virtual: RunInstance<NodeOperations, State> = run(map)
