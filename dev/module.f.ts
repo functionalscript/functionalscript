@@ -58,7 +58,7 @@ export const allFiles2 = (s: string): Effect<Readdir & All, readonly string[]> =
             }
             return all(...result)
         })
-        .step(v => pure(v.flat()))
+        .step(v => pure(v.flat().flat()))
         .effect
     return load(s)
 }
@@ -115,6 +115,7 @@ const index2: Effect<ReadFile, unknown> = fluent
 const allFiles2a = (jsr_json: unknown) => fluent
     .step(() => allFiles2('.'))
     .step(files => {
+        // console.log(files)
         const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
         const exportsA = list.map(v => [v, `./${v.substring(2)}`])
         const exports = Object.fromEntries(exportsA)
