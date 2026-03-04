@@ -76,4 +76,4 @@ const run = async(): Promise<void> => {
     }
 }
 
-run()
+await run()
