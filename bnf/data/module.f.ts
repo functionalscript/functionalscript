@@ -131,6 +131,8 @@ export type Remainder = readonly CodePoint[] | null
 
 /**
  * Parsing result of {@link parser} and {@link parserRuleSet}.
+ * 
+ * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
  */
 export type MatchResult = readonly[AstRule, boolean, Remainder]
 
