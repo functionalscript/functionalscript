@@ -6,7 +6,7 @@
 import { htmlToString, type Element } from '../html/module.f.ts'
 import { type NodeEffect, writeFile } from '../types/effects/node/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
-import { fluent } from '../types/effects/module.f.ts'
+import { fluent, pure } from '../types/effects/module.f.ts'
 
 const html: Element = ['body',
     ['a', { href: 'https://github.com/functionalscript/functionalscript' }, 'GitHub Repository']
@@ -14,7 +14,7 @@ const html: Element = ['body',
 
 const program: NodeEffect<number> = fluent
     .step(() => writeFile('index.html', utf8(htmlToString(html))))
-    .map(() => 0)
+    .step(() => pure(0))
     .effect
 
 export default () => program

@@ -7,7 +7,7 @@ import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
 import { parse } from "../path/module.f.ts"
 import type { Vec } from "../types/bit_vec/module.f.ts"
 import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
-import { fluent, type Effect, type Operations } from "../types/effects/module.f.ts"
+import { fluent, pure, type Effect, type Operations } from "../types/effects/module.f.ts"
 import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOperations } from "../types/effects/node/module.f.ts"
 import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
@@ -37,7 +37,7 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
     read: (key: Vec): Effect<Fs, Vec|undefined> =>
         fluent
             .step(() => readFile(toPath(key)))
-            .map(([status, data]) => status === 'error' ? undefined : data)
+            .step(([status, data]) => pure(status === 'error' ? undefined : data))
             .effect,
     write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
@@ -47,15 +47,17 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
         return fluent
             .step(() => mkdir(dir, { recursive: true }))
             .step(() => writeFile(`${path}/${p}`, value))
-            .map(() => undefined)
+            .step(() => pure(undefined))
             .effect
     },
     list: (): Effect<Fs, readonly Vec[]> =>
         // TODO: remove unwrap
         fluent
             .step(() => readdir('.cas', { recursive: true }))
-            .map(r => unwrap(r).flatMap(({ name, parentPath, isFile }) =>
-                toOption(isFile ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name) : null)))
+            .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
+                toOption(isFile
+                    ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
+                    : null))))
             .effect,
 })
 
@@ -73,7 +75,7 @@ export const cas = (sha2: Sha2): <O extends Operations>(_: KvStore<O>) => Cas<O>
             const hash = compute([value])
             return fluent
                 .step(() => write(hash, value))
-                .map(() => hash)
+                .step(() => pure(hash))
                 .effect
         },
         list,
@@ -83,7 +85,7 @@ export const cas = (sha2: Sha2): <O extends Operations>(_: KvStore<O>) => Cas<O>
 const e = (s: string): Effect<NodeOperations, number> =>
     fluent
         .step(() => error(s))
-        .map(() => 1)
+        .step(() => pure(1))
         .effect
 
 export const main = (args: readonly string[]): Effect<NodeOperations, number> => {
@@ -99,7 +101,7 @@ export const main = (args: readonly string[]): Effect<NodeOperations, number> =>
                 .step(() => readFile(path))
                 .step(v => c.write(unwrap(v)))
                 .step(hash => log(vecToCBase32(hash)))
-                .map(() => 0)
+                .step(() => pure(0))
                 .effect
         }
         case 'get': {
@@ -118,7 +120,7 @@ export const main = (args: readonly string[]): Effect<NodeOperations, number> =>
                         ? e(`no such hash: ${hashCBase32}`)
                         : fluent
                             .step(() => writeFile(path, v))
-                            .map(() => 0)
+                            .step(() => pure(0))
                             .effect
                     return result
                 })
@@ -139,7 +141,7 @@ export const main = (args: readonly string[]): Effect<NodeOperations, number> =>
                     }
                     return i
                 })
-                .map(() => 0)
+                .step(() => pure(0))
                 .effect
         }
         case undefined: {
