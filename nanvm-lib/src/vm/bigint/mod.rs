@@ -256,7 +256,7 @@ mod tests {
     }
 
     // Tests for abs_add_vec
-    
+
     #[test]
     fn test_abs_add_vec_basic() {
         let a: TestBigInt = 123u64.into();
@@ -274,7 +274,7 @@ mod tests {
         let result = a.clone().abs_add_vec(b);
         let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
-        
+
         let c: TestBigInt = 0u64.into();
         let d: TestBigInt = 17u64.into();
         let result2 = c.abs_add_vec(d.clone());
@@ -287,7 +287,7 @@ mod tests {
         let a: TestBigInt = u64::MAX.into();
         let b: TestBigInt = 1u64.into();
         let result = a.abs_add_vec(b);
-        
+
         // u64::MAX + 1 should produce [0, 1] (carry to next digit)
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], 0u64);
@@ -298,16 +298,16 @@ mod tests {
     fn test_abs_add_vec_different_lengths() {
         let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
         let large = TestBigInt::new(crate::sign::Sign::Positive, vec![200u64, 1u64]);
-        
+
         let result1 = small.clone().abs_add_vec(large.clone());
         let result2 = large.abs_add_vec(small);
-        
+
         // Addition should be commutative
         assert_eq!(result1.len(), result2.len());
         for (a, b) in result1.iter().zip(result2.iter()) {
             assert_eq!(a, b);
         }
-        
+
         // Result should be [300, 1]
         assert_eq!(result1[0], 300u64);
         assert_eq!(result1[1], 1u64);
@@ -317,9 +317,9 @@ mod tests {
     fn test_abs_add_vec_multiple_carries() {
         let a = TestBigInt::new(crate::sign::Sign::Positive, vec![u64::MAX, u64::MAX]);
         let b: TestBigInt = 1u64.into();
-        
+
         let result = a.abs_add_vec(b);
-        
+
         // [u64::MAX, u64::MAX] + 1 should produce [0, 0, 1]
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], 0u64);
@@ -332,7 +332,7 @@ mod tests {
         let large: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
         let result = large.clone().abs_add_vec(large);
         let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
-        
+
         let expected: TestBigInt = 0xFFFF_FFFF_FFFF_FFFEu64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
     }
@@ -342,7 +342,7 @@ mod tests {
         let a: TestBigInt = 1000u64.into();
         let b: TestBigInt = 2000u64.into();
         let result = a.abs_add_vec(b);
-        
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], 3000u64);
     }
@@ -352,7 +352,7 @@ mod tests {
         let a: TestBigInt = 0u64.into();
         let b: TestBigInt = 0u64.into();
         let result = a.abs_add_vec(b);
-        
+
         // Zero might be represented as empty vector in this implementation
         assert!(result.is_empty() || (result.len() == 1 && result[0] == 0u64));
     }
@@ -373,7 +373,7 @@ mod tests {
     fn test_abs_sub_vec_same_numbers() {
         let a: TestBigInt = 12345u64.into();
         let result = a.clone().abs_sub_vec(a);
-        
+
         // Result should be zero (empty vec or [0])
         assert!(result.is_empty() || (result.len() == 1 && result[0] == 0u64));
     }
@@ -392,7 +392,7 @@ mod tests {
         let a: TestBigInt = 1000u64.into();
         let b: TestBigInt = 1u64.into();
         let result = a.abs_sub_vec(b);
-        
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], 999u64);
     }
@@ -401,9 +401,9 @@ mod tests {
     fn test_abs_sub_vec_different_lengths() {
         let large = TestBigInt::new(crate::sign::Sign::Positive, vec![300u64, 2u64]);
         let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        
+
         let result = large.abs_sub_vec(small);
-        
+
         // [300, 2] - [100] should be [200, 2]
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], 200u64);
@@ -414,9 +414,9 @@ mod tests {
     fn test_abs_sub_vec_borrow_propagation() {
         let a = TestBigInt::new(crate::sign::Sign::Positive, vec![0u64, 1u64]); // 2^64
         let b: TestBigInt = 1u64.into();
-        
+
         let result = a.abs_sub_vec(b);
-        
+
         // 2^64 - 1 should be u64::MAX
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], u64::MAX);
@@ -426,9 +426,9 @@ mod tests {
     fn test_abs_sub_vec_leading_zero_trim() {
         let a = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
         let b = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
-        
+
         let result = a.abs_sub_vec(b);
-        
+
         // Should trim leading zeros and result in empty or [0]
         assert!(result.is_empty() || (result.len() == 1 && result[0] == 0u64));
     }
@@ -438,7 +438,7 @@ mod tests {
         let a: TestBigInt = u64::MAX.into();
         let b: TestBigInt = (u64::MAX - 1000u64).into();
         let result = a.abs_sub_vec(b);
-        
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], 1000u64);
     }
@@ -448,7 +448,7 @@ mod tests {
         let a: TestBigInt = 5000u64.into();
         let b: TestBigInt = 2000u64.into();
         let result = a.abs_sub_vec(b);
-        
+
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], 3000u64);
     }
