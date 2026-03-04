@@ -55,13 +55,11 @@ export const map =
 export type Fluent<O extends Operations, T> = {
     readonly effect: Effect<O, T>
     readonly step: <O1 extends Operations, R>(f: (_: T) => Effect<O1, R>) => Fluent<O | O1, R>
-    readonly map: <R>(f: (_: T) => R) => Fluent<O, R>
 }
 
 const wrap = <O extends Operations, T>(effect: Effect<O, T>): Fluent<O, T> => ({
     effect,
     step: x => wrap(step(effect)(x)),
-    map: x => wrap(map(effect)(x)),
 })
 
 export const fluent: Fluent<{}, void> = wrap(pure(undefined))
