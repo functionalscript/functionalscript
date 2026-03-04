@@ -65,8 +65,8 @@ impl<A: IVm> BigInt<A> {
         let b = rhs.0.items();
 
         // Compute effective lengths without trailing zero words.
-        let mut len_a = a.len();
-        let mut len_b = b.len();
+        let mut len_a = a.length();
+        let mut len_b = b.length();
 
         while len_a > 0 && a[len_a - 1] == 0 {
             len_a -= 1;
@@ -264,6 +264,18 @@ mod tests {
         let large2: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
 
         assert_eq!(large1.abs_cmp_vec(large2), Ordering::Greater);
+    }
+
+    #[test]
+    fn test_abs_cmp_vec_two_digits_higher_word_dominates() {
+        // Test where self's lower word < rhs lower word, but self's higher word > rhs higher word
+        // self = [5, 10] represents 10 * 2^64 + 5
+        // rhs = [20, 9] represents 9 * 2^64 + 20
+        // Since higher word is more significant, self should be greater despite lower word being smaller
+        let self_val = TestBigInt::new(crate::sign::Sign::Positive, vec![5u64, 10u64]);
+        let rhs_val = TestBigInt::new(crate::sign::Sign::Positive, vec![20u64, 9u64]);
+        
+        assert_eq!(self_val.abs_cmp_vec(rhs_val), Ordering::Greater);
     }
 
     // Tests for abs_add_vec
