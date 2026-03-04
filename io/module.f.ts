@@ -121,7 +121,7 @@ export type Run = (f: App) => Promise<never>
  * Handles errors by exiting with code 1
  */
 export const run = (io: Io): Run => {
-    const code = ([x, b]: Result<number, unknown>) => {
+    const exitCode = ([x, b]: Result<number, unknown>) => {
         if (x === 'error') {
             io.console.error(b)
             return 1
@@ -129,7 +129,7 @@ export const run = (io: Io): Run => {
             return b
         }
     }
-    return async f => io.process.exit(code(await io.asyncTryCatch(() => f(io))))
+    return async f => io.process.exit(exitCode(await io.asyncTryCatch(() => f(io))))
 }
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
