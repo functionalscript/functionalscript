@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effects: generic `all` [704](https://github.com/functionalscript/functionalscript/pull/704)
+
 ## 0.10.3
 
 - Effects: No more `map`s. [699](https://github.com/functionalscript/functionalscript/pull/699).
