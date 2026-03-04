@@ -7,17 +7,17 @@ export type IoResult<T> = Result<T, unknown>
 // all
 
 export type All = {
-    readonly all: readonly [readonly Effect<Operations, unknown>[], Effect<Operations, readonly unknown[]>]
+    readonly all: readonly [readonly Effect<All, unknown>[], Effect<Operations, readonly unknown[]>]
 }
 
 export const all =
     <O extends Operations & All, T>(...a: readonly Effect<O, T>[]): Do<O, readonly T[]> =>
-    do_('all', a) as Do<O, readonly T[]>
+    do_('all', a as readonly Effect<All, T>[]) as Do<O, readonly T[]>
 
 export const both =
     <O0 extends Operations & All, T0>(a: Effect<O0, T0>) =>
     <O1 extends Operations & All, T1>(b: Effect<O1, T1>): Do<O0 | O1, readonly[T0, T1]> =>
-    do_('all', [a, b]) as Do<O0 | O1, readonly[T0, T1]>
+    all<O0 | O1, T0 | T1>(a, b) as Do<O0 | O1, readonly[T0, T1]>
 
 // fetch
 
@@ -110,7 +110,7 @@ export type Console = Log & Error
 // Node
 
 export type NodeOperations =
-    //& All
+    & All
     & Fetch
     & Console
     & Fs

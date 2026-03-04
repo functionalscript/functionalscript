@@ -3,10 +3,12 @@
  *
  * @module
  */
+import { todo } from "../../../../dev/module.f.ts"
 import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
-import type { MemOperationMap } from "../../mock/module.f.ts"
+import { run, type MemOperationMap } from "../../mock/module.f.ts"
+import { pure } from "../../module.f.ts"
 import type { Dirent, IoResult, NodeOperations } from "../module.f.ts"
 
 export type VirtualDir = {
@@ -117,7 +119,16 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
 const console = (name: 'stderr'|'stdout') => (state: VirtualState, payload: string) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
-export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
+const map: MemOperationMap<NodeOperations, VirtualState> = {
+    all: (state, a) => {
+        let e: readonly unknown[] = []
+        for (const i of a) {
+            const [ns, ei] = virtual(state)(i)
+            state = ns
+            e = [...e, ei]
+        }
+        return [state, pure(e)]
+    },
     error: console('stderr'),
     log: console('stdout'),
     fetch: (state, url) => {
@@ -129,3 +140,5 @@ export const virtual: MemOperationMap<NodeOperations, VirtualState> = {
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
 }
+
+export const virtual = run(map)

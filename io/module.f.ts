@@ -1,4 +1,6 @@
+import { todo } from '../dev/module.f.ts'
 import { normalize } from '../path/module.f.ts'
+import { pure } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
 import type { IoResult, NodeEffect } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
@@ -140,26 +142,31 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     }
 }
 
+export type EffectToPromise = <T>(effect: NodeEffect<T>) => Promise<T>
+
 export const fromIo = ({
     console: { error, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile } },
     fetch,
-}: Io): <T>(effect: NodeEffect<T>) => Promise<T> =>
-asyncRun({
-    error: async message => error(message),
-    log: async message => log(message),
-    fetch: async url => tc(async() => {
-        const response = await fetch(url)
-        if (!response.ok) {
-            throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
-        }
-        return toVec(new Uint8Array(await response.arrayBuffer()))
-    }),
-    mkdir: param => tc(async() => { await mkdir(...param) }),
-    readFile: path => tc(async() => toVec(await readFile(path))),
-    readdir: ([path, r]) => tc(async() =>
-        (await readdir(path, { ...r, withFileTypes: true }))
-        .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
-    ),
-    writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
-})
+}: Io): EffectToPromise => {
+    const result: EffectToPromise = asyncRun({
+        all: async a => pure(await Promise.all(a.map(result))),
+        error: async message => error(message),
+        log: async message => log(message),
+        fetch: async url => tc(async() => {
+            const response = await fetch(url)
+            if (!response.ok) {
+                throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
+            }
+            return toVec(new Uint8Array(await response.arrayBuffer()))
+        }),
+        mkdir: param => tc(async() => { await mkdir(...param) }),
+        readFile: path => tc(async() => toVec(await readFile(path))),
+        readdir: ([path, r]) => tc(async() =>
+            (await readdir(path, { ...r, withFileTypes: true }))
+            .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
+        ),
+        writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+    })
+    return result
+}

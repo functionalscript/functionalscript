@@ -85,13 +85,12 @@ const e = '{\n' +
 
 export default {
     new: () => {
-        const rv = run(virtual)
         const w = (name: string) => {
             const fn = `${name}.json`
             return writeFile(fn, utf8(JSON.stringify(x[fn])))
         }
-        const [state] = rv(emptyState)(all([w('package'), w('deno')]))
-        const [newState, result] = rv(state)(updateVersion)
+        const [state] = virtual(emptyState)(all([w('package'), w('deno')]))
+        const [newState, result] = virtual(state)(updateVersion)
         if (result !== 0) { throw result }
         const vec = newState.root['package.json']
         if (!isVec(vec)) { throw vec }
