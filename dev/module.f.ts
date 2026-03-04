@@ -6,11 +6,11 @@
 import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
-import { decodeUtf8, encodeUtf8 } from '../types/uint8array/module.f.ts'
-import { readFile, type ReadFile } from '../types/effect/node/module.f.ts'
+import { encodeUtf8 } from '../types/uint8array/module.f.ts'
+import { readFile, type ReadFile } from '../types/effects/node/module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import type { Effect } from '../types/effect/module.f.ts'
+import { fluent, pure, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -81,9 +81,11 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
 
 const denoJson = './deno.json'
 
-const index2: Effect<ReadFile, unknown> = updateVersion
-    .pipe(() => readFile(denoJson))
-    .map(v => JSON.parse(utf8ToString(unwrap(v))))
+const index2: Effect<ReadFile, unknown> = fluent
+    .step(() => updateVersion)
+    .step(() => readFile(denoJson))
+    .step(v => pure(JSON.parse(utf8ToString(unwrap(v)))))
+    .effect
 
 export const index = async (io: Io): Promise<number> => {
     const runner = fromIo(io)

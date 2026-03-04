@@ -1,6 +1,6 @@
 import { normalize } from '../path/module.f.ts'
-import { asyncRun } from '../types/effect/module.ts'
-import type { IoResult, NodeEffect } from '../types/effect/node/module.f.ts'
+import { asyncRun } from '../types/effects/module.ts'
+import type { IoResult, NodeEffect } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, toVec } from '../types/uint8array/module.f.ts'
 

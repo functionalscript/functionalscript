@@ -7,7 +7,7 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'
 import { main as casMain } from '../cas/module.f.ts'
-import type { NodeProgram } from '../types/effect/node/module.f.ts'
+import type { NodeProgram } from '../types/effects/node/module.f.ts'
 
 export const main = async(io: Io): Promise<number> => {
     const { error } = io.console

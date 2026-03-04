@@ -4,21 +4,21 @@
  * @module
  */
 import { utf8, utf8ToString } from "../../text/module.f.ts"
-import { all } from "../../types/effect/module.f.ts"
-import { type NodeEffect, readFile, writeFile } from "../../types/effect/node/module.f.ts"
+import { all, fluent, pure, step } from "../../types/effects/module.f.ts"
+import { type NodeEffect, readFile, writeFile } from "../../types/effects/node/module.f.ts"
 import { unwrap } from "../../types/result/module.f.ts"
 
 const { stringify, parse } = JSON
 
 const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
-const readJson = (name: string) =>
-    readFile(jsonFile(name))
-    .map(v => parse(utf8ToString(unwrap(v))))
+const readJson = (name: string) => fluent
+    .step(() =>readFile(jsonFile(name)))
+    .step(v => pure(parse(utf8ToString(unwrap(v)))))
+    .effect
 
 const writeVersion = (version: string) => (name: string) =>
-    readJson(name)
-    .pipe(json => writeFile(
+    step(readJson(name))(json => writeFile(
         jsonFile(name),
         utf8(stringify(
             {
@@ -30,10 +30,11 @@ const writeVersion = (version: string) => (name: string) =>
         ))
     ))
 
-export const updateVersion: NodeEffect<number> =
-    readJson('package')
-    .pipe(p => {
+export const updateVersion: NodeEffect<number> = fluent
+    .step(() => readJson('package'))
+    .step(p => {
         const w = writeVersion(p.version)
         return all([w('package'), w('deno')])
     })
-    .map(() => 0)
+    .step(() => pure(0))
+    .effect

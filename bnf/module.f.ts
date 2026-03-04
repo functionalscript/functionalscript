@@ -32,7 +32,7 @@ export const fullRange: TerminalRange = 0x000000_FFFFFF
 export const unicodeRange: TerminalRange = 0x000000_10FFFF
 
 /**
- * Maximal non-unicode symbol encoded as a string value.
+ * Maximal non-Unicode symbol encoded as a string value.
  */
 export const max: string = codePointListToString([0xFFFFFF])
 

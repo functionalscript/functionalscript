@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.3
+
+- Effects: No more `map`s. [699](https://github.com/functionalscript/functionalscript/pull/699).
+
+## 0.10.2
+
+- Effects: Effects: a new simplified `Effect` type. Also, we provide a `fluent` object for fluent programming. [698](https://github.com/functionalscript/functionalscript/pull/698)
+
 ## 0.10.1
 
 - FJS: running Node programs [696](https://github.com/functionalscript/functionalscript/pull/696)
