@@ -11,13 +11,13 @@ export type All = {
 }
 
 export const all =
-    <O extends Operations & All, T>(...a: readonly Effect<O, T>[]): Do<O, readonly T[]> =>
+    <O extends Operations | All, T>(...a: readonly Effect<O, T>[]): Do<O, readonly T[]> =>
     do_('all', a as readonly Effect<All, T>[]) as Do<O, readonly T[]>
 
 export const both =
-    <O0 extends Operations & All, T0>(a: Effect<O0, T0>) =>
-    <O1 extends Operations & All, T1>(b: Effect<O1, T1>): Do<O0 | O1, readonly[T0, T1]> =>
-    all<O0 | O1, T0 | T1>(a, b) as Do<O0 | O1, readonly[T0, T1]>
+    <O extends Operations | All, T0>(a: Effect<O, T0>) =>
+    <T1>(b: Effect<O, T1>): Do<O, readonly[T0, T1]> =>
+    all<O, T0 | T1>(a, b) as Do<O, readonly[T0, T1]>
 
 // fetch
 

@@ -4,8 +4,8 @@
  * @module
  */
 import { utf8, utf8ToString } from "../../text/module.f.ts"
-import { all, fluent, pure, step } from "../../types/effects/module.f.ts"
-import { type NodeEffect, readFile, writeFile } from "../../types/effects/node/module.f.ts"
+import { fluent, pure, step } from "../../types/effects/module.f.ts"
+import { all, type NodeEffect, readFile, writeFile } from "../../types/effects/node/module.f.ts"
 import { unwrap } from "../../types/result/module.f.ts"
 
 const { stringify, parse } = JSON
@@ -34,7 +34,7 @@ export const updateVersion: NodeEffect<number> = fluent
     .step(() => readJson('package'))
     .step(p => {
         const w = writeVersion(p.version)
-        return all([w('package'), w('deno')])
+        return all(w('package'), w('deno'))
     })
     .step(() => pure(0))
     .effect

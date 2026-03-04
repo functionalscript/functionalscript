@@ -66,9 +66,11 @@ export const fluent: Fluent<{}, void> = wrap(pure(undefined))
 
 const empty: Effect<{}, readonly never[]> = pure([])
 
+/*
 // TODO: replace with either a `Do` operation or as an addition to `Pure` and `Do`.
 export const all = <O extends Operations, T>(set: readonly Effect<O, T>[]): Effect<O, readonly T[]> =>
     set.reduce(
         (previous: Effect<O, readonly T[]>, current) =>
             step(previous)(previousResult => map(current)(currentResult => [...previousResult, currentResult])),
         empty)
+*/
