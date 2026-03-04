@@ -12,13 +12,13 @@ import {
     type Sequence as FSequence,
 } from '../module.f.ts'
 
-// The same as functional TerminalRange
 /**
  * Encoded terminal range value used by BNF data rules.
+ *
+ * The same as the functional TerminalRange.
  */
 export type TerminalRange = number
 
-// A sequence of rule names.
 /**
  * Ordered list of grammar rule names.
  */
