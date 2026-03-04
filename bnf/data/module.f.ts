@@ -1,3 +1,9 @@
+/**
+ * Provides grammar-to-data conversion and LL(1) dispatch/matching types and helpers
+ * for FunctionalScript BNF rules.
+ *
+ * @module
+ */
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import { strictEqual } from '../../types/function/operator/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
