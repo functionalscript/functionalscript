@@ -71,6 +71,7 @@ export type One2<O extends Operations, T, K extends keyof O & string> =
 
 export type Do2<O extends Operations, T> = { readonly [K in keyof O & string]: One2<O, T, K> }[keyof O & string]
 
+
 export const pure2 = <T>(value: T): Pure2<T> => [value]
 
 const doFull2 = <O extends Operations, K extends keyof O & string, T>(
@@ -86,7 +87,7 @@ export const do2 = <O extends Operations, K extends keyof O & string>(
 ): Do2<O, O[K][1]> =>
     doFull2(cmd, payload, pure2)
 
-export const then =
+export const step =
     <O extends Operations, T>(e: Effect2<O, T>) =>
     <O1 extends Operations, R>(f: (_: T) => Effect2<O1, R>): Effect2<O | O1, R> =>
 {
@@ -95,23 +96,23 @@ export const then =
         return f(value)
     }
     const [cmd, payload, cont] = e
-    return doFull2(cmd, payload, x => then(cont(x))(f))
+    return doFull2(cmd, payload, x => step(cont(x))(f))
 }
 
 export const map =
     <O extends Operations, T>(e: Effect2<O, T>) =>
     <R>(f: (_: T) => R): Effect2<O, R> =>
-    then(e)(x => pure2(f(x)))
+    step(e)(x => pure2(f(x)))
 
 export type Wrap<O extends Operations, T> = {
     readonly effect: Effect2<O, T>
-    readonly then: <O1 extends Operations, R>(f: (_: T) => Effect2<O1, R>) => Wrap<O | O1, R>
+    readonly step: <O1 extends Operations, R>(f: (_: T) => Effect2<O1, R>) => Wrap<O | O1, R>
     readonly map: <R>(f: (_: T) => R) => Wrap<O, R>
 }
 
 const wrap = <O extends Operations, T>(effect: Effect2<O, T>): Wrap<O, T> => ({
     effect,
-    then: x => wrap(then(effect)(x)),
+    step: x => wrap(step(effect)(x)),
     map: x => wrap(map(effect)(x)),
 })
 
