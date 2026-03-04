@@ -58,21 +58,39 @@ impl<A: IVm> BigInt<A> {
     // NOTE: use .index_iter in abs_* helpers.
 
     fn abs_cmp_vec(self, rhs: Self) -> Ordering {
-        let mut iter_a = self.index_iter();
-        let mut iter_b = rhs.index_iter();
-        loop {
-            match (iter_a.next(), iter_b.next()) {
-                (Some(a), Some(b)) => {
-                    let cmp = a.cmp(&b);
-                    if cmp != Ordering::Equal {
-                        return cmp;
-                    }
-                }
-                (Some(_), None) => return Ordering::Greater,
-                (None, Some(_)) => return Ordering::Less,
-                (None, None) => return Ordering::Equal,
+        // Compare absolute values by looking at the most-significant words first.
+        // We obtain the underlying word slices directly and ignore any trailing
+        // zeros before performing a length and lexicographic comparison.
+        let a = self.0.items();
+        let b = rhs.0.items();
+
+        // Compute effective lengths without trailing zero words.
+        let mut len_a = a.len();
+        let mut len_b = b.len();
+
+        while len_a > 0 && a[len_a - 1] == 0 {
+            len_a -= 1;
+        }
+        while len_b > 0 && b[len_b - 1] == 0 {
+            len_b -= 1;
+        }
+
+        // Different effective lengths: the longer one (more significant words) is greater.
+        if len_a != len_b {
+            return len_a.cmp(&len_b);
+        }
+
+        // Same effective length: compare from most-significant word down to least-significant.
+        while len_a > 0 {
+            len_a -= 1;
+            let wa = a[len_a];
+            let wb = b[len_a];
+            if wa != wb {
+                return wa.cmp(&wb);
             }
         }
+
+        Ordering::Equal
     }
 
     fn abs_add_vec(self, rhs: Self) -> Vec<u64> {
