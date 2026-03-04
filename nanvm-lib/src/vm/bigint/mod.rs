@@ -131,16 +131,9 @@ impl<A: IVm> BigInt<A> {
             let Some(a) = iter_a.next() else {
                 break;
             };
-            let Some(b) = iter_b.next() else {
-                if a < borrow {
-                    panic!("abs_sub_vec: rhs is greater than self");
-                }
-                out.push(a - borrow);
-                borrow = 0;
-                for remaining in iter_a {
-                    out.push(remaining);
-                }
-                break;
+            let b = match iter_b.next() {
+                Some(b) => b,
+                None => 0,
             };
 
             let b_plus_borrow = b as u128 + borrow as u128;
