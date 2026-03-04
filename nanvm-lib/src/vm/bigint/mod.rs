@@ -149,10 +149,7 @@ impl<A: IVm> BigInt<A> {
             let Some(a) = iter_a.next() else {
                 break;
             };
-            let b = match iter_b.next() {
-                Some(b) => b,
-                None => 0,
-            };
+            let b = iter_b.next().unwrap_or_default();
 
             let b_plus_borrow = b as u128 + borrow as u128;
             let mut a_extended = a as u128;
