@@ -13,9 +13,15 @@ import {
 } from '../module.f.ts'
 
 // The same as functional TerminalRange
+/**
+ * Encoded terminal range value used by BNF data rules.
+ */
 export type TerminalRange = number
 
 // A sequence of rule names.
+/**
+ * Ordered list of grammar rule names.
+ */
 export type Sequence = readonly string[]
 
 /** A variant of rule names. */
@@ -23,6 +29,14 @@ export type Variant = {
     readonly [k in string]: string
 }
 
+/**
+ * Grammar rule definition.
+ *
+ * It can be one of:
+ * - a tagged variant map,
+ * - a sequence of referenced rule names,
+ * - an encoded terminal range.
+ */
 export type Rule = Variant | Sequence | TerminalRange
 
 /** The full grammar */
@@ -56,16 +70,34 @@ type DispatchMap = { readonly[id in string]: DispatchRule }
 
 type EmptyTagMap = { readonly[id in string]: EmptyTagEntry }
 
+/**
+ * Recursive descent matcher for a single named rule.
+ */
 export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], idx: number) => DescentMatchResult<T>
 
+/**
+ * Result tuple of a descent match operation: AST node, success flag, and next index.
+ */
 export type DescentMatchResult<T> = readonly[AstRuleMeta<T>, boolean, number]
 
+/**
+ * Entry-point recursive descent matcher.
+ */
 export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
 
+/**
+ * Code point value paired with metadata.
+ */
 export type CodePointMeta<T> = readonly[CodePoint, T]
 
+/**
+ * AST sequence for the metadata-aware parser.
+ */
 export type AstSequenceMeta<T> = readonly(AstRuleMeta<T>|CodePointMeta<T>)[]
 
+/**
+ * Metadata-aware AST node.
+ */
 export type AstRuleMeta<T> = {
     readonly tag: AstTag,
     readonly sequence: AstSequenceMeta<T>
@@ -92,15 +124,18 @@ type AstRule = {
 export type Remainder = readonly CodePoint[] | null
 
 /**
- * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
+ * Parsing result of {@link parser} and {@link parserRuleSet}.
  */
 export type MatchResult = readonly[AstRule, boolean, Remainder]
 
 /**
- * Represents an LL(1) parser function for matching input against grammar rules.
+ * LL(1) parser function for matching by rule name.
  */
 export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
 
+/**
+ * Internal match function signature used by compiled dispatch rules.
+ */
 export type MatchRule = (dr: DispatchRule, s: readonly CodePoint[]) => MatchResult
 
 const { entries } = Object
@@ -183,6 +218,10 @@ const toDataAdd = (map: FRuleMap) => (fr: FRule): readonly [FRuleMap, RuleSet, s
     return [map2, { ...set, [id]: rule }, id]
 }
 
+/**
+ * Converts a functional grammar rule into serializable BNF data and returns
+ * the generated rule set with the entry rule identifier.
+ */
 export const toData = (fr: FRule): readonly [RuleSet, string] => {
     const [, ruleSet, id] = toDataAdd({})(fr)
     return [ruleSet, id]
@@ -202,6 +241,9 @@ const dispatchOp = rangeMap<DispatchResult>({
     def: null,
 })
 
+/**
+ * Builds a dispatch map for a {@link RuleSet} to enable predictive parsing.
+ */
 export const dispatchMap = (ruleSet: RuleSet): DispatchMap => {
 
     const addRuleToDispatch = (dr: DispatchResult, name: string): DispatchResult => {
@@ -309,10 +351,18 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
     }
 }
 
+/**
+ * Creates a map that describes whether each rule can consume empty input and,
+ * for tagged variants, which tag represents the empty match.
+ */
 export const createEmptyTagMap = (data: readonly [RuleSet, string]): EmptyTagMap => {
     return emptyTagMapAdd(data[0])({})(data[1])[1]
 }
 
+/**
+ * Creates a recursive descent parser that preserves metadata for each consumed
+ * code point.
+ */
 export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     const data = toData(fr)
     const emptyTagMap = createEmptyTagMap(data)
@@ -376,11 +426,17 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     return match
 }
 
+/**
+ * Creates an LL(1) parser from a functional grammar rule.
+ */
 export const parser = (fr: FRule): Match => {
     const data = toData(fr)
     return parserRuleSet(data[0])
 }
 
+/**
+ * Creates an LL(1) parser from an already materialized {@link RuleSet}.
+ */
 export const parserRuleSet = (ruleSet: RuleSet): Match => {
     const map = dispatchMap(ruleSet)
 
