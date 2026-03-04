@@ -59,3 +59,60 @@ export const all = <O extends Operations, T>(set: readonly Effect<O, T>[]): Effe
         (previous: Effect<O, readonly T[]>, current) =>
             previous.pipe(previousResult => current.map(currentResult => [...previousResult, currentResult])),
         empty)
+
+//
+
+export type Effect2<O extends Operations, T> = Pure2<T> | Do2<O, T>
+
+export type Pure2<T> = readonly [T]
+
+export type One2<O extends Operations, T, K extends keyof O & string> =
+    readonly [K, O[K][0], (input: O[K][1]) => Effect2<O, T>]
+
+export type Do2<O extends Operations, T> = { readonly [K in keyof O & string]: One2<O, T, K> }[keyof O & string]
+
+export const pure2 = <T>(value: T): Pure2<T> => [value]
+
+const doFull2 = <O extends Operations, K extends keyof O & string, T>(
+    cmd: K ,
+    payload: O[K][0],
+    cont: (input: O[K][1]) => Effect2<O, T>
+): Do2<O, T> =>
+    [cmd, payload, cont]
+
+export const do2 = <O extends Operations, K extends keyof O & string>(
+    cmd: K,
+    payload: O[K][0]
+): Do2<O, O[K][1]> =>
+    doFull2(cmd, payload, pure2)
+
+export const then =
+    <O extends Operations, T>(e: Effect2<O, T>) =>
+    <O1 extends Operations, R>(f: (_: T) => Effect2<O1, R>): Effect2<O | O1, R> =>
+{
+    if (e.length === 1) {
+        const [value] = e
+        return f(value)
+    }
+    const [cmd, payload, cont] = e
+    return doFull2(cmd, payload, x => then(cont(x))(f))
+}
+
+export const map =
+    <O extends Operations, T>(e: Effect2<O, T>) =>
+    <R>(f: (_: T) => R): Effect2<O, R> =>
+    then(e)(x => pure2(f(x)))
+
+export type Wrap<O extends Operations, T> = {
+    readonly effect: Effect2<O, T>
+    readonly then: <O1 extends Operations, R>(f: (_: T) => Effect2<O1, R>) => Wrap<O | O1, R>
+    readonly map: <R>(f: (_: T) => R) => Wrap<O, R>
+}
+
+const wrap = <O extends Operations, T>(effect: Effect2<O, T>): Wrap<O, T> => ({
+    effect,
+    then: x => wrap(then(effect)(x)),
+    map: x => wrap(map(effect)(x)),
+})
+
+export const begin: Wrap<{}, void> = wrap(pure2(undefined))
