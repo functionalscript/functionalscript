@@ -29,7 +29,7 @@ export const unicodeRange: TerminalRange = 0x000000_10FFFF
 export const max: string = codePointListToString([0xFFFFFF])
 
 /**
- * Maximal unicode code point encoded as a string value.
+ * Maximal Unicode code point encoded as a string value.
  */
 export const unicodeMax: string = codePointListToString([0x10FFFF])
 
@@ -84,7 +84,7 @@ export const rangeEncode = (a: number, b: number): TerminalRange => {
 export const oneEncode = (a: number): TerminalRange => rangeEncode(a, a)
 
 /**
- * End-of-file marker represented as one code point beyond unicode range.
+ * End-of-file marker represented as one code point beyond Unicode range.
  */
 export const eof: TerminalRange = oneEncode(0x110000)
 
@@ -257,7 +257,7 @@ export const repeat = (n: number) => <T extends Rule>(some: T): Repeat<T> =>
     toArray(listRepeat(some)(n))
 
 /**
- * Determines whether a rule produces an empty sequence or empty string.
+ * Determines whether the rule is an empty rule.
  */
 export const isEmpty = (rule: Rule): boolean => {
     const d = typeof rule === 'function' ? rule() : rule
