@@ -17,10 +17,10 @@ export const run =
     let s = state
     let e = effect
     while (true) {
-        if ('pure' in e) {
-            return [s, e.pure]
+        if (e.length === 1) {
+            return [s, e[0]]
         }
-        const [cmd, payload, cont] = e.do
+        const [cmd, payload, cont] = e
         const operation = o[cmd]
         const [ns, m] = operation(s, payload)
         s = ns

@@ -4,7 +4,8 @@
  * @module
  */
 import { utf8 } from '../text/module.f.ts'
-import { writeFile, type NodeEffect } from '../types/effect/node/module.f.ts'
+import { map } from '../types/effects/module.f.ts'
+import { writeFile, type NodeEffect } from '../types/effects/node/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -263,7 +264,6 @@ const gha: GitHubAction = {
 }
 
 export const effect: NodeEffect<number> =
-    writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))
-        .map(() => 0)
+    map(writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  '))))(() => 0)
 
 export default () => effect

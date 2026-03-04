@@ -2,7 +2,7 @@ import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from "node:process"
 import { concat } from '../path/module.f.ts'
-import type { NodeProgram } from '../types/effect/node/module.f.ts'
+import type { NodeProgram } from '../types/effects/node/module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'

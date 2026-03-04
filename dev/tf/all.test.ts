@@ -76,4 +76,5 @@ const run = async(): Promise<void> => {
     }
 }
 
+// we need `await` for Playwright.
 await run()

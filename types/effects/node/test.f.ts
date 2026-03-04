@@ -1,22 +1,23 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
+import { map } from "../module.f.ts"
 import { run } from "../mock/module.f.ts"
 import { fetch, mkdir, readdir, readFile, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
     map: () => {
-        let e = readFile('hello').map(([k, v]) => {
+        let e = map(readFile('hello'))(([k, v]) => {
             if (k === 'error') { throw v }
             return uint(v) * 2n
         })
         //
         while (true) {
-            if ('pure' in e) {
-                const result = e.pure
+            if (e.length === 1) {
+                const result = e[0]
                 if (result !== 0x2An) { throw result }
                 return
             }
-            const [cmd, p, cont] = e.do
+            const [cmd, p, cont] = e
             if (cmd !== 'readFile') { throw cmd }
             if (p !== 'hello') { throw p }
             e = cont(['ok', vec8(0x15n)])
