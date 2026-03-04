@@ -150,7 +150,7 @@ export const fromIo = ({
     fetch,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
-        all: async a => pure(await Promise.all(a.map(result))),
+        all: async effects => pure(await Promise.all(effects.map(result))),
         error: async message => error(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
