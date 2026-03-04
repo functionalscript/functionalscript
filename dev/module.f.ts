@@ -7,10 +7,10 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import { encodeUtf8 } from '../types/uint8array/module.f.ts'
-import { readFile, type ReadFile } from '../types/effects/node/module.f.ts'
+import { readdir, readFile, type Readdir, type ReadFile } from '../types/effects/node/module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { fluent, pure, type Effect } from '../types/effects/module.f.ts'
+import { all, fluent, pure, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -37,6 +37,31 @@ export const env
     }
 
 type ModuleArray = readonly (readonly[string, Module])[]
+
+export const allFiles2 = (s: string): Effect<Readdir, readonly string[]> => {
+    const load = (p: string): Effect<Readdir, readonly string[]> => fluent
+        .step(() => readdir(p, {}))
+        .step(d => {
+            let result: readonly Effect<Readdir, readonly string[]>[] = []
+            for (const i of unwrap(d)) {
+                const { name } = i
+                if (name.startsWith('.')) { continue }
+                const file = `${p}/${name}`
+                if (!i.isFile) {
+                    if (name === 'node_modules') { continue }
+                    result = [...result, load(file)]
+                    continue
+                }
+                if (name.endsWith('.js') || name.endsWith('.ts')) {
+                    result = [...result, pure([file])]
+                }
+            }
+            return all(result)
+        })
+        .step(v => pure(v.flat()))
+        .effect
+    return load(s)
+}
 
 export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
     const { fs: { promises: { readdir }} } = io
@@ -90,7 +115,8 @@ const index2: Effect<ReadFile, unknown> = fluent
 export const index = async (io: Io): Promise<number> => {
     const runner = fromIo(io)
     const jsr_json = await runner(index2)
-    const list = (await allFiles(io)('.')).filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
+    const list = (await runner(allFiles2('.')))
+        .filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
     // console.log(list)
     const exportsA = list.map(v => [v, `./${v.substring(2)}`])
     // console.log(exportsA)
