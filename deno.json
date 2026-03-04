@@ -7,7 +7,6 @@
     "./bnf/module.f.ts": "./bnf/module.f.ts",
     "./cas/module.f.ts": "./cas/module.f.ts",
     "./ci/module.f.ts": "./ci/module.f.ts",
-    "./ci/module.ts": "./ci/module.ts",
     "./crypto/hmac/module.f.ts": "./crypto/hmac/module.f.ts",
     "./crypto/secp/module.f.ts": "./crypto/secp/module.f.ts",
     "./crypto/sha2/module.f.ts": "./crypto/sha2/module.f.ts",
@@ -83,8 +82,7 @@
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
     "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts",
-    "./website/module.f.ts": "./website/module.f.ts",
-    "./website/module.ts": "./website/module.ts"
+    "./website/module.f.ts": "./website/module.f.ts"
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
