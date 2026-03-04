@@ -176,14 +176,13 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_simple_different_lengths() {
-        // Just test with simple numbers - skip complex multi-digit tests for now
-        let a: TestBigInt = 1000u64.into();
-        let b: TestBigInt = 999u64.into();
-        assert_eq!(a.abs_cmp_vec(b), Ordering::Greater);
-        
-        let a: TestBigInt = 999u64.into();
-        let b: TestBigInt = 1000u64.into();
-        assert_eq!(a.abs_cmp_vec(b), Ordering::Less);
+        let one_digit = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
+        let two_digits = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        assert_eq!(
+            two_digits.clone().abs_cmp_vec(one_digit.clone()),
+            Ordering::Greater
+        );
+        assert_eq!(one_digit.abs_cmp_vec(two_digits), Ordering::Less);
     }
 
     #[test]
@@ -231,7 +230,10 @@ mod tests {
         let large1: TestBigInt = 0xFFFF_FFFF_FFFF_FFFFu64.into();
         let large2: TestBigInt = 0xFFFF_FFFF_FFFF_FFFEu64.into();
 
-        assert_eq!(large1.clone().abs_cmp_vec(large2.clone()), Ordering::Greater);
+        assert_eq!(
+            large1.clone().abs_cmp_vec(large2.clone()),
+            Ordering::Greater
+        );
         assert_eq!(large2.clone().abs_cmp_vec(large1.clone()), Ordering::Less);
         assert_eq!(large1.clone().abs_cmp_vec(large1.clone()), Ordering::Equal);
     }
