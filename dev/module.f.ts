@@ -7,10 +7,10 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import { encodeUtf8 } from '../types/uint8array/module.f.ts'
-import { readdir, readFile, type Readdir, type ReadFile } from '../types/effects/node/module.f.ts'
-import { utf8ToString } from '../text/module.f.ts'
+import { all, readdir, readFile, writeFile, type All, type Readdir, type ReadFile } from '../types/effects/node/module.f.ts'
+import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { all, fluent, pure, type Effect } from '../types/effects/module.f.ts'
+import { fluent, pure, type Do, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -38,11 +38,11 @@ export const env
 
 type ModuleArray = readonly (readonly[string, Module])[]
 
-export const allFiles2 = (s: string): Effect<Readdir, readonly string[]> => {
-    const load = (p: string): Effect<Readdir, readonly string[]> => fluent
+export const allFiles2 = (s: string): Effect<Readdir & All, readonly string[]> => {
+    const load = (p: string): Effect<Readdir & All, readonly string[]> => fluent
         .step(() => readdir(p, {}))
         .step(d => {
-            let result: readonly Effect<Readdir, readonly string[]>[] = []
+            let result: readonly Effect<Readdir & All, readonly string[]>[] = []
             for (const i of unwrap(d)) {
                 const { name } = i
                 if (name.startsWith('.')) { continue }
@@ -56,9 +56,9 @@ export const allFiles2 = (s: string): Effect<Readdir, readonly string[]> => {
                     result = [...result, pure([file])]
                 }
             }
-            return all(result)
+            return all(...result)
         })
-        .step(v => pure(v.flat()))
+        .step(v => pure(v.flat().flat()))
         .effect
     return load(s)
 }
@@ -112,18 +112,21 @@ const index2: Effect<ReadFile, unknown> = fluent
     .step(v => pure(JSON.parse(utf8ToString(unwrap(v)))))
     .effect
 
+const allFiles2a = (jsr_json: unknown) => fluent
+    .step(() => allFiles2('.'))
+    .step(files => {
+        // console.log(files)
+        const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
+        const exportsA = list.map(v => [v, `./${v.substring(2)}`])
+        const exports = Object.fromEntries(exportsA)
+        const json = JSON.stringify({ ...jsr_json as any, exports }, null, 2)
+        return writeFile(denoJson, utf8(json))
+    })
+    .step(() => pure(0))
+    .effect
+
 export const index = async (io: Io): Promise<number> => {
     const runner = fromIo(io)
     const jsr_json = await runner(index2)
-    const list = (await runner(allFiles2('.')))
-        .filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
-    // console.log(list)
-    const exportsA = list.map(v => [v, `./${v.substring(2)}`])
-    // console.log(exportsA)
-    const exports = Object.fromEntries(exportsA)
-    // console.log(exports)
-    const json = JSON.stringify({ ...jsr_json as any, exports }, null, 2)
-    // console.log(json)
-    await io.fs.promises.writeFile(denoJson, encodeUtf8(json))
-    return 0
+    return await runner(allFiles2a(jsr_json))
 }
