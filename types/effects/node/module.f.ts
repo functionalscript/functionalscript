@@ -16,8 +16,7 @@ export const all =
 {
     const x = do_('all', a)
     const y = x as Effect<O & All, Effect<O & All, readonly T[]>>
-    const z = step(y)(identity)
-    return z
+    return step(y)(identity)
 }
 
 // fetch
