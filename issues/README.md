@@ -274,7 +274,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
     .result
   ```
 - [ ] 118. Create example repository and use it in CI.
-- [ ] 119. Should we return to the fluent `Effect` design?
+- [X] 119. Should we return to the fluent `Effect` design?
   One reason is that `Pure<O, T>` is losing `O` when
   `Effect<O, T> = Pure<O, T> | Do<O, T>` and
   `Pure<O, T> = readonly[T]`. The new proposed structure is
@@ -287,7 +287,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
     // note: no `map` function.
   }
   ```
-- [ ] 120. Correct operation definition using a set of tuples instead of object properties.
+- [X] 120. Correct operation definition using a set of tuples instead of object properties.
   These sets are much easier to operate with. `|` is a union of sets. `&` is an intersection of sets.
   While operations `|` and `&` on objects have some nuances.
   ```ts
@@ -301,6 +301,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
       readonly[K in O[0]]: Async<Func<O, K>>
   }
   ```
+- [ ] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
 
 ## Language Specification
 
