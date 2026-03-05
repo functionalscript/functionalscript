@@ -4,25 +4,50 @@
  * @module
  */
 
-export type Operations2 =
-    [string, (_: never) => unknown]
+import { todo } from "../../dev/module.f.ts"
 
-export type Effect2<O extends Operations2, T> =
-    Pure2<O, T> | Do2<O, T>
+export type Operation =
+    readonly[string, (_: never) => unknown]
 
-export type Pure2<O extends Operations2, T> =
-    readonly [T]
+export type Effect2<O extends Operation, T> = {
+    value: Value<O, T>
+    step: <Q extends Operation, R>(f: (p: T) => Effect2<Q, R>) => Effect2<O | Q, R>
+}
 
-export type DoKPR<O extends Operations2, T, K extends string, PR extends readonly[unknown, unknown]> =
-    readonly [K, PR[0], (_: PR[1]) => Effect2<O, T>]
+export type Value<O extends Operation, T> =
+    Pure2<T> | Do2<O, T>
 
-export type DoK<O extends Operations2, T, K extends O[0]> =
-    DoKPR<O, T, K, O extends readonly[K, (_: infer P) => infer R] ? readonly[P, R] : never>
+export type Pure2<T> =
+    readonly[T]
 
-export type Do2<O extends Operations2, T> =
+export type DoKPR<O extends Operation, T, K extends string, PR extends readonly[unknown, unknown]> =
+    readonly[K, PR[0], (_: PR[1]) => Effect2<O, T>]
+
+export type Pr<O extends Operation, K extends O[0]> =
+    O extends readonly[K, (_: infer P) => infer R] ? readonly[P, R] : never
+
+export type DoK<O extends Operation, T, K extends O[0]> =
+    DoKPR<O, T, K, Pr<O, K>>
+
+export type Do2<O extends Operation, T> =
     DoK<O, T, O[0]>
 
-//
+export const pure2 = <O extends Operation, T>(v: T): Effect2<O, T> => ({
+    value: [v],
+    step: f => f(v)
+})
+
+export const do2 = <O extends Operation, T, K extends O[0]>(
+    cmd: K,
+    param: Pr<O, K>[0],
+    cont: (input: Pr<O, K>[1]) => Effect2<O, T>
+): Effect2<O, T> => ({
+    value: [cmd, param, cont],
+    step: <Q extends Operation, R>(f: (p: T) => Effect2<Q, R>) =>
+        do2<O | Q, R, K>(cmd, param, x => cont(x).step(f)),
+})
+
+//-----------------
 
 export type Operations = {
     readonly [command in string]: readonly [input: unknown, output: unknown]

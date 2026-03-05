@@ -289,6 +289,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
   ```
 - [ ] 120. Correct operation definition using a set of tuples instead of object properties.
   These sets are much easier to operate with. `|` is a union of sets. `&` is an intersection of sets.
+  While operations `|` and `&` on objects have some nuances.
   ```ts
   type Operation = readonly[string, (_: never) => unknown]
   type Func<O extends Operation, K extends O[0]> = O extends readonly[K, infer F] ? F : never
