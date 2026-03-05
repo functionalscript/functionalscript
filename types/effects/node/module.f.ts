@@ -1,7 +1,7 @@
 import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Do, type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
+    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -19,10 +19,7 @@ export type All = ['all', <T>(_: readonly Effect<never, T>[]) => readonly T[]]
  */
 export const all =
     <O extends Operation, T>(...a: readonly Effect<O, T>[]): Effect<O | All, readonly T[]> =>
-{
-    const result = do_<All>('all')(a as readonly Effect<never, T>[])
-    return result as Effect<O | All, readonly T[]>
-}
+    do_<All>('all')(a as readonly Effect<never, T>[]) as Effect<O | All, readonly T[]>
 
 export const both =
     <O0 extends Operation, T0>(a: Effect<O0, T0>) =>
