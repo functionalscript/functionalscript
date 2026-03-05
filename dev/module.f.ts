@@ -108,7 +108,7 @@ const denoJson = './deno.json'
 const index2 = begin
     .step(() => updateVersion)
     .step(() => readFile(denoJson))
-    .step(v => pure(JSON.parse(utf8ToString(unwrap(v))) as unknown))
+    .step(v => pure(JSON.parse(utf8ToString(unwrap(v)))))
 
 const allFiles2a = (jsr_json: unknown) => begin
     .step(() => allFiles2('.'))

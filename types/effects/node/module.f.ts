@@ -24,6 +24,12 @@ export const all =
     return result as Effect<O | All, readonly T[]>
 }
 
+export const both =
+    <O0 extends Operation, T0>(a: Effect<O0, T0>) =>
+    <O1 extends Operation, T1>(b: Effect<O1, T1>):
+    Effect<O0 | O1 |All, readonly[T0, T1]> =>
+    all<O0|O1, T0|T1>(a, b) as Effect<O0 | O1 | All, readonly[T0, T1]>
+
 // fetch
 
 export type Fetch = ['fetch', (_: string) => IoResult<Vec>]
