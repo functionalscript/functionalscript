@@ -1,6 +1,7 @@
 import type { Vec } from '../../bit_vec/module.f.ts'
+import { identity } from '../../function/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
-import { type Do, type Effect, type Operations, type ToAsyncOperationMap, do_, map } from '../module.f.ts'
+import { type Do, type Effect, type Operations, type ToAsyncOperationMap, do_, map, pure, step } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 
@@ -11,10 +12,12 @@ export type All = {
 }
 
 export const all =
-    <O extends Operations, T>(...a: readonly Effect<O, T>[]): Do<O & All, readonly T[]> =>
+    <O extends Operations, T>(...a: readonly Effect<O, T>[]): Effect<O & All, readonly T[]> =>
 {
     const x = do_('all', a)
-    return x as Do<O & All, readonly T[]>
+    const y = x as Effect<O & All, Effect<O & All, readonly T[]>>
+    const z = step(y)(identity)
+    return z
 }
 
 // fetch
