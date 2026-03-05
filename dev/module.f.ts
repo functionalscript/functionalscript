@@ -58,7 +58,7 @@ export const allFiles2 = (s: string): Effect<Readdir & All, readonly string[]> =
             }
             return all(...result)
         })
-        .step(v => pure(v.flat().flat()))
+        .step(v => pure(v.flat()))
         .effect
     return load(s)
 }

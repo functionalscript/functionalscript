@@ -125,7 +125,7 @@ const map: MemOperationMap<NodeOperations, State> = {
             state = ns
             e = [...e, ei]
         }
-        return [state, pure(e)]
+        return [state, e]
     },
     error: console('stderr'),
     log: console('stdout'),
