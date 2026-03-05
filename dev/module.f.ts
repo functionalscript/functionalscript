@@ -7,7 +7,7 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import { encodeUtf8 } from '../types/uint8array/module.f.ts'
-import { all, both, readdir, readFile, writeFile, type All, type NodeOp, type Readdir, type ReadFile, type WriteFile } from '../types/effects/node/module.f.ts'
+import { all, both, readdir, readFile, writeFile, type All, type NodeOp, type NodeProgram, type Readdir, type ReadFile, type WriteFile } from '../types/effects/node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Do, type Effect } from '../types/effects/module.f.ts'
@@ -118,12 +118,11 @@ const allFiles2aa = begin
         return pure(Object.fromEntries(exportsA))
     })
 
-const index3 = both(index2)(allFiles2aa)
+export const index3 = both(index2)(allFiles2aa)
     .step(([jsr_json, exports]) => {
         const json = JSON.stringify({ ...jsr_json as object, exports }, null, 2)
         return writeFile(denoJson, utf8(json))
     })
     .step(() => pure(0))
 
-export const index = async (io: Io): Promise<number> =>
-    fromIo(io)(index3)
+export const index4: NodeProgram = () => index3
