@@ -3,6 +3,27 @@
  *
  * @module
  */
+
+export type Operations2 =
+    [string, (_: never) => unknown]
+
+export type Effect2<O extends Operations2, T> =
+    Pure2<O, T> | Do2<O, T>
+
+export type Pure2<O extends Operations2, T> =
+    readonly [T]
+
+export type DoKPR<O extends Operations2, T, K extends string, PR extends readonly[unknown, unknown]> =
+    readonly [K, PR[0], (_: PR[1]) => Effect2<O, T>]
+
+export type DoK<O extends Operations2, T, K extends O[0]> =
+    DoKPR<O, T, K, O extends readonly[K, (_: infer P) => infer R] ? readonly[P, R] : never>
+
+export type Do2<O extends Operations2, T> =
+    DoK<O, T, O[0]>
+
+//
+
 export type Operations = {
     readonly [command in string]: readonly [input: unknown, output: unknown]
 }

@@ -275,7 +275,20 @@ require setting a flag when walking through a test tree as soon as a node has a 
   ```
 - [ ] 118. Create example repository and use it in CI.
 - [ ] 119. Should we return to the fluent `Effect` design?
-- [ ] 120. Correct operation definition.
+  One reason is that `Pure<O, T>` is losing `O` when
+  `Effect<O, T> = Pure<O, T> | Do<O, T>` and
+  `Pure<O, T> = readonly[T]`. The new proposed structure is
+  ```ts
+  type Value<O extends Operations, T> = Pure<T> | Do<O, T>
+  type Effect<O extends Operations, T> = {
+    readonly value: Value<O, T>
+    // the step function is also holding `O` while `Pure<O, T>` can lose it.
+    readonly step: <O1, R>(f: (_: T) => Effect<O1, R>) => Effect<O | O1, R>
+    // note: no `map` function.
+  }
+  ```
+- [ ] 120. Correct operation definition using a set of tuples instead of object properties.
+  These sets are much easier to operate with. `|` is a union of sets. `&` is an intersection of sets.
   ```ts
   type Operation = readonly[string, (_: never) => unknown]
   type Func<O extends Operation, K extends O[0]> = O extends readonly[K, infer F] ? F : never
