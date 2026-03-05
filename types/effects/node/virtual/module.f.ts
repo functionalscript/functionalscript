@@ -7,8 +7,8 @@ import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
 import { run, type MemOperationMap, type RunInstance } from "../../mock/module.f.ts"
-import { pure } from "../../module.f.ts"
-import type { Dirent, IoResult, NodeOperations } from "../module.f.ts"
+import { pure, type Effect } from "../../module.f.ts"
+import type { Dirent, IoResult, NodeOp } from "../module.f.ts"
 
 export type Dir = {
     readonly[name in string]?: Dir | Vec
@@ -117,7 +117,7 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
 const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
-const map: MemOperationMap<NodeOperations, State> = {
+const map: MemOperationMap<NodeOp, State> = {
     all: (state, a) => {
         let e: readonly unknown[] = []
         for (const i of a) {
@@ -139,4 +139,4 @@ const map: MemOperationMap<NodeOperations, State> = {
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
 }
 
-export const virtual: RunInstance<NodeOperations, State> = run(map)
+export const virtual: RunInstance<NodeOp, State> = run(map)
