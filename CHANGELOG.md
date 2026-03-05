@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Effects: bug: integrating `step` (aka `join`) in `all` [707](https://github.com/functionalscript/functionalscript/pull/707)
+- Effects: bug: `all` should return `Effect<..., readonly T[]>` [707](https://github.com/functionalscript/functionalscript/pull/707)
 - Effects: generic `all` [704](https://github.com/functionalscript/functionalscript/pull/704)
 
 ## 0.10.3
