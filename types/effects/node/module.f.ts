@@ -10,15 +10,15 @@ export type IoResult<T> = Result<T, unknown>
 // all
 
 export type All = {
-    readonly all: readonly [readonly Effect<{}, unknown>[], Effect<All, readonly unknown[]>]
+    readonly all: readonly [readonly Effect<{}, unknown>[], readonly unknown[]]
 }
 
 export const all =
-    <O extends Operations, T>(...a: readonly Effect<O, T>[]): Effect<O & All, readonly T[]> =>
+    <O extends Operations, T>(...a: readonly Effect<O, T>[]): Do<O & All, readonly T[]> =>
 {
-    type E = Effect<O & All, Effect<O & All, readonly T[]>>
+    type E = Do<O & All, readonly T[]>
     const x = do_('all', a)
-    return step(x as E)(identity)
+    return x as E
 }
 
 // fetch
