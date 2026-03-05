@@ -16,9 +16,9 @@ export type All = {
 export const all =
     <O extends Operations, T>(...a: readonly Effect<O, T>[]): Effect<O & All, readonly T[]> =>
 {
+    type E = Effect<O & All, Effect<O & All, readonly T[]>>
     const x = do_('all', a)
-    const y = x as Effect<O & All, Effect<O & All, readonly T[]>>
-    return step(y)(identity)
+    return step(x as E)(identity)
 }
 
 // fetch
