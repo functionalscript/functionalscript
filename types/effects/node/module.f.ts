@@ -1,7 +1,7 @@
 import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Do, type Effect, type Operation, type ToAsyncOperationMap, do_
+    type Do, type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -28,7 +28,7 @@ export const all =
 
 export type Fetch = ['fetch', (_: string) => IoResult<Vec>]
 
-export const fetch = do_<Fetch>('fetch')
+export const fetch: Func<Fetch> = do_('fetch')
 
 // mkdir
 
@@ -46,8 +46,8 @@ export const mkdir =
 
 export type ReadFile = readonly['readFile', (_: string) => IoResult<Vec>]
 
-export const readFile =
-    do_<ReadFile>('readFile')
+export const readFile: Func<ReadFile> =
+    do_('readFile')
 
 // readdir
 
@@ -91,15 +91,15 @@ export type Fs = Mkdir | ReadFile | Readdir | WriteFile
 
 export type Error = ['error', (_: string) => void]
 
-export const error =
-    do_<Error>('error')
+export const error: Func<Error> =
+    do_('error')
 
 // log
 
 export type Log = ['log', (_: string) => void]
 
-export const log =
-    do_<Log>('log')
+export const log: Func<Log> =
+    do_('log')
 
 // Console
 

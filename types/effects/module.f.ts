@@ -56,6 +56,10 @@ export type ToAsyncOperationMap<O extends Operation> = {
     readonly [K in O[0]]: (payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
 }
 
+export type F<O extends Operation> = Pr<O, O[0]>
+
+export type Func<O extends Operation> = (_: F<O>[0]) => Effect<O, F<O>[1]>
+
 //----------------------------------------------------------------------
 
 /*
