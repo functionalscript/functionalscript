@@ -13,11 +13,15 @@ import { toOption } from "../types/nullable/module.f.ts"
 import { unwrap } from "../types/result/module.f.ts"
 
 export type KvStore<O extends Operation> = {
+    /** Reads a value by key; returns `undefined` when the key does not exist. */
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
+    /** Writes a key/value pair to the underlying storage. */
     readonly write: (key: Vec, value: Vec) => Effect<O, void>
+    /** Lists all keys available in the store. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
+/** A key/value tuple where index `0` is the key and index `1` is the value. */
 export type Kv = readonly[Vec, Vec];
 
 const o = { withFileTypes: true } as const
@@ -26,6 +30,7 @@ const split = (s: string) => [s.substring(0, 2), s.substring(2)]
 
 const prefix = '.cas'
 
+/** Converts a content key to its sharded relative CAS file path. */
 const toPath = (key: Vec): string => {
     const s = vecToCBase32(key)
     const [a, bc] = split(s)
@@ -33,6 +38,9 @@ const toPath = (key: Vec): string => {
     return `${prefix}/${a}/${b}/${c}`
 }
 
+/**
+ * Creates a filesystem-backed key/value store under the provided root path.
+ */
 export const fileKvStore = (path: string): KvStore<Fs> => ({
     read: (key: Vec): Effect<Fs, Vec|undefined> =>
         begin
@@ -59,11 +67,17 @@ export const fileKvStore = (path: string): KvStore<Fs> => ({
 })
 
 export type Cas<O extends Operation> = {
+    /** Reads content by hash; returns `undefined` when not found. */
     readonly read: (key: Vec) => Effect<O, Vec|undefined>
+    /** Stores content and returns its computed hash. */
     readonly write: (value: Vec) => Effect<O, Vec>
+    /** Lists all stored content hashes. */
     readonly list: () => Effect<O, readonly Vec[]>
 }
 
+/**
+ * Builds a content-addressable storage facade from a SHA-2 implementation.
+ */
 export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> => {
     const compute = computeSync(sha2)
     return ({ read, write, list }) => ({
@@ -78,11 +92,20 @@ export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> 
     })
 }
 
+/** Prints an error message and returns exit code `1`. */
 const e = (s: string): Effect<NodeOp, number> =>
     begin
         .step(() => error(s))
         .step(() => pure(1))
 
+/**
+ * Runs the CAS CLI.
+ *
+ * Supported subcommands:
+ * - `add <path>`: stores file content and prints the hash.
+ * - `get <hash> <path>`: restores content by hash into a file.
+ * - `list`: prints all known hashes.
+ */
 export const main = (args: readonly string[]): Effect<NodeOp, number> => {
     const c = cas(sha256)(fileKvStore('.'))
     const [cmd, ...options] = args
