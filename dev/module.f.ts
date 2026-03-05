@@ -110,13 +110,16 @@ const index2 = begin
     .step(() => readFile(denoJson))
     .step(v => pure(JSON.parse(utf8ToString(unwrap(v)))))
 
-const allFiles2a = (jsr_json: unknown) => begin
+const allFiles2aa = begin
     .step(() => allFiles2('.'))
     .step(files => {
-        // console.log(files)
         const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
         const exportsA = list.map(v => [v, `./${v.substring(2)}`])
-        const exports = Object.fromEntries(exportsA)
+        return pure(Object.fromEntries(exportsA))
+    })
+
+const allFiles2a = (jsr_json: unknown) => allFiles2aa
+    .step(exports => {
         const json = JSON.stringify({ ...jsr_json as any, exports }, null, 2)
         return writeFile(denoJson, utf8(json))
     })
