@@ -302,6 +302,9 @@ require setting a flag when walking through a test tree as soon as a node has a 
   }
   ```
 - [ ] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
+- [ ] 122. Consider add a new file type for applications. For example `node.f.ts` or `app.f.ts`.
+      These files should have `export default` with type `NodeProgram`.
+      Then we may have other application files, for example `web.f.ts`.
 
 ## Language Specification
 
