@@ -1,8 +1,8 @@
 import { todo } from '../dev/module.f.ts'
 import { normalize } from '../path/module.f.ts'
-import { pure } from '../types/effects/module.f.ts'
+import { pure, type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { IoResult, NodeEffect } from '../types/effects/node/module.f.ts'
+import type { IoResult, NodeOp } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, toVec } from '../types/uint8array/module.f.ts'
 
@@ -142,7 +142,7 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     }
 }
 
-export type EffectToPromise = <T>(effect: NodeEffect<T>) => Promise<T>
+export type EffectToPromise = <T>(effect: Effect<NodeOp, T>) => Promise<T>
 
 export const fromIo = ({
     console: { error, log },
@@ -150,7 +150,7 @@ export const fromIo = ({
     fetch,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
-        all: async effects => await Promise.all(effects.map(result)),
+        all: async effects => await Promise.all(effects.map(v => result(v))),
         error: async message => error(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
