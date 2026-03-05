@@ -4,8 +4,6 @@
  * @module
  */
 
-import { todo } from "../../dev/module.f.ts"
-
 export type Operation =
     readonly[string, (_: never) => unknown]
 
