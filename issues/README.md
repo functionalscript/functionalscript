@@ -274,6 +274,19 @@ require setting a flag when walking through a test tree as soon as a node has a 
     .result
   ```
 - [ ] 118. Create example repository and use it in CI.
+- [ ] 119. Should we return to the fluent `Effect` design?
+- [ ] 120. Correct operation definition.
+  ```ts
+  type Operation = readonly[string, (_: never) => unknown]
+  type Func<O extends Operation, K extends O[0]> = O extends readonly[K, infer F] ? F : never
+  type SyncMap<O extends Operation> = {
+      readonly[K in O[0]]: Func<O, K>
+  }
+  type Async<F> = F extends (_: infer P) => infer R ? (_: P) => Promise<R> : never
+  type AsyncMap<O extends Operation> = {
+      readonly[K in O[0]]: Async<Func<O, K>>
+  }
+  ```
 
 ## Language Specification
 
