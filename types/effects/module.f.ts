@@ -37,17 +37,25 @@ export const pure2 = <O extends Operation, T>(v: T): Effect2<O, T> => ({
     step: f => f(v)
 })
 
-export const do2 = <O extends Operation, T, K extends O[0]>(
+export const doFull2 = <O extends Operation, T, K extends O[0]>(
     cmd: K,
     param: Pr<O, K>[0],
     cont: (input: Pr<O, K>[1]) => Effect2<O, T>
 ): Effect2<O, T> => ({
     value: [cmd, param, cont],
     step: <Q extends Operation, R>(f: (p: T) => Effect2<Q, R>) =>
-        do2<O | Q, R, K>(cmd, param, x => cont(x).step(f)),
+        doFull2<O | Q, R, K>(cmd, param, x => cont(x).step(f)),
 })
 
-//-----------------
+export const do2 = <O extends Operation, K extends O[0]>(
+    cmd: K,
+    param: Pr<O, K>[0],
+): Effect2<O, Pr<O, K>[1]> =>
+    doFull2(cmd, param, pure2)
+
+export const empty2: Effect2<never, void> = pure2(undefined)
+
+//----------------------------------------------------------------------
 
 export type Operations = {
     readonly [command in string]: readonly [input: unknown, output: unknown]
