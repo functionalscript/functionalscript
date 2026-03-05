@@ -1,7 +1,9 @@
 import type { Vec } from '../../bit_vec/module.f.ts'
 import { identity } from '../../function/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
-import { type Do, type Effect, type Operations, type ToAsyncOperationMap, do_, map, pure, step } from '../module.f.ts'
+import {
+    type Do, type Effect, type Operations, type ToAsyncOperationMap, do_, step
+} from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 
