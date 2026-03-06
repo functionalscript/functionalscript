@@ -44,6 +44,12 @@ type Element1 = readonly [Tag, ...Node[]]
 
 type Element2 = readonly [Tag, Attributes, ...Node[]]
 
+/**
+ * A FunctionalScript representation of an HTML element.
+ *
+ * - `[tag, ...children]` for elements without attributes.
+ * - `[tag, attributes, ...children]` for elements with attributes.
+ */
 export type Element = Element1 | Element2
 
 type Attributes = {
@@ -94,6 +100,12 @@ const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]]
             [tag, {}, [item1, ...list]]
 }
 
+/**
+ * Converts a FunctionalScript element into a list of HTML string chunks.
+ *
+ * Chunks are returned instead of a single string to support composition with
+ * other list/string helpers in this codebase.
+ */
 export const element = (e: Element): List<string> => {
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
@@ -103,10 +115,16 @@ export const element = (e: Element): List<string> => {
     return flat([open, rawText.includes(tag) ? [rawMap(n)] : nodes(n), ['</', tag, '>']])
 }
 
+/**
+ * Builds a complete HTML document by prepending `<!DOCTYPE html>`.
+ */
 export const html
     : (_: Element) => List<string>
     = compose(element)(listConcat(['<!DOCTYPE html>']))
 
+/**
+ * Renders an HTML element tree to a final string.
+ */
 export const htmlToString
     : (_: Element) => string
     = compose(html)(stringConcat)
