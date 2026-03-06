@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { type Io } from '../io/module.f.ts'
+import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import { all, both, readdir, readFile, writeFile, type All, type NodeProgram, type Readdir } from '../types/effects/node/module.f.ts'
@@ -61,6 +61,7 @@ export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> =
     return load(s)
 }
 
+/*
 export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
     const { fs: { promises: { readdir }} } = io
     const load = async(p: string): Promise<readonly string[]> => {
@@ -82,6 +83,10 @@ export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
     }
     return load(s)
 }
+*/
+
+export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> =>
+    fromIo(io)(allFiles2(s))
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     const {
