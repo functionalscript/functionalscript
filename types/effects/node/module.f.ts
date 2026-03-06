@@ -140,6 +140,7 @@ export type NodeOp =
     | Fetch
     | Console
     | Fs
+    | Http
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 
