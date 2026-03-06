@@ -221,6 +221,12 @@ const foldOp
         }
     }
 
+/**
+ * Parses a list of JSON tokens into a JSON-compatible value.
+ *
+ * Returns `ok` with the parsed value on success, or `error` with a message
+ * when the token sequence is invalid or incomplete.
+ */
 export const parse
     : (tokenList: List<JsonToken>) => Result<Unknown, string>
     = tokenList => {

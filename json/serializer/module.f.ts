@@ -27,14 +27,23 @@ type Unknown<T> = |
 
 const jsonStringify = JSON.stringify
 
+/**
+ * Serializes a string as a JSON string literal.
+ */
 export const stringSerialize
     : (_: string) => List<string>
     = input => [jsonStringify(input)]
 
+/**
+ * Serializes a number as a JSON number literal.
+ */
 export const numberSerialize
     : (_: number) => List<string>
     = input => [jsonStringify(input)]
 
+/**
+ * Shared serialized representation for `null`.
+ */
 export const nullSerialize = ['null']
 
 const trueSerialize = ['true']
@@ -67,6 +76,9 @@ export const objectWrap
     : (input: List<List<string>>) => List<string>
     = wrap('{')('}')
 
+/**
+ * Wraps serialized entries into a JSON array.
+ */
 export const arrayWrap
     : (input: List<List<string>>) => List<string>
     = wrap('[')(']')
