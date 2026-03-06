@@ -21,8 +21,10 @@ type V3 = Array3<bigint>
 
 type V4 = Array4<bigint>
 
+/** 8-word SHA-2 state vector. */
 export type V8 = Array8<bigint>
 
+/** 16-word SHA-2 message schedule chunk. */
 export type V16 = Array16<bigint>
 
 /**
@@ -295,11 +297,18 @@ const sha2 = ({ append, end, chunkLength }: Base, hash: V8, hashLength: bigint):
     end: end(hashLength),
 })
 
+/**
+ * Computes a SHA-2 hash from a list of message chunks.
+ *
+ * @param sha2 A SHA-2 algorithm configuration.
+ * @returns A function that hashes the full list of chunks.
+ */
 export const computeSync = ({ append, init, end }: Sha2): (list: List<Vec>) => Vec => {
     const f = fold(append)(init)
     return (list: List<Vec>): Vec => end(f(list))
 }
 
+/** 32-bit SHA-2 base configuration shared by SHA-224 and SHA-256. */
 export const base32: Base = base({
     logBitLen: 5n,
     k: [
@@ -326,6 +335,7 @@ export const base32: Base = base({
     ss1: [17n, 19n, 10n],
 })
 
+/** 64-bit SHA-2 base configuration shared by SHA-384, SHA-512, SHA-512/224 and SHA-512/256. */
 export const base64: Base = base({
     logBitLen: 6n,
     k: [
