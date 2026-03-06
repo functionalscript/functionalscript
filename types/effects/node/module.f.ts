@@ -1,4 +1,5 @@
 import type { Vec } from '../../bit_vec/module.f.ts'
+import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
@@ -107,6 +108,26 @@ export const log: Func<Log> =
 // Console
 
 export type Console = Log | Error
+
+// Server
+
+export type Server =
+    Nominal<'server', `160855c4f69310fece3273c1853ac32de43dee1eb41bf59d821917f8eebe9272`, unknown>
+
+export type Req = undefined
+
+export type Res = undefined
+
+// createServer
+
+export type CreateServer = ['createServer', (f: (_: Request) => Response) => Server]
+
+export const createServer: Func<CreateServer> =
+    do_('createServer')
+
+// listen
+
+export type Listen = ['listen', (_: readonly[Server, number]) => void]
 
 // Node
 
