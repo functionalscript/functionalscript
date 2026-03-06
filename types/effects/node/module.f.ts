@@ -129,6 +129,10 @@ export const createServer: Func<CreateServer> =
 
 export type Listen = ['listen', (_: readonly[Server, number]) => void]
 
+// HTTP
+
+export type Http = CreateServer | Listen
+
 // Node
 
 export type NodeOp =
