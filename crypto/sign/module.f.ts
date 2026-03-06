@@ -23,6 +23,12 @@ export type All = {
     readonly bits2octets: (b: Vec) => Vec
 }
 
+/**
+ * Builds RFC6979 helper conversions for a subgroup order.
+ *
+ * @param q - Subgroup order.
+ * @returns Conversion helpers used by deterministic nonce generation.
+ */
 export const all = (q: bigint): All => {
     const qlen = bitLength(q)
     const bits2int = (b: Vec) => {
@@ -41,6 +47,9 @@ export const all = (q: bigint): All => {
     }
 }
 
+/**
+ * Builds RFC6979 helper conversions from curve parameters.
+ */
 export const fromCurve = (c: Curve): All => all(c.nf.p)
 
 const x01 = vec8(0x01n)
@@ -50,6 +59,9 @@ const ltov = listToVec(msb)
 
 export const concat = (...x: readonly Vec[]): Vec => ltov(x)
 
+/**
+ * Computes deterministic ECDSA nonce `k` as described by RFC6979.
+ */
 export const computeK: (_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint
 = ({ q, bits2int, qlen, int2octets, bits2octets }) => hf => {
     // TODO: Look at https://www.rfc-editor.org/rfc/rfc6979#section-3.3 to reformulate
@@ -123,6 +135,9 @@ export const computeK: (_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigin
 
 type Signature = Array2<bigint>
 
+/**
+ * Signs a message bit vector and returns an ECDSA `(r, s)` signature pair.
+ */
 export const sign = (c: Curve) => (hf: Sha2) => (x: bigint) => (m: Vec): Signature => {
     // 2.4 Signature Generation
     const { nf: { p: q, div }, g } = c
