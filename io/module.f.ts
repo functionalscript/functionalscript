@@ -167,6 +167,8 @@ export const fromIo = ({
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+        createServer: todo,
+        listen: todo,
     })
     return result
 }
