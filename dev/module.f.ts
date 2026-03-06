@@ -61,31 +61,7 @@ export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> =
     return load(s)
 }
 
-/*
-export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
-    const { fs: { promises: { readdir }} } = io
-    const load = async(p: string): Promise<readonly string[]> => {
-        let result: readonly string[] = []
-        for (const i of await readdir(p, { withFileTypes: true })) {
-            const { name } = i
-            if (name.startsWith('.')) { continue }
-            const file = `${p}/${name}`
-            if (i.isDirectory()) {
-                if (name === 'node_modules') { continue }
-                result = [...result, ...await load(file)]
-                continue
-            }
-            if (name.endsWith('.js') || name.endsWith('.ts')) {
-                result = [...result, file]
-            }
-        }
-        return result
-    }
-    return load(s)
-}
-*/
-
-export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> =>
+const allFiles = (io: Io) => (s: string): Promise<readonly string[]> =>
     fromIo(io)(allFiles2(s))
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {

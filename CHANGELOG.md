@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.1
+
+- Effects: the `both` function [710](https://github.com/functionalscript/functionalscript/pull/710)
+
 ## 0.11.0
 
 - Effects: refactoring: 1. fluent native, 2. operation set. [708](https://github.com/functionalscript/functionalscript/pull/708)
