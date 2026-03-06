@@ -6,11 +6,10 @@
 import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
-import { encodeUtf8 } from '../types/uint8array/module.f.ts'
-import { all, readdir, readFile, writeFile, type All, type NodeOp, type Readdir, type ReadFile, type WriteFile } from '../types/effects/node/module.f.ts'
+import { all, both, readdir, readFile, writeFile, type All, type NodeProgram, type Readdir } from '../types/effects/node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { begin, pure, type Do, type Effect } from '../types/effects/module.f.ts'
+import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -62,27 +61,8 @@ export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> =
     return load(s)
 }
 
-export const allFiles = (io: Io) => (s: string): Promise<readonly string[]> => {
-    const { fs: { promises: { readdir }} } = io
-    const load = async(p: string): Promise<readonly string[]> => {
-        let result: readonly string[] = []
-        for (const i of await readdir(p, { withFileTypes: true })) {
-            const { name } = i
-            if (name.startsWith('.')) { continue }
-            const file = `${p}/${name}`
-            if (i.isDirectory()) {
-                if (name === 'node_modules') { continue }
-                result = [...result, ...await load(file)]
-                continue
-            }
-            if (name.endsWith('.js') || name.endsWith('.ts')) {
-                result = [...result, file]
-            }
-        }
-        return result
-    }
-    return load(s)
-}
+const allFiles = (io: Io) => (s: string): Promise<readonly string[]> =>
+    fromIo(io)(allFiles2(s))
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     const {
@@ -110,21 +90,19 @@ const index2 = begin
     .step(() => readFile(denoJson))
     .step(v => pure(JSON.parse(utf8ToString(unwrap(v))) as unknown))
 
-const allFiles2a = (jsr_json: unknown) => begin
+const allFiles2aa = begin
     .step(() => allFiles2('.'))
     .step(files => {
-        // console.log(files)
         const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
-        const exportsA = list.map(v => [v, `./${v.substring(2)}`])
-        const exports = Object.fromEntries(exportsA)
-        const json = JSON.stringify({ ...jsr_json as any, exports }, null, 2)
+        const exportsA = list.map(v => [v, `./${v.substring(2)}`] as const)
+        return pure(Object.fromEntries(exportsA))
+    })
+
+const index3 = both(index2)(allFiles2aa)
+    .step(([jsr_json, exports]) => {
+        const json = JSON.stringify({ ...jsr_json as object, exports }, null, 2)
         return writeFile(denoJson, utf8(json))
     })
     .step(() => pure(0))
 
-
-export const index = async (io: Io): Promise<number> => {
-    const runner = fromIo(io)
-    const jsr_json = await runner(index2)
-    return await runner(allFiles2a(jsr_json))
-}
+export const index4: NodeProgram = () => index3

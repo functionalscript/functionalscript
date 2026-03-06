@@ -5,7 +5,6 @@
 - [ ] 10. Short URL table.
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
-- [x] 16. License in JSR file?
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] P5 20. Test framework should be able to run a subset of tests.
 - [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
@@ -262,7 +261,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
   1. We need more powerful type system than TS. See `bnf` or `effects`.
   2. Validating type match at run-time.
 - [ ] 116. Report the TSGO regression (see `btree`).
-- [ ] 117. Should we remove `map` and `pipe` functions from `Effect`?
+- [X] 117. Should we remove `map` and `pipe` functions from `Effect`?
   ```ts
   // current
   readFile('a.txt')

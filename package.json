@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "type": "module",
   "files": [
     "**/*.js",
@@ -11,7 +11,7 @@
     "prepack": "tsc --NoEmit false",
     "test20": "npm run prepack && node --test",
     "test": "tsc && node --test --experimental-strip-types --experimental-test-coverage --test-coverage-include=**/module.f.ts",
-    "index": "node ./dev/index/module.ts",
+    "index": "node ./fjs/module.ts r ./dev/index/module.f.ts",
     "fst": "node ./fjs/module.ts t",
     "fjs": "node ./fjs/module.ts",
     "ci-update": "node ./fjs/module.ts r ./ci/module.f.ts",
