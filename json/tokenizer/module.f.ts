@@ -85,6 +85,13 @@ const scanToken
         }
     }
 
+/**
+ * Converts a stream of UTF-8 bytes into JSON tokens.
+ *
+ * The tokenizer accepts only JSON-compatible JavaScript tokens, ignores
+ * whitespace/newline tokens, and reports invalid token sequences as
+ * `{ kind: 'error' }` tokens.
+ */
 export const tokenize
     = (input: List<number>): List<JsonToken> => {
         const jsTokens
