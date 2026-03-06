@@ -12,7 +12,7 @@ If either installation fails, skip all test commands.
 
 ## Update
 
-It's recommended to run `npm run update` after changing the source code. 
+It's recommended to run `npm run update` after changing the source code.
 
 ## Testing
 
@@ -21,6 +21,20 @@ It's recommended to run `npm run update` after changing the source code.
 - Run `cargo test` to test the Rust crate in `nanvm-lib`.
 - Run `cargo clippy` to lint the Rust crate.
 - Run `cargo fmt -- --check` to verify formatting.
+
+## Documentation
+
+Use JSDoc for documenting TypeScript files. Every module should start with this header:
+
+```ts
+/**
+ * <...Module documentation...>
+ *
+ * @module
+ */
+```
+
+where `<...Module documentation...>` should be documentation for the module.
 
 ## Pull Requests
 
