@@ -3,6 +3,7 @@ import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
 import type { Server as EffectServer, IoResult, NodeOp, RequestListener } from '../types/effects/node/module.f.ts'
+import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, toVec } from '../types/uint8array/module.f.ts'
 
@@ -93,7 +94,9 @@ export type Process = {
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
-export type Server = {}
+export type Server = {
+    readonly listen: (port: number) => void
+}
 
 export type Https = {
     readonly createServer: (_: RequestListener) => Server
@@ -175,8 +178,14 @@ export const fromIo = ({
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
-        createServer: async requestListener => createServer(requestListener) as EffectServer,
-        listen: todo,
+        createServer: async requestListener => {
+            const server: EffectServer = asNominal(createServer(requestListener))
+            return server
+        },
+        listen: async ([server, port]) => {
+            const s = asBase(server) as Server
+            s.listen(port)
+        },
     })
     return result
 }
