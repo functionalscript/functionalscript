@@ -93,6 +93,16 @@ export type Process = {
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
+export type IncomingMessage = {}
+
+export type ServerResponse = {}
+
+// export type RequestListener = (request: InstanceType<Request>, response: InstanceType<Response> & { req: InstanceType<Request> }) => void;
+
+export type Https = {
+    readonly createServer: () => ServerResponse
+}
+
 /**
  * Core IO operations interface providing access to system resources
  */
@@ -105,6 +115,7 @@ export type Io = {
     readonly fetch: (url: string) => Promise<Response>
     readonly tryCatch: TryCatch
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
+    readonly https: Https
 }
 
 /**
