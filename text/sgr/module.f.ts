@@ -36,9 +36,13 @@ export const csi = (end: End): Csi => code =>
  */
 export const sgr: Csi = csi('m')
 
+/** Resets all SGR styles to terminal defaults. */
 export const reset: string = sgr(0)
+/** Enables bold/intense text rendering when supported by the terminal. */
 export const bold: string = sgr(1)
+/** Applies red foreground color to subsequent text. */
 export const fgRed: string = sgr(31)
+/** Applies green foreground color to subsequent text. */
 export const fgGreen: string = sgr(32)
 
 const { max } = Math
@@ -50,11 +54,19 @@ const replace = (old: string) => (text: string) => {
 }
 
 export type Stdout = {
+    /** Writes a string to the output stream. */
     readonly write: (s: string) => void
 }
 
+/** Stateful writer that updates previously printed text in-place. */
 export type WriteText = (text: string) => WriteText
 
+/**
+ * Creates a stateful text writer that rewrites the previous value using backspaces.
+ *
+ * @param stdout - Destination output stream.
+ * @returns A recursive writer that replaces prior text on each call.
+ */
 export const createConsoleText = (stdout: Stdout): WriteText => {
     const f = (old: string) => (text: string) => {
         stdout.write(replace(old)(text))
@@ -65,6 +77,15 @@ export const createConsoleText = (stdout: Stdout): WriteText => {
 
 export type CsiConsole = (s: string) => void
 
+/**
+ * Creates a TTY-aware console function.
+ *
+ * For TTY destinations, ANSI SGR sequences are preserved.
+ * For non-TTY destinations, ANSI SGR sequences are stripped.
+ *
+ * @param io - Runtime IO bindings.
+ * @returns A function that targets a writable stream.
+ */
 export const console = ({ fs: { writeSync } }: Io) => (w: Writable): CsiConsole => {
     const { isTTY } = w
     return isTTY
@@ -72,6 +93,8 @@ export const console = ({ fs: { writeSync } }: Io) => (w: Writable): CsiConsole 
         : (s: string) => writeSync(w.fd, s.replace(/\x1b\[[0-9;]*m/g, '') + '\n')
 }
 
+/** Writes to process stdout using a TTY-aware CSI console. */
 export const stdio = (io: Io): CsiConsole => console(io)(io.process.stdout)
 
+/** Writes to process stderr using a TTY-aware CSI console. */
 export const stderr = (io: Io): CsiConsole => console(io)(io.process.stderr)
