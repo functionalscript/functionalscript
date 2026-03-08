@@ -1,6 +1,6 @@
 import { todo } from '../dev/module.f.ts'
 import { normalize } from '../path/module.f.ts'
-import { pure, type Effect } from '../types/effects/module.f.ts'
+import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
 import type { IoResult, NodeOp } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
