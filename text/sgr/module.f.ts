@@ -1,4 +1,11 @@
-// Co control codes
+/**
+ * ANSI Control Sequence Introducer (CSI) and Select Graphic Rendition (SGR)
+ * helpers for writing formatted terminal output and TTY-aware console streams.
+ *
+ * @module
+ */
+
+// C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
 import type { Io, Writable } from "../../io/module.f.ts"
