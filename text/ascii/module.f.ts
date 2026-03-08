@@ -1,3 +1,9 @@
+/**
+ * Provides ASCII code point constants and helpers for creating numeric code points and inclusive ranges.
+ *
+ * @module
+ */
+
 import type { Range } from '../../types/range/module.f.ts'
 
 const at = (s: string) => (i: number) => {
