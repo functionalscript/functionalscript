@@ -2,7 +2,7 @@ import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
+    type Effect, type Func, type Operation, type ToAsyncOperationMap, doRest, do_
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -43,8 +43,7 @@ export type MkdirParam = readonly[string, MakeDirectoryOptions?]
 export type Mkdir = readonly['mkdir', (_: MkdirParam) => IoResult<void>]
 
 export const mkdir =
-    (...p: MkdirParam): Effect<Mkdir, IoResult<void>> =>
-    do_<Mkdir>('mkdir')(p)
+    doRest<Mkdir>('mkdir')
 
 // readFile
 
@@ -74,8 +73,7 @@ export type ReaddirParam = readonly[string, ReaddirOptions]
 export type Readdir = readonly['readdir', (_: ReaddirParam) => IoResult<readonly Dirent[]>]
 
 export const readdir =
-    (...p: ReaddirParam): Effect<Readdir, IoResult<readonly Dirent[]>> =>
-    do_<Readdir>('readdir')(p)
+    doRest<Readdir>('readdir')
 
 // writeFile
 
@@ -84,8 +82,7 @@ export type WriteFileParam = readonly[string, Vec]
 export type WriteFile = readonly['writeFile', (_: WriteFileParam) => IoResult<void>]
 
 export const writeFile =
-    (...p: WriteFileParam): Effect<WriteFile, IoResult<void>> =>
-    do_<WriteFile>('writeFile')(p)
+    doRest<WriteFile>('writeFile')
 
 // Fs
 
@@ -130,6 +127,9 @@ export const createServer: Func<CreateServer> =
 // listen
 
 export type Listen = ['listen', (_: readonly[Server, number]) => void]
+
+export const listen =
+    doRest('listen')
 
 // HTTP
 

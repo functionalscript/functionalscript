@@ -45,10 +45,19 @@ export const doFull = <O extends Operation, T, K extends O[0]>(
         doFull<O | Q, R, K>(cmd, param, x => cont(x).step(f)),
 })
 
+export type Param<O extends Operation> = Pr<O, O[0]>[0]
+
+export type Return<O extends Operation> = Pr<O, O[0]>[1]
+
 export const do_ =
     <O extends Operation>(cmd: O[0]) =>
-    (param: Pr<O, O[0]>[0]): Effect<O, Pr<O, O[0]>[1]> =>
+    (param: Param<O>): Effect<O, Return<O>> =>
     doFull(cmd, param, pure)
+
+export const doRest =
+    <O extends Operation>(cmd: O[0]) =>
+    (...param: Param<O>) =>
+    do_(cmd)(param as Param<O>)
 
 export const begin: Effect<never, void> = pure(undefined)
 
