@@ -100,7 +100,7 @@ export type ServerResponse = {}
 // export type RequestListener = (request: InstanceType<Request>, response: InstanceType<Response> & { req: InstanceType<Request> }) => void;
 
 export type Https = {
-    readonly createServer: () => ServerResponse
+    readonly createServer: (_: IncomingMessage) => ServerResponse
 }
 
 /**
