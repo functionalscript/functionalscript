@@ -1,8 +1,9 @@
 import { todo } from '../dev/module.f.ts'
 import { normalize } from '../path/module.f.ts'
-import { pure, type Effect } from '../types/effects/module.f.ts'
+import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { IoResult, NodeOp } from '../types/effects/node/module.f.ts'
+import type { Server as EffectServer, IoResult, NodeOp, RequestListener } from '../types/effects/node/module.f.ts'
+import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, toVec } from '../types/uint8array/module.f.ts'
 
@@ -93,6 +94,14 @@ export type Process = {
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
+export type Server = {
+    readonly listen: (port: number) => void
+}
+
+export type Https = {
+    readonly createServer: (_: RequestListener) => Server
+}
+
 /**
  * Core IO operations interface providing access to system resources
  */
@@ -105,6 +114,7 @@ export type Io = {
     readonly fetch: (url: string) => Promise<Response>
     readonly tryCatch: TryCatch
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
+    readonly https: Https
 }
 
 /**
@@ -148,9 +158,10 @@ export const fromIo = ({
     console: { error, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile } },
     fetch,
+    https: { createServer },
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
-        all: async effects => await Promise.all(effects.map(v => result(v))),
+        all: async effects => await Promise.all(effects.map(result)),
         error: async message => error(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
@@ -167,6 +178,14 @@ export const fromIo = ({
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+        createServer: async requestListener => {
+            const server: EffectServer = asNominal(createServer(requestListener))
+            return server
+        },
+        listen: async ([server, port]) => {
+            const s = asBase(server) as Server
+            s.listen(port)
+        },
     })
     return result
 }

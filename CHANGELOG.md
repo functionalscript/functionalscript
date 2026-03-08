@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.2
+
+- Effects: Effects: HTTPS: `createServer` and `listen`. [716](https://github.com/functionalscript/functionalscript/pull/716)
+
 ## 0.11.1
 
 - Effects: the `both` function [710](https://github.com/functionalscript/functionalscript/pull/710)

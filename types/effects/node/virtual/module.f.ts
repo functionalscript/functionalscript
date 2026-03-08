@@ -3,11 +3,11 @@
  *
  * @module
  */
+import { todo } from "../../../../dev/module.f.ts"
 import { parse } from "../../../../path/module.f.ts"
 import { isVec, type Vec } from "../../../bit_vec/module.f.ts"
 import { error, ok } from "../../../result/module.f.ts"
 import { run, type MemOperationMap, type RunInstance } from "../../mock/module.f.ts"
-import { pure, type Effect } from "../../module.f.ts"
 import type { Dirent, IoResult, NodeOp } from "../module.f.ts"
 
 export type Dir = {
@@ -137,6 +137,8 @@ const map: MemOperationMap<NodeOp, State> = {
     readFile,
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
+    createServer: todo,
+    listen: todo,
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)

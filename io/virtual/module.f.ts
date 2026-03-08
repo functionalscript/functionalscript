@@ -5,6 +5,7 @@
  */
 import type { Io, MakeDirectoryOptions, RmOptions } from '../module.f.ts'
 import { at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
+import { todo } from '../../dev/module.f.ts'
 
 export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     console: {
@@ -40,4 +41,7 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     fetch: () => Promise.reject(),
     tryCatch: f => ['ok', f()],
     asyncTryCatch: async f => ['ok', await f()],
+    https: {
+        createServer: todo
+    }
 })
