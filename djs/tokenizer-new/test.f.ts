@@ -183,15 +183,15 @@ export default {
             if (seq.tag !== 'comment') throw JSON.stringify(mr)
         }
     ],
-    // djs: [
-    //     () => {
-    //         const result = tokenizeString('')
-    //         if (result !== '[{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('{')
-    //         if (result !== '[{"kind":"{"},{"kind":"eof"}]') { throw result }
-    //     },
+    djs: [
+        () => {
+            const result = tokenizeString('')
+            if (result !== '[{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('{')
+            if (result !== '[{"kind":"{"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('}')
     //         if (result !== '[{"kind":"}"},{"kind":"eof"}]') { throw result }
@@ -224,10 +224,10 @@ export default {
     //         const result = tokenizeString('""')
     //         if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('"value"')
-    //         if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"value"')
+            if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('"value')
     //         if (result !== '[{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
@@ -456,7 +456,7 @@ export default {
     //         const result = tokenizeString('1234567890nn')
     //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"},{"kind":"eof"}]') { throw result }
     //     },
-    // ],
+    ],
     // operators:
     // [
     //     () => {
