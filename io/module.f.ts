@@ -1,7 +1,7 @@
 import { normalize } from '../path/module.f.ts'
-import { type Effect } from '../types/effects/module.f.ts'
+import { type Effect, type Operation } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { Server as EffectServer, Headers, IoResult, NodeOp } from '../types/effects/node/module.f.ts'
+import type { Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
@@ -201,14 +201,16 @@ export const fromIo = ({
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
         createServer: async requestListener => {
+            const erl = requestListener as Erl<NodeOp>
             const nodeRl: RequestListener = async(req, res) => {
+                const reqBody = await collect(req)
                 const { method, url, headers } = req
-                const { status, headers: outHeaders, body: outBody } = requestListener({
+                const { status, headers: outHeaders, body: outBody } = await result(erl({
                     method,
                     url,
                     headers,
-                    body: listToVec(await collect(req))
-                })
+                    body: listToVec(reqBody)
+                }))
                 res
                     .writeHead(status, outHeaders)
                     .end(fromVec(outBody))
