@@ -148,6 +148,13 @@ export const listen: RestFunc<Listen> =
 
 export type Http = CreateServer | Listen
 
+// Wait forever
+
+export type Forever = ['forever', () => never]
+
+export const forever: Func<Forever> =
+    do_('forever')
+
 // Node
 
 export type NodeOp =
@@ -156,6 +163,7 @@ export type NodeOp =
     | Console
     | Fs
     | Http
+    | Forever
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 

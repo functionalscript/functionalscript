@@ -139,6 +139,7 @@ const map: MemOperationMap<NodeOp, State> = {
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
     createServer: todo,
     listen: todo,
+    forever: todo,
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)
