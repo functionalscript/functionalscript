@@ -41,7 +41,7 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     fetch: () => Promise.reject(),
     tryCatch: f => ['ok', f()],
     asyncTryCatch: async f => ['ok', await f()],
-    https: {
+    http: {
         createServer: todo
     }
 })

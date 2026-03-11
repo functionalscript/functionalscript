@@ -113,9 +113,22 @@ export type Server =
 
 // createServer
 
-export type IncomingMessage = {}
+export type Headers = {
+    readonly [k in string]: string
+}
 
-export type ServerResponse = {}
+export type IncomingMessage = {
+    readonly method: string
+    readonly url: string
+    readonly headers: Headers
+    readonly body: Vec
+}
+
+export type ServerResponse = {
+    readonly status: number
+    readonly headers: Headers
+    readonly body: Vec
+}
 
 export type RequestListener = (_: IncomingMessage) => ServerResponse
 
