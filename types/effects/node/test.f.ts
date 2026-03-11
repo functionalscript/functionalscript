@@ -1,5 +1,4 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
-import { run } from "../mock/module.f.ts"
 import { pure } from "../module.f.ts"
 import { fetch, mkdir, readdir, readFile, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"

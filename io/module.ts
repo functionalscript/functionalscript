@@ -1,7 +1,7 @@
-import https from 'node:https'
+import http from 'node:http'
 import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
-import process from "node:process"
+import process from 'node:process'
 import { concat } from '../path/module.f.ts'
 import type { NodeProgram } from '../types/effects/node/module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
@@ -33,7 +33,7 @@ export const io: Io = {
             return error(e)
         }
     },
-    https
+    http,
 }
 
 export const legacyRun: Run = run(io)

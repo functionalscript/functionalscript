@@ -304,6 +304,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 122. Consider add a new file type for applications. For example `node.f.ts` or `app.f.ts`.
       These files should have `export default` with type `NodeProgram`.
       Then we may have other application files, for example `web.f.ts`.
+- [ ] 123. `tsgo` asks for `"types": ["node"]` in the [../tsconfig.json](../tsconfig.json). It looks like a regression to me because we use install `@types/node` as `devDependencies`.
 
 ## Language Specification
 
