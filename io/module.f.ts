@@ -201,14 +201,15 @@ export const fromIo = ({
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
         createServer: async requestListener => {
+            const erl = requestListener as Erl<NodeOp>
             const nodeRl: RequestListener = async(req, res) => {
-                const erl = requestListener as Erl<NodeOp>
+                const reqBody = await collect(req)
                 const { method, url, headers } = req
                 const { status, headers: outHeaders, body: outBody } = await result(erl({
                     method,
                     url,
                     headers,
-                    body: listToVec(await collect(req))
+                    body: listToVec(reqBody)
                 }))
                 res
                     .writeHead(status, outHeaders)
