@@ -11,6 +11,8 @@ export type IoResult<T> = Result<T, unknown>
 
 export type All = ['all', <T>(_: readonly Effect<never, T>[]) => readonly T[]]
 
+const doAll: Func<All> = do_('all')
+
 /**
  * To run the operation `O` should be known by the runner/engine.
  * This is the reason why we merge `O` with `All` in the resulted `Effect`.
@@ -20,13 +22,13 @@ export type All = ['all', <T>(_: readonly Effect<never, T>[]) => readonly T[]]
  */
 export const all =
     <O extends Operation, T>(...a: readonly Effect<O, T>[]): Effect<O | All, readonly T[]> =>
-    do_<All>('all')(a as readonly Effect<never, T>[]) as Effect<O | All, readonly T[]>
+    doAll(a as readonly Effect<never, T>[]) as Effect<O | All, readonly T[]>
 
 export const both =
     <O0 extends Operation, T0>(a: Effect<O0, T0>) =>
     <O1 extends Operation, T1>(b: Effect<O1, T1>):
     Effect<O0 | O1 |All, readonly[T0, T1]> =>
-    all<O0|O1, T0|T1>(a, b) as Effect<O0 | O1 | All, readonly[T0, T1]>
+    all<O0 | O1, T0 | T1>(a, b) as Effect<O0 | O1 | All, readonly[T0, T1]>
 
 // fetch
 
@@ -130,12 +132,13 @@ export type ServerResponse = {
     readonly body: Vec
 }
 
-export type RequestListener = (_: IncomingMessage) => ServerResponse
+export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse>
 
-export type CreateServer = ['createServer', (_: RequestListener) => Server]
+export type CreateServer = ['createServer', (_: RequestListener<Operation>) => Server]
 
-export const createServer: Func<CreateServer> =
-    do_('createServer')
+export const createServer
+    : <O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server> =
+    do_<CreateServer>('createServer')
 
 // listen
 
