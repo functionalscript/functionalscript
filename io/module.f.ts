@@ -220,6 +220,7 @@ export const fromIo = ({
             const s = asBase(server) as Server
             s.listen(port)
         },
+        forever: () => new Promise(() => {})
     })
     return result
 }
