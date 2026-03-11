@@ -204,13 +204,12 @@ export const fromIo = ({
             const nodeRl: RequestListener = async(req, res) => {
                 const erl = requestListener as Erl<NodeOp>
                 const { method, url, headers } = req
-                const e = erl({
+                const { status, headers: outHeaders, body: outBody } = await result(erl({
                     method,
                     url,
                     headers,
                     body: listToVec(await collect(req))
-                })
-                const { status, headers: outHeaders, body: outBody } = await result(e)
+                }))
                 res
                     .writeHead(status, outHeaders)
                     .end(fromVec(outBody))
