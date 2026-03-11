@@ -305,6 +305,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
       These files should have `export default` with type `NodeProgram`.
       Then we may have other application files, for example `web.f.ts`.
 - [ ] 123. `tsgo` asks for `"types": ["node"]` in the [../tsconfig.json](../tsconfig.json). It looks like a regression to me because we use install `@types/node` as `devDependencies`.
+- [ ] 124. `RequestListener` should not be stateless. One option is to pass a state but I hope we can find something better than that.
 
 ## Language Specification
 
