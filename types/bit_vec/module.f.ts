@@ -145,6 +145,8 @@ const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
 
 export type Reduce = OpReduce<Vec>
 
+export type PopFront<T> = (len: bigint) => (u: T) => readonly [bigint, T]
+
 /**
  * Represents operations for handling bit vectors with a specific bit order.
  *
@@ -209,7 +211,7 @@ export type BitOrder = {
      * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, rM1 === empty]
      * ```
      */
-    readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
+    readonly popFront: PopFront<Vec>
     /**
      * Concatenates two vectors.
      *
@@ -233,7 +235,20 @@ export type BitOrder = {
      * @returns A function that takes a second vector and returns the XOR result.
      */
     readonly xor: Reduce
-    readonly unpackPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
+    readonly unpackPopFront: PopFront<Unpacked>
+}
+
+const popFront = (upf: PopFront<Unpacked>): PopFront<Vec> => len => {
+    const f = upf(len)
+    return v => {
+        const [uint, u] = f(unpack(v))
+        return [uint, pack(u)]
+    }
+}
+
+const lsbUnpackPopFront: PopFront<Unpacked> = len => {
+    const m = mask(len)
+    return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
 }
 
 /**
@@ -252,22 +267,21 @@ export const lsb: BitOrder = {
         const { length, uint } = unpack(v)
         return vec(length - len)(uint >> len)
     },
-    popFront: len => {
-        const m = mask(len)
-        return v => {
-            const { length, uint } = unpack(v)
-            return [uint & m, vec(length - len)(uint >> len)]
-        }
-    },
+    popFront: popFront(lsbUnpackPopFront),
     concat: (a: Vec) => (b: Vec): Vec => {
         const { length: al, uint: au } = unpack(a)
         const { length: bl, uint: bu } = unpack(b)
         return vec(al + bl)((bu << al) | au)
     },
     xor: op(lsbNorm)(xor),
-    unpackPopFront: len => {
-        const m = mask(len)
-        return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
+    unpackPopFront: lsbUnpackPopFront
+}
+
+const msbUnpackPopFront: PopFront<Unpacked> = len => {
+    const m = mask(len)
+    return ({ length, uint }) => {
+        const d = length - len
+        return [(uint >> d) & m, { length: d, uint }]
     }
 }
 
@@ -290,23 +304,10 @@ export const msb: BitOrder = {
         const { length, uint } = unpack(v)
         return vec(length - len)(uint)
     },
-    popFront: len => {
-        const m = mask(len)
-        return v => {
-            const { length, uint } = unpack(v)
-            const d = length - len
-            return [(uint >> d) & m, vec(d)(uint)]
-        }
-    },
+    popFront: popFront(msbUnpackPopFront),
     concat: flip(lsb.concat),
     xor: op(msbNorm)(xor),
-    unpackPopFront: len => {
-        const m = mask(len)
-        return ({ length, uint }) => {
-            const d = length - len
-            return [(uint >> d) & m, { length: d, uint }]
-        }
-    }
+    unpackPopFront: msbUnpackPopFront
 }
 
 /**
