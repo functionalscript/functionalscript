@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.11.7
 
+- BitVec: improve performance of `u8ListToVec` [727](https://github.com/functionalscript/functionalscript/pull/727)
+
 ## 0.11.6
 
 - Effects: HTTP: createServer: a universal request listener [726](https://github.com/functionalscript/functionalscript/pull/726)
