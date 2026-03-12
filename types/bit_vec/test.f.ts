@@ -1,8 +1,8 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp, u8ListToVec } from './module.f.ts'
-import { repeat as listRepeat } from '../list/module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp, u8ListToVec, u8List } from './module.f.ts'
+import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -346,5 +346,15 @@ export default {
     u8ListToVec: () => {
         // 131_072 is too much for Bun
         const x = u8ListToVec(msb)(listRepeat(0x12)(131_071))
-    }
+        return () => {
+            const m = u8List(msb)(x)
+            const y = toArray(m)
+            if (y.length !== 131_071) {
+                throw y.length
+            }
+        }
+    },
+    //u8List: () => {
+    //
+    //}
 }

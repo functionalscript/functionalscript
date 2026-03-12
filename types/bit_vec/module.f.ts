@@ -297,7 +297,6 @@ export const msb: BitOrder = {
     xor: op(msbNorm)(xor)
 }
 
-
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
  *
@@ -333,7 +332,6 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
     }
     return result.reduce((p, c) => concat(c)(p), empty)
 }
-
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
