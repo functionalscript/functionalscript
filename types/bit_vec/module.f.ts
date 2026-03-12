@@ -28,7 +28,6 @@ import { entries, fold, iterable, type List, type Thunk } from '../list/module.f
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
-import { todo } from '../../dev/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
