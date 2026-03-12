@@ -344,6 +344,7 @@ export default {
         c(vec(4n)(0x5n))(vec(5n)(0xAn))(-1) // 0b0101_ < 0b01010
     },
     u8ListToVec: () => {
-        const x = u8ListToVec(msb)(listRepeat(0x12)(10_000_000))
+        // 10_000_000 is too much for Bun
+        const x = u8ListToVec(msb)(listRepeat(0x12)(5_000_000))
     }
 }
