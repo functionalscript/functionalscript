@@ -24,7 +24,7 @@
 import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { entries, fold, iterable, type List, type Thunk } from '../list/module.f.ts'
+import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
@@ -233,7 +233,7 @@ export type BitOrder = {
      * @returns A function that takes a second vector and returns the XOR result.
      */
     readonly xor: Reduce
-    // readonly unpackPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
+    readonly unpackPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
 }
 
 /**
@@ -265,12 +265,10 @@ export const lsb: BitOrder = {
         return vec(al + bl)((bu << al) | au)
     },
     xor: op(lsbNorm)(xor),
-    /*
     unpackPopFront: len => {
         const m = mask(len)
         return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
     }
-        */
 }
 
 /**
@@ -301,7 +299,14 @@ export const msb: BitOrder = {
         }
     },
     concat: flip(lsb.concat),
-    xor: op(msbNorm)(xor)
+    xor: op(msbNorm)(xor),
+    unpackPopFront: len => {
+        const m = mask(len)
+        return ({ length, uint }) => {
+            const d = length - len
+            return [(uint >> d) & m, { length: d, uint }]
+        }
+    }
 }
 
 /**
@@ -347,14 +352,14 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
  * @param v The vector to be converted.
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
-export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
-    const pf = popFront(8n)
-    const f = (v: Vec) => () => {
-        if (v === empty) { return null }
-        const [first, tail] = pf(v)
+export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> => {
+    const pf = unpackPopFront(8n)
+    const f = (u: Unpacked) => () => {
+        if (u.length === 0n) { return null }
+        const [first, tail] = pf(u)
         return { first: Number(first), tail: f(tail) }
     }
-    return f
+    return v => f(unpack(v))
 }
 
 /**
