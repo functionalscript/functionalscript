@@ -354,7 +354,4 @@ export default {
             }
         }
     },
-    //u8List: () => {
-    //
-    //}
 }
