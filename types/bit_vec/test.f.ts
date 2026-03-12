@@ -1,7 +1,8 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp, u8ListToVec } from './module.f.ts'
+import { repeat as listRepeat } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -341,5 +342,8 @@ export default {
         c(vec(4n)(0x5n))(vec(5n)(0x5n))(1)  // 0b0101_ < 0b00101
         c(vec(5n)(0x5n))(vec(4n)(0x5n))(-1) // 0b00101 < 0b0101_
         c(vec(4n)(0x5n))(vec(5n)(0xAn))(-1) // 0b0101_ < 0b01010
+    },
+    u8ListToVec: () => {
+        const x = u8ListToVec(msb)(listRepeat(0x12)(10_000_000))
     }
 }

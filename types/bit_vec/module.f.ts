@@ -24,7 +24,7 @@
 import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { fold, type List, type Thunk } from '../list/module.f.ts'
+import { entries, fold, iterable, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
@@ -297,8 +297,6 @@ export const msb: BitOrder = {
     xor: op(msbNorm)(xor)
 }
 
-const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
-    concat(a)(vec8(BigInt(u8)))
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
@@ -307,8 +305,35 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
-    fold(appendU8(bo))(empty)
+export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec => {
+    // much faster than: `fold(appendU8(bo))(empty)(list)`
+    // where `appendU8` is defined as
+    // ```
+    // const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
+    //    concat(a)(vec8(BigInt(u8)))
+    // ```
+    let result: readonly Vec[] = []
+    for (const b of iterable(list)) {
+        let v = vec8(BigInt(b))
+        let i = 0
+        while (true) {
+            if (result.length <= i) {
+                result = [...result, v]
+                break;
+            }
+            const old = result[i]
+            if (old === empty) {
+                result = result.toSpliced(i, 1, v)
+                break
+            }
+            result = result.toSpliced(i, 1, empty)
+            v = concat(old)(v)
+            i++
+        }
+    }
+    return result.reduce((p, c) => concat(c)(p), empty)
+}
+
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
