@@ -234,6 +234,7 @@ export type BitOrder = {
      * @returns A function that takes a second vector and returns the XOR result.
      */
     readonly xor: Reduce
+    // readonly unpackPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
 }
 
 /**
@@ -254,7 +255,7 @@ export const lsb: BitOrder = {
     },
     popFront: len => {
         const m = mask(len)
-        return v =>  {
+        return v => {
             const { length, uint } = unpack(v)
             return [uint & m, vec(length - len)(uint >> len)]
         }
@@ -264,7 +265,13 @@ export const lsb: BitOrder = {
         const { length: bl, uint: bu } = unpack(b)
         return vec(al + bl)((bu << al) | au)
     },
-    xor: op(lsbNorm)(xor)
+    xor: op(lsbNorm)(xor),
+    /*
+    unpackPopFront: len => {
+        const m = mask(len)
+        return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
+    }
+        */
 }
 
 /**
@@ -334,11 +341,6 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
     return result.reduce((p, c) => concat(c)(p), empty)
 }
 
-export const uintList = (bo: BitOrder) => (v: Vec): Thunk<bigint> => {
-    let cache = []
-    return todo()
-}
-
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
  *
@@ -347,9 +349,10 @@ export const uintList = (bo: BitOrder) => (v: Vec): Thunk<bigint> => {
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
 export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
+    const pf = popFront(8n)
     const f = (v: Vec) => () => {
         if (v === empty) { return null }
-        const [first, tail] = popFront(8n)(v)
+        const [first, tail] = pf(v)
         return { first: Number(first), tail: f(tail) }
     }
     return f
