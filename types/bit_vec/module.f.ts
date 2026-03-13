@@ -401,6 +401,7 @@ export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> 
 type Stack = readonly[Unpacked, Stack | undefined]
 
 export const u8List = ({ unpackSplit, unpackPopFront }: BitOrder) => (v: Vec): Thunk<number> => {
+    if (v === empty) { return () => null }
     const f = (stack: Stack) => () => {
         while (true) {
             const [first, rest] = stack
