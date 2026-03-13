@@ -27,7 +27,7 @@ import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/modu
 import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
-import { cmp, type Sign } from '../function/compare/module.f.ts'
+import { cmp, type Compare, type Sign } from '../function/compare/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -239,6 +239,7 @@ type Base = {
     readonly concat: Reduce
     readonly norm: NormOp
     readonly rawPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
+    readonly uintCmp: (a: bigint) => (b: bigint) => Sign
 }
 
 const bo = ({ front, removeFront, concat, rawPopFront, norm }: Base): BitOrder => {
@@ -290,7 +291,11 @@ export const lsb: BitOrder = bo({
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
     rawPopFront: len => ({ length, uint }) =>
-        [uint, { length: length - len, uint: uint >> len }]
+        [uint, { length: length - len, uint: uint >> len }],
+    uintCmp: a => b => {
+        const diff = a ^ b
+        return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
+    }
 })
 
 /**
@@ -318,7 +323,8 @@ export const msb: BitOrder = bo({
     rawPopFront: len => ({ length, uint }) => {
         const d = length - len
         return [uint >> d, { length: d, uint }]
-    }
+    },
+    uintCmp: cmp,
 })
 
 /**
