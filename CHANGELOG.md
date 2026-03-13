@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.9
+
+- BitVec: another significant performance improvement for `u8List` [731](https://github.com/functionalscript/functionalscript/pull/731)
 - BitVec: BitVec: `BitOrder.cmp` [729](https://github.com/functionalscript/functionalscript/pull/729)
 
 ## 0.11.8
