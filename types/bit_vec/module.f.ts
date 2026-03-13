@@ -282,7 +282,6 @@ export const lsb: BitOrder = bo({
         const { length, uint } = unpack(v)
         return vec(length - len)(uint >> len)
     },
-    // popFront: popFront(lsbUnpackPopFront),
     concat: (a: Vec) => (b: Vec): Vec => {
         const { length: al, uint: au } = unpack(a)
         const { length: bl, uint: bu } = unpack(b)
