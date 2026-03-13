@@ -404,15 +404,13 @@ export const lsbCmp = (av: Vec) => (bv: Vec): Sign => {
     const bu = unpack(bv)
     const al = au.length
     const bl = bu.length
-    const len = min(al)(bl)
-    const m = mask(len)
-    const a = au.uint & m
-    const b = bu.uint & m
-    const diff = a ^ b
+    const diff = au.uint ^ bu.uint
     if (diff === 0n) { return cmp(al)(bl) }
-    // diff & -diff isolates the lowest set bit (first differing position).
-    // Whichever vector has 1 there is greater in LSb-first order.
-    return (a & (diff & -diff)) !== 0n ? 1 : -1
+    // The lowest set bit of diff is the first position where the uints differ.
+    // If that bit is beyond the shorter vector's range, the shorter vector has 0
+    // there and the longer has 1 — so the same expression still yields the right
+    // answer without any explicit range check.
+    return (au.uint & (diff & -diff)) !== 0n ? 1 : -1
 }
 
 /**
