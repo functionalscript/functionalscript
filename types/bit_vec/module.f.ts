@@ -27,7 +27,7 @@ import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/modu
 import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
-import { cmp, type Compare, type Sign } from '../function/compare/module.f.ts'
+import { cmp, type Sign } from '../function/compare/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
