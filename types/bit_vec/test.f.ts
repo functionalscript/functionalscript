@@ -362,7 +362,7 @@ export default {
             const m = u8List(msb)(x)
             const y = toArray(m)
             if (y.length !== 131_071) {
-                throw y.length
+                throw `y.lenght: ${y.length}`
             }
         }
     },
@@ -370,7 +370,7 @@ export default {
         const x = vec(9n)(0x83n)
         const a = toArray(u8List(msb)(x))
         if (a.length !== 2) {
-            throw a
+            throw `a.lenght: ${a.length}`
         }
         const [a0, a1] = a
         if (a0 !== 0x41) {

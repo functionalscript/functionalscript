@@ -246,16 +246,17 @@ type Base = {
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
     readonly concat: Reduce
     readonly norm: NormOp
-    readonly rawPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
     readonly uintCmp: (a: bigint) => (b: bigint) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
 }
 
-const bo = ({ front, removeFront, concat, rawPopFront, norm, uintCmp }: Base): BitOrder => {
+const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
+        const us = unpackSplit(len)
         return (v: Unpacked) => {
-            const [uint, rest] = rawPopFront(len)(v)
-            return [uint & m, rest] as const
+            const [uint, rest] = us(v)
+            return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
     return {
@@ -307,12 +308,11 @@ export const lsb: BitOrder = bo({
     },
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
-    rawPopFront: len => ({ length, uint }) =>
-        [uint, { length: length - len, uint: uint >> len }],
     uintCmp: a => b => {
         const diff = a ^ b
         return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
-    }
+    },
+    unpackSplit: len => ({ uint }) => [uint, uint >> len]
 })
 
 /**
@@ -337,11 +337,8 @@ export const msb: BitOrder = bo({
     concat: flip(lsb.concat),
     norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
         ({ a: a << (len - al), b: b << (len - bl) }),
-    rawPopFront: len => ({ length, uint }) => {
-        const d = length - len
-        return [uint >> d, { length: d, uint }]
-    },
     uintCmp: cmp,
+    unpackSplit: len => ({ length, uint }) => [uint >> (length - len), uint]
 })
 
 /**
@@ -396,6 +393,37 @@ export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> 
     }
     return v => f(unpack(v))
 }
+
+/*
+export const u8List = ({ unpackPopFront }: BitOrder) => (v: Vec): List<number> => {
+    let stack: readonly Unpacked[] = [unpack(v)]
+    let result: number[] = []
+    while (true) {
+        const [first] = stack
+        if (first === undefined) {
+            break
+        }
+        const { length, uint } = first
+        stack = stack.toSpliced(0, 1)
+        const byteLen = length >> 3n
+        if (byteLen === 0n) {
+            // unaligned
+            if (length > 0n) {
+                result.unshift(Number(uint & 0xFFn))
+            }
+            continue
+        }
+        if (byteLen === 1n) {
+            result.unshift(Number(uint & 0xFFn)) //, ...result]
+            continue
+        }
+        const newLen = (byteLen >> 1n) << 3n
+        const [a, b] = unpackPopFront(newLen)(first)
+        stack = [{ length: newLen, uint: a }, b, ...stack]
+    }
+    return result
+}
+*/
 
 /**
  * Concatenates a list of vectors using the provided bit order.
