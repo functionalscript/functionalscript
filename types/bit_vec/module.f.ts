@@ -230,6 +230,7 @@ export type BitOrder = {
      */
     readonly xor: Reduce
     readonly unpackPopFront: PopFront<Unpacked>
+    readonly norm: NormOp
 }
 
 type Base = {
@@ -237,23 +238,33 @@ type Base = {
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
     readonly concat: Reduce
     readonly norm: NormOp
-    readonly unpackPopFront: PopFront<Unpacked>
+    readonly rawPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
 }
 
-const bo = ({ front, removeFront, concat, unpackPopFront, norm }: Base): BitOrder => ({
-    front,
-    removeFront,
-    concat,
-    xor: op(norm)(xor),
-    unpackPopFront,
-    popFront: len => {
-        const f = unpackPopFront(len)
-        return v => {
-            const [uint, u] = f(unpack(v))
-            return [uint, pack(u)]
+const bo = ({ front, removeFront, concat, rawPopFront, norm }: Base): BitOrder => {
+    const unpackPopFront = (len: bigint) => {
+        const m = mask(len)
+        return (v: Unpacked) => {
+            const [uint, rest] = rawPopFront(len)(v)
+            return [uint & m, rest] as const
         }
     }
-})
+    return {
+        front,
+        removeFront,
+        concat,
+        xor: op(norm)(xor),
+        unpackPopFront,
+        popFront: len => {
+            const f = unpackPopFront(len)
+            return v => {
+                const [uint, u] = f(unpack(v))
+                return [uint, pack(u)]
+            }
+        },
+        norm,
+    }
+}
 
 /**
  * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
@@ -279,10 +290,8 @@ export const lsb: BitOrder = bo({
     },
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
-    unpackPopFront: len => {
-        const m = mask(len)
-        return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
-    }
+    rawPopFront: len => ({ length, uint }) =>
+        [uint, { length: length - len, uint: uint >> len }]
 })
 
 /**
@@ -307,12 +316,9 @@ export const msb: BitOrder = bo({
     concat: flip(lsb.concat),
     norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
         ({ a: a << (len - al), b: b << (len - bl) }),
-    unpackPopFront: len => {
-        const m = mask(len)
-        return ({ length, uint }) => {
-            const d = length - len
-            return [(uint >> d) & m, { length: d, uint }]
-        }
+    rawPopFront: len => ({ length, uint }) => {
+        const d = length - len
+        return [uint >> d, { length: d, uint }]
     }
 })
 
@@ -398,7 +404,7 @@ export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
     const bu = unpack(bv)
     const al = au.length
     const bl = bu.length
-    const { a, b } = msbNorm(au)(bu)(min(al)(bl))
+    const { a, b } = msb.norm(au)(bu)(min(al)(bl))
     const result = cmp(a)(b)
     return result !== 0 ? result : cmp(al)(bl)
 }
