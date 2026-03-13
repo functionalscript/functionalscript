@@ -239,6 +239,7 @@ export type BitOrder = {
      * a === b => 0
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
 }
 
 type Base = {
@@ -281,7 +282,8 @@ const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit }: Base): B
             const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
             const c = uintCmp(aui)(bui)
             return c === 0 ? cmp(al)(bl) : c
-        }
+        },
+        unpackSplit,
     }
 }
 
