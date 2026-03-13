@@ -390,15 +390,6 @@ export const isVec = <T>(v: Vec | T): v is Vec =>
     typeof v === 'bigint'
 
 /**
- * Lexically compares two vectors based on their unsigned integer values,
- * normalizing them to the same length. If the values are equal,
- * the shorter vector is considered smaller.
- *
- * a < b => -1
- * a > b => 1
- * a === b => 0
- */
-/**
  * Lexically compares two vectors in LSb-first order. The lowest bit position
  * where the vectors differ determines the result: the vector with `1` at that
  * position is greater. If the values are equal up to the shorter length, the
@@ -424,6 +415,15 @@ export const lsbCmp = (av: Vec) => (bv: Vec): Sign => {
     return (a & (diff & -diff)) !== 0n ? 1 : -1
 }
 
+/**
+ * Lexically compares two vectors in MSB-first order based on their unsigned
+ * integer values, normalizing them to the same length. If the values are equal,
+ * the shorter vector is considered smaller.
+ *
+ * a < b => -1
+ * a > b => 1
+ * a === b => 0
+ */
 export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
     const au = unpack(av)
     const bu = unpack(bv)
