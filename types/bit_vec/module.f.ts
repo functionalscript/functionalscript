@@ -231,6 +231,14 @@ export type BitOrder = {
     readonly xor: Reduce
     readonly unpackPopFront: PopFront<Unpacked>
     readonly norm: NormOp
+    /**
+     * Lexically compares two vectors.
+     *
+     * a < b => -1
+     * a > b => 1
+     * a === b => 0
+     */
+    readonly cmp: (a: Vec) => (b: Vec) => Sign
 }
 
 type Base = {
@@ -242,7 +250,7 @@ type Base = {
     readonly uintCmp: (a: bigint) => (b: bigint) => Sign
 }
 
-const bo = ({ front, removeFront, concat, rawPopFront, norm }: Base): BitOrder => {
+const bo = ({ front, removeFront, concat, rawPopFront, norm, uintCmp }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
         return (v: Unpacked) => {
@@ -264,6 +272,15 @@ const bo = ({ front, removeFront, concat, rawPopFront, norm }: Base): BitOrder =
             }
         },
         norm,
+        cmp: a => b => {
+            const au = unpack(a)
+            const bu = unpack(b)
+            const al = au.length
+            const bl = bu.length
+            const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
+            const c = uintCmp(aui)(bui)
+            return c === 0 ? cmp(al)(bl) : c
+        }
     }
 }
 
@@ -394,46 +411,3 @@ export const repeat: Fold<bigint, Vec> =
 
 export const isVec = <T>(v: Vec | T): v is Vec =>
     typeof v === 'bigint'
-
-/**
- * Lexically compares two vectors in LSb-first order. The lowest bit position
- * where the vectors differ determines the result: the vector with `1` at that
- * position is greater. If the values are equal up to the shorter length, the
- * shorter vector is considered smaller.
- *
- * a < b => -1
- * a > b => 1
- * a === b => 0
- */
-export const lsbCmp = (av: Vec) => (bv: Vec): Sign => {
-    const au = unpack(av)
-    const bu = unpack(bv)
-    const al = au.length
-    const bl = bu.length
-    const diff = au.uint ^ bu.uint
-    if (diff === 0n) { return cmp(al)(bl) }
-    // The lowest set bit of diff is the first position where the uints differ.
-    // If that bit is beyond the shorter vector's range, the shorter vector has 0
-    // there and the longer has 1 — so the same expression still yields the right
-    // answer without any explicit range check.
-    return (au.uint & (diff & -diff)) !== 0n ? 1 : -1
-}
-
-/**
- * Lexically compares two vectors in MSB-first order based on their unsigned
- * integer values, normalizing them to the same length. If the values are equal,
- * the shorter vector is considered smaller.
- *
- * a < b => -1
- * a > b => 1
- * a === b => 0
- */
-export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
-    const au = unpack(av)
-    const bu = unpack(bv)
-    const al = au.length
-    const bl = bu.length
-    const { a, b } = msb.norm(au)(bu)(min(al)(bl))
-    const result = cmp(a)(b)
-    return result !== 0 ? result : cmp(al)(bl)
-}

@@ -1,7 +1,7 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, lsbCmp, msbCmp, u8ListToVec, u8List } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List } from './module.f.ts'
 import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
@@ -333,7 +333,7 @@ export default {
     },
     lsbCmp: () => {
         const c = (a: Vec) => (b: Vec) => (r: Sign) => {
-            const result = lsbCmp(a)(b)
+            const result = lsb.cmp(a)(b)
             if (result !== r) { throw `result: ${result}, expected: ${r}` }
         }
         c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)   // [1,0,1,0] == [1,0,1,0]
@@ -345,7 +345,7 @@ export default {
     },
     msbCmp: () => {
         const c = (a: Vec) => (b: Vec) => (r: Sign) => {
-            const result = msbCmp(a)(b)
+            const result = msb.cmp(a)(b)
             if (result !== r) { throw `result: ${result}, expected: ${r}` }
         }
         c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)  // 0b0101 == 0b0101
