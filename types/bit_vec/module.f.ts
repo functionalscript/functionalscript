@@ -398,6 +398,32 @@ export const isVec = <T>(v: Vec | T): v is Vec =>
  * a > b => 1
  * a === b => 0
  */
+/**
+ * Lexically compares two vectors in LSb-first order. The lowest bit position
+ * where the vectors differ determines the result: the vector with `1` at that
+ * position is greater. If the values are equal up to the shorter length, the
+ * shorter vector is considered smaller.
+ *
+ * a < b => -1
+ * a > b => 1
+ * a === b => 0
+ */
+export const lsbCmp = (av: Vec) => (bv: Vec): Sign => {
+    const au = unpack(av)
+    const bu = unpack(bv)
+    const al = au.length
+    const bl = bu.length
+    const len = min(al)(bl)
+    const m = mask(len)
+    const a = au.uint & m
+    const b = bu.uint & m
+    const diff = a ^ b
+    if (diff === 0n) { return cmp(al)(bl) }
+    // diff & -diff isolates the lowest set bit (first differing position).
+    // Whichever vector has 1 there is greater in LSb-first order.
+    return (a & (diff & -diff)) !== 0n ? 1 : -1
+}
+
 export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
     const au = unpack(av)
     const bu = unpack(bv)
