@@ -31,7 +31,7 @@ export type Result<T> = Empty | NonEmpty<T>
 
 export type Thunk<T> = () => List<T>
 
-type NonEmpty<T> = {
+export type NonEmpty<T> = {
     readonly first: T
     readonly tail: List<T>
 }

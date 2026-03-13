@@ -24,7 +24,7 @@
 import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
+import { fold, iterable, type List, type NonEmpty, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
@@ -239,6 +239,7 @@ export type BitOrder = {
      * a === b => 0
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
 }
 
 type Base = {
@@ -246,16 +247,17 @@ type Base = {
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
     readonly concat: Reduce
     readonly norm: NormOp
-    readonly rawPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
     readonly uintCmp: (a: bigint) => (b: bigint) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
 }
 
-const bo = ({ front, removeFront, concat, rawPopFront, norm, uintCmp }: Base): BitOrder => {
+const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
+        const us = unpackSplit(len)
         return (v: Unpacked) => {
-            const [uint, rest] = rawPopFront(len)(v)
-            return [uint & m, rest] as const
+            const [uint, rest] = us(v)
+            return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
     return {
@@ -280,7 +282,8 @@ const bo = ({ front, removeFront, concat, rawPopFront, norm, uintCmp }: Base): B
             const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
             const c = uintCmp(aui)(bui)
             return c === 0 ? cmp(al)(bl) : c
-        }
+        },
+        unpackSplit,
     }
 }
 
@@ -307,12 +310,11 @@ export const lsb: BitOrder = bo({
     },
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
-    rawPopFront: len => ({ length, uint }) =>
-        [uint, { length: length - len, uint: uint >> len }],
     uintCmp: a => b => {
         const diff = a ^ b
         return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
-    }
+    },
+    unpackSplit: len => ({ uint }) => [uint, uint >> len]
 })
 
 /**
@@ -337,11 +339,8 @@ export const msb: BitOrder = bo({
     concat: flip(lsb.concat),
     norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
         ({ a: a << (len - al), b: b << (len - bl) }),
-    rawPopFront: len => ({ length, uint }) => {
-        const d = length - len
-        return [uint >> d, { length: d, uint }]
-    },
     uintCmp: cmp,
+    unpackSplit: len => ({ length, uint }) => [uint >> (length - len), uint]
 })
 
 /**
@@ -380,6 +379,8 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
     return result.reduce((p, c) => concat(c)(p), empty)
 }
 
+type Stack = readonly[Unpacked, Stack | undefined]
+
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
  *
@@ -387,14 +388,28 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
  * @param v The vector to be converted.
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
-export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> => {
-    const pf = unpackPopFront(8n)
-    const f = (u: Unpacked) => () => {
-        if (u.length <= 0n) { return null }
-        const [first, tail] = pf(u)
-        return { first: Number(first), tail: f(tail) }
+export const u8List = ({ unpackSplit }: BitOrder) => (v: Vec): Thunk<number> => {
+    if (v === empty) { return () => null }
+    const f = (stack: Stack) => () => {
+        while (true) {
+            const [first, rest] = stack
+            const { length, uint } = first
+            if (length <= 8n) {
+                // the last unpack split is required to align data.
+                const v = length < 8n ? unpackSplit(8n)(first)[0] : uint
+                return { first: Number(v), tail: rest !== undefined ? f(rest) : null }
+            }
+            // `length` is bigger than `8n` so `newLen` is `8n` or bigger.
+            const aLength = ((length + 7n) >> 4n) << 3n
+            const bLength = length - aLength
+            const [a, b] = unpackSplit(aLength)(first)
+            stack = [
+                { length: aLength, uint: a & mask(aLength) },
+                [{ length: bLength, uint: b & mask(bLength) }, rest],
+            ]
+        }
     }
-    return v => f(unpack(v))
+    return f([unpack(v), undefined])
 }
 
 /**
