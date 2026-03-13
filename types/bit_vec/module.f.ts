@@ -24,7 +24,7 @@
 import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
+import { fold, iterable, type List, type NonEmpty, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
@@ -386,6 +386,7 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
  * @param v The vector to be converted.
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
+/*
 export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> => {
     const pf = unpackPopFront(8n)
     const f = (u: Unpacked) => () => {
@@ -395,37 +396,32 @@ export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> 
     }
     return v => f(unpack(v))
 }
-
-/*
-export const u8List = ({ unpackPopFront }: BitOrder) => (v: Vec): List<number> => {
-    let stack: readonly Unpacked[] = [unpack(v)]
-    let result: number[] = []
-    while (true) {
-        const [first] = stack
-        if (first === undefined) {
-            break
-        }
-        const { length, uint } = first
-        stack = stack.toSpliced(0, 1)
-        const byteLen = length >> 3n
-        if (byteLen === 0n) {
-            // unaligned
-            if (length > 0n) {
-                result.unshift(Number(uint & 0xFFn))
-            }
-            continue
-        }
-        if (byteLen === 1n) {
-            result.unshift(Number(uint & 0xFFn)) //, ...result]
-            continue
-        }
-        const newLen = (byteLen >> 1n) << 3n
-        const [a, b] = unpackPopFront(newLen)(first)
-        stack = [{ length: newLen, uint: a }, b, ...stack]
-    }
-    return result
-}
 */
+
+type Stack = readonly[Unpacked, Stack | undefined]
+
+export const u8List = ({ unpackSplit, unpackPopFront }: BitOrder) => (v: Vec): Thunk<number> => {
+    const f = (stack: Stack) => () => {
+        while (true) {
+            const [first, rest] = stack
+            const { length, uint } = first
+            if (length <= 8n) {
+                // the last unpack split is required to align data.
+                const v = length < 8n ? unpackSplit(8n)(first)[0] : uint
+                return { first: Number(v), tail: rest !== undefined ? f(rest) : null }
+            }
+            // `length` is bigger than `8n` so `newLen` is `8n` or bigger.
+            const aLength = ((length + 7n) >> 4n) << 3n
+            const bLength = length - aLength
+            const [a, b] = unpackSplit(aLength)(first)
+            stack = [
+                { length: aLength, uint: a & mask(aLength) },
+                [{ length: bLength, uint: b & mask(bLength) }, rest],
+            ]
+        }
+    }
+    return f([unpack(v), undefined])
+}
 
 /**
  * Concatenates a list of vectors using the provided bit order.
