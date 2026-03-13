@@ -379,6 +379,8 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
     return result.reduce((p, c) => concat(c)(p), empty)
 }
 
+type Stack = readonly[Unpacked, Stack | undefined]
+
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
  *
@@ -386,21 +388,7 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
  * @param v The vector to be converted.
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
-/*
-export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> => {
-    const pf = unpackPopFront(8n)
-    const f = (u: Unpacked) => () => {
-        if (u.length <= 0n) { return null }
-        const [first, tail] = pf(u)
-        return { first: Number(first), tail: f(tail) }
-    }
-    return v => f(unpack(v))
-}
-*/
-
-type Stack = readonly[Unpacked, Stack | undefined]
-
-export const u8List = ({ unpackSplit, unpackPopFront }: BitOrder) => (v: Vec): Thunk<number> => {
+export const u8List = ({ unpackSplit }: BitOrder) => (v: Vec): Thunk<number> => {
     if (v === empty) { return () => null }
     const f = (stack: Stack) => () => {
         while (true) {
