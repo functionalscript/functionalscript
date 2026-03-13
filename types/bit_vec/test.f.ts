@@ -354,4 +354,18 @@ export default {
             }
         }
     },
+    u8ListUnaligned: () => {
+        const x = vec(9n)(0x83n)
+        const a = toArray(u8List(msb)(x))
+        if (a.length !== 2) {
+            throw a
+        }
+        const [a0, a1] = a
+        if (a0 !== 0x41) {
+            throw `a0: ${a0.toString(16)}`
+        }
+        if (a1 !== 0x80) {
+            throw `a1: ${a1.toString(16)}`
+        }
+    }
 }

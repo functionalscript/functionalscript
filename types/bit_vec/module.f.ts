@@ -356,7 +356,7 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
 export const u8List = ({ unpackPopFront }: BitOrder): (v: Vec) => Thunk<number> => {
     const pf = unpackPopFront(8n)
     const f = (u: Unpacked) => () => {
-        if (u.length === 0n) { return null }
+        if (u.length <= 0n) { return null }
         const [first, tail] = pf(u)
         return { first: Number(first), tail: f(tail) }
     }
