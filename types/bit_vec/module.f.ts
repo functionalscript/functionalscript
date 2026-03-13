@@ -238,18 +238,28 @@ export type BitOrder = {
     readonly unpackPopFront: PopFront<Unpacked>
 }
 
-const popFront = (upf: PopFront<Unpacked>): PopFront<Vec> => len => {
-    const f = upf(len)
-    return v => {
-        const [uint, u] = f(unpack(v))
-        return [uint, pack(u)]
-    }
+type Base = {
+    readonly front: (len: bigint) => (v: Vec) => bigint
+    readonly removeFront: (len: bigint) => (v: Vec) => Vec
+    readonly concat: Reduce
+    readonly norm: NormOp
+    readonly unpackPopFront: PopFront<Unpacked>
 }
 
-const lsbUnpackPopFront: PopFront<Unpacked> = len => {
-    const m = mask(len)
-    return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
-}
+const bo = ({ front, removeFront, concat, unpackPopFront, norm }: Base): BitOrder => ({
+    front,
+    removeFront,
+    concat,
+    xor: op(norm)(xor),
+    unpackPopFront,
+    popFront: len => {
+        const f = unpackPopFront(len)
+        return v => {
+            const [uint, u] = f(unpack(v))
+            return [uint, pack(u)]
+        }
+    }
+})
 
 /**
  * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
@@ -258,7 +268,7 @@ const lsbUnpackPopFront: PopFront<Unpacked> = len => {
  *
  * Usually associated with Little-Endian (LE) byte order.
  */
-export const lsb: BitOrder = {
+export const lsb: BitOrder = bo({
     front: len => {
         const m = mask(len)
         return v => uint(v) & m
@@ -267,23 +277,18 @@ export const lsb: BitOrder = {
         const { length, uint } = unpack(v)
         return vec(length - len)(uint >> len)
     },
-    popFront: popFront(lsbUnpackPopFront),
+    // popFront: popFront(lsbUnpackPopFront),
     concat: (a: Vec) => (b: Vec): Vec => {
         const { length: al, uint: au } = unpack(a)
         const { length: bl, uint: bu } = unpack(b)
         return vec(al + bl)((bu << al) | au)
     },
-    xor: op(lsbNorm)(xor),
-    unpackPopFront: lsbUnpackPopFront
-}
-
-const msbUnpackPopFront: PopFront<Unpacked> = len => {
-    const m = mask(len)
-    return ({ length, uint }) => {
-        const d = length - len
-        return [(uint >> d) & m, { length: d, uint }]
+    norm: lsbNorm,
+    unpackPopFront: len => {
+        const m = mask(len)
+        return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
     }
-}
+})
 
 /**
  * Implements operations for handling vectors in a most-significant-bit (MSb) first order.
@@ -292,7 +297,7 @@ const msbUnpackPopFront: PopFront<Unpacked> = len => {
  *
  * Usually associated with Big-Endian (BE) byte order.
  */
-export const msb: BitOrder = {
+export const msb: BitOrder = bo({
     front: len => {
         const m = mask(len)
         return v => {
@@ -304,11 +309,16 @@ export const msb: BitOrder = {
         const { length, uint } = unpack(v)
         return vec(length - len)(uint)
     },
-    popFront: popFront(msbUnpackPopFront),
     concat: flip(lsb.concat),
-    xor: op(msbNorm)(xor),
-    unpackPopFront: msbUnpackPopFront
-}
+    norm: msbNorm,
+    unpackPopFront: len => {
+        const m = mask(len)
+        return ({ length, uint }) => {
+            const d = length - len
+            return [(uint >> d) & m, { length: d, uint }]
+        }
+    }
+})
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
