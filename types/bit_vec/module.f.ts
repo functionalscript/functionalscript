@@ -27,7 +27,7 @@ import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/modu
 import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
-import { cmp, type Sign } from '../function/compare/module.f.ts'
+import { cmp, type Compare, type Sign } from '../function/compare/module.f.ts'
 
 /**
  * A vector of bits represented as a signed `bigint`.
@@ -231,6 +231,14 @@ export type BitOrder = {
     readonly xor: Reduce
     readonly unpackPopFront: PopFront<Unpacked>
     readonly norm: NormOp
+    /**
+     * Lexically compares two vectors.
+     *
+     * a < b => -1
+     * a > b => 1
+     * a === b => 0
+     */
+    readonly cmp: (a: Vec) => (b: Vec) => Sign
 }
 
 type Base = {
@@ -239,9 +247,10 @@ type Base = {
     readonly concat: Reduce
     readonly norm: NormOp
     readonly rawPopFront: (len: bigint) => (u: Unpacked) => readonly [bigint, Unpacked]
+    readonly uintCmp: (a: bigint) => (b: bigint) => Sign
 }
 
-const bo = ({ front, removeFront, concat, rawPopFront, norm }: Base): BitOrder => {
+const bo = ({ front, removeFront, concat, rawPopFront, norm, uintCmp }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
         return (v: Unpacked) => {
@@ -263,6 +272,15 @@ const bo = ({ front, removeFront, concat, rawPopFront, norm }: Base): BitOrder =
             }
         },
         norm,
+        cmp: a => b => {
+            const au = unpack(a)
+            const bu = unpack(b)
+            const al = au.length
+            const bl = bu.length
+            const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
+            const c = uintCmp(aui)(bui)
+            return c === 0 ? cmp(al)(bl) : c
+        }
     }
 }
 
@@ -290,7 +308,11 @@ export const lsb: BitOrder = bo({
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
     rawPopFront: len => ({ length, uint }) =>
-        [uint, { length: length - len, uint: uint >> len }]
+        [uint, { length: length - len, uint: uint >> len }],
+    uintCmp: a => b => {
+        const diff = a ^ b
+        return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
+    }
 })
 
 /**
@@ -318,7 +340,8 @@ export const msb: BitOrder = bo({
     rawPopFront: len => ({ length, uint }) => {
         const d = length - len
         return [uint >> d, { length: d, uint }]
-    }
+    },
+    uintCmp: cmp,
 })
 
 /**
@@ -388,22 +411,3 @@ export const repeat: Fold<bigint, Vec> =
 
 export const isVec = <T>(v: Vec | T): v is Vec =>
     typeof v === 'bigint'
-
-/**
- * Lexically compares two vectors based on their unsigned integer values,
- * normalizing them to the same length. If the values are equal,
- * the shorter vector is considered smaller.
- *
- * a < b => -1
- * a > b => 1
- * a === b => 0
- */
-export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
-    const au = unpack(av)
-    const bu = unpack(bv)
-    const al = au.length
-    const bl = bu.length
-    const { a, b } = msb.norm(au)(bu)(min(al)(bl))
-    const result = cmp(a)(b)
-    return result !== 0 ? result : cmp(al)(bl)
-}
