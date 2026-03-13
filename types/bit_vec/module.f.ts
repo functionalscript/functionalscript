@@ -126,12 +126,6 @@ type Norm = (len: bigint) => {
 
 type NormOp = Binary<Unpacked, Unpacked, Norm>
 
-const lsbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => (len: bigint) =>
-    ({ a, b })
-
-const msbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => (len: bigint) =>
-    ({ a: a << (len - al), b: b << (len - bl) })
-
 /**
  * Normalizes two vectors to the same length before applying a bigint reducer.
  */
@@ -283,7 +277,8 @@ export const lsb: BitOrder = bo({
         const { length: bl, uint: bu } = unpack(b)
         return vec(al + bl)((bu << al) | au)
     },
-    norm: lsbNorm,
+    norm: ({ uint: a }) => ({ uint: b }) => () =>
+        ({ a, b }),
     unpackPopFront: len => {
         const m = mask(len)
         return ({ length, uint }) => [uint & m, { length: length - len, uint: uint >> len }]
@@ -310,7 +305,8 @@ export const msb: BitOrder = bo({
         return vec(length - len)(uint)
     },
     concat: flip(lsb.concat),
-    norm: msbNorm,
+    norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
+        ({ a: a << (len - al), b: b << (len - bl) }),
     unpackPopFront: len => {
         const m = mask(len)
         return ({ length, uint }) => {
