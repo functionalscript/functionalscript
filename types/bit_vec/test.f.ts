@@ -361,7 +361,7 @@ export default {
         return () => {
             const m = u8List(msb)(x)
             const y = toArray(m)
-            if (y.length !== 131_071) {
+            if (y.length !== 131_070) {
                 throw `y.lenght: ${y.length}`
             }
         }

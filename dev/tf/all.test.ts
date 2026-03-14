@@ -24,15 +24,16 @@ type TestFunc = (f: SubTestRunnerFunc) => Awaitable<void>
 type CommonFramework = (name: string, f: TestFunc) => Awaitable<void>
 
 const createFramework = (fw: typeof nodeTest): CommonFramework =>
-    (prefix, f) => fw.test(prefix, t => f((name, v) => t.test(name, v)))
+    (prefix, testFunc) => fw.test(prefix, t => testFunc((name, v) => t.test(name, v)))
 
 // Bun doesn't support nested tests yet.
+// See https://github.com/oven-sh/bun/issues/5090
 const createBunFramework = (fw: typeof nodeTest): CommonFramework =>
-    (prefix, f) => f((name, v) => fw.test(`${prefix}: ${name}`, v))
+    (prefix, testFunc) => testFunc((name, v) => fw.test(`${prefix}: ${name}`, v))
 
 const createPlaywrightFramework = async (): Promise<CommonFramework> => {
     const pwTest = (await import('@playwright/test')).test
-    return (prefix, f) => f((name, v) => pwTest(`${prefix}: ${name}`, v))
+    return (prefix, testFunc) => testFunc((name, v) => pwTest(`${prefix}: ${name}`, v))
 }
 
 const framework: CommonFramework =
