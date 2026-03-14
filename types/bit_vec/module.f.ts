@@ -246,14 +246,13 @@ export type BitOrder = {
 type Base = {
     readonly front: (len: bigint) => (v: Vec) => bigint
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
-    readonly concat: Reduce
     readonly norm: NormOp
     readonly uintCmp: (a: bigint) => (b: bigint) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
     readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => bigint
 }
 
-const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit, unpackConcat }: Base): BitOrder => {
+const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcat }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
         const us = unpackSplit(len)
@@ -265,7 +264,11 @@ const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit, unpackConc
     return {
         front,
         removeFront,
-        concat,
+        concat: a => b => {
+            const au = unpack(a)
+            const bu = unpack(b)
+            return vec(au.length + bu.length)(unpackConcat(au)(bu))
+        },
         xor: op(norm)(xor),
         unpackPopFront,
         popFront: len => {
@@ -306,11 +309,6 @@ export const lsb: BitOrder = bo({
         const { length, uint } = unpack(v)
         return vec(length - len)(uint >> len)
     },
-    concat: (a: Vec) => (b: Vec): Vec => {
-        const { length: al, uint: au } = unpack(a)
-        const { length: bl, uint: bu } = unpack(b)
-        return vec(al + bl)((bu << al) | au)
-    },
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
     uintCmp: a => b => {
@@ -340,7 +338,6 @@ export const msb: BitOrder = bo({
         const { length, uint } = unpack(v)
         return vec(length - len)(uint)
     },
-    concat: flip(lsb.concat),
     norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
         ({ a: a << (len - al), b: b << (len - bl) }),
     uintCmp: cmp,
