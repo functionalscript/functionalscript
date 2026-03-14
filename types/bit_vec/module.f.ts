@@ -240,7 +240,7 @@ export type BitOrder = {
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint],
-    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => bigint
+    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
 }
 
 type Base = {
@@ -249,10 +249,10 @@ type Base = {
     readonly norm: NormOp
     readonly uintCmp: (a: bigint) => (b: bigint) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
-    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => bigint
+    readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
 }
 
-const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcat }: Base): BitOrder => {
+const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
         const us = unpackSplit(len)
@@ -261,13 +261,16 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcat }: Ba
             return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
+    const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
+        length: a.length + b.length, uint: unpackConcatUint(a)(b)
+    })
     return {
         front,
         removeFront,
         concat: a => b => {
             const au = unpack(a)
             const bu = unpack(b)
-            return vec(au.length + bu.length)(unpackConcat(au)(bu))
+            return pack(unpackConcat(au)(bu))
         },
         xor: op(norm)(xor),
         unpackPopFront,
@@ -293,6 +296,8 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcat }: Ba
     }
 }
 
+const lsbUnpackConcatUint = ({ uint: a, length }: Unpacked) => ({ uint: b }: Unpacked) => (b << length) | a
+
 /**
  * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
  *
@@ -316,7 +321,7 @@ export const lsb: BitOrder = bo({
         return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
     },
     unpackSplit: len => ({ uint }) => [uint, uint >> len],
-    unpackConcat: ({ uint: a, length }) => ({ uint: b }) => (b << length) | a
+    unpackConcatUint: lsbUnpackConcatUint
 })
 
 /**
@@ -342,8 +347,10 @@ export const msb: BitOrder = bo({
         ({ a: a << (len - al), b: b << (len - bl) }),
     uintCmp: cmp,
     unpackSplit: len => ({ length, uint }) => [uint >> (length - len), uint],
-    unpackConcat: flip(lsb.unpackConcat),
+    unpackConcatUint: flip(lsbUnpackConcatUint),
 })
+
+const unpackEmpty = { length: 0n, uint: 0n } as const
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
@@ -367,12 +374,12 @@ export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>):
                 result = result.toSpliced(i, 1, v)
                 break
             }
-            result = result.toSpliced(i, 1, { length: 0n, uint: 0n })
-            v = { length: old.length + v.length, uint: unpackConcat(old)(v) }
+            result = result.toSpliced(i, 1, unpackEmpty)
+            v = unpackConcat(old)(v)
             i++
         }
     }
-    return pack(result.reduce((p, c) => ({ length: c.length + p.length, uint: unpackConcat(c)(p) }), { length: 0n, uint: 0n }))
+    return pack(result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
 }
 
 /**
