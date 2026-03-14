@@ -24,7 +24,7 @@
 import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { fold, iterable, type List, type NonEmpty, type Thunk } from '../list/module.f.ts'
+import { fold, iterable, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
@@ -239,19 +239,20 @@ export type BitOrder = {
      * a === b => 0
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
-    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint],
+    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
 }
 
 type Base = {
     readonly front: (len: bigint) => (v: Vec) => bigint
     readonly removeFront: (len: bigint) => (v: Vec) => Vec
-    readonly concat: Reduce
     readonly norm: NormOp
     readonly uintCmp: (a: bigint) => (b: bigint) => Sign
     readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
+    readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
 }
 
-const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit }: Base): BitOrder => {
+const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {
     const unpackPopFront = (len: bigint) => {
         const m = mask(len)
         const us = unpackSplit(len)
@@ -260,10 +261,17 @@ const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit }: Base): B
             return [uint & m, { length: v.length - len, uint: rest }] as const
         }
     }
+    const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
+        length: a.length + b.length, uint: unpackConcatUint(a)(b)
+    })
     return {
         front,
         removeFront,
-        concat,
+        concat: a => b => {
+            const au = unpack(a)
+            const bu = unpack(b)
+            return pack(unpackConcat(au)(bu))
+        },
         xor: op(norm)(xor),
         unpackPopFront,
         popFront: len => {
@@ -284,8 +292,11 @@ const bo = ({ front, removeFront, concat, norm, uintCmp, unpackSplit }: Base): B
             return c === 0 ? cmp(al)(bl) : c
         },
         unpackSplit,
+        unpackConcat,
     }
 }
+
+const lsbUnpackConcatUint = ({ uint: a, length }: Unpacked) => ({ uint: b }: Unpacked) => (b << length) | a
 
 /**
  * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
@@ -303,18 +314,14 @@ export const lsb: BitOrder = bo({
         const { length, uint } = unpack(v)
         return vec(length - len)(uint >> len)
     },
-    concat: (a: Vec) => (b: Vec): Vec => {
-        const { length: al, uint: au } = unpack(a)
-        const { length: bl, uint: bu } = unpack(b)
-        return vec(al + bl)((bu << al) | au)
-    },
     norm: ({ uint: a }) => ({ uint: b }) => () =>
         ({ a, b }),
     uintCmp: a => b => {
         const diff = a ^ b
         return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
     },
-    unpackSplit: len => ({ uint }) => [uint, uint >> len]
+    unpackSplit: len => ({ uint }) => [uint, uint >> len],
+    unpackConcatUint: lsbUnpackConcatUint
 })
 
 /**
@@ -336,12 +343,14 @@ export const msb: BitOrder = bo({
         const { length, uint } = unpack(v)
         return vec(length - len)(uint)
     },
-    concat: flip(lsb.concat),
     norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
         ({ a: a << (len - al), b: b << (len - bl) }),
     uintCmp: cmp,
-    unpackSplit: len => ({ length, uint }) => [uint >> (length - len), uint]
+    unpackSplit: len => ({ length, uint }) => [uint >> (length - len), uint],
+    unpackConcatUint: flip(lsbUnpackConcatUint),
 })
+
+const unpackEmpty = { length: 0n, uint: 0n } as const
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
@@ -350,16 +359,10 @@ export const msb: BitOrder = bo({
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec => {
-    // much faster than: `fold(appendU8(bo))(empty)(list)`
-    // where `appendU8` is defined as
-    // ```
-    // const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
-    //    concat(a)(vec8(BigInt(u8)))
-    // ```
-    let result: readonly Vec[] = []
+export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec => {
+    let result: readonly Unpacked[] = []
     for (const b of iterable(list)) {
-        let v = vec8(BigInt(b))
+        let v: Unpacked = { length: 8n, uint: BigInt(b) }
         let i = 0
         while (true) {
             if (result.length <= i) {
@@ -367,19 +370,17 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
                 break;
             }
             const old = result[i]
-            if (old === empty) {
+            if (old.length === 0n) {
                 result = result.toSpliced(i, 1, v)
                 break
             }
-            result = result.toSpliced(i, 1, empty)
-            v = concat(old)(v)
+            result = result.toSpliced(i, 1, unpackEmpty)
+            v = unpackConcat(old)(v)
             i++
         }
     }
-    return result.reduce((p, c) => concat(c)(p), empty)
+    return pack(result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
 }
-
-type Stack = readonly[Unpacked, Stack | undefined]
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
@@ -390,6 +391,7 @@ type Stack = readonly[Unpacked, Stack | undefined]
  */
 export const u8List = ({ unpackSplit }: BitOrder) => (v: Vec): Thunk<number> => {
     if (v === empty) { return () => null }
+    type Stack = readonly[Unpacked, Stack | undefined]
     const f = (stack: Stack) => () => {
         while (true) {
             const [first, rest] = stack

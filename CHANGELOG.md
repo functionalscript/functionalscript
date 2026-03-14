@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.10
+
+- BitVec: BitVec: improve `u8ListToVec` [732](https://github.com/functionalscript/functionalscript/pull/732)
+
 ## 0.11.9
 
 - BitVec: another significant performance improvement for `u8List` [731](https://github.com/functionalscript/functionalscript/pull/731)
