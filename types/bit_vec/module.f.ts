@@ -352,10 +352,10 @@ export const msb: BitOrder = bo({
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec => {
-    let result: readonly Vec[] = []
+export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec => {
+    let result: readonly Unpacked[] = []
     for (const b of iterable(list)) {
-        let v = vec8(BigInt(b))
+        let v: Unpacked = { length: 8n, uint: BigInt(b) }
         let i = 0
         while (true) {
             if (result.length <= i) {
@@ -363,16 +363,16 @@ export const u8ListToVec = ({ concat }: BitOrder) => (list: List<number>): Vec =
                 break;
             }
             const old = result[i]
-            if (old === empty) {
+            if (old.length === 0n) {
                 result = result.toSpliced(i, 1, v)
                 break
             }
-            result = result.toSpliced(i, 1, empty)
-            v = concat(old)(v)
+            result = result.toSpliced(i, 1, { length: 0n, uint: 0n })
+            v = { length: old.length + v.length, uint: unpackConcat(old)(v) }
             i++
         }
     }
-    return result.reduce((p, c) => concat(c)(p), empty)
+    return pack(result.reduce((p, c) => ({ length: c.length + p.length, uint: unpackConcat(c)(p) }), { length: 0n, uint: 0n }))
 }
 
 /**
