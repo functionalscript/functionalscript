@@ -310,6 +310,10 @@ require setting a flag when walking through a test tree as soon as a node has a 
   2. In-memory KeyValue storage with access using effects.
   3. One function for all events that also pass a state, similar to a `scan` function.
 - [ ] 125. `bun test` doesn't handle returned functions as tests.
+  1. create a test file `integration/test.f.ts` and rename to something like `integration/test.f.ts.ts`. The file should be renamed back when we need to test an engine.
+  2. the file should contain multiple tests using objects, arrays and functions. At least one function should produce similar structure.
+  3. at least one function should be `throw`.
+
 
 ## Language Specification
 
