@@ -272,34 +272,9 @@ require setting a flag when walking through a test tree as soon as a node has a 
     .pipe(v => writeFile('b', v))
     .result
   ```
-- [ ] 118. Create example repository and use it in CI.
-- [X] 119. Should we return to the fluent `Effect` design?
-  One reason is that `Pure<O, T>` is losing `O` when
-  `Effect<O, T> = Pure<O, T> | Do<O, T>` and
-  `Pure<O, T> = readonly[T]`. The new proposed structure is
-  ```ts
-  type Value<O extends Operations, T> = Pure<T> | Do<O, T>
-  type Effect<O extends Operations, T> = {
-    readonly value: Value<O, T>
-    // the step function is also holding `O` while `Pure<O, T>` can lose it.
-    readonly step: <O1, R>(f: (_: T) => Effect<O1, R>) => Effect<O | O1, R>
-    // note: no `map` function.
-  }
-  ```
-- [X] 120. Correct operation definition using a set of tuples instead of object properties.
-  These sets are much easier to operate with. `|` is a union of sets. `&` is an intersection of sets.
-  While operations `|` and `&` on objects have some nuances.
-  ```ts
-  type Operation = readonly[string, (_: never) => unknown]
-  type Func<O extends Operation, K extends O[0]> = O extends readonly[K, infer F] ? F : never
-  type SyncMap<O extends Operation> = {
-      readonly[K in O[0]]: Func<O, K>
-  }
-  type Async<F> = F extends (_: infer P) => infer R ? (_: P) => Promise<R> : never
-  type AsyncMap<O extends Operation> = {
-      readonly[K in O[0]]: Async<Func<O, K>>
-  }
-  ```
+- [ ] 118.
+  - [X] Create example repository: https://github.com/functionalscript/file-server-example.
+  - [ ] use it in CI.
 - [ ] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
 - [ ] 122. Consider add a new file type for applications. For example `node.f.ts` or `app.f.ts`.
       These files should have `export default` with type `NodeProgram`.
