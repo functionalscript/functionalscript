@@ -91,6 +91,6 @@ export const validate: <T extends Type>(rtti: T) => (value: unknown) => Result<T
         case 'string':
             return baseValidate(rtti)
         case 'object':
-            rtti
+            return todo()
     }
 }
