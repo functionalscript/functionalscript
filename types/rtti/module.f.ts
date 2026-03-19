@@ -10,16 +10,16 @@ export type BaseType =
     | 'bigint'
     | 'null'
     | 'array'
-    | 'object'
+    | 'record'
     | 'function'
 
-export type ObjectType = {
+export type RecordType = {
     readonly[K in string]: Type
 }
 
 export type LazyType = () => Type
 
-export type Type = BaseType | ObjectType | LazyType
+export type Type = BaseType | RecordType | LazyType
 
 type BaseTs<T extends BaseType> =
     T extends 'undefined' ? undefined :
@@ -29,7 +29,7 @@ type BaseTs<T extends BaseType> =
     T extends 'bigint' ? bigint :
     T extends 'null' ? null :
     T extends 'array' ? readonly unknown[] :
-    T extends 'object' ? object :
+    T extends 'record' ? Record<string, unknown> :
     T extends 'function' ? Function :
     never
 
@@ -39,5 +39,5 @@ type BaseTs<T extends BaseType> =
 export type Ts<T extends Type> =
     T extends BaseType ? BaseTs<T> :
     T extends LazyType ? Ts<ReturnType<T>> :
-    T extends ObjectType ? { readonly [K in keyof T]: Ts<T[K]> } :
+    T extends RecordType ? { readonly [K in keyof T]: Ts<T[K]> } :
     never
