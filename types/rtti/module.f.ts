@@ -27,9 +27,11 @@ export type RecordType = object & {
     readonly[K in string]: Type
 }
 
-export type LazyType = () => Type
+export type LazyType = () => NonLazyType
 
-export type Type = BaseType | RecordType | LazyType
+export type NonLazyType = BaseType | RecordType
+
+export type Type = NonLazyType | LazyType
 
 type NonObjectTs<T extends NonObjectType> =
     T extends 'undefined' ? undefined :
@@ -40,10 +42,14 @@ type NonObjectTs<T extends NonObjectType> =
     T extends 'function' ? Function :
     never
 
+type ArrayTs = readonly unknown[]
+
+type RecordTs = object & { readonly[K in string]: unknown }
+
 type ObjectTs<T extends ObjectType> =
     T extends 'null' ? null :
-    T extends 'array' ? readonly unknown[] :
-    T extends 'record' ? Record<string, unknown> :
+    T extends 'array' ? ArrayTs :
+    T extends 'record' ? RecordTs :
     never
 
 type BaseTs<T extends BaseType> =
@@ -51,46 +57,58 @@ type BaseTs<T extends BaseType> =
     T extends ObjectType ? ObjectTs<T> :
     never
 
+type NonLazyTs<T extends NonLazyType> =
+    T extends BaseType ? BaseTs<T> :
+    T extends RecordType ? object & { readonly [K in keyof T]: Ts<T[K]> } :
+    never
+
 /**
  * Converts to TypeScript type.
  */
-export type Ts<T extends Type> =
-    T extends BaseType ? BaseTs<T> :
-    T extends LazyType ? Ts<ReturnType<T>> :
-    T extends RecordType ? object & { readonly [K in keyof T]: Ts<T[K]> } :
-    never
+export type Ts<T extends Type> = NonLazyTs<ToNonLazy<T>>
+
+export type Validate<T extends Type> = (value: unknown) => Result<T>
 
 const nonObjectValidate = <T extends NonObjectType>(rtti: T) => (value: unknown): Result<T> =>
     typeof value === rtti ? ok(value as Ts<T>) : error(rtti)
 
-const isNull = (v: unknown): v is null => v === null
+const isNull = (v: unknown): v is null =>
+    v === null
 
-const isArray = (v: unknown): v is readonly unknown[] => v instanceof Array
+const isArray = (v: unknown): v is readonly unknown[] =>
+    v instanceof Array
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && !isNull(v) && !isArray(v)
+const isRecord = (v: unknown): v is RecordTs =>
+    typeof v === 'object' && !isNull(v) && !isArray(v)
 
 const wrap = <T extends ObjectType>(f: (value: unknown) => value is Ts<T>) => (value: unknown): Result<T> =>
     f(value) ? ok(value) : error(`unexpected value`)
 
-const objectSwitch: { readonly[K in ObjectType]: (value: unknown) => Result<K> } = {
+const objectSwitch: { readonly[K in ObjectType]: Validate<K> } = {
     null: wrap(isNull),
     array: wrap(isArray),
     record: wrap(isRecord),
 }
 
-const objectValidate = <T extends ObjectType>(rtti: T): (value: unknown) => Result<T> =>
+const objectValidate = <T extends ObjectType>(rtti: T) =>
     objectSwitch[rtti]
 
-const baseValidate = <T extends BaseType>(rtti: T): (value: unknown) => Result<T> =>
+const baseValidate = <T extends BaseType>(rtti: T): Validate<T> =>
     isObjectType(rtti) ? objectValidate(rtti) : nonObjectValidate(rtti as T & NonObjectType)
 
-export const validate: <T extends Type>(rtti: T) => (value: unknown) => Result<T> = rtti => {
+export const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => {
     switch (typeof rtti) {
-        case 'function':
-            return validate(rtti()) as any // TS goes into infinte loop
         case 'string':
             return baseValidate(rtti)
         case 'object':
             return todo()
     }
 }
+
+export type ToNonLazy<T extends Type> = T extends () => infer R ? R : T
+
+export const nonLazy = <T extends Type>(rtti: T): ToNonLazy<T> =>
+    (typeof rtti === 'function' ? rtti() : rtti) as ToNonLazy<T>
+
+export const validate = <T extends Type>(rtti: T): Validate<T> =>
+    nonLazyValidate(nonLazy(rtti) as T & NonLazyType)
