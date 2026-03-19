@@ -1,7 +1,5 @@
-/**
- * It's similar to `typeof` but with one exception:
- * `object` means it's not `null` and not `array`.
- */
+import type { Result } from "../result/module.f.ts"
+
 export type BaseType =
     | 'undefined'
     | 'boolean'
@@ -41,3 +39,5 @@ export type Ts<T extends Type> =
     T extends LazyType ? Ts<ReturnType<T>> :
     T extends RecordType ? { readonly [K in keyof T]: Ts<T[K]> } :
     never
+
+export const validate = <T extends Type>(rtti: T) => (value: unknown): Result<Ts<T>, string> =>

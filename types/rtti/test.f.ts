@@ -1,5 +1,3 @@
-import { boolean } from "../asn.1/module.f.ts"
-
 type Tests = {
     readonly[K in string]: readonly unknown[]
 }
