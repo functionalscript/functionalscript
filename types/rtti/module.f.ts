@@ -1,6 +1,16 @@
+/**
+ * Runtime type information (RTTI) for validating unknown values against typed schemas.
+ *
+ * A `Type` is either a `BaseType` string tag (e.g. `'string'`, `'number'`, `'record'`),
+ * a `StructType` object mapping field names to nested `Type`s, or a `LazyType` thunk
+ * for recursive definitions. Use {@link validate} to produce a type-safe validator.
+ *
+ * @module
+ */
 import { includes } from "../array/module.f.ts"
 import { ok, error, type Result as CommonResult } from "../result/module.f.ts"
 
+/** Validation result: either the typed value or an error message. */
 export type Result<T extends Type> = CommonResult<Ts<T>, string>
 
 // object
@@ -11,6 +21,7 @@ const isObjectType = includes(objectTypeList)
 
 // non object
 
+/** String tags for non-object primitive types. */
 export type NonObjectType =
     | 'undefined'
     | 'boolean'
@@ -19,22 +30,29 @@ export type NonObjectType =
     | 'bigint'
     | 'function'
 
+/** String tags for object types: `'null'`, `'array'`, `'record'`. */
 export type ObjectType = typeof objectTypeList[number]
 
-// base: object or non object
-
+/** Union of all base type string tags. */
 export type BaseType =
     | NonObjectType
     | ObjectType
 
+/**
+ * A struct schema: an object whose keys are field names and values are nested `Type`s.
+ * Used to validate plain objects with specific typed fields.
+ */
 export type StructType = object & {
     readonly[K in string]: Type
 }
 
+/** A thunk returning a `NonLazyType`, used for recursive type definitions. */
 export type LazyType = () => NonLazyType
 
+/** A `Type` that is not wrapped in a thunk. */
 export type NonLazyType = BaseType | StructType
 
+/** Any RTTI type: a base tag string, a struct schema object, or a lazy thunk. */
 export type Type = NonLazyType | LazyType
 
 type NonObjectTs<T extends NonObjectType> =
@@ -67,10 +85,12 @@ type NonLazyTs<T extends NonLazyType> =
     never
 
 /**
- * Converts to TypeScript type.
+ * Converts an RTTI `Type` to its corresponding TypeScript type.
+ * @example `Ts<'string'>` → `string`, `Ts<{ x: 'number' }>` → `{ readonly x: number }`
  */
 export type Ts<T extends Type> = NonLazyTs<ToNonLazy<T>>
 
+/** A function that validates an unknown value against type `T`. */
 export type Validate<T extends Type> = (value: unknown) => Result<T>
 
 const nonObjectValidate = <T extends NonObjectType>(rtti: T): Validate<T> => value =>
@@ -127,5 +147,10 @@ type ToNonLazy<T extends Type> = T extends () => infer R ? R : T
 const nonLazy = <T extends Type>(rtti: T): T & ToNonLazy<T> =>
     (typeof rtti === 'function' ? rtti() : rtti) as T & ToNonLazy<T>
 
+/**
+ * Creates a validator function for the given RTTI schema.
+ * @param rtti - A base type tag, struct schema, or lazy thunk.
+ * @returns A function `(value: unknown) => Result<T>`.
+ */
 export const validate = <T extends Type>(rtti: T): Validate<T> =>
     nonLazyValidate(nonLazy(rtti))
