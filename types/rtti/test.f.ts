@@ -27,7 +27,10 @@ export default {
             error: () => assertError(validate('undefined')(null)),
         },
         boolean: {
-            ok: () => { assertOk(validate('boolean')(true)); assertOk(validate('boolean')(false)) },
+            ok: () => {
+                assertOk(validate('boolean')(true))
+                assertOk(validate('boolean')(false))
+            },
             error: () => assertError(validate('boolean')(0)),
         },
         string: {
@@ -44,15 +47,30 @@ export default {
         },
         null: {
             ok: () => assertOk(validate('null')(null)),
-            error: () => { assertError(validate('null')(undefined)); assertError(validate('null')({})) },
+            error: () => {
+                assertError(validate('null')(undefined))
+                assertError(validate('null')({}))
+            },
         },
         array: {
-            ok: () => { assertOk(validate('array')([])); assertOk(validate('array')([1, 2])) },
-            error: () => { assertError(validate('array')({})); assertError(validate('array')(null)) },
+            ok: () => {
+                assertOk(validate('array')([]))
+                assertOk(validate('array')([1, 2]))
+            },
+            error: () => {
+                assertError(validate('array')({}))
+                assertError(validate('array')(null))
+            },
         },
         record: {
-            ok: () => { assertOk(validate('record')({})); assertOk(validate('record')({ x: 1 })) },
-            error: () => { assertError(validate('record')([])); assertError(validate('record')(null)) },
+            ok: () => {
+                assertOk(validate('record')({}))
+                assertOk(validate('record')({ x: 1 }))
+            },
+            error: () => {
+                assertError(validate('record')([]))
+                assertError(validate('record')(null))
+            },
         },
         function: {
             ok: () => assertOk(validate('function')(() => {})),
