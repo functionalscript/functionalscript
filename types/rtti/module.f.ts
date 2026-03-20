@@ -121,16 +121,18 @@ export type Info1<K extends Tag1, T extends Type> = readonly[K, T]
 /** The type of a unary thunk for `Tag1` with inner type `T`. */
 type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
-const type1 = <K extends Tag1>(key: K) => <T extends Type>(t: T): Type1<K, T> => () => [key, t]
+type MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
+
+const type1 = <K extends Tag1>(key: K): MakeType1<K> => t => () => [key, t]
 
 /** Schema type for a readonly array with element type `T`. */
 export type Array<T extends Type> = Type1<'array', T>
 
 /** Constructs a schema that validates `readonly Ts<T>[]`. */
-export const array = type1('array')
+export const array: MakeType1<'array'> = type1('array')
 
 /** Schema type for a record (index signature) with value type `T`. */
 export type Record<T extends Type> = Type1<'record', T>
 
 /** Constructs a schema that validates `{ readonly[K in string]: Ts<T> }`. */
-export const record = type1('record')
+export const record: MakeType1<'record'> = type1('record')
