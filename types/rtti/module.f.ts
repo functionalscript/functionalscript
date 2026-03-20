@@ -20,31 +20,43 @@ export type Info =
     | One<Tag>
     | readonly['const', Const]
 
-export type Lazy = () => Info
+export type Thunk = () => Info
 
 export type Type =
     | Const
-    | Lazy
+    | Thunk
 
-const one = <T extends Tag>(tag: T) => [tag] as const
+type Basic<T extends Tag> = () => One<T>
 
-export type String = () => One<'string'>
+const basic = <T extends Tag>(tag: T): Basic<T> => () => [tag]
 
-export const boolean = one('boolean')
+export type Boolean = Basic<'boolean'>
 
-export const number = one('number')
+export const boolean: Boolean = basic('boolean')
 
-export const string = one('string')
+export type Number = Basic<'number'>
 
-export const bigint = one('bigint')
+export const number: Number = basic('number')
 
-export const record = one('record')
+export type String = Basic<'string'>
 
-export const array = one('array')
+export const string: String = basic('string')
+
+export type Bigint = Basic<'bigint'>
+
+export const bigint: Bigint = basic('bigint')
+
+export type Record = Basic<'record'>
+
+export const record = basic('record')
+
+export type Array = Basic<'array'>
+
+export const array = basic('array')
 
 export type Unknown = Primitive | RecordTs | ArrayTs
 
-export type RecordTs = object & { readonly[K in string]: Unknown }
+export type RecordTs = { readonly[K in string]: Unknown }
 
 export type ArrayTs = readonly Unknown[]
 
@@ -77,12 +89,7 @@ export type Ts<T extends Type> =
     T extends Const ? ConstTs<T> :
     never
 
-type Equal<A, B> =
-    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
-        ? true
-        : false
-
-type Assert<T extends true> = T
+import type { Equal, Assert } from "../ts/module.f.ts"
 
 type _0 = Assert<Equal<
     Ts<readonly[
@@ -92,13 +99,13 @@ type _0 = Assert<Equal<
         null,
         'hello!',
         () => ['const', 7n],
-        () => ['array'],
+        typeof array,
         () => ['record'],
         {
-            readonly a: () => readonly['string'],
+            readonly a: typeof string,
             b: bigint
         },
-        () => ['const', readonly[String]]
+        () => ['const', readonly[String, 5n]]
     ]>,
     readonly[
         number,
@@ -113,6 +120,6 @@ type _0 = Assert<Equal<
             readonly a: string,
             readonly b: bigint
         },
-        readonly[string]
+        readonly[string, 5n]
     ]
 >>
