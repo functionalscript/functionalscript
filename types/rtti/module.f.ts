@@ -105,7 +105,7 @@ const isArray = (v: unknown): v is ArrayTs =>
 const isRecord = (v: unknown): v is RecordTs =>
     typeof v === 'object' && !isNull(v) && !isArray(v)
 
-const wrap = <T extends ObjectType>(f: (value: unknown) => value is Ts<T>) => (value: unknown): Result<T> =>
+const wrap = <T extends ObjectType>(f: (value: unknown) => value is Ts<T>): Validate<T> => value =>
     f(value) ? ok(value) : error(`unexpected value: ${value}`)
 
 const objectSwitch: { readonly[K in ObjectType]: Validate<K> } = {
