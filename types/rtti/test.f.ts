@@ -62,7 +62,7 @@ export default {
             ok: () => assertOk(validate(() => 'string')('hello')),
             error: () => assertError(validate(() => 'string')(42)),
         },
-        recordType: {
+        struct: {
             ok: () => assertOk(validate({ name: 'string', age: 'number' })({ name: 'alice', age: 30 })),
             missingField: () => assertError(validate({ name: 'string' })({})),
             wrongFieldType: () => assertError(validate({ name: 'string' })({ name: 42 })),

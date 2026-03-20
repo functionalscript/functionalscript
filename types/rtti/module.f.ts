@@ -27,13 +27,13 @@ export type BaseType =
     | NonObjectType
     | ObjectType
 
-export type RecordType = object & {
+export type StructType = object & {
     readonly[K in string]: Type
 }
 
 export type LazyType = () => NonLazyType
 
-export type NonLazyType = BaseType | RecordType
+export type NonLazyType = BaseType | StructType
 
 export type Type = NonLazyType | LazyType
 
@@ -63,7 +63,7 @@ type BaseTs<T extends BaseType> =
 
 type NonLazyTs<T extends NonLazyType> =
     T extends BaseType ? BaseTs<T> :
-    T extends RecordType ? object & { readonly [K in keyof T]: Ts<T[K]> } :
+    T extends StructType ? object & { readonly [K in keyof T]: Ts<T[K]> } :
     never
 
 /**
@@ -73,7 +73,7 @@ export type Ts<T extends Type> = NonLazyTs<ToNonLazy<T>>
 
 export type Validate<T extends Type> = (value: unknown) => Result<T>
 
-const nonObjectValidate = <T extends NonObjectType>(rtti: T) => (value: unknown): Result<T> =>
+const nonObjectValidate = <T extends NonObjectType>(rtti: T): Validate<T> => value =>
     typeof value === rtti ? ok(value as Ts<T>) : error(rtti)
 
 const isNull = (v: unknown): v is null =>
@@ -100,7 +100,7 @@ const objectValidate = <T extends ObjectType>(rtti: T) =>
 const baseValidate = <T extends BaseType>(rtti: T): Validate<T> =>
     isObjectType(rtti) ? objectValidate(rtti) : nonObjectValidate(rtti as T & NonObjectType)
 
-const recordValidate: <T extends RecordType>(rtti: T) => Validate<T> = rtti => value => {
+const recordValidate = <T extends StructType>(rtti: T): Validate<T> => value => {
     if (!isRecord(value)) {
         return error('record is expected')
     }
@@ -122,10 +122,10 @@ const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => {
     }
 }
 
-export type ToNonLazy<T extends Type> = T extends () => infer R ? R : T
+type ToNonLazy<T extends Type> = T extends () => infer R ? R : T
 
-const nonLazy = <T extends Type>(rtti: T): ToNonLazy<T> =>
-    (typeof rtti === 'function' ? rtti() : rtti) as ToNonLazy<T>
+const nonLazy = <T extends Type>(rtti: T): T & ToNonLazy<T> =>
+    (typeof rtti === 'function' ? rtti() : rtti) as T & ToNonLazy<T>
 
 export const validate = <T extends Type>(rtti: T): Validate<T> =>
-    nonLazyValidate(nonLazy(rtti) as T & NonLazyType)
+    nonLazyValidate(nonLazy(rtti))
