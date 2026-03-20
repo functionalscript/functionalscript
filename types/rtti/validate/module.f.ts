@@ -1,10 +1,11 @@
 import type { Unknown } from '../../../djs/module.f.ts'
 import { isTag1, type Const, type Info1, type Tag1, type Thunk, type Type } from '../module.f.ts'
 import { error, ok, type Result as CommonResult } from '../../result/module.f.ts'
-import type { Info1Ts, Ts } from '../ts/module.f.ts'
+import type { Ts } from '../ts/module.f.ts'
 import { todo } from '../../../dev/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
+import { identity } from '../../function/module.f.ts'
 
 export type Result<T extends Type> = CommonResult<Ts<T>, string>
 
@@ -44,7 +45,7 @@ const containerValidate =
 const isArray: IsContainer<ReadonlyArray<Unknown>> =
     value => commonIsArray(value)
 
-const arrayValidate = containerValidate<'array'>(isArray, value => value)
+const arrayValidate = containerValidate<'array'>(isArray, identity)
 
 const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
     value => commonIsObject(value)
