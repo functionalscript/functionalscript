@@ -1,12 +1,15 @@
+import { includes } from "../array/module.f.ts"
 import { ok, error, type Result as CommonResult } from "../result/module.f.ts"
 
-const includes = <I, T extends readonly I[]>(a: T) => (v: I): v is T[number] => a.includes(v)
-
 export type Result<T extends Type> = CommonResult<Ts<T>, string>
+
+// object
 
 const objectTypeList = ['null', 'array', 'record'] as const
 
 const isObjectType = includes(objectTypeList)
+
+// non object
 
 export type NonObjectType =
     | 'undefined'
@@ -17,6 +20,8 @@ export type NonObjectType =
     | 'function'
 
 export type ObjectType = typeof objectTypeList[number]
+
+// base: object or non object
 
 export type BaseType =
     | NonObjectType
