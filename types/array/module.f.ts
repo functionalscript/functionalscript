@@ -98,3 +98,6 @@ export const splitLast
  * we may minimize memory a number of memory allocations.
  */
 export const empty: readonly[] = []
+
+export const includes = <I, T extends readonly I[]>(a: T) => (v: I): v is T[number] =>
+    a.includes(v)
