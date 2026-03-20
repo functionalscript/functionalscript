@@ -14,6 +14,7 @@ import type {
     Array, Record,
 } from '../module.f.ts'
 import { string, unknown } from '../module.f.ts'
+import type { ReadonlyRecord } from '../../object/module.f.ts'
 
 /** Maps a `Tag0` to its TypeScript type. */
 export type Info0Ts<T extends Tag0> =
@@ -45,10 +46,10 @@ export type InfoTs<T extends Info> =
     never
 
 /** Maps an array schema `T` to `readonly Ts<T>[]`. */
-export type ArrayTs<T extends Type> = readonly Ts<T>[]
+export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 
 /** Maps a record schema `T` to `{ readonly[K in string]: Ts<T> }`. */
-export type RecordTs<T extends Type> = { readonly[K in string]: Ts<T> }
+export type RecordTs<T extends Type> = ReadonlyRecord<string, Ts<T>>
 
 /** Maps a tuple schema to a readonly tuple of resolved types. */
 export type TupleTs<T extends Tuple> = { readonly[K in keyof T]: Ts<T[K]> }
