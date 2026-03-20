@@ -113,7 +113,7 @@ const recordValidate: <T extends RecordType>(rtti: T) => Validate<T> = rtti => v
     return ok(value as Ts<typeof rtti> & RecordTs)
 }
 
-export const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => {
+const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => {
     switch (typeof rtti) {
         case 'string':
             return baseValidate(rtti)
@@ -124,7 +124,7 @@ export const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => 
 
 export type ToNonLazy<T extends Type> = T extends () => infer R ? R : T
 
-export const nonLazy = <T extends Type>(rtti: T): ToNonLazy<T> =>
+const nonLazy = <T extends Type>(rtti: T): ToNonLazy<T> =>
     (typeof rtti === 'function' ? rtti() : rtti) as ToNonLazy<T>
 
 export const validate = <T extends Type>(rtti: T): Validate<T> =>
