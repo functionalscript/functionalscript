@@ -1,4 +1,4 @@
-import { validate } from './module.f.ts'
+import { validate } from './module-old.f.ts'
 
 type Tests = {
     readonly[K in string]: readonly unknown[]

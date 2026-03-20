@@ -131,7 +131,7 @@ export type Remainder = readonly CodePoint[] | null
 
 /**
  * Parsing result of {@link parser} and {@link parserRuleSet}.
- * 
+ *
  * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
  */
 export type MatchResult = readonly[AstRule, boolean, Remainder]
@@ -338,7 +338,7 @@ const emptyTagMapAdd = (ruleSet: RuleSet) => (map: EmptyTagMap) => (name: string
         let emptyTag: EmptyTagEntry = rule.length == 0
         for (const item of rule) {
             const [,newMap,itemEmptyTag] = emptyTagMapAdd(ruleSet)(map)(item)
-            map = newMap         
+            map = newMap
             if (emptyTag === false) {
                 emptyTag = itemEmptyTag !== false
             }
@@ -382,7 +382,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
 
     const f: DescentMatchRule<T> = (name, tag, cp, idx): DescentMatchResult<T> => {
         const mrSuccess = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, true, idx]
-        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, false, idx]        
+        const mrFail = (tag: AstTag, sequence: AstSequenceMeta<T>, idx: number): DescentMatchResult<T> => [{tag, sequence}, false, idx]
 
         const rule = data[0][name]
         if (typeof rule === 'number') {
@@ -392,7 +392,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             }
 
             const cpi = cp[idx]
-            const range = rangeDecode(rule)            
+            const range = rangeDecode(rule)
             if (rangeContains(range)(cpi[0])) {
                 return mrSuccess(tag, [cpi], idx + 1)
             }
@@ -400,7 +400,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
         } else if (rule instanceof Array) {
             let seq: AstSequenceMeta<T> = []
             let tidx = idx
-            for (const item of rule) {                
+            for (const item of rule) {
                 const m = f(item, undefined, cp, tidx)
                 const [astRule, success, nidx] = m
                 tidx = nidx
@@ -414,9 +414,9 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
             const entries = Object.entries(rule)
             const emptyTag = getEmptyTag(name)
             let emptyResult = mrFail(emptyTag, [], idx)
-            for (const [tag, item] of entries) {   
+            for (const [tag, item] of entries) {
                 const m = f(item, tag, cp, idx)
-                if (m[1]) {                    
+                if (m[1]) {
                     if (idx !== m[2])
                         return m
 
@@ -430,7 +430,7 @@ export const descentParser = <T>(fr: FRule): DescentMatch<T> => {
     const match: DescentMatch<T> = (name, cp): DescentMatchResult<T> => {
         return f(name, undefined, cp, 0)
     }
-    
+
     return match
 }
 

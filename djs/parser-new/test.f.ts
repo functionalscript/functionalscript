@@ -13,7 +13,7 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
 export default {
     isValid: [() => {
             const m = descentParser(jsGrammar())
-            
+
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
@@ -22,7 +22,7 @@ export default {
                     throw JSON.stringify([s, mr])
                 }
             }
-            
+
             expect('"', false)
             expect('   true   ', true)
             expect('   tr2ue   ', true)
