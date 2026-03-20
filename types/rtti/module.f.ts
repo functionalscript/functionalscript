@@ -1,8 +1,10 @@
+import type { Equal, Assert } from '../ts/module.f.ts'
+
 type Primitive = undefined | null | boolean | number | string | bigint
 
 type Const = Primitive | Struct | Tuple
 
-type Struct = object & { readonly[K in string]: Type }
+type Struct = { readonly[K in string]: Type }
 
 type Tuple = readonly Type[]
 
@@ -54,19 +56,19 @@ export type Array = Basic<'array'>
 
 export const array = basic('array')
 
-export type Unknown = Primitive | RecordTs | ArrayTs
+export type Unknown = Primitive | UnknownRecord | UnknownArray
 
-export type RecordTs = { readonly[K in string]: Unknown }
+export type UnknownRecord = { readonly[K in string]: Unknown }
 
-export type ArrayTs = readonly Unknown[]
+export type UnknownArray = readonly Unknown[]
 
 export type OneTs<T extends Tag> =
     T extends 'boolean' ? boolean :
     T extends 'number' ? number :
     T extends 'string' ? string :
     T extends 'bigint' ? bigint :
-    T extends 'record' ? RecordTs :
-    T extends 'array' ? ArrayTs :
+    T extends 'record' ? UnknownRecord :
+    T extends 'array' ? UnknownArray :
     never
 
 export type ConstTs<T extends Const> =
@@ -88,8 +90,6 @@ export type Ts<T extends Type> =
     T extends () => (infer I extends Info) ? InfoTs<I> :
     T extends Const ? ConstTs<T> :
     never
-
-import type { Equal, Assert } from "../ts/module.f.ts"
 
 type _0 = Assert<Equal<
     Ts<readonly[
@@ -115,7 +115,7 @@ type _0 = Assert<Equal<
         'hello!',
         7n,
         readonly Unknown[],
-        RecordTs,
+        UnknownRecord,
         {
             readonly a: string,
             readonly b: bigint
