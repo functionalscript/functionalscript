@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.11.11
 
-- RTTI: the first version
+- RTTI: the first version [733](https://github.com/functionalscript/functionalscript/pull/733)
 
 ## 0.11.10
 
