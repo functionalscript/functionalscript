@@ -96,12 +96,25 @@ const objectValidate = <T extends ObjectType>(rtti: T) =>
 const baseValidate = <T extends BaseType>(rtti: T): Validate<T> =>
     isObjectType(rtti) ? objectValidate(rtti) : nonObjectValidate(rtti as T & NonObjectType)
 
+const recordValidate: <T extends RecordType>(rtti: T) => Validate<T> = rtti => value => {
+    if (!isRecord(value)) {
+        return error('record is expected')
+    }
+    for (const [k, t] of Object.entries(rtti)) {
+        const r = validate(t)(value[k])
+        if (r[0] === 'error') {
+            return r
+        }
+    }
+    return ok(value as Ts<typeof rtti> & RecordTs)
+}
+
 export const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => {
     switch (typeof rtti) {
         case 'string':
             return baseValidate(rtti)
         case 'object':
-            return todo()
+            return recordValidate(rtti)
     }
 }
 

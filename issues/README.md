@@ -288,7 +288,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
   1. create a test file `integration/test.f.ts` and rename to something like `integration/uncomment-test.f.ts`. The file should be renamed back when we need to test an engine.
   2. the file should contain multiple tests using objects, arrays and functions. At least one function should produce similar structure.
   3. at least one function should be `throw`.
-
+- [ ] 126. `types/rtti` should support `undefined`, `null` instead of `"undefined"` and `"null"`.
 
 ## Language Specification
 
