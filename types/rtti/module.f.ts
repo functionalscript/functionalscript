@@ -1,4 +1,3 @@
-import { todo } from '../../dev/module.f.ts'
 import { ok, error, type Result as CommonResult } from "../result/module.f.ts"
 
 const includes = <I, T extends readonly I[]>(a: T) => (v: I): v is T[number] => a.includes(v)

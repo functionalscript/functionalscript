@@ -12,6 +12,8 @@ const tests: Tests = {
     function: [() => undefined]
 }
 
-export default Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, a.map(v => () => {
-    if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
-})]))
+export default {
+    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, a.map(v => () => {
+        if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
+    })]))
+}
