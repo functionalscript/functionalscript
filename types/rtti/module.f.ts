@@ -42,8 +42,6 @@ export const record = one('record')
 
 export const array = one('array')
 
-export type ConstTs<T extends Const> = T
-
 export type Unknown = Primitive | RecordTs | ArrayTs
 
 export type RecordTs = object & { readonly[K in string]: Unknown }
@@ -59,6 +57,12 @@ export type OneTs<T extends Tag> =
     T extends 'array' ? ArrayTs :
     never
 
+export type ConstTs<T extends Const> =
+    T extends Primitive ? T :
+    T extends Tuple ? TupleTs<T> :
+    T extends Struct ? StructTs<T> :
+    never
+
 export type InfoTs<T extends Info> =
     T extends readonly['const', infer C extends Const] ? ConstTs<C> :
     T extends readonly[infer G extends Tag] ? OneTs<G> :
@@ -70,14 +74,45 @@ export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
 
 export type Ts<T extends Type> =
     T extends () => (infer I extends Info) ? InfoTs<I> :
-    T extends Primitive ? T :
-    T extends Tuple ? TupleTs<T> :
-    T extends Struct ? StructTs<T> :
+    T extends Const ? ConstTs<T> :
     never
 
-type X = Ts<readonly[number, 4, String]>
+type Equal<A, B> =
+    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
+        ? true
+        : false
 
-type Z = Ts<{
-    readonly a: () => readonly['string']
-    readonly b: bigint
-}>
+type Assert<T extends true> = T
+
+type _0 = Assert<Equal<
+    Ts<readonly[
+        number,
+        4,
+        String,
+        null,
+        'hello!',
+        () => ['const', 7n],
+        () => ['array'],
+        () => ['record'],
+        {
+            readonly a: () => readonly['string'],
+            b: bigint
+        },
+        () => ['const', readonly[String]]
+    ]>,
+    readonly[
+        number,
+        4,
+        string,
+        null,
+        'hello!',
+        7n,
+        readonly Unknown[],
+        RecordTs,
+        {
+            readonly a: string,
+            readonly b: bigint
+        },
+        readonly[string]
+    ]
+>>
