@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.11.11",
+  "version": "0.12.0",
   "license": "MIT",
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
@@ -78,10 +78,13 @@
     "./types/result/module.f.ts": "./types/result/module.f.ts",
     "./types/result/module.ts": "./types/result/module.ts",
     "./types/rtti/module.f.ts": "./types/rtti/module.f.ts",
+    "./types/rtti/ts/module.f.ts": "./types/rtti/ts/module.f.ts",
+    "./types/rtti/validate/module.f.ts": "./types/rtti/validate/module.f.ts",
     "./types/sorted_list/module.f.ts": "./types/sorted_list/module.f.ts",
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
+    "./types/ts/module.f.ts": "./types/ts/module.f.ts",
     "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts",
     "./website/module.f.ts": "./website/module.f.ts"
   },
