@@ -1,6 +1,10 @@
 import type { Equal, Assert } from '../ts/module.f.ts'
-
-type Primitive = undefined | null | boolean | number | string | bigint
+import type {
+    Primitive,
+    Unknown as DjsUnknown,
+    Object as DjsObject,
+    Array as DjsArray
+} from '../../djs/module.f.ts'
 
 type Const = Primitive | Struct | Tuple
 
@@ -48,27 +52,21 @@ export type Bigint = Basic<'bigint'>
 
 export const bigint: Bigint = basic('bigint')
 
-export type Record = Basic<'record'>
+export type UnknownRecord = Basic<'record'>
 
-export const record = basic('record')
+export const unknownRecord: UnknownRecord = basic('record')
 
-export type Array = Basic<'array'>
+export type UnknownArray = Basic<'array'>
 
-export const array = basic('array')
-
-export type Unknown = Primitive | UnknownRecord | UnknownArray
-
-export type UnknownRecord = { readonly[K in string]: Unknown }
-
-export type UnknownArray = readonly Unknown[]
+export const unknownArray: UnknownArray = basic('array')
 
 export type OneTs<T extends Tag> =
     T extends 'boolean' ? boolean :
     T extends 'number' ? number :
     T extends 'string' ? string :
     T extends 'bigint' ? bigint :
-    T extends 'record' ? UnknownRecord :
-    T extends 'array' ? UnknownArray :
+    T extends 'record' ? DjsObject :
+    T extends 'array' ? DjsArray :
     never
 
 export type ConstTs<T extends Const> =
@@ -99,7 +97,7 @@ type _0 = Assert<Equal<
         null,
         'hello!',
         () => ['const', 7n],
-        typeof array,
+        typeof unknownArray,
         () => ['record'],
         {
             readonly a: typeof string,
@@ -114,8 +112,8 @@ type _0 = Assert<Equal<
         null,
         'hello!',
         7n,
-        readonly Unknown[],
-        UnknownRecord,
+        readonly DjsUnknown[],
+        DjsObject,
         {
             readonly a: string,
             readonly b: bigint
