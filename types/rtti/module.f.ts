@@ -1,131 +1,136 @@
-import type { Equal, Assert } from '../ts/module.f.ts'
-import type {
-    Primitive,
-    Unknown as DjsUnknown,
-    Object as DjsObject,
-    Array as DjsArray
-} from '../../djs/module.f.ts'
+/**
+ * Runtime type information (RTTI) — a type-safe schema system for describing and
+ * converting TypeScript types.
+ *
+ * ## Core concepts
+ *
+ * A `Type` is either a `Const` (used directly as its own schema) or a `Thunk`
+ * (a zero-argument function returning an `Info` descriptor). Thunks are the
+ * primary building block: they enable lazy evaluation and recursive type definitions.
+ *
+ * ```
+ * Type = Const | Thunk
+ * Thunk = () => Info
+ * Info = ['const', Const] | Info0<Tag0> | Info1<Tag1, Type>
+ * ```
+ *
+ * ## Nullary schemas (no type parameter)
+ *
+ * `boolean`, `number`, `string`, `bigint`, `unknown` are pre-built `Thunk` values
+ * that describe primitive types. Each is a `Type0<Tag0>` — a thunk returning a
+ * single-element tag tuple.
+ *
+ * ## Unary schemas (one type parameter)
+ *
+ * `array(t)` and `record(t)` construct `Thunk` values parameterized by an inner
+ * `Type`. They return `Type1` thunks wrapping an `Info1` tuple.
+ *
+ * ## Const schemas
+ *
+ * Any `Primitive`, `Struct` (plain object), or `Tuple` (readonly array) can be
+ * used directly as a schema — it describes exactly the shape of that value.
+ * Inside a recursive `Thunk`-based definition, wrap consts with `() => ['const', c]`
+ * to keep the schema uniform.
+ *
+ * ## Converting to TypeScript types
+ *
+ * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
+ */
+import type { Primitive } from '../../djs/module.f.ts'
 
-type Const = Primitive | Struct | Tuple
+/** A constant schema: a primitive literal, a struct object, or a tuple. */
+export type Const = Primitive | Struct | Tuple
 
-type Struct = { readonly[K in string]: Type }
+/** A struct schema: plain object whose values are nested `Type`s. */
+export type Struct = { readonly[K in string]: Type }
 
-type Tuple = readonly Type[]
+/** A tuple schema: readonly array whose elements are nested `Type`s. */
+export type Tuple = readonly Type[]
 
-type Tag =
+/** Tags for nullary (zero-parameter) type schemas. */
+export type Tag0 =
     | 'boolean'
     | 'number'
     | 'string'
     | 'bigint'
-    | 'record'
-    | 'array'
     | 'unknown'
 
-type One<T extends Tag> = readonly[T]
+/** Info tuple for a nullary tag: `readonly[tag]`. */
+export type Info0<T extends Tag0> = readonly[T]
 
+/**
+ * The descriptor returned by a `Thunk`. One of:
+ * - `['const', Const]` — a constant/literal schema (used in recursive thunks)
+ * - `Info0<Tag0>` — a nullary primitive tag
+ * - `Info1<Tag1, Type>` — a unary parametric tag with an inner type
+ */
 export type Info =
-    | One<Tag>
     | readonly['const', Const]
+    | Info0<Tag0>
+    | Info1<Tag1, Type>
 
+/** A lazy schema: a zero-argument function returning an `Info` descriptor. */
 export type Thunk = () => Info
 
+/** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
 export type Type =
     | Const
     | Thunk
 
-type Basic<T extends Tag> = () => One<T>
+/** The type of a nullary thunk for `Tag0`. */
+type Type0<T extends Tag0> = () => Info0<T>
 
-const basic = <T extends Tag>(tag: T): Basic<T> => () => [tag]
+const type0 = <T extends Tag0>(tag: T): Type0<T> => () => [tag]
 
-export type Boolean = Basic<'boolean'>
+/** Schema type for `boolean`. */
+export type Boolean = Type0<'boolean'>
 
-export const boolean: Boolean = basic('boolean')
+/** Schema that validates `boolean` values. */
+export const boolean: Boolean = type0('boolean')
 
-export type Number = Basic<'number'>
+/** Schema type for `number`. */
+export type Number = Type0<'number'>
 
-export const number: Number = basic('number')
+/** Schema that validates `number` values. */
+export const number: Number = type0('number')
 
-export type String = Basic<'string'>
+/** Schema type for `string`. */
+export type String = Type0<'string'>
 
-export const string: String = basic('string')
+/** Schema that validates `string` values. */
+export const string: String = type0('string')
 
-export type Bigint = Basic<'bigint'>
+/** Schema type for `bigint`. */
+export type Bigint = Type0<'bigint'>
 
-export const bigint: Bigint = basic('bigint')
+/** Schema that validates `bigint` values. */
+export const bigint: Bigint = type0('bigint')
 
-export type Unknown = Basic<'unknown'>
+/** Schema type for any DJS value (`Primitive | UnknownRecord | UnknownArray`). */
+export type Unknown = Type0<'unknown'>
 
-export const unknown: Unknown = basic('unknown')
+/** Schema that validates any DJS-compatible value. */
+export const unknown: Unknown = type0('unknown')
 
-export type UnknownRecord = Basic<'record'>
+/** Tags for unary (one-parameter) type schemas. */
+export type Tag1 = 'array' | 'record'
 
-export const unknownRecord: UnknownRecord = basic('record')
+/** Info tuple for a unary tag: `readonly[tag, innerType]`. */
+export type Info1<K extends Tag1, T extends Type> = readonly[K, T]
 
-export type UnknownArray = Basic<'array'>
+/** The type of a unary thunk for `Tag1` with inner type `T`. */
+type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
-export const unknownArray: UnknownArray = basic('array')
+const type1 = <K extends Tag1>(key: K) => <T extends Type>(t: T): Type1<K, T> => () => [key, t]
 
-export type OneTs<T extends Tag> =
-    T extends 'boolean' ? boolean :
-    T extends 'number' ? number :
-    T extends 'string' ? string :
-    T extends 'bigint' ? bigint :
-    T extends 'unknown' ? DjsUnknown :
-    T extends 'record' ? DjsObject :
-    T extends 'array' ? DjsArray :
-    never
+/** Schema type for a readonly array with element type `T`. */
+export type Array<T extends Type> = Type1<'array', T>
 
-export type ConstTs<T extends Const> =
-    T extends Primitive ? T :
-    T extends Tuple ? TupleTs<T> :
-    T extends Struct ? StructTs<T> :
-    never
+/** Constructs a schema that validates `readonly Ts<T>[]`. */
+export const array = type1('array')
 
-export type InfoTs<T extends Info> =
-    T extends readonly['const', infer C extends Const] ? ConstTs<C> :
-    T extends readonly[infer G extends Tag] ? OneTs<G> :
-    never
+/** Schema type for a record (index signature) with value type `T`. */
+export type Record<T extends Type> = Type1<'record', T>
 
-export type TupleTs<T extends Tuple> = { readonly[K in keyof T]: Ts<T[K]> }
-
-export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
-
-export type Ts<T extends Type> =
-    T extends () => (infer I extends Info) ? InfoTs<I> :
-    T extends Const ? ConstTs<T> :
-    never
-
-type _0 = Assert<Equal<
-    Ts<readonly[
-        number,
-        4,
-        String,
-        null,
-        'hello!',
-        () => ['const', 7n],
-        typeof unknown,
-        typeof unknownArray,
-        () => ['record'],
-        {
-            readonly a: typeof string,
-            b: bigint
-        },
-        () => ['const', readonly[String, 5n]]
-    ]>,
-    readonly[
-        number,
-        4,
-        string,
-        null,
-        'hello!',
-        7n,
-        DjsUnknown,
-        readonly DjsUnknown[],
-        DjsObject,
-        {
-            readonly a: string,
-            readonly b: bigint
-        },
-        readonly[string, 5n]
-    ]
->>
+/** Constructs a schema that validates `{ readonly[K in string]: Ts<T> }`. */
+export const record = type1('record')
