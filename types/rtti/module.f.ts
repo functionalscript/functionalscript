@@ -37,6 +37,7 @@
  * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
  */
 import type { Primitive } from '../../djs/module.f.ts'
+import { includes, type Includes } from '../array/module.f.ts'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const = Primitive | Struct | Tuple
@@ -47,13 +48,10 @@ export type Struct = { readonly[K in string]: Type }
 /** A tuple schema: readonly array whose elements are nested `Type`s. */
 export type Tuple = readonly Type[]
 
+export const tag0List = ['bigint', 'boolean', 'number', 'string', 'unknown']
+
 /** Tags for nullary (zero-parameter) type schemas. */
-export type Tag0 =
-    | 'boolean'
-    | 'number'
-    | 'string'
-    | 'bigint'
-    | 'unknown'
+export type Tag0 = typeof tag0List[number]
 
 /** Info tuple for a nullary tag: `readonly[tag]`. */
 export type Info0<T extends Tag0> = readonly[T]
@@ -112,14 +110,18 @@ export type Unknown = Type0<'unknown'>
 /** Schema that validates any DJS-compatible value. */
 export const unknown: Unknown = type0('unknown')
 
+const tag1List = ['array', 'record'] as const
+
+export const isTag1: Includes<string, typeof tag1List> = includes(tag1List)
+
 /** Tags for unary (one-parameter) type schemas. */
-export type Tag1 = 'array' | 'record'
+export type Tag1 = typeof tag1List[number]
 
 /** Info tuple for a unary tag: `readonly[tag, innerType]`. */
 export type Info1<K extends Tag1, T extends Type> = readonly[K, T]
 
 /** The type of a unary thunk for `Tag1` with inner type `T`. */
-type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
+export type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
 type MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
 

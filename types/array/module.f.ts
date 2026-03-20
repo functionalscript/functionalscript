@@ -99,5 +99,7 @@ export const splitLast
  */
 export const empty: readonly[] = []
 
+export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
+
 export const includes = <I, T extends readonly I[]>(a: T) => (v: I): v is T[number] =>
     a.includes(v)
