@@ -6,6 +6,9 @@
 
 import { map } from '../nullable/module.f.ts'
 
+export const isArray = (value: unknown): value is readonly unknown[] =>
+    value instanceof Array
+
 export type Array1<T> = readonly [T]
 
 export type Index1 = 0

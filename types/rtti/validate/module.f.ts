@@ -1,14 +1,14 @@
-import type { Unknown, Array, Object } from '../../../djs/module.f.ts'
+import type { Unknown } from '../../../djs/module.f.ts'
 import { isTag1, type Const, type Info1, type Tag1, type Thunk, type Type } from '../module.f.ts'
 import { error, ok, type Result as CommonResult } from '../../result/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import { todo } from '../../../dev/module.f.ts'
+import { isArray } from '../../array/module.f.ts'
+import { isObject } from '../../object/module.f.ts'
 
 export type Result<T extends Type> = CommonResult<Ts<T>, string>
 
 export type Validate<T extends Type> = (value: Unknown) => Result<T>
-
-const isArray = (value: Unknown): value is Array => value instanceof Array
 
 // Note: Implementation of `array` and `record` shouldn't instantiate `item` RTTI until we get a value.
 //       Otherwise, we can get infinte recursion.
@@ -29,9 +29,6 @@ const arrayValidate = <I extends Type>(item: I): Validate<Info1<'array', I>> => 
     }
     return ok(value)
 }
-
-const isObject = (value: Unknown): value is Object =>
-    typeof value === 'object' && !isArray(value) && value !== null
 
 const recordValidate = <I extends Type>(item: I): Validate<Info1<'record', I>> => value => {
     if (!isObject(value)) {

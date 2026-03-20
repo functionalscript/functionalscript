@@ -1,3 +1,4 @@
+import { isArray } from '../array/module.f.ts'
 import { iterable, type List } from '../list/module.f.ts'
 import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
 
@@ -48,3 +49,6 @@ export type NotUnion<T, U = T> =
 export type SingleProperty<T extends Record<string, never>> =
   keyof T extends NotUnion<keyof T> ? T
   : never;
+
+export const isObject = (value: unknown): value is { readonly[k in string]: unknown } =>
+    typeof value === 'object' && !isArray(value) && value !== null
