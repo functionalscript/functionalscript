@@ -48,7 +48,11 @@ export type Struct = { readonly[K in string]: Type }
 /** A tuple schema: readonly array whose elements are nested `Type`s. */
 export type Tuple = readonly Type[]
 
-export const tag0List = ['bigint', 'boolean', 'number', 'string', 'unknown']
+const primitive0List = ['bigint', 'boolean', 'number', 'string'] as const
+
+export type Primitive0 = typeof primitive0List[number]
+
+export const tag0List = [...primitive0List, 'unknown'] as const
 
 /** Tags for nullary (zero-parameter) type schemas. */
 export type Tag0 = typeof tag0List[number]

@@ -1,5 +1,5 @@
 import type { Unknown } from '../../../djs/module.f.ts'
-import { isTag1, type Const, type Info1, type Tag1, type Thunk, type Type } from '../module.f.ts'
+import { isTag1, type Const, type Info0, type Info1, type Primitive0, type Tag0, type Tag1, type Thunk, type Type } from '../module.f.ts'
 import { error, ok, type Result as CommonResult } from '../../result/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import { todo } from '../../../dev/module.f.ts'
@@ -15,7 +15,7 @@ type IsContainer<C extends Unknown> = (value: Unknown) => value is C
 
 type GetItems<C extends Unknown> = (value: C) => ReadonlyArray<Unknown>
 
-export type Container<K extends Tag1> = K extends 'array'
+type Container<K extends Tag1> = K extends 'array'
     ? ReadonlyArray<Unknown>
     : ReadonlyRecord<string, Unknown>
 
@@ -55,16 +55,21 @@ const recordValidate = containerValidate<'record'>(isObject, Object.values)
 const tag1Validate = <K extends Tag1, I extends Type, T extends Info1<K, I>>([tag, item]: T): Validate<T> =>
     tag === 'array' ? arrayValidate(item) as any : recordValidate(item) as any
 
+const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> => {
+    return todo()
+}
+
 const thunkValidate = <T extends Thunk>(rtti: T): Validate<T> => {
     const info = rtti()
     const [tag, value] = info
-    if (tag === 'const') {
-        return constValidate(value) as any
+    switch (tag) {
+        case 'const':
+            return constValidate(value) as any
+        case 'unknown':
+            return ok as any
     }
-    if (isTag1(tag)) {
-        return tag1Validate(info as Info1<typeof tag, typeof value>) as any
-    }
-    return todo()
+    return isTag1(tag) ? tag1Validate(info as Info1<typeof tag, typeof value>) as any
+        : primitive0Validate(tag) as any
 }
 
 const constValidate = <T extends Const>(rtti: T): Validate<T> => todo()
