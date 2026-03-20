@@ -19,6 +19,7 @@ type Tag =
     | 'bigint'
     | 'record'
     | 'array'
+    | 'unknown'
 
 type One<T extends Tag> = readonly[T]
 
@@ -52,6 +53,10 @@ export type Bigint = Basic<'bigint'>
 
 export const bigint: Bigint = basic('bigint')
 
+export type Unknown = Basic<'unknown'>
+
+export const unknown: Unknown = basic('unknown')
+
 export type UnknownRecord = Basic<'record'>
 
 export const unknownRecord: UnknownRecord = basic('record')
@@ -65,6 +70,7 @@ export type OneTs<T extends Tag> =
     T extends 'number' ? number :
     T extends 'string' ? string :
     T extends 'bigint' ? bigint :
+    T extends 'unknown' ? DjsUnknown :
     T extends 'record' ? DjsObject :
     T extends 'array' ? DjsArray :
     never
@@ -97,6 +103,7 @@ type _0 = Assert<Equal<
         null,
         'hello!',
         () => ['const', 7n],
+        typeof unknown,
         typeof unknownArray,
         () => ['record'],
         {
@@ -112,6 +119,7 @@ type _0 = Assert<Equal<
         null,
         'hello!',
         7n,
+        DjsUnknown,
         readonly DjsUnknown[],
         DjsObject,
         {
