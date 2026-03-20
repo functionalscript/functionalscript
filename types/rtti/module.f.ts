@@ -99,7 +99,7 @@ const nonObjectValidate = <T extends NonObjectType>(rtti: T): Validate<T> => val
 const isNull = (v: unknown): v is null =>
     v === null
 
-const isArray = (v: unknown): v is readonly unknown[] =>
+const isArray = (v: unknown): v is ArrayTs =>
     v instanceof Array
 
 const isRecord = (v: unknown): v is RecordTs =>
