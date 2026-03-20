@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.11.10",
+  "version": "0.11.11",
   "type": "module",
   "files": [
     "**/*.js",
