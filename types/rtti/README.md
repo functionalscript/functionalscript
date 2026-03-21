@@ -22,15 +22,19 @@ A `Type` is one of:
 
 ## Built-in schemas
 
-| Schema      | Validates                        |
-|-------------|----------------------------------|
-| `boolean`   | any `boolean`                    |
-| `number`    | any `number`                     |
-| `string`    | any `string`                     |
-| `bigint`    | any `bigint`                     |
-| `unknown`   | any DJS value                    |
-| `array(t)`  | `readonly Ts<t>[]`               |
-| `record(t)` | `{ readonly[K: string]: Ts<t> }` |
+The built-in schemas are all `Thunk`s — functions that return an `Info` descriptor.
+Nullary schemas (`boolean`, `string`, etc.) return `Info0` (a single-tag tuple);
+unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
+
+| Schema      | Returns              | Validates                        |
+|-------------|----------------------|----------------------------------|
+| `boolean`   | `['boolean']`        | any `boolean`                    |
+| `number`    | `['number']`         | any `number`                     |
+| `string`    | `['string']`         | any `string`                     |
+| `bigint`    | `['bigint']`         | any `bigint`                     |
+| `unknown`   | `['unknown']`        | any DJS value                    |
+| `array(t)`  | `['array', t]`       | `readonly Ts<t>[]`               |
+| `record(t)` | `['record', t]`      | `{ readonly[K: string]: Ts<t> }` |
 
 ## Example
 
