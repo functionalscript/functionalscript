@@ -39,8 +39,10 @@
 import type { Primitive } from '../../djs/module.f.ts'
 import { includes, type Includes } from '../array/module.f.ts'
 
+export type ConstObject = Struct | Tuple
+
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
-export type Const = Primitive | Struct | Tuple
+export type Const = Primitive | ConstObject
 
 /** A struct schema: plain object whose values are nested `Type`s. */
 export type Struct = { readonly[K in string]: Type }
