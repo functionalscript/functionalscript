@@ -1,5 +1,17 @@
 import type { Unknown } from '../../../djs/module.f.ts'
-import { isTag1, type Const, type ConstObject, type Info0, type Info1, type Primitive0, type Struct, type Tag0, type Tag1, type Thunk, type Tuple, type Type } from '../module.f.ts'
+import {
+    isTag1,
+    type Const,
+    type ConstObject,
+    type Info0,
+    type Info1,
+    type Primitive0,
+    type Struct,
+    type Tag1,
+    type Thunk,
+    type Tuple,
+    type Type
+} from '../module.f.ts'
 import { error, ok, type Result as CommonResult } from '../../result/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
@@ -30,8 +42,8 @@ const containerValidate =
     if (items.length === 0) {
         return ok(value)
     }
-    // Note: we shouldn't instantiate `item` RTTI until we get a value.
-    //       Otherwise, we can get infinte recursion on empty arrays
+    // Note: we shouldn't instantiate `itemValidate` until we make sure `items` is not empty.
+    //       Otherwise, we can get infinite recursion on empty arrays and objects
     const itemValidate = validate(item)
     for (const i of items) {
         const r = itemValidate(i)
