@@ -51,8 +51,10 @@ export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 /** Maps a record schema `T` to `{ readonly[K in string]: Ts<T> }`. */
 export type RecordTs<T extends Type> = ReadonlyRecord<string, Ts<T>>
 
+export type ClosedTupleTs<T extends Tuple> = { readonly[K in keyof T]: Ts<T[K]> }
+
 /** Maps a tuple schema to a readonly tuple of resolved types. */
-export type TupleTs<T extends Tuple> = { readonly[K in keyof T]: Ts<T[K]> }
+export type TupleTs<T extends Tuple> = ClosedTupleTs<T> // readonly[...ClosedTupleTs<T>, ...readonly Unknown[]]
 
 /** Maps a struct schema to a readonly object of resolved types. */
 export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
@@ -105,8 +107,9 @@ type _0 = Assert<Equal<
         { readonly[K in string]: 12 },
         {
             readonly a: string,
-            readonly b: bigint
+            readonly b: bigint,
         },
-        readonly[string, 5n]
+        readonly[string, 5n],
     ]
 >>
+
