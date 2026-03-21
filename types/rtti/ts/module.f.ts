@@ -5,7 +5,7 @@
  * The main entry point is `Ts<T>`.
  */
 import type { Equal, Assert } from '../../ts/module.f.ts'
-import type { Primitive, Unknown as DjsUnknown } from '../../../djs/module.f.ts'
+import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type {
     Tag0, Tag1,
     Const, Struct, Tuple,
