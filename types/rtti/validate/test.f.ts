@@ -1,5 +1,5 @@
 import { validate } from './module.f.ts'
-import { boolean, number, string, bigint, unknown, array, record, type Thunk } from '../module.f.ts'
+import { boolean, number, string, bigint, unknown, array, record } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
@@ -109,31 +109,34 @@ export default {
         },
         tuple: {
             ok: () => {
-                type _ = Assert<Equal<Ts<readonly[42, 'hello']>, readonly[42, 'hello']>>
-                assertOk(validate([42 as const, 'hello' as const] as const)([42, 'hello']))
+                const t = [42, 'hello'] as const
+                type _ = Assert<Equal<Ts<typeof t>, readonly[42, 'hello']>>
+                assertOk(validate(t)([42, 'hello']))
             },
-            extraItems: () => assertOk(validate([42 as const] as const)([42, 'extra'])),
+            extraItems: () => assertOk(validate([42] as const)([42, 'extra'])),
             error: () => {
-                assertError(validate([42 as const] as const)([99]))
-                assertError(validate([42 as const] as const)({}))
+                assertError(validate([42] as const)([99]))
+                assertError(validate([42] as const)({}))
             },
         },
         struct: {
             ok: () => {
-                type _ = Assert<Equal<Ts<{ readonly a: 42, readonly b: 'hello' }>, { readonly a: 42, readonly b: 'hello' }>>
-                assertOk(validate({ a: 42 as const, b: 'hello' as const } as const)({ a: 42, b: 'hello' }))
+                const t = { a: 42, b: 'hello' } as const
+                type _ = Assert<Equal<Ts<typeof t>, { readonly a: 42, readonly b: 'hello' }>>
+                assertOk(validate(t)({ a: 42, b: 'hello' }))
             },
             extraKeys: () => assertOk(validate({ a: 42 as const } as const)({ a: 42, b: 'extra' })),
             error: () => {
-                assertError(validate({ a: 42 as const } as const)({ a: 99 }))
-                assertError(validate({ a: 42 as const } as const)([]))
+                assertError(validate({ a: 42 } as const)({ a: 99 }))
+                assertError(validate({ a: 42 } as const)([]))
             },
         },
     },
     array: {
         empty: () => assertOk(validate(array(number))([])),
         ok: () => {
-            type _ = Assert<Equal<Ts<ReturnType<typeof array<typeof number>>>, readonly number[]>>
+            const t = array(number)
+            type _ = Assert<Equal<Ts<typeof t>, readonly number[]>>
             assertOk(validate(array(number))([1, 2, 3]))
         },
         error: () => {
@@ -142,7 +145,8 @@ export default {
             assertError(validate(array(number))(null))
         },
         nested: () => {
-            type _ = Assert<Equal<Ts<ReturnType<typeof array<ReturnType<typeof array<typeof boolean>>>>>, readonly (readonly boolean[])[]>>
+            const t = array(array(boolean))
+            type _ = Assert<Equal<Ts<typeof t>, readonly (readonly boolean[])[]>>
             assertOk(validate(array(array(boolean)))([[true, false], [false]]))
             assertError(validate(array(array(boolean)))([[true, 42]]))
         },
@@ -150,8 +154,9 @@ export default {
     record: {
         empty: () => assertOk(validate(record(number))({})),
         ok: () => {
-            type _ = Assert<Equal<Ts<ReturnType<typeof record<typeof string>>>, { readonly[K in string]: string }>>
-            assertOk(validate(record(string))({ a: 'hello', b: 'world' }))
+            const t = record(string)
+            type _ = Assert<Equal<Ts<typeof t>, { readonly[K in string]: string }>>
+            assertOk(validate(t)({ a: 'hello', b: 'world' }))
         },
         error: () => {
             assertError(validate(record(number))({ a: 1, b: 'two' }))
@@ -161,9 +166,10 @@ export default {
     },
     constThunk: {
         primitive: () => {
-            type _ = Assert<Equal<Ts<() => readonly['const', 7n]>, 7n>>
-            assertOk(validate(() => ['const', 7n] as const)(7n))
-            assertError(validate(() => ['const', 7n] as const)(8n))
+            const t = () => ['const', 7n] as const
+            type _ = Assert<Equal<Ts<typeof t>, 7n>>
+            assertOk(validate(t)(7n))
+            assertError(validate(t)(8n))
         },
     },
     recursive: {
