@@ -87,5 +87,7 @@ export const parse
     : (value: string) => Unknown
     = JSON.parse
 
+/*
 export const isObject = (value: Unknown): value is Object =>
     typeof value === 'object' && value !== null && !(value instanceof Array)
+*/

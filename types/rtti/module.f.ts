@@ -1,156 +1,146 @@
 /**
- * Runtime type information (RTTI) for validating unknown values against typed schemas.
+ * Runtime type information (RTTI) — a type-safe schema system for describing and
+ * converting TypeScript types.
  *
- * A `Type` is either a `BaseType` string tag (e.g. `'string'`, `'number'`, `'record'`),
- * a `StructType` object mapping field names to nested `Type`s, or a `LazyType` thunk
- * for recursive definitions. Use {@link validate} to produce a type-safe validator.
+ * ## Core concepts
  *
- * @module
+ * A `Type` is either a `Const` (used directly as its own schema) or a `Thunk`
+ * (a zero-argument function returning an `Info` descriptor). Thunks are the
+ * primary building block: they enable lazy evaluation and recursive type definitions.
+ *
+ * ```
+ * Type = Const | Thunk
+ * Thunk = () => Info
+ * Info = ['const', Const] | Info0<Tag0> | Info1<Tag1, Type>
+ * ```
+ *
+ * ## Nullary schemas (no type parameter)
+ *
+ * `boolean`, `number`, `string`, `bigint`, `unknown` are pre-built `Thunk` values
+ * that describe primitive types. Each is a `Type0<Tag0>` — a thunk returning a
+ * single-element tag tuple.
+ *
+ * ## Unary schemas (one type parameter)
+ *
+ * `array(t)` and `record(t)` construct `Thunk` values parameterized by an inner
+ * `Type`. They return `Type1` thunks wrapping an `Info1` tuple.
+ *
+ * ## Const schemas
+ *
+ * Any `Primitive`, `Struct` (plain object), or `Tuple` (readonly array) can be
+ * used directly as a schema — it describes exactly the shape of that value.
+ * Inside a recursive `Thunk`-based definition, wrap consts with `() => ['const', c]`
+ * to keep the schema uniform.
+ *
+ * ## Converting to TypeScript types
+ *
+ * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
  */
-import { includes } from "../array/module.f.ts"
-import { ok, error, type Result as CommonResult } from "../result/module.f.ts"
+import type { Primitive } from '../../djs/module.f.ts'
+import { includes, type Includes } from '../array/module.f.ts'
 
-/** Validation result: either the typed value or an error message. */
-export type Result<T extends Type> = CommonResult<Ts<T>, string>
+export type ConstObject = Struct | Tuple
 
-// object
+/** A constant schema: a primitive literal, a struct object, or a tuple. */
+export type Const = Primitive | ConstObject
 
-const objectTypeList = ['null', 'array', 'record'] as const
+/** A struct schema: plain object whose values are nested `Type`s. */
+export type Struct = { readonly[K in string]: Type }
 
-const isObjectType = includes(objectTypeList)
+/** A tuple schema: readonly array whose elements are nested `Type`s. */
+export type Tuple = readonly Type[]
 
-// non object
+const primitive0List = ['bigint', 'boolean', 'number', 'string'] as const
 
-/** String tags for non-object primitive types. */
-export type NonObjectType =
-    | 'undefined'
-    | 'boolean'
-    | 'string'
-    | 'number'
-    | 'bigint'
-    | 'function'
+export type Primitive0 = typeof primitive0List[number]
 
-/** String tags for object types: `'null'`, `'array'`, `'record'`. */
-export type ObjectType = typeof objectTypeList[number]
+export const tag0List = [...primitive0List, 'unknown'] as const
 
-/** Union of all base type string tags. */
-export type BaseType =
-    | NonObjectType
-    | ObjectType
+/** Tags for nullary (zero-parameter) type schemas. */
+export type Tag0 = typeof tag0List[number]
+
+/** Info tuple for a nullary tag: `readonly[tag]`. */
+export type Info0<T extends Tag0> = readonly[T]
 
 /**
- * A struct schema: an object whose keys are field names and values are nested `Type`s.
- * Used to validate plain objects with specific typed fields.
+ * The descriptor returned by a `Thunk`. One of:
+ * - `['const', Const]` — a constant/literal schema (used in recursive thunks)
+ * - `Info0<Tag0>` — a nullary primitive tag
+ * - `Info1<Tag1, Type>` — a unary parametric tag with an inner type
  */
-export type StructType = object & {
-    readonly[K in string]: Type
-}
+export type Info =
+    | readonly['const', Const]
+    | Info0<Tag0>
+    | Info1<Tag1, Type>
 
-/** A thunk returning a `NonLazyType`, used for recursive type definitions. */
-export type LazyType = () => NonLazyType
+/** A lazy schema: a zero-argument function returning an `Info` descriptor. */
+export type Thunk = () => Info
 
-/** A `Type` that is not wrapped in a thunk. */
-export type NonLazyType = BaseType | StructType
+/** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
+export type Type =
+    | Const
+    | Thunk
 
-/** Any RTTI type: a base tag string, a struct schema object, or a lazy thunk. */
-export type Type = NonLazyType | LazyType
+/** The type of a nullary thunk for `Tag0`. */
+type Type0<T extends Tag0> = () => Info0<T>
 
-type NonObjectTs<T extends NonObjectType> =
-    T extends 'undefined' ? undefined :
-    T extends 'boolean' ? boolean :
-    T extends 'string' ? string :
-    T extends 'number' ? number :
-    T extends 'bigint' ? bigint :
-    T extends 'function' ? Function :
-    never
+const type0 = <T extends Tag0>(tag: T): Type0<T> => () => [tag]
 
-type ArrayTs = readonly unknown[]
+/** Schema type for `boolean`. */
+export type Boolean = Type0<'boolean'>
 
-type RecordTs = object & { readonly[K in string]: unknown }
+/** Schema that validates `boolean` values. */
+export const boolean: Boolean = type0('boolean')
 
-type ObjectTs<T extends ObjectType> =
-    T extends 'null' ? null :
-    T extends 'array' ? ArrayTs :
-    T extends 'record' ? RecordTs :
-    never
+/** Schema type for `number`. */
+export type Number = Type0<'number'>
 
-type BaseTs<T extends BaseType> =
-    T extends NonObjectType ? NonObjectTs<T> :
-    T extends ObjectType ? ObjectTs<T> :
-    never
+/** Schema that validates `number` values. */
+export const number: Number = type0('number')
 
-type NonLazyTs<T extends NonLazyType> =
-    T extends BaseType ? BaseTs<T> :
-    T extends StructType ? object & { readonly [K in keyof T]: Ts<T[K]> } :
-    never
+/** Schema type for `string`. */
+export type String = Type0<'string'>
 
-/**
- * Converts an RTTI `Type` to its corresponding TypeScript type.
- * @example `Ts<'string'>` → `string`, `Ts<{ x: 'number' }>` → `{ readonly x: number }`
- */
-export type Ts<T extends Type> = NonLazyTs<ToNonLazy<T>>
+/** Schema that validates `string` values. */
+export const string: String = type0('string')
 
-/** A function that validates an unknown value against type `T`. */
-export type Validate<T extends Type> = (value: unknown) => Result<T>
+/** Schema type for `bigint`. */
+export type Bigint = Type0<'bigint'>
 
-const nonObjectValidate = <T extends NonObjectType>(rtti: T): Validate<T> => value =>
-    typeof value === rtti ? ok(value as Ts<T>) : error(rtti)
+/** Schema that validates `bigint` values. */
+export const bigint: Bigint = type0('bigint')
 
-const isNull = (v: unknown): v is null =>
-    v === null
+/** Schema type for any DJS value (`Primitive | UnknownRecord | UnknownArray`). */
+export type Unknown = Type0<'unknown'>
 
-const isArray = (v: unknown): v is ArrayTs =>
-    v instanceof Array
+/** Schema that validates any DJS-compatible value. */
+export const unknown: Unknown = type0('unknown')
 
-const isRecord = (v: unknown): v is RecordTs =>
-    typeof v === 'object' && !isNull(v) && !isArray(v)
+const tag1List = ['array', 'record'] as const
 
-const wrap = <T extends ObjectType>(f: (value: unknown) => value is Ts<T>): Validate<T> => value =>
-    f(value) ? ok(value) : error(`unexpected value: ${value}`)
+export const isTag1: Includes<string, typeof tag1List> = includes(tag1List)
 
-const objectSwitch: { readonly[K in ObjectType]: Validate<K> } = {
-    null: wrap(isNull),
-    array: wrap(isArray),
-    record: wrap(isRecord),
-}
+/** Tags for unary (one-parameter) type schemas. */
+export type Tag1 = typeof tag1List[number]
 
-const objectValidate = <T extends ObjectType>(rtti: T) =>
-    objectSwitch[rtti]
+/** Info tuple for a unary tag: `readonly[tag, innerType]`. */
+export type Info1<K extends Tag1, T extends Type> = readonly[K, T]
 
-const baseValidate = <T extends BaseType>(rtti: T): Validate<T> =>
-    isObjectType(rtti) ? objectValidate(rtti) : nonObjectValidate(rtti as T & NonObjectType)
+/** The type of a unary thunk for `Tag1` with inner type `T`. */
+export type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
-const recordValidate = <T extends StructType>(rtti: T): Validate<T> => value => {
-    if (!isRecord(value)) {
-        return error('record is expected')
-    }
-    for (const [k, t] of Object.entries(rtti)) {
-        const r = validate(t)(value[k])
-        if (r[0] === 'error') {
-            return r
-        }
-    }
-    return ok(value as Ts<typeof rtti> & RecordTs)
-}
+type MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
 
-const nonLazyValidate = <T extends NonLazyType>(rtti: T): Validate<T> => {
-    switch (typeof rtti) {
-        case 'string':
-            return baseValidate(rtti)
-        case 'object':
-            return recordValidate(rtti)
-    }
-}
+const type1 = <K extends Tag1>(key: K): MakeType1<K> => t => () => [key, t]
 
-type ToNonLazy<T extends Type> = T extends () => infer R ? R : T
+/** Schema type for a readonly array with element type `T`. */
+export type Array<T extends Type> = Type1<'array', T>
 
-const nonLazy = <T extends Type>(rtti: T): T & ToNonLazy<T> =>
-    (typeof rtti === 'function' ? rtti() : rtti) as T & ToNonLazy<T>
+/** Constructs a schema that validates `readonly Ts<T>[]`. */
+export const array: MakeType1<'array'> = type1('array')
 
-/**
- * Creates a validator function for the given RTTI schema.
- * @param rtti - A base type tag, struct schema, or lazy thunk.
- * @returns A function `(value: unknown) => Result<T>`.
- */
-export const validate = <T extends Type>(rtti: T): Validate<T> =>
-    nonLazyValidate(nonLazy(rtti))
+/** Schema type for a record (index signature) with value type `T`. */
+export type Record<T extends Type> = Type1<'record', T>
+
+/** Constructs a schema that validates `{ readonly[K in string]: Ts<T> }`. */
+export const record: MakeType1<'record'> = type1('record')

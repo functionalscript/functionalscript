@@ -6,6 +6,9 @@
 
 import { map } from '../nullable/module.f.ts'
 
+export const isArray = (value: unknown): value is readonly unknown[] =>
+    value instanceof Array
+
 export type Array1<T> = readonly [T]
 
 export type Index1 = 0
@@ -98,6 +101,8 @@ export const splitLast
  * we may minimize memory a number of memory allocations.
  */
 export const empty: readonly[] = []
+
+export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
 
 export const includes = <I, T extends readonly I[]>(a: T) => (v: I): v is T[number] =>
     a.includes(v)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.0
+
+- RTTI: new design [734](https://github.com/functionalscript/functionalscript/pull/734)
+
 ## 0.11.11
 
 - RTTI: the first version [733](https://github.com/functionalscript/functionalscript/pull/733)
