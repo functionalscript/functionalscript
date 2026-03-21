@@ -73,22 +73,11 @@ export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
  * ```
  */
 export type Ts<T extends Type> =
-    T extends () => (infer I extends Info) ? InfoTs<I> /*(
-        I extends readonly['const', infer C] ? ConstTs<C> :
-        // Info0<Tag0>
-        //I extends readonly['bigint'] ? bigint :
-        //I extends readonly['boolean'] ? boolean :
-        //I extends readonly['number'] ? number :
-        //I extends readonly['string'] ? string :
-        //I extends readonly['unknown'] ? Unknown :
-        // Info1<Tag1, Type>
-        //I extends readonly['array', infer I extends Type] ? ArrayTs<I> :
-        //I extends readonly['record', infer I extends Type] ? RecordTs<I> :
-        //
-        T extends Info0<infer K extends Tag0> ? Info0Ts<K> :
-        T extends Info1<infer K extends Tag1, infer I extends Type> ? Info1Ts<K, I> :
-        never
-    )*/:
+    T extends () => (infer I extends Info) ? (
+        I extends readonly['const', infer C extends Const] ? ConstTs<C> :
+        I extends Info0<infer K extends Tag0> ? Info0Ts<K> :
+        I extends Info1<infer K extends Tag1, infer E extends Type> ? Info1Ts<K, E> :
+        never) :
     ConstTs<T>
 
 type _0 = Assert<Equal<
