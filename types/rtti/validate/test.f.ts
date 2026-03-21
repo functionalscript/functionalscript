@@ -1,5 +1,5 @@
 import { validate } from './module.f.ts'
-import { boolean, number, string, bigint, unknown, array, record } from '../module.f.ts'
+import { boolean, number, string, bigint, unknown, array, record, type Thunk } from '../module.f.ts'
 
 const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
 const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
@@ -118,6 +118,25 @@ export default {
         primitive: () => {
             assertOk(validate(() => ['const', 7n] as const)(7n))
             assertError(validate(() => ['const', 7n] as const)(8n))
+        },
+    },
+    recursive: {
+        arrayOfArrays: () => {
+            type A = readonly A[]
+            // self-referential schema: an array whose elements are also arrays of the same type
+            const list: Thunk = () => ['array', list]
+            // @ts-ignore see issue # 127
+            assertOk(validate(list)([]))
+            assertOk(validate(list)([[], []]))
+            assertOk(validate(list)([[[], []], []]))
+            assertError(validate(list)([42]))
+            assertError(validate(list)(null))
+        },
+        recordOfRecords: () => {
+            const tree: Thunk = () => ['record', tree]
+            assertOk(validate(tree)({}))
+            assertOk(validate(tree)({ a: {}, b: { c: {} } }))
+            assertError(validate(tree)({ a: 42 }))
         },
     },
 }
