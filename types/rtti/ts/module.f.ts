@@ -74,14 +74,14 @@ export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
  */
 export type Ts<T extends Type> =
     T extends () => infer I ? (
-        I extends readonly['const', infer C extends Const] ? ConstTs<C> :
+        I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0
         I extends readonly['boolean'] ? boolean :
         I extends readonly['number'] ? number :
         I extends readonly['string'] ? string :
         I extends readonly['bigint'] ? bigint :
         I extends readonly['unknown'] ? DjsUnknown :
-        I extends Info0<infer K extends Tag0> ? Info0Ts<K> :
+        //
         I extends Info1<infer K extends Tag1, infer E extends Type> ? Info1Ts<K, E> :
         never) :
     ConstTs<T>
