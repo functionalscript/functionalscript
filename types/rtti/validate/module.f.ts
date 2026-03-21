@@ -187,7 +187,7 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
  * v(['a', 'b'])  // ['error', 'unexpected value']
  * ```
  */
-export const validate = <T extends Type>(rtti: T): Validate<T> =>
+export const validate = <T extends Type>(rtti: T): (value: Unknown) => CommonResult<Ts<T>, string> =>
     typeof rtti === 'function'
         ? thunkValidate(rtti) as any
         : constValidate(rtti) as any

@@ -124,16 +124,16 @@ export default {
         arrayOfArrays: () => {
             type A = readonly A[]
             // self-referential schema: an array whose elements are also arrays of the same type
-            const list: Thunk = () => ['array', list]
-            // @ts-ignore see issue # 127
-            assertOk(validate(list)([]))
-            assertOk(validate(list)([[], []]))
-            assertOk(validate(list)([[[], []], []]))
-            assertError(validate(list)([42]))
-            assertError(validate(list)(null))
+            const list = () => ['array', list] as const
+            const v = validate(list)
+            assertOk(v([]))
+            assertOk(v([[], []]))
+            assertOk(v([[[], []], []]))
+            assertError(v([42]))
+            assertError(v(null))
         },
         recordOfRecords: () => {
-            const tree: Thunk = () => ['record', tree]
+            const tree = () => ['record', tree] as const
             assertOk(validate(tree)({}))
             assertOk(validate(tree)({ a: {}, b: { c: {} } }))
             assertError(validate(tree)({ a: 42 }))
