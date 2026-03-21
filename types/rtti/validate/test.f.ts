@@ -1,5 +1,7 @@
 import { validate } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, type Thunk } from '../module.f.ts'
+import type { Assert, Equal } from '../../ts/module.f.ts'
+import type { Ts } from '../ts/module.f.ts'
 
 const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
 const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
@@ -125,6 +127,7 @@ export default {
             type A = readonly A[]
             // self-referential schema: an array whose elements are also arrays of the same type
             const list = () => ['array', list] as const
+            type _A = Assert<Equal<A, Ts<typeof list>>>
             const v = validate(list)
             assertOk(v([]))
             assertOk(v([[], []]))
@@ -134,9 +137,10 @@ export default {
         },
         recordOfRecords: () => {
             const tree = () => ['record', tree] as const
-            assertOk(validate(tree)({}))
-            assertOk(validate(tree)({ a: {}, b: { c: {} } }))
-            assertError(validate(tree)({ a: 42 }))
+            const v = validate(tree)
+            assertOk(v({}))
+            assertOk(v({ a: {}, b: { c: {} } }))
+            assertError(v({ a: 42 }))
         },
     },
 }
