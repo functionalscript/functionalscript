@@ -91,7 +91,7 @@ const constContainerValidate =
     <T extends Tuple|Struct>(rtti: T): Validate<T> => value =>
 {
     if (!isContainer(value)) {
-        return error('unexpectd value') as any
+        return error('unexpected value') as any
     }
     for (const [k, v] of Object.entries(rtti)) {
         const item = getItem(value, k)
