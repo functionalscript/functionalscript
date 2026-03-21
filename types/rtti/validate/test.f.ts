@@ -2,6 +2,7 @@ import { validate } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, type Thunk } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
+import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 
 const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
 const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
@@ -9,6 +10,7 @@ const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { 
 export default {
     boolean: {
         ok: () => {
+            type _ = Assert<Equal<Ts<typeof boolean>, boolean>>
             assertOk(validate(boolean)(true))
             assertOk(validate(boolean)(false))
         },
@@ -19,21 +21,30 @@ export default {
         },
     },
     number: {
-        ok: () => assertOk(validate(number)(42)),
+        ok: () => {
+            type _ = Assert<Equal<Ts<typeof number>, number>>
+            assertOk(validate(number)(42))
+        },
         error: () => {
             assertError(validate(number)('42'))
             assertError(validate(number)(42n))
         },
     },
     string: {
-        ok: () => assertOk(validate(string)('hello')),
+        ok: () => {
+            type _ = Assert<Equal<Ts<typeof string>, string>>
+            assertOk(validate(string)('hello'))
+        },
         error: () => {
             assertError(validate(string)(42))
             assertError(validate(string)(null))
         },
     },
     bigint: {
-        ok: () => assertOk(validate(bigint)(4n)),
+        ok: () => {
+            type _ = Assert<Equal<Ts<typeof bigint>, bigint>>
+            assertOk(validate(bigint)(4n))
+        },
         error: () => {
             assertError(validate(bigint)(4))
             assertError(validate(bigint)('4'))
@@ -41,6 +52,7 @@ export default {
     },
     unknown: {
         ok: () => {
+            type _ = Assert<Equal<Ts<typeof unknown>, DjsUnknown>>
             assertOk(validate(unknown)(null))
             assertOk(validate(unknown)(42))
             assertOk(validate(unknown)('hello'))
@@ -51,34 +63,55 @@ export default {
     },
     const: {
         null: {
-            ok: () => assertOk(validate(null)(null)),
+            ok: () => {
+                type _ = Assert<Equal<Ts<null>, null>>
+                assertOk(validate(null)(null))
+            },
             error: () => {
                 assertError(validate(null)(undefined))
                 assertError(validate(null)(0))
             },
         },
         undefined: {
-            ok: () => assertOk(validate(undefined)(undefined)),
+            ok: () => {
+                type _ = Assert<Equal<Ts<undefined>, undefined>>
+                assertOk(validate(undefined)(undefined))
+            },
             error: () => assertError(validate(undefined)(null)),
         },
         number: {
-            ok: () => assertOk(validate(42 as const)(42)),
+            ok: () => {
+                type _ = Assert<Equal<Ts<42>, 42>>
+                assertOk(validate(42 as const)(42))
+            },
             error: () => assertError(validate(42 as const)(43)),
         },
         string: {
-            ok: () => assertOk(validate('hello' as const)('hello')),
+            ok: () => {
+                type _ = Assert<Equal<Ts<'hello'>, 'hello'>>
+                assertOk(validate('hello' as const)('hello'))
+            },
             error: () => assertError(validate('hello' as const)('world')),
         },
         bigint: {
-            ok: () => assertOk(validate(7n as const)(7n)),
+            ok: () => {
+                type _ = Assert<Equal<Ts<7n>, 7n>>
+                assertOk(validate(7n as const)(7n))
+            },
             error: () => assertError(validate(7n as const)(8n)),
         },
         boolean: {
-            ok: () => assertOk(validate(true as const)(true)),
+            ok: () => {
+                type _ = Assert<Equal<Ts<true>, true>>
+                assertOk(validate(true as const)(true))
+            },
             error: () => assertError(validate(true as const)(false)),
         },
         tuple: {
-            ok: () => assertOk(validate([42 as const, 'hello' as const] as const)([42, 'hello'])),
+            ok: () => {
+                type _ = Assert<Equal<Ts<readonly[42, 'hello']>, readonly[42, 'hello']>>
+                assertOk(validate([42 as const, 'hello' as const] as const)([42, 'hello']))
+            },
             extraItems: () => assertOk(validate([42 as const] as const)([42, 'extra'])),
             error: () => {
                 assertError(validate([42 as const] as const)([99]))
@@ -86,7 +119,10 @@ export default {
             },
         },
         struct: {
-            ok: () => assertOk(validate({ a: 42 as const, b: 'hello' as const } as const)({ a: 42, b: 'hello' })),
+            ok: () => {
+                type _ = Assert<Equal<Ts<{ readonly a: 42, readonly b: 'hello' }>, { readonly a: 42, readonly b: 'hello' }>>
+                assertOk(validate({ a: 42 as const, b: 'hello' as const } as const)({ a: 42, b: 'hello' }))
+            },
             extraKeys: () => assertOk(validate({ a: 42 as const } as const)({ a: 42, b: 'extra' })),
             error: () => {
                 assertError(validate({ a: 42 as const } as const)({ a: 99 }))
@@ -96,20 +132,27 @@ export default {
     },
     array: {
         empty: () => assertOk(validate(array(number))([])),
-        ok: () => assertOk(validate(array(number))([1, 2, 3])),
+        ok: () => {
+            type _ = Assert<Equal<Ts<ReturnType<typeof array<typeof number>>>, readonly number[]>>
+            assertOk(validate(array(number))([1, 2, 3]))
+        },
         error: () => {
             assertError(validate(array(number))([1, 'two', 3]))
             assertError(validate(array(number))({}))
             assertError(validate(array(number))(null))
         },
         nested: () => {
+            type _ = Assert<Equal<Ts<ReturnType<typeof array<ReturnType<typeof array<typeof boolean>>>>>, readonly (readonly boolean[])[]>>
             assertOk(validate(array(array(boolean)))([[true, false], [false]]))
             assertError(validate(array(array(boolean)))([[true, 42]]))
         },
     },
     record: {
         empty: () => assertOk(validate(record(number))({})),
-        ok: () => assertOk(validate(record(string))({ a: 'hello', b: 'world' })),
+        ok: () => {
+            type _ = Assert<Equal<Ts<ReturnType<typeof record<typeof string>>>, { readonly[K in string]: string }>>
+            assertOk(validate(record(string))({ a: 'hello', b: 'world' }))
+        },
         error: () => {
             assertError(validate(record(number))({ a: 1, b: 'two' }))
             assertError(validate(record(number))(null))
@@ -118,6 +161,7 @@ export default {
     },
     constThunk: {
         primitive: () => {
+            type _ = Assert<Equal<Ts<() => readonly['const', 7n]>, 7n>>
             assertOk(validate(() => ['const', 7n] as const)(7n))
             assertError(validate(() => ['const', 7n] as const)(8n))
         },
@@ -137,6 +181,8 @@ export default {
         },
         recordOfRecords: () => {
             const tree = () => ['record', tree] as const
+            type A = { readonly[K in string]: A }
+            type _ = Assert<Equal<A, Ts<typeof tree>>>
             const v = validate(tree)
             assertOk(v({}))
             assertOk(v({ a: {}, b: { c: {} } }))
