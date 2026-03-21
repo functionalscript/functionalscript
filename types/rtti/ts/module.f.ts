@@ -81,9 +81,12 @@ export type Ts<T extends Type> =
         I extends readonly['string'] ? string :
         I extends readonly['bigint'] ? bigint :
         I extends readonly['unknown'] ? DjsUnknown :
+        // Info1
+        I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
+        I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
         //
-        I extends Info1<infer K extends Tag1, infer E extends Type> ? Info1Ts<K, E> :
-        never) :
+        never
+    ) :
     ConstTs<T>
 
 type _0 = Assert<Equal<
