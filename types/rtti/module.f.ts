@@ -38,11 +38,26 @@
  */
 import type { Primitive } from '../../djs/module.f.ts'
 import { includes, type Includes } from '../array/module.f.ts'
-
-export type ConstObject = Struct | Tuple
+import type { Assert, Equal } from '../ts/module.f.ts'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
-export type Const = Primitive | ConstObject
+export type Const =
+    // JSON:
+    | null
+    | boolean
+    | number
+    | string
+    // DJS:
+    | undefined
+    | bigint
+    // Struct
+    | { readonly[K in string]: Type }
+    // Tuple
+    | readonly Type[]
+
+type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
+
+export type ConstObject = Struct | Tuple
 
 /** A struct schema: plain object whose values are nested `Type`s. */
 export type Struct = { readonly[K in string]: Type }
@@ -79,7 +94,13 @@ export type Thunk = () => Info
 /** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
 export type Type =
     | Const
-    | Thunk
+    | (() => (
+        | readonly['const', Const]
+        | readonly['bigint' | 'boolean' | 'number' | 'string' | 'unknown']
+        | Info1<Tag1, Type>
+    ))
+
+type _AssertType = Assert<Equal<Type, Const | Thunk>>
 
 /** The type of a nullary thunk for `Tag0`. */
 type Type0<T extends Tag0> = () => Info0<T>
