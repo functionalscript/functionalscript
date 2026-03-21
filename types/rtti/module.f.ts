@@ -75,7 +75,7 @@ export const tag0List = [...primitive0List, 'unknown'] as const
 export type Tag0 = typeof tag0List[number]
 
 /** Info tuple for a nullary tag: `readonly[tag]`. */
-export type Info0<T extends Tag0> = readonly[T]
+export type Info0<T extends Tag0> = T extends Tag0 ? readonly[T] : never
 
 /**
  * The descriptor returned by a `Thunk`. One of:
@@ -96,8 +96,15 @@ export type Type =
     | Const
     | (() => (
         | readonly['const', Const]
-        | readonly['bigint' | 'boolean' | 'number' | 'string' | 'unknown']
-        | Info1<Tag1, Type>
+        // Info0<Tag0>
+        | readonly['bigint']
+        | readonly['boolean']
+        | readonly['number']
+        | readonly['string']
+        | readonly['unknown']
+        // Info1<Tag1, Type>
+        | readonly['array', Type]
+        | readonly['record', Type]
     ))
 
 type _AssertType = Assert<Equal<Type, Const | Thunk>>
@@ -105,7 +112,7 @@ type _AssertType = Assert<Equal<Type, Const | Thunk>>
 /** The type of a nullary thunk for `Tag0`. */
 type Type0<T extends Tag0> = () => Info0<T>
 
-const type0 = <T extends Tag0>(tag: T): Type0<T> => () => [tag]
+const type0 = <T extends Tag0>(tag: T): Type0<T> => () => [tag] as unknown as Info0<T>
 
 /** Schema type for `boolean`. */
 export type Boolean = Type0<'boolean'>
@@ -145,14 +152,14 @@ export const isTag1: Includes<string, typeof tag1List> = includes(tag1List)
 export type Tag1 = typeof tag1List[number]
 
 /** Info tuple for a unary tag: `readonly[tag, innerType]`. */
-export type Info1<K extends Tag1, T extends Type> = readonly[K, T]
+export type Info1<K extends Tag1, T extends Type> = K extends Tag1 ? readonly[K, T] : never
 
 /** The type of a unary thunk for `Tag1` with inner type `T`. */
 export type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
 type MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
 
-const type1 = <K extends Tag1>(key: K): MakeType1<K> => t => () => [key, t]
+const type1 = <K extends Tag1>(key: K): MakeType1<K> => t => () => [key, t] as unknown as Info1<K, typeof t>
 
 /** Schema type for a readonly array with element type `T`. */
 export type Array<T extends Type> = Type1<'array', T>
