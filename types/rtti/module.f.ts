@@ -93,7 +93,6 @@ export type Thunk = () => Info
 
 /** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
 export type Type =
-    | Const
     | (() => (
         | readonly['const', Const]
         // Info0<Tag0>
@@ -106,6 +105,7 @@ export type Type =
         | readonly['array', Type]
         | readonly['record', Type]
     ))
+    | Const
 
 type _AssertType = Assert<Equal<Type, Const | Thunk>>
 

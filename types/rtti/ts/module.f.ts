@@ -26,11 +26,10 @@ export type Info0Ts<T extends Tag0> =
     never
 
 /** Maps a `Const` schema to its TypeScript type. */
-export type ConstTs<T extends Const> =
-    T extends Primitive ? T :
-    T extends Tuple ? TupleTs<T> :
-    T extends Struct ? StructTs<T> :
-    never
+export type ConstTs<T> =
+    T extends readonly Type[] ? TupleTs<T> :
+    T extends { readonly[k in string]: Type } ? { readonly[K in keyof T]: Ts<T[K]> } :
+    T
 
 /** Maps a `Tag1` and inner type to its TypeScript type. */
 export type Info1Ts<K extends Tag1, T extends Type> =
@@ -51,10 +50,10 @@ export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 /** Maps a record schema `T` to `{ readonly[K in string]: Ts<T> }`. */
 export type RecordTs<T extends Type> = ReadonlyRecord<string, Ts<T>>
 
-export type ClosedTupleTs<T extends Tuple> = { readonly[K in keyof T]: Ts<T[K]> }
-
 /** Maps a tuple schema to a readonly tuple of resolved types. */
-export type TupleTs<T extends Tuple> = ClosedTupleTs<T> // readonly[...ClosedTupleTs<T>, ...readonly Unknown[]]
+export type TupleTs<T extends Tuple> =
+    // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
+    { readonly[K in keyof T]: Ts<T[K]> }
 
 /** Maps a struct schema to a readonly object of resolved types. */
 export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
@@ -74,9 +73,23 @@ export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
  * ```
  */
 export type Ts<T extends Type> =
-    T extends () => (infer I extends Info) ? InfoTs<I> :
-    T extends Const ? ConstTs<T> :
-    never
+    T extends () => (infer I extends Info) ? InfoTs<I> /*(
+        I extends readonly['const', infer C] ? ConstTs<C> :
+        // Info0<Tag0>
+        //I extends readonly['bigint'] ? bigint :
+        //I extends readonly['boolean'] ? boolean :
+        //I extends readonly['number'] ? number :
+        //I extends readonly['string'] ? string :
+        //I extends readonly['unknown'] ? Unknown :
+        // Info1<Tag1, Type>
+        //I extends readonly['array', infer I extends Type] ? ArrayTs<I> :
+        //I extends readonly['record', infer I extends Type] ? RecordTs<I> :
+        //
+        T extends Info0<infer K extends Tag0> ? Info0Ts<K> :
+        T extends Info1<infer K extends Tag1, infer I extends Type> ? Info1Ts<K, I> :
+        never
+    )*/:
+    ConstTs<T>
 
 type _0 = Assert<Equal<
     Ts<readonly[
