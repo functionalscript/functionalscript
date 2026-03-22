@@ -187,7 +187,16 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
  * v(['a', 'b'])  // ['error', 'unexpected value']
  * ```
  */
-export const validate = <T extends Type>(rtti: T): Validate<T> =>
-    typeof rtti === 'function'
-        ? thunkValidate(rtti) as any
-        : constValidate(rtti) as any
+export const validate = <T extends Type>(rtti: T): Validate<T> => {
+    if (typeof rtti === 'function') {
+        const [tag, value] = rtti()
+        switch (tag) {
+            case 'const': return constValidate(value) as any
+            case 'array': return arrayValidate(value) as any
+            case 'record': return recordValidate(value) as any
+            case 'unknown': return ok as any
+        }
+        return primitive0Validate(tag) as any
+    }
+    return constValidate(rtti) as any
+}
