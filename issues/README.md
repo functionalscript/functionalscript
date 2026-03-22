@@ -289,8 +289,9 @@ require setting a flag when walking through a test tree as soon as a node has a 
   2. the file should contain multiple tests using objects, arrays and functions. At least one function should produce similar structure.
   3. at least one function should be `throw`.
 - [X] 126. `types/rtti` should support `undefined`, `null` instead of `"undefined"` and `"null"`.
-- [ ] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API but should not participate in the recursive evaluation chain.
+- [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API but should not participate in the recursive evaluation chain.
 - [ ] [128-rtti-deserialize](./128-rtti-deserialize.md)
+- [ ] 129. `validate` from [./types/rtti/validate/module.f.ts](./types/rtti/validate/module.f.ts) should return a path in case of an error.
 
 ## Language Specification
 
