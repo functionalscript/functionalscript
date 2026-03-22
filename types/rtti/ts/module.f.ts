@@ -10,10 +10,7 @@ import type {
     Tag0, Tag1,
     Const, Struct, Tuple,
     Info0, Info1, Info, Type,
-    String, Unknown,
-    Array, Record,
 } from '../module.f.ts'
-import { string, unknown } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
 /** Maps a `Tag0` to its TypeScript type. */
@@ -89,38 +86,43 @@ export type Ts<T extends Type> =
     ) :
     ConstTs<T>
 
-type _0 = Assert<Equal<
-    Ts<readonly[
-        number,
-        4,
-        String,
-        null,
-        'hello!',
-        () => ['const', 7n],
-        typeof unknown,
-        Array<Unknown>,
-        Record<12>,
-        {
-            readonly a: typeof string,
-            b: bigint
-        },
-        () => ['const', readonly[String, 5n]]
-    ]>,
-    readonly[
-        number,
-        4,
-        string,
-        null,
-        'hello!',
-        7n,
-        DjsUnknown,
-        readonly DjsUnknown[],
-        { readonly[K in string]: 12 },
-        {
-            readonly a: string,
-            readonly b: bigint,
-        },
-        readonly[string, 5n],
-    ]
+type _null = Assert<Equal<Ts<null>, null>>
+type _undefined = Assert<Equal<Ts<undefined>, undefined>>
+
+type _true = Assert<Equal<Ts<true>, true>>
+type _32 = Assert<Equal<Ts<32>, 32>>
+type _hello = Assert<Equal<Ts<'hello'>, 'hello'>>
+
+type _tuple = Assert<Equal<Ts<readonly[12, true]>, readonly[12, true]>>
+type _struct = Assert<Equal<
+    Ts<{ readonly a: 'hello', readonly b: readonly[]}>,
+    { readonly a: 'hello', readonly b: readonly[]}
 >>
 
+type _const = Assert<Equal<Ts<() => readonly['const', 12]>, 12>>
+
+type _boolean = Assert<Equal<Ts<() => readonly['boolean']>, boolean>>
+type _number = Assert<Equal<Ts<() => readonly['number']>, number>>
+type _string = Assert<Equal<Ts<() => readonly['string']>, string>>
+type _bigint = Assert<Equal<Ts<() => readonly['bigint']>, bigint>>
+
+type _unknown = Assert<Equal<Ts<() => readonly['unknown']>, DjsUnknown>>
+
+type _array = Assert<Equal<Ts<
+    () => readonly['array', 12]>,
+    readonly 12[]
+>>
+type _record = Assert<Equal<
+    Ts<() => readonly['record', () => readonly['boolean']]>,
+    { readonly[k in string]: boolean }
+>>
+
+type _tupleString = Assert<Equal<
+    Ts<readonly[() => readonly['string']]>,
+    readonly[string]
+>>
+
+type _SelfArray = readonly _SelfArray[]
+type _SelfArrayType = () => readonly['array', _SelfArrayType]
+
+type _selfArray = Assert<Equal<Ts<_SelfArrayType>, _SelfArray>>
