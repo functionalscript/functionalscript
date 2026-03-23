@@ -6,6 +6,7 @@
 import { flat, reduce, empty, type List } from '../../types/list/module.f.ts'
 import { type Entry as ObjectEntry } from '../../types/object/module.f.ts'
 import { type Reduce } from '../../types/function/operator/module.f.ts'
+import { isFloat } from '../parser/module.f.ts'
 
 type Obj<T> = {
     readonly [k in string]: Unknown<T>
@@ -39,7 +40,16 @@ export const stringSerialize
  */
 export const numberSerialize
     : (_: number) => List<string>
-    = input => [jsonStringify(input)]
+    = input =>
+{
+    const r = jsonStringify(input)
+    // make sure we save it as bigint
+    return [isFloat(r) ? r : r + '.0']
+}
+
+export const bigintSerialize
+    : (_: bigint) => List<string>
+    = input => [input.toString()]
 
 /**
  * Shared serialized representation for `null`.

@@ -10,6 +10,7 @@ import { type JsonToken } from '../tokenizer/module.f.ts'
 import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { type Unknown } from '../module.f.ts'
 import { fromMap } from '../../types/object/module.f.ts'
+import { value } from '../../types/btree/find/module.f.ts'
 
 type JsonObject = {
     readonly kind: 'object'
@@ -110,6 +111,9 @@ const endObject
         return pushValue(newState)(obj)
     }
 
+export const isFloat = (v: string) =>
+    v.includes('.') || v.includes('e') || v.includes('E')
+
 const tokenToValue
     : (token: JsonToken) => Unknown
     = token => {
@@ -117,7 +121,10 @@ const tokenToValue
             case 'null': return null
             case 'false': return false
             case 'true': return true
-            case 'number': return parseFloat(token.value)
+            case 'number': {
+                const { value } = token
+                return isFloat(value) ? parseFloat(value) : BigInt(value)
+            }
             case 'string': return token.value
             default: return null
         }

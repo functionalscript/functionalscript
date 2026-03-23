@@ -2,7 +2,7 @@ import { next, flat, map, type List } from '../types/list/module.f.ts'
 import { concat } from '../types/string/module.f.ts'
 import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
 import { compose, fn } from '../types/function/module.f.ts'
-import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
+import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize, bigintSerialize } from './serializer/module.f.ts'
 
 const { entries } = Object
 
@@ -12,7 +12,7 @@ type Object = {
 
 type Array = readonly Unknown[]
 
-export type Primitive = boolean | string | number | null
+export type Primitive = boolean | string | number | null | bigint
 
 export type Unknown = Primitive | Object | Array
 
@@ -64,6 +64,7 @@ export const serialize
                 case 'boolean': { return boolSerialize(value) }
                 case 'number': { return numberSerialize(value) }
                 case 'string': { return stringSerialize(value) }
+                case 'bigint': { return bigintSerialize(value )}
                 default: {
                     if (value === null) { return nullSerialize }
                     if (value instanceof Array) { return arraySerialize(value) }
