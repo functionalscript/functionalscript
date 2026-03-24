@@ -77,19 +77,6 @@ export type Tag0 = typeof tag0List[number]
 /** Info tuple for a nullary tag: `readonly[tag]`. */
 export type Info0<T extends Tag0> = T extends Tag0 ? readonly[T] : never
 
-/**
- * The descriptor returned by a `Thunk`. One of:
- * - `['const', Const]` — a constant/literal schema (used in recursive thunks)
- * - `Info0<Tag0>` — a nullary primitive tag
- * - `Info1<Tag1, Type>` — a unary parametric tag with an inner type
- */
-/*
-export type Info =
-    | readonly['const', Const]
-    | Info0<Tag0>
-    | Info1<Tag1, Type>
-*/
-
 /** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
 export type Type =
     | (() => (
