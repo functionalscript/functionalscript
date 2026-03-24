@@ -9,7 +9,7 @@ import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type {
     Tag0, Tag1,
     Const, Struct, Tuple,
-    Info0, Info1, Info, Type,
+    Info0, Info1, Type,
 } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
@@ -35,11 +35,13 @@ export type Info1Ts<K extends Tag1, T extends Type> =
     never
 
 /** Maps an `Info` descriptor to its TypeScript type. */
+/*
 export type InfoTs<T extends Info> =
     T extends readonly['const', infer C extends Const] ? ConstTs<C> :
     T extends Info0<infer K extends Tag0> ? Info0Ts<K> :
     T extends Info1<infer K extends Tag1, infer I extends Type> ? Info1Ts<K, I> :
     never
+*/
 
 /** Maps an array schema `T` to `readonly Ts<T>[]`. */
 export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
