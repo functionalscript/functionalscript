@@ -90,6 +90,8 @@ export type Type =
         // Info1<Tag1, Type>
         | readonly['array', Type]
         | readonly['record', Type]
+        // Or
+        | readonly['or', ...readonly Type[]]
     ))
     | Const
 
@@ -100,6 +102,7 @@ type _AssertType = Assert<Equal<
         | readonly['const', Const]
         | Info0<Tag0>
         | Info1<Tag1, Type>
+        | readonly['or', ...readonly Type[]]
         )
     )>>
 

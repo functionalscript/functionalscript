@@ -74,6 +74,8 @@ export type Ts<T extends Type> =
         // Info1
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
         I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
+        // Or
+        I extends readonly['or', ...infer A extends readonly Type[]] ? A[number] :
         //
         never
     ) :
