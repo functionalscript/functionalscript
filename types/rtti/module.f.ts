@@ -89,7 +89,7 @@ export type Info =
     | Info1<Tag1, Type>
 
 /** A lazy schema: a zero-argument function returning an `Info` descriptor. */
-export type Thunk = () => Info
+// export type Thunk = () => Info
 
 /** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
 export type Type =
@@ -107,7 +107,7 @@ export type Type =
     ))
     | Const
 
-type _AssertType = Assert<Equal<Type, Const | Thunk>>
+// type _AssertType = Assert<Equal<Type, Const | Thunk>>
 
 /** The type of a nullary thunk for `Tag0`. */
 type Type0<T extends Tag0> = () => Info0<T>

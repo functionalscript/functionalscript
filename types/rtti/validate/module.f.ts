@@ -34,7 +34,6 @@ import {
     type Primitive0,
     type Struct,
     type Tag1,
-    type Thunk,
     type Tuple,
     type Type
 } from '../module.f.ts'
@@ -110,6 +109,7 @@ const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): V
     value => typeof value === tag ? ok(value) as any : error('unexpected value') as any
 
 /** Validates a `Thunk` schema by evaluating it once and dispatching on the resulting `Info` tag. */
+/*
 const thunkValidate = <T extends Thunk>(rtti: T): Validate<T> => {
     const info = rtti()
     const [tag, value] = info
@@ -123,6 +123,7 @@ const thunkValidate = <T extends Thunk>(rtti: T): Validate<T> => {
         ? tag1Validate(info as Info1<typeof tag, typeof value>) as any
         : primitive0Validate(tag) as any
 }
+*/
 
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
