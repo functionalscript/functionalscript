@@ -9,7 +9,7 @@ import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type {
     Tag0, Tag1,
     Const, Struct, Tuple,
-    Info0, Info1, Info, Type,
+    Info0, Info1, Type,
 } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
@@ -32,13 +32,6 @@ export type ConstTs<T> =
 export type Info1Ts<K extends Tag1, T extends Type> =
     K extends 'array' ? ArrayTs<T> :
     K extends 'record' ? RecordTs<T> :
-    never
-
-/** Maps an `Info` descriptor to its TypeScript type. */
-export type InfoTs<T extends Info> =
-    T extends readonly['const', infer C extends Const] ? ConstTs<C> :
-    T extends Info0<infer K extends Tag0> ? Info0Ts<K> :
-    T extends Info1<infer K extends Tag1, infer I extends Type> ? Info1Ts<K, I> :
     never
 
 /** Maps an array schema `T` to `readonly Ts<T>[]`. */
@@ -81,6 +74,8 @@ export type Ts<T extends Type> =
         // Info1
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
         I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
+        // Or
+        I extends readonly['or', ...infer A extends readonly Type[]] ? Ts<A[number]> :
         //
         never
     ) :
@@ -120,6 +115,16 @@ type _record = Assert<Equal<
 type _tupleString = Assert<Equal<
     Ts<readonly[() => readonly['string']]>,
     readonly[string]
+>>
+
+type _orConst = Assert<Equal<
+    Ts<() => readonly['or', false, 42, 'hello']>,
+    false | 42 | 'hello'
+>>
+
+type _orStringNumber = Assert<Equal<
+    Ts<() => readonly['or', 13, () => readonly['string']]>,
+    13 | string
 >>
 
 type _SelfArray = readonly _SelfArray[]

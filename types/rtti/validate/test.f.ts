@@ -1,5 +1,5 @@
 import { validate } from './module.f.ts'
-import { boolean, number, string, bigint, unknown, array, record } from '../module.f.ts'
+import { boolean, number, string, bigint, unknown, array, record, or } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
@@ -170,6 +170,50 @@ export default {
             type _ = Assert<Equal<Ts<typeof t>, 7n>>
             assertOk(validate(t)(7n))
             assertError(validate(t)(8n))
+        },
+    },
+    or: {
+        consts: {
+            ok: () => {
+                const t = or(...[false,42, 'hello'] as const)
+                type _ = Assert<Equal<Ts<typeof t>, false | 42 | 'hello'>>
+                assertOk(validate(t)(false))
+                assertOk(validate(t)(42))
+                assertOk(validate(t)('hello'))
+            },
+            error: () => {
+                const t = or(...[false, 42, 'hello'] as const)
+                assertError(validate(t)(true))
+                assertError(validate(t)(43))
+                assertError(validate(t)('world'))
+                assertError(validate(t)(null))
+            },
+        },
+        thunks: {
+            ok: () => {
+                const t = or(number, string)
+                type _ = Assert<Equal<Ts<typeof t>, number | string>>
+                assertOk(validate(t)(42))
+                assertOk(validate(t)('hello'))
+            },
+            error: () => {
+                const t = or(number, string)
+                assertError(validate(t)(true))
+                assertError(validate(t)(null))
+            },
+        },
+        mixed: {
+            ok: () => {
+                const t = or(42 as const, string)
+                type _ = Assert<Equal<Ts<typeof t>, 42 | string>>
+                assertOk(validate(t)(42))
+                assertOk(validate(t)('hello'))
+            },
+            error: () => {
+                const t = or(42 as const, string)
+                assertError(validate(t)(43))
+                assertError(validate(t)(null))
+            },
         },
     },
     recursive: {

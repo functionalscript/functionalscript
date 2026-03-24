@@ -77,20 +77,6 @@ export type Tag0 = typeof tag0List[number]
 /** Info tuple for a nullary tag: `readonly[tag]`. */
 export type Info0<T extends Tag0> = T extends Tag0 ? readonly[T] : never
 
-/**
- * The descriptor returned by a `Thunk`. One of:
- * - `['const', Const]` — a constant/literal schema (used in recursive thunks)
- * - `Info0<Tag0>` — a nullary primitive tag
- * - `Info1<Tag1, Type>` — a unary parametric tag with an inner type
- */
-export type Info =
-    | readonly['const', Const]
-    | Info0<Tag0>
-    | Info1<Tag1, Type>
-
-/** A lazy schema: a zero-argument function returning an `Info` descriptor. */
-export type Thunk = () => Info
-
 /** Any schema: a `Const` used directly, or a `Thunk` for tag-based/recursive schemas. */
 export type Type =
     | (() => (
@@ -104,10 +90,21 @@ export type Type =
         // Info1<Tag1, Type>
         | readonly['array', Type]
         | readonly['record', Type]
+        // Or
+        | readonly['or', ...readonly Type[]]
     ))
     | Const
 
-type _AssertType = Assert<Equal<Type, Const | Thunk>>
+type _AssertType = Assert<Equal<
+    Type,
+    | Const
+    | (() => (
+        | readonly['const', Const]
+        | Info0<Tag0>
+        | Info1<Tag1, Type>
+        | readonly['or', ...readonly Type[]]
+        )
+    )>>
 
 /** The type of a nullary thunk for `Tag0`. */
 type Type0<T extends Tag0> = () => Info0<T>
@@ -172,3 +169,10 @@ export type Record<T extends Type> = Type1<'record', T>
 
 /** Constructs a schema that validates `{ readonly[K in string]: Ts<T> }`. */
 export const record: MakeType1<'record'> = type1('record')
+
+/** Schema type for a union of types `T`. */
+export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
+
+/** Constructs a schema that validates a value matching any of the given schemas. */
+export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
+    () => ['or', ...types]

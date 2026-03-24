@@ -34,7 +34,6 @@ import {
     type Primitive0,
     type Struct,
     type Tag1,
-    type Thunk,
     type Tuple,
     type Type
 } from '../module.f.ts'
@@ -44,6 +43,7 @@ import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
 import { identity } from '../../function/module.f.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
+import { todo } from '../../../dev/module.f.ts'
 
 /** Validation result: either the typed value or an error message. */
 export type Result<T extends Type> = CommonResult<Ts<T>, string>
@@ -109,21 +109,6 @@ const tag1Validate = <K extends Tag1, I extends Type, T extends Info1<K, I>>([ta
 const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
     value => typeof value === tag ? ok(value) as any : error('unexpected value') as any
 
-/** Validates a `Thunk` schema by evaluating it once and dispatching on the resulting `Info` tag. */
-const thunkValidate = <T extends Thunk>(rtti: T): Validate<T> => {
-    const info = rtti()
-    const [tag, value] = info
-    switch (tag) {
-        case 'const':
-            return constValidate(value) as any
-        case 'unknown':
-            return ok as any
-    }
-    return isTag1(tag)
-        ? tag1Validate(info as Info1<typeof tag, typeof value>) as any
-        : primitive0Validate(tag) as any
-}
-
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
  * Iterates over the schema's entries and validates each corresponding
@@ -172,6 +157,19 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
         ? constObjectValidate(rtti) as any
         : constPrimitiveValidate(rtti) as any
 
+const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> => {
+    const all = rtti.map(r => validate(r))
+    return value => {
+        for (const i of all) {
+            const r = (i as any)(value)
+            if (r[0] === 'ok') {
+                return r
+            }
+        }
+        return error('no match') as any
+    }
+}
+
 /**
  * Creates a validator function for the given RTTI schema.
  *
@@ -189,12 +187,13 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
  */
 export const validate = <T extends Type>(rtti: T): Validate<T> => {
     if (typeof rtti === 'function') {
-        const [tag, value] = rtti()
+        const [tag, ...value] = rtti()
         switch (tag) {
-            case 'const': return constValidate(value) as any
-            case 'array': return arrayValidate(value) as any
-            case 'record': return recordValidate(value) as any
+            case 'const': return constValidate(value[0] as Const) as any
+            case 'array': return arrayValidate(value[0]) as any
+            case 'record': return recordValidate(value[0]) as any
             case 'unknown': return ok as any
+            case 'or': return orValidate(value) as any
         }
         return primitive0Validate(tag) as any
     }
