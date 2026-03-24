@@ -108,23 +108,6 @@ const tag1Validate = <K extends Tag1, I extends Type, T extends Info1<K, I>>([ta
 const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
     value => typeof value === tag ? ok(value) as any : error('unexpected value') as any
 
-/** Validates a `Thunk` schema by evaluating it once and dispatching on the resulting `Info` tag. */
-/*
-const thunkValidate = <T extends Thunk>(rtti: T): Validate<T> => {
-    const info = rtti()
-    const [tag, value] = info
-    switch (tag) {
-        case 'const':
-            return constValidate(value) as any
-        case 'unknown':
-            return ok as any
-    }
-    return isTag1(tag)
-        ? tag1Validate(info as Info1<typeof tag, typeof value>) as any
-        : primitive0Validate(tag) as any
-}
-*/
-
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
  * Iterates over the schema's entries and validates each corresponding
