@@ -169,3 +169,10 @@ export type Record<T extends Type> = Type1<'record', T>
 
 /** Constructs a schema that validates `{ readonly[K in string]: Ts<T> }`. */
 export const record: MakeType1<'record'> = type1('record')
+
+/** Schema type for a union of types `T`. */
+export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
+
+/** Constructs a schema that validates a value matching any of the given schemas. */
+export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
+    () => ['or', ...types]

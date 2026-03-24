@@ -75,7 +75,7 @@ export type Ts<T extends Type> =
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
         I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
         // Or
-        I extends readonly['or', ...infer A extends readonly Type[]] ? A[number] :
+        I extends readonly['or', ...infer A extends readonly Type[]] ? Ts<A[number]> :
         //
         never
     ) :
@@ -115,6 +115,16 @@ type _record = Assert<Equal<
 type _tupleString = Assert<Equal<
     Ts<readonly[() => readonly['string']]>,
     readonly[string]
+>>
+
+type _orConst = Assert<Equal<
+    Ts<() => readonly['or', false, 42, 'hello']>,
+    false | 42 | 'hello'
+>>
+
+type _orStringNumber = Assert<Equal<
+    Ts<() => readonly['or', 13, () => readonly['string']]>,
+    13 | string
 >>
 
 type _SelfArray = readonly _SelfArray[]

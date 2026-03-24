@@ -157,6 +157,19 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
         ? constObjectValidate(rtti) as any
         : constPrimitiveValidate(rtti) as any
 
+const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> => {
+    const all = rtti.map(r => validate(r))
+    return value => {
+        for (const i of all) {
+            const r = (i as any)(value)
+            if (r[0] === 'ok') {
+                return r
+            }
+        }
+        return error('no match') as any
+    }
+}
+
 /**
  * Creates a validator function for the given RTTI schema.
  *
@@ -174,13 +187,13 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
  */
 export const validate = <T extends Type>(rtti: T): Validate<T> => {
     if (typeof rtti === 'function') {
-        const [tag, value] = rtti()
+        const [tag, ...value] = rtti()
         switch (tag) {
-            case 'const': return constValidate(value) as any
-            case 'array': return arrayValidate(value) as any
-            case 'record': return recordValidate(value) as any
+            case 'const': return constValidate(value[0] as Const) as any
+            case 'array': return arrayValidate(value[0]) as any
+            case 'record': return recordValidate(value[0]) as any
             case 'unknown': return ok as any
-            case 'or': return todo()
+            case 'or': return orValidate(value) as any
         }
         return primitive0Validate(tag) as any
     }
