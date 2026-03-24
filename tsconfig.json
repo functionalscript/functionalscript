@@ -4,6 +4,7 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "verbatimModuleSyntax": true,
+    "stableTypeOrdering": true,
 
     /* Projects */
     // "incremental": true,                              /* Enable incremental compilation */
