@@ -34,15 +34,6 @@ export type Info1Ts<K extends Tag1, T extends Type> =
     K extends 'record' ? RecordTs<T> :
     never
 
-/** Maps an `Info` descriptor to its TypeScript type. */
-/*
-export type InfoTs<T extends Info> =
-    T extends readonly['const', infer C extends Const] ? ConstTs<C> :
-    T extends Info0<infer K extends Tag0> ? Info0Ts<K> :
-    T extends Info1<infer K extends Tag1, infer I extends Type> ? Info1Ts<K, I> :
-    never
-*/
-
 /** Maps an array schema `T` to `readonly Ts<T>[]`. */
 export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 
