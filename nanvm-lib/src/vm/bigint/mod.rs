@@ -8,6 +8,7 @@ mod mul;
 mod neg;
 mod partial_eq;
 mod serializable;
+mod shr;
 mod sized_index;
 mod sub;
 
@@ -18,6 +19,11 @@ use crate::{
     sign::Sign,
     vm::{IContainer, IVm},
 };
+
+fn normalize(vec: &mut Vec<u64>) {
+    let len = vec.iter().rposition(|&x| x != 0).map_or(0, |i| i + 1);
+    vec.truncate(len);
+}
 
 /// ```
 /// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
@@ -166,17 +172,7 @@ impl<A: IVm> BigInt<A> {
             panic!("abs_sub_vec: rhs is greater than self");
         }
 
-        // Trim leading zeros (most-significant words)
-        while let Some(&last) = out.last() {
-            if last == 0 {
-                out.pop();
-            } else {
-                break;
-            }
-        }
-
-        // Postcondition: result must be normalized.
-        assert_vec_normalized(&out);
+        normalize(&mut out);
         out
     }
 }
