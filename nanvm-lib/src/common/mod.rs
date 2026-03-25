@@ -1,5 +1,6 @@
 pub mod array;
 pub mod default;
+pub mod div_mod;
 pub mod either;
 pub mod index_iter;
 pub mod iter;
