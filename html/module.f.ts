@@ -138,5 +138,5 @@ export const htmlToString
 
 const metaUtf8 = ['meta', { charset: 'UTF-8' }] as const
 
-export const htmlUtf8 = (...head: readonly Node[]) => (body: Element): Vec =>
-    utf8(htmlToString(['html', ['head', metaUtf8, ...head], body]))
+export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
+    utf8(htmlToString(['html', ['head', metaUtf8, ...head], ['body', ...body]]))
