@@ -4,6 +4,8 @@ import type { Entry } from '../types/object/module.f.ts'
 import { compose } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { includes } from '../types/array/module.f.ts'
+import { type Vec } from '../types/bit_vec/module.f.ts'
+import { utf8 } from '../text/module.f.ts'
 
 const { fromCharCode } = String
 const { entries } = Object
@@ -133,3 +135,8 @@ export const html
 export const htmlToString
     : (_: Element) => string
     = compose(html)(stringConcat)
+
+const metaUtf8 = ['meta', { charset: 'UTF-8' }] as const
+
+export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
+    utf8(htmlToString(['html', ['head', metaUtf8, ...head], ['body', ...body]]))
