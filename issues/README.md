@@ -291,7 +291,8 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] 126. `types/rtti` should support `undefined`, `null` instead of `"undefined"` and `"null"`.
 - [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API but should not participate in the recursive evaluation chain.
 - [ ] [128-rtti-deserialize](./128-rtti-deserialize.md)
-- [ ] 129. `validate` from [./types/rtti/validate/module.f.ts](./types/rtti/validate/module.f.ts) should return a path in case of an error.
+- [ ] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
+- [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
 
 ## Language Specification
 
