@@ -8,7 +8,7 @@ use std::ops::Mul;
 
 use super::normalize;
 
-// BigInt's Mul is implemeted here, not under impls, because it needs private BigInt's stuff.
+// BigInt's Mul is implemented here, not under impls, because it needs private BigInt's stuff.
 impl<A: IVm> Mul for BigInt<A> {
     type Output = Self;
 
