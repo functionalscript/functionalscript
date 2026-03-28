@@ -1,6 +1,7 @@
-import { descentParser, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
+import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
+import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { map, toArray } from '../../types/list/module.f.ts'
+import { flatMap, map, toArray, type List } from '../../types/list/module.f.ts'
 import { jsGrammar } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
@@ -17,7 +18,49 @@ const tokenizeString
         const cp = toArray(stringToCodePointList(s))
         const mr = descentParserCpOnly(m, '', cp)
         return JSON.stringify(mr)
-    }             
+    }
+
+type Token = string | number
+
+const getTokensFromAstRuleOrCodePoint
+    : (value: AstRuleMeta<unknown>|CodePointMeta<unknown>) => List<Token>
+    = value => {
+        if (value instanceof Array)
+            return [value[0]]
+
+        return getTokensFromAstRule(value)
+    }
+    
+const getTokensFromAstSequence
+    : (seq: AstSequenceMeta<unknown>) => List<Token>
+    = seq => {
+        return flatMap(getTokensFromAstRuleOrCodePoint)(seq)
+    }
+
+const tagToToken
+    : (tag: AstTag) => Token
+    = tag => {
+        switch (typeof tag) {
+            case 'string': return tag
+            default: return todo()
+        }
+    }
+
+const getTokensFromAstRule
+    : (ast: AstRuleMeta<unknown>) => List<Token>
+    = ast => {
+        const token = tagToToken(ast.tag)
+        if (ast.sequence.length === 0)
+            return [token]
+
+        return { first: token, tail: getTokensFromAstSequence(ast.sequence)}
+    }
+
+const getTokensFromMatchResult
+    : (mr: DescentMatchResult<unknown>) => List<Token>
+    = mr => {
+        return getTokensFromAstRule(mr[0])
+    }
 
 export default {
     isValid: [() => {
