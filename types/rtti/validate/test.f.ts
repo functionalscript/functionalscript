@@ -1,5 +1,5 @@
 import { validate } from './module.f.ts'
-import { boolean, number, string, bigint, unknown, array, record, or } from '../module.f.ts'
+import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
@@ -214,6 +214,19 @@ export default {
                 assertError(validate(t)(43))
                 assertError(validate(t)(null))
             },
+        },
+    },
+    option: {
+        ok: () => {
+            const t = option(number)
+            type _ = Assert<Equal<Ts<typeof t>, number | undefined>>
+            assertOk(validate(t)(42))
+            assertOk(validate(t)(undefined))
+        },
+        error: () => {
+            const t = option(number)
+            assertError(validate(t)(null))
+            assertError(validate(t)('42'))
         },
     },
     recursive: {
