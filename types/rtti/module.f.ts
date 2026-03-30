@@ -176,3 +176,7 @@ export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 /** Constructs a schema that validates a value matching any of the given schemas. */
 export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
     () => ['or', ...types]
+
+/** Constructs a schema that validates a value matching `T` or `undefined`. */
+export const option = <T extends Type>(t: T): Or<readonly[T, undefined]> =>
+    or(t, undefined)
