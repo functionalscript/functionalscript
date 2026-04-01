@@ -293,6 +293,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [ ] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
 - [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
+- [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 
 ## Language Specification
 
