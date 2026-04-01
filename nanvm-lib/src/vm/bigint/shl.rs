@@ -6,23 +6,27 @@ use crate::{
 };
 
 impl<A: IVm> Shl for BigInt<A> {
-    type Output = Self;
+    type Output = Result<Self, &'static str>;
 
-    fn shl(self, rhs: Self) -> Self {
+    fn shl(self, rhs: Self) -> Result<Self, &'static str> {
         let n_len = self.length();
         if n_len == 0 {
-            return self;
+            return Ok(self);
         }
 
         let shift = match rhs.length() {
-            0 => return self,
+            0 => return Ok(self),
             1 => rhs[0],
-            // Unlike shr (where huge shift → 0), shl would produce
-            // an astronomically large result; panic to prevent OOM.
-            _ => panic!("shl: shift amount too large"),
+            _ => return Err("shl: shift amount too large"),
         };
 
         let (word_shift, bit_shift) = shift.div_mod(64);
+
+        // Result can have at most word_shift + n_len + 1 words (carry).
+        // BigInt uses u32 indexing, so the result must fit in u32::MAX words.
+        if word_shift + n_len as u64 + 1 > u32::MAX as u64 {
+            return Err("shl: shift amount too large");
+        }
         let word_shift = word_shift as usize;
 
         let mut value: Vec<u64> = core::iter::repeat_n(0u64, word_shift)
@@ -42,10 +46,10 @@ impl<A: IVm> Shl for BigInt<A> {
         }
 
         if value.last() == Some(&0) || value.is_empty() {
-            panic!("shl: result must be normalized and non-empty");
+            return Err("shl: result must be normalized and non-empty");
         }
 
-        Self::new(*self.0.header(), value)
+        Ok(Self::new(*self.0.header(), value))
     }
 }
 
@@ -70,28 +74,28 @@ mod tests {
     fn zero_shl_zero() {
         let a: T = 0u64.into();
         let b: T = 0u64.into();
-        assert_eq!(a << b, T::default());
+        assert_eq!((a << b).unwrap(), T::default());
     }
 
     #[test]
     fn value_shl_zero() {
         let a: T = 42u64.into();
         let b: T = 0u64.into();
-        assert_eq!(a << b, 42u64.into());
+        assert_eq!((a << b).unwrap(), 42u64.into());
     }
 
     #[test]
     fn zero_shl_value() {
         let a: T = 0u64.into();
         let b: T = 5u64.into();
-        assert_eq!(a << b, T::default());
+        assert_eq!((a << b).unwrap(), T::default());
     }
 
     #[test]
     fn shl_by_one() {
         let a: T = 50u64.into();
         let b: T = 1u64.into();
-        assert_eq!(a << b, 100u64.into());
+        assert_eq!((a << b).unwrap(), 100u64.into());
     }
 
     #[test]
@@ -99,7 +103,7 @@ mod tests {
         // 1 << 64 = [0, 1]
         let a: T = 1u64.into();
         let b: T = 64u64.into();
-        assert_eq!(a << b, pos(vec![0, 1]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 1]));
     }
 
     #[test]
@@ -107,28 +111,28 @@ mod tests {
         // 2 << 65 = 4 * 2^64 = [0, 4]
         let a: T = 2u64.into();
         let b: T = 65u64.into();
-        assert_eq!(a << b, pos(vec![0, 4]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 4]));
     }
 
     #[test]
     fn shl_preserves_positive_sign() {
         let a = pos(vec![100]);
         let b: T = 1u64.into();
-        assert_eq!(a << b, 200u64.into());
+        assert_eq!((a << b).unwrap(), 200u64.into());
     }
 
     #[test]
     fn shl_preserves_negative_sign() {
         let a = neg(vec![100]);
         let b: T = 1u64.into();
-        assert_eq!(a << b, neg(vec![200]));
+        assert_eq!((a << b).unwrap(), neg(vec![200]));
     }
 
     #[test]
     fn shl_63_bits() {
         let a: T = 1u64.into();
         let b: T = 63u64.into();
-        assert_eq!(a << b, (1u64 << 63).into());
+        assert_eq!((a << b).unwrap(), (1u64 << 63).into());
     }
 
     #[test]
@@ -136,7 +140,7 @@ mod tests {
         // 0x8000_0000_0000_0000 << 1 = 2^64 = [0, 1]
         let a: T = (1u64 << 63).into();
         let b: T = 1u64.into();
-        assert_eq!(a << b, pos(vec![0, 1]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 1]));
     }
 
     #[test]
@@ -144,7 +148,7 @@ mod tests {
         // 0xF << 4 = 0xF0
         let a: T = 0xFu64.into();
         let b: T = 4u64.into();
-        assert_eq!(a << b, 0xF0u64.into());
+        assert_eq!((a << b).unwrap(), 0xF0u64.into());
     }
 
     #[test]
@@ -152,7 +156,7 @@ mod tests {
         // [1, 2, 3] << 64 = [0, 1, 2, 3]
         let a = pos(vec![1, 2, 3]);
         let b: T = 64u64.into();
-        assert_eq!(a << b, pos(vec![0, 1, 2, 3]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 1, 2, 3]));
     }
 
     #[test]
@@ -160,7 +164,7 @@ mod tests {
         // [1, 2, 3] << 128 = [0, 0, 1, 2, 3]
         let a = pos(vec![1, 2, 3]);
         let b: T = 128u64.into();
-        assert_eq!(a << b, pos(vec![0, 0, 1, 2, 3]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 0, 1, 2, 3]));
     }
 
     #[test]
@@ -169,7 +173,7 @@ mod tests {
         // = [0, 0x100]
         let a = pos(vec![0x80]);
         let b: T = 65u64.into();
-        assert_eq!(a << b, pos(vec![0, 0x100]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 0x100]));
     }
 
     #[test]
@@ -181,7 +185,7 @@ mod tests {
         let a = pos(vec![u64::MAX, u64::MAX]);
         let b: T = 1u64.into();
         let expected = pos(vec![u64::MAX - 1, u64::MAX, 1]);
-        assert_eq!(a << b, expected);
+        assert_eq!((a << b).unwrap(), expected);
     }
 
     #[test]
@@ -189,7 +193,7 @@ mod tests {
         // (42 << 10) >> 10 = 42
         let a: T = 42u64.into();
         let shift: T = 10u64.into();
-        let shifted = a.clone() << shift.clone();
+        let shifted = (a.clone() << shift.clone()).unwrap();
         assert_eq!(shifted >> shift, 42u64.into());
     }
 
@@ -197,7 +201,7 @@ mod tests {
     fn shl_negative_to_multi_word() {
         let a = neg(vec![1]);
         let b: T = 64u64.into();
-        assert_eq!(a << b, neg(vec![0, 1]));
+        assert_eq!((a << b).unwrap(), neg(vec![0, 1]));
     }
 
     #[test]
@@ -205,7 +209,7 @@ mod tests {
         // 5 << 192 = [0, 0, 0, 5]
         let a: T = 5u64.into();
         let b: T = 192u64.into();
-        assert_eq!(a << b, pos(vec![0, 0, 0, 5]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 0, 0, 5]));
     }
 
     #[test]
@@ -216,7 +220,7 @@ mod tests {
         let a = pos(vec![1, 1]);
         let b: T = 63u64.into();
         assert_eq!(
-            a << b,
+            (a << b).unwrap(),
             pos(vec![0x8000_0000_0000_0000, 0x8000_0000_0000_0000])
         );
     }
@@ -228,7 +232,7 @@ mod tests {
         let a: T = u64::MAX.into();
         let b: T = 63u64.into();
         assert_eq!(
-            a << b,
+            (a << b).unwrap(),
             pos(vec![0x8000_0000_0000_0000, 0x7FFF_FFFF_FFFF_FFFF])
         );
     }
@@ -238,7 +242,7 @@ mod tests {
         // [7, 11, 13] << 128: only word shift, no bit shift
         let a = pos(vec![7, 11, 13]);
         let b: T = 128u64.into();
-        assert_eq!(a << b, pos(vec![0, 0, 7, 11, 13]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 0, 7, 11, 13]));
     }
 
     #[test]
@@ -246,7 +250,7 @@ mod tests {
         // u64::MAX << 1 = [u64::MAX - 1, 1]
         let a: T = u64::MAX.into();
         let b: T = 1u64.into();
-        assert_eq!(a << b, pos(vec![u64::MAX - 1, 1]));
+        assert_eq!((a << b).unwrap(), pos(vec![u64::MAX - 1, 1]));
     }
 
     #[test]
@@ -255,7 +259,7 @@ mod tests {
         let a = pos(vec![0, 42]);
         let shift: T = 10u64.into();
         let shifted = a.clone() >> shift.clone();
-        assert_eq!(shifted << shift, pos(vec![0, 42]));
+        assert_eq!((shifted << shift).unwrap(), pos(vec![0, 42]));
     }
 
     #[test]
@@ -263,7 +267,7 @@ mod tests {
         // neg([u64::MAX, u64::MAX]) << 1: carry propagates and overflows
         let a = neg(vec![u64::MAX, u64::MAX]);
         let b: T = 1u64.into();
-        assert_eq!(a << b, neg(vec![u64::MAX - 1, u64::MAX, 1]));
+        assert_eq!((a << b).unwrap(), neg(vec![u64::MAX - 1, u64::MAX, 1]));
     }
 
     #[test]
@@ -273,7 +277,7 @@ mod tests {
         // bit shift: word1: (1<<1)|0 = 2, carry=0; word2: (2<<1)|0 = 4, carry=0
         let a = neg(vec![1, 2]);
         let b: T = 65u64.into();
-        assert_eq!(a << b, neg(vec![0, 2, 4]));
+        assert_eq!((a << b).unwrap(), neg(vec![0, 2, 4]));
     }
 
     #[test]
@@ -283,7 +287,7 @@ mod tests {
         // bit shift: word1: (3<<1)|0 = 6, carry=0; word2: (5<<1)|0 = 10, carry=0
         let a = pos(vec![3, 5]);
         let b: T = 65u64.into();
-        assert_eq!(a << b, pos(vec![0, 6, 10]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 6, 10]));
     }
 
     #[test]
@@ -293,7 +297,7 @@ mod tests {
         // bit shift: (0x8000.. << 1) | 0 = 0, carry = 1 → pushed as new word
         let a = pos(vec![0x8000_0000_0000_0000]);
         let b: T = 65u64.into();
-        assert_eq!(a << b, pos(vec![0, 0, 1]));
+        assert_eq!((a << b).unwrap(), pos(vec![0, 0, 1]));
     }
 
     #[test]
@@ -305,16 +309,23 @@ mod tests {
         let a = pos(vec![u64::MAX, u64::MAX]);
         let b: T = 63u64.into();
         assert_eq!(
-            a << b,
+            (a << b).unwrap(),
             pos(vec![0x8000_0000_0000_0000, u64::MAX, 0x7FFF_FFFF_FFFF_FFFF])
         );
     }
 
     #[test]
-    #[should_panic(expected = "shl: shift amount too large")]
-    fn shl_multi_word_rhs_panics() {
+    fn shl_multi_word_rhs_returns_err() {
         let a: T = 1u64.into();
         let b = pos(vec![0, 1]); // shift = 2^64
-        let _ = a << b;
+        assert_eq!(a << b, Err("shl: shift amount too large"));
+    }
+
+    #[test]
+    fn shl_large_single_word_shift_returns_err() {
+        // u64::MAX would require ~2^58 words; exceeds u32::MAX limit
+        let a: T = 1u64.into();
+        let b: T = u64::MAX.into();
+        assert_eq!(a << b, Err("shl: shift amount too large"));
     }
 }
