@@ -4,7 +4,7 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 
 ## Requirements
 
-- Use **Node.js 22 or later** for scripts whenever possible.
+- Use **Node.js 22 or later**.
 - Install Node dependencies with `npm ci`.
 - Install Rust dependencies with `cargo fetch`.
 
