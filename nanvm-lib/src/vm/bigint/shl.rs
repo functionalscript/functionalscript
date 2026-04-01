@@ -14,6 +14,7 @@ fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
 impl<A: IVm> Shl for BigInt<A> {
     type Output = Result<Self, Any<A>>;
 
+    // TODO: handle negative shift amounts (right shift)
     fn shl(self, rhs: Self) -> Self::Output {
         let n_len = self.length();
         if n_len == 0 {
