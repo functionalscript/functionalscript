@@ -2,13 +2,19 @@ use core::ops::Shl;
 
 use crate::{
     common::{div_mod::DivMod, sized_index::SizedIndex},
-    vm::{BigInt, IContainer, IVm},
+    vm::{Any, BigInt, IContainer, IVm},
 };
 
-impl<A: IVm> Shl for BigInt<A> {
-    type Output = Result<Self, &'static str>;
+const TOO_LARGE: &str = "shl: shift amount too large";
 
-    fn shl(self, rhs: Self) -> Result<Self, &'static str> {
+fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
+    Err(TOO_LARGE.into())
+}
+
+impl<A: IVm> Shl for BigInt<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn shl(self, rhs: Self) -> Self::Output {
         let n_len = self.length();
         if n_len == 0 {
             return Ok(self);
@@ -17,7 +23,7 @@ impl<A: IVm> Shl for BigInt<A> {
         let shift = match rhs.length() {
             0 => return Ok(self),
             1 => rhs[0],
-            _ => return Err("shl: shift amount too large"),
+            _ => return too_large(),
         };
 
         let (word_shift, bit_shift) = shift.div_mod(64);
@@ -25,10 +31,11 @@ impl<A: IVm> Shl for BigInt<A> {
         // Result can have at most word_shift + n_len + 1 words (carry).
         // BigInt uses u32 indexing, so the result must fit in u32::MAX words.
         if word_shift + n_len as u64 + 1 > u32::MAX as u64 {
-            return Err("shl: shift amount too large");
+            return too_large();
         }
         let word_shift = word_shift as usize;
 
+        // TODO: implement as an iterator without additional allocations.
         let mut value: Vec<u64> = core::iter::repeat_n(0u64, word_shift)
             .chain((0..n_len).map(|i| self[i]))
             .collect();
@@ -45,14 +52,17 @@ impl<A: IVm> Shl for BigInt<A> {
             }
         }
 
-        if value.last() == Some(&0) || value.is_empty() {
-            return Err("shl: result must be normalized and non-empty");
-        }
+        assert!(
+            value.last() != Some(&0) && !value.is_empty(),
+            "shl: result must be normalized and non-empty"
+        );
 
         Ok(Self::new(*self.0.header(), value))
     }
 }
 
+// TODO: The unit tests should not use `naive` or other VM implementations.
+//       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -318,7 +328,7 @@ mod tests {
     fn shl_multi_word_rhs_returns_err() {
         let a: T = 1u64.into();
         let b = pos(vec![0, 1]); // shift = 2^64
-        assert_eq!(a << b, Err("shl: shift amount too large"));
+        assert_eq!(a << b, Err("shl: shift amount too large".into()));
     }
 
     #[test]
@@ -326,6 +336,6 @@ mod tests {
         // u64::MAX would require ~2^58 words; exceeds u32::MAX limit
         let a: T = 1u64.into();
         let b: T = u64::MAX.into();
-        assert_eq!(a << b, Err("shl: shift amount too large"));
+        assert_eq!(a << b, Err("shl: shift amount too large".into()));
     }
 }
