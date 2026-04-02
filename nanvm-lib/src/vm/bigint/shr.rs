@@ -10,6 +10,8 @@ use super::normalize;
 impl<A: IVm> Shr for BigInt<A> {
     type Output = Self;
 
+    // TODO: handle negative shift amounts (left shift)
+    //       type Output = Result<Self, Any<A>>
     fn shr(self, rhs: Self) -> Self {
         let n_len = self.length();
         if n_len == 0 {
