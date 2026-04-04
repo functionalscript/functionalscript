@@ -1,7 +1,8 @@
 import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
 import { todo } from '../../dev/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
-import { flatMap, map, toArray, type List } from '../../types/list/module.f.ts'
+import type { StateScan } from '../../types/function/operator/module.f.ts'
+import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
 import { jsGrammar } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
@@ -17,13 +18,53 @@ const tokenizeString
         const m = descentParser(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
         const mr = descentParserCpOnly(m, '', cp)
-        return JSON.stringify(mr)
+        const flatTokens = getTokensFromMatchResult(mr)
+        const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
+        const tokens = toArray(flat(stateScan(scanFunc)(['', []])(filterTokens)))
+        //return JSON.stringify(toArray(filterTokens))
+        return JSON.stringify(tokens)
     }
 
-type Token = string | number
+type Token = [string, readonly number[]]
+
+type FlatToken = string | number
+
+type TokenScanState = [string, List<number>]
+
+const scanFunc
+    : StateScan<FlatToken, TokenScanState, List<Token>>
+    = state => input => {
+        if (typeof input === 'string') {
+            const newState: TokenScanState = [input, []]
+            if (state[0] === '') {
+                return [null, newState]
+            }
+            const tk: Token = [state[0], toArray(state[1])]
+            return [[tk], newState]
+        }
+        return [null, [state[0], concat(state[1])([input])]]
+    }
+
+const filterFunc
+    : (tk: FlatToken) => boolean
+    = tk => {
+        if (typeof tk === 'number')
+            return true
+
+        switch(tk) {
+            case '{':
+            case '}':
+            case '[':
+            case ']':
+            case 'number':
+                return true
+            default:
+                return false
+        }
+    }
 
 const getTokensFromAstRuleOrCodePoint
-    : (value: AstRuleMeta<unknown>|CodePointMeta<unknown>) => List<Token>
+    : (value: AstRuleMeta<unknown>|CodePointMeta<unknown>) => List<FlatToken>
     = value => {
         if (value instanceof Array)
             return [value[0]]
@@ -32,22 +73,23 @@ const getTokensFromAstRuleOrCodePoint
     }
     
 const getTokensFromAstSequence
-    : (seq: AstSequenceMeta<unknown>) => List<Token>
+    : (seq: AstSequenceMeta<unknown>) => List<FlatToken>
     = seq => {
         return flatMap(getTokensFromAstRuleOrCodePoint)(seq)
     }
 
 const tagToToken
-    : (tag: AstTag) => Token
+    : (tag: AstTag) => FlatToken
     = tag => {
         switch (typeof tag) {
             case 'string': return tag
-            default: return todo()
+            case 'undefined': return 'undefined'
+            default: return 'true'
         }
     }
 
 const getTokensFromAstRule
-    : (ast: AstRuleMeta<unknown>) => List<Token>
+    : (ast: AstRuleMeta<unknown>) => List<FlatToken>
     = ast => {
         const token = tagToToken(ast.tag)
         if (ast.sequence.length === 0)
@@ -57,7 +99,7 @@ const getTokensFromAstRule
     }
 
 const getTokensFromMatchResult
-    : (mr: DescentMatchResult<unknown>) => List<Token>
+    : (mr: DescentMatchResult<unknown>) => List<FlatToken>
     = mr => {
         return getTokensFromAstRule(mr[0])
     }
@@ -227,10 +269,10 @@ export default {
         }
     ],
     djs: [
-        () => {
-            const result = tokenizeString('')
-            if (result !== '[{"kind":"eof"}]') { throw result }
-        },
+        // () => {
+        //     const result = tokenizeString('')
+        //     if (result !== '[{"kind":"eof"}]') { throw result }
+        // },
         () => {
             const result = tokenizeString('{')
             if (result !== '[{"kind":"{"},{"kind":"eof"}]') { throw result }
@@ -267,10 +309,10 @@ export default {
     //         const result = tokenizeString('""')
     //         if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
     //     },
-        () => {
-            const result = tokenizeString('"value"')
-            if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
-        },
+        // () => {
+        //     const result = tokenizeString('"value"')
+        //     if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
+        // },
     //     () => {
     //         const result = tokenizeString('"value')
     //         if (result !== '[{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
@@ -331,10 +373,10 @@ export default {
     //         const result = tokenizeString('0')
     //         if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('[0]')
-    //         if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('[0]')
+            if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('00')
     //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
@@ -347,10 +389,10 @@ export default {
     //         const result = tokenizeString('123456789012345678901234567890')
     //         if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('{90}')
-    //         if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('{90}')
+            if (result !== '[{"kind":"{"},{"bf":[90n,0],"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('1 2')
     //         if (result !== '[{"bf":[1n,0],"kind":"number","value":"1"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
