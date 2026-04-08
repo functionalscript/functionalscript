@@ -1,11 +1,8 @@
 use nanvm_lib::{
-    common::{default::default, iter::Iter, serializable::Serializable},
-    nullish::Nullish,
-    sign::Sign,
-    vm::{
-        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny,
+    common::{default::default, iter::Iter, serializable::Serializable}, naive, nullish::Nullish, sign::Sign, vm::{
+        Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny,
         ToArray, ToObject, Unpacked,
-    },
+    }
 };
 
 fn nullish_eq<A: IVm>() {

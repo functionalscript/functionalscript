@@ -16,8 +16,6 @@ mod string;
 mod string_coercion;
 mod unpacked;
 
-pub mod naive;
-
 pub use crate::vm::{
     any::{to_any::ToAny, Any},
     array::{to_array::ToArray, Array},

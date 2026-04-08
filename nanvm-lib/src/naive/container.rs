@@ -2,8 +2,7 @@ use core::fmt::Debug;
 use std::rc::Rc;
 
 use crate::{
-    common::serializable::Serializable,
-    vm::{naive::Naive, IContainer},
+    common::serializable::Serializable, naive::Naive, vm::IContainer
 };
 
 #[derive(Clone, PartialEq)]
