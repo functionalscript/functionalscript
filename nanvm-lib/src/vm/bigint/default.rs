@@ -7,6 +7,6 @@ use crate::{
 
 impl<A: IVm> Default for BigInt<A> {
     fn default() -> Self {
-        Self::new(Sign::Positive, empty())
+        Self::unchecked_new(Sign::Positive, empty())
     }
 }

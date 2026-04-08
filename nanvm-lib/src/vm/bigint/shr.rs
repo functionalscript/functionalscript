@@ -45,7 +45,7 @@ impl<A: IVm> Shr for BigInt<A> {
             return Self::default();
         }
 
-        Self::new(*self.0.header(), value)
+        Self::unchecked_new(*self.0.header(), value)
     }
 }
 
@@ -59,11 +59,11 @@ mod tests {
     type T = BigInt<Naive>;
 
     fn pos(items: Vec<u64>) -> T {
-        T::new(Sign::Positive, items)
+        T::unchecked_new(Sign::Positive, items)
     }
 
     fn neg(items: Vec<u64>) -> T {
-        T::new(Sign::Negative, items)
+        T::unchecked_new(Sign::Negative, items)
     }
 
     #[test]

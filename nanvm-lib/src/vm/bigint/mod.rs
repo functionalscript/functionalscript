@@ -43,12 +43,24 @@ impl<A: IVm> BigInt<A> {
         self.0.items().is_empty()
     }
 
-    fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+    /// The function doesn't normalize the bigint.
+    fn unchecked_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         Self(A::InternalBigInt::new_ok(sign, items))
     }
 
+    pub fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+        let mut vec: Vec<u64> = items.into_iter().collect();
+        // TODO: Don't allocate vector for the normalization.
+        normalize(&mut vec);
+        if vec.is_empty() {
+            Self::default()
+        } else {
+            Self::unchecked_new(sign, vec)
+        }
+    }
+
     fn new_one(sign: Sign, value: u64) -> Self {
-        Self::new(sign, once(value))
+        Self::unchecked_new(sign, once(value))
     }
 
     fn add_to_vec(mut vec: Vec<u64>, index: u32, add: u128) -> Vec<u64> {
@@ -213,8 +225,8 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_simple_different_lengths() {
-        let one_digit = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        let two_digits = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let one_digit = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64]);
+        let two_digits = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
         assert_eq!(
             two_digits.clone().abs_cmp_vec(one_digit.clone()),
             Ordering::Greater
@@ -298,8 +310,8 @@ mod tests {
         // self = [5, 10] represents 10 * 2^64 + 5
         // rhs = [20, 9] represents 9 * 2^64 + 20
         // Since higher word is more significant, self should be greater despite lower word being smaller
-        let self_val = TestBigInt::new(crate::sign::Sign::Positive, vec![5u64, 10u64]);
-        let rhs_val = TestBigInt::new(crate::sign::Sign::Positive, vec![20u64, 9u64]);
+        let self_val = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![5u64, 10u64]);
+        let rhs_val = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![20u64, 9u64]);
 
         assert_eq!(self_val.abs_cmp_vec(rhs_val), Ordering::Greater);
     }
@@ -311,7 +323,7 @@ mod tests {
         let a: TestBigInt = 123u64.into();
         let b: TestBigInt = 456u64.into();
         let result = a.abs_add_vec(b);
-        let expected = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let expected = TestBigInt::unchecked_new(crate::sign::Sign::Positive, result);
         let expected_value: TestBigInt = 579u64.into();
         assert_eq!(expected.abs_cmp_vec(expected_value), Ordering::Equal);
     }
@@ -321,13 +333,13 @@ mod tests {
         let a: TestBigInt = 42u64.into();
         let b: TestBigInt = 0u64.into();
         let result = a.clone().abs_add_vec(b);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(crate::sign::Sign::Positive, result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
 
         let c: TestBigInt = 0u64.into();
         let d: TestBigInt = 17u64.into();
         let result2 = c.abs_add_vec(d.clone());
-        let result2_bigint = TestBigInt::new(crate::sign::Sign::Positive, result2);
+        let result2_bigint = TestBigInt::unchecked_new(crate::sign::Sign::Positive, result2);
         assert_eq!(result2_bigint.abs_cmp_vec(d), Ordering::Equal);
     }
 
@@ -345,8 +357,8 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_different_lengths() {
-        let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        let large = TestBigInt::new(crate::sign::Sign::Positive, vec![200u64, 1u64]);
+        let small = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64]);
+        let large = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![200u64, 1u64]);
 
         let result1 = small.clone().abs_add_vec(large.clone());
         let result2 = large.abs_add_vec(small);
@@ -364,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_multiple_carries() {
-        let a = TestBigInt::new(crate::sign::Sign::Positive, vec![u64::MAX, u64::MAX]);
+        let a = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![u64::MAX, u64::MAX]);
         let b: TestBigInt = 1u64.into();
 
         let result = a.abs_add_vec(b);
@@ -380,7 +392,7 @@ mod tests {
     fn test_abs_add_vec_same_large_numbers() {
         let large: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
         let result = large.clone().abs_add_vec(large);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(crate::sign::Sign::Positive, result);
 
         let expected: TestBigInt = 0xFFFF_FFFF_FFFF_FFFEu64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
@@ -413,7 +425,7 @@ mod tests {
         let a: TestBigInt = 456u64.into();
         let b: TestBigInt = 123u64.into();
         let result = a.abs_sub_vec(b);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(crate::sign::Sign::Positive, result);
         let expected: TestBigInt = 333u64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
     }
@@ -432,7 +444,7 @@ mod tests {
         let a: TestBigInt = 42u64.into();
         let b: TestBigInt = 0u64.into();
         let result = a.clone().abs_sub_vec(b);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(crate::sign::Sign::Positive, result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
     }
 
@@ -448,8 +460,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_different_lengths() {
-        let large = TestBigInt::new(crate::sign::Sign::Positive, vec![300u64, 2u64]);
-        let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
+        let large = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![300u64, 2u64]);
+        let small = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64]);
 
         let result = large.abs_sub_vec(small);
 
@@ -461,7 +473,7 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_borrow_propagation() {
-        let a = TestBigInt::new(crate::sign::Sign::Positive, vec![0u64, 1u64]); // 2^64
+        let a = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![0u64, 1u64]); // 2^64
         let b: TestBigInt = 1u64.into();
 
         let result = a.abs_sub_vec(b);
@@ -473,8 +485,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_leading_zero_trim() {
-        let a = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
-        let b = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let a = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let b = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
 
         let result = a.abs_sub_vec(b);
 
@@ -513,8 +525,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "abs_sub_vec: rhs is greater than self")]
     fn test_abs_sub_vec_panic_different_lengths() {
-        let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        let large = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let small = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64]);
+        let large = TestBigInt::unchecked_new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
         let _ = small.abs_sub_vec(large); // Should panic - small < large
     }
 }

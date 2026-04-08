@@ -14,7 +14,7 @@ impl<A: IVm> Mul for BigInt<A> {
 
     fn mul(self, rhs: Self) -> Self {
         if self.is_zero() || rhs.is_zero() {
-            return Self::new(Sign::Positive, []);
+            return Self::unchecked_new(Sign::Positive, []);
         }
 
         let lhs_max = self.length() - 1;
@@ -43,6 +43,6 @@ impl<A: IVm> Mul for BigInt<A> {
             Sign::Negative
         };
 
-        Self::new(sign, value)
+        Self::unchecked_new(sign, value)
     }
 }
