@@ -1,12 +1,9 @@
 use core::f64;
 
-use crate::{
-    nullish::Nullish,
-    vm::{
-        any::Any, dispatch::Dispatch, primitive::Primitive,
-        primitive_coercion::ToPrimitivePreferredType, Array, BigInt, Function, IVm, Object, String,
-        ToAny,
-    },
+use crate::vm::{
+    any::Any, dispatch::Dispatch, nullish::Nullish, primitive::Primitive,
+    primitive_coercion::ToPrimitivePreferredType, Array, BigInt, Function, IVm, Object, String,
+    ToAny,
 };
 
 /// Coerces the value to f64, possibly producing an error result.

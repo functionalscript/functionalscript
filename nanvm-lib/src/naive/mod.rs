@@ -1,8 +1,9 @@
 mod container;
 
 use crate::{
+    naive::container::Container,
     sign::Sign,
-    vm::{naive::container::Container, Any, FunctionHeader, IVm, Property, Unpacked},
+    vm::{Any, FunctionHeader, IVm, Property, Unpacked},
 };
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support

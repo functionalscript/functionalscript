@@ -1,7 +1,4 @@
-use crate::{
-    nullish::Nullish,
-    vm::{Array, BigInt, Function, IVm, Object, String},
-};
+use crate::vm::{nullish::Nullish, Array, BigInt, Function, IVm, Object, String};
 
 pub trait Dispatch<A: IVm>: Sized {
     type Result;

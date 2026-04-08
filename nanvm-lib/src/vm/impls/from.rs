@@ -1,6 +1,5 @@
-use crate::{
-    nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Object, String, ToAny, ToString, Unpacked},
+use crate::vm::{
+    nullish::Nullish, Any, Array, BigInt, Function, IVm, Object, String, ToAny, ToString, Unpacked,
 };
 
 impl<A: IVm> From<Unpacked<A>> for Any<A> {

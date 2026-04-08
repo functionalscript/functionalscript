@@ -1,7 +1,4 @@
-use crate::{
-    nullish::Nullish,
-    vm::{BigInt, IVm, String, Unpacked},
-};
+use crate::vm::{nullish::Nullish, BigInt, IVm, String, Unpacked};
 
 /// <https://developer.mozilla.org/en-US/docs/Glossary/Primitive>
 /// A primitive value is a subset of Unpacked that excludes Object, Array, and Function.

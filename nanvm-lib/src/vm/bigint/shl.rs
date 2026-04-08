@@ -66,10 +66,7 @@ impl<A: IVm> Shl for BigInt<A> {
 //       We should move these tests into integration tests.
 #[cfg(test)]
 mod tests {
-    use crate::{
-        sign::Sign,
-        vm::{bigint::BigInt, naive::Naive},
-    };
+    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
 
     type T = BigInt<Naive>;
 

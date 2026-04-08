@@ -9,7 +9,7 @@ pub mod to_object;
 use crate::vm::IVm;
 
 /// ```
-/// use nanvm_lib::vm::{Object, ToObject, IVm, Array, Any, ToAny, naive::Naive};
+/// use nanvm_lib::{vm::{Object, ToObject, IVm, Array, Any, ToAny}, naive::Naive};
 /// fn object_test<A: IVm>() {
 ///     let b: Object<A> = [("a".into(), true.to_any())].to_object();
 ///     let b1: Object<A> = [("a".into(), true.to_any())].to_object();

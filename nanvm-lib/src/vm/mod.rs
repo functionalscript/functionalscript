@@ -7,6 +7,7 @@ mod function;
 mod impls;
 mod internal;
 mod join;
+mod nullish;
 mod number_coercion;
 mod numeric;
 mod object;
@@ -16,14 +17,13 @@ mod string;
 mod string_coercion;
 mod unpacked;
 
-pub mod naive;
-
 pub use crate::vm::{
     any::{to_any::ToAny, Any},
     array::{to_array::ToArray, Array},
     bigint::BigInt,
     function::{header::FunctionHeader, Function},
     internal::{IContainer, IVm},
+    nullish::Nullish,
     object::{property::Property, to_object::ToObject, Object},
     string::{to_string::ToString, String},
     unpacked::Unpacked,
