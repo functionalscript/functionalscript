@@ -4,11 +4,6 @@ use nanvm_lib::{
     sign::Sign,
 };
 
-fn big_int_add<A: Any>() {
-    let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
-    assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
-}
-
 fn big_int_mul<A: Any>() -> Result<(), WAny<A>> {
     let n0: WAny<A> = WAny::big_int(Sign::Positive, []);
     let n1: WAny<A> = WAny::big_int(Sign::Positive, [1]);
@@ -38,7 +33,6 @@ fn big_int_mul<A: Any>() -> Result<(), WAny<A>> {
 }
 
 fn test_vm<A: Any>() {
-    big_int_add::<A>();
     big_int_mul::<A>().unwrap();
 }
 

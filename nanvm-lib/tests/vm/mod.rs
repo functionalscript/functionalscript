@@ -1,10 +1,7 @@
 use nanvm_lib::{
-    common::{default::default, iter::Iter, serializable::Serializable},
-    nullish::Nullish,
-    vm::{
-        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny,
-        ToArray, ToObject, Unpacked,
-    },
+    common::{default::default, iter::Iter, serializable::Serializable}, nullish::Nullish, sign::Sign, vm::{
+        Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny, ToArray, ToObject, Unpacked, naive
+    }
 };
 
 fn nullish_eq<A: IVm>() {
@@ -697,6 +694,42 @@ fn mul<A: IVm>() {
     }
 }
 
+fn big_int_add<A: IVm>() {
+    let n0: Any<A> = BigInt::default().to_any();
+    assert_eq!((n0.clone() + n0.clone()), n0);
+    let n2: Any<A> = BigInt::from(2u64).to_any();
+    let n4: Any<A> = BigInt::from(4u64).to_any();
+    assert_eq!((n0.clone() + n2.clone()), n2);
+    assert_eq!((n2.clone() + n4.clone()), BigInt::from(6u64).to_any());
+}
+
+fn big_int_mul<A: IVm>() {
+    let n0: Any<A> = BigInt::default().to_any();
+    let n1: Any<A> = BigInt::from(1u64).to_any();
+    assert_eq!((n1.clone() * n0.clone()).unwrap(), n0);
+    assert_eq!((n0.clone() * n1.clone()).unwrap(), n0);
+
+    let n_minus1: Any<A> = BigInt::from(-1i64).to_any();
+    assert_eq!((n_minus1.clone() * n0.clone()).unwrap(), n0);
+    assert_eq!((n0.clone() * n_minus1.clone()).unwrap(), n0);
+    assert_eq!((n_minus1.clone() * n_minus1.clone()).unwrap(), n1);
+
+    let a: Any<A> = BigInt::new(Sign::Positive, [1, 2, 3, 4]).to_any();
+    let b: Any<A> = BigInt::new(Sign::Positive, [5, 6, 7]).to_any();
+    let expected: Any<A> = BigInt::new(Sign::Positive, [5, 16, 34, 52, 45, 28]).to_any();
+    assert_eq!((a.clone() * b.clone()).unwrap(), expected);
+    assert_eq!((b.clone() * a.clone()).unwrap(), expected);
+
+    let a: Any<A> = BigInt::new(Sign::Negative, [u64::MAX]).to_any();
+    let expected: Any<A> = BigInt::new(Sign::Positive, [1, u64::MAX - 1]).to_any();
+    assert_eq!((a.clone() * a.clone()).unwrap(), expected);
+
+    let b: Any<A> = BigInt::new(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]).to_any();
+    let expected: Any<A> = BigInt::new(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]).to_any();
+    assert_eq!((a.clone() * b.clone()).unwrap(), expected);
+    assert_eq!((b.clone() * a.clone()).unwrap(), expected);
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -712,6 +745,8 @@ fn gen_test<A: IVm>() {
     unary_plus::<A>();
     unary_minus::<A>();
     mul::<A>();
+    big_int_add::<A>();
+    big_int_mul::<A>();
     //
     format_fn::<A>();
 }
