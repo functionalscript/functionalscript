@@ -1,7 +1,11 @@
 use nanvm_lib::{
-    common::{default::default, iter::Iter, serializable::Serializable}, nullish::Nullish, sign::Sign, vm::{
-        Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny, ToArray, ToObject, Unpacked, naive
-    }
+    common::{default::default, iter::Iter, serializable::Serializable},
+    nullish::Nullish,
+    sign::Sign,
+    vm::{
+        naive, Any, Array, BigInt, Function, IContainer, IVm, Object, Property, String, ToAny,
+        ToArray, ToObject, Unpacked,
+    },
 };
 
 fn nullish_eq<A: IVm>() {
@@ -725,7 +729,8 @@ fn big_int_mul<A: IVm>() {
     assert_eq!((a.clone() * a.clone()).unwrap(), expected);
 
     let b: Any<A> = BigInt::new(Sign::Negative, [u64::MAX, u64::MAX, u64::MAX]).to_any();
-    let expected: Any<A> = BigInt::new(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]).to_any();
+    let expected: Any<A> =
+        BigInt::new(Sign::Positive, [1, u64::MAX, u64::MAX, u64::MAX - 1]).to_any();
     assert_eq!((a.clone() * b.clone()).unwrap(), expected);
     assert_eq!((b.clone() * a.clone()).unwrap(), expected);
 }
