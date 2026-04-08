@@ -52,7 +52,11 @@ impl<A: IVm> BigInt<A> {
         let mut vec: Vec<u64> = items.into_iter().collect();
         // TODO: Don't allocate vector for the normalization.
         normalize(&mut vec);
-        Self::unchecked_new(sign, vec)
+        if vec.is_empty() {
+            Self::default()
+        } else {
+            Self::unchecked_new(sign, vec)
+        }
     }
 
     fn new_one(sign: Sign, value: u64) -> Self {

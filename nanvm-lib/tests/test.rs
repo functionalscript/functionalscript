@@ -735,6 +735,12 @@ fn big_int_mul<A: IVm>() {
     assert_eq!((b.clone() * a.clone()).unwrap(), expected);
 }
 
+fn big_int_negative_zero<A: IVm>() {
+    let mn0: BigInt<A> = BigInt::new(Sign::Negative, []);
+    let n0: BigInt<A> = BigInt::default();
+    assert_eq!(mn0, n0);
+}
+
 fn gen_test<A: IVm>() {
     nullish_eq::<A>();
     bool_eq::<A>();
@@ -752,6 +758,7 @@ fn gen_test<A: IVm>() {
     mul::<A>();
     big_int_add::<A>();
     big_int_mul::<A>();
+    big_int_negative_zero::<A>();
     //
     format_fn::<A>();
 }
