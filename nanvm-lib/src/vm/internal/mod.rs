@@ -3,9 +3,11 @@ mod icontainer;
 pub use icontainer::IContainer;
 
 use crate::{
-    nullish::Nullish,
     sign::Sign,
-    vm::{Any, Array, BigInt, Function, FunctionHeader, Object, Property, String, Unpacked},
+    vm::{
+        nullish::Nullish, Any, Array, BigInt, Function, FunctionHeader, Object, Property, String,
+        Unpacked,
+    },
 };
 
 pub trait IVm:

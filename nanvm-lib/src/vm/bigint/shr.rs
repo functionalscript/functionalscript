@@ -51,9 +51,7 @@ impl<A: IVm> Shr for BigInt<A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        naive::Naive, sign::Sign, vm::bigint::BigInt
-    };
+    use crate::{naive::Naive, sign::Sign, vm::bigint::BigInt};
 
     type T = BigInt<Naive>;
 

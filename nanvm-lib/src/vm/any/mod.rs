@@ -17,8 +17,8 @@ use crate::vm::{
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
-///     nullish::Nullish
+///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, Nullish, BigInt},
+///     naive::Naive
 /// };
 /// fn any_test<A: IVm>() {
 ///     let b: Any<A> = true.to_any();

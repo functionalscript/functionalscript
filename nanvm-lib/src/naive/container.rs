@@ -1,9 +1,7 @@
 use core::fmt::Debug;
 use std::rc::Rc;
 
-use crate::{
-    common::serializable::Serializable, naive::Naive, vm::IContainer
-};
+use crate::{common::serializable::Serializable, naive::Naive, vm::IContainer};
 
 #[derive(Clone, PartialEq)]
 pub struct Container<H, I> {

@@ -27,7 +27,7 @@ fn normalize(vec: &mut Vec<u64>) {
 }
 
 /// ```
-/// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
+/// use nanvm_lib::{vm::{BigInt, IVm}, naive::Naive};
 /// fn bigint_test<A: IVm>() {
 ///     let a: BigInt<A> = 12345678901234567890u64.into();
 ///     let b: BigInt<A> = (-1234567890123456789i64).into();
