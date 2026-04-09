@@ -13,7 +13,7 @@ mod shr;
 mod sized_index;
 mod sub;
 
-use core::{cmp::Ordering, iter::once};
+use core::{cmp::Ordering, iter::once, ops::Sub};
 
 use crate::{
     common::sized_index::SizedIndex,
@@ -79,11 +79,7 @@ impl<A: IVm> BigInt<A> {
     /// Panics if this BigInt is not normalized, i.e. if it has leading
     /// (most-significant) zero words.
     fn assert_normalized(&self) {
-        let items = self.0.items();
-        let len = items.length();
-        if len > 0 && items[len - 1] == 0 {
-            panic!("BigInt is not normalized (has leading zero words)");
-        }
+        assert_slice_normalized(self.0.items());
     }
 
     /// Compare absolute values by looking at the most-significant words first.
@@ -150,7 +146,7 @@ impl<A: IVm> BigInt<A> {
         }
 
         // Postcondition: result must be normalized.
-        assert_vec_normalized(&out);
+        assert_slice_normalized(out.as_slice());
         out
     }
 
@@ -193,11 +189,16 @@ impl<A: IVm> BigInt<A> {
 /// Panics if the slice is not normalized, i.e. if it has leading
 /// (most-significant) zero words.
 /// TODO: merge assert_vec_normalized, assert_normalized logic.
-fn assert_vec_normalized(v: &[u64]) {
-    if let Some(&last) = v.last() {
-        if last == 0 {
-            panic!("BigInt is not normalized (has leading zero words)");
-        }
+fn assert_slice_normalized<
+    I: Default + PartialEq + Sub<Output = I> + From<u8>,
+    T: SizedIndex<I, Output = u64> + ?Sized,
+>(
+    v: &T,
+) {
+    if let Some(&last) = v.last()
+        && last == 0
+    {
+        panic!("BigInt is not normalized (has leading zero words)");
     }
 }
 

@@ -698,7 +698,7 @@ fn mul<A: IVm>() {
     }
 }
 
-fn big_int_add<A: IVm>() {
+fn bigint_add<A: IVm>() {
     let n0: Any<A> = BigInt::default().to_any();
     assert_eq!((n0.clone() + n0.clone()), n0);
     let n2: Any<A> = BigInt::from(2u64).to_any();
@@ -707,7 +707,7 @@ fn big_int_add<A: IVm>() {
     assert_eq!((n2.clone() + n4.clone()), BigInt::from(6u64).to_any());
 }
 
-fn big_int_mul<A: IVm>() {
+fn bigint_mul<A: IVm>() {
     let n0: Any<A> = BigInt::default().to_any();
     let n1: Any<A> = BigInt::from(1u64).to_any();
     assert_eq!((n1.clone() * n0.clone()).unwrap(), n0);
@@ -735,7 +735,7 @@ fn big_int_mul<A: IVm>() {
     assert_eq!((b.clone() * a.clone()).unwrap(), expected);
 }
 
-fn big_int_negative_zero<A: IVm>() {
+fn bigint_negative_zero<A: IVm>() {
     let mn0: BigInt<A> = BigInt::new(Sign::Negative, []);
     let n0: BigInt<A> = BigInt::default();
     assert_eq!(mn0, n0);
@@ -756,9 +756,9 @@ fn gen_test<A: IVm>() {
     unary_plus::<A>();
     unary_minus::<A>();
     mul::<A>();
-    big_int_add::<A>();
-    big_int_mul::<A>();
-    big_int_negative_zero::<A>();
+    bigint_add::<A>();
+    bigint_mul::<A>();
+    bigint_negative_zero::<A>();
     //
     format_fn::<A>();
 }
