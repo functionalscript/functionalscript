@@ -188,7 +188,6 @@ impl<A: IVm> BigInt<A> {
 
 /// Panics if the slice is not normalized, i.e. if it has leading
 /// (most-significant) zero words.
-/// TODO: merge assert_vec_normalized, assert_normalized logic.
 fn assert_slice_normalized<
     I: Default + PartialEq + Sub<Output = I> + From<u8>,
     T: SizedIndex<I, Output = u64> + ?Sized,
