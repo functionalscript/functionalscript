@@ -35,7 +35,7 @@ impl<A: IVm> Mul for BigInt<A> {
             }
             i += 1;
         }
-        normalize(&mut value);
+        value = normalize(value);
 
         let sign = if self.0.header() == rhs.0.header() {
             Sign::Positive

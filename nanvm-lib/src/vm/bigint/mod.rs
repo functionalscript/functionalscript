@@ -21,9 +21,10 @@ use crate::{
     vm::{IContainer, IVm},
 };
 
-fn normalize(vec: &mut Vec<u64>) {
+fn normalize(mut vec: Vec<u64>) -> Vec<u64> {
     let len = vec.iter().rposition(|&x| x != 0).map_or(0, |i| i + 1);
     vec.truncate(len);
+    vec
 }
 
 /// ```
@@ -53,7 +54,7 @@ impl<A: IVm> BigInt<A> {
     pub fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         let mut vec: Vec<u64> = items.into_iter().collect();
         // TODO: Don't allocate vector for the normalization.
-        normalize(&mut vec);
+        vec = normalize(vec);
         if vec.is_empty() {
             Self::default()
         } else {
@@ -183,7 +184,7 @@ impl<A: IVm> BigInt<A> {
             panic!("abs_sub_vec: rhs is greater than self");
         }
 
-        normalize(&mut out);
+        out = normalize(out);
         out
     }
 }

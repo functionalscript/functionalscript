@@ -40,7 +40,7 @@ impl<A: IVm> Shr for BigInt<A> {
             }
         }
 
-        normalize(&mut value);
+        value = normalize(value);
         if value.is_empty() {
             return Self::default();
         }
