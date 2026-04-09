@@ -21,6 +21,7 @@ use crate::{
     vm::{IContainer, IVm},
 };
 
+// TODO: change it to Iterator/SizedIndex-based implementation.
 fn normalize(vec: &[u64]) -> &[u64] {
     let last_nonzero_index = vec.iter().rposition(|&x| x != 0);
     match last_nonzero_index {
