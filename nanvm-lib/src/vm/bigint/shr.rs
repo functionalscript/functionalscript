@@ -40,12 +40,7 @@ impl<A: IVm> Shr for BigInt<A> {
             }
         }
 
-        value = normalize(value);
-        if value.is_empty() {
-            return Self::default();
-        }
-
-        Self::unchecked_new(*self.0.header(), value)
+        Self::normalize_new(*self.0.header(), value)
     }
 }
 

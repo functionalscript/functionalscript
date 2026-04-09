@@ -51,7 +51,7 @@ impl<A: IVm> BigInt<A> {
 
     /// Note: this function accepts an iterator in least-significant-word-first order,
     /// i.e. the first item is the least significant word!
-    pub fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+    pub fn normalize_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         let mut vec: Vec<u64> = items.into_iter().collect();
         // TODO: Don't allocate vector for the normalization.
         vec = normalize(vec);
