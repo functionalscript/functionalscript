@@ -21,10 +21,12 @@ use crate::{
     vm::{IContainer, IVm},
 };
 
-fn normalize(mut vec: Vec<u64>) -> Vec<u64> {
-    let len = vec.iter().rposition(|&x| x != 0).map_or(0, |i| i + 1);
-    vec.truncate(len);
-    vec
+fn normalize(vec: &[u64]) -> &[u64] {
+    let last_nonzero_index = vec.iter().rposition(|&x| x != 0);
+    match last_nonzero_index {
+        Some(index) => &vec[..=index],
+        None => &[], // All elements are zero, return an empty slice
+    }
 }
 
 /// ```
@@ -52,13 +54,13 @@ impl<A: IVm> BigInt<A> {
     /// Note: this function accepts an iterator in least-significant-word-first order,
     /// i.e. the first item is the least significant word!
     pub fn normalize_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
-        let mut vec: Vec<u64> = items.into_iter().collect();
+        let vec: Vec<u64> = items.into_iter().collect();
         // TODO: Don't allocate vector for the normalization.
-        vec = normalize(vec);
-        if vec.is_empty() {
+        let r = normalize(&vec);
+        if r.is_empty() {
             Self::default()
         } else {
-            Self::unchecked_new(sign, vec)
+            Self::unchecked_new(sign, r.iter().copied())
         }
     }
 
@@ -184,8 +186,7 @@ impl<A: IVm> BigInt<A> {
             panic!("abs_sub_vec: rhs is greater than self");
         }
 
-        out = normalize(out);
-        out
+        normalize(&out).to_vec()
     }
 }
 
