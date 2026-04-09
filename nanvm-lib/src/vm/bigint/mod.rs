@@ -13,7 +13,7 @@ mod shr;
 mod sized_index;
 mod sub;
 
-use core::{cmp::Ordering, iter::once, ops::Sub};
+use core::{cmp::Ordering, iter::once};
 
 use crate::{
     common::{sized_index::SizedIndex, uint::Uint},
