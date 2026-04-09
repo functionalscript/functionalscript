@@ -16,8 +16,10 @@ impl<I: Default + PartialEq + Sub<Output = I> + From<u8>, T: SizedIndex<I>> Inde
     }
 }
 
-impl<I: Copy + Default + PartialEq + AddAssign + From<u8> + Sub<Output = I>, T: SizedIndex<I, Output: Clone>> Iterator
-    for IndexIter<I, T>
+impl<
+    I: Copy + Default + PartialEq + AddAssign + From<u8> + Sub<Output = I>,
+    T: SizedIndex<I, Output: Clone>,
+> Iterator for IndexIter<I, T>
 {
     type Item = T::Output;
     fn next(&mut self) -> Option<Self::Item> {

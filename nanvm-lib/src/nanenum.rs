@@ -110,7 +110,7 @@ mod test {
 
     use crate::{
         common::default::default,
-        nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE},
+        nanenum::{INFINITY, NEG_INFINITY, NEGATIVE, NOT_FINITE, Raw64},
     };
 
     use super::{NaNEnum, NaNEnumPack};
