@@ -16,7 +16,7 @@ mod sub;
 use core::{cmp::Ordering, iter::once, ops::Sub};
 
 use crate::{
-    common::sized_index::SizedIndex,
+    common::{sized_index::SizedIndex, uint::Uint},
     sign::Sign,
     vm::{IContainer, IVm},
 };
@@ -190,12 +190,7 @@ impl<A: IVm> BigInt<A> {
 
 /// Panics if the slice is not normalized, i.e. if it has leading
 /// (most-significant) zero words.
-fn assert_slice_normalized<
-    I: Default + PartialEq + Sub<Output = I> + From<u8>,
-    T: SizedIndex<I, Output = u64> + ?Sized,
->(
-    v: &T,
-) {
+fn assert_slice_normalized<I: Uint, T: SizedIndex<I, Output = u64> + ?Sized>(v: &T) {
     if let Some(&last) = v.last()
         && last == 0
     {

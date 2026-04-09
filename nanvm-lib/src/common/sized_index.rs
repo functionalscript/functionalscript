@@ -1,8 +1,8 @@
-use core::ops::{Index, Sub};
+use core::ops::Index;
 
-use crate::common::{default::default, index_iter::IndexIter};
+use crate::common::{default::default, index_iter::IndexIter, uint::Uint};
 
-pub trait SizedIndex<I: Default + PartialEq + Sub<Output = I> + From<u8>>: Index<I> {
+pub trait SizedIndex<I: Uint>: Index<I> {
     fn length(&self) -> I;
     fn is_empty(&self) -> bool {
         self.length() == default()
