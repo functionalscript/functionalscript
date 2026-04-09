@@ -7,5 +7,5 @@ pub mod iter;
 pub mod le;
 pub mod serializable;
 pub mod sized_index;
-pub mod vec;
 pub mod uint;
+pub mod vec;
