@@ -5,8 +5,6 @@ use crate::{
     vm::{BigInt, IContainer, IVm},
 };
 
-use super::normalize;
-
 impl<A: IVm> Shr for BigInt<A> {
     type Output = Self;
 
