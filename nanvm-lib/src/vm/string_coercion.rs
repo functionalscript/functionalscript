@@ -1,7 +1,6 @@
 use crate::vm::{
-    any::Any, dispatch::Dispatch, nullish::Nullish, primitive::Primitive,
-    primitive_coercion::ToPrimitivePreferredType, Array, BigInt, Function, IVm, Object, String,
-    ToAny,
+    Array, BigInt, Function, IVm, Object, String, ToAny, any::Any, dispatch::Dispatch,
+    nullish::Nullish, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
 };
 
 /// Coerces the value to a `String16<A>`, possibly producing an error result.

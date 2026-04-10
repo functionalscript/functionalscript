@@ -1,6 +1,6 @@
 use crate::vm::{
-    dispatch::Dispatch, join::Join, nullish::Nullish, primitive::Primitive, Any, Array, BigInt,
-    Function, IVm, Object, String,
+    Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, join::Join,
+    nullish::Nullish, primitive::Primitive,
 };
 
 use std::result::Result;

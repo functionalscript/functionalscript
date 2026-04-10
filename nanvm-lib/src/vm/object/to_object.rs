@@ -1,5 +1,5 @@
 use super::Object;
-use crate::vm::{internal::IContainer, IVm, Property};
+use crate::vm::{IVm, Property, internal::IContainer};
 
 pub trait ToObject {
     fn to_object<A: IVm>(self) -> Object<A>

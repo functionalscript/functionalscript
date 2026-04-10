@@ -1,4 +1,4 @@
-use crate::vm::{container_fmt::ContainerFmt, Any, Array, IVm, Object, String, Unpacked};
+use crate::vm::{Any, Array, IVm, Object, String, Unpacked, container_fmt::ContainerFmt};
 use core::{
     fmt::{Debug, Formatter, Result, Write},
     ops::RangeInclusive,

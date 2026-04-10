@@ -1,5 +1,5 @@
 use super::Array;
-use crate::vm::{internal::IContainer, Any, IVm};
+use crate::vm::{Any, IVm, internal::IContainer};
 
 pub trait ToArray {
     fn to_array<A: IVm>(self) -> Array<A>

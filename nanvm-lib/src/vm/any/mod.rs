@@ -6,13 +6,13 @@ mod partial_eq;
 pub mod to_any;
 
 use crate::vm::{
+    IVm, String, ToAny, Unpacked,
     dispatch::Dispatch,
     number_coercion::NumberCoercion,
     numeric::Numeric,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    IVm, String, ToAny, Unpacked,
 };
 
 /// ```

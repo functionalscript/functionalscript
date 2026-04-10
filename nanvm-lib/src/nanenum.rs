@@ -15,7 +15,7 @@ trait Raw64: Clone {
 impl<T> Raw64 for Rc<T> {
     const BIT_SIZE: u64 = 48;
     unsafe fn from_raw64(v: u64) -> Self {
-        Rc::from_raw(v as _)
+        unsafe { Rc::from_raw(v as _) }
     }
     unsafe fn into_raw64(self) -> u64 {
         Rc::into_raw(self) as *const _ as _
@@ -62,7 +62,7 @@ impl<T: Raw64> NaNEnumPack<T> {
     /// Creates a temporary object that should be `forget` after using.
     unsafe fn tmp_unpack(&self) -> NaNEnum<T> {
         if self.check(ELSE) {
-            NaNEnum::Else(T::from_raw64(self.0 & ELSE_DATA))
+            NaNEnum::Else(unsafe { T::from_raw64(self.0 & ELSE_DATA) })
         } else {
             NaNEnum::Number(f64::from_bits(self.0))
         }
@@ -110,7 +110,7 @@ mod test {
 
     use crate::{
         common::default::default,
-        nanenum::{Raw64, INFINITY, NEGATIVE, NEG_INFINITY, NOT_FINITE},
+        nanenum::{INFINITY, NEG_INFINITY, NEGATIVE, NOT_FINITE, Raw64},
     };
 
     use super::{NaNEnum, NaNEnumPack};

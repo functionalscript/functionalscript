@@ -86,7 +86,7 @@ impl Serializable for Sign {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     "Invalid Sign value",
-                ))
+                ));
             }
         })
     }

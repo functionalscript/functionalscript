@@ -1,4 +1,4 @@
-use crate::vm::{bigint::BigInt, IVm};
+use crate::vm::{IVm, bigint::BigInt};
 use std::cmp::Ordering;
 
 impl<A: IVm> PartialOrd for BigInt<A> {

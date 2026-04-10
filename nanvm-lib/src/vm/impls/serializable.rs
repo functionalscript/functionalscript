@@ -2,7 +2,7 @@ use std::io::{Error, ErrorKind, Read, Result, Write};
 
 use crate::{
     common::serializable::Serializable,
-    vm::{nullish::Nullish, Any, Array, BigInt, Function, IVm, Object, String, Unpacked},
+    vm::{Any, Array, BigInt, Function, IVm, Object, String, Unpacked, nullish::Nullish},
 };
 
 impl<A: IVm> Serializable for Any<A> {
