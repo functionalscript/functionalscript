@@ -178,7 +178,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 
 export const fromIo = ({
     console: { error, log },
-    fs: { promises: { mkdir, readFile, readdir, writeFile } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile, rm } },
     fetch,
     http: { createServer },
 }: Io): EffectToPromise => {
@@ -200,6 +200,7 @@ export const fromIo = ({
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+        rm: path => tc(() => rm(path)),
         createServer: async requestListener => {
             const erl = requestListener as Erl<NodeOp>
             const nodeRl: RequestListener = async(req, res) => {
