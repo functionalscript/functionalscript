@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.5
+
+- Effects: Rm [747](https://github.com/functionalscript/functionalscript/pull/747)
+
 ## 0.12.2
 
 - RTTI: Or [737](https://github.com/functionalscript/functionalscript/pull/737)

@@ -86,9 +86,16 @@ export type WriteFile = readonly['writeFile', (_: WriteFileParam) => IoResult<vo
 export const writeFile: RestFunc<WriteFile> =
     doRest('writeFile')
 
+// rm
+
+export type Rm = readonly['rm', (_: string) => IoResult<void>]
+
+export const rm: Func<Rm> =
+    do_('rm')
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | Readdir | WriteFile
+export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm
 
 // error
 
