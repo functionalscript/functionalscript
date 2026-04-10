@@ -1,6 +1,6 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { pure } from "../module.f.ts"
-import { fetch, mkdir, readdir, readFile, writeFile } from "./module.f.ts"
+import { fetch, mkdir, readdir, readFile, rm, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -187,6 +187,40 @@ export default {
             if (result !== 'invalid file') { throw result }
             const tmp = state.root.tmp
             if (tmp === undefined || isVec(tmp)) { throw tmp }
+        },
+    },
+    rm: {
+        one: () => {
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { hello: vec8(0x2An) },
+            })(rm('hello'))
+            if (t !== 'ok') { throw result }
+            if (state.root.hello !== undefined) { throw state.root }
+        },
+        nested: () => {
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { tmp: { cache: vec8(0x15n) } },
+            })(rm('tmp/cache'))
+            if (t !== 'ok') { throw result }
+            const tmp = state.root.tmp
+            if (tmp === undefined || isVec(tmp)) { throw state.root }
+            if (tmp.cache !== undefined) { throw tmp }
+        },
+        noSuchFile: () => {
+            const [_, [t, result]] = virtual(emptyState)(rm('hello'))
+            if (t !== 'error') { throw result }
+            if (result !== 'no such file') { throw result }
+        },
+        isDirectory: () => {
+            const [state, [t, result]] = virtual({
+                ...emptyState,
+                root: { tmp: {} },
+            })(rm('tmp'))
+            if (t !== 'error') { throw result }
+            if (result !== 'is a directory') { throw result }
+            if (state.root.tmp === undefined) { throw state.root }
         },
     },
 }
