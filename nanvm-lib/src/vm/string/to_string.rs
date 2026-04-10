@@ -1,5 +1,5 @@
 use super::String;
-use crate::vm::{internal::IContainer, Any, IVm};
+use crate::vm::{Any, IVm, internal::IContainer};
 
 pub trait ToString {
     fn try_to_string<A: IVm>(self) -> Result<String<A>, Any<A>>

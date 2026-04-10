@@ -5,8 +5,6 @@ use crate::{
     vm::{BigInt, IContainer, IVm},
 };
 
-use super::normalize;
-
 impl<A: IVm> Shr for BigInt<A> {
     type Output = Self;
 
@@ -40,12 +38,7 @@ impl<A: IVm> Shr for BigInt<A> {
             }
         }
 
-        normalize(&mut value);
-        if value.is_empty() {
-            return Self::default();
-        }
-
-        Self::unchecked_new(*self.0.header(), value)
+        Self::normalize_new(*self.0.header(), value)
     }
 }
 

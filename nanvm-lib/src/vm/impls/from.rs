@@ -1,5 +1,5 @@
 use crate::vm::{
-    nullish::Nullish, Any, Array, BigInt, Function, IVm, Object, String, ToAny, ToString, Unpacked,
+    Any, Array, BigInt, Function, IVm, Object, String, ToAny, ToString, Unpacked, nullish::Nullish,
 };
 
 impl<A: IVm> From<Unpacked<A>> for Any<A> {
