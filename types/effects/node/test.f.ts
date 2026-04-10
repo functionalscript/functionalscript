@@ -219,7 +219,7 @@ export default {
                 root: { tmp: {} },
             })(rm('tmp'))
             if (t !== 'error') { throw result }
-            if (result !== 'is a directory') { throw result }
+            if (result !== 'invalid path') { throw result }
             if (state.root.tmp === undefined) { throw state.root }
         },
     },
