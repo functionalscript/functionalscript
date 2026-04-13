@@ -1,7 +1,7 @@
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
+import type { ExecResult, Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
@@ -116,6 +116,10 @@ export type Http = {
     readonly createServer: (_: RequestListener) => Server
 }
 
+export type ChildProcess = {
+    readonly exec: (command: string) => Promise<IoResult<ExecResult>>
+}
+
 /**
  * Core IO operations interface providing access to system resources
  */
@@ -129,6 +133,7 @@ export type Io = {
     readonly tryCatch: TryCatch
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
+    readonly childProcess: ChildProcess
 }
 
 /**
@@ -181,6 +186,7 @@ export const fromIo = ({
     fs: { promises: { mkdir, readFile, readdir, writeFile, rm } },
     fetch,
     http: { createServer },
+    childProcess: { exec },
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async effects => await Promise.all(effects.map(result)),
@@ -201,6 +207,7 @@ export const fromIo = ({
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
+        exec,
         createServer: async requestListener => {
             const erl = requestListener as Erl<NodeOp>
             const nodeRl: RequestListener = async(req, res) => {

@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { exec } from 'node:child_process'
 import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from 'node:process'
@@ -34,6 +35,11 @@ export const io: Io = {
         }
     },
     http,
+    childProcess: {
+        exec: command => new Promise(resolve => exec(command, (e, stdout, stderr) =>
+            resolve(e !== null ? error(e) : ok({ stdout, stderr }))
+        )),
+    },
 }
 
 export const legacyRun: Run = run(io)

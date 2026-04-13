@@ -43,5 +43,8 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     asyncTryCatch: async f => ['ok', await f()],
     http: {
         createServer: todo
-    }
+    },
+    childProcess: {
+        exec: todo,
+    },
 })

@@ -148,6 +148,7 @@ const map: MemOperationMap<NodeOp, State> = {
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
     rm: (state, path) => rm(state, path),
+    exec: todo,
     createServer: todo,
     listen: todo,
     forever: todo,
