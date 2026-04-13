@@ -93,9 +93,21 @@ export type Rm = readonly['rm', (_: string) => IoResult<void>]
 export const rm: Func<Rm> =
     do_('rm')
 
+// exec
+
+export type ExecResult = {
+    readonly stdout: string
+    readonly stderr: string
+}
+
+export type Exec = readonly['exec', (_: string) => IoResult<ExecResult>]
+
+export const exec: Func<Exec> =
+    do_('exec')
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm
+export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec
 
 // error
 
