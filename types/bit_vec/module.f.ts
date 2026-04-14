@@ -391,28 +391,30 @@ export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>):
  * @param v The vector to be chunked.
  * @returns A thunk that produces a list of bit vectors, each representing one chunk.
  */
-export const chunkList = ({ unpackSplit }: BitOrder) => (n: bigint) => (v: Vec): Thunk<Vec> => {
-    if (v === empty) { return () => null }
-    type Stack = readonly[Unpacked, Stack | undefined]
+export const chunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (v: Vec) => Thunk<Vec> => {
     const n2 = n << 1n
     const n21 = n2 - 1n
-    const f = (stack: Stack) => () => {
-        while (true) {
-            const [first, rest] = stack
-            const { length } = first
-            if (length <= n) {
-                return { first: pack(first), tail: rest !== undefined ? f(rest) : null }
+    return v => {
+        if (v === empty) { return () => null }
+        type Stack = readonly[Unpacked, Stack | undefined]
+        const f = (stack: Stack) => () => {
+            while (true) {
+                const [first, rest] = stack
+                const { length } = first
+                if (length <= n) {
+                    return { first: pack(first), tail: rest !== undefined ? f(rest) : null }
+                }
+                const aLength = (length + n21) / n2 * n
+                const bLength = length - aLength
+                const [a, b] = unpackSplit(aLength)(first)
+                stack = [
+                    { length: aLength, uint: a & mask(aLength) },
+                    [{ length: bLength, uint: b & mask(bLength) }, rest],
+                ]
             }
-            const aLength = ((length + n21) / n2) * n
-            const bLength = length - aLength
-            const [a, b] = unpackSplit(aLength)(first)
-            stack = [
-                { length: aLength, uint: a & mask(aLength) },
-                [{ length: bLength, uint: b & mask(bLength) }, rest],
-            ]
         }
+        return f([unpack(v), undefined])
     }
-    return f([unpack(v), undefined])
 }
 
 /**
