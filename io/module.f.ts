@@ -1,7 +1,7 @@
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { ExecParam, ExecResult, Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
+import type { ExecResult, Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
@@ -117,7 +117,12 @@ export type Http = {
 }
 
 export type ChildProcess = {
-    readonly exec: (param: ExecParam) => Promise<IoResult<ExecResult>>
+    readonly exec: (
+        command: string,
+        callback: (error: unknown, stdout: string, stderr: string) => void,
+    ) => {
+        readonly stdin: null | { readonly end: (data?: string) => void }
+    }
 }
 
 /**
@@ -186,7 +191,7 @@ export const fromIo = ({
     fs: { promises: { mkdir, readFile, readdir, writeFile, rm } },
     fetch,
     http: { createServer },
-    childProcess: { exec },
+    childProcess,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async effects => await Promise.all(effects.map(result)),
@@ -207,7 +212,12 @@ export const fromIo = ({
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
-        exec,
+        exec: ([command, stdin]) => new Promise(resolve => {
+            const child = childProcess.exec(command, (e, stdout, stderr) =>
+                resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
+            )
+            child.stdin?.end(stdin)
+        }),
         createServer: async requestListener => {
             const erl = requestListener as Erl<NodeOp>
             const nodeRl: RequestListener = async(req, res) => {
