@@ -294,6 +294,9 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
 - [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
+- [ ] 132. `exec`:
+  - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
+  - 2. use async functions and await instead of `.then`
 
 ## Language Specification
 

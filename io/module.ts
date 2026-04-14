@@ -1,13 +1,15 @@
 import http from 'node:http'
 import { exec } from 'node:child_process'
-import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
 import fs from 'node:fs'
 import process from 'node:process'
+import { promisify } from 'node:util'
+import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
 import type { NodeProgram } from '../types/effects/node/module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
+const execAsync = promisify(exec)
 
 export const io: Io = {
     console,
@@ -36,9 +38,16 @@ export const io: Io = {
     },
     http,
     childProcess: {
-        exec: command => new Promise(resolve => exec(command, (e, stdout, stderr) =>
-            resolve(e !== null ? error(e) : ok({ stdout, stderr }))
-        )),
+        exec: ([command, stdin]) => {
+            const promise = execAsync(command)
+            if (stdin !== undefined && promise.child.stdin !== null) {
+                promise.child.stdin.end(stdin)
+            }
+            return promise.then(
+                ({ stdout, stderr }: { stdout: string, stderr: string }) => ok({ stdout, stderr }),
+                (e: unknown) => error(e),
+            )
+        },
     },
 }
 

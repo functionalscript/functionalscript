@@ -100,10 +100,12 @@ export type ExecResult = {
     readonly stderr: string
 }
 
-export type Exec = readonly['exec', (_: string) => IoResult<ExecResult>]
+export type ExecParam = readonly[string, string?]
 
-export const exec: Func<Exec> =
-    do_('exec')
+export type Exec = readonly['exec', (_: ExecParam) => IoResult<ExecResult>]
+
+export const exec: RestFunc<Exec> =
+    doRest('exec')
 
 // Fs
 
