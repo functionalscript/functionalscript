@@ -36,9 +36,14 @@ export const io: Io = {
     },
     http,
     childProcess: {
-        exec: command => new Promise(resolve => exec(command, (e, stdout, stderr) =>
-            resolve(e !== null ? error(e) : ok({ stdout, stderr }))
-        )),
+        exec: ([command, stdin]) => new Promise(resolve => {
+            const child = exec(command, (e: Error | null, stdout: string, stderr: string) =>
+                resolve(e !== null ? error(e) : ok({ stdout, stderr }))
+            )
+            if (stdin !== undefined && child.stdin !== null) {
+                child.stdin.end(stdin)
+            }
+        }),
     },
 }
 
