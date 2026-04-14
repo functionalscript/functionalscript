@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.8
+
+
+
 ## 0.12.7
 
 - bitVec: chunkList() [749](https://github.com/functionalscript/functionalscript/pull/749)
