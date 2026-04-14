@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.12.8
 
-
+- Effects: exec: stdin [750](https://github.com/functionalscript/functionalscript/pull/750)
 
 ## 0.12.7
 
