@@ -1,7 +1,7 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList } from './module.f.ts'
 import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
@@ -379,5 +379,43 @@ export default {
         if (a1 !== 0x80) {
             throw `a1: ${a1.toString(16)}`
         }
-    }
+    },
+    chunkList: {
+        empty: () => {
+            const chunks = toArray(chunkList(lsb)(4n)(empty))
+            if (chunks.length !== 0) { throw chunks.length }
+        },
+        // 8-bit vector 0xF5 = 0b1111_0101, aligned to 4-bit chunks
+        lsb_aligned: () => {
+            const chunks = toArray(chunkList(lsb)(4n)(vec(8n)(0xF5n)))
+            // LSB: low nibble first — bits 0-3 = 0101 = 5, bits 4-7 = 1111 = 15
+            if (chunks.length !== 2) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xFn) { throw chunks[1] }
+        },
+        msb_aligned: () => {
+            const chunks = toArray(chunkList(msb)(4n)(vec(8n)(0xF5n)))
+            // MSB: high nibble first — bits 0-3 = 1111 = 15, bits 4-7 = 0101 = 5
+            if (chunks.length !== 2) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 0xFn) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 5n) { throw chunks[1] }
+        },
+        // 10-bit vector 0x1B5 = 0b01_1011_0101, unaligned to 4-bit chunks (last chunk is 2 bits)
+        lsb_unaligned: () => {
+            const chunks = toArray(chunkList(lsb)(4n)(vec(10n)(0x1B5n)))
+            // LSB: bits 0-3 = 0101 = 5, bits 4-7 = 1011 = 11, bits 8-9 = 01 = 1
+            if (chunks.length !== 3) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xBn) { throw chunks[1] }
+            if (length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n) { throw chunks[2] }
+        },
+        msb_unaligned: () => {
+            const chunks = toArray(chunkList(msb)(4n)(vec(10n)(0x1B5n)))
+            // MSB: bits 0-3 = 0110 = 6, bits 4-7 = 1101 = 13, bits 8-9 = 01 = 1
+            if (chunks.length !== 3) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 6n) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xDn) { throw chunks[1] }
+            if (length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n) { throw chunks[2] }
+        },
+    },
 }
