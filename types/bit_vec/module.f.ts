@@ -21,7 +21,7 @@
  *
  * @module
  */
-import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
+import { bitLength, divUp, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
 import { flip } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { fold, iterable, map, type List, type Thunk } from '../list/module.f.ts'
@@ -392,8 +392,7 @@ export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>):
  * @returns A thunk that produces a list of bit vectors, each representing one chunk.
  */
 export const chunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (v: Vec) => Thunk<Vec> => {
-    const n2 = n << 1n
-    const n21 = n2 - 1n
+    const divUpN2 = divUp(n << 1n)
     return v => {
         if (v === empty) { return () => null }
         type Stack = readonly[Unpacked, Stack | undefined]
@@ -404,7 +403,7 @@ export const chunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (v: Vec) =>
                 if (length <= n) {
                     return { first: pack(first), tail: rest !== undefined ? f(rest) : null }
                 }
-                const aLength = (length + n21) / n2 * n
+                const aLength = divUpN2(length) * n
                 const bLength = length - aLength
                 const [a, b] = unpackSplit(aLength)(first)
                 stack = [
@@ -417,6 +416,14 @@ export const chunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (v: Vec) =>
     }
 }
 
+const vecToU8 = ({ unpackSplit }: BitOrder): (chunk: Vec) => number => {
+    const unpackSplit8 = unpackSplit(8n)
+    return chunk => {
+        const u = unpack(chunk)
+        return Number(u.length < 8n ? unpackSplit8(u)[0] : u.uint)
+    }
+}
+
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
  *
@@ -425,7 +432,7 @@ export const chunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (v: Vec) =>
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
 export const u8List = (bo: BitOrder) => (v: Vec): Thunk<number> =>
-    map((chunk: Vec) => Number(uint(chunk)))(chunkList(bo)(8n)(v))
+    map(vecToU8(bo))(chunkList(bo)(8n)(v))
 
 /**
  * Concatenates a list of vectors using the provided bit order.
