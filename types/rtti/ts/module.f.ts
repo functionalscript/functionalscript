@@ -3,13 +3,17 @@
  *
  * Each `*Ts` type maps a schema (or schema fragment) to its corresponding TypeScript type.
  * The main entry point is `Ts<T>`.
+ *
+ * `toTsType` converts a runtime RTTI `Type` value to a `TsType` from `types/ts/module.f.ts`,
+ * which can then be serialized to `.d.ts` content.
  */
-import type { Equal, Assert } from '../../ts/module.f.ts'
+import type { Equal, Assert, TsType } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type {
     Tag0, Tag1,
     Const, Struct, Tuple,
     Info0, Info1, Type,
+    Primitive0,
 } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
@@ -131,3 +135,33 @@ type _SelfArray = readonly _SelfArray[]
 type _SelfArrayType = () => readonly['array', _SelfArrayType]
 
 type _selfArray = Assert<Equal<Ts<_SelfArrayType>, _SelfArray>>
+
+/**
+ * Converts a runtime RTTI `Type` value to a `TsType` for code generation.
+ *
+ * - Thunk schemas are evaluated and dispatched by tag.
+ * - Const primitives map to `['literal', value]` (or `['null']`/`['undefined']`).
+ * - Struct/tuple consts recurse into their fields/elements.
+ */
+export const toTsType = (type: Type): TsType => {
+    if (typeof type === 'function') {
+        const info = type()
+        if (info[0] === 'const') { return constToTsType((info as readonly['const', Const])[1]) }
+        if (info[0] === 'array') { return ['array', toTsType((info as readonly['array', Type])[1])] }
+        if (info[0] === 'record') { return ['record', toTsType((info as readonly['record', Type])[1])] }
+        if (info[0] === 'or') { return ['union', (info as readonly['or', ...readonly Type[]]).slice(1).map(toTsType)] }
+        // Tag0: 'boolean' | 'number' | 'string' | 'bigint' | 'unknown'
+        return [info[0] as Primitive0 | 'unknown'] as unknown as TsType
+    }
+    return constToTsType(type as Const)
+}
+
+const constToTsType = (c: Const): TsType => {
+    if (c === null) { return ['null'] }
+    if (c === undefined) { return ['undefined'] }
+    if (Array.isArray(c)) { return ['tuple', (c as readonly Type[]).map(toTsType)] }
+    if (typeof c === 'object') {
+        return ['object', Object.entries(c).map(([k, v]) => [k, toTsType(v)] as const)]
+    }
+    return ['literal', c]
+}
