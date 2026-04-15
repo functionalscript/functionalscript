@@ -106,6 +106,9 @@ const constToTs = (rtti: Const): string => {
  *
  * Mirrors the compile-time `Ts<T>` mapped type at runtime.
  *
+ * **Note:** recursive schemas (e.g. `const list = () => ['array', list] as const`)
+ * will cause infinite recursion. Only acyclic schemas are supported.
+ *
  * @example
  * ```ts
  * toTs(boolean)                    // 'boolean'
