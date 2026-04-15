@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { exec } from 'node:child_process'
+import childProcess from 'node:child_process'
 import fs from 'node:fs'
 import process from 'node:process'
 import { fromIo, type Io, type Module, type Run, run } from './module.f.ts'
@@ -8,7 +8,6 @@ import type { NodeProgram } from '../types/effects/node/module.f.ts'
 import { error, ok } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
-const childProcess = { exec }
 
 export const io: Io = {
     console,
