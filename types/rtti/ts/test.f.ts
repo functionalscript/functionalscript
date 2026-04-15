@@ -34,34 +34,34 @@ export default {
         string: () => eq('hello', '"hello"'),
         bigint: () => eq(7n, '7n'),
         emptyTuple: () => eq([], 'readonly[]'),
-        tuple: () => eq([12, true] as const, 'readonly[12,true]'),
+        tuple: () => eq([12, true], 'readonly[12,true]'),
         emptyStruct: () => eq({}, '{}'),
         struct: () => eq(
-            { a: number, b: string } as const,
+            { a: number, b: string },
             '{readonly "a":number,readonly "b":string}',
         ),
         nestedStruct: () => eq(
-            { x: { y: boolean } } as const,
+            { x: { y: boolean } },
             '{readonly "x":{readonly "y":boolean}}',
         ),
         quotedKey: () => eq(
-            { 'my-key': number } as const,
+            { 'my-key': number },
             '{readonly "my-key":number}',
         ),
         stringWithQuote: () => eq('say "hi"', '"say \\"hi\\""'),
         keyWithQuote: () => eq(
-            { 'a"b': number } as const,
+            { 'a"b': number },
             '{readonly "a\\"b":number}',
         ),
     },
     constThunk: {
-        primitive: () => eq(() => ['const', 42n] as const, '42n'),
-        string: () => eq(() => ['const', 'hi'] as const, '"hi"'),
+        primitive: () => eq(() => ['const', 42n], '42n'),
+        string: () => eq(() => ['const', 'hi'], '"hi"'),
     },
     or: {
-        consts: () => eq(or(false as const, 42 as const, 'hello' as const), 'false|42|"hello"'),
+        consts: () => eq(or(false, 42, 'hello'), 'false|42|"hello"'),
         thunks: () => eq(or(number, string), 'number|string'),
-        mixed: () => eq(or(42 as const, string), '42|string'),
+        mixed: () => eq(or(42, string), '42|string'),
     },
     option: () => eq(option(number), 'number|undefined'),
 }
