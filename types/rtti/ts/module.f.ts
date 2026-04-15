@@ -9,11 +9,7 @@
  */
 import type { Equal, Assert } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
-import type {
-    Tag0, Tag1,
-    Const, Struct, Tuple,
-    Info0, Info1, Type,
-} from '../module.f.ts'
+import type { Tag0, Tag1, Const, Struct, Tuple, Type } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
 /** Maps a `Tag0` to its TypeScript type. */
@@ -86,19 +82,22 @@ export type Ts<T extends Type> =
 
 /** Serialises a `Const` schema to its TypeScript type expression. */
 const constToTs = (rtti: Const): string => {
+    switch (typeof rtti) {
+        case 'undefined': return 'undefined'
+        case 'bigint': return `${rtti}n`
+        case 'string': return JSON.stringify(rtti)
+        case 'boolean':
+        case 'number': return String(rtti)
+    }
+    // object: null, array or dictionary
     if (rtti === null) { return 'null' }
-    if (rtti === undefined) { return 'undefined' }
-    if (typeof rtti === 'bigint') { return `${rtti}n` }
-    if (typeof rtti === 'string') { return JSON.stringify(rtti) }
-    if (typeof rtti === 'boolean' || typeof rtti === 'number') { return String(rtti) }
-    if (Array.isArray(rtti)) {
-        const elements = (rtti as readonly Type[]).map(toTs)
+    if (rtti instanceof Array) {
+        const elements = rtti.map(toTs)
         return `readonly[${elements.join(',')}]`
     }
-    const entries = Object.entries(rtti as { readonly[k in string]: Type })
-    if (entries.length === 0) { return '{}' }
-    const fields = entries.map(([k, v]) => `readonly ${JSON.stringify(k)}:${toTs(v)}`).join(';')
-    return `{${fields}}`
+    const entries = Object.entries(rtti)
+    const fields = entries.map(([k, v]) => `readonly ${JSON.stringify(k)}:${toTs(v)}`).join(',')
+    return entries.length === 0 ? '{}' : `{${fields}}`
 }
 
 /**
