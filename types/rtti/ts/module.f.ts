@@ -3,6 +3,9 @@
  *
  * Each `*Ts` type maps a schema (or schema fragment) to its corresponding TypeScript type.
  * The main entry point is `Ts<T>`.
+ *
+ * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
+ * type expression string for a given RTTI schema.
  */
 import type { Equal, Assert } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
@@ -80,6 +83,52 @@ export type Ts<T extends Type> =
         never
     ) :
     ConstTs<T>
+
+/** Serialises a `Const` schema to its TypeScript type expression. */
+const constToTs = (rtti: Const): string => {
+    if (rtti === null) { return 'null' }
+    if (rtti === undefined) { return 'undefined' }
+    if (typeof rtti === 'bigint') { return `${rtti}n` }
+    if (typeof rtti === 'string') { return JSON.stringify(rtti) }
+    if (typeof rtti === 'boolean' || typeof rtti === 'number') { return String(rtti) }
+    if (Array.isArray(rtti)) {
+        const elements = (rtti as readonly Type[]).map(toTs)
+        return `readonly[${elements.join(',')}]`
+    }
+    const entries = Object.entries(rtti as { readonly[k in string]: Type })
+    if (entries.length === 0) { return '{}' }
+    const fields = entries.map(([k, v]) => `readonly ${JSON.stringify(k)}:${toTs(v)}`).join(';')
+    return `{${fields}}`
+}
+
+/**
+ * Converts an RTTI schema `Type` to its TypeScript type expression as a string.
+ *
+ * Mirrors the compile-time `Ts<T>` mapped type at runtime.
+ *
+ * @example
+ * ```ts
+ * toTs(boolean)                    // 'boolean'
+ * toTs(array(number))              // 'readonly(number)[]'
+ * toTs(record(string))             // '{readonly[k in string]:string}'
+ * toTs(or(string, number))         // 'string|number'
+ * toTs(42)                         // '42'
+ * toTs('hello')                    // '"hello"'
+ * toTs([boolean, number] as const) // 'readonly[boolean,number]'
+ * toTs({ x: string })              // '{readonly "x":string}'
+ * ```
+ */
+export const toTs = (rtti: Type): string => {
+    if (typeof rtti !== 'function') { return constToTs(rtti as Const) }
+    const [tag, ...rest] = rtti() as readonly unknown[]
+    switch (tag) {
+        case 'const': return constToTs(rest[0] as Const)
+        case 'array': return `readonly(${toTs(rest[0] as Type)})[]`
+        case 'record': return `{readonly[k in string]:${toTs(rest[0] as Type)}}`
+        case 'or': return (rest as readonly Type[]).map(toTs).join('|')
+        default: return tag as string // tag0: 'boolean' | 'number' | 'string' | 'bigint' | 'unknown'
+    }
+}
 
 type _null = Assert<Equal<Ts<null>, null>>
 type _undefined = Assert<Equal<Ts<undefined>, undefined>>
