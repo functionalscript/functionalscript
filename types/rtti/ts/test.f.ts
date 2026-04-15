@@ -38,7 +38,7 @@ export default {
         emptyStruct: () => eq({}, '{}'),
         struct: () => eq(
             { a: number, b: string } as const,
-            '{readonly "a":number;readonly "b":string}',
+            '{readonly "a":number,readonly "b":string}',
         ),
         nestedStruct: () => eq(
             { x: { y: boolean } } as const,
