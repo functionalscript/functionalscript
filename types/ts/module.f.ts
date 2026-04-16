@@ -8,7 +8,7 @@ export type Assert<T extends true> = T
 export const tuple = (types: readonly string[]) => `readonly[${types.join(',')}]`
 
 export const struct = (fields: readonly (readonly[string, string])[]) =>
-    `{${fields.map(([k, v]) => `readonly ${JSON.stringify(k)}:${v}`).join(',')}}`
+    `{${fields.map(([k, v]) => `readonly${JSON.stringify(k)}:${v}`).join(',')}}`
 
 export const array = (type: string) => `readonly(${type})[]`
 

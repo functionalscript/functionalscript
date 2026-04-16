@@ -55,9 +55,9 @@ export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
  *
  * @example
  * ```ts
- * type A = Ts<typeof string>           // string
- * type B = Ts<4>                       // 4
- * type C = Ts<Array<typeof number>>    // readonly number[]
+ * type A = Ts<typeof string>          // string
+ * type B = Ts<4>                      // 4
+ * type C = Ts<Array<typeof number>>   // readonly number[]
  * type D = Ts<{ x: typeof boolean }>  // { readonly x: boolean }
  * ```
  */

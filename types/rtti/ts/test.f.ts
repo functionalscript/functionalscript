@@ -38,20 +38,20 @@ export default {
         emptyStruct: () => eq({}, '{}'),
         struct: () => eq(
             { a: number, b: string },
-            '{readonly "a":number,readonly "b":string}',
+            '{readonly"a":number,readonly"b":string}',
         ),
         nestedStruct: () => eq(
             { x: { y: boolean } },
-            '{readonly "x":{readonly "y":boolean}}',
+            '{readonly"x":{readonly"y":boolean}}',
         ),
         quotedKey: () => eq(
             { 'my-key': number },
-            '{readonly "my-key":number}',
+            '{readonly"my-key":number}',
         ),
         stringWithQuote: () => eq('say "hi"', '"say \\"hi\\""'),
         keyWithQuote: () => eq(
             { 'a"b': number },
-            '{readonly "a\\"b":number}',
+            '{readonly"a\\"b":number}',
         ),
     },
     constThunk: {
