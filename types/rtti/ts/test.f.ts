@@ -59,6 +59,7 @@ export default {
         string: () => eq(() => ['const', 'hi'], '"hi"'),
     },
     or: {
+        empty: () => eq(or(), 'never'),
         consts: () => eq(or(false, 42, 'hello'), 'false|42|"hello"'),
         thunks: () => eq(or(number, string), 'number|string'),
         mixed: () => eq(or(42, string), '42|string'),

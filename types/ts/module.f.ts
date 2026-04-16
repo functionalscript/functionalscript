@@ -24,3 +24,6 @@ export const primitive = (c: bigint|string|undefined|boolean|number|null): strin
         case 'number': return String(c)
     }
 }
+
+export const union = (types: readonly string[]): string =>
+    types.length === 0 ? 'never' : types.join('|')

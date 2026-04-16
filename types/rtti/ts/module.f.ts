@@ -7,7 +7,7 @@
  * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
  * type expression string for a given RTTI schema.
  */
-import { type Equal, type Assert, primitive, tuple, struct, array, record } from '../../ts/module.f.ts'
+import { type Equal, type Assert, primitive, tuple, struct, array, record, union } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Tag0, Tag1, Const, Struct, Tuple, Type } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
@@ -116,7 +116,7 @@ export const toTs = (rtti: Type): string => {
         case 'const': return constToTs(rest[0] as Const)
         case 'array': return array(toTs(rest[0]))
         case 'record': return record(toTs(rest[0]))
-        case 'or': return rest.map(toTs).join('|')
+        case 'or': return union(rest.map(toTs))
         default: return tag // tag0: 'boolean' | 'number' | 'string' | 'bigint' | 'unknown'
     }
 }
