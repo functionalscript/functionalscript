@@ -1,5 +1,5 @@
 import { toTs } from './module.f.ts'
-import { boolean, number, string, bigint, unknown, array, record, or, option, type Type } from '../module.f.ts'
+import { boolean, number, string, bigint, unknown, array, record, or, option, type Type, never } from '../module.f.ts'
 
 const eq = (rtti: Type, expected: string) => {
     const result = toTs(rtti)
@@ -64,5 +64,6 @@ export default {
         thunks: () => eq(or(number, string), 'number|string'),
         mixed: () => eq(or(42, string), '42|string'),
     },
+    never: () => eq(never, 'never'),
     option: () => eq(option(number), 'number|undefined'),
 }
