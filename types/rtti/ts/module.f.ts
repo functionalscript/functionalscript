@@ -7,7 +7,7 @@
  * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
  * type expression string for a given RTTI schema.
  */
-import type { Equal, Assert } from '../../ts/module.f.ts'
+import { type Equal, type Assert, primitive, tuple, struct, array, record } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Tag0, Tag1, Const, Struct, Tuple, Type } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
@@ -81,24 +81,10 @@ export type Ts<T extends Type> =
     ConstTs<T>
 
 /** Serialises a `Const` schema to its TypeScript type expression. */
-const constToTs = (rtti: Const): string => {
-    switch (typeof rtti) {
-        case 'undefined': return 'undefined'
-        case 'bigint': return `${rtti}n`
-        case 'string': return JSON.stringify(rtti)
-        case 'boolean':
-        case 'number': return String(rtti)
-    }
-    // object: null, array or dictionary
-    if (rtti === null) { return 'null' }
-    if (rtti instanceof Array) {
-        const elements = rtti.map(toTs)
-        return `readonly[${elements.join(',')}]`
-    }
-    const entries = Object.entries(rtti)
-    const fields = entries.map(([k, v]) => `readonly ${JSON.stringify(k)}:${toTs(v)}`).join(',')
-    return entries.length === 0 ? '{}' : `{${fields}}`
-}
+const constToTs = (rtti: Const): string =>
+    typeof rtti !== 'object' || rtti === null ? primitive(rtti) :
+    rtti instanceof Array ? tuple(rtti.map(toTs)) :
+    struct(Object.entries(rtti).map(([k, v]) => [k, toTs(v)]))
 
 /**
  * Converts an RTTI schema `Type` to its TypeScript type expression as a string.
@@ -108,6 +94,9 @@ const constToTs = (rtti: Const): string => {
  * **Note:** recursive schemas (e.g. `const list = () => ['array', list] as const`)
  * will cause infinite recursion. Only acyclic schemas are supported.
  *
+ * **Note:** the `unknown` schema produces the string `'unknown'` (TypeScript's built-in),
+ * whereas `Ts<>` maps it to `DjsUnknown` from `djs/module.f.ts`.
+ *
  * @example
  * ```ts
  * toTs(boolean)                    // 'boolean'
@@ -116,19 +105,19 @@ const constToTs = (rtti: Const): string => {
  * toTs(or(string, number))         // 'string|number'
  * toTs(42)                         // '42'
  * toTs('hello')                    // '"hello"'
- * toTs([boolean, number] as const) // 'readonly[boolean,number]'
+ * toTs([boolean, number])          // 'readonly[boolean,number]'
  * toTs({ x: string })              // '{readonly "x":string}'
  * ```
  */
 export const toTs = (rtti: Type): string => {
-    if (typeof rtti !== 'function') { return constToTs(rtti as Const) }
-    const [tag, ...rest] = rtti() as readonly unknown[]
+    if (typeof rtti !== 'function') { return constToTs(rtti) }
+    const [tag, ...rest] = rtti()
     switch (tag) {
         case 'const': return constToTs(rest[0] as Const)
-        case 'array': return `readonly(${toTs(rest[0] as Type)})[]`
-        case 'record': return `{readonly[k in string]:${toTs(rest[0] as Type)}}`
-        case 'or': return (rest as readonly Type[]).map(toTs).join('|')
-        default: return tag as string // tag0: 'boolean' | 'number' | 'string' | 'bigint' | 'unknown'
+        case 'array': return array(toTs(rest[0]))
+        case 'record': return record(toTs(rest[0]))
+        case 'or': return rest.map(toTs).join('|')
+        default: return tag // tag0: 'boolean' | 'number' | 'string' | 'bigint' | 'unknown'
     }
 }
 

@@ -43,7 +43,6 @@ import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
 import { identity } from '../../function/module.f.ts'
 import type { Primitive } from '../../../djs/module.f.ts'
-import { todo } from '../../../dev/module.f.ts'
 
 /** Validation result: either the typed value or an error message. */
 export type Result<T extends Type> = CommonResult<Ts<T>, string>
