@@ -20,8 +20,8 @@ export const primitive = (c: bigint|string|undefined|boolean|number|null): strin
         case 'bigint': return `${c}n`
         case 'string': return JSON.stringify(c)
         case 'undefined':
-        case 'boolean':
-        case 'number': return String(c)
+        case 'boolean': return String(c)
+        case 'number': return isFinite(c) ? String(c) : 'number'
     }
 }
 
