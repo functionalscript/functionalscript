@@ -5,16 +5,16 @@ export type Equal<A, B> =
 
 export type Assert<T extends true> = T
 
-export const tuple = (types: readonly string[]) => `readonly[${types.join(',')}]`
+export const tuple = (types: readonly string[]): string => `readonly[${types.join(',')}]`
 
-export const struct = (fields: readonly (readonly[string, string])[]) =>
+export const struct = (fields: readonly (readonly[string, string])[]): string =>
     `{${fields.map(([k, v]) => `readonly${JSON.stringify(k)}:${v}`).join(',')}}`
 
-export const array = (type: string) => `readonly(${type})[]`
+export const array = (type: string): string => `readonly(${type})[]`
 
-export const record = (type: string) => `{readonly[k in string]:${type}}`
+export const record = (type: string): string => `{readonly[k in string]:${type}}`
 
-export const primitive = (c: bigint|string|undefined|boolean|number|null) => {
+export const primitive = (c: bigint|string|undefined|boolean|number|null): string => {
     if (c === null) { return 'null' }
     switch (typeof c) {
         case 'bigint': return `${c}n`
