@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.9
+
+- RTTI: TS: generating simple TypeScript definitions from RTTI. [751](https://github.com/functionalscript/functionalscript/pull/751)
+- Io: Improve exec [752](https://github.com/functionalscript/functionalscript/pull/752)
+
 ## 0.12.8
 
 - Effects: exec: stdin [750](https://github.com/functionalscript/functionalscript/pull/750)
