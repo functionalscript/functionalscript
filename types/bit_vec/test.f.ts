@@ -355,6 +355,29 @@ export default {
         c(vec(5n)(0x5n))(vec(4n)(0x5n))(-1) // 0b00101 < 0b0101_
         c(vec(4n)(0x5n))(vec(5n)(0xAn))(-1) // 0b0101_ < 0b01010
     },
+    startsWith: {
+        // vector 0xF5 = 0b1111_0101 (8 bits)
+        // LSB reads from the low end: bits 0-3 = 0101 = 0x5, bits 4-7 = 1111 = 0xF
+        lsb: () => {
+            const v = vec(8n)(0xF5n)
+            assertEq(lsb.startsWith(vec(4n)(0x5n))(v), true)   // low nibble matches
+            assertEq(lsb.startsWith(vec(4n)(0xFn))(v), false)  // low nibble doesn't match
+            assertEq(lsb.startsWith(v)(vec(4n)(0x5n)), false)  // prefix longer than vector
+            assertEq(lsb.startsWith(empty)(v), true)            // empty prefix always matches
+        },
+        // MSB reads from the high end: bits 0-3 = 1111 = 0xF, bits 4-7 = 0101 = 0x5
+        msb: () => {
+            const v = vec(8n)(0xF5n)
+            assertEq(msb.startsWith(vec(4n)(0xFn))(v), true)   // high nibble matches
+            assertEq(msb.startsWith(vec(4n)(0x5n))(v), false)  // high nibble doesn't match
+            assertEq(msb.startsWith(v)(vec(4n)(0xFn)), false)  // prefix longer than vector
+            assertEq(msb.startsWith(empty)(v), true)            // empty prefix always matches
+        },
+        emptyVec: () => {
+            assertEq(lsb.startsWith(empty)(empty), true)
+            assertEq(msb.startsWith(empty)(empty), true)
+        },
+    },
     u8ListToVec: () => {
         // 131_072 is too much for Bun
         const x = u8ListToVec(msb)(listRepeat(0x12)(131_071))
