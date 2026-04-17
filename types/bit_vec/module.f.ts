@@ -239,8 +239,9 @@ export type BitOrder = {
      * a === b => 0
      */
     readonly cmp: (a: Vec) => (b: Vec) => Sign
-    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint],
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
     readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
+    readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
 }
 
 type Base = {
@@ -264,6 +265,13 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
     const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
         length: a.length + b.length, uint: unpackConcatUint(a)(b)
     })
+    const popFront: PopFront<Vec> = len => {
+        const f = unpackPopFront(len)
+        return v => {
+            const [uint, u] = f(unpack(v))
+            return [uint, pack(u)]
+        }
+    }
     return {
         front,
         removeFront,
@@ -274,13 +282,7 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         },
         xor: op(norm)(xor),
         unpackPopFront,
-        popFront: len => {
-            const f = unpackPopFront(len)
-            return v => {
-                const [uint, u] = f(unpack(v))
-                return [uint, pack(u)]
-            }
-        },
+        popFront,
         norm,
         cmp: a => b => {
             const au = unpack(a)
@@ -293,6 +295,10 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
         },
         unpackSplit,
         unpackConcat,
+        startsWith: prefix => {
+            const { length: n, uint: u } = unpack(prefix)
+            return v => length(v) < n ? false : popFront(n)(v)[0] === u
+        }
     }
 }
 
