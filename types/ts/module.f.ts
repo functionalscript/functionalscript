@@ -8,19 +8,18 @@ export type Assert<T extends true> = T
 const complex = (open: string, close: string) => (i: readonly string[]) =>
     `${open}${i.join(',')}${close}`
 
-export const tuple: (types: readonly string[]) => string =
-    complex('readonly[', ']')
-
 const structX = complex('{', '}')
 
-export const struct = (fields: readonly (readonly[string, string])[]): string =>
-    structX(fields.map(([k, v]) => `readonly${JSON.stringify(k)}:${v}`))
-
-export const array = (type: string): string =>
-    `readonly(${type})[]`
-
-export const record = (type: string): string =>
-    structX([`readonly[k in string]:${type}`])
+export const printer = (mut?: true) => {
+    const ro = mut ? '' : 'readonly'
+    return {
+        tuple: (mut ? complex('[', ']') : complex('readonly[', ']')),
+        struct: (fields: readonly (readonly[string, string])[]) =>
+            structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`)),
+        array: (type: string) => `${ro}(${type})[]`,
+        record: (type: string) => structX([`${ro}[k in string]:${type}`]),
+    }
+}
 
 export const primitive = (c: bigint|string|undefined|boolean|number|null): string => {
     if (c === null) { return 'null' }
