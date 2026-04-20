@@ -80,6 +80,35 @@ export type Ts<T extends Type> =
     ) :
     ConstTs<T>
 
+/**
+ * Creates a printer that converts an RTTI schema `Type` to its TypeScript type expression as a string.
+ *
+ * Mirrors the compile-time `Ts<T>` mapped type at runtime.
+ * Pass `true` to emit mutable (non-`readonly`) types.
+ *
+ * **Note:** recursive schemas (e.g. `const list = () => ['array', list] as const`)
+ * will cause infinite recursion. Only acyclic schemas are supported.
+ *
+ * **Note:** the `unknown` schema produces the string `'unknown'` (TypeScript's built-in),
+ * whereas `Ts<>` maps it to `DjsUnknown` from `djs/module.f.ts`.
+ *
+ * @example
+ * ```ts
+ * const toTs = printer()
+ * toTs(boolean)                    // 'boolean'
+ * toTs(array(number))              // 'readonly(number)[]'
+ * toTs(record(string))             // '{readonly[k:string]:string}'
+ * toTs(or(string, number))         // 'string|number'
+ * toTs(42)                         // '42'
+ * toTs('hello')                    // '"hello"'
+ * toTs([boolean, number])          // 'readonly[boolean,number]'
+ * toTs({ x: string })              // '{readonly"x":string}'
+ *
+ * const toTsMut = printer(true)
+ * toTsMut(array(number))           // '(number)[]'
+ * toTsMut(record(string))          // '{[k:string]:string}'
+ * ```
+ */
 export const printer = (mut?: true): (rtti: Type) => string => {
     const { tuple, struct, array, record } = tsPrinter(mut)
 
