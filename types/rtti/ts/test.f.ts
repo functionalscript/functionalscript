@@ -1,6 +1,12 @@
-import { toTs } from './module.f.ts'
+import { printer } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option, type Type, never } from '../module.f.ts'
 
+const toTs = printer()
+const toTsMut = printer(true)
+const eqMut = (rtti: Type, expected: string) => {
+    const result = toTsMut(rtti)
+    if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
+}
 const eq = (rtti: Type, expected: string) => {
     const result = toTs(rtti)
     if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
@@ -21,8 +27,8 @@ export default {
             union: () => eq(array(or(number, string)), 'readonly(number|string)[]'),
         },
         record: {
-            primitive: () => eq(record(string), '{readonly[k in string]:string}'),
-            nested: () => eq(record(record(number)), '{readonly[k in string]:{readonly[k in string]:number}}'),
+            primitive: () => eq(record(string), '{readonly[k:string]:string}'),
+            nested: () => eq(record(record(number)), '{readonly[k:string]:{readonly[k:string]:number}}'),
         },
     },
     const: {
@@ -69,4 +75,11 @@ export default {
     },
     never: () => eq(never, 'never'),
     option: () => eq(option(number), 'number|undefined'),
+    mut: {
+        array: () => eqMut(array(number), '(number)[]'),
+        nestedArray: () => eqMut(array(array(boolean)), '((boolean)[])[]'),
+        record: () => eqMut(record(string), '{[k:string]:string}'),
+        tuple: () => eqMut([12, true], '[12,true]'),
+        struct: () => eqMut({ a: number, b: string }, '{"a":number,"b":string}'),
+    },
 }

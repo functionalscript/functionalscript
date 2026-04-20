@@ -80,7 +80,7 @@ export type Ts<T extends Type> =
     ) :
     ConstTs<T>
 
-export const printer = (mut?: true) => {
+export const printer = (mut?: true): (rtti: Type) => string => {
     const { tuple, struct, array, record } = tsPrinter(mut)
 
     const constToTs = (rtti: Const): string =>
@@ -100,10 +100,8 @@ export const printer = (mut?: true) => {
         }
     }
 
-    return { toTs }
+    return toTs
 }
-
-export const toTs = printer().toTs
 
 type _null = Assert<Equal<Ts<null>, null>>
 type _undefined = Assert<Equal<Ts<undefined>, undefined>>
