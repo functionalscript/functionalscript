@@ -161,15 +161,11 @@ impl<A: IVm> BigInt<A> {
         self.assert_normalized();
         rhs.assert_normalized();
 
-        let mut iter_a = self.index_iter();
         let mut iter_b = rhs.index_iter();
         let mut borrow: u64 = 0;
         let mut out: Vec<u64> = Vec::new();
 
-        loop {
-            let Some(a) = iter_a.next() else {
-                break;
-            };
+        for a in self.index_iter() {
             let b = iter_b.next().unwrap_or_default();
 
             let b_plus_borrow = b as u128 + borrow as u128;
