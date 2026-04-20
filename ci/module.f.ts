@@ -140,7 +140,7 @@ const playwrightVersion = '1.58.2'
 
 const playwrightAndVersion = `playwright@${playwrightVersion}`
 
-const rustToolchain = '1.94.1'
+const rustToolchain = '1.95.0'
 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
