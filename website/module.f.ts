@@ -3,19 +3,17 @@
  *
  * @module
  */
-import { htmlToString } from '../html/module.f.ts'
+import { htmlToString, htmlUtf8 } from '../html/module.f.ts'
 import { type NodeOp, writeFile } from '../types/effects/node/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 
-const html: Vec = utf8(htmlToString(
-    ['body',
-        ['a',
-            { href: 'https://github.com/functionalscript/functionalscript' },
-            'GitHub Repository'
-        ]
-    ]))
+const html: Vec = htmlUtf8()(
+    ['a',
+        { href: 'https://github.com/functionalscript/functionalscript' },
+        'GitHub Repository'
+    ])
 
 const program: Effect<NodeOp, number> = begin
     .step(() => writeFile('index.html', html))
