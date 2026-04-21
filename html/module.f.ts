@@ -136,7 +136,27 @@ export const htmlToString
     : (_: Element) => string
     = compose(html)(stringConcat)
 
-const metaUtf8 = ['meta', { charset: 'UTF-8' }] as const
+const commonHead = [
+    ['meta', { charset: 'UTF-8' }],
+    ['meta', { name: 'viewport', content: 'width=device-width,initial-scale=1.0' }],
+] as const
 
+/**
+ * Renders a complete UTF-8 encoded HTML document as a `Vec`.
+ *
+ * Produces a full page with `<!DOCTYPE html>`, a `<head>` containing a UTF-8
+ * `<meta charset>` and a responsive-viewport `<meta>` followed by any extra
+ * `head` nodes, and a `<body>` containing the provided `body` nodes.
+ *
+ * @example
+ * ```ts
+ * htmlUtf8(['title', 'My Page'])(['h1', 'Hello'])
+ * // Vec of UTF-8 bytes for:
+ * // <!DOCTYPE html><html><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
+ * ```
+ */
 export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
-    utf8(htmlToString(['html', ['head', metaUtf8, ...head], ['body', ...body]]))
+    utf8(htmlToString(['html',
+        ['head', ...commonHead, ...head],
+        ['body', ...body]]
+    ))
