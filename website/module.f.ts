@@ -4,8 +4,8 @@
  * @module
  */
 import { htmlUtf8 } from '../html/module.f.ts'
-import { type NodeOp, writeFile } from '../types/effects/node/module.f.ts'
-import { begin, pure, type Effect } from '../types/effects/module.f.ts'
+import { writeFile } from '../types/effects/node/module.f.ts'
+import { pure } from '../types/effects/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 
 const html: Vec = htmlUtf8()(
