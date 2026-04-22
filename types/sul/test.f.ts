@@ -1,26 +1,42 @@
 import { level } from "./module.f.ts"
 
-const c = (n: bigint) => (i: bigint, c: bigint, s: bigint) => {
+const tests = (n: bigint) => {
     const { count, sum } = level(n)
-    const result = count(i)
-    if (result !== c) {
-        throw new Error(`Assertion failed for n=${n}, i=${i}, c=${c.toString(16)}, got ${result.toString(16)}`);
+    return (i: bigint, c: bigint, s: bigint) => {
+        const result = count(i)
+        if (result !== c) {
+            throw new Error(`Assertion failed for n=${n}, i=${i}, c=${c.toString(16)}, got ${result.toString(16)}`);
+        }
+        const result2 = sum(i)
+        if (result2 !== s) {
+            throw new Error(`Assertion failed for n=${n}, i=${i}, s=${s.toString(16)}, got ${result2.toString(16)}`);
+        }
     }
-    const result2 = sum(i)
-    if (result2 !== s) {
-        throw new Error(`Assertion failed for n=${n}, i=${i}, s=${s.toString(16)}, got ${result2.toString(16)}`);
+}
+
+const n = (n: bigint) => (sequence: readonly bigint[], expected: bigint) => {
+    const { next } = level(n)
+    const result = next(sequence)
+    if (result !== expected) {
+        throw new Error(`Assertion failed for n=${n}, sequence=[${sequence.map(x => x.toString(16)).join(", ")}], expected ${expected.toString(16)}, got ${result.toString(16)}`);
     }
 }
 
 export default {
     x2: () => {
-        const x = c(2n)
+        const x = tests(2n)
         x(-1n, 0n, 0n)
         x(0n, 2n, 2n)
         x(1n, 3n, 5n)
+        const y = n(2n)
+        y([0n, 0n], 0n)
+        y([0n, 1n], 1n)
+        y([1n, 0n, 0n], 2n)
+        y([1n, 0n, 1n], 3n)
+        y([1n, 1n], 4n)
     },
     x5: () => {
-        const x = c(5n)
+        const x = tests(5n)
         x(-1n, 0n, 0n)
         x(0n, 5n, 5n)
         x(1n, 9n, 0xEn)
@@ -29,7 +45,7 @@ export default {
         x(4n, 0x41n, 0x81n)
     },
     x81: () => {
-        const x = c(0x81n)
+        const x = tests(0x81n)
         x(-1n, 0n, 0n)
         x(0x00n, 0x81n, 0x81n)
         x(0x01n, 0x101n, 0x182n)
