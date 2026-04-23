@@ -7,7 +7,7 @@ export type Level = {
 export const level = (n: bigint): Level => {
     const n1 = n - 1n
     const n2 = n - 2n
-    const f = (i: bigint) => (1n << i) * n1
+    const f = (i: bigint) => n1 << i
     const count = (i: bigint) => i < 0n ? 0n : f(i) + 1n
     const sum = (i: bigint) => f(i + 1n) - n2 + i
     return {
