@@ -5,11 +5,11 @@ export type Level = {
 }
 
 export const level = (n: bigint): Level => {
-    const n1 = n - 1n
-    const n2 = n - 2n
-    const f = (i: bigint) => n1 << i
-    const count = (i: bigint) => i < 0n ? 0n : f(i) + 1n
-    const sum = (i: bigint) => f(i + 1n) - n2 + i
+    const nm1 = n - 1n
+    const nm2 = n - 2n
+    const n2m1 = nm1 << 1n
+    const count = (i: bigint) => i < 0n ? 0n : (nm1 << i) + 1n
+    const sum = (i: bigint) => (n2m1 << i) - nm2 + i
     return {
         count,
         sum,
