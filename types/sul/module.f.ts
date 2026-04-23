@@ -1,7 +1,7 @@
 export type Level = {
     readonly count: (i: bigint) => bigint
     readonly sum: (i: bigint) => bigint
-    readonly next: (sequence: readonly bigint[]) => bigint
+    readonly encode: (sequence: readonly bigint[]) => bigint
 }
 
 export const level = (n: bigint): Level => {
@@ -13,7 +13,7 @@ export const level = (n: bigint): Level => {
     return {
         count,
         sum,
-        next: sequence =>
+        encode: sequence =>
             sequence.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
             + sum(sequence.at(-2)!)
             + sequence.at(-1)!
