@@ -14,10 +14,14 @@ const tests = (n: bigint) => {
             }
         },
         n: (sequence: readonly bigint[], expected: bigint) => {
-            const { encode } = level(n)
+            const { decode1, encode } = level(n)
             const result = encode(sequence)
             if (result !== expected) {
                 throw new Error(`Assertion failed for n=${n}, sequence=[${sequence.map(x => x.toString(16)).join(", ")}], expected ${expected.toString(16)}, got ${result.toString(16)}`);
+            }
+            const d = decode1(result)
+            if (d !== sequence[0]) {
+                throw new Error(`Assertion failed for n=${n}, sequence=[${sequence.map(x => x.toString(16)).join(", ")}], expected decode1 to return ${sequence[0].toString(16)}, got ${d.toString(16)}`);
             }
         }
     }
