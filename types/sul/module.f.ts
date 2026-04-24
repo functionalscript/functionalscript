@@ -11,6 +11,7 @@ import { log2 } from "../bigint/module.f.ts"
 export type Level = {
     readonly count: (i: bigint) => bigint
     readonly sum: (i: bigint) => bigint
+    /** Converts a valid sequence of symbols into a symbol of the next level. */
     readonly encode: (sequence: readonly bigint[]) => bigint
 }
 
