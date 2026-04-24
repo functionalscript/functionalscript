@@ -38,17 +38,14 @@ export const level = (e: bigint): Level => {
     const m2 = m << 1n
     const e1 = e + 1n
     const count = (i: bigint) => i < 0n ? 0n : (m << i) + 1n
-    const offestSum = (i: bigint) => (m2 << i) + i
-    const sum = (i: bigint) => offestSum(i) - k
-    const decode1 = (i: bigint): readonly [bigint, bigint] => {
-        const j = i + k
-        const result = log2(j >> e1)
-        const offset = offestSum(result)
-        return offset > j ? [result, offset] : [result + 1n, (offset << 1n) - result + 1n]
+    const sum = (i: bigint) => (m2 << i) + i - k
+    const decode1 = (i: bigint): bigint => {
+        const result = log2((i + k) >> e1)
+        return sum(result) > i ? result : result + 1n
     }
     const decode = (v: bigint): readonly bigint[] => {
-        const [s0, os0] = decode1(v)
-        const s1 = v - os0 + m2
+        const s0 = decode1(v)
+        const s1 = v - sum(s0) + n
         if (s1 >= s0) {
             return [s0, s1]
         }
