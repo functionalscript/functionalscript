@@ -13,7 +13,8 @@ export type Level = {
     readonly sum: (i: bigint) => bigint
     /** Converts a valid sequence of symbols into a symbol of the next level. */
     readonly encode: (sequence: readonly bigint[]) => bigint
-    readonly decode1: (i: bigint) => bigint
+    /** Inverse of {@link encode}: restores the complete sequence from a symbol. */
+    readonly decode: (i: bigint) => readonly bigint[]
 }
 
 /**
@@ -37,12 +38,22 @@ export const level = (e: bigint): Level => {
     const m2 = m << 1n
     const e1 = e + 1n
     const count = (i: bigint) => i < 0n ? 0n : (m << i) + 1n
-    const sum = (i: bigint) => (m2 << i) - k + i
-    const decode1 = (i: bigint) => {
+    const offestSum = (i: bigint) => (m2 << i) + i
+    const sum = (i: bigint) => offestSum(i) - k
+    const decode1 = (i: bigint): readonly [bigint, bigint] => {
         const j = i + k
         const result = log2(j >> e1)
-        const offset = (1n << (e1 + result)) + result
-        return offset > j ? result : result + 1n
+        const offset = offestSum(result)
+        if (offset > j) { return [result, offset] }
+        return [result + 1n, 2n * offset - result + 1n]
+    }
+    const decode = (v: bigint): readonly bigint[] => {
+        const [s0, os0] = decode1(v)
+        const s1 = v - os0 + m2
+        if (s1 >= s0) {
+            return [s0, s1]
+        }
+        return [s0, ...decode(v - os0 + count(s0) + k)]
     }
     return {
         count,
@@ -52,6 +63,6 @@ export const level = (e: bigint): Level => {
             + sum(sequence.at(-2)!)
             + sequence.at(-1)!
             - n,
-        decode1
+        decode
     }
 }
