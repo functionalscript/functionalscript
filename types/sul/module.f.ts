@@ -39,14 +39,11 @@ export const level = (e: bigint): Level => {
     const e1 = e + 1n
     const count = (i: bigint) => i < 0n ? 0n : (m << i) + 1n
     const sum = (i: bigint) => (m2 << i) + i - k
-    const decode1 = (i: bigint): bigint => {
-        const result = log2((i + k) >> e1)
-        return sum(result) > i ? result : result + 1n
-    }
     const decode = (i: bigint): readonly bigint[] => {
         let result: readonly bigint[] = []
         while (true) {
-            const s0 = decode1(i)
+            const r = log2((i + k) >> e1)
+            const s0 = sum(r) > i ? r : r + 1n
             const s1 = i - sum(s0) + n
             result = [...result, s0]
             if (s1 >= s0) { return [...result, s1] }
