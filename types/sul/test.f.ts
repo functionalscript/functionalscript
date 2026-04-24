@@ -25,7 +25,7 @@ const tests = (n: bigint) => {
 
 export default {
     x2: () => {
-        const { c, n } = tests(2n)
+        const { c, n } = tests(0n)
         c(-1n, 0n, 0n)
         c(0n, 2n, 2n)
         c(1n, 3n, 5n)
@@ -37,7 +37,7 @@ export default {
         n([1n, 1n], 4n)
     },
     x5: () => {
-        const { c, n } = tests(5n)
+        const { c, n } = tests(2n)
         c(-1n, 0n, 0n)
         c(0n, 5n, 5n) // N
         c(1n, 9n, 0xEn) // N + (2N - 1) = 3N - 1
@@ -180,7 +180,7 @@ export default {
         n([4n, 4n], 0x80n)
     },
     x81: () => {
-        const { c, n } = tests(0x81n)
+        const { c, n } = tests(7n)
         c(-1n, 0n, 0n)
         // N,
         // N + (2N - 1) = 3N - 1,

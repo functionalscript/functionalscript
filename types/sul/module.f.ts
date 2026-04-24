@@ -4,8 +4,9 @@ export type Level = {
     readonly encode: (sequence: readonly bigint[]) => bigint
 }
 
-export const level = (n: bigint): Level => {
-    const nm1 = n - 1n
+export const level = (ln: bigint): Level => {
+    const nm1 = 1n << ln
+    const n = nm1 + 1n
     const nm2 = n - 2n
     const n2m1 = nm1 << 1n
     const count = (i: bigint) => i < 0n ? 0n : (nm1 << i) + 1n
