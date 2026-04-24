@@ -105,11 +105,11 @@
 |1000_0|`4324`+ |`433`+  |`434`+  |`44`+   |        |        |        |        |
 
 ```ts
-const n = ...
-const rev = (i: bigint) => {
-    const j = i + n - 2n
-    const prefix = j / ((n-1n)<<1n)
-    return log2(prefix)
+const decode1 = (i: bigint) => {
+    const j = i + k
+    const result = log2(j >> e1)
+    const offset = (1n << (e1 + result)) + result
+    return offset > j ? result : result + 1n
 }
 ```
 
