@@ -10,7 +10,7 @@ SUL is a universal encoding that bijectively maps any finite sequence of symbols
 
 ## Levels
 
-Each level is parameterized by `e`, where the alphabet size is `n = 2^e + 1`. The first three levels for a tree starting with a binary alphabet are:
+While SUL can work with any finite alphabet size `n`, this implementation constrains `n = 2^e + 1` for a non-negative integer exponent `e`. The first three levels for a tree starting with a binary alphabet are:
 
 | `e` | `n`    |
 |-----|--------|
