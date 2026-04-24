@@ -51,11 +51,12 @@ export const level = (e: bigint): Level => {
             let result: readonly bigint[] = []
             while (true) {
                 const r = log2((i + k) >> e1)
-                const s0 = sum(r) > i ? r : r + 1n
-                const s1 = i - sum(s0) + n
+                const rSum = sum(r)
+                const [s0, s0Sum, pSum] = rSum > i ? [r, rSum, undefined] : [r + 1n, sum(r + 1n), rSum]
+                const s1 = i - s0Sum + n
                 result = [...result, s0]
                 if (s1 >= s0) { return [...result, s1] }
-                i -= sum(s0 - 1n)
+                i -= pSum ?? sum(s0 - 1n)
             }
         }
     }
