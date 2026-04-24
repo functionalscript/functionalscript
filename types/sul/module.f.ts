@@ -40,9 +40,9 @@ export const level = (e: bigint): Level => {
     const sum = (i: bigint) => (m2 << i) - k + i
     const decode1 = (i: bigint) => {
         const j = i + k
-        const result = log2(j >> e1) + 1n
-        const offset = (1n << (result + e)) + result - 1n
-        return offset > j ? result - 1n : result
+        const result = log2(j >> e1)
+        const offset = (1n << (e1 + result)) + result
+        return offset > j ? result : result + 1n
     }
     return {
         count,
