@@ -44,8 +44,7 @@ export const level = (e: bigint): Level => {
         const j = i + k
         const result = log2(j >> e1)
         const offset = offestSum(result)
-        if (offset > j) { return [result, offset] }
-        return [result + 1n, 2n * offset - result + 1n]
+        return offset > j ? [result, offset] : [result + 1n, (offset << 1n) - result + 1n]
     }
     const decode = (v: bigint): readonly bigint[] => {
         const [s0, os0] = decode1(v)
@@ -53,7 +52,7 @@ export const level = (e: bigint): Level => {
         if (s1 >= s0) {
             return [s0, s1]
         }
-        return [s0, ...decode(v - os0 + count(s0) + k)]
+        return [s0, ...decode(v - sum(s0 - 1n))]
     }
     return {
         count,
