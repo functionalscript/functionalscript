@@ -1,20 +1,36 @@
 /**
- * Synthetic Universal Language (SUL).
+ * Synthetic Universal Language (SUL) — a universal encoding that bijectively maps any finite sequence of symbols to a single root symbol via a balanced tree,
+ * from which the original sequence can be uniquely recovered.
+ *
+ * A *level* defines a finite alphabet `[0, n)` and the bijection between words over that alphabet and symbols of the next level.
+ * A *symbol* is an element of a level's alphabet `[0, n)`.
+ * A *word* is a finite sequence of symbols that encodes into a single symbol of the next level.
+ *
  * @module
  */
 
 import { log2 } from "../bigint/module.f.ts"
+import { equal } from "../list/module.f.ts"
+import { strictEqual } from "../function/operator/module.f.ts"
+
+export const symbolToString = (s: bigint): string => s.toString(16)
+
+export type Word = readonly bigint[]
+
+export const wordToString = (word: Word): string =>
+    word.map(symbolToString).join(',')
+
+export const wordEqual = equal(strictEqual)
 
 /**
  * A level of SUL with finite alphabet `[0, n)`.
  */
 export type Level = {
-    readonly count: (i: bigint) => bigint
     readonly sum: (i: bigint) => bigint
-    /** Converts a valid sequence of symbols into a symbol of the next level. */
-    readonly encode: (sequence: readonly bigint[]) => bigint
-    /** Inverse of {@link encode}: restores the complete sequence from a symbol. */
-    readonly decode: (i: bigint) => readonly bigint[]
+    /** Converts a valid word of symbols into a symbol of the next level. */
+    readonly encode: (word: Word) => bigint
+    /** Inverse of {@link encode}: restores the complete word from a symbol. */
+    readonly decode: (i: bigint) => Word
 }
 
 /**
@@ -37,18 +53,16 @@ export const level = (e: bigint): Level => {
     // m2 = 2 * m
     const m2 = m << 1n
     const e1 = e + 1n
-    const count = (i: bigint) => i < 0n ? 0n : (m << i) + 1n
     const sum = (i: bigint) => (m2 << i) + i - k
     return {
-        count,
         sum,
-        encode: sequence =>
-            sequence.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
-            + sum(sequence.at(-2)!)
-            + sequence.at(-1)!
+        encode: word =>
+            word.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
+            + sum(word.at(-2)!)
+            + word.at(-1)!
             - n,
         decode: i => {
-            let result: readonly bigint[] = []
+            let result: Word = []
             while (true) {
                 const r = log2((i + k) >> e1)
                 const rSum = sum(r)
