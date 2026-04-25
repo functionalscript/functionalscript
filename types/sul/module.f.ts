@@ -23,9 +23,9 @@ export const wordToString = (word: Word): string =>
 
 export const wordEqual = equal(strictEqual)
 
-export type State = Word
+export type State = readonly[bigint|undefined, bigint]
 
-export const emptyState: State = []
+export const emptyState: State = [undefined, 0n]
 
 /**
  * A level of SUL with finite alphabet `[0, n)`.
@@ -37,7 +37,7 @@ export type Level = {
     /** Inverse of {@link encode}: restores the complete word from a symbol. */
     readonly decode: (i: bigint) => Word
     //
-    readonly push: StateScan<bigint, Word, bigint|undefined>
+    readonly push: StateScan<bigint, State, bigint|undefined>
 }
 
 /**
@@ -81,12 +81,14 @@ export const level = (e: bigint): Level => {
                 i -= pSum ?? sum(s0 - 1n)
             }
         },
-        push: prior => i => {
-            const last = prior.at(-1)
-            const n = [...prior, i]
-            return last === undefined || last > i
-                ? [undefined, n]
-                : [encode(n), []]
+        push: ([last, state]) => i => {
+            if (last === undefined) {
+                return [undefined, [i, 0n]]
+            }
+            if (last > i) {
+                return [undefined, [i, state + sum(last - 1n)]]
+            }
+            return [state + sum(last) + i - n, emptyState]
         }
     }
 }
