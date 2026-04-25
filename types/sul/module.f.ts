@@ -23,6 +23,10 @@ export const wordToString = (word: Word): string =>
 
 export const wordEqual = equal(strictEqual)
 
+export type State = Word
+
+export const emptyState: State = []
+
 /**
  * A level of SUL with finite alphabet `[0, n)`.
  */
