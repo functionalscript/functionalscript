@@ -9,9 +9,10 @@
  * @module
  */
 
-import { log2 } from "../bigint/module.f.ts"
-import { equal } from "../list/module.f.ts"
-import { strictEqual } from "../function/operator/module.f.ts"
+import { log2 } from '../bigint/module.f.ts'
+import { equal } from '../list/module.f.ts'
+import { strictEqual } from '../function/operator/module.f.ts'
+import type { StateScan } from '../function/operator/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
@@ -31,6 +32,8 @@ export type Level = {
     readonly encode: (word: Word) => bigint
     /** Inverse of {@link encode}: restores the complete word from a symbol. */
     readonly decode: (i: bigint) => Word
+    //
+    readonly push: StateScan<bigint, Word, bigint|undefined>
 }
 
 /**
@@ -54,13 +57,14 @@ export const level = (e: bigint): Level => {
     const m2 = m << 1n
     const e1 = e + 1n
     const sum = (i: bigint) => (m2 << i) + i - k
+    const encode = (word: Word) =>
+        word.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
+        + sum(word.at(-2)!)
+        + word.at(-1)!
+        - n
     return {
         sum,
-        encode: word =>
-            word.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
-            + sum(word.at(-2)!)
-            + word.at(-1)!
-            - n,
+        encode,
         decode: i => {
             let result: Word = []
             while (true) {
@@ -72,6 +76,13 @@ export const level = (e: bigint): Level => {
                 if (s1 >= s0) { return [...result, s1] }
                 i -= pSum ?? sum(s0 - 1n)
             }
+        },
+        push: prior => i => {
+            const last = prior.at(-1)
+            const n = [...prior, i]
+            return last === undefined || last > i
+                ? [undefined, n]
+                : [encode(n), []]
         }
     }
 }
