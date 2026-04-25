@@ -10,16 +10,17 @@
  */
 
 import { log2 } from '../bigint/module.f.ts'
-import { equal } from '../list/module.f.ts'
+import { equal, map, toArray, type List, type NonEmpty, type Thunk } from '../list/module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import type { StateScan } from '../function/operator/module.f.ts'
+import { join } from '../string/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
 export type Word = readonly bigint[]
 
-export const wordToString = (word: Word): string =>
-    word.map(symbolToString).join(',')
+export const wordToString = (word: List<bigint>): string =>
+    join(',')(map(symbolToString)(word))
 
 export const wordEqual = equal(strictEqual)
 
@@ -35,7 +36,7 @@ export type Level = {
     /** Converts a valid word of symbols into a symbol of the next level. */
     readonly encode: (word: Word) => bigint
     /** Inverse of {@link encode}: restores the complete word from a symbol. */
-    readonly decode: (i: bigint) => Word
+    readonly decode: (i: bigint) => List<bigint>
     //
     readonly push: StateScan<bigint, State, bigint|undefined>
 }
@@ -66,21 +67,19 @@ export const level = (e: bigint): Level => {
         + sum(word.at(-2)!)
         + word.at(-1)!
         - n
+    const decode = (i: bigint): List<bigint> => () => {
+        const r = log2((i + k) >> e1)
+        const s0 = sum(r) > i ? r : r + 1n
+        const s1 = i - sum(s0) + n
+        return s1 >= s0 ? [s0, s1] : {
+            first: s0,
+            tail: decode(i - sum(s0 - 1n))
+        }
+    }
     return {
         sum,
         encode,
-        decode: i => {
-            let result: Word = []
-            while (true) {
-                const r = log2((i + k) >> e1)
-                const rSum = sum(r)
-                const [s0, s0Sum, pSum] = rSum > i ? [r, rSum, undefined] : [r + 1n, sum(r + 1n), rSum]
-                const s1 = i - s0Sum + n
-                result = [...result, s0]
-                if (s1 >= s0) { return [...result, s1] }
-                i -= pSum ?? sum(s0 - 1n)
-            }
-        },
+        decode,
         push: ([last, state]) => i => {
             if (last === undefined) {
                 return [undefined, [i, 0n]]
