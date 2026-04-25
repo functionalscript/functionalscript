@@ -2,7 +2,7 @@ import { stateScan, toArray } from "../list/module.f.ts"
 import { emptyState, level, symbolToString, wordEqual, wordToString } from "./module.f.ts"
 
 const tests = (n: bigint) => {
-    const { sum, decode, encode, push } = level(n)
+    const { sum, decode, encode: push } = level(n)
     return {
         c: (i: bigint, s: bigint) => {
             const result = sum(i)
@@ -11,14 +11,12 @@ const tests = (n: bigint) => {
             }
         },
         n: (word: readonly bigint[], expected: bigint) => {
-            const result = encode(word)
-            if (result !== expected) {
-                throw new Error(`Assertion failed for n=${n}, word=${wordToString(word)}, expected ${symbolToString(expected)}, got ${symbolToString(result)}`);
-            }
-            const decoded = decode(result)
+            // encode
+            const decoded = decode(expected)
             if (!wordEqual(decoded)(word)) {
                 throw new Error(`Assertion failed for n=${n}, word=${wordToString(word)}, expected decode to return ${wordToString(word)}, got [${wordToString(decoded)}]`);
             }
+            // encode
             const a =toArray(stateScan(push)(emptyState)(word))
             if (!a.slice(0, -1).every(i => i === undefined)) {
                 throw a

@@ -33,12 +33,10 @@ export const emptyState: State = [undefined, 0n]
  */
 export type Level = {
     readonly sum: (i: bigint) => bigint
-    /** Converts a valid word of symbols into a symbol of the next level. */
-    readonly encode: (word: Word) => bigint
     /** Inverse of {@link encode}: restores the complete word from a symbol. */
     readonly decode: (i: bigint) => List<bigint>
-    //
-    readonly push: StateScan<bigint, State, bigint|undefined>
+    /** Encoding input symbols into output symbols. */
+    readonly encode: StateScan<bigint, State, bigint|undefined>
 }
 
 /**
@@ -62,11 +60,6 @@ export const level = (e: bigint): Level => {
     const m2 = m << 1n
     const e1 = e + 1n
     const sum = (i: bigint) => (m2 << i) + i - k
-    const encode = (word: Word) =>
-        word.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
-        + sum(word.at(-2)!)
-        + word.at(-1)!
-        - n
     const decode = (i: bigint): List<bigint> => () => {
         const r = log2((i + k) >> e1)
         const s0 = sum(r) > i ? r : r + 1n
@@ -78,16 +71,9 @@ export const level = (e: bigint): Level => {
     }
     return {
         sum,
-        encode,
         decode,
-        push: ([last, state]) => i => {
-            if (last === undefined) {
-                return [undefined, [i, 0n]]
-            }
-            if (last > i) {
-                return [undefined, [i, state + sum(last - 1n)]]
-            }
-            return [state + sum(last) + i - n, emptyState]
-        }
+        encode: ([last, part]) => i => last === undefined ? [undefined, [i, 0n]] :
+            last > i ? [undefined, [i, part + sum(last - 1n)]] :
+            [part + sum(last) + i - n, emptyState]
     }
 }
