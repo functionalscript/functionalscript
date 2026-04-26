@@ -297,6 +297,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. use async functions and await instead of `.then`
+- [ ] 133. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support properly type narrowing.
 
 ## Language Specification
 

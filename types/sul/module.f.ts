@@ -1,6 +1,6 @@
 /**
- * Synthetic Universal Language (SUL) — a universal encoding that bijectively maps any finite sequence of symbols to a single root symbol via a balanced tree,
- * from which the original sequence can be uniquely recovered.
+ * Synthetic Universal Language (SUL) — a universal encoding that bijectively maps any finite sequence of symbols to
+ * a single root symbol via a balanced tree, from which the original sequence can be uniquely recovered.
  *
  * A *level* defines a finite alphabet `[0, n)` and the bijection between words over that alphabet and symbols of the next level.
  * A *symbol* is an element of a level's alphabet `[0, n)`.
@@ -10,10 +10,12 @@
  */
 
 import { log2 } from '../bigint/module.f.ts'
-import { equal, map, toArray, type List, type NonEmpty, type Thunk } from '../list/module.f.ts'
+import { equal, map, type List } from '../list/module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import type { StateScan } from '../function/operator/module.f.ts'
 import { join } from '../string/module.f.ts'
+import type { Vec } from '../bit_vec/module.f.ts'
+import type { Effect, Operation } from '../effects/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
@@ -76,4 +78,20 @@ export const level = (e: bigint): Level => {
             last > i ? [undefined, [i, part + sum(last - 1n)]] :
             [part + sum(last) + i - n, emptyState]
     }
+}
+
+export type HashState = List<Vec>
+
+export type HashLevel<T extends Operation> = {
+    /**
+     * Note: Currently we return an effect of a list of bit vectors.
+     *       This way, we have to read the complete list into memory.
+     *
+     * TODO: Return an asynchronous (effect) list.
+     *
+     * @param v a symbol from the next level.
+     * @returns
+     */
+    readonly decode: (v: Vec) => Effect<T, List<Vec>>
+    readonly encode: StateScan<Vec, HashState, Vec|undefined>
 }
