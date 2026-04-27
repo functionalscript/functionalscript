@@ -116,7 +116,5 @@ const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V
 
 const hash = base32.compress(iv)
 
-// export const
-
 export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
     todo()
