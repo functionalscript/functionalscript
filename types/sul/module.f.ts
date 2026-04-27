@@ -95,3 +95,6 @@ export type HashLevel<T extends Operation> = {
     readonly decode: (v: Vec) => Effect<T, List<Vec>>
     readonly encode: StateScan<Vec, HashState, Vec|undefined>
 }
+
+export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> => {
+}
