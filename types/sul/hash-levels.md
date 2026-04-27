@@ -13,7 +13,7 @@ Cut the first bits from a data identity.
 
 ## Option # 2 Different IVs
 
-Disadvantage: we still need to store and the bits so it breaks byte alignment.
+Disadvantage: we still need to store the bits so it breaks byte alignment.
 
 
 
