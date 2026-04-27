@@ -13,6 +13,10 @@ import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
+export const assert: (v: boolean) => asserts v = v => {
+    if (!v) throw new Error('assertion failed')
+}
+
 export type Module = {
     readonly default?: unknown
 }
