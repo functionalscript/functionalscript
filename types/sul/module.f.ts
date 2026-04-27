@@ -111,7 +111,7 @@ const c = secp256r1
 // 325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25
 const iv = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
 
-const hash = base32.compress(iv)
+// const hash = base32.compress(iv)
 
 // export const
 
