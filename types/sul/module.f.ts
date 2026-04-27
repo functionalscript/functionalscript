@@ -10,16 +10,16 @@
  */
 
 import { log2 } from '../bigint/module.f.ts'
-import { equal, map, type List } from '../list/module.f.ts'
+import { equal, map, toArray, type List } from '../list/module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import type { StateScan } from '../function/operator/module.f.ts'
 import { join } from '../string/module.f.ts'
-import { uint, type Vec } from '../bit_vec/module.f.ts'
+import { msb, uint, uintChunkList, vec, type Vec } from '../bit_vec/module.f.ts'
 import type { Effect, Operation } from '../effects/module.f.ts'
 import { todo } from '../../dev/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { curve, secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'
-import { base32 } from '../../crypto/sha2/module.f.ts'
+import { base32, type V8 } from '../../crypto/sha2/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
@@ -107,11 +107,14 @@ const utf8IvSeed = utf8(ivSeed)
 
 const c = secp256r1
 
-// 0123456789012345678901234567890123456789012345678901234567890123
-// 325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25
-const iv = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
+//   0               1               2               3
+//   0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF
+// 0x325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25
+const ivUint = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
 
-// const hash = base32.compress(iv)
+const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V8
+
+const hash = base32.compress(iv)
 
 // export const
 
