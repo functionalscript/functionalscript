@@ -1,5 +1,5 @@
 import { stateScan, toArray } from "../list/module.f.ts"
-import { emptyState, level, symbolToString, wordEqual, wordToString } from "./module.f.ts"
+import { emptyState, iv, level, symbolToString, wordEqual, wordToString } from "./module.f.ts"
 
 const tests = (n: bigint) => {
     const { sum, decode, encode: push } = level(n)

@@ -14,8 +14,11 @@ import { equal, map, type List } from '../list/module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import type { StateScan } from '../function/operator/module.f.ts'
 import { join } from '../string/module.f.ts'
-import type { Vec } from '../bit_vec/module.f.ts'
+import { uint, type Vec } from '../bit_vec/module.f.ts'
 import type { Effect, Operation } from '../effects/module.f.ts'
+import { todo } from '../../dev/module.f.ts'
+import { utf8 } from '../../text/module.f.ts'
+import { curve, secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
@@ -96,5 +99,18 @@ export type HashLevel<T extends Operation> = {
     readonly encode: StateScan<Vec, HashState, Vec|undefined>
 }
 
-export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> => {
-}
+//              01234567890123456789012345678901
+const ivSeed = "Synthetic Universal Language 001"
+
+const utf8IvSeed = utf8(ivSeed)
+
+const c = secp256r1
+
+// 0123456789012345678901234567890123456789012345678901234567890123
+// 325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25
+export const iv = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
+
+// export const
+
+export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
+    todo()

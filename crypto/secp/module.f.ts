@@ -5,7 +5,7 @@ import { repeat } from '../../types/monoid/module.f.ts'
 /**
  * A 2D point represented as a pair of `bigint` values `[x, y]`.
  */
-type Point2D = readonly[bigint, bigint]
+export type Point2D = readonly[bigint, bigint]
 
 /**
  * A 2D point on an elliptic curve, represented as a pair of `bigint` values.
