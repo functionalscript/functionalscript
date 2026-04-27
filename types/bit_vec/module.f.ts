@@ -432,7 +432,8 @@ const mappedChunkList = <I>(g: (i: I) => Unpacked) => <O>(f: (u: Unpacked) => O)
  * @param u The unpacked vector to be chunked.
  * @returns A thunk that produces a list of unsigned integers, each representing one chunk.
  */
-export const uintChunkList = mappedChunkList(identity<Unpacked>)(unpackedUint)
+export const uintChunkList: (bo: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<bigint>
+    = mappedChunkList(identity<Unpacked>)(unpackedUint)
 
 /**
  * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order.
@@ -443,7 +444,8 @@ export const uintChunkList = mappedChunkList(identity<Unpacked>)(unpackedUint)
  * @param v The vector to be chunked.
  * @returns A thunk that produces a list of bit vectors, each representing one chunk.
  */
-export const chunkList = mappedChunkList(unpack)(pack)
+export const chunkList: (bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<Vec>
+    = mappedChunkList(unpack)(pack)
 
 const vecToU8 = ({ unpackSplit }: BitOrder): (chunk: Vec) => number => {
     const unpackSplit8 = unpackSplit(8n)
