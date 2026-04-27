@@ -143,15 +143,20 @@ const rawId = (symbol: Vec): Vec => {
     return vecX100(rawPrefix | uint | (1n << length))
 }
 
-const hashPrefix = 1n << 255n
+const hashPrefix = 1n << 0xFFn
 
 assert(hashPrefix ===
     0x8000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n)
 
-const hashId = (symbol: Vec): Vec => {
-    const { uint } = unpack(symbol)
-    return vecX100(hashPrefix | uint)
-}
+/**
+ * Note: we don't need to remove the prefix bits from the hash because
+ * the prefix equals the prefix mask (`1n << 0xFFn`).
+ *
+ * @param symbol
+ * @returns
+ */
+const hashId = (hash: Vec): Vec =>
+    vecX100(hashPrefix | unpack(hash).uint)
 
 export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
     todo()
