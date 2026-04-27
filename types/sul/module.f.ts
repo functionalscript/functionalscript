@@ -19,6 +19,7 @@ import type { Effect, Operation } from '../effects/module.f.ts'
 import { todo } from '../../dev/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { curve, secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'
+import { base32 } from '../../crypto/sha2/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
@@ -108,7 +109,9 @@ const c = secp256r1
 
 // 0123456789012345678901234567890123456789012345678901234567890123
 // 325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25
-export const iv = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
+const iv = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
+
+const hash = base32.compress(iv)
 
 // export const
 
