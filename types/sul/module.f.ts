@@ -1,6 +1,6 @@
 /**
- * Synthetic Universal Language (SUL) — a universal encoding that bijectively maps any finite sequence of symbols to a single root symbol via a balanced tree,
- * from which the original sequence can be uniquely recovered.
+ * Synthetic Universal Language (SUL) — a universal encoding that bijectively maps any finite sequence of symbols to
+ * a single root symbol via a balanced tree, from which the original sequence can be uniquely recovered.
  *
  * A *level* defines a finite alphabet `[0, n)` and the bijection between words over that alphabet and symbols of the next level.
  * A *symbol* is an element of a level's alphabet `[0, n)`.
@@ -9,28 +9,36 @@
  * @module
  */
 
-import { log2 } from "../bigint/module.f.ts"
-import { equal } from "../list/module.f.ts"
-import { strictEqual } from "../function/operator/module.f.ts"
+import { log2 } from '../bigint/module.f.ts'
+import { equal, map, type List } from '../list/module.f.ts'
+import { strictEqual } from '../function/operator/module.f.ts'
+import type { StateScan } from '../function/operator/module.f.ts'
+import { join } from '../string/module.f.ts'
+import type { Vec } from '../bit_vec/module.f.ts'
+import type { Effect, Operation } from '../effects/module.f.ts'
 
 export const symbolToString = (s: bigint): string => s.toString(16)
 
 export type Word = readonly bigint[]
 
-export const wordToString = (word: Word): string =>
-    word.map(symbolToString).join(',')
+export const wordToString = (word: List<bigint>): string =>
+    join(',')(map(symbolToString)(word))
 
 export const wordEqual = equal(strictEqual)
+
+export type State = readonly[bigint|undefined, bigint]
+
+export const emptyState: State = [undefined, 0n]
 
 /**
  * A level of SUL with finite alphabet `[0, n)`.
  */
 export type Level = {
     readonly sum: (i: bigint) => bigint
-    /** Converts a valid word of symbols into a symbol of the next level. */
-    readonly encode: (word: Word) => bigint
     /** Inverse of {@link encode}: restores the complete word from a symbol. */
-    readonly decode: (i: bigint) => Word
+    readonly decode: (i: bigint) => List<bigint>
+    /** Encoding input symbols into output symbols. */
+    readonly encode: StateScan<bigint, State, bigint|undefined>
 }
 
 /**
@@ -54,24 +62,39 @@ export const level = (e: bigint): Level => {
     const m2 = m << 1n
     const e1 = e + 1n
     const sum = (i: bigint) => (m2 << i) + i - k
-    return {
-        sum,
-        encode: word =>
-            word.slice(0, -2).reduce((a, b) => a + sum(b - 1n), 0n)
-            + sum(word.at(-2)!)
-            + word.at(-1)!
-            - n,
-        decode: i => {
-            let result: Word = []
-            while (true) {
-                const r = log2((i + k) >> e1)
-                const rSum = sum(r)
-                const [s0, s0Sum, pSum] = rSum > i ? [r, rSum, undefined] : [r + 1n, sum(r + 1n), rSum]
-                const s1 = i - s0Sum + n
-                result = [...result, s0]
-                if (s1 >= s0) { return [...result, s1] }
-                i -= pSum ?? sum(s0 - 1n)
-            }
+    const decode = (i: bigint): List<bigint> => () => {
+        const r = log2((i + k) >> e1)
+        const s0 = sum(r) > i ? r : r + 1n
+        const s1 = i - sum(s0) + n
+        return s1 >= s0 ? [s0, s1] : {
+            first: s0,
+            tail: decode(i - sum(s0 - 1n))
         }
     }
+    return {
+        sum,
+        decode,
+        encode: ([last, part]) => i => last === undefined ? [undefined, [i, 0n]] :
+            last > i ? [undefined, [i, part + sum(last - 1n)]] :
+            [part + sum(last) + i - n, emptyState]
+    }
+}
+
+export type HashState = List<Vec>
+
+export type HashLevel<T extends Operation> = {
+    /**
+     * Note: Currently we return an effect of a list of bit vectors.
+     *       This way, we have to read the complete list into memory.
+     *
+     * TODO: Return an asynchronous (effect) list.
+     *
+     * @param v a symbol from the next level.
+     * @returns
+     */
+    readonly decode: (v: Vec) => Effect<T, List<Vec>>
+    readonly encode: StateScan<Vec, HashState, Vec|undefined>
+}
+
+export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> => {
 }
