@@ -22,7 +22,7 @@
  * @module
  */
 import { bitLength, divUp, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
-import { flip } from '../function/module.f.ts'
+import { flip, identity } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
 import { fold, iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
@@ -118,6 +118,8 @@ export const unpack = (v: Vec): Unpacked => ({
  * Packs an unpacked representation back into a vector.
  */
 export const pack = ({ length, uint }: Unpacked): Vec => vec(length)(uint)
+
+export const unpackedUint = ({ uint }: Unpacked): bigint => uint
 
 type Norm = (len: bigint) => {
     readonly a: bigint
@@ -413,6 +415,25 @@ const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked
     }
 }
 
+const mappedChunkList = <I>(g: (i: I) => Unpacked) => <O>(f: (u: Unpacked) => O) =>
+    (bo: BitOrder) => (n: bigint): (i: I) => Thunk<O> => {
+        const ucl = unpackChunkList(bo)(n)
+        const mf = map(f)
+        return i => mf(ucl(g(i)))
+    }
+
+/**
+ * Chunks an unpacked vector into fixed-size pieces of `n` bits using the provided bit order,
+ * returning each chunk as an unsigned integer.
+ * The last chunk may be smaller than `n` bits if the vector length is not a multiple of `n`.
+ *
+ * @param bitOrder The bit order for the conversion.
+ * @param n The chunk size in bits.
+ * @param u The unpacked vector to be chunked.
+ * @returns A thunk that produces a list of unsigned integers, each representing one chunk.
+ */
+export const uintChunkList = mappedChunkList(identity<Unpacked>)(unpackedUint)
+
 /**
  * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order.
  * The last chunk may be smaller than `n` bits if the vector length is not a multiple of `n`.
@@ -422,10 +443,7 @@ const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked
  * @param v The vector to be chunked.
  * @returns A thunk that produces a list of bit vectors, each representing one chunk.
  */
-export const chunkList = (bo: BitOrder) => (n: bigint): (v: Vec) => Thunk<Vec> => {
-    const ucl = unpackChunkList(bo)(n)
-    return v => map(pack)(ucl(unpack(v)))
-}
+export const chunkList = mappedChunkList(unpack)(pack)
 
 const vecToU8 = ({ unpackSplit }: BitOrder): (chunk: Vec) => number => {
     const unpackSplit8 = unpackSplit(8n)
