@@ -8,6 +8,8 @@
 Cut the first bits from a data identity.
 
 - `00`: a symbol of the level 3
+- `01`: a bit vector (max length is 253 bits)
+- `1`: 255 hash
 
 ## Option # 2 Different IVs
 
