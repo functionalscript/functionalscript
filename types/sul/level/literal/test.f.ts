@@ -1,5 +1,6 @@
+import { vec, type Vec } from '../../../bit_vec/module.f.ts'
 import { stateScan, toArray } from '../../../list/module.f.ts'
-import { emptyState, level, symbolToString, wordEqual, wordToString } from './module.f.ts'
+import { emptyState, level, literal1ToVec, literal2ToVec, symbolToString, wordEqual, wordToString } from './module.f.ts'
 
 const tests = (n: bigint) => {
     const { sum, decode, encode: push } = level(n)
@@ -26,6 +27,13 @@ const tests = (n: bigint) => {
                 throw x
             }
         }
+    }
+}
+
+const l = (f: (literal: bigint) => Vec) => (l: bigint, e: Vec) => {
+    const result = f(l)
+    if (result !== e) {
+        throw [result, e]
     }
 }
 
@@ -331,5 +339,61 @@ export default {
         n([1n, 0n, 0n], 0x81n)
         //
         n([0x80n, 0x80n], 0x100_0000_0000_0000_0000_0000_0000_0000_0000n)
+    },
+    toVec: {
+        level1: () => {
+            const x = l(literal1ToVec)
+            x(0n, vec(2n)(0b00n))
+            x(1n, vec(2n)(0b01n))
+            x(2n, vec(3n)(0b100n))
+            x(3n, vec(3n)(0b101n))
+            x(4n, vec(2n)(0b11n))
+        },
+        level2: () => {
+            const x = l(literal2ToVec)
+            // 0
+            x(0x00n, vec(4n)(0b00_00n))
+            x(0x01n, vec(4n)(0b00_01n))
+            x(0x02n, vec(5n)(0b00_100n))
+            x(0x03n, vec(5n)(0b00_101n))
+            x(0x04n, vec(4n)(0b00_11n))
+            // 1
+            // 10
+            x(0x05n, vec(0x6n)(0b01_00_00n))
+            x(0x06n, vec(0x6n)(0b01_00_01n))
+            x(0x07n, vec(0x7n)(0b01_00_100n))
+            x(0x08n, vec(0x7n)(0b01_00_101n))
+            x(0x09n, vec(0x6n)(0b01_00_11n))
+            // 1...
+            x(0x0An, vec(0x4n)(0b01_01n))
+            x(0x0Bn, vec(0x5n)(0b01_100n))
+            x(0x0Cn, vec(0x5n)(0b01_101n))
+            x(0x0Dn, vec(0x4n)(0b01_11n))
+            // 2
+            // 20
+            x(0x0En, vec(0x7n)(0b100_00_00n))
+            x(0x0Fn, vec(0x7n)(0b100_00_01n))
+            x(0x10n, vec(0x8n)(0b100_00_100n))
+            x(0x11n, vec(0x8n)(0b100_00_101n))
+            x(0x12n, vec(0x7n)(0b100_00_11n))
+            // 21
+            // 210
+            x(0x13n, vec(0x9n)(0b100_01_00_00n))
+            x(0x14n, vec(0x9n)(0b100_01_00_01n))
+            x(0x15n, vec(0xAn)(0b100_01_00_100n))
+            x(0x16n, vec(0xAn)(0b100_01_00_101n))
+            x(0x17n, vec(0x9n)(0b100_01_00_11n))
+            // 21...
+            x(0x18n, vec(0x7n)(0b100_01_01n))
+            x(0x19n, vec(0x8n)(0b100_01_100n))
+            x(0x1An, vec(0x8n)(0b100_01_101n))
+            x(0x1Bn, vec(0x7n)(0b100_01_11n))
+            // 2...
+            x(0x1Cn, vec(0x6n)(0b100_100n))
+            x(0x1Dn, vec(0x6n)(0b100_101n))
+            x(0x1En, vec(0x5n)(0b100_11n))
+        },
+        level3: () => {
+        }
     }
 }

@@ -1,18 +1,19 @@
-import { toArray, type List } from '../../../list/module.f.ts'
+import { flatMap, map, toArray, type List } from '../../../list/module.f.ts'
 import type { StateScan } from '../../../function/operator/module.f.ts'
-import { msb, uint, uintChunkList, unpack, vec, type Vec } from '../../../bit_vec/module.f.ts'
+import { listToVec, msb, uint, uintChunkList, unpack, vec, type Vec } from '../../../bit_vec/module.f.ts'
 import type { Effect, Operation } from '../../../effects/module.f.ts'
 import { assert, todo } from '../../../../dev/module.f.ts'
 import { utf8 } from '../../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../../crypto/sha2/module.f.ts'
 import { identity } from '../../../function/module.f.ts'
+import { level1, level2, level3 } from '../literal/module.f.ts'
 
 export type HashState = List<Vec>
 
 export type HashLevel<T extends Operation> = {
     /**
-     * Note: Currently we return an effect of a list of bit vectors.
+     * Note: Currently, we return an effect of a list of bit vectors.
      *       This way, we have to read the complete list into memory.
      *
      * TODO: Return an asynchronous (effect) list.
@@ -21,6 +22,11 @@ export type HashLevel<T extends Operation> = {
      * @returns
      */
     readonly decode: (v: Vec) => Effect<T, List<Vec>>
+    /**
+     * Note: Currently, we return complete data block.
+     *       However, the proper way would be to save
+     *       intermidiate blocks as well.
+     */
     readonly encode: StateScan<Vec, HashState, Vec|undefined>
 }
 
@@ -34,8 +40,6 @@ const utf8IvSeed = utf8(ivSeed)
 
 const c = secp256r1
 
-
-// 0x325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25
 const ivUint: bigint = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
 
 // 64 hex = 256 bits = 32 bytes:
@@ -45,14 +49,12 @@ assert(ivUint === 0x325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda538
 
 const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V8
 
-const hash = base32.compress(iv)
-
 /**
  * Note: no need to add a prefix.
  */
 const level3Id: (v: bigint) => bigint = identity
 
-const rawPrefix = 1n << 254n
+const rawPrefix = 1n << 0xFEn
 
 assert(rawPrefix ===
     0x4000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n)
@@ -68,10 +70,14 @@ const rawId = (symbol: Vec): bigint => {
     return rawPrefix | uint | (1n << length)
 }
 
+const isRaw = (v: bigint) => v >> 0xFEn === 1n
+
 const hashPrefix = 1n << 0xFFn
 
 assert(hashPrefix ===
     0x8000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n)
+
+const isHash = (v: bigint) => v >> 0xFFn === 1n
 
 /**
  * Note: we don't need to remove the prefix bits from the hash because
@@ -82,6 +88,20 @@ assert(hashPrefix ===
  */
 const hashId = (hash: bigint): bigint =>
     hashPrefix | hash
+
+const hash2 = base32.compress(iv)
+
+const vecX20 = vec(0x20n)
+
+const hash = (a: bigint, b: bigint): bigint =>
+    uint(listToVec(msb)(hash2((a << 0x100n) | b).map(vecX20)))
+
+const compress = (a: bigint, b: bigint): bigint => {
+    if (isHash(a) || isHash(b)) {
+        return hash(a, b)
+    }
+    return todo()
+}
 
 export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
     todo()

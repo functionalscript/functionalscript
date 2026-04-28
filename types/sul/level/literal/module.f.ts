@@ -1,4 +1,5 @@
 import { log2 } from '../../../bigint/module.f.ts'
+import { listToVec, msb, vec, type Vec } from '../../../bit_vec/module.f.ts'
 import { strictEqual, type StateScan } from '../../../function/operator/module.f.ts'
 import { equal, map, type List } from '../../../list/module.f.ts'
 import { join } from '../../../string/module.f.ts'
@@ -65,3 +66,28 @@ export const level = (e: bigint): Level => {
             [part + sum(last) + i - n, emptyState]
     }
 }
+
+export const level1 = level(0n)
+
+export const level2 = level(2n)
+
+export const level3 = level(7n)
+
+const { decode: decode1 } = level1
+
+const { decode: decode2 } = level2
+
+const { decode: decode3 } = level3
+
+const concat = listToVec(msb)
+
+const vec1 = vec(1n)
+
+export const literal1ToVec = (literal: bigint): Vec =>
+    concat(map(vec1)(decode1(literal)))
+
+export const literal2ToVec = (literal: bigint): Vec =>
+    concat(map(literal1ToVec)(decode2(literal)))
+
+export const literal3ToVec = (literal: bigint): Vec =>
+    concat(map(literal2ToVec)(decode3(literal)))
