@@ -1,6 +1,15 @@
 import { toArray, type List } from '../../../list/module.f.ts'
 import type { StateScan } from '../../../function/operator/module.f.ts'
-import { length, listToVec, msb, uint, uintChunkList, unpack, vec, type Vec } from '../../../bit_vec/module.f.ts'
+import {
+    length,
+    listToVec,
+    msb,
+    uint,
+    uintChunkList,
+    unpack,
+    vec,
+    type Vec
+} from '../../../bit_vec/module.f.ts'
 import type { Effect, Operation } from '../../../effects/module.f.ts'
 import { assert, todo } from '../../../../dev/module.f.ts'
 import { utf8 } from '../../../../text/module.f.ts'
@@ -44,6 +53,7 @@ const c = secp256r1
 const ivUint: bigint = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
 
 // 64 hex = 256 bits = 32 bytes:
+//
 //                  0               1               2               3
 //                  0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF
 assert(ivUint === 0x325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25n)
