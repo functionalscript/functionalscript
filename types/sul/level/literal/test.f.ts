@@ -521,8 +521,8 @@ export default {
             x(0x7Cn, vec(0xBn)(0b11_101_100_101n))
             x(0x7Dn, vec(0xAn)(0b11_101_100_11n))
             // 43...
-            x(0x3En, vec(0x6n)(0b101_101n))
-            x(0x3Fn, vec(0x5n)(0b101_11n))
+            x(0x7En, vec(0x8n)(0b11_101_101n))
+            x(0x7Fn, vec(0x7n)(0b11_101_11n))
         },
         level3: () => {
         }
