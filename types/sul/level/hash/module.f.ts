@@ -6,6 +6,7 @@ import { assert, todo } from '../../../../dev/module.f.ts'
 import { utf8 } from '../../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../../crypto/sha2/module.f.ts'
+import { identity } from '../../../function/module.f.ts'
 
 export type HashState = List<Vec>
 
@@ -46,9 +47,10 @@ const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V
 
 const hash = base32.compress(iv)
 
-const vecX100 = vec(0x100n)
-
-const level3Id = vecX100
+/**
+ * Note: no need to add a prefix.
+ */
+const level3Id: (v: bigint) => bigint = identity
 
 const rawPrefix = 1n << 254n
 
@@ -61,9 +63,9 @@ assert(rawPrefix ===
  * @param symbol
  * @returns
  */
-const rawId = (symbol: Vec): Vec => {
+const rawId = (symbol: Vec): bigint => {
     const { length, uint } = unpack(symbol)
-    return vecX100(rawPrefix | uint | (1n << length))
+    return rawPrefix | uint | (1n << length)
 }
 
 const hashPrefix = 1n << 0xFFn
@@ -78,8 +80,8 @@ assert(hashPrefix ===
  * @param symbol
  * @returns
  */
-const hashId = (hash: Vec): Vec =>
-    vecX100(hashPrefix | unpack(hash).uint)
+const hashId = (hash: bigint): bigint =>
+    hashPrefix | hash
 
 export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
     todo()
