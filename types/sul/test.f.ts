@@ -6,18 +6,24 @@ const tests = (n: bigint) => {
         c: (i: bigint, s: bigint) => {
             const result = sum(i)
             if (result !== s) {
-                throw new Error(`Assertion failed for n=${n}, i=${i}, s=${symbolToString(s)}, got ${symbolToString(result)}`);
+                throw new Error(
+                    `Assertion failed for n=${n}, i=${i}, s=${symbolToString(s)}, got ${symbolToString(result)}`
+                )
             }
         },
         n: (word: readonly bigint[], expected: bigint) => {
             const { decode, encode } = level(n)
             const result = encode(word)
             if (result !== expected) {
-                throw new Error(`Assertion failed for n=${n}, word=${wordToString(word)}, expected ${symbolToString(expected)}, got ${symbolToString(result)}`);
+                throw new Error(
+                    `Assertion failed for n=${n}, word=${wordToString(word)}, expected ${symbolToString(expected)}, got ${symbolToString(result)}`
+                )
             }
             const decoded = decode(result)
             if (!wordEqual(decoded)(word)) {
-                throw new Error(`Assertion failed for n=${n}, word=${wordToString(word)}, expected decode to return ${wordToString(word)}, got [${wordToString(decoded)}]`);
+                throw new Error(
+                    `Assertion failed for n=${n}, word=${wordToString(word)}, expected decode to return ${wordToString(word)}, got [${wordToString(decoded)}]`
+                )
             }
         }
     }
