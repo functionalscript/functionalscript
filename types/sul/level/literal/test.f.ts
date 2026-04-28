@@ -445,18 +445,18 @@ export default {
             x(0x44n, vec(6n)(0b11_00_11n))
             // 41
             // 410
-            x(0x05n, vec(0x6n)(0b01_00_00n))
-            x(0x06n, vec(0x6n)(0b01_00_01n))
-            x(0x07n, vec(0x7n)(0b01_00_100n))
-            x(0x08n, vec(0x7n)(0b01_00_101n))
-            x(0x09n, vec(0x6n)(0b01_00_11n))
-            // 1...
-            x(0x0An, vec(0x4n)(0b01_01n))
-            x(0x0Bn, vec(0x5n)(0b01_100n))
-            x(0x0Cn, vec(0x5n)(0b01_101n))
-            x(0x0Dn, vec(0x4n)(0b01_11n))
-            // 2
-            // 20
+            x(0x45n, vec(0x8n)(0b11_01_00_00n))
+            x(0x46n, vec(0x8n)(0b11_01_00_01n))
+            x(0x47n, vec(0x9n)(0b11_01_00_100n))
+            x(0x48n, vec(0x9n)(0b11_01_00_101n))
+            x(0x49n, vec(0x8n)(0b11_01_00_11n))
+            // 41...
+            x(0x4An, vec(0x6n)(0b11_01_01n))
+            x(0x4Bn, vec(0x7n)(0b11_01_100n))
+            x(0x4Cn, vec(0x7n)(0b11_01_101n))
+            x(0x4Dn, vec(0x6n)(0b11_01_11n))
+            // 42
+            // 420
             x(0x0En, vec(0x7n)(0b100_00_00n))
             x(0x0Fn, vec(0x7n)(0b100_00_01n))
             x(0x10n, vec(0x8n)(0b100_00_100n))
