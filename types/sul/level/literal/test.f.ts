@@ -523,6 +523,8 @@ export default {
             // 43...
             x(0x7En, vec(0x8n)(0b11_101_101n))
             x(0x7Fn, vec(0x7n)(0b11_101_11n))
+            // 4...
+            x(0x80n, vec(0x4n)(0b11_11n))
         },
         level3: () => {
         }
