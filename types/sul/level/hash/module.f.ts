@@ -1,13 +1,14 @@
-import { flatMap, map, toArray, type List } from '../../../list/module.f.ts'
+import { toArray, type List } from '../../../list/module.f.ts'
 import type { StateScan } from '../../../function/operator/module.f.ts'
-import { listToVec, msb, uint, uintChunkList, unpack, vec, type Vec } from '../../../bit_vec/module.f.ts'
+import { length, listToVec, msb, uint, uintChunkList, unpack, vec, type Vec } from '../../../bit_vec/module.f.ts'
 import type { Effect, Operation } from '../../../effects/module.f.ts'
 import { assert, todo } from '../../../../dev/module.f.ts'
 import { utf8 } from '../../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../../crypto/sha2/module.f.ts'
 import { identity } from '../../../function/module.f.ts'
-import { level1, level2, level3 } from '../literal/module.f.ts'
+import { literal3ToVec } from '../literal/module.f.ts'
+import { log2 } from '../../../bigint/module.f.ts'
 
 export type HashState = List<Vec>
 
@@ -70,7 +71,19 @@ const rawId = (symbol: Vec): bigint => {
     return rawPrefix | uint | (1n << length)
 }
 
+// 253
+const rawLenMax = 0xFDn
+
 const isRaw = (v: bigint) => v >> 0xFEn === 1n
+
+const toRaw = (a: bigint): Vec => {
+    if (!isRaw(a)) {
+        return literal3ToVec(a)
+    }
+    const raw = a ^ rawPrefix
+    const len = log2(raw)
+    return vec(len)(raw ^ (1n << len))
+}
 
 const hashPrefix = 1n << 0xFFn
 
@@ -96,11 +109,19 @@ const vecX20 = vec(0x20n)
 const hash = (a: bigint, b: bigint): bigint =>
     uint(listToVec(msb)(hash2((a << 0x100n) | b).map(vecX20)))
 
+const { concat } = msb
+
 const compress = (a: bigint, b: bigint): bigint => {
     if (isHash(a) || isHash(b)) {
         return hash(a, b)
     }
-    return todo()
+    const ra = toRaw(a)
+    const rb = toRaw(b)
+    const len = length(ra) + length(rb)
+    if (len > rawLenMax) {
+        return hash(a, b)
+    }
+    return rawId(concat(ra)(rb))
 }
 
 export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
