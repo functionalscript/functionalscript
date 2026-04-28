@@ -517,10 +517,10 @@ export default {
             x(0x79n, vec(0xDn)(0b11_101_100_01_101n))
             x(0x7An, vec(0xCn)(0b11_101_100_01_11n))
             // 432...
-            x(0x8Bn, vec(0xBn)(0b11_101_100_100n))
-            x(0x8Cn, vec(0xBn)(0b11_101_100_101n))
-            x(0x8Dn, vec(0xAn)(0b11_101_100_11n))
-            // 3...
+            x(0x7Bn, vec(0xBn)(0b11_101_100_100n))
+            x(0x7Cn, vec(0xBn)(0b11_101_100_101n))
+            x(0x7Dn, vec(0xAn)(0b11_101_100_11n))
+            // 43...
             x(0x3En, vec(0x6n)(0b101_101n))
             x(0x3Fn, vec(0x5n)(0b101_11n))
         },
