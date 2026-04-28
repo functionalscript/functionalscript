@@ -1,6 +1,15 @@
 import { vec, type Vec } from '../../../bit_vec/module.f.ts'
 import { stateScan, toArray } from '../../../list/module.f.ts'
-import { emptyState, level, literal1ToVec, literal2ToVec, symbolToString, wordEqual, wordToString } from './module.f.ts'
+import {
+    emptyState,
+    level,
+    literal1ToVec,
+    literal2ToVec,
+    literal3ToVec,
+    symbolToString,
+    wordEqual,
+    wordToString
+} from './module.f.ts'
 
 const tests = (n: bigint) => {
     const { sum, decode, encode: push } = level(n)
@@ -527,6 +536,17 @@ export default {
             x(0x80n, vec(0x4n)(0b11_11n))
         },
         level3: () => {
+            const x = l(literal3ToVec)
+            // `0000`
+            x(0x000n, vec(0x8n)(0b0000_0000n))
+            x(0x080n, vec(0x8n)(0b0000_1111n))
+            // `0001`
+            x(0x081n, vec(0xCn)(0b0001_0000_0000n))
+            x(0x101n, vec(0xCn)(0b0001_0000_1111n))
+            x(0x102n, vec(0x8n)(0b0001_0001n))
+            x(0x181n, vec(0x8n)(0b0001_1111n))
+            // `1111`
+            x(0x100_0000_0000_0000_0000_0000_0000_0000_0000n, vec(0x8n)(0b1111_1111n))
         }
     }
 }
