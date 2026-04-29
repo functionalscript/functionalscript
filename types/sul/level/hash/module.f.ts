@@ -54,9 +54,9 @@ const ivUint: bigint = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
 
 // 64 hex = 256 bits = 32 bytes:
 //
-//                  0               1               2               3
-//                  0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF
-assert(ivUint === 0x325d5666573eb118f32191de20d17f6433392ba3291ae46c1474a5eda5383f25n)
+//                  0                 1                 2                 3
+//                  01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
+assert(ivUint === 0x325d5666_573eb118_f32191de_20d17f64_33392ba3_291ae46c_1474a5ed_a5383f25n)
 
 const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V8
 
@@ -116,20 +116,20 @@ const hash2 = base32.compress(iv)
 
 const vecX20 = vec(0x20n)
 
-const hash = (a: bigint, b: bigint): bigint =>
+const hashMerge = (a: bigint, b: bigint): bigint =>
     uint(listToVec(msb)(hash2((a << 0x100n) | b).map(vecX20)))
 
 const { concat } = msb
 
 const compress = (a: bigint, b: bigint): bigint => {
     if (isHash(a) || isHash(b)) {
-        return hash(a, b)
+        return hashMerge(a, b)
     }
     const ra = toRaw(a)
     const rb = toRaw(b)
     const len = length(ra) + length(rb)
     if (len > rawLenMax) {
-        return hash(a, b)
+        return hashMerge(a, b)
     }
     return rawId(concat(ra)(rb))
 }
