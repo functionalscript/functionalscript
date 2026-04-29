@@ -1,4 +1,4 @@
-# Synthetic Universal Language
+# SUL Levels
 
 ## Generic Level
 
@@ -8,8 +8,8 @@
 - Per-symbol count: $c(n) = (n+1)2^{n-1}$
 - Total input symbols in all $f(n)$ output words: $T(n) = n \cdot c(n)$
 - Total bits in all $f(n')$ output words: $B(n') = c(n) \cdot B(n)$, where $n' = f(n)$
-- Average input symbols per output word: $t(n) = T(n) / f(n)$
-- Average bits per output word: $b(n') = B(n') / n'$, where $n' = f(n)$
+- Average input symbols per output word: $t(n) = \prod_{s=0}^{n-1}(1+q_s)$, where $q_s$ is the probability of input symbol $s$ (see [avg.md](avg.md))
+- Average bits per output word: $b(n') = t(n) \cdot b(n)$, where $n' = f(n)$
 
 ## Level 0
 
