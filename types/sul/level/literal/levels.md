@@ -3,10 +3,13 @@
 ## Generic Level
 
 - Input alphabet size: $n$.
-- Output alphabet size: $f(n) = 2^i(n-1)+1$
-- Transition: $g(n,i) = 2^i(n-1)+1$
+- Words with first symbol $\leq i$: $S(n,i) = (n-1) \cdot 2^{i+1} + i - n + 2$
+- Output alphabet size: $f(n) = S(n, n-1) = (n-1) \cdot 2^n + 1$
 - Per-symbol count: $c(n) = (n+1)2^{n-1}$
-- Total input symbols: $T(n) = n \cdot c(n)$
+- Total input symbols in all $f(n)$ output words: $T(n) = n \cdot c(n)$
+- Total bits in all $f(n')$ output words: $B(n') = c(n) \cdot B(n)$, where $n' = f(n)$
+- Average input symbols per output word: $t(n) = T(n) / f(n)$
+- Average bits per output word: $b(n') = B(n') / n'$, where $n' = f(n)$
 
 ## Level 0
 
@@ -14,13 +17,13 @@
 
 ## Level 1
 
-|Input|Output|Total|
-|-----|------|-----|
-|`00` |0     |2    |
-|`01` |1     |4    |
-|`100`|2     |7    |
-|`101`|3     |A    |
-|`11` |4     |C    |
+|Input|Output|P  |Total|
+|-----|------|---|-----|
+|`00` |0     |1/4|2    |
+|`01` |1     |1/4|4    |
+|`100`|2     |1/8|7    |
+|`101`|3     |1/8|A    |
+|`11` |4     |1/4|C    |
 
 Total: `0xC = 12 = 6 * 2`, where `2` is number of input symbols.
 Average: `12/5 = 2.4`
