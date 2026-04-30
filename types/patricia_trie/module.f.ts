@@ -11,7 +11,7 @@ export type Candidate<T> = readonly[bigint, T]
 
 export type State<T> = readonly Candidate<T>[]
 
-export type Pt<T> = {
+export type PatriciaTrie<T> = {
     /**
      * Add one sorted leaf. Returns any {@link Node}s completed on this step
      * and the updated right-spine {@link State}.
@@ -33,7 +33,7 @@ export type Pt<T> = {
  * mutual XOR is smaller than the XOR of the top candidate with the new leaf
  * (i.e. the two are more tightly coupled with each other than with `u`).
  */
-export const pt = <T>(compress: Create<T>): Pt<T> => ({
+export const patriciaTrie = <T>(create: Create<T>): PatriciaTrie<T> => ({
     push: state => c => {
         let nodes: readonly Node<T>[] = []
         let stack: readonly Candidate<T>[] = state
@@ -42,7 +42,7 @@ export const pt = <T>(compress: Create<T>): Pt<T> => ({
             const [rLeaf, rHash] = stack[stack.length - 1]
             const [lLeaf, lHash] = stack[stack.length - 2]
             if ((lLeaf ^ rLeaf) >= (rLeaf ^ u)) { break }
-            const h = compress(lHash, rHash)
+            const h = create(lHash, rHash)
             nodes = [...nodes, [lHash, rHash, h]]
             stack = [...stack.slice(0, -2), [rLeaf, h]]
         }
@@ -54,7 +54,7 @@ export const pt = <T>(compress: Create<T>): Pt<T> => ({
         let nodes: readonly Node<T>[] = []
         for (let i = state.length - 2; i >= 0; i--) {
             const lHash = state[i][1]
-            const newH = compress(lHash, h)
+            const newH = create(lHash, h)
             nodes = [...nodes, [lHash, h, newH]]
             h = newH
         }

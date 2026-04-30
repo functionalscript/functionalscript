@@ -1,10 +1,10 @@
 import { stat } from 'node:fs'
 import { assert } from '../../dev/module.f.ts'
-import { pt, type State } from './module.f.ts'
+import { patriciaTrie, type State } from './module.f.ts'
 
 const compress = (a: bigint, b: bigint): bigint => a * 1_000n + b
 
-const { push, end } = pt(compress)
+const { push, end } = patriciaTrie(compress)
 
 const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) => leaf)
 
