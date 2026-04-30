@@ -17,7 +17,8 @@ const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) =
 const runExample = (
     inputs: readonly bigint[],
     expectedLeaves: readonly (readonly bigint[])[],
-    expectedNodeCounts: readonly number[]
+    expectedNodeCounts: readonly number[],
+    expectedFinalNodeCount: number
 ) => {
     let state: State<bigint> = []
     for (let i = 0; i < inputs.length; i++) {
@@ -34,7 +35,10 @@ const runExample = (
         assert(nodes.length === expectedNodeCounts[i])
         for (const [l, r, h] of nodes) { assert(h === combine(l, r)) }
     }
-    return state
+    const [finalNodes, root] = end([])(state)
+    assert(finalNodes.length === expectedFinalNodeCount)
+    assert(root !== undefined)
+    for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
 }
 
 const empty = () => {
@@ -70,76 +74,70 @@ const twoLeaves = () => {
 
 // example.md — descending
 // merges happen at: step 2 (1), 3 (1), 4 (1), 7 (2), 8 (2), A (1), C (2), F (1)
-const descending = () => {
-    const state = runExample(
-        [
-            0b11111001n, 0b11110010n, 0b11100011n, 0b11001000n,
-            0b10110011n, 0b10100110n, 0b10100011n, 0b10011111n,
-            0b01110111n, 0b01101110n, 0b01011001n, 0b01001001n,
-            0b00100111n, 0b00010111n, 0b00010000n, 0b00001110n,
-        ],
-        [
-            [0b11111001n],
-            [0b11111001n, 0b11110010n],
-            [0b11110010n, 0b11100011n],
-            [0b11100011n, 0b11001000n],
-            [0b11001000n, 0b10110011n],
-            [0b11001000n, 0b10110011n, 0b10100110n],
-            [0b11001000n, 0b10110011n, 0b10100110n, 0b10100011n],
-            [0b11001000n, 0b10100011n, 0b10011111n],
-            [0b10011111n, 0b01110111n],
-            [0b10011111n, 0b01110111n, 0b01101110n],
-            [0b10011111n, 0b01101110n, 0b01011001n],
-            [0b10011111n, 0b01101110n, 0b01011001n, 0b01001001n],
-            [0b10011111n, 0b01001001n, 0b00100111n],
-            [0b10011111n, 0b01001001n, 0b00100111n, 0b00010111n],
-            [0b10011111n, 0b01001001n, 0b00100111n, 0b00010111n, 0b00010000n],
-            [0b10011111n, 0b01001001n, 0b00100111n, 0b00010000n, 0b00001110n],
-        ],
-        [0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 1, 0, 2, 0, 0, 1],
-    )
-    // 5 remaining candidates collapse into 4 nodes
-    const [finalNodes, root] = end([])(state)
-    assert(finalNodes.length === 4)
-    assert(root !== undefined)
-    for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
-}
+const descending = () => runExample(
+    [
+        0b11111001n, 0b11110010n, 0b11100011n, 0b11001000n,
+        0b10110011n, 0b10100110n, 0b10100011n, 0b10011111n,
+        0b01110111n, 0b01101110n, 0b01011001n, 0b01001001n,
+        0b00100111n, 0b00010111n, 0b00010000n, 0b00001110n,
+    ],
+    [
+        [0b11111001n],
+        [0b11111001n, 0b11110010n],
+        [0b11110010n, 0b11100011n],
+        [0b11100011n, 0b11001000n],
+        [0b11001000n, 0b10110011n],
+        [0b11001000n, 0b10110011n, 0b10100110n],
+        [0b11001000n, 0b10110011n, 0b10100110n, 0b10100011n],
+        [0b11001000n, 0b10100011n, 0b10011111n],
+        [0b10011111n, 0b01110111n],
+        [0b10011111n, 0b01110111n, 0b01101110n],
+        [0b10011111n, 0b01101110n, 0b01011001n],
+        [0b10011111n, 0b01101110n, 0b01011001n, 0b01001001n],
+        [0b10011111n, 0b01001001n, 0b00100111n],
+        [0b10011111n, 0b01001001n, 0b00100111n, 0b00010111n],
+        [0b10011111n, 0b01001001n, 0b00100111n, 0b00010111n, 0b00010000n],
+        [0b10011111n, 0b01001001n, 0b00100111n, 0b00010000n, 0b00001110n],
+    ],
+    [0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 1, 0, 2, 0, 0, 1],
+    4, // 5 remaining candidates collapse into 4 nodes
+)
 
 // example.md — ascending (same values, reversed)
 // merges happen at: step 3 (2), 4 (1), 6 (1), 8 (3), B (1), C (2)
-const ascending = () => {
-    const state = runExample(
-        [
-            0b00001110n, 0b00010000n, 0b00010111n, 0b00100111n,
-            0b01001001n, 0b01011001n, 0b01101110n, 0b01110111n,
-            0b10011111n, 0b10100011n, 0b10100110n, 0b10110011n,
-            0b11001000n, 0b11100011n, 0b11110010n, 0b11111001n,
-        ],
-        [
-            [0b00001110n],
-            [0b00001110n, 0b00010000n],
-            [0b00001110n, 0b00010000n, 0b00010111n],
-            [0b00010111n, 0b00100111n],
-            [0b00100111n, 0b01001001n],
-            [0b00100111n, 0b01001001n, 0b01011001n],
-            [0b00100111n, 0b01011001n, 0b01101110n],
-            [0b00100111n, 0b01011001n, 0b01101110n, 0b01110111n],
-            [0b01110111n, 0b10011111n],
-            [0b01110111n, 0b10011111n, 0b10100011n],
-            [0b01110111n, 0b10011111n, 0b10100011n, 0b10100110n],
-            [0b01110111n, 0b10011111n, 0b10100110n, 0b10110011n],
-            [0b01110111n, 0b10110011n, 0b11001000n],
-            [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n],
-            [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n, 0b11110010n],
-            [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n, 0b11110010n, 0b11111001n],
-        ],
-        [0, 0, 0, 2, 1, 0, 1, 0, 3, 0, 0, 1, 2, 0, 0, 0],
-    )
-    // 6 remaining candidates collapse into 5 nodes
-    const [finalNodes, root] = end([])(state)
-    assert(finalNodes.length === 5)
-    assert(root !== undefined)
-    for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
-}
+const ascending = () => runExample(
+    [
+        0b00001110n, 0b00010000n, 0b00010111n, 0b00100111n,
+        0b01001001n, 0b01011001n, 0b01101110n, 0b01110111n,
+        0b10011111n, 0b10100011n, 0b10100110n, 0b10110011n,
+        0b11001000n, 0b11100011n, 0b11110010n, 0b11111001n,
+    ],
+    [
+        [0b00001110n],
+        [0b00001110n, 0b00010000n],
+        [0b00001110n, 0b00010000n, 0b00010111n],
+        [0b00010111n, 0b00100111n],
+        [0b00100111n, 0b01001001n],
+        [0b00100111n, 0b01001001n, 0b01011001n],
+        [0b00100111n, 0b01011001n, 0b01101110n],
+        [0b00100111n, 0b01011001n, 0b01101110n, 0b01110111n],
+        [0b01110111n, 0b10011111n],
+        [0b01110111n, 0b10011111n, 0b10100011n],
+        [0b01110111n, 0b10011111n, 0b10100011n, 0b10100110n],
+        [0b01110111n, 0b10011111n, 0b10100110n, 0b10110011n],
+        [0b01110111n, 0b10110011n, 0b11001000n],
+        [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n],
+        [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n, 0b11110010n],
+        [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n, 0b11110010n, 0b11111001n],
+    ],
+    [0, 0, 0, 2, 1, 0, 1, 0, 3, 0, 0, 1, 2, 0, 0, 0],
+    5, // 6 remaining candidates collapse into 5 nodes
+)
 
-export default { empty, singleLeaf, twoLeaves, descending, ascending }
+export default {
+    empty,
+    singleLeaf,
+    twoLeaves,
+    descending,
+    ascending
+}
