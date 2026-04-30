@@ -1,3 +1,4 @@
+import { stat } from 'node:fs'
 import { assert } from '../../dev/module.f.ts'
 import { pt, type State } from './module.f.ts'
 
@@ -5,12 +6,15 @@ const compress = (a: bigint, b: bigint): bigint => a * 1_000n + b
 
 const { push, end } = pt(compress)
 
-const leaves = (state: State): readonly bigint[] => state.map(([leaf]) => leaf)
+const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) => leaf)
+
+const push1 = (state: State<bigint>) => (u: bigint) => push(state)([u, u])
 
 const runExample = (inputs: readonly bigint[], expectedLeaves: readonly (readonly bigint[])[], expectedNodeCounts: readonly number[]) => {
-    let state: State = []
+    let state: State<bigint> = []
     for (let i = 0; i < inputs.length; i++) {
-        const [nodes, newState] = push(state)(inputs[i])
+        const x = inputs[i]
+        const [nodes, newState] = push1(state)(x)
         state = newState
 
         const actual = leaves(state)
@@ -34,7 +38,7 @@ const empty = () => {
 }
 
 const singleLeaf = () => {
-    const [nodes, s] = push([])(42n)
+    const [nodes, s] = push1([])(42n)
     assert(nodes.length === 0)
     assert(leaves(s).length === 1)
     assert(leaves(s)[0] === 42n)
@@ -46,8 +50,8 @@ const singleLeaf = () => {
 
 // Second push emits no node; end emits one.
 const twoLeaves = () => {
-    const [, s1] = push([])(7n)
-    const [nodes, s2] = push(s1)(3n)
+    const [, s1] = push1([])(7n)
+    const [nodes, s2] = push1(s1)(3n)
     assert(nodes.length === 0)
     assert(leaves(s2).length === 2)
 
