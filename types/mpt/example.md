@@ -1,8 +1,6 @@
-# Merkle Patricia Trie
+# Merkle Patricia Trie Example
 
-## Example
-
-Sorted input (decrising):
+Sorted input (descending):
 
 ```
 11111001

@@ -42,39 +42,37 @@ export default () => {
         assert(root === compress(7n, 3n))
     }
 
-    // README example (descending 8-bit values)
+    // example.md (descending 8-bit values)
     //
-    // Input:  F9 F2 E3 C8  B3 A6 A3 9F  77 6E 59 49  27 17 10 0E
-    //
-    // Expected rightmost leaves after each push (from README state column):
+    // Expected rightmost leaves after each push (from example.md state column):
     const expectedLeaves: readonly (readonly bigint[])[] = [
-        [0xF9n],
-        [0xF9n, 0xF2n],
-        [0xF2n, 0xE3n],
-        [0xE3n, 0xC8n],
-        [0xC8n, 0xB3n],
-        [0xC8n, 0xB3n, 0xA6n],
-        [0xC8n, 0xB3n, 0xA6n, 0xA3n],
-        [0xC8n, 0xA3n, 0x9Fn],
-        [0x9Fn, 0x77n],
-        [0x9Fn, 0x77n, 0x6En],
-        [0x9Fn, 0x6En, 0x59n],
-        [0x9Fn, 0x6En, 0x59n, 0x49n],
-        [0x9Fn, 0x49n, 0x27n],
-        [0x9Fn, 0x49n, 0x27n, 0x17n],
-        [0x9Fn, 0x49n, 0x27n, 0x17n, 0x10n],
-        [0x9Fn, 0x49n, 0x27n, 0x10n, 0x0En],
+        [0b11111001n],
+        [0b11111001n, 0b11110010n],
+        [0b11110010n, 0b11100011n],
+        [0b11100011n, 0b11001000n],
+        [0b11001000n, 0b10110011n],
+        [0b11001000n, 0b10110011n, 0b10100110n],
+        [0b11001000n, 0b10110011n, 0b10100110n, 0b10100011n],
+        [0b11001000n, 0b10100011n, 0b10011111n],
+        [0b10011111n, 0b01110111n],
+        [0b10011111n, 0b01110111n, 0b01101110n],
+        [0b10011111n, 0b01101110n, 0b01011001n],
+        [0b10011111n, 0b01101110n, 0b01011001n, 0b01001001n],
+        [0b10011111n, 0b01001001n, 0b00100111n],
+        [0b10011111n, 0b01001001n, 0b00100111n, 0b00010111n],
+        [0b10011111n, 0b01001001n, 0b00100111n, 0b00010111n, 0b00010000n],
+        [0b10011111n, 0b01001001n, 0b00100111n, 0b00010000n, 0b00001110n],
     ]
 
     // Number of nodes completed at each push step:
-    // merges happen when: step 2 (1), 3 (1), 4 (1), 7 (2), 8 (2), A (1), C (2), F (1)
+    // merges happen at: step 2 (1), 3 (1), 4 (1), 7 (2), 8 (2), A (1), C (2), F (1)
     const expectedNodeCounts: readonly number[] = [0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 1, 0, 2, 0, 0, 1]
 
     const inputs: readonly bigint[] = [
-        0xF9n, 0xF2n, 0xE3n, 0xC8n,
-        0xB3n, 0xA6n, 0xA3n, 0x9Fn,
-        0x77n, 0x6En, 0x59n, 0x49n,
-        0x27n, 0x17n, 0x10n, 0x0En,
+        0b11111001n, 0b11110010n, 0b11100011n, 0b11001000n,
+        0b10110011n, 0b10100110n, 0b10100011n, 0b10011111n,
+        0b01110111n, 0b01101110n, 0b01011001n, 0b01001001n,
+        0b00100111n, 0b00010111n, 0b00010000n, 0b00001110n,
     ]
 
     let state: State = []
