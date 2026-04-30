@@ -17,8 +17,7 @@ const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) =
 const runExample = (
     inputs: readonly bigint[],
     expectedLeaves: readonly (readonly bigint[])[],
-    expectedNodeCounts: readonly number[],
-    expectedFinalNodeCount: number
+    expectedNodeCounts: readonly number[]
 ) => {
     let state: State<bigint> = []
     for (let i = 0; i < inputs.length; i++) {
@@ -36,7 +35,7 @@ const runExample = (
         for (const [l, r, h] of nodes) { assert(h === combine(l, r)) }
     }
     const [finalNodes, root] = end([])(state)
-    assert(finalNodes.length === expectedFinalNodeCount)
+    assert(finalNodes.length === expectedLeaves[expectedLeaves.length - 1].length - 1)
     assert(root !== undefined)
     for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
 }
@@ -100,7 +99,6 @@ const descending = () => runExample(
         [0b10011111n, 0b01001001n, 0b00100111n, 0b00010000n, 0b00001110n],
     ],
     [0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 1, 0, 2, 0, 0, 1],
-    4, // 5 remaining candidates collapse into 4 nodes
 )
 
 // example.md — ascending (same values, reversed)
@@ -131,7 +129,6 @@ const ascending = () => runExample(
         [0b01110111n, 0b10110011n, 0b11001000n, 0b11100011n, 0b11110010n, 0b11111001n],
     ],
     [0, 0, 0, 2, 1, 0, 1, 0, 3, 0, 0, 1, 2, 0, 0, 0],
-    5, // 6 remaining candidates collapse into 5 nodes
 )
 
 export default {
