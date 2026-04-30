@@ -9,7 +9,11 @@ const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) =
 
 const push1 = (state: State<bigint>) => (u: bigint) => push(state)([u, u])
 
-const runExample = (inputs: readonly bigint[], expectedLeaves: readonly (readonly bigint[])[], expectedNodeCounts: readonly number[]) => {
+const runExample = (
+    inputs: readonly bigint[],
+    expectedLeaves: readonly (readonly bigint[])[],
+    expectedNodeCounts: readonly number[]
+) => {
     let state: State<bigint> = []
     for (let i = 0; i < inputs.length; i++) {
         const x = inputs[i]
