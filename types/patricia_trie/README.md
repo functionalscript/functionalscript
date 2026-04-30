@@ -23,24 +23,25 @@ After all leaves have been pushed, `end` drains the remaining stack right-to-lef
 ## Types
 
 ```typescript
-type Node<T>      = readonly [T, T, T]          // [leftId, rightId, id]
-type Create<T>    = (a: T, b: T) => T
+type Create<S, T> = (storage: S, a: T, b: T) => readonly[S, T]
 type Candidate<T> = readonly [bigint, T]         // [sortKey, id]
 type State<T>     = readonly Candidate<T>[]      // right-spine stack
 ```
 
-`Candidate<T>` separates the `bigint` sort key (used only for XOR comparisons) from the opaque identity `T` (passed to `create` when candidates are merged). This lets `T` be a hash, a content address, a string, or any other type.
+`Create<S, T>` is the combining function. It receives the current storage `S`, the two child identities, and returns both the updated storage and the new parent identity. Passing `S = undefined` (and ignoring storage) gives the simple case where only the root hash is needed. Passing `S = readonly [T, T, T][]` accumulates every created node for later inspection or persistence.
+
+`Candidate<T>` separates the `bigint` sort key (used only for XOR comparisons) from the opaque identity `T`. This lets `T` be a hash, a content address, a string, or any other type.
 
 ## API
 
 ```typescript
-const { push, end } = pt(create)
+const { push, end } = patriciaTrie(create)
 ```
 
 | | Signature | Description |
 |---|---|---|
-| `push` | `StateScan<Candidate<T>, State<T>, readonly Node<T>[]>` | Add one sorted leaf. Returns completed nodes and new state. |
-| `end` | `(state: State<T>) => readonly [readonly Node<T>[], T \| undefined]` | Flush remaining candidates. Returns final nodes and root identity (`undefined` if no leaves). |
+| `push` | `(storage: S) => StateScan<Candidate<T>, State<T>, S>` | Add one sorted leaf. Returns updated storage and new state. |
+| `end` | `(storage: S) => (state: State<T>) => readonly [S, T \| undefined]` | Flush remaining candidates. Returns final storage and root identity (`undefined` if no leaves). |
 
 Both functions are pure — `State<T>` is an immutable array and is never mutated.
 

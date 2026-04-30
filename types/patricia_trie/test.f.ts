@@ -1,13 +1,18 @@
 import { assert } from '../../dev/module.f.ts'
 import { patriciaTrie, type State } from './module.f.ts'
 
-const compress = (a: bigint, b: bigint): bigint => a * 1_000n + b
+type NodeList = readonly [bigint, bigint, bigint][]
 
-const { push, end } = patriciaTrie(compress)
+const combine = (a: bigint, b: bigint): bigint => a * 1_000n + b
+
+const create = (s: NodeList, a: bigint, b: bigint): readonly[NodeList, bigint] => {
+    const h = combine(a, b)
+    return [[...s, [a, b, h]], h]
+}
+
+const { push, end } = patriciaTrie(create)
 
 const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) => leaf)
-
-const push1 = (state: State<bigint>) => (u: bigint) => push(state)([u, u])
 
 const runExample = (
     inputs: readonly bigint[],
@@ -17,7 +22,7 @@ const runExample = (
     let state: State<bigint> = []
     for (let i = 0; i < inputs.length; i++) {
         const x = inputs[i]
-        const [nodes, newState] = push1(state)(x)
+        const [nodes, newState] = push([])(state)([x, x])
         state = newState
 
         const actual = leaves(state)
@@ -27,43 +32,40 @@ const runExample = (
         }
 
         assert(nodes.length === expectedNodeCounts[i])
-        for (const [l, r, h] of nodes) {
-            assert(h === compress(l, r))
-        }
+        for (const [l, r, h] of nodes) { assert(h === combine(l, r)) }
     }
     return state
 }
 
 const empty = () => {
-    const [nodes, root] = end([])
+    const [nodes, root] = end([])([])
     assert(nodes.length === 0)
     assert(root === undefined)
 }
 
 const singleLeaf = () => {
-    const [nodes, s] = push1([])(42n)
+    const [nodes, s] = push([])([])([ 42n, 42n])
     assert(nodes.length === 0)
     assert(leaves(s).length === 1)
     assert(leaves(s)[0] === 42n)
 
-    const [endNodes, root] = end(s)
+    const [endNodes, root] = end([])(s)
     assert(endNodes.length === 0)
     assert(root === 42n)
 }
 
-// Second push emits no node; end emits one.
 const twoLeaves = () => {
-    const [, s1] = push1([])(7n)
-    const [nodes, s2] = push1(s1)(3n)
+    const [, s1] = push([])([])([ 7n, 7n])
+    const [nodes, s2] = push([])(s1)([3n, 3n])
     assert(nodes.length === 0)
     assert(leaves(s2).length === 2)
 
-    const [endNodes, root] = end(s2)
+    const [endNodes, root] = end([])(s2)
     assert(endNodes.length === 1)
     assert(endNodes[0][0] === 7n)
     assert(endNodes[0][1] === 3n)
-    assert(endNodes[0][2] === compress(7n, 3n))
-    assert(root === compress(7n, 3n))
+    assert(endNodes[0][2] === combine(7n, 3n))
+    assert(root === combine(7n, 3n))
 }
 
 // example.md — descending
@@ -97,10 +99,10 @@ const descending = () => {
         [0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 1, 0, 2, 0, 0, 1],
     )
     // 5 remaining candidates collapse into 4 nodes
-    const [finalNodes, root] = end(state)
+    const [finalNodes, root] = end([])(state)
     assert(finalNodes.length === 4)
     assert(root !== undefined)
-    for (const [l, r, h] of finalNodes) { assert(h === compress(l, r)) }
+    for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
 }
 
 // example.md — ascending (same values, reversed)
@@ -134,10 +136,10 @@ const ascending = () => {
         [0, 0, 0, 2, 1, 0, 1, 0, 3, 0, 0, 1, 2, 0, 0, 0],
     )
     // 6 remaining candidates collapse into 5 nodes
-    const [finalNodes, root] = end(state)
+    const [finalNodes, root] = end([])(state)
     assert(finalNodes.length === 5)
     assert(root !== undefined)
-    for (const [l, r, h] of finalNodes) { assert(h === compress(l, r)) }
+    for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
 }
 
 export default { empty, singleLeaf, twoLeaves, descending, ascending }
