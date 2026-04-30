@@ -1,4 +1,3 @@
-import { stat } from 'node:fs'
 import { assert } from '../../dev/module.f.ts'
 import { patriciaTrie, type State } from './module.f.ts'
 
