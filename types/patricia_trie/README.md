@@ -48,14 +48,14 @@ Both functions are pure — `State<T>` is an immutable array and is never mutate
 
 See [example.md](example.md) for a full 16-leaf worked trace showing the state after each `push` and the resulting tree shape.
 
-## References
-
-- Donald R. Morrison, [*PATRICIA — Practical Algorithm To Retrieve Information Coded in Alphanumeric*](https://dl.acm.org/doi/abs/10.1145/321479.321481), Journal of the ACM, 15(4):514–534, 1968.
-- Wikipedia: [Radix tree](https://en.wikipedia.org/wiki/Radix_tree)
-- NIST: [Patricia tree](https://xlinux.nist.gov/dads/HTML/patriciatree.html)
-
 ## Properties
 
 - **Order-dependent identity**: ascending and descending insertion of the same leaf set produce trees with mirrored left/right children — root identities differ unless `create` is symmetric.
 - **Incremental**: nodes are emitted as soon as they are complete; callers can store or transmit them without waiting for the full sequence.
 - **Parameterised**: any `Create<T>` function can be supplied — a cryptographic hash, XOR, string concatenation, or a test stub.
+
+## References
+
+- Donald R. Morrison, [*PATRICIA — Practical Algorithm To Retrieve Information Coded in Alphanumeric*](https://dl.acm.org/doi/abs/10.1145/321479.321481), Journal of the ACM, 15(4):514–534, 1968.
+- Wikipedia: [Radix tree](https://en.wikipedia.org/wiki/Radix_tree)
+- NIST: [Patricia tree](https://xlinux.nist.gov/dads/HTML/patriciatree.html)
