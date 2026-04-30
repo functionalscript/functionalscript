@@ -1,7 +1,7 @@
 import { vec, type Vec } from '../../../bit_vec/module.f.ts'
 import { stateScan, toArray } from '../../../list/module.f.ts'
 import {
-    emptyState,
+    emptyEncodeState,
     level,
     literal1ToVec,
     literal2ToVec,
@@ -27,7 +27,7 @@ const tests = (n: bigint) => {
                 throw new Error(`Assertion failed for n=${n}, word=${wordToString(word)}, expected decode to return ${wordToString(word)}, got [${wordToString(decoded)}]`);
             }
             // encode
-            const a =toArray(stateScan(push)(emptyState)(word))
+            const a =toArray(stateScan(push)(emptyEncodeState)(word))
             if (!a.slice(0, -1).every(i => i === undefined)) {
                 throw a
             }
