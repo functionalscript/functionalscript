@@ -1,9 +1,9 @@
 import { assert } from '../../dev/module.f.ts'
-import { mpt, type State } from './module.f.ts'
+import { pt, type State } from './module.f.ts'
 
 const compress = (a: bigint, b: bigint): bigint => a * 1_000n + b
 
-const { push, end } = mpt(compress)
+const { push, end } = pt(compress)
 
 const leaves = (state: State): readonly bigint[] => state.map(([leaf]) => leaf)
 

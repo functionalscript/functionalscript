@@ -11,7 +11,7 @@ export type Candidate = readonly[bigint, bigint]
 
 export type State = readonly Candidate[]
 
-export type Mpt = {
+export type Pt = {
     /**
      * Add one sorted leaf. Returns any {@link Node}s completed on this step
      * and the updated right-spine {@link State}.
@@ -26,14 +26,14 @@ export type Mpt = {
 }
 
 /**
- * Builds a Merkle Patricia Trie from a lexicographically sorted (ascending or
+ * Builds a Patricia Trie from a lexicographically sorted (ascending or
  * descending) stream of leaves.
  *
  * Merge rule: pop and compress the two rightmost candidates whenever their
  * mutual XOR is smaller than the XOR of the top candidate with the new leaf
  * (i.e. the two are more tightly coupled with each other than with `u`).
  */
-export const mpt = (compress: Compress): Mpt => {
+export const pt = (compress: Compress): Pt => {
     const push: StateScan<bigint, State, readonly Node[]> = state => u => {
         let nodes: readonly Node[] = []
         let stack: readonly Candidate[] = state
