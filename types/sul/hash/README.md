@@ -24,15 +24,15 @@ This module sidesteps that explosion by giving every value a fixed-size **256-bi
 
 Every value is a 256-bit unsigned integer. The top bits form a discriminator prefix:
 
-| Top bits | Range | Meaning |
-|----------|-------|---------|
-| `00` | $[0,\ 2^{254})$ | Level 3 literal symbol (inline, no prefix needed) |
-| `01` | $[2^{254},\ 2^{255})$ | Raw bit vector, up to 253 bits of payload |
-| `1` | $[2^{255},\ 2^{256})$ | 255-bit SHA2 hash |
+| Prefix bits | Value (bits) | Meaning                                           |
+|-------------|--------------|---------------------------------------------------|
+| `00`        | 254          | Level 3 literal symbol (inline, no prefix needed) |
+| `01`        | 254          | Raw bit vector, up to 253 bits of payload         |
+| `1`         | 255          | 255-bit SHA2 hash                                 |
 
 ### Level 3 Symbol (`00…`)
 
-A Level 3 literal symbol fits entirely below $2^{254}$, so no prefix bits need to be added — the identity function is the encoding. There are $f(f(f(2))) = 0x100\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0000\,0001$ possible Level 3 symbols, all well within this range.
+A Level 3 literal symbol fits entirely below $2^{254}$, so no prefix bits need to be added — the identity function is the encoding. There are $f(f(f(2))) = 2^{136}+1$ possible Level 3 symbols, all well within this range.
 
 ### Raw Bit Vector (`01…`)
 
