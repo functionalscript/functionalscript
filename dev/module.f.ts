@@ -13,9 +13,12 @@ import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
-export const assert: (v: boolean) => asserts v = v => {
-    if (!v) throw new Error('assertion failed')
+export const assert = (v: boolean, msg: unknown = 'assertion failed'): asserts v => {
+    if (!v) throw msg
 }
+
+export const assertEq = <T>(a: T, b: T) =>
+    assert(a === b, [a, b])
 
 export type Module = {
     readonly default?: unknown
