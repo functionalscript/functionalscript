@@ -42,9 +42,11 @@ const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V
 /**
  * Note: no need to add a prefix.
  */
-const level3Id: (v: bigint) => bigint = identity
+export const level3Id: (v: bigint) => bigint = identity
 
-const rawPrefix = 1n << 0xFEn
+const rawPrefixOffset = 0xFEn
+
+const rawPrefix = 1n << rawPrefixOffset
 
 assertEq(
     rawPrefix,
@@ -67,7 +69,7 @@ export const rawId = (symbol: Vec): bigint => {
 // 253
 const rawLenMax = 0xFDn
 
-const isRaw = (v: bigint) => v >> 0xFEn === 1n
+export const isRaw = (v: bigint) => v >> rawPrefixOffset === 1n
 
 const toRaw = (a: bigint): Vec => {
     if (!isRaw(a)) {
@@ -78,7 +80,9 @@ const toRaw = (a: bigint): Vec => {
     return vec(len)(raw ^ (1n << len))
 }
 
-export const hashPrefix = 1n << 0xFFn
+const hashPrefixOffset = 0xFFn
+
+const hashPrefix = 1n << hashPrefixOffset
 
 assertEq(
     hashPrefix,
@@ -87,7 +91,7 @@ assertEq(
     0x80000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000n
 )
 
-const isHash = (v: bigint) => v >> 0xFFn === 1n
+export const isHash = (v: bigint) => v >> hashPrefixOffset === 1n
 
 /**
  * Note: we don't need to remove the prefix bits from the hash because
@@ -104,7 +108,7 @@ const hash2 = base32.compress(iv)
 const vecX20 = vec(0x20n)
 
 const hashMerge = (a: bigint, b: bigint): bigint =>
-    uint(listToVec(msb)(hash2((a << 0x100n) | b).map(vecX20)))
+    hashId(uint(listToVec(msb)(hash2((a << 0x100n) | b).map(vecX20))))
 
 const { concat } = msb
 
