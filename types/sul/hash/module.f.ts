@@ -100,7 +100,7 @@ export const isHash = (v: bigint) => v >> hashPrefixOffset === 1n
  * @param symbol
  * @returns
  */
-const hashId = (hash: bigint): bigint =>
+export const hashId = (hash: bigint): bigint =>
     hashPrefix | hash
 
 const hash2 = base32.compress(iv)
