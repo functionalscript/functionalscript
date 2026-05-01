@@ -1,5 +1,4 @@
-import { toArray, type List } from '../../../list/module.f.ts'
-import type { StateScan } from '../../../function/operator/module.f.ts'
+import { toArray } from '../../list/module.f.ts'
 import {
     length,
     listToVec,
@@ -9,36 +8,14 @@ import {
     unpack,
     vec,
     type Vec
-} from '../../../bit_vec/module.f.ts'
-import type { Effect, Operation } from '../../../effects/module.f.ts'
-import { assert, todo } from '../../../../dev/module.f.ts'
-import { utf8 } from '../../../../text/module.f.ts'
-import { secp256r1, type Point2D } from '../../../../crypto/secp/module.f.ts'
-import { base32, type V8 } from '../../../../crypto/sha2/module.f.ts'
-import { identity } from '../../../function/module.f.ts'
-import { literal3ToVec } from '../literal/module.f.ts'
-import { log2 } from '../../../bigint/module.f.ts'
-
-export type HashState = List<Vec>
-
-export type HashLevel<T extends Operation> = {
-    /**
-     * Note: Currently, we return an effect of a list of bit vectors.
-     *       This way, we have to read the complete list into memory.
-     *
-     * TODO: Return an asynchronous (effect) list.
-     *
-     * @param v a symbol from the next level.
-     * @returns
-     */
-    readonly decode: (v: Vec) => Effect<T, List<Vec>>
-    /**
-     * Note: Currently, we return complete data block.
-     *       However, the proper way would be to save
-     *       intermidiate blocks as well.
-     */
-    readonly encode: StateScan<Vec, HashState, Vec|undefined>
-}
+} from '../../bit_vec/module.f.ts'
+import { assert } from '../../../dev/module.f.ts'
+import { utf8 } from '../../../text/module.f.ts'
+import { secp256r1, type Point2D } from '../../../crypto/secp/module.f.ts'
+import { base32, type V8 } from '../../../crypto/sha2/module.f.ts'
+import { identity } from '../../function/module.f.ts'
+import { literal3ToVec } from '../level/literal/module.f.ts'
+import { log2 } from '../../bigint/module.f.ts'
 
 // 32 bytes = 256 bits.
 //
@@ -121,7 +98,7 @@ const hashMerge = (a: bigint, b: bigint): bigint =>
 
 const { concat } = msb
 
-const compress = (a: bigint, b: bigint): bigint => {
+export const compress = (a: bigint, b: bigint): bigint => {
     if (isHash(a) || isHash(b)) {
         return hashMerge(a, b)
     }
@@ -133,6 +110,3 @@ const compress = (a: bigint, b: bigint): bigint => {
     }
     return rawId(concat(ra)(rb))
 }
-
-export const hashLevel = <T extends Operation>(get: (hash: Vec) => Effect<T, Vec>): HashLevel<T> =>
-    todo()

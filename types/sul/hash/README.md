@@ -1,8 +1,8 @@
-# SUL Hash Level
+# SUL Hash
 
-## Why Hash Levels
+## Motivation
 
-Higher literal levels are finite, but the alphabet size grows via **tetration** (iterated exponentiation). Starting from $n_0 = 2$:
+Literal alphabet sizes grow via **tetration** (iterated exponentiation). Starting from $n_0 = 2$:
 
 | Level | Alphabet size $n$ |
 |-------|-------------------|
@@ -12,9 +12,9 @@ Higher literal levels are finite, but the alphabet size grows via **tetration** 
 | 3 | $\approx 2^{136}$ |
 | 4 | $\approx 2^{2^{136}}$ |
 
-Level 4 alone would require $\approx 2^{136}$ bits just to index a single symbol — far beyond any practical storage or computation. Hash levels provide a fixed-size 256-bit identifier for values at any depth, sidestepping this explosion.
+Level 4 alone would require $\approx 2^{136}$ bits just to index a single symbol — far beyond any practical storage or computation.
 
-The hash level solves this by giving every value a fixed-size **256-bit identifier**, regardless of how deeply nested or large the underlying data is. Two sub-values are merged into a single identifier by hashing; the hash can itself be used as an input to the next merge. This enables:
+This module sidesteps that explosion by giving every value a fixed-size **256-bit identifier**, regardless of how deeply nested or large the underlying data is. Two sub-values are merged into a single identifier by hashing; the hash can itself be used as an input to the next merge. This enables:
 
 - **Content-addressed storage**: the identifier of a value is determined solely by its content.
 - **Unbounded recursion**: any pair of 256-bit identifiers can be combined into a new 256-bit identifier.
