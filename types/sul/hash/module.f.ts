@@ -9,7 +9,7 @@ import {
     vec,
     type Vec
 } from '../../bit_vec/module.f.ts'
-import { assert, assertEq } from '../../../dev/module.f.ts'
+import { assertEq } from '../../../dev/module.f.ts'
 import { utf8 } from '../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../crypto/sha2/module.f.ts'
