@@ -1,15 +1,7 @@
 import { assertEq } from '../../../dev/module.f.ts'
-import { compress } from './module.f.ts'
+import { vec } from '../../bit_vec/module.f.ts'
+import { compress, hashPrefix, rawId } from './module.f.ts'
 
-// rawPrefix = 1n << 254n — bit 254 set, bit 255 not set
-const rawPrefix = 0x4000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
-
-// hashPrefix = 1n << 255n — bit 255 set
-const hashPrefix = 0x8000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n
-
-// rawId(concat(vec(8n)(a_bits), vec(8n)(b_bits)))
-// = rawPrefix | (a_bits << 8n) | b_bits | (1n << 16n)
-//
 // literal3ToVec bit patterns for symbols used below:
 //   0  → vec(8n)(0n)     4  → vec(8n)(3n)
 //   1  → vec(8n)(1n)     10 → vec(8n)(5n)
@@ -17,13 +9,13 @@ const hashPrefix = 0x8000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
 
 export default {
     // Two level-3 literals whose combined bit vectors fit inline (≤ 253 bits)
-    inline_0_0:   () => assertEq(compress(0n, 0n),   rawPrefix | 0x1_0000n),
-    inline_0_1:   () => assertEq(compress(0n, 1n),   rawPrefix | 0x1_0001n),
-    inline_1_0:   () => assertEq(compress(1n, 0n),   rawPrefix | 0x1_0100n),
-    inline_1_1:   () => assertEq(compress(1n, 1n),   rawPrefix | 0x1_0101n),
-    inline_0_4:   () => assertEq(compress(0n, 4n),   rawPrefix | 0x1_0003n),
-    inline_4_0:   () => assertEq(compress(4n, 0n),   rawPrefix | 0x1_0300n),
-    inline_10_128: () => assertEq(compress(10n, 128n), rawPrefix | 0x1_050Fn),
+    inline_00_00: () => assertEq(compress(0x00n, 0x00n), rawId(vec(16n)(0x0000n))),
+    inline_00_01: () => assertEq(compress(0x00n, 0x01n), rawId(vec(16n)(0x0001n))),
+    inline_01_00: () => assertEq(compress(0x01n, 0x00n), rawId(vec(16n)(0x0100n))),
+    inline_01_01: () => assertEq(compress(0x01n, 0x01n), rawId(vec(16n)(0x0101n))),
+    inline_00_04: () => assertEq(compress(0x00n, 0x04n), rawId(vec(16n)(0x0003n))),
+    inline_04_00: () => assertEq(compress(0x04n, 0x00n), rawId(vec(16n)(0x0300n))),
+    inline_0A_80: () => assertEq(compress(0x0An, 0x80n), rawId(vec(16n)(0x050Fn))),
 
     // Non-commutativity: argument order is preserved in concatenation
     non_commutative: () => {
@@ -47,7 +39,10 @@ export default {
 
     // Overflow: two 127-bit raw payloads sum to 254 bits, exceeding the 253-bit inline limit
     overflow: () => assertEq(
-        compress(rawPrefix | ((1n << 128n) - 1n), rawPrefix | ((1n << 128n) - 1n)),
+        compress(
+            rawId(vec(0x7Fn)((1n << 0x7Fn) - 1n)),
+            rawId(vec(0x7Fn)((1n << 0x7Fn) - 1n))
+        ),
         0xc0caa9d6cf74446133e0d3c5d891a40103045a3df74963c8ecf796f96dbf9017n,
     ),
 }

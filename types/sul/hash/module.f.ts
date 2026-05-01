@@ -9,7 +9,7 @@ import {
     vec,
     type Vec
 } from '../../bit_vec/module.f.ts'
-import { assert } from '../../../dev/module.f.ts'
+import { assert, assertEq } from '../../../dev/module.f.ts'
 import { utf8 } from '../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../crypto/sha2/module.f.ts'
@@ -30,10 +30,12 @@ const c = secp256r1
 const ivUint: bigint = (c.mul(uint(utf8IvSeed))(c.g) as Point2D)[0]
 
 // 64 hex = 256 bits = 32 bytes:
-//
-//                  0                 1                 2                 3
-//                  01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
-assert(ivUint === 0x325d5666_573eb118_f32191de_20d17f64_33392ba3_291ae46c_1474a5ed_a5383f25n)
+assertEq(
+    ivUint,
+//    0                 1                 2                 3
+//    01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
+    0x325d5666_573eb118_f32191de_20d17f64_33392ba3_291ae46c_1474a5ed_a5383f25n
+)
 
 const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V8
 
@@ -44,8 +46,12 @@ const level3Id: (v: bigint) => bigint = identity
 
 const rawPrefix = 1n << 0xFEn
 
-assert(rawPrefix ===
-    0x4000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n)
+assertEq(
+    rawPrefix,
+//    0                 1                 2                 3
+//    01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
+    0x40000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000n
+)
 
 /**
  * Note: length(symbol) <= 253n
@@ -53,7 +59,7 @@ assert(rawPrefix ===
  * @param symbol
  * @returns
  */
-const rawId = (symbol: Vec): bigint => {
+export const rawId = (symbol: Vec): bigint => {
     const { length, uint } = unpack(symbol)
     return rawPrefix | uint | (1n << length)
 }
@@ -72,10 +78,14 @@ const toRaw = (a: bigint): Vec => {
     return vec(len)(raw ^ (1n << len))
 }
 
-const hashPrefix = 1n << 0xFFn
+export const hashPrefix = 1n << 0xFFn
 
-assert(hashPrefix ===
-    0x8000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000n)
+assertEq(
+    hashPrefix,
+//    0                 1                 2                 3
+//    01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
+    0x80000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000n
+)
 
 const isHash = (v: bigint) => v >> 0xFFn === 1n
 
