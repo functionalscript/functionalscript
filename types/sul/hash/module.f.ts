@@ -107,8 +107,10 @@ const hash2 = base32.compress(iv)
 
 const vecX20 = vec(0x20n)
 
+const ltv = listToVec(msb)
+
 const hashMerge = (a: bigint, b: bigint): bigint =>
-    hashId(uint(listToVec(msb)(hash2((a << 0x100n) | b).map(vecX20))))
+    hashId(uint(ltv(hash2((a << 0x100n) | b).map(vecX20))))
 
 const { concat } = msb
 
