@@ -85,7 +85,7 @@
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
-    "./types/sul/hash/module.f.ts": "./types/sul/hash/module.f.ts",
+    "./types/sul/id/module.f.ts": "./types/sul/id/module.f.ts",
     "./types/sul/level/hash/module.f.ts": "./types/sul/level/hash/module.f.ts",
     "./types/sul/level/literal/module.f.ts": "./types/sul/level/literal/module.f.ts",
     "./types/sul/module.f.ts": "./types/sul/module.f.ts",
