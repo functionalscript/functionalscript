@@ -1,6 +1,13 @@
+/**
+ * Bijective encoding between words of level-k symbols and single symbols of level k+1,
+ * for the first three literal SUL levels.
+ *
+ * @module
+ */
+
 import { log2 } from '../../../bigint/module.f.ts'
 import { listToVec, msb, vec, type Vec } from '../../../bit_vec/module.f.ts'
-import { strictEqual, type StateScan } from '../../../function/operator/module.f.ts'
+import { strictEqual, type Equal, type StateScan } from '../../../function/operator/module.f.ts'
 import { equal, map, type List } from '../../../list/module.f.ts'
 import { join } from '../../../string/module.f.ts'
 
@@ -11,31 +18,41 @@ export type Word = readonly bigint[]
 export const wordToString = (word: List<bigint>): string =>
     join(',')(map(symbolToString)(word))
 
-export const wordEqual = equal(strictEqual)
+export const wordEqual: Equal<List<bigint>> = equal(strictEqual)
 
+/**
+ * Streaming encoder state: `[last, part]`.
+ * - `last` — the most recently consumed input symbol, or `undefined` before any symbol is seen.
+ * - `part` — accumulated index offset from the decreasing prefix consumed so far.
+ */
 export type EncodeState = readonly[bigint|undefined, bigint]
 
+/** Initial encoder state: no symbols seen, zero offset. */
 export const emptyEncodeState: EncodeState = [undefined, 0n]
 
 /**
- * A level of SUL with finite alphabet `[0, n)`.
+ * A literal SUL level with finite alphabet `[0, n)`.
  */
 export type Level = {
+    /** Number of valid words whose first symbol is ≤ `i`. */
     readonly sum: (i: bigint) => bigint
-    /** Inverse of {@link encode}: restores the complete word from a symbol. */
+    /** Inverse of {@link Level.encode}: restores the complete word from a symbol. */
     readonly decode: (i: bigint) => List<bigint>
-    /** Encoding input symbols into output symbols. */
+    /** Streaming encoder: processes one input symbol at a time, emitting an output symbol only
+     *  when the terminating symbol `t >= last` arrives. */
     readonly encode: StateScan<bigint, EncodeState, bigint|undefined>
 }
 
 /**
- * Creates a {@link Level} for a specific alphabet size `n`, where `n = 2^e + 1`.
+ * Creates a {@link Level} for alphabet size `n = 2^e + 1`.
  *
- * Usual first three levels for a tree that starts with a binary (two-symbol) alphabet:
+ * The first three levels for a tree starting from a binary alphabet:
  *
- * - `level(0n)`: `n = 2`
- * - `level(2n)`: `n = 5`
- * - `level(7n)`: `n = 0x81`
+ * | `e`  | `n`    |
+ * |------|--------|
+ * | `0`  | `2`    |
+ * | `2`  | `5`    |
+ * | `7`  | `0x81` |
  *
  * @param e `log2(n - 1)`
  */
@@ -67,11 +84,14 @@ export const level = (e: bigint): Level => {
     }
 }
 
-export const level1 = level(0n)
+/** Level 1: binary alphabet `{0, 1}`, output alphabet size `5`. */
+export const level1: Level = level(0n)
 
-export const level2 = level(2n)
+/** Level 2: 5-symbol input alphabet, output alphabet size `0x81`. */
+export const level2: Level = level(2n)
 
-export const level3 = level(7n)
+/** Level 3: 129-symbol input alphabet, output alphabet size `2^136 + 1`. */
+export const level3: Level = level(7n)
 
 const { decode: decode1 } = level1
 
@@ -83,11 +103,14 @@ const concat = listToVec(msb)
 
 const vec1 = vec(1n)
 
+/** Decodes a level-1 symbol to its canonical MSB bit vector. */
 export const literal1ToVec = (literal: bigint): Vec =>
     concat(map(vec1)(decode1(literal)))
 
+/** Decodes a level-2 symbol to its canonical MSB bit vector (via level-1 decoding). */
 export const literal2ToVec = (literal: bigint): Vec =>
     concat(map(literal1ToVec)(decode2(literal)))
 
+/** Decodes a level-3 symbol to its canonical MSB bit vector (via level-2 and level-1 decoding). */
 export const literal3ToVec = (literal: bigint): Vec =>
     concat(map(literal2ToVec)(decode3(literal)))
