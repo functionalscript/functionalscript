@@ -5,7 +5,7 @@
  */
 
 import { emptyState, patriciaTrie, type Create, type State } from '../../../patricia_trie/module.f.ts'
-import { compress } from '../../hash/module.f.ts'
+import { compress } from '../../id/module.f.ts'
 
 /**
  * Called once per merge during encoding. `merged = compress(left, right)`.

@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../../dev/module.f.ts'
-import { compress } from '../../hash/module.f.ts'
+import { compress } from '../../id/module.f.ts'
 import { emptyEncodeState, encode, type EncodeState } from './module.f.ts'
 
 type NodeList = readonly [bigint, bigint, bigint][]
