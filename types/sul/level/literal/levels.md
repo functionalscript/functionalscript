@@ -26,7 +26,7 @@
 |`11` |4     |1/4|C    |
 
 Total: `0xC = 12 = 6 * 2`, where `2` is number of input symbols.
-Average: `12/5 = 2.4`
+Expected length: `(3/2)^2 = 9/4 = 2.25`
 
 ## Level 2
 
@@ -164,8 +164,8 @@ Average: `12/5 = 2.4`
 
 Total: `0x1E0 = 480 = 96 * 5`, where `5` is a number of input symbols.
 Total(bits): `0x480 = 1152`
-Average: `480/129 = 160/43 ~ 3.72`
-Average(bits): `1152/129 = 384/43 ~ 8.93`
+Expected length: `(5/4)^3·(9/8)^2 = 10125/4096 ≈ 2.47`
+Expected bits: `10125/4096 · 9/4 = 91125/16384 ≈ 5.56`
 
 ## Level 3
 
@@ -210,3 +210,8 @@ The longest # 2:
 0F.0E.0D.0C.0B.0A.09.08.06.05.04.03.02.01.00.
 75
 ```
+
+Total: `130 * 2^128 * 129 = 16770 * 2^128`, where `129` is number of input symbols.
+Total(bits): `130 * 2^128 * 1152 = 149760 * 2^128`
+Expected length: `≈ 2.675`
+Expected bits: `≈ 2.675 * 91125/16384 ≈ 14.88`

@@ -50,3 +50,46 @@ $$E[\text{length}] \to e$$
 | 2        | 5   | $10125/4096 \approx 2.473$ | $0.905$         |
 | 3        | 129 | $\approx 2.675$            | $\approx 0.984$ |
 | $\infty$ |     | $e \approx 2.718$          | $1$             |
+
+## Expected bits per word
+
+**[Wald's identity][wald-wiki]** ([Wald 1944], [Durrett 2019] §4.1.1) lets us chain the expected
+word lengths across levels to get the expected number of bits per word at any level.
+
+**Wald's identity.**
+Let $X_1, X_2, \ldots$ be i.i.d. with $E[|X_1|] < \infty$, and
+let $N$ be a stopping time with $E[N] < \infty$. Then
+
+$$E\!\left[\sum_{i=1}^{N} X_i\right] = E[N] \cdot E[X_1].$$
+
+**Application.** In a uniform bit stream, consecutive level-$k$ symbols $s_1, s_2, \ldots$ are
+i.i.d. with distribution $q$. The word boundary $N$ is a stopping time: $\{N \geq n\}$ is
+determined by $s_1, \ldots, s_{n-1}$, while $X_n = \operatorname{bits}(s_n)$ depends only on
+$s_n$, which is independent of the past. Therefore
+
+$$E[X_n \cdot \mathbf{1}_{N \geq n}] = E[X_n] \cdot P(N \geq n),$$
+
+and summing over $n$ gives Wald's identity with $E[X_1] = b_k$, the expected bits per level-$k$
+word.
+
+**Recursion.** Writing $b_k$ for the expected bits per level-$k$ word with $b_0 = 1$:
+
+$$b_k = E_k \cdot b_{k-1} = \prod_{j=1}^{k} E_j$$
+
+| Level $k$ | $E_k$               | $b_k$                      |
+|-----------|---------------------|----------------------------|
+| 1         | $9/4$               | $9/4 \approx 2.25$         |
+| 2         | $10125/4096$        | $91125/16384 \approx 5.56$ |
+| 3         | $\approx 2.675$     | $\approx 14.88$            |
+| $\infty$  | $e$                 | grows without bound        |
+
+## References
+
+- \[Wald 1944\] A. Wald, "On cumulative sums of random variables," *Ann. Math. Statist.* **15**(3),
+  pp. 283–296, 1944. [doi:10.1214/aoms/1177731235](https://doi.org/10.1214/aoms/1177731235)
+- \[Durrett 2019\] R. Durrett, *Probability: Theory and Examples*, 5th ed., Cambridge University
+  Press, 2019. [PDF](https://services.math.duke.edu/~rtd/PTE/PTE5_011119.pdf)
+
+[wald-wiki]: https://en.wikipedia.org/wiki/Wald%27s_equation
+[Wald 1944]: #references
+[Durrett 2019]: #references
