@@ -40,11 +40,11 @@ type State<S, T>     = readonly[S, readonly Candidate<T>[]]  // [storage, right-
 const { push, end } = patriciaTrie(create)
 ```
 
-| | Signature | Description |
-|---|---|---|
-| `push` | `(c: Candidate<T>, state: State<S, T>) => State<S, T>` | Add one leaf. Returns updated state (storage + stack). |
-| `end` | `(state: State<S, T>) => readonly[T \| undefined, S]` | Flush remaining candidates. Returns root identity (`undefined` if no leaves were pushed) and final storage. |
-| `emptyState` | `<S>(storage: S) => State<S, never>` | Construct the initial state from a storage value. |
+|              | Signature                                              | Description                                                                                                 |
+|--------------|--------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `push`       | `(c: Candidate<T>, state: State<S, T>) => State<S, T>` | Add one leaf. Returns updated state (storage + stack).                                                      |
+| `end`        | `(state: State<S, T>) => readonly[T \| undefined, S]`  | Flush remaining candidates. Returns root identity (`undefined` if no leaves were pushed) and final storage. |
+| `emptyState` | `<S>(storage: S) => State<S, never>`                   | Construct the initial state from a storage value.                                                           |
 
 Both `push` and `end` are pure — `State<S, T>` is never mutated in place.
 
