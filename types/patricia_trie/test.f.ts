@@ -1,5 +1,5 @@
 import { assert } from '../../dev/module.f.ts'
-import { patriciaTrie, type State } from './module.f.ts'
+import { emptyState, patriciaTrie, type State } from './module.f.ts'
 
 type NodeList = readonly [bigint, bigint, bigint][]
 
@@ -20,7 +20,7 @@ const runExample = (
     expectedLeaves: readonly (readonly bigint[])[],
     expectedNodeCounts: readonly number[]
 ) => {
-    let state: State<NodeList, bigint> = [[], []]
+    let state: State<NodeList, bigint> = emptyState([])
     for (let i = 0; i < inputs.length; i++) {
         const x = inputs[i]
         const prevCount = state[0].length
@@ -45,13 +45,13 @@ const runExample = (
 }
 
 const empty = () => {
-    const [root, storage] = end([[], []])
+    const [root, storage] = end(emptyState([]))
     assert(storage.length === 0)
     assert(root === undefined)
 }
 
 const singleLeaf = () => {
-    const state = push([42n, 42n], [[], []])
+    const state = push([42n, 42n], emptyState([]))
     assert(state[0].length === 0)
     assert(leaves(state).length === 1)
     assert(leaves(state)[0] === 42n)
@@ -62,7 +62,7 @@ const singleLeaf = () => {
 }
 
 const twoLeaves = () => {
-    const s1 = push([7n, 7n], [[], []])
+    const s1 = push([7n, 7n], emptyState([]))
     const prevCount = s1[0].length
     const s2 = push([3n, 3n], s1)
     assert(s2[0].slice(prevCount).length === 0)

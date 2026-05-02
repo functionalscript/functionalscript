@@ -32,3 +32,5 @@ export const patriciaTrie = <S, T>(create: Create<S, T>): PatriciaTrie<S, T> => 
         return [h, storage]
     }
 })
+
+export const emptyState = <S>(storage: S): readonly[S, readonly[]] => [storage, []]

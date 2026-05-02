@@ -1,4 +1,4 @@
-import { patriciaTrie, type Create, type State } from '../../../patricia_trie/module.f.ts'
+import { emptyState, patriciaTrie, type Create, type State } from '../../../patricia_trie/module.f.ts'
 import { compress } from '../../hash/module.f.ts'
 
 export type Add<S> = (left: bigint, right: bigint, merged: bigint, storage: S) => S
@@ -22,3 +22,5 @@ export const encode = <S>(add: Add<S>) => {
         return [root2, [storage2, []]]
     }
 }
+
+export const emptyEncodeState: <S>(storage: S) => EncodeState<S> = emptyState
