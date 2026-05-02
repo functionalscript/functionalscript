@@ -72,6 +72,7 @@
     "./types/object/module.f.ts": "./types/object/module.f.ts",
     "./types/option/module.f.ts": "./types/option/module.f.ts",
     "./types/ordered_map/module.f.ts": "./types/ordered_map/module.f.ts",
+    "./types/patricia_trie/module.f.ts": "./types/patricia_trie/module.f.ts",
     "./types/prime_field/module.f.ts": "./types/prime_field/module.f.ts",
     "./types/range/module.f.ts": "./types/range/module.f.ts",
     "./types/range_map/module.f.ts": "./types/range_map/module.f.ts",
@@ -84,6 +85,10 @@
     "./types/sorted_set/module.f.ts": "./types/sorted_set/module.f.ts",
     "./types/string/module.f.ts": "./types/string/module.f.ts",
     "./types/string_set/module.f.ts": "./types/string_set/module.f.ts",
+    "./types/sul/hash/module.f.ts": "./types/sul/hash/module.f.ts",
+    "./types/sul/level/hash/module.f.ts": "./types/sul/level/hash/module.f.ts",
+    "./types/sul/level/literal/module.f.ts": "./types/sul/level/literal/module.f.ts",
+    "./types/sul/module.f.ts": "./types/sul/module.f.ts",
     "./types/ts/module.f.ts": "./types/ts/module.f.ts",
     "./types/uint8array/module.f.ts": "./types/uint8array/module.f.ts",
     "./website/module.f.ts": "./website/module.f.ts"
