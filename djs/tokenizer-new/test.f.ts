@@ -19,7 +19,9 @@ const tokenizeString
         const cp = toArray(stringToCodePointList(s))
         const mr = descentParserCpOnly(m, '', cp)
         const flatTokens = getTokensFromMatchResult(mr)
-        const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
+        const unexpectedFlatTokens: List<FlatToken> = flatMap((c: CodePoint): List<FlatToken> => ['unexpected', c])(cp.slice(mr[2]))
+        const allFlatTokens = concat(flatTokens)(unexpectedFlatTokens)
+        const filterTokens = concat(filter(filterFunc)(allFlatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
         const jsTokens = concat(map(toJsToken)(tokens))([{kind: 'eof'}])
         const result = toArray(filter(v => v !== null)(jsTokens))
@@ -62,6 +64,7 @@ const filterFunc
             case ',':
             case 'number':
             case 'string':
+            case 'unexpected':
                 return true
             default:
                 return false
@@ -79,6 +82,8 @@ const toJsToken
             case ':':
             case ',':
                 return {kind: tk[0]}
+            case 'unexpected':
+                return {kind: 'error', message: 'unexpected character'}
             default:
                 return null
         }
@@ -318,10 +323,10 @@ export default {
             const result = tokenizeString(']')
             if (result !== '[{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('ᄑ')
-    //         if (result !== '[{"kind":"error","message":"unexpected character"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('ᄑ')
+            if (result !== '[{"kind":"error","message":"unexpected character"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('{ \t\n\r}')
     //         if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
