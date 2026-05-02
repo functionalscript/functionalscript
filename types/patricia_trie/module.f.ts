@@ -16,8 +16,10 @@ export type State<S, T> = readonly[S, readonly Candidate<T>[]]
 export type PatriciaTrie<S, T> = {
     /** Add one leaf. Merges any tightly-coupled stack candidates before pushing. */
     readonly push: (c: Candidate<T>, state: State<S, T>) => State<S, T>
-    /** Drain the stack right-to-left, returning the root identity and final storage.
-     *  Returns `undefined` as the root if no leaves were pushed. */
+    /**
+     * Drain the stack right-to-left, returning the root identity and final storage.
+     * Returns `undefined` as the root if no leaves were pushed.
+     */
     readonly end: (state: State<S, T>) => readonly[T | undefined, S]
 }
 

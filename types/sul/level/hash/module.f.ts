@@ -34,13 +34,15 @@ export type EncodeState<S> = State<S, bigint>
  *
  * `add` is called once for every `compress` call, recording the merge triple.
  */
-export const encode = <S>(add: Add<S>) => {
+export const encode =
+    <S>(add: Add<S>): (symbol: bigint, state: EncodeState<S>) => readonly[bigint|undefined, EncodeState<S>] =>
+{
     const create: Create<S, bigint> = (a, b, s) => {
         const m = compress(a, b)
         return [m, add(a, b, m, s)]
     }
     const { push, end } = patriciaTrie(create)
-    return (symbol: bigint, state: EncodeState<S>): readonly[bigint|undefined, EncodeState<S>] => {
+    return (symbol, state) => {
         const [, stack] = state
         const last = stack.at(-1)
         if (last === undefined || last[0] > symbol) {
