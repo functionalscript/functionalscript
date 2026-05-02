@@ -91,7 +91,7 @@ const vec1 = vec(1n)
 
 export type LiteralToVec = Func<bigint, Vec>
 
-const literalToVec = (prior: (_: bigint) => Vec, e: bigint): LiteralToVec => {
+const literalToVec = (prior: LiteralToVec, e: bigint): LiteralToVec => {
     const m = map(prior)
     const { decode } = level(e)
     return literal => concat(m(decode(literal)))
