@@ -7,6 +7,9 @@ import { jsGrammar } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
+const normalizeWsTag = (tk: FlatToken): FlatToken =>
+    (tk === ' ' || tk === '\t' || tk === '\n' || tk === '\r') ? 'ws' : tk
+
 const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]): DescentMatchResult<unknown> => {
     const cpm = toArray(map(mapCodePoint)(cp))
     return m(name, cpm)
@@ -21,7 +24,7 @@ const tokenizeString
         const flatTokens = getTokensFromMatchResult(mr)
         const unexpectedFlatTokens: List<FlatToken> = flatMap((c: CodePoint): List<FlatToken> => ['unexpected', c])(cp.slice(mr[2]))
         const allFlatTokens = concat(flatTokens)(unexpectedFlatTokens)
-        const filterTokens = concat(filter(filterFunc)(allFlatTokens))([''])
+        const filterTokens = concat(map(normalizeWsTag)(filter(filterFunc)(allFlatTokens)))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
         const jsTokens = concat(map(toJsToken)(tokens))([{kind: 'eof'}])
         const result = toArray(filter(v => v !== null)(jsTokens))
@@ -39,6 +42,9 @@ const scanFunc
     : StateScan<FlatToken, TokenScanState, List<Token>>
     = state => input => {
         if (typeof input === 'string') {
+            if (input === 'ws' && state[0] === 'ws') {
+                return [null, state]
+            }
             const newState: TokenScanState = [input, []]
             if (state[0] === '') {
                 return [null, newState]
@@ -65,6 +71,10 @@ const filterFunc
             case 'number':
             case 'string':
             case 'unexpected':
+            case ' ':
+            case '\t':
+            case '\n':
+            case '\r':
                 return true
             default:
                 return false
@@ -84,6 +94,8 @@ const toJsToken
                 return {kind: tk[0]}
             case 'unexpected':
                 return {kind: 'error', message: 'unexpected character'}
+            case 'ws':
+                return tk[1].some(c => c === 10 || c === 13) ? {kind: 'nl'} : {kind: 'ws'}
             default:
                 return null
         }
@@ -327,10 +339,10 @@ export default {
             const result = tokenizeString('ᄑ')
             if (result !== '[{"kind":"error","message":"unexpected character"},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('{ \t\n\r}')
-    //         if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('{ \t\n\r}')
+            if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('""')
     //         if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
