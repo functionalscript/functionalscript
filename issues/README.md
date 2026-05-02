@@ -298,6 +298,10 @@ require setting a flag when walking through a test tree as soon as a node has a 
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. use async functions and await instead of `.then`
 - [ ] 133. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support properly type narrowing.
+- [ ] 134. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
+  Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`
+  Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
+  Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
 
 ## Language Specification
 

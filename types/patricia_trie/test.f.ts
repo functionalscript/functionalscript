@@ -5,25 +5,26 @@ type NodeList = readonly [bigint, bigint, bigint][]
 
 const combine = (a: bigint, b: bigint): bigint => a * 1_000n + b
 
-const create = (s: NodeList, a: bigint, b: bigint): readonly[NodeList, bigint] => {
+const create = (a: bigint, b: bigint, s: NodeList): readonly[bigint, NodeList] => {
     const h = combine(a, b)
-    return [[...s, [a, b, h]], h]
+    return [h, [...s, [a, b, h]]]
 }
 
 const { push, end } = patriciaTrie(create)
 
-const leaves = (state: State<bigint>): readonly bigint[] => state.map(([leaf]) => leaf)
+const leaves = ([, candidates]: State<NodeList, bigint>): readonly bigint[] =>
+    candidates.map(([leaf]) => leaf)
 
 const runExample = (
     inputs: readonly bigint[],
     expectedLeaves: readonly (readonly bigint[])[],
     expectedNodeCounts: readonly number[]
 ) => {
-    let state: State<bigint> = []
+    let state: State<NodeList, bigint> = [[], []]
     for (let i = 0; i < inputs.length; i++) {
         const x = inputs[i]
-        const [nodes, newState] = push([])(state)([x, x])
-        state = newState
+        const prevCount = state[0].length
+        state = push([x, x], state)
 
         const actual = leaves(state)
         assert(actual.length === expectedLeaves[i].length)
@@ -31,43 +32,49 @@ const runExample = (
             assert(actual[j] === expectedLeaves[i][j])
         }
 
-        assert(nodes.length === expectedNodeCounts[i])
-        for (const [l, r, h] of nodes) { assert(h === combine(l, r)) }
+        const newNodes = state[0].slice(prevCount)
+        assert(newNodes.length === expectedNodeCounts[i])
+        for (const [l, r, h] of newNodes) { assert(h === combine(l, r)) }
     }
-    const [finalNodes, root] = end([])(state)
+    const prevCount = state[0].length
+    const [root, finalStorage] = end(state)
+    const finalNodes = finalStorage.slice(prevCount)
     assert(finalNodes.length === expectedLeaves[expectedLeaves.length - 1].length - 1)
     assert(root !== undefined)
     for (const [l, r, h] of finalNodes) { assert(h === combine(l, r)) }
 }
 
 const empty = () => {
-    const [nodes, root] = end([])([])
-    assert(nodes.length === 0)
+    const [root, storage] = end([[], []])
+    assert(storage.length === 0)
     assert(root === undefined)
 }
 
 const singleLeaf = () => {
-    const [nodes, s] = push([])([])([ 42n, 42n])
-    assert(nodes.length === 0)
-    assert(leaves(s).length === 1)
-    assert(leaves(s)[0] === 42n)
+    const state = push([42n, 42n], [[], []])
+    assert(state[0].length === 0)
+    assert(leaves(state).length === 1)
+    assert(leaves(state)[0] === 42n)
 
-    const [endNodes, root] = end([])(s)
-    assert(endNodes.length === 0)
+    const [root, finalStorage] = end(state)
+    assert(finalStorage.length === 0)
     assert(root === 42n)
 }
 
 const twoLeaves = () => {
-    const [, s1] = push([])([])([ 7n, 7n])
-    const [nodes, s2] = push([])(s1)([3n, 3n])
-    assert(nodes.length === 0)
+    const s1 = push([7n, 7n], [[], []])
+    const prevCount = s1[0].length
+    const s2 = push([3n, 3n], s1)
+    assert(s2[0].slice(prevCount).length === 0)
     assert(leaves(s2).length === 2)
 
-    const [endNodes, root] = end([])(s2)
-    assert(endNodes.length === 1)
-    assert(endNodes[0][0] === 7n)
-    assert(endNodes[0][1] === 3n)
-    assert(endNodes[0][2] === combine(7n, 3n))
+    const prevCount2 = s2[0].length
+    const [root, finalStorage] = end(s2)
+    const finalNodes = finalStorage.slice(prevCount2)
+    assert(finalNodes.length === 1)
+    assert(finalNodes[0][0] === 7n)
+    assert(finalNodes[0][1] === 3n)
+    assert(finalNodes[0][2] === combine(7n, 3n))
     assert(root === combine(7n, 3n))
 }
 
