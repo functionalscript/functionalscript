@@ -1,7 +1,7 @@
 # SUL Hash-Level Encoding
 
 Encodes a stream of level-3 SUL symbols into level-4 hash symbols using a
-Patricia trie and the 256-bit [SUL hash](../../hash/README.md).
+Patricia trie and the 256-bit [SUL identifier](../../id/README.md).
 
 ## Background
 

@@ -67,7 +67,7 @@ literal3ToVec(s) = flatten(decode3(s).map(
                       u => decode1(u).map(bit => vec(1)(bit))))))
 ```
 
-These are used by the [hash module](../../hash/README.md) to convert level-3 symbols
+These are used by the [id module](../../id/README.md) to convert level-3 symbols
 into fixed-width bit vectors for inline storage.
 
 ## References

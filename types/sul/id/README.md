@@ -1,4 +1,4 @@
-# SUL Hash
+# SUL Id
 
 ## Motivation
 
@@ -14,11 +14,11 @@ Literal alphabet sizes grow via **tetration** (iterated exponentiation). Startin
 
 Level 4 alone would require $\approx 2^{136}$ bits just to index a single symbol — far beyond any practical storage or computation.
 
-This module sidesteps that explosion by giving every value a fixed-size **256-bit identifier**, regardless of how deeply nested or large the underlying data is. Two sub-values are merged into a single identifier by hashing; the hash can itself be used as an input to the next merge. This enables:
+This module sidesteps that explosion by giving every value a fixed-size **256-bit identifier**, regardless of how deeply nested or large the underlying data is. Two identifiers are merged into a single new identifier; the result can itself be used as an input to the next merge. This enables:
 
 - **Content-addressed storage**: the identifier of a value is determined solely by its content.
 - **Unbounded recursion**: any pair of 256-bit identifiers can be combined into a new 256-bit identifier.
-- **Compact references**: large or frequently-repeated sub-trees are referenced by hash rather than inlined.
+- **Compact references**: large or frequently-repeated sub-trees are referenced by identifier rather than inlined.
 
 ## Symbol Structure
 

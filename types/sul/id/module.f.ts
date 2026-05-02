@@ -1,3 +1,11 @@
+/**
+ * 256-bit content-addressed identifiers for SUL values.
+ * Every identifier is one of three variants: a level-3 literal (inline), a raw bit vector (inline),
+ * or a SHA2-based hash, selected automatically by `compress` based on size and input type.
+ *
+ * @module
+ */
+
 import { toArray } from '../../list/module.f.ts'
 import {
     length,
