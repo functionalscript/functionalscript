@@ -2,6 +2,7 @@ import { assert, assertEq } from '../../../dev/module.f.ts'
 import { mask } from '../../bigint/module.f.ts'
 import { vec } from '../../bit_vec/module.f.ts'
 import { compress, hashId, isHash, isRaw, level3Id, rawId } from './module.f.ts'
+import { asBase } from '../../nominal/module.f.ts'
 
 // literal3ToVec bit patterns for symbols used below:
 //   0  → vec(8n)(0n)     4  → vec(8n)(3n)
@@ -15,9 +16,9 @@ const overflowHash = compress(rawX7F, rawX7F)
 const hFF = hashId(mask(0xFFn))
 const hFE = hashId(mask(0xFFn) - 1n)
 
-assertEq(level3Id(0n), 0n)
-assertEq(hashId(0n), 1n << 0xFFn)
-assertEq(hFF, mask(0x100n))
+assertEq(asBase(level3Id(0n)), 0n)
+assertEq(asBase(hashId(0n)), 1n << 0xFFn)
+assertEq(asBase(hFF), mask(0x100n))
 
 export default {
     // Two level-3 literals whose combined bit vectors fit inline (≤ 253 bits)
@@ -43,11 +44,11 @@ export default {
     overflow_is_hash: () => assert(isHash(overflowHash)),
 
     // Hash input: either argument being a hash always triggers SHA2-based merge
-    hash_left_is_hash:  () => assert(isHash(compress(overflowHash, 0n))),
-    hash_right_is_hash: () => assert(isHash(compress(0n, overflowHash))),
+    hash_left_is_hash:  () => assert(isHash(compress(overflowHash, level3Id(0n)))),
+    hash_right_is_hash: () => assert(isHash(compress(level3Id(0n), overflowHash))),
     hash_non_commutative: () => {
-        if (compress(overflowHash, 0n) === compress(0n, overflowHash)) {
-            throw compress(overflowHash, 0n)
+        if (compress(overflowHash, level3Id(0n)) === compress(level3Id(0n), overflowHash)) {
+            throw compress(overflowHash, level3Id(0n))
         }
     },
 

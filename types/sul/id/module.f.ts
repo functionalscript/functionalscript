@@ -21,9 +21,15 @@ import { assertEq } from '../../../dev/module.f.ts'
 import { utf8 } from '../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../crypto/sha2/module.f.ts'
-import { identity } from '../../function/module.f.ts'
 import { literal3ToVec } from '../level/literal/module.f.ts'
 import { log2 } from '../../bigint/module.f.ts'
+import { asBase, asNominal, type Nominal } from '../../nominal/module.f.ts'
+
+/** A 256-bit SUL identifier. One of three variants: level-3 literal, raw bit vector, or SHA2 hash. */
+export type Id = Nominal<
+    'sul/id',
+    '6f5f6da053a6ac70e9687d42b7a09e925c3be21027f55beb2cba3040bf3d5b71',
+    bigint>
 
 // 32 bytes = 256 bits.
 //
@@ -47,10 +53,13 @@ assertEq(
 
 const iv = toArray(uintChunkList(msb)(32n)({ length: 256n, uint: ivUint })) as V8
 
+assertEq(iv.length, 8)
+
 /**
  * Note: no need to add a prefix.
  */
-export const level3Id: (v: bigint) => bigint = identity
+export const level3Id: (v: bigint) => Id =
+    asNominal
 
 const rawPrefixOffset = 0xFEn
 
@@ -69,21 +78,22 @@ assertEq(
  * @param symbol
  * @returns
  */
-export const rawId = (symbol: Vec): bigint => {
+export const rawId = (symbol: Vec): Id => {
     const { length, uint } = unpack(symbol)
-    return rawPrefix | uint | (1n << length)
+    return asNominal(rawPrefix | uint | (1n << length))
 }
 
 // 253
 const rawLenMax = 0xFDn
 
-export const isRaw = (v: bigint) => v >> rawPrefixOffset === 1n
+export const isRaw = (v: Id): boolean =>
+    asBase(v) >> rawPrefixOffset === 1n
 
-const toRaw = (a: bigint): Vec => {
+const toRaw = (a: Id): Vec => {
     if (!isRaw(a)) {
-        return literal3ToVec(a)
+        return literal3ToVec(asBase(a))
     }
-    const raw = a ^ rawPrefix
+    const raw = asBase(a) ^ rawPrefix
     const len = log2(raw)
     return vec(len)(raw ^ (1n << len))
 }
@@ -99,7 +109,8 @@ assertEq(
     0x80000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000n
 )
 
-export const isHash = (v: bigint) => v >> hashPrefixOffset === 1n
+export const isHash = (v: Id): boolean =>
+    asBase(v) >> hashPrefixOffset === 1n
 
 /**
  * Note: we don't need to remove the prefix bits from the hash because
@@ -108,8 +119,8 @@ export const isHash = (v: bigint) => v >> hashPrefixOffset === 1n
  * @param symbol
  * @returns
  */
-export const hashId = (hash: bigint): bigint =>
-    hashPrefix | hash
+export const hashId = (hash: bigint): Id =>
+    asNominal(hashPrefix | hash)
 
 const hash2 = base32.compress(iv)
 
@@ -117,12 +128,12 @@ const vecX20 = vec(0x20n)
 
 const ltv = listToVec(msb)
 
-const hashMerge = (a: bigint, b: bigint): bigint =>
-    hashId(uint(ltv(hash2((a << 0x100n) | b).map(vecX20))))
+const hashMerge = (a: Id, b: Id): Id =>
+    hashId(uint(ltv(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
 
 const { concat } = msb
 
-export const compress = (a: bigint, b: bigint): bigint => {
+export const compress = (a: Id, b: Id): Id => {
     if (isHash(a) || isHash(b)) {
         return hashMerge(a, b)
     }

@@ -5,20 +5,21 @@
  */
 
 import { emptyState, patriciaTrie, type Create, type State } from '../../../patricia_trie/module.f.ts'
-import { compress } from '../../id/module.f.ts'
+import { compress, type Id } from '../../id/module.f.ts'
+import { asBase } from '../../../nominal/module.f.ts'
 
 /**
  * Called once per merge during encoding. `merged = compress(left, right)`.
  * Implementations record the triple in a content-addressed store.
  */
-export type Add<S> = (left: bigint, right: bigint, merged: bigint, storage: S) => S
+export type Add<S> = (left: Id, right: Id, merged: Id, storage: S) => S
 
 /**
  * Streaming state for hash-level encoding.
  * Wraps the Patricia trie state that accumulates the strictly-decreasing
  * prefix of the word currently being encoded.
  */
-export type EncodeState<S> = State<S, bigint>
+export type EncodeState<S> = State<S, Id>
 
 /**
  * Returns a streaming encoder for hash-level symbols.
@@ -35,9 +36,9 @@ export type EncodeState<S> = State<S, bigint>
  * `add` is called once for every `compress` call, recording the merge triple.
  */
 export const encode =
-    <S>(add: Add<S>): (symbol: bigint, state: EncodeState<S>) => readonly[bigint|undefined, EncodeState<S>] =>
+    <S>(add: Add<S>): (symbol: Id, state: EncodeState<S>) => readonly[Id|undefined, EncodeState<S>] =>
 {
-    const create: Create<S, bigint> = (a, b, s) => {
+    const create: Create<S, Id> = (a, b, s) => {
         const m = compress(a, b)
         return [m, add(a, b, m, s)]
     }
@@ -45,8 +46,8 @@ export const encode =
     return (symbol, state) => {
         const [, stack] = state
         const last = stack.at(-1)
-        if (last === undefined || last[0] > symbol) {
-            return [undefined, push([symbol, symbol], state)]
+        if (last === undefined || last[0] > asBase(symbol)) {
+            return [undefined, push([asBase(symbol), symbol], state)]
         }
         const [root1, storage1] = end(state)
         const [root2, storage2] = create(root1!, symbol, storage1)
