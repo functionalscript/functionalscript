@@ -61,13 +61,15 @@ for (const s of [3n, 1n, 2n]) {
 `literal1ToVec`, `literal2ToVec`, and `literal3ToVec` decode a level-k symbol all the way
 down to a canonical MSB bit vector by chaining the level decoders:
 
-```
+```ts
 literal3ToVec(s) = flatten(decode3(s).map(
-                    t => flatten(decode2(t).map(
-                      u => decode1(u).map(bit => vec(1)(bit))))))
+    t => flatten(decode2(t).map(
+        u => decode1(u).map(bit => vec(1)(bit))
+    ))
+))
 ```
 
-These are used by the [id module](../../id/README.md) to convert level-3 symbols
+These are used by the [Id module](../../id/README.md) to convert level-3 symbols
 into fixed-width bit vectors for inline storage.
 
 ## References
