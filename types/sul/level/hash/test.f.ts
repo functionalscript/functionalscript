@@ -14,7 +14,7 @@ const runWord = (symbols: readonly bigint[]): readonly [bigint, NodeList] => {
     for (const s of symbols) {
         const [out, newState] = enc(s, state)
         state = newState
-        if (out !== undefined) { return [out, state[0]] as const }
+        if (out !== undefined) { return [out, state[0]] }
     }
     throw symbols
 }
