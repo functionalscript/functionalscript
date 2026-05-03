@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- SUL: first three levels. BitVec: chunking functions. [755](https://github.com/functionalscript/functionalscript/pull/757)
+
 ## 0.13.0
 
 - RTTI: `print(mut?: true)` [754](https://github.com/functionalscript/functionalscript/pull/754)
