@@ -1,4 +1,4 @@
-import { validate } from './module.f.ts'
+import { validate, type ValidationError, type Path } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
@@ -6,6 +6,15 @@ import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 
 const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
 const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
+
+const assertErrorAt = (path: Path) => (r: readonly [string, unknown]) => {
+    if (r[0] !== 'error') { throw 'expected error' }
+    const e = r[1] as ValidationError
+    if (e.path.length !== path.length) { throw `expected path length ${path.length}, got ${e.path.length}` }
+    for (let i = 0; i < path.length; i++) {
+        if (e.path[i] !== path[i]) { throw `expected path[${i}] = ${String(path[i])}, got ${String(e.path[i])}` }
+    }
+}
 
 export default {
     boolean: {
@@ -251,5 +260,26 @@ export default {
             assertOk(v({ a: {}, b: { c: {} } }))
             assertError(v({ a: 42 }))
         },
+    },
+    path: {
+        topLevelPrimitive: () => assertErrorAt([])(validate(number)('x')),
+        topLevelContainer: () => assertErrorAt([])(validate(array(number))({})),
+        array: () => assertErrorAt([1])(validate(array(number))([1, 'x', 3])),
+        record: () => assertErrorAt(['b'])(validate(record(number))({ a: 1, b: 'x' })),
+        nestedArray: () =>
+            assertErrorAt([1, 0])(validate(array(array(number)))([[], ['x']])),
+        tuple: () =>
+            assertErrorAt([1])(validate([42, 'hello'] as const)([42, 'world'])),
+        struct: () =>
+            assertErrorAt(['b'])(validate({ a: 42, b: 'hello' } as const)({ a: 42, b: 'world' })),
+        deepStruct: () => {
+            const t = { user: { age: number } } as const
+            assertErrorAt(['user', 'age'])(validate(t)({ user: { age: 'old' } }))
+        },
+        recursiveArray: () => {
+            const list = () => ['array', list] as const
+            assertErrorAt([0, 1])(validate(list)([[[], 42]]))
+        },
+        or: () => assertErrorAt([])(validate(or(number, string))(true)),
     },
 }
