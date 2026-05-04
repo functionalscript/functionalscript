@@ -49,7 +49,7 @@ type Person = Ts<typeof person>
 
 const v = validate(person)
 v({ name: 'Alice', age: 30 })  // ['ok', { name: 'Alice', age: 30 }]
-v({ name: 'Alice' })           // ['error', 'unexpected value']
+v({ name: 'Alice' })           // ['error', { path: ['age'], message: 'unexpected value' }]
 
 // Recursive schema
 const listOfStrings = array(string)

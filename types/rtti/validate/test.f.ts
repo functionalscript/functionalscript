@@ -1,4 +1,4 @@
-import { validate } from './module.f.ts'
+import { validate, type ValidationError } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
@@ -6,6 +6,16 @@ import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 
 const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
 const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }
+
+const assertErrorPath = (expected: readonly string[]) =>
+    (r: readonly [string, unknown]) => {
+        if (r[0] !== 'error') { throw 'expected error' }
+        const e = r[1] as ValidationError
+        if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
+        for (let i = 0; i < expected.length; i++) {
+            if (e.path[i] !== expected[i]) { throw `path[${i}] ${e.path[i]} != ${expected[i]}` }
+        }
+    }
 
 export default {
     boolean: {
@@ -228,6 +238,37 @@ export default {
             assertError(validate(t)(null))
             assertError(validate(t)('42'))
         },
+    },
+    path: {
+        rootMismatch: () => assertErrorPath([])(validate(number)('not a number')),
+        arrayIndex: () => assertErrorPath(['1'])(validate(array(number))([1, 'two', 3])),
+        recordKey: () => {
+            const r = validate(record(number))({ a: 1, b: 'two', c: 3 })
+            // record iteration order matches Object.entries; 'b' is the failing key
+            assertErrorPath(['b'])(r)
+        },
+        nestedArray: () => assertErrorPath(['0', '1'])(
+            validate(array(array(number)))([[1, 'x'], [2, 3]])
+        ),
+        tupleIndex: () => assertErrorPath(['1'])(
+            validate([number, number] as const)([1, 'two'])
+        ),
+        structKey: () => assertErrorPath(['b'])(
+            validate({ a: number, b: number } as const)({ a: 1, b: 'two' })
+        ),
+        deepStruct: () => {
+            const schema = { user: { name: string, age: number } } as const
+            const r = validate(schema)({ user: { name: 'A', age: 'old' } })
+            assertErrorPath(['user', 'age'])(r)
+        },
+        recursiveSchema: () => {
+            type A = readonly A[]
+            const list = () => ['array', list] as const
+            // [[[42]]] — innermost element 42 is a number, not an array
+            const r = validate(list)([[[42]] as unknown as A])
+            assertErrorPath(['0', '0', '0'])(r)
+        },
+        orRoot: () => assertErrorPath([])(validate(or(number, string))(true)),
     },
     recursive: {
         arrayOfArrays: () => {
