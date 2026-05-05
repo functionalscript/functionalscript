@@ -163,7 +163,7 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodes = ['20', '22', '25']
+const nodes = ['20', '22', '24']
 
 const nodeTest = (v: string) => v === '20' ? 'run test20' : 'test'
 
@@ -180,7 +180,7 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
-const defaultNodeVersion = '24'
+const defaultNodeVersion = '26'
 
 const playwright: Job = ubuntu(basicNode(defaultNodeVersion)([
     //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
