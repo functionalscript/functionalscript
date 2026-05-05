@@ -36,19 +36,22 @@ export const encode = <S>(add: Add<S>): Encode<S> => {
     type CascadeResult = readonly [Id | undefined, S, readonly (readonly Candidate<Id>[])[]]
 
     const cascade = (
-        id: Id,
-        storage: S,
-        stacks: readonly (readonly Candidate<Id>[])[],
-        index: number
+        id0: Id,
+        storage0: S,
+        stacks0: readonly (readonly Candidate<Id>[])[],
     ): CascadeResult => {
-        if (index >= stacks.length) {
-            const [, [newStorage, newStack]] = step(id, [storage, []])
-            return [id, newStorage, [...stacks, newStack]]
+        let id = id0, storage = storage0, stacks = stacks0
+        for (let index = 0; ; index++) {
+            if (index >= stacks.length) {
+                const [, [newStorage, newStack]] = step(id, [storage, []])
+                return [id, newStorage, [...stacks, newStack]]
+            }
+            const [out, [newStorage, newStack]] = step(id, [storage, stacks[index]])
+            stacks = [...stacks.slice(0, index), newStack, ...stacks.slice(index + 1)]
+            storage = newStorage
+            if (out === undefined) return [undefined, storage, stacks]
+            id = out
         }
-        const [out, [newStorage, newStack]] = step(id, [storage, stacks[index]])
-        const newStacks = [...stacks.slice(0, index), newStack, ...stacks.slice(index + 1)]
-        if (out === undefined) return [undefined, newStorage, newStacks]
-        return cascade(out, newStorage, newStacks, index + 1)
     }
 
     const literalStep = (
@@ -62,7 +65,7 @@ export const encode = <S>(add: Add<S>): Encode<S> => {
         if (l2Out === undefined) return [undefined, [newL1s, newL2s, l3s, storage, stacks]]
         const [l3Out, newL3s] = l3.encode(l3s)(l2Out)
         if (l3Out === undefined) return [undefined, [newL1s, newL2s, newL3s, storage, stacks]]
-        const [finalId, newStorage, newStacks] = cascade(level3Id(l3Out), storage, stacks, 0)
+        const [finalId, newStorage, newStacks] = cascade(level3Id(l3Out), storage, stacks)
         return [finalId, [newL1s, newL2s, newL3s, newStorage, newStacks]]
     }
 
