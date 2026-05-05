@@ -20,4 +20,7 @@ export type Encode<S> = {
     end: (state: EncodeState<S>) => Id
 }
 
-export const encode = <S>(add: Add<S>): Encode<S> => todo()
+export const encode = <S>(add: Add<S>): Encode<S> => ({
+    push: todo(),
+    end: todo(),
+})
