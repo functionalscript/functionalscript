@@ -59,6 +59,8 @@ export type Parse<T extends Type> = Validate<T>
 type ItemResult = CommonResult<Unknown, ValidationError>
 
 const indexedFirstError = (results: readonly ItemResult[]): readonly[number, Error<ValidationError>] | null => {
+    // TODO: findIndex breaks type inference,
+    //       we should replace it with something else.
     const i = results.findIndex(r => r[0] === 'error')
     return i < 0 ? null : [i, results[i] as Error<ValidationError>]
 }
@@ -74,10 +76,10 @@ const arrayParse =
     <I extends Type>(item: I): Parse<Info1<'array', I>> => value =>
 {
     if (!commonIsArray(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     if (value.length === 0) {
-        return ok([]) as any
+        return ok([] as any)
     }
     // Note: we shouldn't instantiate `itemParse` until we know the array is non-empty.
     //       Otherwise, we can get infinite recursion on empty arrays for recursive schemas.
@@ -93,11 +95,11 @@ const recordParse =
     <I extends Type>(item: I): Parse<Info1<'record', I>> => value =>
 {
     if (!commonIsObject(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const entries = Object.entries(value)
     if (entries.length === 0) {
-        return ok({}) as any
+        return ok({} as any)
     }
     const itemParse = parse(item) as (v: Unknown) => ItemResult
     const results = entries.map(([k, v]) => [k, itemParse(v)] as const)
@@ -109,7 +111,7 @@ const recordParse =
 
 const tupleParse = <T extends Tuple>(rtti: T): Parse<T> => value => {
     if (!commonIsArray(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const results = rtti.map((t, i) => (parse(t) as any)(value[i]) as ItemResult)
     const err = indexedFirstError(results)
@@ -120,7 +122,7 @@ const tupleParse = <T extends Tuple>(rtti: T): Parse<T> => value => {
 
 const structParse = <T extends Struct>(rtti: T): Parse<T> => value => {
     if (!commonIsObject(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const results = Object.entries(rtti).map(
         ([k, t]) => [k, (parse(t) as any)(value[k]) as ItemResult] as const,
