@@ -16,7 +16,7 @@ import type { Add } from "./level/hash/module.f.ts"
 export type EncodeState<S> = S
 
 export type Encode<S> = {
-    push: (bit: number, state: EncodeState<S>) => EncodeState<S>
+    push: (bit: bigint, state: EncodeState<S>) => EncodeState<S>
     end: (state: EncodeState<S>) => Id
 }
 
