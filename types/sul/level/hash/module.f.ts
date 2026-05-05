@@ -10,6 +10,8 @@ import { asBase } from '../../../nominal/module.f.ts'
 
 /**
  * Called once per merge during encoding. `merged = compress(left, right)`.
+ * `isSymbol` is `true` for the terminal `compress(root, t)` that produces the
+ * word-level output symbol, and `false` for Patricia trie internal merges.
  * Implementations record the triple in a content-addressed store.
  */
 export type Add<S> = (left: Id, right: Id, merged: Id, isSymbol: boolean, storage: S) => S

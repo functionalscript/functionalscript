@@ -2,9 +2,9 @@ import { assert, assertEq } from '../../../../dev/module.f.ts'
 import { compress, level3Id, type Id } from '../../id/module.f.ts'
 import { emptyEncodeState, encode, type EncodeState } from './module.f.ts'
 
-type NodeList = readonly [Id, Id, Id][]
+type NodeList = readonly [Id, Id, Id, boolean][]
 
-const add = (l: Id, r: Id, m: Id, isSymbol: boolean, s: NodeList): NodeList => [...s, [l, r, m]]
+const add = (l: Id, r: Id, m: Id, isSymbol: boolean, s: NodeList): NodeList => [...s, [l, r, m, isSymbol]]
 const enc = encode(add)
 const initial: EncodeState<NodeList> = emptyEncodeState([])
 
@@ -107,5 +107,19 @@ export default {
         const [out1] = runWord([s0, s1])
         const [out2] = runWord([s1, s0, s1])
         assert(out1 !== out2)
+    },
+
+    // Trie-internal merges have isSymbol=false; only the terminal merge has isSymbol=true
+    isSymbol_terminal_only: () => {
+        const [, storage] = runWord([s1, s0, s0])
+        assert(storage[0][3] === false)  // Patricia trie merge
+        assert(storage[1][3] === true)   // terminal compress(root, t)
+    },
+
+    // Single-step word: no trie merges, exactly one isSymbol=true
+    isSymbol_min_word: () => {
+        const [, storage] = runWord([s0, s0])
+        assertEq(storage.length, 1)
+        assert(storage[0][3] === true)
     },
 }
