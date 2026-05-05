@@ -64,7 +64,7 @@ $$E\!\left[\sum_{i=1}^{N} X_i\right] = E[N] \cdot E[X_1].$$
 
 **Application.** In a uniform bit stream, consecutive level-$k$ symbols $s_1, s_2, \ldots$ are
 i.i.d. with distribution $q$. The word boundary $N$ is a stopping time: $\{N \geq n\}$ is
-determined by $s_1, \ldots, s_{n-1}$, while $X_n = \operatorname{bits}(s_n)$ depends only on
+determined by $s_1, \ldots, s_{n-1}$, while $X_n$ (the number of bits encoding $s_n$) depends only on
 $s_n$, which is independent of the past. Therefore
 
 $$E[X_n \cdot \mathbf{1}_{N \geq n}] = E[X_n] \cdot P(N \geq n),$$
