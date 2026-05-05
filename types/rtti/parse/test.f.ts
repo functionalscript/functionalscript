@@ -1,4 +1,4 @@
-import { parse, type ParseError } from './module.f.ts'
+import { parse, type ValidationError } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
@@ -15,7 +15,7 @@ const unwrap = <T>(r: readonly [string, unknown]): T => {
 const assertErrorPath = (expected: readonly string[]) =>
     (r: readonly [string, unknown]) => {
         if (r[0] !== 'error') { throw 'expected error' }
-        const e = r[1] as ParseError
+        const e = r[1] as ValidationError
         if (e.path.length !== expected.length) { throw `path length ${e.path.length} != ${expected.length}` }
         for (let i = 0; i < expected.length; i++) {
             if (e.path[i] !== expected[i]) { throw `path[${i}] ${e.path[i]} != ${expected[i]}` }
