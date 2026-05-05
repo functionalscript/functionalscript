@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- RTTI: parse (deserializer) [760](https://github.com/functionalscript/functionalscript/pull/760)
+
 ## 0.13.0
 
 - RTTI: `print(mut?: true)` [754](https://github.com/functionalscript/functionalscript/pull/754)

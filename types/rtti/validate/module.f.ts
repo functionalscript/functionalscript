@@ -64,10 +64,12 @@ export type Result<T extends Type> = CommonResult<Ts<T>, ValidationError>
 /** A function that validates an unknown value against schema `T`. */
 export type Validate<T extends Type> = (value: Unknown) => Result<T>
 
-const verror = (message: string): Error<ValidationError> =>
+/** Builds an error result with empty path and the given message. */
+export const verror = (message: string): Error<ValidationError> =>
     error({ path: [], message })
 
-const prependPath = (key: string, r: Error<ValidationError>): Error<ValidationError> =>
+/** Prepends `key` to the error's path, used to build the path bottom-up. */
+export const prependPath = (key: string, r: Error<ValidationError>): Error<ValidationError> =>
     error({ path: [key, ...r[1].path], message: r[1].message })
 
 /** Type guard narrowing `Unknown` to a specific container type `C`. */
@@ -123,7 +125,7 @@ const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
 const recordValidate = containerValidate<'record'>(isObject, Object.entries)
 
 /** Validates a `Tag0` primitive schema using `typeof`. */
-const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
+export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
     value => typeof value === tag ? ok(value) as any : verror('unexpected value') as any
 
 /**
@@ -164,7 +166,7 @@ const constObjectValidate = <T extends ConstObject>(rtti: T): Validate<T> =>
         : structValidate(rtti) as any
 
 /** Validates a primitive `Const` schema using strict equality (`===`). */
-const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
+export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
     value => rtti === value
         ? ok(value) as any
         : verror('unexpected value') as any
