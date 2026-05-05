@@ -297,6 +297,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. use async functions and await instead of `.then`
+- [ ] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
 
 ## Language Specification
 
