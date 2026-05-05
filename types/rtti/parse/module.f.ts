@@ -34,7 +34,7 @@ import {
     type Tuple,
     type Type,
 } from '../module.f.ts'
-import { ok, type Result as CommonResult } from '../../result/module.f.ts'
+import { ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
 import {
     constPrimitiveValidate,
     prependPath,
@@ -56,6 +56,20 @@ export type Result<T extends Type> = ValidateResult<T>
 /** A function that parses an unknown value into the schema `T`. */
 export type Parse<T extends Type> = Validate<T>
 
+type ItemResult = CommonResult<Unknown, ValidationError>
+
+const indexedFirstError = (results: readonly ItemResult[]): readonly[number, Error<ValidationError>] | null => {
+    const i = results.findIndex(r => r[0] === 'error')
+    return i < 0 ? null : [i, results[i] as Error<ValidationError>]
+}
+
+const keyedFirstError = (
+    results: readonly (readonly[string, ItemResult])[],
+): readonly[string, Error<ValidationError>] | null => {
+    const e = results.find(([, r]) => r[0] === 'error')
+    return e === undefined ? null : [e[0], e[1] as Error<ValidationError>]
+}
+
 const arrayParse =
     <I extends Type>(item: I): Parse<Info1<'array', I>> => value =>
 {
@@ -67,16 +81,12 @@ const arrayParse =
     }
     // Note: we shouldn't instantiate `itemParse` until we know the array is non-empty.
     //       Otherwise, we can get infinite recursion on empty arrays for recursive schemas.
-    const itemParse = parse(item) as (v: Unknown) => CommonResult<Unknown, ValidationError>
-    const out: Unknown[] = []
-    for (let i = 0; i < value.length; i++) {
-        const r = itemParse(value[i])
-        if (r[0] === 'error') {
-            return prependPath(String(i), r) as any
-        }
-        out.push(r[1])
-    }
-    return ok(out) as any
+    const itemParse = parse(item) as (v: Unknown) => ItemResult
+    const results = value.map(itemParse)
+    const err = indexedFirstError(results)
+    return (err === null
+        ? ok(results.map(r => r[1]))
+        : prependPath(String(err[0]), err[1])) as any
 }
 
 const recordParse =
@@ -89,46 +99,36 @@ const recordParse =
     if (entries.length === 0) {
         return ok({}) as any
     }
-    const itemParse = parse(item) as (v: Unknown) => CommonResult<Unknown, ValidationError>
-    const out: { [k: string]: Unknown } = {}
-    for (const [k, v] of entries) {
-        const r = itemParse(v)
-        if (r[0] === 'error') {
-            return prependPath(k, r) as any
-        }
-        out[k] = r[1]
-    }
-    return ok(out) as any
+    const itemParse = parse(item) as (v: Unknown) => ItemResult
+    const results = entries.map(([k, v]) => [k, itemParse(v)] as const)
+    const err = keyedFirstError(results)
+    return (err === null
+        ? ok(Object.fromEntries(results.map(([k, r]) => [k, r[1]])))
+        : prependPath(err[0], err[1])) as any
 }
 
 const tupleParse = <T extends Tuple>(rtti: T): Parse<T> => value => {
     if (!commonIsArray(value)) {
         return verror('unexpected value') as any
     }
-    const out: Unknown[] = []
-    for (let i = 0; i < rtti.length; i++) {
-        const r = (parse(rtti[i]) as any)(value[i]) as CommonResult<Unknown, ValidationError>
-        if (r[0] === 'error') {
-            return prependPath(String(i), r) as any
-        }
-        out.push(r[1])
-    }
-    return ok(out) as any
+    const results = rtti.map((t, i) => (parse(t) as any)(value[i]) as ItemResult)
+    const err = indexedFirstError(results)
+    return (err === null
+        ? ok(results.map(r => r[1]))
+        : prependPath(String(err[0]), err[1])) as any
 }
 
 const structParse = <T extends Struct>(rtti: T): Parse<T> => value => {
     if (!commonIsObject(value)) {
         return verror('unexpected value') as any
     }
-    const out: { [k: string]: Unknown } = {}
-    for (const [k, v] of Object.entries(rtti)) {
-        const r = (parse(v) as any)(value[k]) as CommonResult<Unknown, ValidationError>
-        if (r[0] === 'error') {
-            return prependPath(k, r) as any
-        }
-        out[k] = r[1]
-    }
-    return ok(out) as any
+    const results = Object.entries(rtti).map(
+        ([k, t]) => [k, (parse(t) as any)(value[k]) as ItemResult] as const,
+    )
+    const err = keyedFirstError(results)
+    return (err === null
+        ? ok(Object.fromEntries(results.map(([k, r]) => [k, r[1]])))
+        : prependPath(err[0], err[1])) as any
 }
 
 const constObjectParse = <T extends ConstObject>(rtti: T): Parse<T> =>
@@ -142,15 +142,10 @@ const constParse = <T extends Const>(rtti: T): Parse<T> =>
         : constPrimitiveValidate(rtti) as any
 
 const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> => {
-    const all = rtti.map(r => parse(r))
+    const all = rtti.map(r => (parse as any)(r) as (v: Unknown) => ItemResult)
     return value => {
-        for (const i of all) {
-            const r = (i as any)(value)
-            if (r[0] === 'ok') {
-                return r
-            }
-        }
-        return verror('no match') as any
+        const r = all.map(p => p(value)).find(([k]) => k === 'ok')
+        return (r ?? verror('no match')) as any
     }
 }
 
