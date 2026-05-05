@@ -9,3 +9,15 @@
  * @module
  */
 
+import { todo } from "../../dev/module.f.ts"
+import type { Id } from "./id/module.f.ts"
+import type { Add } from "./level/hash/module.f.ts"
+
+export type EncodeState<S> = S
+
+export type Encode<S> = {
+    push: (bit: number, state: EncodeState<S>) => EncodeState<S>
+    end: (state: EncodeState<S>) => Id
+}
+
+export const encode = <S>(add: Add<S>): Encode<S> => todo()
