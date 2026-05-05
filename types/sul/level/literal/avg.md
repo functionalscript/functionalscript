@@ -62,17 +62,17 @@ let $N$ be a stopping time with $E[N] < \infty$. Then
 
 $$E\!\left[\sum_{i=1}^{N} X_i\right] = E[N] \cdot E[X_1].$$
 
-**Application.** In a uniform bit stream, consecutive level-$k$ symbols $s_1, s_2, \ldots$ are
+**Application.** In a uniform bit stream, consecutive level $k$ symbols $s_1, s_2, \ldots$ are
 i.i.d. with distribution $q$. The word boundary $N$ is a stopping time: $\{N \geq n\}$ is
 determined by $s_1, \ldots, s_{n-1}$, while $X_n$ (the number of bits encoding $s_n$) depends only on
 $s_n$, which is independent of the past. Therefore
 
 $$E[X_n \cdot \mathbf{1}_{N \geq n}] = E[X_n] \cdot P(N \geq n),$$
 
-and summing over $n$ gives Wald's identity with $E[X_1] = b_k$, the expected bits per level-$k$
+and summing over $n$ gives Wald's identity with $E[X_1] = b_k$, the expected bits per level $k$
 word.
 
-**Recursion.** Writing $b_k$ for the expected bits per level-$k$ word with $b_0 = 1$:
+**Recursion.** Writing $b_k$ for the expected bits per level $k$ word with $b_0 = 1$:
 
 $$b_k = E_k \cdot b_{k-1} = \prod_{j=1}^{k} E_j$$
 
