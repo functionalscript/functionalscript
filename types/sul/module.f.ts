@@ -8,18 +8,20 @@
 import { emptyEncodeState as emptyLiteralState, level, type EncodeState as LiteralEncodeState } from './level/literal/module.f.ts'
 import { encode as hashEncode, type Add } from './level/hash/module.f.ts'
 import { level3Id, type Id } from './id/module.f.ts'
-import type { Candidate } from '../patricia_trie/module.f.ts'
+import type { Candidate, InternalState } from '../patricia_trie/module.f.ts'
 
 const l1 = level(0n)
 const l2 = level(2n)
 const l3 = level(7n)
+
+type HashState = InternalState<Id>
 
 export type EncodeState<S> = readonly [
     LiteralEncodeState,
     LiteralEncodeState,
     LiteralEncodeState,
     S,
-    readonly (readonly Candidate<Id>[])[]
+    readonly HashState[]
 ]
 
 export type Encode<S> = {
@@ -33,12 +35,12 @@ export const emptyEncodeState = <S>(storage: S): EncodeState<S> =>
 export const encode = <S>(add: Add<S>): Encode<S> => {
     const step = hashEncode(add)
 
-    type CascadeResult = readonly [Id | undefined, S, readonly (readonly Candidate<Id>[])[]]
+    type CascadeResult = readonly [Id | undefined, S, readonly HashState[]]
 
     const cascade = (
         id0: Id,
         storage0: S,
-        stacks0: readonly (readonly Candidate<Id>[])[],
+        stacks0: readonly HashState[],
     ): CascadeResult => {
         let id = id0, storage = storage0, stacks = stacks0
         for (let index = 0; ; index++) {

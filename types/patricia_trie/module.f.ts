@@ -10,8 +10,10 @@ export type Create<S, T> = (a: T, b: T, storage: S) => readonly[T, S]
 /** A leaf entry: `[sortKey, identity]`. The sort key is used only for XOR comparisons. */
 export type Candidate<T> = readonly[bigint, T]
 
+export type InternalState<T> = readonly Candidate<T>[]
+
 /** Streaming state: `[storage, right-spine stack]`. */
-export type State<S, T> = readonly[S, readonly Candidate<T>[]]
+export type State<S, T> = readonly[S, InternalState<T>]
 
 export type PatriciaTrie<S, T> = {
     /** Add one leaf. Merges any tightly-coupled stack candidates before pushing. */
