@@ -26,7 +26,7 @@ Level 4 and beyond are too large for integer representation; they are handled by
 ## Word structure
 
 See the [SUL overview](../../README.md) for the full definition. In brief, a valid word
-has the form `[s0, s1, ..., sk, t]` where `s0 > s1 > ... > sk` and `t >= sk`.
+has the form `[s0, s1, ..., sk, t]` where `s0 > s1 > ... > sk` and `sk <= t`.
 
 ## Encoding
 

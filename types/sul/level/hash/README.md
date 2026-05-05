@@ -15,7 +15,7 @@ as an integer. This module replaces that bijection with content-addressed
 A valid word has the form `[s0, s1, ..., sk, t]` where:
 
 - `s0 > s1 > ... > sk` — a strictly decreasing prefix of at least one symbol
-- `t >= sk` — a terminating symbol no less than the last prefix element
+- `sk <= t` — a terminating symbol no less than the last prefix element
 
 See the [SUL overview](../../README.md) for full details.
 
