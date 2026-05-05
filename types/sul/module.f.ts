@@ -8,7 +8,7 @@
 import { emptyEncodeState as emptyLiteralState, level, type EncodeState as LiteralEncodeState } from './level/literal/module.f.ts'
 import { encode as hashEncode, type Add } from './level/hash/module.f.ts'
 import { level3Id, type Id } from './id/module.f.ts'
-import type { Candidate, InternalState } from '../patricia_trie/module.f.ts'
+import type { InternalState } from '../patricia_trie/module.f.ts'
 
 const l1 = level(0n)
 const l2 = level(2n)
