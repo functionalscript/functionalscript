@@ -60,7 +60,7 @@ word lengths across levels to get the expected number of bits per word at any le
 Let $X_1, X_2, \ldots$ be i.i.d. with $E[|X_1|] < \infty$, and
 let $N$ be a stopping time with $E[N] < \infty$. Then
 
-$$E\!\left[\sum_{i=1}^{N} X_i\right] = E[N] \cdot E[X_1].$$
+$$E\left[\sum_{i=1}^{N} X_i\right] = E[N] \cdot E[X_1].$$
 
 **Application.** In a uniform bit stream, consecutive level $k$ symbols $s_1, s_2, \ldots$ are
 i.i.d. with distribution $q$. The word boundary $N$ is a stopping time: $\{N \geq n\}$ is
