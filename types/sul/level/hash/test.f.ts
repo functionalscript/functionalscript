@@ -4,7 +4,7 @@ import { emptyEncodeState, encode, type EncodeState } from './module.f.ts'
 
 type NodeList = readonly [Id, Id, Id][]
 
-const add = (l: Id, r: Id, m: Id, s: NodeList): NodeList => [...s, [l, r, m]]
+const add = (l: Id, r: Id, m: Id, isSymbol: boolean, s: NodeList): NodeList => [...s, [l, r, m]]
 const enc = encode(add)
 const initial: EncodeState<NodeList> = emptyEncodeState([])
 

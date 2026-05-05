@@ -12,7 +12,7 @@ import { asBase } from '../../../nominal/module.f.ts'
  * Called once per merge during encoding. `merged = compress(left, right)`.
  * Implementations record the triple in a content-addressed store.
  */
-export type Add<S> = (left: Id, right: Id, merged: Id, storage: S) => S
+export type Add<S> = (left: Id, right: Id, merged: Id, isSymbol: boolean, storage: S) => S
 
 /**
  * Streaming state for hash-level encoding.
@@ -33,16 +33,18 @@ export type EncodeState<S> = State<S, Id>
  * 2. The root is merged with `t` via `compress`, producing the output symbol.
  * 3. State is reset to an empty stack (storage is preserved).
  *
- * `add` is called once for every `compress` call, recording the merge triple.
+ * `add` is called once for every `compress` call. `isSymbol` is `false` for
+ * Patricia trie internal merges and `true` for the terminal `compress(root, t)`.
  */
 export const encode =
     <S>(add: Add<S>): (symbol: Id, state: EncodeState<S>) => readonly[Id|undefined, EncodeState<S>] =>
 {
-    const create: Create<S, Id> = (a, b, s) => {
+    const create = (isSymbol: boolean): Create<S, Id> => (a, b, s) => {
         const m = compress(a, b)
-        return [m, add(a, b, m, s)]
+        return [m, add(a, b, m, isSymbol, s)]
     }
-    const { push, end } = patriciaTrie(create)
+    const { push, end } = patriciaTrie(create(false))
+    const rootCreate = create(true)
     return (symbol, state) => {
         const [, stack] = state
         const last = stack.at(-1)
@@ -50,7 +52,7 @@ export const encode =
             return [undefined, push([asBase(symbol), symbol], state)]
         }
         const [root1, storage1] = end(state)
-        const [root2, storage2] = create(root1!, symbol, storage1)
+        const [root2, storage2] = rootCreate(root1!, symbol, storage1)
         return [root2, [storage2, []]]
     }
 }
