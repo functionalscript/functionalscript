@@ -43,6 +43,11 @@ where `<...Module documentation...>` should be documentation for the module.
   - Reuse code,
   - Don't repeat yourself,
   - Avoid side effects and mutability.
+- When a sibling module already has the type or helper you need, import it — add `export` to the existing declaration if it's not yet exported, rather than duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`, `prependPath`, `primitive0Validate`, `constPrimitiveValidate` from `validate`).
+- Don't mutate arrays or objects in place. Avoid `.push`, `.pop`, `.shift`, `.unshift`, `.splice`, `.sort`, `.reverse`, and index/property assignment on accumulators. Build new values with `.map`, `.filter`, `.flatMap`, spread, and `Object.fromEntries(entries.map(...))`.
+- When adding a new `module.f.ts` under an existing namespace, register it in the `exports` map of `deno.json`.
+- After fixing an issue from [./issues/README.md](./issues/README.md), mark the corresponding bullet `[X]`.
+- Add an entry for the change under `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md), in the same `Topic: short description [PR#](url)` style as existing entries.
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references to built-in or external Node modules such as `node:path` in `.f.ts` files.
 - Use `let` variables only within the function body where they are declared.
 - CLI parameters are preferred over environment variables when adding new features.
