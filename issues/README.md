@@ -290,18 +290,20 @@ require setting a flag when walking through a test tree as soon as a node has a 
   3. at least one function should be `throw`.
 - [X] 126. `types/rtti` should support `undefined`, `null` instead of `"undefined"` and `"null"`.
 - [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API but should not participate in the recursive evaluation chain.
-- [ ] [128-rtti-deserialize](./128-rtti-deserialize.md)
+- [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
 - [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. use async functions and await instead of `.then`
-- [ ] 133. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support properly type narrowing.
-- [ ] 134. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
+- [ ] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
+- [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support properly type narrowing.
+- [ ] 135. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
   Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`
   Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
   Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
+
 
 ## Language Specification
 

@@ -26,7 +26,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {
@@ -188,7 +188,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {
@@ -344,7 +344,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {
@@ -500,7 +500,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {
@@ -656,7 +656,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {
@@ -818,7 +818,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {
@@ -995,13 +995,13 @@
         }
       ]
     },
-    "node25": {
+    "node24": {
       "runs-on": "ubuntu-24.04",
       "steps": [
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "25"
+            "node-version": "24"
           }
         },
         {
@@ -1021,7 +1021,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "26"
           }
         },
         {

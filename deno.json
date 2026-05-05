@@ -79,6 +79,7 @@
     "./types/result/module.f.ts": "./types/result/module.f.ts",
     "./types/result/module.ts": "./types/result/module.ts",
     "./types/rtti/module.f.ts": "./types/rtti/module.f.ts",
+    "./types/rtti/parse/module.f.ts": "./types/rtti/parse/module.f.ts",
     "./types/rtti/ts/module.f.ts": "./types/rtti/ts/module.f.ts",
     "./types/rtti/validate/module.f.ts": "./types/rtti/validate/module.f.ts",
     "./types/sorted_list/module.f.ts": "./types/sorted_list/module.f.ts",
