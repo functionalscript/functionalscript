@@ -70,3 +70,6 @@ export type F<O extends Operation> = Pr<O, O[0]>
 export type Func<O extends Operation> = (_: Param<O>) => Effect<O, Return<O>>
 
 export type RestFunc<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
+
+export type ListEffect<O extends Operation, T> =
+    Effect<O, readonly[T, ListEffect<O, T>] | undefined>

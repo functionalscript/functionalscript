@@ -21,6 +21,7 @@ It's recommended to run `npm run update` after changing the source code.
 - Run `cargo test` to test the Rust crate in `nanvm-lib`.
 - Run `cargo clippy` to lint the Rust crate.
 - Run `cargo fmt -- --check` to verify formatting.
+- To run only the tests under a specific directory, `cd` into it and run `npm run fst`. This scans for `test.f.ts` files in that subtree and reports per-test results.
 
 ## Documentation
 

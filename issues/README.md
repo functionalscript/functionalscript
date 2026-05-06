@@ -298,6 +298,14 @@ require setting a flag when walking through a test tree as soon as a node has a 
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. use async functions and await instead of `.then`
 - [ ] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
+- [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support properly type narrowing.
+- [ ] 135. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
+  Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`
+  Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
+  Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
+- [ ] 136. CI should have all tools and images versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodicle updated. We will also need instructions how to check the newest tool version in `README.md`.
+- [ ] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
+- [ ] 138. Implement a script which will update the lock file by reading the latest versions of tools from the internet using the instruction from 136.
 
 ## Language Specification
 

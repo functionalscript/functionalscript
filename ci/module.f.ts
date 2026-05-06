@@ -182,6 +182,8 @@ const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu
 
 const defaultNodeVersion = '26'
 
+const wasmtimeVersion = '44.0.1'
+
 const playwright: Job = ubuntu(basicNode(defaultNodeVersion)([
     //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
@@ -213,7 +215,10 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         test({ run: 'cargo fmt -- --check' }),
         test({ run: 'cargo clippy -- -D warnings' }),
         ...cargoTest(),
-        install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1' }),
+        install({
+            uses: 'bytecodealliance/actions/wasmtime/setup@v1',
+            with: { version: wasmtimeVersion }
+        }),
         install({ uses: 'wasmerio/setup-wasmer@v1' }),
         ...wasmTarget('wasm32-wasip1'),
         ...wasmTarget('wasm32-wasip2'),
