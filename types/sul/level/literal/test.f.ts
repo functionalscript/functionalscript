@@ -2,10 +2,12 @@ import { vec, type Vec } from '../../../bit_vec/module.f.ts'
 import { stateScan, toArray } from '../../../list/module.f.ts'
 import {
     emptyEncodeState,
+    emptyPipelineState,
     level,
     literal1ToVec,
     literal2ToVec,
     literal3ToVec,
+    pipelineStep,
     symbolToString,
     wordEqual,
     wordToString
@@ -743,5 +745,34 @@ export default {
             x(0x100_0000_0000_0000_0000_0000_0000_0000_0000n,
                 vec(0x008n)(0b1111_1111n))
         }
+    },
+    pipeline: () => {
+        // 4 L1 [0,0] words → 2 L2 [0,0] words → L3 [0,0] word → symbol 0
+        // First 7 zero bits accumulate without emitting
+        let s = emptyPipelineState
+        for (let i = 0; i < 7; i++) {
+            const [out, next] = pipelineStep(s)(0n)
+            if (out !== undefined) throw out
+            s = next
+        }
+        // 8th zero emits L3 symbol 0
+        const [out0, s2] = pipelineStep(s)(0n)
+        if (out0 !== 0n) throw out0
+        // state resets after emit: second batch of 8 zeros also emits 0
+        let s3 = s2
+        for (let i = 0; i < 7; i++) {
+            const [, next] = pipelineStep(s3)(0n)
+            s3 = next
+        }
+        const [out1] = pipelineStep(s3)(0n)
+        if (out1 !== 0n) throw out1
+        // 8 ones emit a different symbol than 8 zeros
+        let s4 = emptyPipelineState
+        for (let i = 0; i < 7; i++) {
+            const [, next] = pipelineStep(s4)(1n)
+            s4 = next
+        }
+        const [out2] = pipelineStep(s4)(1n)
+        if (out2 === 0n) throw out2
     }
 }

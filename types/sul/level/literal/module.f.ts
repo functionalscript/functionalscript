@@ -85,6 +85,30 @@ export const level = (e: bigint): Level => {
     }
 }
 
+const l1 = level(0n)
+const l2 = level(2n)
+const l3 = level(7n)
+
+/** Combined encoder state for the three-level literal pipeline (L1 → L2 → L3). */
+export type PipelineState = readonly [EncodeState, EncodeState, EncodeState]
+
+/** Initial state for the three-level literal pipeline. */
+export const emptyPipelineState: PipelineState = [emptyEncodeState, emptyEncodeState, emptyEncodeState]
+
+/**
+ * Advances the three-level literal pipeline by one bit.
+ * Returns a level-3 symbol whenever the pipeline emits, otherwise `undefined`.
+ */
+export const pipelineStep: StateScan<bigint, PipelineState, bigint | undefined> =
+    ([l1s, l2s, l3s]) => bit => {
+        const [l1Out, newL1s] = l1.encode(l1s)(bit)
+        if (l1Out === undefined) return [undefined, [newL1s, l2s, l3s]]
+        const [l2Out, newL2s] = l2.encode(l2s)(l1Out)
+        if (l2Out === undefined) return [undefined, [newL1s, newL2s, l3s]]
+        const [l3Out, newL3s] = l3.encode(l3s)(l2Out)
+        return [l3Out, [newL1s, newL2s, newL3s]]
+    }
+
 const concat = listToVec(msb)
 
 const vec1 = vec(1n)

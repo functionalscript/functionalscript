@@ -5,21 +5,15 @@
  * @module
  */
 
-import { emptyEncodeState as emptyLiteralState, level, type EncodeState as LiteralEncodeState } from './level/literal/module.f.ts'
+import { emptyPipelineState, pipelineStep, type PipelineState } from './level/literal/module.f.ts'
 import { encode as hashEncode, type Add } from './level/hash/module.f.ts'
 import { level3Id, type Id } from './id/module.f.ts'
 import type { InternalState } from '../patricia_trie/module.f.ts'
 
-const l1 = level(0n)
-const l2 = level(2n)
-const l3 = level(7n)
-
 type HashState = InternalState<Id>
 
 export type EncodeState<S> = readonly [
-    LiteralEncodeState,
-    LiteralEncodeState,
-    LiteralEncodeState,
+    PipelineState,
     S,
     readonly HashState[]
 ]
@@ -30,7 +24,7 @@ export type Encode<S> = {
 }
 
 export const emptyEncodeState = <S>(storage: S): EncodeState<S> =>
-    [emptyLiteralState, emptyLiteralState, emptyLiteralState, storage, []]
+    [emptyPipelineState, storage, []]
 
 export const encode = <S>(add: Add<S>): Encode<S> => {
     const step = hashEncode(add)
@@ -60,15 +54,11 @@ export const encode = <S>(add: Add<S>): Encode<S> => {
         bit: bigint,
         state: EncodeState<S>
     ): readonly [Id | undefined, EncodeState<S>] => {
-        const [l1s, l2s, l3s, storage, stacks] = state
-        const [l1Out, newL1s] = l1.encode(l1s)(bit)
-        if (l1Out === undefined) return [undefined, [newL1s, l2s, l3s, storage, stacks]]
-        const [l2Out, newL2s] = l2.encode(l2s)(l1Out)
-        if (l2Out === undefined) return [undefined, [newL1s, newL2s, l3s, storage, stacks]]
-        const [l3Out, newL3s] = l3.encode(l3s)(l2Out)
-        if (l3Out === undefined) return [undefined, [newL1s, newL2s, newL3s, storage, stacks]]
+        const [ps, storage, stacks] = state
+        const [l3Out, newPs] = pipelineStep(ps)(bit)
+        if (l3Out === undefined) return [undefined, [newPs, storage, stacks]]
         const [finalId, newStorage, newStacks] = cascade(level3Id(l3Out), storage, stacks)
-        return [finalId, [newL1s, newL2s, newL3s, newStorage, newStacks]]
+        return [finalId, [newPs, newStorage, newStacks]]
     }
 
     return {
