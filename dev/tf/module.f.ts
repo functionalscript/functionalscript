@@ -24,7 +24,8 @@ type Input<T> = {
     readonly measure: Measure<T>,
     readonly state: T,
     readonly tryCatch: <R>(f: () => R) => Result.Result<R, unknown>,
-    readonly env: (n: string) => string|undefined
+    readonly env: (n: string) => string|undefined,
+    readonly verbose: boolean,
  }
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
@@ -88,42 +89,46 @@ export const parseTestSet = (t: TryCatch) => (x: unknown): TestSet => {
 }
 
 export const test = <T>(input: Input<T>): readonly[number, T] => {
-    let { moduleMap, log, error, measure, tryCatch, env, state } = input
+    let { moduleMap, log, error, measure, tryCatch, env, state, verbose } = input
     const isGitHub = env('GITHUB_ACTION') !== undefined
     const parse = parseTestSet(tryCatch)
     const f
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
         const test
-            : (i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>
-            = i => v => ([ts, state]) => {
-            const next = test(`${i}| `)
-
+            : (i: string, path: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>
+            = (i, path) => v => ([ts, state]) => {
             const set = parse(v)
             if (typeof set === 'function') {
                 const [[s, r], delta, state0] = measure(() => tryCatch(set))(state)
                 state = state0
                 if (s !== 'ok') {
                     ts = addFail(delta)(ts)
+                    const title = path === '' ? '()' : `${path}()`
                     if (isGitHub) {
                         // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
                         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                        error(`::error file=${k},line=1,title=${i}()::${r}`)
+                        error(`::error file=${k},line=1,title=${title}::${r}`)
                     } else {
-                        error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
+                        error(`${k} ${title} ${fgRed}error${reset}, ${timeFormat(delta)}`)
                         error(`${fgRed}${r}${reset}`)
                     }
                 } else {
                     ts = addPass(delta)(ts)
-                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
-                    [ts, state] = next(r)([ts, state])
+                    if (verbose) {
+                        log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
+                    }
+                    [ts, state] = test(`${i}| `, path)(r)([ts, state])
                 }
             } else {
                 const f
                     : (k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>
-                    = ([k, v]) => ([time, state]) => {
-                    log(`${i}${k}:`);
-                    [time, state] = next(v)([time, state])
+                    = ([key, v]) => ([time, state]) => {
+                    if (verbose) {
+                        log(`${i}${key}:`);
+                    }
+                    const newPath = path === '' ? `${key}` : `${path}/${key}`;
+                    [time, state] = test(`${i}| `, newPath)(v)([time, state])
                     return [time, state]
                 }
                 [ts, state] = fold(f)([ts, state])(set)
@@ -132,8 +137,10 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
         }
         return ([ts, state]) => {
             if (isTest(k)) {
-                log(`testing ${k}`);
-                [ts, state] = test('| ')(v.default)([ts, state])
+                if (verbose) {
+                    log(`testing ${k}`);
+                }
+                [ts, state] = test('| ', '')(v.default)([ts, state])
             }
             return [ts, state]
         }
@@ -160,7 +167,7 @@ export const measure = (p: Performance) => <R>(f: () => R) => <T>(state: T): rea
     return [r, e - b, state]
 }
 
-export const main = async(io: Io): Promise<number> => test({
+export const main = (verbose: boolean) => async(io: Io): Promise<number> => test({
     moduleMap: await loadModuleMap(io),
     log: stdio(io), // anyLog(io.console.log),
     error: stderr(io), // anyLog(io.console.error),
@@ -168,4 +175,5 @@ export const main = async(io: Io): Promise<number> => test({
     tryCatch: io.tryCatch,
     env: env(io),
     state: undefined,
+    verbose,
 })[0]

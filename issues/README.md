@@ -7,7 +7,7 @@
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] P5 20. Test framework should be able to run a subset of tests.
-- [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
+- [X] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
 - [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
     - [ ] run `node ./fsc.ts input.f.js output.f.js`
