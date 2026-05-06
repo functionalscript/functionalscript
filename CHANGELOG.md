@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-<<<<<<< sul
 - SUL: first three levels. BitVec: chunking functions. [755](https://github.com/functionalscript/functionalscript/pull/757)
-=======
 - RTTI: parse (deserializer) [760](https://github.com/functionalscript/functionalscript/pull/760)
->>>>>>> main
 
 ## 0.13.0
 
