@@ -48,6 +48,21 @@ for (const s of [3n, 1n, 2n]) {
 }
 ```
 
+## Decoding
+
+Given an output symbol `i`, the first symbol `s0` of the original word is recovered by:
+
+```ts
+const d = 2n * (n - 1n)          // = 2^(e+1)
+const r = log2((i + n - 2n) / d) // estimate: r ∈ {s0-1, s0}
+const s0 = sum(r) > i ? r : r + 1n
+```
+
+The offset `n - 2` is what keeps the estimate within 1 of the true value. With it, the
+start of the group with first symbol `s` lands at `j = sum(s-1) + (n-2) = d · 2^(s-1) + (s-1)`,
+so `j / d` always falls in `[2^(s-1), 2^s)` and `log2(j / d) ∈ {s-1, s}`. Without the
+offset the estimate can be off by 2 or more, breaking the single-step correction.
+
 ## Pre-built levels
 
 | Export   | Input alphabet | Output alphabet size |
@@ -76,4 +91,5 @@ into fixed-width bit vectors for inline storage.
 
 - [levels.md](levels.md) — full encoding tables for levels 1–3 with cumulative counts
 - [avg.md](avg.md) — derivation of average word length ($E \to e$ as $n \to \infty$)
+- [decode.md](decode.md) — decode lookup tables illustrating the `n-2` offset
 - [SUL overview](../../README.md)
