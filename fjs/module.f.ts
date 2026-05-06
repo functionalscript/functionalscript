@@ -16,7 +16,7 @@ export const main = async(io: Io): Promise<number> => {
     switch (command) {
         case 'test':
         case 't':
-            return testMain(rest.includes('--verbose') || rest.includes('-v'))(io)
+            return testMain(io)
         case 'compile':
         case 'c':
             return compile(io)(rest)
