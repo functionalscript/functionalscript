@@ -93,7 +93,7 @@ const containerValidate =
     <I extends Type>(item: I): Validate<Info1<K, I>> => value =>
 {
     if (!isContainer(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const entries = getEntries(value)
     if (entries.length === 0) {
@@ -126,7 +126,7 @@ const recordValidate = containerValidate<'record'>(isObject, Object.entries)
 
 /** Validates a `Tag0` primitive schema using `typeof`. */
 export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
-    value => typeof value === tag ? ok(value) as any : verror('unexpected value') as any
+    value => typeof value === tag ? ok(value) as any : verror('unexpected value')
 
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
@@ -144,7 +144,7 @@ const constContainerValidate =
         const item = getItem(value, k)
         const r = (validate(v) as any)(item) as Result<T>
         if (r[0] === 'error') {
-            return prependPath(k, r) as any
+            return prependPath(k, r)
         }
     }
     return ok(value)
@@ -169,7 +169,7 @@ const constObjectValidate = <T extends ConstObject>(rtti: T): Validate<T> =>
 export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
     value => rtti === value
         ? ok(value) as any
-        : verror('unexpected value') as any
+        : verror('unexpected value')
 
 const constValidate = <T extends Const>(rtti: T): Validate<T> =>
     typeof rtti === 'object' && rtti !== null
@@ -185,7 +185,7 @@ const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly
                 return r
             }
         }
-        return verror('no match') as any
+        return verror('no match')
     }
 }
 
