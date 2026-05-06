@@ -7,7 +7,7 @@
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
 - [ ] P5 20. Test framework should be able to run a subset of tests.
-- [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output.
+- [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output. Blocked by 139.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
 - [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
     - [ ] run `node ./fsc.ts input.f.js output.f.js`
@@ -306,6 +306,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 136. CI should have all tools and images versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodicle updated. We will also need instructions how to check the newest tool version in `README.md`.
 - [ ] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
 - [ ] 138. Implement a script which will update the lock file by reading the latest versions of tools from the internet using the instruction from 136.
+- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
 
 ## Language Specification
 
