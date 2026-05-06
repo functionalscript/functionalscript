@@ -213,7 +213,10 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         test({ run: 'cargo fmt -- --check' }),
         test({ run: 'cargo clippy -- -D warnings' }),
         ...cargoTest(),
-        install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1' }),
+        install({
+            uses: 'bytecodealliance/actions/wasmtime/setup@v1',
+            with: { version: '36.0.9' }
+        }),
         install({ uses: 'wasmerio/setup-wasmer@v1' }),
         ...wasmTarget('wasm32-wasip1'),
         ...wasmTarget('wasm32-wasip2'),

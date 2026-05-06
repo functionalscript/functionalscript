@@ -18,7 +18,10 @@
           }
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
+          "with": {
+            "version": "36.0.9"
+          }
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
@@ -180,7 +183,10 @@
           }
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
+          "with": {
+            "version": "36.0.9"
+          }
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
@@ -336,7 +342,10 @@
           }
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
+          "with": {
+            "version": "36.0.9"
+          }
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
@@ -492,7 +501,10 @@
           }
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
+          "with": {
+            "version": "36.0.9"
+          }
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
@@ -648,7 +660,10 @@
           }
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
+          "with": {
+            "version": "36.0.9"
+          }
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
@@ -810,7 +825,10 @@
           }
         },
         {
-          "uses": "bytecodealliance/actions/wasmtime/setup@v1"
+          "uses": "bytecodealliance/actions/wasmtime/setup@v1",
+          "with": {
+            "version": "36.0.9"
+          }
         },
         {
           "uses": "wasmerio/setup-wasmer@v1"
