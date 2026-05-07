@@ -55,7 +55,7 @@ export const encode = <S>(add: Add<S>): Encode<S> => {
         state: EncodeState<S>
     ): readonly [Id | undefined, EncodeState<S>] => {
         const [ps, storage, stacks] = state
-        const [l3Out, newPs] = pipelineStep(ps)(bit)
+        const [l3Out, newPs] = pipelineStep(bit, ps)
         if (l3Out === undefined) return [undefined, [newPs, storage, stacks]]
         const [finalId, newStorage, newStacks] = cascade(level3Id(l3Out), storage, stacks)
         return [finalId, [newPs, newStorage, newStacks]]

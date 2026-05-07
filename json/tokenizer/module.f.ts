@@ -77,7 +77,7 @@ const parseMinusState
 
 const scanToken
     : StateScan<ScanInput, ScanState, List<JsonToken>>
-    = state => input => {
+    = (input, state) => {
         switch(state.kind)
         {
             case '-': return parseMinusState(input)

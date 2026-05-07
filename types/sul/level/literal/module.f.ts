@@ -79,7 +79,7 @@ export const level = (e: bigint): Level => {
     return {
         sum,
         decode,
-        encode: ([last, part]) => i => last === undefined ? [undefined, [i, 0n]] :
+        encode: (i, [last, part]) => last === undefined ? [undefined, [i, 0n]] :
             last > i ? [undefined, [i, part + sum(last - 1n)]] :
             [part + sum(last) + i - n, emptyEncodeState]
     }
@@ -100,12 +100,12 @@ export const emptyPipelineState: PipelineState = [emptyEncodeState, emptyEncodeS
  * Returns a level-3 symbol whenever the pipeline emits, otherwise `undefined`.
  */
 export const pipelineStep: StateScan<bigint, PipelineState, bigint | undefined> =
-    ([l1s, l2s, l3s]) => bit => {
-        const [l1Out, newL1s] = l1.encode(l1s)(bit)
+    (bit, [l1s, l2s, l3s]) => {
+        const [l1Out, newL1s] = l1.encode(bit, l1s)
         if (l1Out === undefined) return [undefined, [newL1s, l2s, l3s]]
-        const [l2Out, newL2s] = l2.encode(l2s)(l1Out)
+        const [l2Out, newL2s] = l2.encode(l1Out, l2s)
         if (l2Out === undefined) return [undefined, [newL1s, newL2s, l3s]]
-        const [l3Out, newL3s] = l3.encode(l3s)(l2Out)
+        const [l3Out, newL3s] = l3.encode(l2Out, l3s)
         return [l3Out, [newL1s, newL2s, newL3s]]
     }
 
