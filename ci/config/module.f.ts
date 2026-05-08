@@ -36,4 +36,4 @@ export const node = {
 export const wasmtime = '44.0.1'
 
 // https://github.com/wasmerio/wasmer/releases
-export const wasmer = '7.1.0'
+export const wasmer = 'v7.1.0'
