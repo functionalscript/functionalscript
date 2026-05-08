@@ -5,7 +5,8 @@
  */
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
-import { writeFile, type NodeEffect, type NodeOp } from '../types/effects/node/module.f.ts'
+import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
+import { bun, deno, images, node, playwright, rust, wasmer, wasmtime } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -14,22 +15,6 @@ type Os = typeof os[number]
 const architecture = ['intel', 'arm'] as const
 
 type Architecture = typeof architecture[number]
-
-// https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
-const images = {
-    ubuntu: {
-        intel: 'ubuntu-24.04',
-        arm: 'ubuntu-24.04-arm'
-    },
-    macos: {
-        intel: 'macos-26-intel',
-        arm: 'macos-26'
-    },
-    windows: {
-        intel: 'windows-2025',
-        arm: 'windows-11-arm',
-    }
-} as const
 
 type Image = typeof images[Os][Architecture]
 
@@ -87,12 +72,20 @@ const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Archit
         : def)
 
 const installBun = installOnWindowsArm({
-    def: { uses: 'oven-sh/setup-bun@v1' },
+    def: {
+        uses: 'oven-sh/setup-bun@v2',
+        with: {
+            'bun-version': bun
+        },
+    },
     name: 'bun',
-    path: 'bun.sh'
+    path: 'bun.sh',
 })
 
-const installDeno = install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } })
+const installDeno = install({
+    uses: 'denoland/setup-deno@v2',
+    with: { 'deno-version': deno },
+})
 
 const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
     const to = target ? ` --target ${target}` : ''
@@ -128,7 +121,7 @@ const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly Me
     ...extra,
 ])
 
-const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
+const nodeTests = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
     test({ run: 'npm test' }),
     test({ run: 'npm run fst' }),
     ...extra,
@@ -136,22 +129,18 @@ const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaSte
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
-const playwrightVersion = '1.58.2'
-
-const playwrightAndVersion = `playwright@${playwrightVersion}`
-
-const rustToolchain = '1.95.0'
+const playwrightAndVersion = `playwright@${playwright}`
 
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
 
-    const rust = m.find(v => v.type === 'rust') !== undefined
+    const needRust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
-        ...(rust ? [{
-            uses: `dtolnay/rust-toolchain@${rustToolchain}`,
+        ...(needRust ? [{
+            uses: `dtolnay/rust-toolchain@${rust}`,
             with: {
                 components: 'rustfmt,clippy',
                 targets
@@ -163,9 +152,9 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodes = ['20', '22', '24']
+const major = (v: string) => v.split('.')[0]
 
-const nodeTest = (v: string) => v === '20' ? 'run test20' : 'test'
+const nodeTest = (v: string) => major(v) === '20' ? 'run test20' : 'test'
 
 const nodeSteps = (v: string) => [
     install(installNode(v)),
@@ -174,18 +163,17 @@ const nodeSteps = (v: string) => [
 ]
 
 const ubuntu = (ms: readonly MetaStep[]): Job => ({
-    'runs-on': 'ubuntu-24.04',
+    'runs-on': images.ubuntu.intel,
     steps: toSteps(ms)
 })
 
-const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
+const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
+    `node${major(v)}`,
+    ubuntu(nodeSteps(v))
+]))
 
-const defaultNodeVersion = '26'
-
-const wasmtimeVersion = '44.0.1'
-
-const playwright: Job = ubuntu(basicNode(defaultNodeVersion)([
-    //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
+// Playwright installation is stuck on Node 26 (May 7 2026) so we use Node 24.
+const playwrightJob: Job = ubuntu(basicNode(node.others.at(-1)!)([
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
@@ -217,16 +205,19 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ...cargoTest(),
         install({
             uses: 'bytecodealliance/actions/wasmtime/setup@v1',
-            with: { version: wasmtimeVersion }
+            with: { version: wasmtime }
         }),
-        install({ uses: 'wasmerio/setup-wasmer@v1' }),
+        install({
+            uses: 'wasmerio/setup-wasmer@v3.1',
+            with: { version: `v${wasmer}` },
+        }),
         ...wasmTarget('wasm32-wasip1'),
         ...wasmTarget('wasm32-wasip2'),
         ...wasmTarget('wasm32-unknown-unknown'),
         ...wasmTarget('wasm32-wasip1-threads'),
         ...i686(a, v),
         // Node.js
-        ...node(defaultNodeVersion)([
+        ...nodeTests(node.default)([
             // TypeScript Preview
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
@@ -259,7 +250,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
 const jobs = {
     ...Object.fromEntries(os.flatMap(v => architecture.map(job(v)))),
     ...nodeVersions,
-    playwright,
+    playwright: playwrightJob,
 }
 
 const gha: GitHubAction = {
