@@ -178,6 +178,7 @@ const playwrightJob: Job = ubuntu(basicNode(node.default)([
     //install({ run: 'playwright install --with-deps' }),
     //install({ run: 'playwright install' }),
     //install({ run: 'playwright install chromium' }),
+    install({ run: 'rm -rf ~/.cache/ms-playwright' }),
     install({ run: 'playwright install firefox' }),
     install({ run: 'playwright install webkit' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from

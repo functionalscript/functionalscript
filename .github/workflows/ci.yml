@@ -1079,6 +1079,9 @@
           "run": "npm install -g playwright@1.59.1"
         },
         {
+          "run": "rm -rf ~/.cache/ms-playwright"
+        },
+        {
           "run": "playwright install firefox"
         },
         {
