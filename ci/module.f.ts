@@ -165,7 +165,10 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
     steps: toSteps(ms)
 })
 
-const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
+const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
+    `node${v.split('.')[0]}`,
+    ubuntu(nodeSteps(v))
+]))
 
 const wasmtimeVersion = '44.0.1'
 

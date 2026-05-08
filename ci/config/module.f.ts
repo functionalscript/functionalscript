@@ -29,5 +29,5 @@ export const rust = '1.95.0'
 // https://nodejs.org/en/download
 export const node = {
     default: '26.1.0',
-    others: ['20', '22', '24'],
+    others: ['20.20.2', '22.22.2', '24.15.0'],
 } as const

@@ -994,7 +994,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "20"
+            "node-version": "20.20.2"
           }
         },
         {
@@ -1004,7 +1004,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm run test20"
+          "run": "npm test"
         }
       ]
     },
@@ -1014,7 +1014,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "22"
+            "node-version": "22.22.2"
           }
         },
         {
@@ -1034,7 +1034,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24"
+            "node-version": "24.15.0"
           }
         },
         {
