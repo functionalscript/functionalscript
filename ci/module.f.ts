@@ -6,7 +6,7 @@
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
-import { bun, deno, images, node, playwright, rust, wasmtime } from './config/module.f.ts'
+import { bun, deno, images, node, playwright, rust, wasmer, wasmtime } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -207,7 +207,10 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
             uses: 'bytecodealliance/actions/wasmtime/setup@v1',
             with: { version: wasmtime }
         }),
-        install({ uses: 'wasmerio/setup-wasmer@v1' }),
+        install({
+            uses: 'wasmerio/setup-wasmer@v3.1',
+            with: { version: wasmer },
+        }),
         ...wasmTarget('wasm32-wasip1'),
         ...wasmTarget('wasm32-wasip2'),
         ...wasmTarget('wasm32-unknown-unknown'),

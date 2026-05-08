@@ -24,7 +24,10 @@
           }
         },
         {
-          "uses": "wasmerio/setup-wasmer@v1"
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "7.1.0"
+          }
         },
         {
           "uses": "actions/setup-node@v6",
@@ -192,7 +195,10 @@
           }
         },
         {
-          "uses": "wasmerio/setup-wasmer@v1"
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "7.1.0"
+          }
         },
         {
           "uses": "actions/setup-node@v6",
@@ -354,7 +360,10 @@
           }
         },
         {
-          "uses": "wasmerio/setup-wasmer@v1"
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "7.1.0"
+          }
         },
         {
           "uses": "actions/setup-node@v6",
@@ -516,7 +525,10 @@
           }
         },
         {
-          "uses": "wasmerio/setup-wasmer@v1"
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "7.1.0"
+          }
         },
         {
           "uses": "actions/setup-node@v6",
@@ -678,7 +690,10 @@
           }
         },
         {
-          "uses": "wasmerio/setup-wasmer@v1"
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "7.1.0"
+          }
         },
         {
           "uses": "actions/setup-node@v6",
@@ -846,7 +861,10 @@
           }
         },
         {
-          "uses": "wasmerio/setup-wasmer@v1"
+          "uses": "wasmerio/setup-wasmer@v3.1",
+          "with": {
+            "version": "7.1.0"
+          }
         },
         {
           "uses": "actions/setup-node@v6",
