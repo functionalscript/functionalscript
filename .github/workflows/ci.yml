@@ -1079,6 +1079,9 @@
           "run": "npm install -g playwright@1.59.1"
         },
         {
+          "run": "sudo apt-get update && sudo apt-get install -y unzip"
+        },
+        {
           "run": "rm -rf ~/.cache/ms-playwright"
         },
         {

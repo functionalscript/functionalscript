@@ -178,6 +178,7 @@ const playwrightJob: Job = ubuntu(basicNode(node.default)([
     //install({ run: 'playwright install --with-deps' }),
     //install({ run: 'playwright install' }),
     //install({ run: 'playwright install chromium' }),
+    install({ run: 'sudo apt-get update && sudo apt-get install -y unzip' }),
     install({ run: 'rm -rf ~/.cache/ms-playwright' }),
     install({ run: 'DEBUG=pw:install npx playwright install firefox' }),
     // install({ run: 'playwright install webkit' }),
