@@ -292,7 +292,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API, but should not participate in the recursive evaluation chain.
 - [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
-- [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
+- [X] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`

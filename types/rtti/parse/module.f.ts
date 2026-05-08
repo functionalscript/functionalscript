@@ -146,8 +146,13 @@ const constParse = <T extends Const>(rtti: T): Parse<T> =>
 const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> => {
     const all = rtti.map(r => (parse as any)(r) as (v: Unknown) => ItemResult)
     return value => {
-        const r = all.map(p => p(value)).find(([k]) => k === 'ok')
-        return (r ?? verror('no match')) as any
+        for (const p of all) {
+            const r = p(value)
+            if (r[0] === 'ok') {
+                return r as any
+            }
+        }
+        return verror('no match') as any
     }
 }
 
