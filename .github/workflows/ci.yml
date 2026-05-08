@@ -1072,7 +1072,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "24"
           }
         },
         {

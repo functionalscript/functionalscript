@@ -172,7 +172,7 @@ const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
     ubuntu(nodeSteps(v))
 ]))
 
-const playwrightJob: Job = ubuntu(basicNode(node.default)([
+const playwrightJob: Job = ubuntu(basicNode('24')([
     // install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     //install({ run: 'playwright install --with-deps' }),
