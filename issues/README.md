@@ -6,10 +6,10 @@
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
 - [ ] 18. Find a formatter for `.f.js` and `.f.ts` files.
-- [ ] P5 20. Test framework should be able to run a subset of tests.
+- [ ] P5 20. The test framework should be able to run a subset of tests.
 - [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output. Blocked by 139.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
-- [ ] 24. create `./fsc.ts` that supports the same behavior as current NaNVM Rust implementation:
+- [ ] 24. Create `./fsc.ts` that supports the same behavior as the current NaNVM Rust implementation:
     - [ ] run `node ./fsc.ts input.f.js output.f.js`
     - [ ] run `deno ./fsc.ts input.f.js output.f.js`
 - [ ] 27. Test Framework parses non-default export.
@@ -27,21 +27,21 @@
     - API tests use only public API and are located in `*test.f.ts` files.
 - [ ] 29. Test in a browser. It's important for such browsers as Firefox because we don't have SpiderMonkey as a CLI.
 - [ ] 30. Infra for exception-throwing tests that pass on the throw should be improved.
-For example, 'throw' field could be not an immediate function but a reference to a helper function that throws
-(e.g. 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
+For example, 'throw' field could not be an immediate function but a reference to a helper function that throws
+(e.g., 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
 require setting a flag when walking through a test tree as soon as a node has a 'throw' as its name.
 - [ ] [031-formal-grammar](./031-formal-grammar.md).
-- [ ] 032. implement a stupid, non-deterministic parser using [031-formal-grammar](./031-formal-grammar.md).
+- [ ] 032. Implement a stupid, non-deterministic parser using [031-formal-grammar](./031-formal-grammar.md).
 - [ ] 033. Rust: VM: implement `Any` and other types as wrappers
   ```rust
   struct Any<A: AnyPolicy>(A);
   ```
   This way we can implement operations on it, such as `+`.
-- [ ] 36. Test framework for a browser. We should have an HTML file (e.g. `./dev/test.html`) that can be opened in a browser.
+- [ ] 36. Test framework for a browser. We should have an HTML file (e.g., `./dev/test.html`) that can be opened in a browser.
 - [ ] 37. Language Design: Currently, FS has no way to store references (objects/functions) in a container with fast search capabilities. Several options:
   - add `Map` to the language
-  - use content (serialization). This can be slow with non-CA VM. Functions are still hard to serialize.
+  - use content (serialization). This can be slow with a non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 - [ ] [039-radix-encoding.md](./039-radix-encoding.md)
 - [ ] 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
@@ -77,15 +77,15 @@ require setting a flag when walking through a test tree as soon as a node has a 
   ```
 - [ ] 45. [nanenum](../nanvm-lib/src/nanenum.rs) should use new [provenance API](https://doc.rust-lang.org/stable/core/ptr/index.html#provenance)
 - [ ] 46. Implement an LR(1) parser because LL(1) can't handle break lines in comments.
-- [ ] 47. FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
+- [ ] 47. The FunctionalScript Compiler should be able to load and run modules as a meta-programming option. When it fails, it should show a good error message similar to a compile-time error.
 - [ ] 48. One day, we should switch back to the `.js` extension if [Type Annotation Proposal](https://github.com/tc39/proposal-type-annotations) is included in ECMAScript.
 - [ ] [051-parser-structures.md](./051-parser-structures.md).
 - [ ] [052-poker.md](./052-poker.md).
 - [ ] [054-token-plus.md](./054-token-plus.md)
-- [ ] 55. Add Carbon advertisements on a web site https://www.carbonads.net/
+- [ ] 55. Add Carbon advertisements on a website https://www.carbonads.net/
 - [ ] 56. Translate the Byte Code into WebAssembly or other PLs, Rust/Zig/C/C++/LLVM.
 - [ ] 57. https://github.com/Agoric/eslint-config-jessie
-- [ ] 58. 1) There is a todo in line 259 of big_uint.rs, that issue should be clarified.
+- [ ] 58. 1) There is a todo in line 259 of big_uint.rs; that issue should be clarified.
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
 - [ ] 64. Implement IO as mutable
@@ -123,7 +123,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [x] [./074-bast-tag.md](./074-bast-tag.md)
 - [ ] 75. Rewrite [./lang/2220-namespace-import.md](./lang/2220-namespace-import.md) to use `import type A from "x.js"`. FJS should just ignore this. It's a part of type stripping. Type stripping blockers:
   - Node.js (even 24) can't use `.ts` files from `./node-modules/`.
-  - Node, Deno and TypeScript don't allow to use type annotations in `.js` files. See the proposal.
+  - Node, Deno, and TypeScript don't allow the use of type annotations in `.js` files. See the proposal.
   - Browsers don't support type annotations and `.ts` files.
 - [ ] 76. Serialization mapping should be done only once. For example, instead of
   ```rust
@@ -168,10 +168,10 @@ require setting a flag when walking through a test tree as soon as a node has a 
   ```
 - [ ] 79. Use `importmap` as `package-lock.json`. See https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap#integrity_metadata_map.
 - [ ] 80. Add `CONST_REF` to serialization.
-- [ ] 81. Currently, `nanvm_lib` relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits, for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait.
+- [ ] 81. Currently, `nanvm_lib` relies on traits, such as `Any`, `Object`, `Array`, and `String16`. The problem is that one type can implement multiple traits; for example, `struct A { ... }` can implement both `String16` and `Object` traits. It makes implementing generic operators, serialization, etc., challenging for the traits. We need concrete wrap types. For example, `struct Any<T: Vm>(T::Any);`. In this case, we can implement different operators and traits for the generic `Any<T>` type instead of a trait.
 - [ ] [./082-nanvm.md](./082-nanvm.md).
-- [ ] 83. FSC should support for `#` comments.
-- [ ] 85. GitHub supports colors, so we should have, at least, three modes:
+- [ ] 83. FSC should support `#` comments.
+- [ ] 85. GitHub supports colors, so we should have at least three modes:
   - [ ] GitHub: colored log,
   - [ ] no GitHub, isTTY: colored progress bar,
   - [ ] no GitHub, no isTTY: non-colored log.
@@ -248,7 +248,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
   ```
 - [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
 - [ ] 91. Create a separate nominal type for UTF-8.
-- [ ] 92. Create a separate nominal types for MSB and LSB bit vectors.
+- [ ] 92. Create a separate nominal type for MSB and LSB bit vectors.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
@@ -256,9 +256,9 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] 111. Fix `npm` publishing.
 - [ ] 112. CAS
 - [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
-- [ ] 114. A generic command line parse that can produce help.
+- [ ] 114. A generic command line parser that can produce help.
 - [ ] 115. Run-time types. See also https://arktype.io/
-  1. We need more powerful type system than TS. See `bnf` or `effects`.
+  1. We need a more powerful type system than TS. See `bnf` or `effects`.
   2. Validating type match at run-time.
 - [ ] 116. Report the TSGO regression (see `btree`).
 - [X] 117. Should we remove `map` and `pipe` functions from `Effect`?
@@ -276,37 +276,38 @@ require setting a flag when walking through a test tree as soon as a node has a 
   - [X] Create example repository: https://github.com/functionalscript/file-server-example.
   - [ ] use it in CI.
 - [ ] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
-- [ ] 122. Consider add a new file type for applications. For example `node.f.ts` or `app.f.ts`.
+- [ ] 122. Consider adding a new file type for applications. For example, `node.f.ts` or `app.f.ts`.
       These files should have `export default` with type `NodeProgram`.
-      Then we may have other application files, for example `web.f.ts`.
+      Then we may have other application files, for example, `web.f.ts`.
 - [ ] 123. `tsgo` asks for `"types": ["node"]` in the [../tsconfig.json](../tsconfig.json). It looks like a regression to me because we've installed `@types/node` as `devDependencies`.
 - [ ] 124. `RequestListener` should not be stateless. Options:
   1. One option is to pass a state.
   2. In-memory KeyValue storage with access using effects.
   3. One function for all events that also pass a state, similar to a `scan` function.
 - [ ] 125. `bun test` doesn't handle returned functions as tests.
-  1. create a test file `integration/test.f.ts` and rename to something like `integration/uncomment-test.f.ts`. The file should be renamed back when we need to test an engine.
-  2. the file should contain multiple tests using objects, arrays and functions. At least one function should produce similar structure.
-  3. at least one function should be `throw`.
+  1. Create a test file `integration/test.f.ts` and rename it to something like `integration/uncomment-test.f.ts`. The file should be renamed back when we need to test an engine.
+  2. The file should contain multiple tests using objects, arrays, and functions. At least one function should produce a similar structure.
+  3. At least one function should be `throw`.
 - [X] 126. `types/rtti` should support `undefined`, `null` instead of `"undefined"` and `"null"`.
-- [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API but should not participate in the recursive evaluation chain.
+- [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API, but should not participate in the recursive evaluation chain.
 - [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
 - [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts).
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
-  - 2. use async functions and await instead of `.then`
+  - 2. Use async functions and await instead of `.then`
 - [ ] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
-- [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support properly type narrowing.
+- [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support type narrowing properly.
 - [X] 135. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
   Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`
   Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
   Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
-- [ ] 136. CI should have all tools and images versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodicle updated. We will also need instructions how to check the newest tool version in `README.md`.
+- [ ] 136. CI should have all tools and image versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodically updated. We will also need instructions on how to check the newest tool version in `README.md`.
 - [ ] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
-- [ ] 138. Implement a script which will update the lock file by reading the latest versions of tools from the internet using the instruction from 136.
-- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
+- [ ] 138. Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from 136.
+- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently, it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
+- [ ] 140. We should have 100% test coverage for all `module.f.ts` files.
 
 ## Language Specification
 
