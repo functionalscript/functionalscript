@@ -144,14 +144,12 @@ const constParse = <T extends Const>(rtti: T): Parse<T> =>
         ? constObjectParse(rtti) as any
         : constPrimitiveValidate(rtti) as any
 
-const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> => {
-    const all = rtti.map(r => (parse as any)(r) as (v: Unknown) => ItemResult)
-    const findOk = find<ItemResult | null>(null)((r: ItemResult) => r[0] === 'ok')
-    return value => {
-        const r = findOk(listMap((p: (v: Unknown) => ItemResult) => p(value))(all))
-        return (r ?? verror('no match')) as any
-    }
-}
+const findFirst = find
+    (verror('no match'))
+    ((k: any) => k[0] === 'ok')
+
+const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
+    value => findFirst(listMap(t => (parse as any)(t)(value))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.
