@@ -32,8 +32,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -204,8 +203,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -370,8 +368,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -536,8 +533,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -702,8 +698,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -874,8 +869,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -1018,8 +1012,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "20.20.2",
-            "cache": "npm"
+            "node-version": "20.20.2"
           }
         },
         {
@@ -1039,8 +1032,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "22.22.2",
-            "cache": "npm"
+            "node-version": "22.22.2"
           }
         },
         {
@@ -1060,8 +1052,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0",
-            "cache": "npm"
+            "node-version": "24.15.0"
           }
         },
         {
@@ -1081,8 +1072,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0",
-            "cache": "npm"
+            "node-version": "24.15.0"
           }
         },
         {
