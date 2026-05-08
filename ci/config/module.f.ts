@@ -14,4 +14,11 @@ export const images = {
     }
 } as const
 
+// https://bun.sh/
 export const bun = '1.3.13'
+
+// https://deno.com/
+export const deno = '2.7.14'
+
+// https://www.npmjs.com/package/playwright
+export const playwright = '1.59.1'

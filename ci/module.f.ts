@@ -6,7 +6,7 @@
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { writeFile, type NodeEffect, type NodeOp } from '../types/effects/node/module.f.ts'
-import { bun, images } from './config/module.f.ts'
+import { bun, deno, images, playwright } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -79,10 +79,13 @@ const installBun = installOnWindowsArm({
         },
     },
     name: 'bun',
-    path: 'bun.sh'
+    path: 'bun.sh',
 })
 
-const installDeno = install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': '2' } })
+const installDeno = install({
+    uses: 'denoland/setup-deno@v2',
+    with: { 'deno-version': deno },
+})
 
 const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
     const to = target ? ` --target ${target}` : ''
@@ -126,9 +129,7 @@ const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaSte
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
-const playwrightVersion = '1.58.2'
-
-const playwrightAndVersion = `playwright@${playwrightVersion}`
+const playwrightAndVersion = `playwright@${playwright}`
 
 const rustToolchain = '1.95.0'
 
@@ -174,7 +175,7 @@ const defaultNodeVersion = '26'
 
 const wasmtimeVersion = '44.0.1'
 
-const playwright: Job = ubuntu(basicNode(defaultNodeVersion)([
+const playwrightJob: Job = ubuntu(basicNode(defaultNodeVersion)([
     //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
@@ -249,7 +250,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
 const jobs = {
     ...Object.fromEntries(os.flatMap(v => architecture.map(job(v)))),
     ...nodeVersions,
-    playwright,
+    playwright: playwrightJob,
 }
 
 const gha: GitHubAction = {
