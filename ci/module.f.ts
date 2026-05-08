@@ -6,6 +6,7 @@
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { writeFile, type NodeEffect, type NodeOp } from '../types/effects/node/module.f.ts'
+import { bun, images } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -14,22 +15,6 @@ type Os = typeof os[number]
 const architecture = ['intel', 'arm'] as const
 
 type Architecture = typeof architecture[number]
-
-// https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
-const images = {
-    ubuntu: {
-        intel: 'ubuntu-24.04',
-        arm: 'ubuntu-24.04-arm'
-    },
-    macos: {
-        intel: 'macos-26-intel',
-        arm: 'macos-26'
-    },
-    windows: {
-        intel: 'windows-2025',
-        arm: 'windows-11-arm',
-    }
-} as const
 
 type Image = typeof images[Os][Architecture]
 
@@ -87,7 +72,12 @@ const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Archit
         : def)
 
 const installBun = installOnWindowsArm({
-    def: { uses: 'oven-sh/setup-bun@v1' },
+    def: {
+        uses: 'oven-sh/setup-bun@v2',
+        with: {
+            'bun-version': bun
+        },
+    },
     name: 'bun',
     path: 'bun.sh'
 })
