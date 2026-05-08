@@ -40,7 +40,6 @@ import {
     prependPath,
     primitive0Validate,
     verror,
-    type Path,
     type Result as ValidateResult,
     type Validate,
     type ValidationError,
