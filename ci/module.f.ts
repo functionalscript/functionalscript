@@ -152,7 +152,9 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodeTest = (v: string) => v === '20' ? 'run test20' : 'test'
+const major = (v: string) => v.split('.')[0]
+
+const nodeTest = (v: string) => major(v) === '20' ? 'run test20' : 'test'
 
 const nodeSteps = (v: string) => [
     install(installNode(v)),
@@ -166,7 +168,7 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 })
 
 const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
-    `node${v.split('.')[0]}`,
+    `node${major(v)}`,
     ubuntu(nodeSteps(v))
 ]))
 
