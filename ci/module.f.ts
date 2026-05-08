@@ -172,17 +172,9 @@ const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
     ubuntu(nodeSteps(v))
 ]))
 
-const playwrightJob: Job = ubuntu(basicNode('24')([
-    // install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
+const playwrightJob: Job = ubuntu(basicNode(node.others.at(-1)!)([
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
-    //install({ run: 'playwright install' }),
-    //install({ run: 'playwright install chromium' }),
-    //install({ run: 'sudo apt-get update && sudo apt-get install -y unzip' }),
-    //install({ run: 'rm -rf ~/.cache/ms-playwright' }),
-    //install({ run: 'DEBUG=pw:install npx playwright install firefox' }),
-    // install({ run: 'playwright install webkit' }),
-    
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
     // the `package.json`.
     ...['chromium', 'firefox', 'webkit'].map(browser =>
