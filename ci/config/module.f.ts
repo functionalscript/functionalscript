@@ -25,3 +25,6 @@ export const playwright = '1.59.1'
 
 // https://rust-lang.org/
 export const rust = '1.95.0'
+
+// 
+export const node = '26.1.0'

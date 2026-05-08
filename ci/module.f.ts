@@ -121,7 +121,7 @@ const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly Me
     ...extra,
 ])
 
-const node = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
+const nodeTests = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
     test({ run: 'npm test' }),
     test({ run: 'npm run fst' }),
     ...extra,
@@ -169,11 +169,11 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
-const defaultNodeVersion = '26.1.0'
+const node = '26.1.0'
 
 const wasmtimeVersion = '44.0.1'
 
-const playwrightJob: Job = ubuntu(basicNode(defaultNodeVersion)([
+const playwrightJob: Job = ubuntu(basicNode(node)([
     //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
@@ -215,7 +215,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ...wasmTarget('wasm32-wasip1-threads'),
         ...i686(a, v),
         // Node.js
-        ...node(defaultNodeVersion)([
+        ...nodeTests(node)([
             // TypeScript Preview
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
