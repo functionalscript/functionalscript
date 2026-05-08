@@ -47,6 +47,7 @@ import {
 } from '../validate/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject } from '../../object/module.f.ts'
+import { find, map as listMap } from '../../list/module.f.ts'
 
 export type { Path, ValidationError } from '../validate/module.f.ts'
 
@@ -145,14 +146,10 @@ const constParse = <T extends Const>(rtti: T): Parse<T> =>
 
 const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> => {
     const all = rtti.map(r => (parse as any)(r) as (v: Unknown) => ItemResult)
+    const findOk = find<ItemResult | null>(null)((r: ItemResult) => r[0] === 'ok')
     return value => {
-        for (const p of all) {
-            const r = p(value)
-            if (r[0] === 'ok') {
-                return r as any
-            }
-        }
-        return verror('no match') as any
+        const r = findOk(listMap((p: (v: Unknown) => ItemResult) => p(value))(all))
+        return (r ?? verror('no match')) as any
     }
 }
 
