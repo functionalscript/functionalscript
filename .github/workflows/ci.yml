@@ -1082,10 +1082,7 @@
           "run": "rm -rf ~/.cache/ms-playwright"
         },
         {
-          "run": "playwright install firefox"
-        },
-        {
-          "run": "playwright install webkit"
+          "run": "DEBUG=pw:install npx playwright install firefox"
         },
         {
           "uses": "actions/checkout@v5"

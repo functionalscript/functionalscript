@@ -179,8 +179,8 @@ const playwrightJob: Job = ubuntu(basicNode(node.default)([
     //install({ run: 'playwright install' }),
     //install({ run: 'playwright install chromium' }),
     install({ run: 'rm -rf ~/.cache/ms-playwright' }),
-    install({ run: 'playwright install firefox' }),
-    install({ run: 'playwright install webkit' }),
+    install({ run: 'DEBUG=pw:install npx playwright install firefox' }),
+    // install({ run: 'playwright install webkit' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
     // the `package.json`.
     ...['chromium', 'firefox', 'webkit'].map(browser =>
