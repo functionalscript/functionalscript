@@ -1079,7 +1079,16 @@
           "run": "npm install -g playwright@1.59.1"
         },
         {
-          "run": "playwright install --with-deps"
+          "run": "playwright install"
+        },
+        {
+          "run": "playwright install chromium"
+        },
+        {
+          "run": "playwright install firefow"
+        },
+        {
+          "run": "playwright install webkit"
         },
         {
           "uses": "actions/checkout@v5"

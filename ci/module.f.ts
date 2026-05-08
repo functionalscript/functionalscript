@@ -175,7 +175,11 @@ const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
 const playwrightJob: Job = ubuntu(basicNode(node.default)([
     // install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
-    install({ run: 'playwright install --with-deps' }),
+    //install({ run: 'playwright install --with-deps' }),
+    install({ run: 'playwright install' }),
+    install({ run: 'playwright install chromium' }),
+    install({ run: 'playwright install firefow' }),
+    install({ run: 'playwright install webkit' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
     // the `package.json`.
     ...['chromium', 'firefox', 'webkit'].map(browser =>
@@ -209,7 +213,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         }),
         install({
             uses: 'wasmerio/setup-wasmer@v3.1',
-            with: { version: wasmer },
+            with: { version: `v${wasmer}` },
         }),
         ...wasmTarget('wasm32-wasip1'),
         ...wasmTarget('wasm32-wasip2'),
