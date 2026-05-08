@@ -172,6 +172,7 @@ const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
     ubuntu(nodeSteps(v))
 ]))
 
+// Playwright installation is stuck on Node 26 (May 7 2026) so we use Node 24.
 const playwrightJob: Job = ubuntu(basicNode(node.others.at(-1)!)([
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
