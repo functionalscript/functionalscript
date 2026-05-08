@@ -4,7 +4,7 @@ import { type Jobs, type MetaStep, type Os, clean, install, test, ubuntu } from 
 export const major = (v: string) => v.split('.')[0]
 
 const installNode = (version: string) =>
-    ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
+    ({ uses: 'actions/setup-node@v6', with: { 'node-version': version, cache: 'npm' } })
 
 export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
     install(installNode(version)),
