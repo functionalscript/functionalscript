@@ -26,5 +26,8 @@ export const playwright = '1.59.1'
 // https://rust-lang.org/
 export const rust = '1.95.0'
 
-// 
-export const node = '26.1.0'
+// https://nodejs.org/en/download
+export const node = {
+    default: '26.1.0',
+    others: ['20', '22', '24'],
+} as const

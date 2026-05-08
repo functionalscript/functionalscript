@@ -6,7 +6,7 @@
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
-import { bun, deno, images, playwright, rust } from './config/module.f.ts'
+import { bun, deno, images, node, playwright, rust } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -152,8 +152,6 @@ const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     ]
 }
 
-const nodes = ['20', '22', '24']
-
 const nodeTest = (v: string) => v === '20' ? 'run test20' : 'test'
 
 const nodeSteps = (v: string) => [
@@ -167,14 +165,12 @@ const ubuntu = (ms: readonly MetaStep[]): Job => ({
     steps: toSteps(ms)
 })
 
-const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
-
-const node = '26.1.0'
+const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
 const wasmtimeVersion = '44.0.1'
 
-const playwrightJob: Job = ubuntu(basicNode(node)([
-    //install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
+const playwrightJob: Job = ubuntu(basicNode(node.default)([
+    // install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     install({ run: 'playwright install --with-deps' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
@@ -215,7 +211,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ...wasmTarget('wasm32-wasip1-threads'),
         ...i686(a, v),
         // Node.js
-        ...nodeTests(node)([
+        ...nodeTests(node.default)([
             // TypeScript Preview
             install({ run: 'npm install -g @typescript/native-preview'}),
             test({ run: 'tsgo' }),
