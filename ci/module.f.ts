@@ -5,8 +5,8 @@
  */
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
-import { writeFile, type NodeEffect, type NodeOp } from '../types/effects/node/module.f.ts'
-import { bun, deno, images, playwright } from './config/module.f.ts'
+import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
+import { bun, deno, images, playwright, rust } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -131,18 +131,16 @@ const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : 
 
 const playwrightAndVersion = `playwright@${playwright}`
 
-const rustToolchain = '1.95.0'
-
 const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const filter = (st: StepType) => m.flatMap((mt: MetaStep): Step[] => mt.type === st ? [mt.step] : [])
     const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
 
-    const rust = m.find(v => v.type === 'rust') !== undefined
+    const needRust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
-        ...(rust ? [{
-            uses: `dtolnay/rust-toolchain@${rustToolchain}`,
+        ...(needRust ? [{
+            uses: `dtolnay/rust-toolchain@${rust}`,
             with: {
                 components: 'rustfmt,clippy',
                 targets

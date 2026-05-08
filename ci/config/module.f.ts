@@ -22,3 +22,6 @@ export const deno = '2.7.14'
 
 // https://www.npmjs.com/package/playwright
 export const playwright = '1.59.1'
+
+// https://rust-lang.org/
+export const rust = '1.95.0'
