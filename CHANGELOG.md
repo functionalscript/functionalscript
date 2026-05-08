@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- CI: centralize tool versions, split into per-tool modules, add Playwright browser cache [764](https://github.com/functionalscript/functionalscript/pull/764)
+- Refactor StateScan to swap input and state parameter order [763](https://github.com/functionalscript/functionalscript/pull/763).
 - SUL: first three levels. BitVec: chunking functions. [755](https://github.com/functionalscript/functionalscript/pull/757)
 - RTTI: parse (deserializer) [760](https://github.com/functionalscript/functionalscript/pull/760)
-- StateScan: uncurried `(input, prior)` signature ([i135](https://github.com/functionalscript/functionalscript/blob/main/issues/README.md)).
 
 ## 0.13.0
 
