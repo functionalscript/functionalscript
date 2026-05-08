@@ -1079,13 +1079,7 @@
           "run": "npm install -g playwright@1.59.1"
         },
         {
-          "run": "playwright install"
-        },
-        {
-          "run": "playwright install chromium"
-        },
-        {
-          "run": "playwright install firefow"
+          "run": "playwright install firefox"
         },
         {
           "run": "playwright install webkit"

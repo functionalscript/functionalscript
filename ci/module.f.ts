@@ -176,9 +176,9 @@ const playwrightJob: Job = ubuntu(basicNode(node.default)([
     // install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
     //install({ run: 'playwright install --with-deps' }),
-    install({ run: 'playwright install' }),
-    install({ run: 'playwright install chromium' }),
-    install({ run: 'playwright install firefow' }),
+    //install({ run: 'playwright install' }),
+    //install({ run: 'playwright install chromium' }),
+    install({ run: 'playwright install firefox' }),
     install({ run: 'playwright install webkit' }),
     // we have to use `npx` to make sure that we respect `@playwright/test` version from
     // the `package.json`.
