@@ -40,13 +40,13 @@ import {
     prependPath,
     primitive0Validate,
     verror,
-    type Path,
     type Result as ValidateResult,
     type Validate,
     type ValidationError,
 } from '../validate/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject } from '../../object/module.f.ts'
+import { find, map as listMap } from '../../list/module.f.ts'
 
 export type { Path, ValidationError } from '../validate/module.f.ts'
 
@@ -143,13 +143,12 @@ const constParse = <T extends Const>(rtti: T): Parse<T> =>
         ? constObjectParse(rtti) as any
         : constPrimitiveValidate(rtti) as any
 
-const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> => {
-    const all = rtti.map(r => (parse as any)(r) as (v: Unknown) => ItemResult)
-    return value => {
-        const r = all.map(p => p(value)).find(([k]) => k === 'ok')
-        return (r ?? verror('no match')) as any
-    }
-}
+const findFirst = find
+    (verror('no match'))
+    ((k: any) => k[0] === 'ok')
+
+const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
+    value => findFirst(listMap(t => (parse as any)(t)(value))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.
