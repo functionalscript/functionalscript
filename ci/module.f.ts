@@ -163,13 +163,13 @@ const nodeSteps = (v: string) => [
 ]
 
 const ubuntu = (ms: readonly MetaStep[]): Job => ({
-    'runs-on': 'ubuntu-24.04',
+    'runs-on': images.ubuntu.intel,
     steps: toSteps(ms)
 })
 
 const nodeVersions: Jobs = Object.fromEntries(nodes.map(v => [`node${v}`, ubuntu(nodeSteps(v))]))
 
-const defaultNodeVersion = '26'
+const defaultNodeVersion = '26.1.0'
 
 const wasmtimeVersion = '44.0.1'
 

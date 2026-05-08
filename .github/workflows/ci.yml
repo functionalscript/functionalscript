@@ -29,7 +29,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -197,7 +197,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -359,7 +359,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -521,7 +521,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -683,7 +683,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -851,7 +851,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -1054,7 +1054,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26"
+            "node-version": "26.1.0"
           }
         },
         {
