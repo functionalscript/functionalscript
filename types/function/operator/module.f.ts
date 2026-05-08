@@ -25,10 +25,10 @@ export const strictEqual = <T>(a: T) => (b: T): boolean =>
 
 export type Scan<I, O> = (input: I) => readonly[O, Scan<I,O>]
 
-export type StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]
+export type StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]
 
 export const stateScanToScan = <I, S, O>(op: StateScan<I, S, O>) => (prior: S): Scan<I, O> => i => {
-    const [o, s] = op(prior)(i)
+    const [o, s] = op(i, prior)
     return [o, stateScanToScan(op)(s)]
 }
 

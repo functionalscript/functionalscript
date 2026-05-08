@@ -85,7 +85,7 @@ const parseMinusState
 
 const scanToken
     : StateScan<jsTokenizer.JsToken, ScanState, List<DjsToken>>
-    = state => input => {
+    = (input, state) => {
     switch(state.kind)
     {
         case '-': return parseMinusState(input)
@@ -99,8 +99,8 @@ const mapTokenWithMetadata
 
 const scanTokenWithMetadata
     : StateScan<jsTokenizer.JsTokenWithMetadata, ScanState, List<DjsTokenWithMetadata>>
-    = state => (input) => {
-        const [djsTokens, newState] = scanToken(state)(input.token)
+    = (input, state) => {
+        const [djsTokens, newState] = scanToken(input.token, state)
         const djsTokensWithMetadata = map(mapTokenWithMetadata(input.metadata))(djsTokens)
         return [djsTokensWithMetadata, newState]
 }

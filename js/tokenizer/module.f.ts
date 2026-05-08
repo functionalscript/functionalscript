@@ -551,7 +551,7 @@ const initialStateOp
 const invalidNumberToToken
     : (state: ParseNumberState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = () => input => {
-        const next = tokenizeOp({ kind: 'initial' })(input)
+        const next = tokenizeOp(input, { kind: 'initial' })
         return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
     }
 
@@ -561,7 +561,7 @@ const fullStopToToken
         switch (state.numberKind) {
             case '0':
             case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: '.' }]
-            default: return tokenizeOp({ kind: 'invalidNumber' })(input)
+            default: return tokenizeOp(input, { kind: 'invalidNumber' })
         }
     }
 
@@ -569,7 +569,7 @@ const digit0ToToken
     : (state: ParseNumberState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
         switch (state.numberKind) {
-            case '0': return tokenizeOp({ kind: 'invalidNumber' })(input)
+            case '0': return tokenizeOp(input, { kind: 'invalidNumber' })
             case '.':
             case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
             case 'e':
@@ -584,7 +584,7 @@ const digit19ToToken
     : (state: ParseNumberState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
         switch (state.numberKind) {
-            case '0': return tokenizeOp({ kind: 'invalidNumber' })(input)
+            case '0': return tokenizeOp(input, { kind: 'invalidNumber' })
             case '.':
             case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
             case 'e':
@@ -602,7 +602,7 @@ const expToToken
             case '0':
             case 'int':
             case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e' }]
-            default: return tokenizeOp({ kind: 'invalidNumber' })(input)
+            default: return tokenizeOp(input, { kind: 'invalidNumber' })
         }
     }
 
@@ -620,7 +620,7 @@ const plusSignToToken
     = state => input => {
         switch (state.numberKind) {
             case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e+' }]
-            default: return tokenizeOp({ kind: 'invalidNumber' })(input)
+            default: return tokenizeOp(input, { kind: 'invalidNumber' })
         }
     }
 
@@ -633,12 +633,12 @@ const terminalToToken
             case 'e+':
             case 'e-':
                 {
-                    const next = tokenizeOp({ kind: 'initial' })(input)
+                    const next = tokenizeOp(input, { kind: 'initial' })
                     return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
                 }
             default:
                 {
-                    const next = tokenizeOp({ kind: 'initial' })(input)
+                    const next = tokenizeOp(input, { kind: 'initial' })
                     return [{ first: bufferToNumberToken(state), tail: next[0] }, next[1]]
                 }
         }
@@ -655,7 +655,7 @@ const bigintToToken
                 }
             default:
                 {
-                    const next = tokenizeOp({ kind: 'initial' })(input)
+                    const next = tokenizeOp(input, { kind: 'initial' })
                     return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
                 }
         }
@@ -678,7 +678,7 @@ const invalidNumberStateOp
     : (state: InvalidNumberState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = create(() => () => [empty, { kind: 'invalidNumber' }])([
         rangeSetFunc(rangeSetTerminalForNumber)(() => input => {
-            const next = tokenizeOp({ kind: 'initial' })(input)
+            const next = tokenizeOp(input, { kind: 'initial' })
             return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
         })
     ])
@@ -694,7 +694,7 @@ const parseStringStateOp
 const parseEscapeDefault
     : (state: ParseEscapeCharState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
-        const next = tokenizeOp({ kind: 'string', value: state.value })(input)
+        const next = tokenizeOp(input, { kind: 'string', value: state.value })
         return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
     }
 
@@ -713,7 +713,7 @@ const parseEscapeCharStateOp
 const parseUnicodeCharDefault
     : (state: ParseUnicodeCharState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
-        const next = tokenizeOp({ kind: 'string', value: state.value })(input)
+        const next = tokenizeOp(input, { kind: 'string', value: state.value })
         return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
     }
 
@@ -743,7 +743,7 @@ const parseIdDefault
     : (state: ParseIdState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = state => input => {
         const keyWordToken = idToToken(state.value)
-        const next = tokenizeOp({ kind: 'initial' })(input)
+        const next = tokenizeOp(input, { kind: 'initial' })
         return [{ first: keyWordToken, tail: next[0] }, next[1]]
     }
 
@@ -764,7 +764,7 @@ const parseOperatorStateOp
             default: {
                 if (hasOperatorToken(nextStateValue))
                     return [empty, { kind: 'op', value: nextStateValue }]
-                const next = tokenizeOp({ kind: 'initial' })(input)
+                const next = tokenizeOp(input, { kind: 'initial' })
                 return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
             }
         }
@@ -799,7 +799,7 @@ const parseMultilineCommentAsteriskStateOp
 const parseWhitespaceDefault
     : (state: ParseWhitespaceState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = () => input => {
-        const next = tokenizeOp({ kind: 'initial' })(input)
+        const next = tokenizeOp(input, { kind: 'initial' })
         return [{ first: { kind: 'ws' }, tail: next[0] }, next[1]]
     }
 
@@ -813,7 +813,7 @@ const parseWhitespaceStateOp
 const parseNewLineDefault
     : (state: ParseNewLineState) => (input: number) => readonly[List<JsToken>, TokenizerState]
     = _ => input => {
-        const next = tokenizeOp({ kind: 'initial' })(input)
+        const next = tokenizeOp(input, { kind: 'initial' })
         return [{ first: { kind: 'nl' }, tail: next[0] }, next[1]]
     }
 
@@ -830,22 +830,22 @@ const eofStateOp
 
 const tokenizeCharCodeOp
     : StateScan<number, TokenizerState, List<JsToken>>
-    = state => {
+    = (input, state) => {
         switch (state.kind) {
-            case 'initial': return initialStateOp(state)
-            case 'id': return parseIdStateOp(state)
-            case 'string': return parseStringStateOp(state)
-            case 'escapeChar': return parseEscapeCharStateOp(state)
-            case 'unicodeChar': return parseUnicodeCharStateOp(state)
-            case 'invalidNumber': return invalidNumberStateOp(state)
-            case 'number': return parseNumberStateOp(state)
-            case 'op': return parseOperatorStateOp(state)
-            case '//': return parseSinglelineCommentStateOp(state)
-            case '/*': return parseMultilineCommentStateOp(state)
-            case '/**': return parseMultilineCommentAsteriskStateOp(state)
-            case 'ws': return parseWhitespaceStateOp(state)
-            case 'nl': return parseNewLineStateOp(state)
-            case 'eof': return eofStateOp(state)
+            case 'initial': return initialStateOp(state)(input)
+            case 'id': return parseIdStateOp(state)(input)
+            case 'string': return parseStringStateOp(state)(input)
+            case 'escapeChar': return parseEscapeCharStateOp(state)(input)
+            case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
+            case 'invalidNumber': return invalidNumberStateOp(state)(input)
+            case 'number': return parseNumberStateOp(state)(input)
+            case 'op': return parseOperatorStateOp(state)(input)
+            case '//': return parseSinglelineCommentStateOp(state)(input)
+            case '/*': return parseMultilineCommentStateOp(state)(input)
+            case '/**': return parseMultilineCommentAsteriskStateOp(state)(input)
+            case 'ws': return parseWhitespaceStateOp(state)(input)
+            case 'nl': return parseNewLineStateOp(state)(input)
+            case 'eof': return eofStateOp(state)(input)
         }
     }
 
@@ -879,7 +879,7 @@ const tokenizeEofOp
 
 const tokenizeOp
     : StateScan<CharCodeOrEof, TokenizerState, List<JsToken>>
-    = state => input => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(state)(input)
+    = (input, state) => input === null ? tokenizeEofOp(state) : tokenizeCharCodeOp(input, state)
 
 const mapTokenWithMetadata
     : (metadata: TokenMetadata) => (token: JsToken) => JsTokenWithMetadata
@@ -887,14 +887,14 @@ const mapTokenWithMetadata
 
 const tokenizeWithPositionOp
     : StateScan<CharCodeOrEof, TokenizerStateWithMetadata, List<JsTokenWithMetadata>>
-    = ({state, metadata}) => input => {
+    = (input, {state, metadata}) => {
         if (input == null)
         {
             const newState = tokenizeEofOp(state)
             return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata}]
         }
 
-        const newState = tokenizeCharCodeOp(state)(input)
+        const newState = tokenizeCharCodeOp(input, state)
         const isNewLine = input == lf
         const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 1 : metadata.column + 1}
         return [ listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata: newMetadata}]

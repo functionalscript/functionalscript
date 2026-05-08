@@ -761,28 +761,28 @@ export default {
         // First 7 zero bits accumulate without emitting
         let s = emptyPipelineState
         for (let i = 0; i < 7; i++) {
-            const [out, next] = pipelineStep(s)(0n)
+            const [out, next] = pipelineStep(0n, s)
             if (out !== undefined) throw out
             s = next
         }
         // 8th zero emits L3 symbol 0
-        const [out0, s2] = pipelineStep(s)(0n)
+        const [out0, s2] = pipelineStep(0n, s)
         if (out0 !== 0n) throw out0
         // state resets after emit: second batch of 8 zeros also emits 0
         let s3 = s2
         for (let i = 0; i < 7; i++) {
-            const [, next] = pipelineStep(s3)(0n)
+            const [, next] = pipelineStep(0n, s3)
             s3 = next
         }
-        const [out1] = pipelineStep(s3)(0n)
+        const [out1] = pipelineStep(0n, s3)
         if (out1 !== 0n) throw out1
         // 8 ones emit a different symbol than 8 zeros
         let s4 = emptyPipelineState
         for (let i = 0; i < 7; i++) {
-            const [, next] = pipelineStep(s4)(1n)
+            const [, next] = pipelineStep(1n, s4)
             s4 = next
         }
-        const [out2] = pipelineStep(s4)(1n)
+        const [out2] = pipelineStep(1n, s4)
         if (out2 === 0n) throw out2
     }
 }

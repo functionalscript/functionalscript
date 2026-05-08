@@ -263,8 +263,8 @@ export const length
 export type Entry<T> = readonly [number, T]
 
 const entryOperator
-    : (index: number) => <T>(value: T) => readonly [Entry<T>, number]
-    = index => value => [[index, value], index + 1]
+    : <T>(value: T, index: number) => readonly [Entry<T>, number]
+    = (value, index) => [[index, value], index + 1]
 
 export const entries
     : <T>(input: List<T>) => Thunk<Entry<T>>
