@@ -16,7 +16,8 @@ export const playwrightJob: Job = {
             },
         }),
         install({ run: `npm install -g playwright@${playwright}` }),
-        install({ run: 'playwright install --with-deps' }),
+        install({ run: 'playwright install-deps' }),
+        install({ run: 'playwright install' }),
         // we have to use `npx` to make sure that we respect `@playwright/test` version from
         // the `package.json`.
         ...['chromium', 'firefox', 'webkit'].map(browser =>

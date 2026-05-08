@@ -1086,7 +1086,10 @@
           "run": "npm install -g playwright@1.59.1"
         },
         {
-          "run": "playwright install --with-deps"
+          "run": "playwright install-deps"
+        },
+        {
+          "run": "playwright install"
         },
         {
           "uses": "actions/checkout@v5"
