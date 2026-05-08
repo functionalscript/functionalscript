@@ -31,3 +31,6 @@ export const node = {
     default: '26.1.0',
     others: ['20.20.2', '22.22.2', '24.15.0'],
 } as const
+
+// https://github.com/bytecodealliance/wasmtime/releases
+export const wasmtime = '44.0.1'

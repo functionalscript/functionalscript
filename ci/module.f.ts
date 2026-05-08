@@ -6,7 +6,7 @@
 import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
-import { bun, deno, images, node, playwright, rust } from './config/module.f.ts'
+import { bun, deno, images, node, playwright, rust, wasmtime } from './config/module.f.ts'
 
 const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -170,8 +170,6 @@ const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
     ubuntu(nodeSteps(v))
 ]))
 
-const wasmtimeVersion = '44.0.1'
-
 const playwrightJob: Job = ubuntu(basicNode(node.default)([
     // install({ uses: 'actions/cache@v4', with: { path: '~/.cache/ms-playwright', key: `${images.ubuntu.intel}-${playwrightAndVersion}` } }),
     install({ run: `npm install -g ${playwrightAndVersion}` }),
@@ -205,7 +203,7 @@ const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
         ...cargoTest(),
         install({
             uses: 'bytecodealliance/actions/wasmtime/setup@v1',
-            with: { version: wasmtimeVersion }
+            with: { version: wasmtime }
         }),
         install({ uses: 'wasmerio/setup-wasmer@v1' }),
         ...wasmTarget('wasm32-wasip1'),
