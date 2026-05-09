@@ -32,12 +32,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260508.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -204,12 +203,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260508.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -370,12 +368,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260508.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -536,12 +533,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260508.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -702,12 +698,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260508.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -874,12 +869,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0",
-            "cache": "npm"
+            "node-version": "26.1.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260508.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -1018,8 +1012,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "20.20.2",
-            "cache": "npm"
+            "node-version": "20.20.2"
           }
         },
         {
@@ -1039,8 +1032,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "22.22.2",
-            "cache": "npm"
+            "node-version": "22.22.2"
           }
         },
         {
@@ -1060,8 +1052,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0",
-            "cache": "npm"
+            "node-version": "24.15.0"
           }
         },
         {
@@ -1081,8 +1072,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0",
-            "cache": "npm"
+            "node-version": "24.15.0"
           }
         },
         {

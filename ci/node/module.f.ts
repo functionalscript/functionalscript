@@ -1,10 +1,10 @@
-import { node } from '../config/module.f.ts'
+import { node, tsgo } from '../config/module.f.ts'
 import { type Jobs, type MetaStep, type Os, clean, install, test, ubuntu } from '../common/module.f.ts'
 
 export const major = (v: string) => v.split('.')[0]
 
 const installNode = (version: string) =>
-    ({ uses: 'actions/setup-node@v6', with: { 'node-version': version, cache: 'npm' } })
+    ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
 
 export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
     install(installNode(version)),
@@ -36,7 +36,7 @@ export const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
 
 export const nodeMainSteps = (v: Os): readonly MetaStep[] => nodeTests(node.default)([
     // TypeScript Preview
-    install({ run: 'npm install -g @typescript/native-preview'}),
+    install({ run: `npm install -g @typescript/native-preview@${tsgo}`}),
     test({ run: 'tsgo' }),
     // publishing
     test({ run: 'npm pack' }),
