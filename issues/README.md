@@ -26,7 +26,7 @@
     - Examples use only public API and are located in `*example.f.ts` files.
     - API tests use only public API and are located in `*test.f.ts` files.
 - [ ] 29. Test in a browser. It's important for such browsers as Firefox because we don't have SpiderMonkey as a CLI.
-- [ ] 30. Infra for exception-throwing tests that pass on the throw should be improved.
+- [X] 30. Infra for exception-throwing tests that pass on the throw should be improved.
 For example, 'throw' field could not be an immediate function but a reference to a helper function that throws
 (e.g., 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
 Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
