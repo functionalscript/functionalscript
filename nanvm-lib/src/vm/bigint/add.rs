@@ -16,6 +16,6 @@ impl<A: IVm> Add for BigInt<A> {
                 Ordering::Less => (rhs_sign, rhs.abs_sub_vec(self)),
             }
         };
-        Self::new(sign, vec)
+        Self::unchecked_new(sign, vec)
     }
 }

@@ -23,17 +23,30 @@ const foldNormalizeOp: Fold<string, List<string>>
     }
 }
 
+/**
+ * Splits a path into normalized segments.
+ *
+ * Empty (`""`) and current-directory (`"."`) segments are removed, parent-directory
+ * (`".."`) segments collapse the previous segment when possible, and Windows
+ * separators are converted to POSIX separators.
+ */
 export const parse = (path: string): readonly string[] => {
     const split = path.replaceAll('\\', '/').split('/')
     return toArray(fold(foldNormalizeOp)([])(split))
 }
 
+/**
+ * Normalizes a path string by parsing and rejoining it with POSIX separators.
+ */
 export const normalize: Unary<string, string>
 = path => {
     const foldResult = parse(path)
     return join('/')(foldResult)
 }
 
+/**
+ * Concatenates two path fragments and returns a normalized path.
+ */
 export const concat: Reduce<string>
 = a => b => {
     const s = stringConcat([a, '/', b])

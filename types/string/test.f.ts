@@ -1,4 +1,4 @@
-import { join, concat, repeat, cmp } from './module.f.ts'
+import { join, concat, repeat, cmp, splitAt } from './module.f.ts'
 import { repeat as repeatList } from '../list/module.f.ts'
 
 export default {
@@ -44,5 +44,32 @@ export default {
     cmp: () => {
         const result = cmp('3')('4')
         if (result !== -1) { throw result }
+    },
+    splitAt: {
+        middle: () => {
+            const [a, b] = splitAt(3)('hello')
+            if (a !== 'hel') { throw a }
+            if (b !== 'lo') { throw b }
+        },
+        zero: () => {
+            const [a, b] = splitAt(0)('hello')
+            if (a !== '') { throw a }
+            if (b !== 'hello') { throw b }
+        },
+        full: () => {
+            const [a, b] = splitAt(5)('hello')
+            if (a !== 'hello') { throw a }
+            if (b !== '') { throw b }
+        },
+        beyond: () => {
+            const [a, b] = splitAt(10)('hello')
+            if (a !== 'hello') { throw a }
+            if (b !== '') { throw b }
+        },
+        empty: () => {
+            const [a, b] = splitAt(0)('')
+            if (a !== '') { throw a }
+            if (b !== '') { throw b }
+        },
     }
 }

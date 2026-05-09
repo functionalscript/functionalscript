@@ -57,16 +57,17 @@ export type Test = () => unknown
 
 export type TestSet = Test | readonly(readonly[string, unknown])[]
 
-export const parseTestSet = (t: TryCatch) => (x: unknown): TestSet => {
+export const parseTestSet = (t: TryCatch) => (throws: boolean) => (x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
                 const xt = x as Test
-                if (xt.name !== 'throw') {
+                if (!throws && xt.name !== 'throw') {
                     return xt
                 }
-                // Usual tests throw on error, but if the function name is 'throw',
-                // then the test passes if it throws.
+                // Pass-on-throw: the test passes if it throws. Triggered when the
+                // enclosing tree node is named 'throw' (so any function reference
+                // works, not only inline ones whose inferred name is 'throw').
                 return () => {
                     const [tag, value] = t(xt)
                     if (tag === 'ok') {
@@ -95,11 +96,11 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
         : (k: readonly[string, Module]) => (fs: FullState<T>) => FullState<T>
         = ([k, v]) => {
         const test
-            : (i: string) => (v: unknown) => (fs: FullState<T>) => FullState<T>
-            = i => v => ([ts, state]) => {
+            : (i: string) => (throws: boolean) => (v: unknown) => (fs: FullState<T>) => FullState<T>
+            = i => throws => v => ([ts, state]) => {
             const next = test(`${i}| `)
 
-            const set = parse(v)
+            const set = parse(throws)(v)
             if (typeof set === 'function') {
                 const [[s, r], delta, state0] = measure(() => tryCatch(set))(state)
                 state = state0
@@ -116,14 +117,16 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
                 } else {
                     ts = addPass(delta)(ts)
                     log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
-                    [ts, state] = next(r)([ts, state])
+                    // The result of a function is walked as a fresh sub-tree;
+                    // the parent's `throws` flag does not propagate into it.
+                    [ts, state] = next(false)(r)([ts, state])
                 }
             } else {
                 const f
                     : (k: readonly[string|number, unknown]) => (fs: FullState<T>) => FullState<T>
                     = ([k, v]) => ([time, state]) => {
                     log(`${i}${k}:`);
-                    [time, state] = next(v)([time, state])
+                    [time, state] = next(throws || k === 'throw')(v)([time, state])
                     return [time, state]
                 }
                 [ts, state] = fold(f)([ts, state])(set)
@@ -133,7 +136,7 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
         return ([ts, state]) => {
             if (isTest(k)) {
                 log(`testing ${k}`);
-                [ts, state] = test('| ')(v.default)([ts, state])
+                [ts, state] = test('| ')(false)(v.default)([ts, state])
             }
             return [ts, state]
         }

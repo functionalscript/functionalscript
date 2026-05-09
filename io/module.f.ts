@@ -1,10 +1,10 @@
-import { todo } from '../dev/module.f.ts'
 import { normalize } from '../path/module.f.ts'
-import { pure, type Effect } from '../types/effects/module.f.ts'
+import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { IoResult, NodeOp } from '../types/effects/node/module.f.ts'
+import type { ExecResult, Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
+import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
-import { fromVec, toVec } from '../types/uint8array/module.f.ts'
+import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
@@ -93,6 +93,38 @@ export type Process = {
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
+export type Server = {
+    readonly listen: (port: number) => void
+}
+
+export type Readable = AsyncIterable<Uint8Array>
+
+export type IncomingMessage = Readable & {
+    readonly method: string
+    readonly url: string
+    readonly headers: Headers
+}
+
+export type ServerResponse = {
+    readonly writeHead: (status: number, headers: Record<string, string>) => ServerResponse
+    readonly end: (body: Uint8Array) => void
+}
+
+export type RequestListener = (req: IncomingMessage, res: ServerResponse) => Promise<void>
+
+export type Http = {
+    readonly createServer: (_: RequestListener) => Server
+}
+
+export type ChildProcess = {
+    readonly exec: (
+        command: string,
+        callback: (error: unknown, stdout: string, stderr: string) => void,
+    ) => {
+        readonly stdin: null | { readonly end: (data?: string) => void }
+    }
+}
+
 /**
  * Core IO operations interface providing access to system resources
  */
@@ -105,6 +137,8 @@ export type Io = {
     readonly fetch: (url: string) => Promise<Response>
     readonly tryCatch: TryCatch
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
+    readonly http: Http
+    readonly childProcess: ChildProcess
 }
 
 /**
@@ -144,13 +178,23 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
 
 export type EffectToPromise = <T>(effect: Effect<NodeOp, T>) => Promise<T>
 
+const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
+    let result: readonly T[] = []
+    for await (const a of v) {
+        result = [...result, a]
+    }
+    return result
+}
+
 export const fromIo = ({
     console: { error, log },
-    fs: { promises: { mkdir, readFile, readdir, writeFile } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile, rm } },
     fetch,
+    http: { createServer },
+    childProcess,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
-        all: async effects => await Promise.all(effects.map(v => result(v))),
+        all: async effects => await Promise.all(effects.map(result)),
         error: async message => error(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
@@ -167,6 +211,36 @@ export const fromIo = ({
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
         writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+        rm: path => tc(() => rm(path)),
+        exec: ([command, stdin]) => new Promise(resolve => {
+            const child = childProcess.exec(command, (e, stdout, stderr) =>
+                resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
+            )
+            child.stdin?.end(stdin)
+        }),
+        createServer: async requestListener => {
+            const erl = requestListener as Erl<NodeOp>
+            const nodeRl: RequestListener = async(req, res) => {
+                const reqBody = await collect(req)
+                const { method, url, headers } = req
+                const { status, headers: outHeaders, body: outBody } = await result(erl({
+                    method,
+                    url,
+                    headers,
+                    body: listToVec(reqBody)
+                }))
+                res
+                    .writeHead(status, outHeaders)
+                    .end(fromVec(outBody))
+            }
+            const server: EffectServer = asNominal(createServer(nodeRl))
+            return server
+        },
+        listen: async ([server, port]) => {
+            const s = asBase(server) as Server
+            s.listen(port)
+        },
+        forever: () => new Promise(() => {})
     })
     return result
 }

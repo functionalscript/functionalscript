@@ -16,7 +16,14 @@ RUN apt-get update && apt-get install -y \
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# Install sccache
 RUN cargo install sccache --locked
+
+# Install WasmTime
+RUN curl https://wasmtime.dev/install.sh -fsSL | bash
+ENV PATH="/root/.wasmtime/bin:${PATH}"
+
+RUN rustup target add wasm32-wasip1-threads
 
 # Install Node.js 24
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \

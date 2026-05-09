@@ -201,7 +201,7 @@ const u16: (i: U16) => boolean = contains([0x0000, 0xFFFF])
  * ```ts
  * const state: Utf16State = null;
  * const word: U16 = 0xD83D;  // High surrogate for 😀 emoji
- * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(state)(word);
+ * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
  * ```
  *
  * @example
@@ -209,11 +209,11 @@ const u16: (i: U16) => boolean = contains([0x0000, 0xFFFF])
  * ```ts
  * const state: Utf16State = 0xD83D;  // High surrogate already stored
  * const word: U16 = 0xDC00;  // Low surrogate for 😀 emoji
- * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(state)(word);
+ * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
  * ```
  */
 const utf16ByteToCodePointOp: StateScan<U16, Utf16State, List<CodePoint>>
-    = state => word => {
+    = (word, state) => {
         if (!u16(word)) {
             return [[0xffffffff], state]
         }
@@ -282,20 +282,20 @@ const utf16EofToCodePointOp = (state: Utf16State): readonly[List<CodePoint>, Utf
  * ```ts
  * // Example 1: Process a valid UTF-16 word
  * const input1 = 0x0041 // 'A' (BMP code point)
- * const result1 = utf16ByteOrEofToCodePointOp(null)(input1)
+ * const result1 = utf16ByteOrEofToCodePointOp(input1, null)
  * console.log(result1) // [[0x0041], null]
  * // Example 2: Process a high surrogate, followed by EOF
  * const input2 = 0xD83D // High surrogate
- * const result2 = utf16ByteOrEofToCodePointOp(null)(input2)
+ * const result2 = utf16ByteOrEofToCodePointOp(input2, null)
  * console.log(result2) // [[], 0xD83D] (waiting for a low surrogate)
- * const eofResult = utf16ByteOrEofToCodePointOp(0xD83D)(null)
+ * const eofResult = utf16ByteOrEofToCodePointOp(null, 0xD83D)
  * console.log(eofResult) // [[0xD83D | errorMask], null] (unpaired high surrogate)
  * // Example 3: Handle EOF with no pending state
- * const eofResult2 = utf16ByteOrEofToCodePointOp(null)(null)
+ * const eofResult2 = utf16ByteOrEofToCodePointOp(null, null)
  * ```
  */
 const utf16ByteOrEofToCodePointOp: StateScan<WordOrEof, Utf16State, List<CodePoint>>
-    = state => input => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(state)(input)
+    = (input, state) => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(input, state)
 
 
 /**

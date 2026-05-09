@@ -5,7 +5,6 @@ import {
     length,
     listToVec,
     msb,
-    msbCmp,
     uint,
     unpack,
     vec,
@@ -259,7 +258,7 @@ export type Set = Sequence
 
 /** Encodes a SET payload with canonical byte ordering. */
 export const encodeSet: (...records: Sequence) => Vec =
-    genericEncodeSequence(v => v.toSorted((a, b) => msbCmp(a)(b)))
+    genericEncodeSequence(v => v.toSorted((a, b) => msb.cmp(a)(b)))
 
 /** Decodes a SET payload. */
 export const decodeSet: (v: Vec) => Sequence = decodeSequence

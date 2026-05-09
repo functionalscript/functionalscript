@@ -8,19 +8,30 @@ mod mul;
 mod neg;
 mod partial_eq;
 mod serializable;
+mod shl;
+mod shr;
 mod sized_index;
 mod sub;
 
 use core::{cmp::Ordering, iter::once};
 
 use crate::{
-    common::sized_index::SizedIndex,
+    common::{sized_index::SizedIndex, uint::Uint},
     sign::Sign,
     vm::{IContainer, IVm},
 };
 
+// TODO: change it to Iterator/SizedIndex-based implementation.
+fn normalize(vec: &[u64]) -> &[u64] {
+    let last_nonzero_index = vec.iter().rposition(|&x| x != 0);
+    match last_nonzero_index {
+        Some(index) => &vec[..=index],
+        None => &[], // All elements are zero, return an empty slice
+    }
+}
+
 /// ```
-/// use nanvm_lib::vm::{BigInt, IVm, naive::Naive};
+/// use nanvm_lib::{vm::{BigInt, IVm}, naive::Naive};
 /// fn bigint_test<A: IVm>() {
 ///     let a: BigInt<A> = 12345678901234567890u64.into();
 ///     let b: BigInt<A> = (-1234567890123456789i64).into();
@@ -36,12 +47,26 @@ impl<A: IVm> BigInt<A> {
         self.0.items().is_empty()
     }
 
-    fn new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+    /// The function doesn't normalize the bigint.
+    fn unchecked_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         Self(A::InternalBigInt::new_ok(sign, items))
     }
 
+    /// Note: this function accepts an iterator in least-significant-word-first order,
+    /// i.e. the first item is the least significant word!
+    pub fn normalize_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
+        let vec: Vec<u64> = items.into_iter().collect();
+        // TODO: Don't allocate vector for the normalization.
+        let r = normalize(&vec);
+        if r.is_empty() {
+            Self::default()
+        } else {
+            Self::unchecked_new(sign, r.iter().copied())
+        }
+    }
+
     fn new_one(sign: Sign, value: u64) -> Self {
-        Self::new(sign, once(value))
+        Self::unchecked_new(sign, once(value))
     }
 
     fn add_to_vec(mut vec: Vec<u64>, index: u32, add: u128) -> Vec<u64> {
@@ -60,11 +85,7 @@ impl<A: IVm> BigInt<A> {
     /// Panics if this BigInt is not normalized, i.e. if it has leading
     /// (most-significant) zero words.
     fn assert_normalized(&self) {
-        let items = self.0.items();
-        let len = items.length();
-        if len > 0 && items[len - 1] == 0 {
-            panic!("BigInt is not normalized (has leading zero words)");
-        }
+        assert_slice_normalized(self.0.items());
     }
 
     /// Compare absolute values by looking at the most-significant words first.
@@ -131,7 +152,7 @@ impl<A: IVm> BigInt<A> {
         }
 
         // Postcondition: result must be normalized.
-        assert_vec_normalized(&out);
+        assert_slice_normalized(out.as_slice());
         out
     }
 
@@ -140,15 +161,11 @@ impl<A: IVm> BigInt<A> {
         self.assert_normalized();
         rhs.assert_normalized();
 
-        let mut iter_a = self.index_iter();
         let mut iter_b = rhs.index_iter();
         let mut borrow: u64 = 0;
         let mut out: Vec<u64> = Vec::new();
 
-        loop {
-            let Some(a) = iter_a.next() else {
-                break;
-            };
+        for a in self.index_iter() {
             let b = iter_b.next().unwrap_or_default();
 
             let b_plus_borrow = b as u128 + borrow as u128;
@@ -166,36 +183,26 @@ impl<A: IVm> BigInt<A> {
             panic!("abs_sub_vec: rhs is greater than self");
         }
 
-        // Trim leading zeros (most-significant words)
-        while let Some(&last) = out.last() {
-            if last == 0 {
-                out.pop();
-            } else {
-                break;
-            }
-        }
-
-        // Postcondition: result must be normalized.
-        assert_vec_normalized(&out);
-        out
+        normalize(&out).to_vec()
     }
 }
 
 /// Panics if the slice is not normalized, i.e. if it has leading
 /// (most-significant) zero words.
-/// TODO: merge assert_vec_normalized, assert_normalized logic.
-fn assert_vec_normalized(v: &[u64]) {
-    if let Some(&last) = v.last() {
-        if last == 0 {
-            panic!("BigInt is not normalized (has leading zero words)");
-        }
+fn assert_slice_normalized<I: Uint, T: SizedIndex<I, Output = u64> + ?Sized>(v: &T) {
+    if let Some(&last) = v.last()
+        && last == 0
+    {
+        panic!("BigInt is not normalized (has leading zero words)");
     }
 }
 
+// TODO: move these tests to integration tests.
 #[cfg(test)]
 mod tests {
+    use crate::naive::Naive;
+
     use super::*;
-    use crate::vm::naive::Naive;
     use core::cmp::Ordering;
 
     type TestBigInt = BigInt<Naive>;
@@ -216,8 +223,8 @@ mod tests {
 
     #[test]
     fn test_abs_cmp_vec_simple_different_lengths() {
-        let one_digit = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        let two_digits = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let one_digit = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
+        let two_digits = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
         assert_eq!(
             two_digits.clone().abs_cmp_vec(one_digit.clone()),
             Ordering::Greater
@@ -301,8 +308,8 @@ mod tests {
         // self = [5, 10] represents 10 * 2^64 + 5
         // rhs = [20, 9] represents 9 * 2^64 + 20
         // Since higher word is more significant, self should be greater despite lower word being smaller
-        let self_val = TestBigInt::new(crate::sign::Sign::Positive, vec![5u64, 10u64]);
-        let rhs_val = TestBigInt::new(crate::sign::Sign::Positive, vec![20u64, 9u64]);
+        let self_val = TestBigInt::unchecked_new(Sign::Positive, [5u64, 10u64]);
+        let rhs_val = TestBigInt::unchecked_new(Sign::Positive, [20u64, 9u64]);
 
         assert_eq!(self_val.abs_cmp_vec(rhs_val), Ordering::Greater);
     }
@@ -314,7 +321,7 @@ mod tests {
         let a: TestBigInt = 123u64.into();
         let b: TestBigInt = 456u64.into();
         let result = a.abs_add_vec(b);
-        let expected = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let expected = TestBigInt::unchecked_new(Sign::Positive, result);
         let expected_value: TestBigInt = 579u64.into();
         assert_eq!(expected.abs_cmp_vec(expected_value), Ordering::Equal);
     }
@@ -324,13 +331,13 @@ mod tests {
         let a: TestBigInt = 42u64.into();
         let b: TestBigInt = 0u64.into();
         let result = a.clone().abs_add_vec(b);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
 
         let c: TestBigInt = 0u64.into();
         let d: TestBigInt = 17u64.into();
         let result2 = c.abs_add_vec(d.clone());
-        let result2_bigint = TestBigInt::new(crate::sign::Sign::Positive, result2);
+        let result2_bigint = TestBigInt::unchecked_new(Sign::Positive, result2);
         assert_eq!(result2_bigint.abs_cmp_vec(d), Ordering::Equal);
     }
 
@@ -348,8 +355,8 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_different_lengths() {
-        let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        let large = TestBigInt::new(crate::sign::Sign::Positive, vec![200u64, 1u64]);
+        let small = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
+        let large = TestBigInt::unchecked_new(Sign::Positive, [200u64, 1u64]);
 
         let result1 = small.clone().abs_add_vec(large.clone());
         let result2 = large.abs_add_vec(small);
@@ -367,7 +374,7 @@ mod tests {
 
     #[test]
     fn test_abs_add_vec_multiple_carries() {
-        let a = TestBigInt::new(crate::sign::Sign::Positive, vec![u64::MAX, u64::MAX]);
+        let a = TestBigInt::unchecked_new(Sign::Positive, [u64::MAX, u64::MAX]);
         let b: TestBigInt = 1u64.into();
 
         let result = a.abs_add_vec(b);
@@ -383,7 +390,7 @@ mod tests {
     fn test_abs_add_vec_same_large_numbers() {
         let large: TestBigInt = 0x7FFF_FFFF_FFFF_FFFFu64.into();
         let result = large.clone().abs_add_vec(large);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
 
         let expected: TestBigInt = 0xFFFF_FFFF_FFFF_FFFEu64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
@@ -416,7 +423,7 @@ mod tests {
         let a: TestBigInt = 456u64.into();
         let b: TestBigInt = 123u64.into();
         let result = a.abs_sub_vec(b);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
         let expected: TestBigInt = 333u64.into();
         assert_eq!(result_bigint.abs_cmp_vec(expected), Ordering::Equal);
     }
@@ -435,7 +442,7 @@ mod tests {
         let a: TestBigInt = 42u64.into();
         let b: TestBigInt = 0u64.into();
         let result = a.clone().abs_sub_vec(b);
-        let result_bigint = TestBigInt::new(crate::sign::Sign::Positive, result);
+        let result_bigint = TestBigInt::unchecked_new(Sign::Positive, result);
         assert_eq!(result_bigint.abs_cmp_vec(a), Ordering::Equal);
     }
 
@@ -451,8 +458,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_different_lengths() {
-        let large = TestBigInt::new(crate::sign::Sign::Positive, vec![300u64, 2u64]);
-        let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
+        let large = TestBigInt::unchecked_new(Sign::Positive, [300u64, 2u64]);
+        let small = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
 
         let result = large.abs_sub_vec(small);
 
@@ -464,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_borrow_propagation() {
-        let a = TestBigInt::new(crate::sign::Sign::Positive, vec![0u64, 1u64]); // 2^64
+        let a = TestBigInt::unchecked_new(Sign::Positive, [0u64, 1u64]); // 2^64
         let b: TestBigInt = 1u64.into();
 
         let result = a.abs_sub_vec(b);
@@ -476,8 +483,8 @@ mod tests {
 
     #[test]
     fn test_abs_sub_vec_leading_zero_trim() {
-        let a = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
-        let b = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let a = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
+        let b = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
 
         let result = a.abs_sub_vec(b);
 
@@ -516,8 +523,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "abs_sub_vec: rhs is greater than self")]
     fn test_abs_sub_vec_panic_different_lengths() {
-        let small = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64]);
-        let large = TestBigInt::new(crate::sign::Sign::Positive, vec![100u64, 1u64]);
+        let small = TestBigInt::unchecked_new(Sign::Positive, [100u64]);
+        let large = TestBigInt::unchecked_new(Sign::Positive, [100u64, 1u64]);
         let _ = small.abs_sub_vec(large); // Should panic - small < large
     }
 }

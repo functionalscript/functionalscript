@@ -1,3 +1,9 @@
+/**
+ * Provides ASCII code point constants and helpers for creating numeric code points and inclusive ranges.
+ *
+ * @module
+ */
+
 import type { Range } from '../../types/range/module.f.ts'
 
 const at = (s: string) => (i: number) => {
@@ -6,8 +12,10 @@ const at = (s: string) => (i: number) => {
     return r
 }
 
+/** Returns the code point value of the first character in a string. */
 export const one = (s: string): number => at(s)(0)
 
+/** Returns an inclusive code point range from the first two characters in a string. */
 export const range = (s: string): Range => {
     const f = at(s)
     const f0 = f(0)

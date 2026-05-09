@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Test framework: detect pass-on-throw tests by enclosing `throw` key, supporting function references and grouped tests [769](https://github.com/functionalscript/functionalscript/pull/769)
+- CI: centralize tool versions, split into per-tool modules, add Playwright browser cache [764](https://github.com/functionalscript/functionalscript/pull/764)
+- Refactor StateScan to swap input and state parameter order [763](https://github.com/functionalscript/functionalscript/pull/763).
+- SUL: first three levels. BitVec: chunking functions. [755](https://github.com/functionalscript/functionalscript/pull/757)
+- RTTI: parse (deserializer) [760](https://github.com/functionalscript/functionalscript/pull/760)
+
+## 0.13.0
+
+- RTTI: `print(mut?: true)` [754](https://github.com/functionalscript/functionalscript/pull/754)
+
+## 0.12.9
+
+- RTTI: TS: generating simple TypeScript definitions from RTTI. [751](https://github.com/functionalscript/functionalscript/pull/751)
+- Io: Improve exec [752](https://github.com/functionalscript/functionalscript/pull/752)
+
+## 0.12.8
+
+- Effects: exec: stdin [750](https://github.com/functionalscript/functionalscript/pull/750)
+
+## 0.12.7
+
+- bitVec: chunkList() [749](https://github.com/functionalscript/functionalscript/pull/749)
+
+## 0.12.6
+
+- Effects: Exec [748](https://github.com/functionalscript/functionalscript/pull/748)
+
+## 0.12.5
+
+- Effects: Rm [747](https://github.com/functionalscript/functionalscript/pull/747)
+
+## 0.12.2
+
+- RTTI: Or [737](https://github.com/functionalscript/functionalscript/pull/737)
+
+## 0.12.1
+
+- RTTI: type simplification for TypeScript [736](https://github.com/functionalscript/functionalscript/pull/736)
+
+## 0.12.0
+
+- RTTI: new design [734](https://github.com/functionalscript/functionalscript/pull/734)
+
+## 0.11.11
+
+- RTTI: the first version [733](https://github.com/functionalscript/functionalscript/pull/733)
+
+## 0.11.10
+
+- BitVec: BitVec: improve `u8ListToVec` [732](https://github.com/functionalscript/functionalscript/pull/732)
+
+## 0.11.9
+
+- BitVec: another significant performance improvement for `u8List` [731](https://github.com/functionalscript/functionalscript/pull/731)
+- BitVec: BitVec: `BitOrder.cmp` [729](https://github.com/functionalscript/functionalscript/pull/729)
+
+## 0.11.8
+
+- BitVec: improve performance of `u8List` [728](https://github.com/functionalscript/functionalscript/pull/728)
+
+## 0.11.7
+
+- BitVec: improve performance of `u8ListToVec` [727](https://github.com/functionalscript/functionalscript/pull/727)
+
+## 0.11.6
+
+- Effects: HTTP: createServer: a universal request listener [726](https://github.com/functionalscript/functionalscript/pull/726)
+
+## 0.11.5
+
+- Effects: the `forever` command [725](https://github.com/functionalscript/functionalscript/pull/725)
+
+## 0.11.4
+
+- Effects: createServer: IncomingMessage and ServerResponse [724](https://github.com/functionalscript/functionalscript/pull/724)
+
+## 0.11.3
+
+- Effects: HTTPS: `listen` [722](https://github.com/functionalscript/functionalscript/pull/722)
+
+## 0.11.2
+
+- Effects: HTTPS: `createServer` and `listen`. [716](https://github.com/functionalscript/functionalscript/pull/716)
+
 ## 0.11.1
 
 - Effects: the `both` function [710](https://github.com/functionalscript/functionalscript/pull/710)

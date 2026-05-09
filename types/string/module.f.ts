@@ -34,3 +34,6 @@ export const repeat: (n: string) => (v: number) => string
 
 export const cmp: (a: string) => (b: string) => Sign
     = uCmp
+
+export const splitAt = (p: number) => (v: string): readonly[string, string] =>
+    [v.substring(0, p), v.substring(p)]

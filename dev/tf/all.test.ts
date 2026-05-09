@@ -17,7 +17,7 @@ type Awaitable<T> = Promise<T> | T
 
 type SubTestRunnerFunc = (name: string, f: () => Awaitable<void>) => Awaitable<void>
 
-type Test = readonly[string, unknown]
+type Test = readonly[string, unknown, boolean]
 
 type TestFunc = (f: SubTestRunnerFunc) => Awaitable<void>
 
@@ -51,17 +51,19 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
         }
         subTests = rest
         //
-        const [name, value] = first
-        const set = parse(value)
+        const [name, value, throws] = first
+        const set = parse(throws)(value)
         if (typeof set === 'function') {
             await subTestRunner(name, () => {
                 const r = set()
-                subTests = [...subTests, [`${name}()`, r]]
+                // The result of a function is walked as a fresh sub-tree;
+                // the parent's `throws` flag does not propagate into it.
+                subTests = [...subTests, [`${name}()`, r, false]]
             })
         } else {
             for (const [j, y] of set) {
                 const pr = `${name}/${j}`
-                subTests = [...subTests, [pr, y]]
+                subTests = [...subTests, [pr, y, throws || j === 'throw']]
             }
         }
     }
@@ -71,7 +73,7 @@ const run = async(): Promise<void> => {
     const x = await loadModuleMap(io)
     for (const [i, v] of Object.entries(x)) {
         if (isTest(i)) {
-            framework(i, scanModule(['', v.default]))
+            framework(i, scanModule(['', v.default, false]))
         }
     }
 }

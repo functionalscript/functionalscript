@@ -12,7 +12,7 @@ impl<A: IVm> Neg for BigInt<A> {
         if self.is_zero() {
             self
         } else {
-            Self::new(
+            Self::unchecked_new(
                 match *self.0.header() {
                     Sign::Positive => Sign::Negative,
                     Sign::Negative => Sign::Positive,

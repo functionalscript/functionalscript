@@ -6,7 +6,7 @@
 import { utf8, utf8ToString } from "../../text/module.f.ts"
 import { msb, u8List, u8ListToVec, type Vec } from "../bit_vec/module.f.ts"
 import { compose } from "../function/module.f.ts"
-import { fromArrayLike, iterable } from "../list/module.f.ts"
+import { flat, fromArrayLike, iterable, map, type List } from "../list/module.f.ts"
 
 const u8ListToVecMsb = u8ListToVec(msb)
 const u8ListMsb = u8List(msb)
@@ -16,6 +16,11 @@ const u8ListMsb = u8List(msb)
  */
 export const toVec = (input: Uint8Array): Vec =>
     u8ListToVecMsb(fromArrayLike(input))
+
+const m = map(fromArrayLike)
+
+export const listToVec = (input: List<Uint8Array>): Vec =>
+    u8ListToVecMsb(flat(m(input)))
 
 /**
  * Converts an MSB-first bit vector into a Uint8Array.

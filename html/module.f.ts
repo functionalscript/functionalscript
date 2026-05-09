@@ -3,6 +3,9 @@ import { concat, concat as stringConcat } from '../types/string/module.f.ts'
 import type { Entry } from '../types/object/module.f.ts'
 import { compose } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
+import { includes } from '../types/array/module.f.ts'
+import { type Vec } from '../types/bit_vec/module.f.ts'
+import { utf8 } from '../text/module.f.ts'
 
 const { fromCharCode } = String
 const { entries } = Object
@@ -14,7 +17,7 @@ type Tag = string
  *
  * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
  */
-const voidTagList: readonly string[] = [
+const voidTagList = [
     'area',
     'base',
     'br',
@@ -29,16 +32,16 @@ const voidTagList: readonly string[] = [
     'source',
     'track',
     'wbr',
-]
+] as const
 
 /**
  * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script
  * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/style
  */
-const rawText: readonly string[] = [
+const rawText = [
     'script',
     'style'
-]
+] as const
 
 type Element1 = readonly [Tag, ...Node[]]
 
@@ -100,6 +103,10 @@ const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]]
             [tag, {}, [item1, ...list]]
 }
 
+const isVoidTag = includes(voidTagList)
+
+const isRawText = includes(rawText)
+
 /**
  * Converts a FunctionalScript element into a list of HTML string chunks.
  *
@@ -109,10 +116,10 @@ const parseElement = (e: Element): readonly[string, Attributes, readonly Node[]]
 export const element = (e: Element): List<string> => {
     const [tag, a, n] = parseElement(e)
     const open = flat([[`<`, tag], attributes(a), [`>`]])
-    if (voidTagList.includes(tag)) {
+    if (isVoidTag(tag)) {
         return open
     }
-    return flat([open, rawText.includes(tag) ? [rawMap(n)] : nodes(n), ['</', tag, '>']])
+    return flat([open, isRawText(tag) ? [rawMap(n)] : nodes(n), ['</', tag, '>']])
 }
 
 /**
@@ -128,3 +135,28 @@ export const html
 export const htmlToString
     : (_: Element) => string
     = compose(html)(stringConcat)
+
+const commonHead = [
+    ['meta', { charset: 'UTF-8' }],
+    ['meta', { name: 'viewport', content: 'width=device-width,initial-scale=1.0' }],
+] as const
+
+/**
+ * Renders a complete UTF-8 encoded HTML document as a `Vec`.
+ *
+ * Produces a full page with `<!DOCTYPE html>`, a `<head>` containing a UTF-8
+ * `<meta charset>` and a responsive-viewport `<meta>` followed by any extra
+ * `head` nodes, and a `<body>` containing the provided `body` nodes.
+ *
+ * @example
+ * ```ts
+ * htmlUtf8(['title', 'My Page'])(['h1', 'Hello'])
+ * // Vec of UTF-8 bytes for:
+ * // <!DOCTYPE html><html><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
+ * ```
+ */
+export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
+    utf8(htmlToString(['html',
+        ['head', ...commonHead, ...head],
+        ['body', ...body]]
+    ))

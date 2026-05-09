@@ -6,12 +6,28 @@
 import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
-import { all, both, readdir, readFile, writeFile, type All, type NodeProgram, type Readdir } from '../types/effects/node/module.f.ts'
+import {
+    all,
+    both,
+    readdir,
+    readFile,
+    writeFile,
+    type All,
+    type NodeProgram,
+    type Readdir
+} from '../types/effects/node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
+
+export const assert: (v: boolean, msg?: unknown) => asserts v = (v, msg = 'assertion failed') => {
+    if (!v) throw msg
+}
+
+export const assertEq = <T>(a: T, b: T): void =>
+    assert(a === b, [a, b])
 
 export type Module = {
     readonly default?: unknown

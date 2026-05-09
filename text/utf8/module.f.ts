@@ -1,3 +1,8 @@
+/**
+ * UTF-8 byte-level encoding and decoding utilities for FunctionalScript streams.
+ *
+ * @module
+ */
 import { flat, flatMap, type List, stateScan, type Thunk } from '../../types/list/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
@@ -146,7 +151,7 @@ const utf8StateToError = (state: Utf8NonEmptyState): I32 => {
  *   - A list of decoded Unicode code points or error codes.
  *   - The updated UTF-8 state.
  */
-const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>> = (state) => (byte) => {
+const utf8ByteToCodePointOp: StateScan<number, Utf8State, List<I32>> = (byte, state) => {
     if (byte < 0x00 || byte > 0xff) {
         return [[errorMask], state]
     }
@@ -215,8 +220,8 @@ const utf8EofToCodePointOp = (
  *   - A list of decoded Unicode code points or error codes.
  *   - The updated UTF-8 state.
  */
-const utf8ByteOrEofToCodePointOp: StateScan<ByteOrEof, Utf8State, List<I32>> = (state) => (input) =>
-    input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(state)(input)
+const utf8ByteOrEofToCodePointOp: StateScan<ByteOrEof, Utf8State, List<I32>> = (input, state) =>
+    input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(input, state)
 
 /**
  * A constant representing the end-of-file (EOF) marker for UTF-8 decoding.

@@ -21,10 +21,10 @@
  *
  * @module
  */
-import { bitLength, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
-import { flip } from '../function/module.f.ts'
+import { bitLength, divUp, mask, max, min, xor, type Reduce as BigintReduce } from '../bigint/module.f.ts'
+import { flip, identity } from '../function/module.f.ts'
 import type { Binary, Fold, Reduce as OpReduce } from '../function/operator/module.f.ts'
-import { fold, type List, type Thunk } from '../list/module.f.ts'
+import { fold, iterable, map, type List, type Thunk } from '../list/module.f.ts'
 import { asBase, asNominal, type Nominal } from '../nominal/module.f.ts'
 import { repeat as mRepeat } from '../monoid/module.f.ts'
 import { cmp, type Sign } from '../function/compare/module.f.ts'
@@ -119,18 +119,14 @@ export const unpack = (v: Vec): Unpacked => ({
  */
 export const pack = ({ length, uint }: Unpacked): Vec => vec(length)(uint)
 
+export const unpackedUint = ({ uint }: Unpacked): bigint => uint
+
 type Norm = (len: bigint) => {
     readonly a: bigint
     readonly b: bigint
 }
 
 type NormOp = Binary<Unpacked, Unpacked, Norm>
-
-const lsbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => (len: bigint) =>
-    ({ a, b })
-
-const msbNorm: NormOp = ({ length: al, uint: a }) => ({ length: bl, uint: b }) => (len: bigint) =>
-    ({ a: a << (len - al), b: b << (len - bl) })
 
 /**
  * Normalizes two vectors to the same length before applying a bigint reducer.
@@ -144,6 +140,8 @@ const op = (norm: NormOp) => (op: BigintReduce): Reduce => ap => bp => {
 }
 
 export type Reduce = OpReduce<Vec>
+
+export type PopFront<T> = (len: bigint) => (u: T) => readonly [bigint, T]
 
 /**
  * Represents operations for handling bit vectors with a specific bit order.
@@ -209,7 +207,7 @@ export type BitOrder = {
      * const [uM1, rM1] = msb.popFront(16n)(vector) // [0xF500n, rM1 === empty]
      * ```
      */
-    readonly popFront: (len: bigint) => (v: Vec) => readonly [bigint, Vec]
+    readonly popFront: PopFront<Vec>
     /**
      * Concatenates two vectors.
      *
@@ -233,7 +231,80 @@ export type BitOrder = {
      * @returns A function that takes a second vector and returns the XOR result.
      */
     readonly xor: Reduce
+    readonly unpackPopFront: PopFront<Unpacked>
+    readonly norm: NormOp
+    /**
+     * Lexically compares two vectors.
+     *
+     * a < b => -1
+     * a > b => 1
+     * a === b => 0
+     */
+    readonly cmp: (a: Vec) => (b: Vec) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
+    readonly unpackConcat: (a: Unpacked) => (b: Unpacked) => Unpacked
+    readonly startsWith: (prefix: Vec) => (v: Vec) => boolean
 }
+
+type Base = {
+    readonly front: (len: bigint) => (v: Vec) => bigint
+    readonly removeFront: (len: bigint) => (v: Vec) => Vec
+    readonly norm: NormOp
+    readonly uintCmp: (a: bigint) => (b: bigint) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
+    readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
+}
+
+const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }: Base): BitOrder => {
+    const unpackPopFront = (len: bigint) => {
+        const m = mask(len)
+        const us = unpackSplit(len)
+        return (v: Unpacked) => {
+            const [uint, rest] = us(v)
+            return [uint & m, { length: v.length - len, uint: rest }] as const
+        }
+    }
+    const unpackConcat = (a: Unpacked) => (b: Unpacked) => ({
+        length: a.length + b.length, uint: unpackConcatUint(a)(b)
+    })
+    const popFront: PopFront<Vec> = len => {
+        const f = unpackPopFront(len)
+        return v => {
+            const [uint, u] = f(unpack(v))
+            return [uint, pack(u)]
+        }
+    }
+    return {
+        front,
+        removeFront,
+        concat: a => b => {
+            const au = unpack(a)
+            const bu = unpack(b)
+            return pack(unpackConcat(au)(bu))
+        },
+        xor: op(norm)(xor),
+        unpackPopFront,
+        popFront,
+        norm,
+        cmp: a => b => {
+            const au = unpack(a)
+            const bu = unpack(b)
+            const al = au.length
+            const bl = bu.length
+            const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
+            const c = uintCmp(aui)(bui)
+            return c === 0 ? cmp(al)(bl) : c
+        },
+        unpackSplit,
+        unpackConcat,
+        startsWith: prefix => {
+            const { length: n, uint: u } = unpack(prefix)
+            return v => length(v) < n ? false : popFront(n)(v)[0] === u
+        }
+    }
+}
+
+const lsbUnpackConcatUint = ({ uint: a, length }: Unpacked) => ({ uint: b }: Unpacked) => (b << length) | a
 
 /**
  * Implements operations for handling vectors in a least-significant-bit (LSb) first order.
@@ -242,7 +313,7 @@ export type BitOrder = {
  *
  * Usually associated with Little-Endian (LE) byte order.
  */
-export const lsb: BitOrder = {
+export const lsb: BitOrder = bo({
     front: len => {
         const m = mask(len)
         return v => uint(v) & m
@@ -251,20 +322,15 @@ export const lsb: BitOrder = {
         const { length, uint } = unpack(v)
         return vec(length - len)(uint >> len)
     },
-    popFront: len => {
-        const m = mask(len)
-        return v =>  {
-            const { length, uint } = unpack(v)
-            return [uint & m, vec(length - len)(uint >> len)]
-        }
+    norm: ({ uint: a }) => ({ uint: b }) => () =>
+        ({ a, b }),
+    uintCmp: a => b => {
+        const diff = a ^ b
+        return diff === 0n ? 0 : (a & (diff & -diff)) === 0n ? -1 : 1
     },
-    concat: (a: Vec) => (b: Vec): Vec => {
-        const { length: al, uint: au } = unpack(a)
-        const { length: bl, uint: bu } = unpack(b)
-        return vec(al + bl)((bu << al) | au)
-    },
-    xor: op(lsbNorm)(xor)
-}
+    unpackSplit: len => ({ uint }) => [uint, uint >> len],
+    unpackConcatUint: lsbUnpackConcatUint
+})
 
 /**
  * Implements operations for handling vectors in a most-significant-bit (MSb) first order.
@@ -273,7 +339,7 @@ export const lsb: BitOrder = {
  *
  * Usually associated with Big-Endian (BE) byte order.
  */
-export const msb: BitOrder = {
+export const msb: BitOrder = bo({
     front: len => {
         const m = mask(len)
         return v => {
@@ -285,20 +351,14 @@ export const msb: BitOrder = {
         const { length, uint } = unpack(v)
         return vec(length - len)(uint)
     },
-    popFront: len => {
-        const m = mask(len)
-        return v => {
-            const { length, uint } = unpack(v)
-            const d = length - len
-            return [(uint >> d) & m, vec(d)(uint)]
-        }
-    },
-    concat: flip(lsb.concat),
-    xor: op(msbNorm)(xor)
-}
+    norm: ({ length: al, uint: a }) => ({ length: bl, uint: b }) => len =>
+        ({ a: a << (len - al), b: b << (len - bl) }),
+    uintCmp: cmp,
+    unpackSplit: len => ({ length, uint }) => [uint >> (length - len), uint],
+    unpackConcatUint: flip(lsbUnpackConcatUint),
+})
 
-const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
-    concat(a)(vec8(BigInt(u8)))
+const unpackEmpty = { length: 0n, uint: 0n } as const
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
@@ -307,8 +367,93 @@ const appendU8 = ({ concat }: BitOrder) => (u8: number) => (a: Vec) =>
  * @param list The list of unsigned 8-bit integers to be converted.
  * @returns The resulting vector based on the provided bit order.
  */
-export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
-    fold(appendU8(bo))(empty)
+export const u8ListToVec = ({ unpackConcat }: BitOrder) => (list: List<number>): Vec => {
+    let result: readonly Unpacked[] = []
+    for (const b of iterable(list)) {
+        let v: Unpacked = { length: 8n, uint: BigInt(b) }
+        let i = 0
+        while (true) {
+            if (result.length <= i) {
+                result = [...result, v]
+                break;
+            }
+            const old = result[i]
+            if (old.length === 0n) {
+                result = result.toSpliced(i, 1, v)
+                break
+            }
+            result = result.toSpliced(i, 1, unpackEmpty)
+            v = unpackConcat(old)(v)
+            i++
+        }
+    }
+    return pack(result.reduce((p, c) => unpackConcat(c)(p), unpackEmpty))
+}
+
+const unpackChunkList = ({ unpackSplit }: BitOrder) => (n: bigint): (u: Unpacked) => Thunk<Unpacked> => {
+    const divUpN2 = divUp(n << 1n)
+    return u => {
+        if (u.length === 0n) { return () => null }
+        type Stack = readonly[Unpacked, Stack | undefined]
+        const f = (stack: Stack) => () => {
+            while (true) {
+                const [first, rest] = stack
+                const { length } = first
+                if (length <= n) {
+                    return { first, tail: rest !== undefined ? f(rest) : null }
+                }
+                const aLength = divUpN2(length) * n
+                const bLength = length - aLength
+                const [a, b] = unpackSplit(aLength)(first)
+                stack = [
+                    { length: aLength, uint: a & mask(aLength) },
+                    [{ length: bLength, uint: b & mask(bLength) }, rest],
+                ]
+            }
+        }
+        return f([u, undefined])
+    }
+}
+
+const mappedChunkList = <I>(g: (i: I) => Unpacked) => <O>(f: (u: Unpacked) => O) =>
+    (bo: BitOrder) => (n: bigint): (i: I) => Thunk<O> => {
+        const ucl = unpackChunkList(bo)(n)
+        const mf = map(f)
+        return i => mf(ucl(g(i)))
+    }
+
+/**
+ * Chunks an unpacked vector into fixed-size pieces of `n` bits using the provided bit order,
+ * returning each chunk as an unsigned integer.
+ * The last chunk may be smaller than `n` bits if the vector length is not a multiple of `n`.
+ *
+ * @param bitOrder The bit order for the conversion.
+ * @param n The chunk size in bits.
+ * @param u The unpacked vector to be chunked.
+ * @returns A thunk that produces a list of unsigned integers, each representing one chunk.
+ */
+export const uintChunkList: (bo: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<bigint>
+    = mappedChunkList(identity<Unpacked>)(unpackedUint)
+
+/**
+ * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order.
+ * The last chunk may be smaller than `n` bits if the vector length is not a multiple of `n`.
+ *
+ * @param bitOrder The bit order for the conversion.
+ * @param n The chunk size in bits.
+ * @param v The vector to be chunked.
+ * @returns A thunk that produces a list of bit vectors, each representing one chunk.
+ */
+export const chunkList: (bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<Vec>
+    = mappedChunkList(unpack)(pack)
+
+const vecToU8 = ({ unpackSplit }: BitOrder): (chunk: Vec) => number => {
+    const unpackSplit8 = unpackSplit(8n)
+    return chunk => {
+        const u = unpack(chunk)
+        return Number(u.length < 8n ? unpackSplit8(u)[0] : u.uint)
+    }
+}
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
@@ -317,14 +462,8 @@ export const u8ListToVec = (bo: BitOrder): (list: List<number>) => Vec =>
  * @param v The vector to be converted.
  * @returns A thunk that produces a list of unsigned 8-bit integers.
  */
-export const u8List = ({ popFront }: BitOrder): (v: Vec) => Thunk<number> => {
-    const f = (v: Vec) => () => {
-        if (v === empty) { return null }
-        const [first, tail] = popFront(8n)(v)
-        return { first: Number(first), tail: f(tail) }
-    }
-    return f
-}
+export const u8List = (bo: BitOrder) => (v: Vec): Thunk<number> =>
+    map(vecToU8(bo))(chunkList(bo)(8n)(v))
 
 /**
  * Concatenates a list of vectors using the provided bit order.
@@ -340,22 +479,3 @@ export const repeat: Fold<bigint, Vec> =
 
 export const isVec = <T>(v: Vec | T): v is Vec =>
     typeof v === 'bigint'
-
-/**
- * Lexically compares two vectors based on their unsigned integer values,
- * normalizing them to the same length. If the values are equal,
- * the shorter vector is considered smaller.
- *
- * a < b => -1
- * a > b => 1
- * a === b => 0
- */
-export const msbCmp = (av: Vec) => (bv: Vec): Sign => {
-    const au = unpack(av)
-    const bu = unpack(bv)
-    const al = au.length
-    const bl = bu.length
-    const { a, b } = msbNorm(au)(bu)(min(al)(bl))
-    const result = cmp(a)(b)
-    return result !== 0 ? result : cmp(al)(bl)
-}

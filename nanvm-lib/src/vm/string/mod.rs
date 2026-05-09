@@ -9,8 +9,9 @@ use crate::vm::IVm;
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{String, IVm, Any, ToString, naive::Naive, ToAny},
+///     vm::{String, IVm, Any, ToString, ToAny},
 ///     common::sized_index::SizedIndex,
+///     naive::Naive,
 /// };
 /// fn string_test<A: IVm>() {
 ///     let a: String<A> = "Hello, world!".into();

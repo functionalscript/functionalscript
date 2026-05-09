@@ -1,3 +1,4 @@
+mod add;
 mod from;
 mod neg;
 mod partial_eq;
@@ -5,19 +6,19 @@ mod partial_eq;
 pub mod to_any;
 
 use crate::vm::{
+    IVm, String, ToAny, Unpacked,
     dispatch::Dispatch,
     number_coercion::NumberCoercion,
     numeric::Numeric,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
-    IVm, String, ToAny, Unpacked,
 };
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, BigInt, naive::Naive},
-///     nullish::Nullish
+///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, Nullish, BigInt},
+///     naive::Naive
 /// };
 /// fn any_test<A: IVm>() {
 ///     let b: Any<A> = true.to_any();

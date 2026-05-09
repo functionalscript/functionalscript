@@ -1,3 +1,4 @@
+import { isArray } from '../array/module.f.ts'
 import { iterable, type List } from '../list/module.f.ts'
 import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
 
@@ -31,7 +32,7 @@ export const fromMap: <T>(m: OrderedMap<T>) => Map<T>
  * https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
  */
 export type OneKey<K extends string, V> = {
-    [P in K]: (Record<P, V> & Partial<Record<Exclude<K, P>, never>>) extends infer O
+    [P in K]: (ReadonlyRecord<P, V> & Partial<ReadonlyRecord<Exclude<K, P>, never>>) extends infer O
         ? { [Q in keyof O]: O[Q] }
         : never
 }[K];
@@ -45,6 +46,11 @@ export type NotUnion<T, U = T> =
     : never
   : never;
 
-export type SingleProperty<T extends Record<string, never>> =
+export type SingleProperty<T extends ReadonlyRecord<string, never>> =
   keyof T extends NotUnion<keyof T> ? T
   : never;
+
+export const isObject = (value: unknown): value is { readonly[k in string]: unknown } =>
+    typeof value === 'object' && !isArray(value) && value !== null
+
+export type ReadonlyRecord<S extends string, T> = { readonly[K in S]: T }

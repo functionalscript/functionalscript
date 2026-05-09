@@ -16,6 +16,6 @@ impl<A: IVm> Sub for BigInt<A> {
         } else {
             (lhs_sign, self.abs_add_vec(rhs))
         };
-        Self::new(sign, vec)
+        Self::unchecked_new(sign, vec)
     }
 }

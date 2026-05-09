@@ -1,7 +1,8 @@
 import { mask } from '../bigint/module.f.ts'
 import type { Sign } from '../function/compare/module.f.ts'
 import { asBase, asNominal } from '../nominal/module.f.ts'
-import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, msbCmp } from './module.f.ts'
+import { length, empty, uint, type Vec, vec, lsb, msb, type BitOrder, repeat, vec8, u8ListToVec, u8List, chunkList } from './module.f.ts'
+import { repeat as listRepeat, toArray } from '../list/module.f.ts'
 
 const unsafeVec = (a: bigint): Vec => asNominal(a)
 
@@ -330,9 +331,21 @@ export default {
         if (repeat(4n)(vec8(0xA5n)) !== vec(32n)(0xA5A5A5A5n)) { throw 'repeat failed' }
         if (repeat(7n)(vec(5n)(0x13n)) !== vec(35n)(0b10011_10011_10011_10011_10011_10011_10011n)) { throw 'repeat failed' }
     },
+    lsbCmp: () => {
+        const c = (a: Vec) => (b: Vec) => (r: Sign) => {
+            const result = lsb.cmp(a)(b)
+            if (result !== r) { throw `result: ${result}, expected: ${r}` }
+        }
+        c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)   // [1,0,1,0] == [1,0,1,0]
+        c(vec(4n)(0x5n))(vec(4n)(0x6n))(1)   // bit0: 1 > 0
+        c(vec(4n)(0x6n))(vec(4n)(0x5n))(-1)  // bit0: 0 < 1
+        c(vec(4n)(0x5n))(vec(5n)(0x5n))(-1)  // equal prefix, shorter is less
+        c(vec(5n)(0x5n))(vec(4n)(0x5n))(1)   // equal prefix, longer is greater
+        c(vec(4n)(0x5n))(vec(5n)(0xAn))(1)   // bit0: 1 > 0
+    },
     msbCmp: () => {
         const c = (a: Vec) => (b: Vec) => (r: Sign) => {
-            const result = msbCmp(a)(b)
+            const result = msb.cmp(a)(b)
             if (result !== r) { throw `result: ${result}, expected: ${r}` }
         }
         c(vec(4n)(0x5n))(vec(4n)(0x5n))(0)  // 0b0101 == 0b0101
@@ -341,5 +354,91 @@ export default {
         c(vec(4n)(0x5n))(vec(5n)(0x5n))(1)  // 0b0101_ < 0b00101
         c(vec(5n)(0x5n))(vec(4n)(0x5n))(-1) // 0b00101 < 0b0101_
         c(vec(4n)(0x5n))(vec(5n)(0xAn))(-1) // 0b0101_ < 0b01010
-    }
+    },
+    startsWith: {
+        // vector 0xF5 = 0b1111_0101 (8 bits)
+        // LSB reads from the low end: bits 0-3 = 0101 = 0x5, bits 4-7 = 1111 = 0xF
+        lsb: () => {
+            const v = vec(8n)(0xF5n)
+            assertEq(lsb.startsWith(vec(4n)(0x5n))(v), true)   // low nibble matches
+            assertEq(lsb.startsWith(vec(4n)(0xFn))(v), false)  // low nibble doesn't match
+            assertEq(lsb.startsWith(v)(vec(4n)(0x5n)), false)  // prefix longer than vector
+            assertEq(lsb.startsWith(empty)(v), true)            // empty prefix always matches
+        },
+        // MSB reads from the high end: bits 0-3 = 1111 = 0xF, bits 4-7 = 0101 = 0x5
+        msb: () => {
+            const v = vec(8n)(0xF5n)
+            assertEq(msb.startsWith(vec(4n)(0xFn))(v), true)   // high nibble matches
+            assertEq(msb.startsWith(vec(4n)(0x5n))(v), false)  // high nibble doesn't match
+            assertEq(msb.startsWith(v)(vec(4n)(0xFn)), false)  // prefix longer than vector
+            assertEq(msb.startsWith(empty)(v), true)            // empty prefix always matches
+        },
+        emptyVec: () => {
+            assertEq(lsb.startsWith(empty)(empty), true)
+            assertEq(msb.startsWith(empty)(empty), true)
+        },
+    },
+    u8ListToVec: () => {
+        // 131_072 is too much for Bun
+        const x = u8ListToVec(msb)(listRepeat(0x12)(131_071))
+        return () => {
+            const m = u8List(msb)(x)
+            const y = toArray(m)
+            if (y.length !== 131_071) {
+                throw `y.lenght: ${y.length}`
+            }
+        }
+    },
+    u8ListUnaligned: () => {
+        const x = vec(9n)(0x83n)
+        const a = toArray(u8List(msb)(x))
+        if (a.length !== 2) {
+            throw `a.lenght: ${a.length}`
+        }
+        const [a0, a1] = a
+        if (a0 !== 0x41) {
+            throw `a0: ${a0.toString(16)}`
+        }
+        if (a1 !== 0x80) {
+            throw `a1: ${a1.toString(16)}`
+        }
+    },
+    chunkList: {
+        empty: () => {
+            const chunks = toArray(chunkList(lsb)(4n)(empty))
+            if (chunks.length !== 0) { throw chunks.length }
+        },
+        // 8-bit vector 0xF5 = 0b1111_0101, aligned to 4-bit chunks
+        lsb_aligned: () => {
+            const chunks = toArray(chunkList(lsb)(4n)(vec(8n)(0xF5n)))
+            // LSB: low nibble first — bits 0-3 = 0101 = 5, bits 4-7 = 1111 = 15
+            if (chunks.length !== 2) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xFn) { throw chunks[1] }
+        },
+        msb_aligned: () => {
+            const chunks = toArray(chunkList(msb)(4n)(vec(8n)(0xF5n)))
+            // MSB: high nibble first — bits 0-3 = 1111 = 15, bits 4-7 = 0101 = 5
+            if (chunks.length !== 2) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 0xFn) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 5n) { throw chunks[1] }
+        },
+        // 10-bit vector 0x1B5 = 0b01_1011_0101, unaligned to 4-bit chunks (last chunk is 2 bits)
+        lsb_unaligned: () => {
+            const chunks = toArray(chunkList(lsb)(4n)(vec(10n)(0x1B5n)))
+            // LSB: bits 0-3 = 0101 = 5, bits 4-7 = 1011 = 11, bits 8-9 = 01 = 1
+            if (chunks.length !== 3) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xBn) { throw chunks[1] }
+            if (length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n) { throw chunks[2] }
+        },
+        msb_unaligned: () => {
+            const chunks = toArray(chunkList(msb)(4n)(vec(10n)(0x1B5n)))
+            // MSB: bits 0-3 = 0110 = 6, bits 4-7 = 1101 = 13, bits 8-9 = 01 = 1
+            if (chunks.length !== 3) { throw chunks.length }
+            if (length(chunks[0]) !== 4n || uint(chunks[0]) !== 6n) { throw chunks[0] }
+            if (length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xDn) { throw chunks[1] }
+            if (length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n) { throw chunks[2] }
+        },
+    },
 }

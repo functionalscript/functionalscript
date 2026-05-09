@@ -1,7 +1,4 @@
-use crate::{
-    nullish::Nullish,
-    vm::{Any, Array, BigInt, Function, IVm, Object, String, Unpacked},
-};
+use crate::vm::{Any, Array, BigInt, Function, IVm, Object, String, Unpacked, nullish::Nullish};
 
 fn error<A: IVm, T>() -> Result<T, Any<A>> {
     Err("Type Error".into())

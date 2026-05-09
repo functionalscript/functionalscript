@@ -1,0 +1,42 @@
+// https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
+export const images = {
+    ubuntu: {
+        intel: 'ubuntu-24.04',
+        arm: 'ubuntu-24.04-arm'
+    },
+    macos: {
+        intel: 'macos-26-intel',
+        arm: 'macos-26'
+    },
+    windows: {
+        intel: 'windows-2025',
+        arm: 'windows-11-arm',
+    }
+} as const
+
+// https://bun.sh/
+export const bun = '1.3.13'
+
+// https://deno.com/
+export const deno = '2.7.14'
+
+// https://www.npmjs.com/package/playwright
+export const playwright = '1.59.1'
+
+// https://rust-lang.org/
+export const rust = '1.95.0'
+
+// https://nodejs.org/en/download
+export const node = {
+    default: '26.1.0',
+    others: ['20.20.2', '22.22.2', '24.15.0'],
+} as const
+
+// https://github.com/bytecodealliance/wasmtime/releases
+export const wasmtime = '44.0.1'
+
+// https://github.com/wasmerio/wasmer/releases
+export const wasmer = '7.1.0'
+
+// https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
+export const tsgo = '7.0.0-dev.20260508.1'
