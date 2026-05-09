@@ -35,7 +35,7 @@ type TokenScanState = [string, List<number>]
 
 const scanFunc
     : StateScan<FlatToken, TokenScanState, List<Token>>
-    = state => input => {
+    = (input, state) => {
         if (typeof input === 'string') {
             const newState: TokenScanState = [input, []]
             if (state[0] === '') {
