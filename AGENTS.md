@@ -49,7 +49,7 @@ where `<...Module documentation...>` should be documentation for the module.
 - When adding a new `module.f.ts` under an existing namespace, register it in the `exports` map of `deno.json`.
 - After fixing an issue from [./issues/README.md](./issues/README.md), mark the corresponding bullet `[X]`.
 - Reference issues from [./issues/README.md](./issues/README.md) with the `i` prefix as an explicit link, not GitHub's `#` prefix. `#NNN` is reserved for GitHub PR/issue numbers; `iNNN` refers to entries in `issues/README.md`. Always render the reference as a markdown link, e.g. [i135](./issues/README.md), so the reader can navigate to the issue list.
-- Add an entry for the change under `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md), in the same `Topic: short description [PR#](url)` style as existing entries.
+- Add an entry for the change under `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md), in the same `Topic: short description [NNN](url)` style as existing entries. The link must point to the pull request (`/pull/NNN`), not to an issue — update it to the real PR number once the PR is opened.
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references to built-in or external Node modules such as `node:path` in `.f.ts` files.
 - Use `let` variables only within the function body where they are declared.
 - CLI parameters are preferred over environment variables when adding new features.
