@@ -18,7 +18,6 @@
     "./djs/ast/module.f.ts": "./djs/ast/module.f.ts",
     "./djs/module.f.ts": "./djs/module.f.ts",
     "./djs/parser/module.f.ts": "./djs/parser/module.f.ts",
-    "./djs/parser-new/module.f.ts": "./djs/parser-new/module.f.ts",
     "./djs/serializer/module.f.ts": "./djs/serializer/module.f.ts",
     "./djs/tokenizer/module.f.ts": "./djs/tokenizer/module.f.ts",
     "./djs/transpiler/module.f.ts": "./djs/transpiler/module.f.ts",
