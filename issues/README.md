@@ -305,10 +305,34 @@ require setting a flag when walking through a test tree as soon as a node has a 
   Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
   Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
 - [ ] 136. CI should have all tools and image versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodically updated. We will also need instructions on how to check the newest tool version in `README.md`.
-- [ ] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
+- [X] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
 - [ ] 138. Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from 136.
 - [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently, it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
 - [ ] 140. We should have 100% test coverage for all `module.f.ts` files.
+- [ ] 141. Design for a universal, extensible type system based on custom RTTI. How it should work:
+  1. We should define an interface for type validation. For example
+    ```ts
+    type TypeSystem<T> = (a: T) => {
+        equal: (b: T) => boolean
+        subset: (sub: T) => boolean
+        // ...
+    }
+    type Info<T, S extends TypeSystem<S>> = T // this type will be used by other parsers to detect `typeof S`. TypeScript will see only `T`.
+    ```
+  2. A user defines a data type and an implementation for the interface for type validations. For example:
+     ```ts
+     const type = null | undefined | ... as const
+     const system: TypeSystem<typeof type> = {
+         ...
+     }
+     type Map<T> = ...
+     type Ts<T> = Info<Map<T>, typeof system> // always like this `Info<..., typeof ...>`!
+     ```
+  4. A parser recognizes only a few constructions, for example:
+    ```ts
+    const t = null as const
+    const a: Ts<typeof t> = ...
+    ```
 
 ## Language Specification
 
