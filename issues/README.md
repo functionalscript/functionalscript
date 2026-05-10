@@ -311,14 +311,14 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 140. We should have 100% test coverage for all `module.f.ts` files.
 - [ ] 141. Design for a universal, extensible type system based on custom RTTI. How it should work:
   1. We should define an interface for type validation. For example
-    ```ts
-    type TypeSystem<T> = (a: T) => {
-        equal: (b: T) => boolean
-        subset: (sub: T) => boolean
-        // ...
-    }
-    type Info<T, S extends TypeSystem<S>> = T // this type will be used by other parsers to detect `typeof S`. TypeScript will see only `T`.
-    ```
+     ```ts
+     type TypeSystem<T> = (a: T) => {
+         equal: (b: T) => boolean
+         subset: (sub: T) => boolean
+         // ...
+     }
+     type Info<T, S extends TypeSystem<S>> = T // this type will be used by other parsers to detect `typeof S`. TypeScript will see only `T`.
+     ```
   2. A user defines a data type and an implementation for the interface for type validations. For example:
      ```ts
      const type = null | undefined | ... as const
@@ -329,10 +329,10 @@ require setting a flag when walking through a test tree as soon as a node has a 
      type Ts<T> = Info<Map<T>, typeof system> // always like this `Info<..., typeof ...>`!
      ```
   4. A parser recognizes only a few constructions, for example:
-    ```ts
-    const t = null as const
-    const a: Ts<typeof t> = ...
-    ```
+     ```ts
+     const t = null as const
+     const a: Ts<typeof t> = ...
+     ```
 
 ## Language Specification
 
