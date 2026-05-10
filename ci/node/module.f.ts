@@ -1,7 +1,7 @@
 import { node, tsgo } from '../config/module.f.ts'
 import { type Jobs, type MetaStep, type Os, clean, install, test, ubuntu } from '../common/module.f.ts'
 
-export const major = (v: string) => v.split('.')[0]
+export const major = (v: string): string => v.split('.')[0]
 
 const installNode = (version: string) =>
     ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
