@@ -293,6 +293,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
 - [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts). Analyze the variants of an `or` schema and group similar items together (e.g. objects with overlapping shapes, primitive consts) so dispatch can be faster than a linear scan over every variant.
+  Note: this analysis must live in the `or` function itself (in [../types/rtti/module.f.ts](../types/rtti/module.f.ts)), not in `orParse` or `orValidate`. `or` is used in many places — `orValidate`, `orParse`, and manual schema construction — so the grouping should be performed once at schema construction time and shared by all consumers.
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
