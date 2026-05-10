@@ -114,7 +114,7 @@ export type AstRuleMeta<T> = {
  */
 export type AstSequence = readonly(AstRule|CodePoint)[]
 
-type AstTag = string|true|undefined
+export type AstTag = string|true|undefined
 
 /**
  * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
