@@ -176,70 +176,14 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
         ? constObjectValidate(rtti) as any
         : constPrimitiveValidate(rtti) as any
 
-/**
- * `typeof` keys used to bucket `or` variants for dispatch. `null` is grouped
- * under `'object'` to match `typeof null === 'object'`.
- */
-type TypeofKey = 'boolean' | 'number' | 'string' | 'bigint' | 'object' | 'undefined'
-
-/**
- * Classifies an `or` variant by the `typeof` of values it can match, or
- * `'any'` when the variant is unconstrained (`unknown`) or itself an `or`
- * (handled by linear fallback).
- */
-const variantTypeofKey = (rtti: Type): TypeofKey | 'any' => {
-    if (typeof rtti !== 'function') {
-        if (rtti === null) { return 'object' }
-        const t = typeof rtti
-        return t === 'object' ? 'object' : t as TypeofKey
-    }
-    const info = rtti()
-    const tag = info[0]
-    switch (tag) {
-        case 'const': return variantTypeofKey(info[1] as Const)
-        case 'array': case 'record': return 'object'
-        case 'boolean': case 'number': case 'string': case 'bigint': return tag
-    }
-    // 'unknown' or 'or' — must be tried regardless of typeof.
-    return 'any'
-}
-
-/**
- * Builds a validator for `or` schemas. Variants are grouped by `typeof` at
- * construction time, so at runtime we only try variants whose typeof matches
- * the value (plus an `'any'` fallback for `unknown`/nested `or`).
- */
-type AnyValidate = (value: Unknown) => readonly[string, unknown]
-
 const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> => {
-    const groups = new Map<TypeofKey, AnyValidate[]>()
-    const fallback: AnyValidate[] = []
-    for (const v of rtti) {
-        const key = variantTypeofKey(v)
-        const validator = validate(v) as unknown as AnyValidate
-        if (key === 'any') {
-            fallback.push(validator)
-        } else {
-            const list = groups.get(key)
-            if (list !== undefined) {
-                list.push(validator)
-            } else {
-                groups.set(key, [validator])
-            }
-        }
-    }
+    const all = rtti.map(r => validate(r))
     return value => {
-        const key: TypeofKey = value === null ? 'object' : typeof value as TypeofKey
-        const list = groups.get(key)
-        if (list !== undefined) {
-            for (const v of list) {
-                const r = v(value)
-                if (r[0] === 'ok') { return r as any }
+        for (const i of all) {
+            const r = (i as any)(value)
+            if (r[0] === 'ok') {
+                return r
             }
-        }
-        for (const v of fallback) {
-            const r = v(value)
-            if (r[0] === 'ok') { return r as any }
         }
         return verror('no match') as any
     }
