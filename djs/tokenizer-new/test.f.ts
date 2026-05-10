@@ -12,12 +12,17 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
     return m(name, cpm)
 }
 
-const tokenizeString 
+const tokenizeString
     : (s: string) => string
     = s => {
         const m = descentParser(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
         const mr = descentParserCpOnly(m, '', cp)
+        if (!mr[1])
+            return 'error'
+        if (cp.length > 0 && mr[2] !== cp.length)
+            return 'error'
+
         const flatTokens = getTokensFromMatchResult(mr)
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
@@ -92,7 +97,7 @@ const getTokensFromAstRuleOrCodePoint
 
         return getTokensFromAstRule(value)
     }
-    
+
 const getTokensFromAstSequence
     : (seq: AstSequenceMeta<unknown>) => List<FlatToken>
     = seq => {
@@ -128,7 +133,7 @@ const getTokensFromMatchResult
 export default {
     isValid: [() => {
             const m = descentParser(jsGrammar())
-            
+
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
@@ -137,7 +142,7 @@ export default {
                     throw JSON.stringify([s, mr])
                 }
             }
-            
+
             expect('"', false)
             expect('   true   ', true)
             expect('   tr2ue   ', true)
@@ -320,7 +325,7 @@ export default {
         },
     //     () => {
     //         const result = tokenizeString('ᄑ')
-    //         if (result !== '[{"kind":"error","message":"unexpected character"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('{ \t\n\r}')
@@ -336,7 +341,7 @@ export default {
         // },
     //     () => {
     //         const result = tokenizeString('"value')
-    //         if (result !== '[{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('"value1" "value2"')
@@ -344,7 +349,7 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('"')
-    //         if (result !== '[{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('"\\\\"')
@@ -360,19 +365,19 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('"\\x"')
-    //         if (result !== '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"x"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('"\\')
-    //         if (result !== '[{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('"\r"')
-    //         if (result !== '[{"kind":"error","message":"unterminated string literal"},{"kind":"nl"},{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('"\n null')
-    //         if (result !== '[{"kind":"error","message":"unterminated string literal"},{"kind":"nl"},{"kind":"null"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('"\\b\\f\\n\\r\\t"')
@@ -388,7 +393,7 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('"\\uEeFg"')
-    //         if (result !== '[{"kind":"error","message":"invalid hex value"},{"kind":"string","value":"g"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('0')
@@ -400,11 +405,11 @@ export default {
         // },
     //     () => {
     //         const result = tokenizeString('00')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('0abc,')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"abc"},{"kind":","},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('123456789012345678901234567890')
@@ -420,7 +425,7 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('0. 2')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"ws"},{"bf":[2n,0],"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('10-0')
@@ -428,7 +433,7 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('9a:')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"a"},{"kind":":"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('-10')
@@ -440,7 +445,7 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('-00')
-    //         if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('-.123')
@@ -456,11 +461,11 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('-0.')
-    //         if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('-0.]')
-    //         if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('12.34')
@@ -472,11 +477,11 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('-12.')
-    //         if (result !== '[{"kind":"-"},{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('12.]')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('0e1')
@@ -504,11 +509,11 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('0e')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('0e-')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('ABCdef1234567890$_')
@@ -528,11 +533,11 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('123_123')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('123$123')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"$123"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('1234567890n')
@@ -548,19 +553,19 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('123.456n')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('123e456n')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('1234567890na')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('1234567890nn')
-    //         if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"id","value":"n"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     ],
     // operators:
@@ -875,11 +880,11 @@ export default {
     //     },
     //     () => {
     //         const result = tokenizeString('/* multiline comment *')
-    //         if (result !== '[{"kind":"error","message":"*/ expected"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('/* multiline comment ')
-    //         if (result !== '[{"kind":"error","message":"*/ expected"},{"kind":"eof"}]') { throw result }
+    //         if (result !== 'error') { throw result }
     //     },
     //     () => {
     //         const result = tokenizeString('/* multiline comment \n * **/')
