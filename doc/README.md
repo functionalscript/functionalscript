@@ -52,7 +52,7 @@ const sumResult = sum([1, 2, 3])
 ### 2.1. Generators
 
 ```js
-const range5 = {*[System.iterator]() {
+const range5 = {*[Symbol.iterator]() {
     yield 0
     yield 1
     yield 2

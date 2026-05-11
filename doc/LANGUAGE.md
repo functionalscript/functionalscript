@@ -38,9 +38,9 @@ npm install -S functionalscript
 
 ## 3. Module Structure
 
-A module is a file with the `.f.js` extension. It contains three parts: references to other modules, definitions, and exports. For example
+A module is a file with the `.f.ts` extension. It contains three parts: references to other modules, definitions, and exports. For example
 
-`./first.f.js`
+`./first.f.ts`
 ```js
 // 1. references
 import math from 'math'
@@ -60,10 +60,10 @@ export default {
 }
 ```
 
-`./second.f.js`
+`./second.f.ts`
 ```js
 // 1. references
-import first from './first.f.js'
+import first from './first.f.ts'
 
 // 2. definitions
 const _42plus7 = first.add42(7)
@@ -81,7 +81,7 @@ The format of references is `import ANYNAME from 'PATH_TO_A_MODULE'`. For exampl
 ```js
 import math from 'math'
 import algebra from 'math/algebra'
-import localFile from '../some-directory/some-file.f.js'
+import localFile from '../some-directory/some-file.f.ts'
 ```
 
 ## 5. Definitions
