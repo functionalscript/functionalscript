@@ -3,8 +3,6 @@
   "version": "0.14.0",
   "license": "MIT",
   "exports": {
-    "./fjs/module.f.ts": "./fjs/module.f.ts",
-    "./fjs/module.ts": "./fjs/module.ts",
     "./fs/asn.1/module.f.ts": "./fs/asn.1/module.f.ts",
     "./fs/base128/module.f.ts": "./fs/base128/module.f.ts",
     "./fs/bnf/data/module.f.ts": "./fs/bnf/data/module.f.ts",
@@ -34,6 +32,8 @@
     "./fs/djs/tokenizer/module.f.ts": "./fs/djs/tokenizer/module.f.ts",
     "./fs/djs/tokenizer-new/module.f.ts": "./fs/djs/tokenizer-new/module.f.ts",
     "./fs/djs/transpiler/module.f.ts": "./fs/djs/transpiler/module.f.ts",
+    "./fs/fjs/module.f.ts": "./fs/fjs/module.f.ts",
+    "./fs/fjs/module.ts": "./fs/fjs/module.ts",
     "./fs/fsc/module.f.ts": "./fs/fsc/module.f.ts",
     "./fs/fsm/module.f.ts": "./fs/fsm/module.f.ts",
     "./fs/html/module.f.ts": "./fs/html/module.f.ts",
