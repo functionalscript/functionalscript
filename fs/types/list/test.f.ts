@@ -27,7 +27,7 @@ import {
     isEmpty,
     equal
 } from './module.f.ts'
-import { stringify, type Unknown } from '../../../json/module.f.ts'
+import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.ts'
 

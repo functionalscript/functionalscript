@@ -1,6 +1,6 @@
 import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.ts'
 import { every, countdown, map, toArray } from '../list/module.f.ts'
-import { stringify as jsonStringify, type Unknown } from '../../../json/module.f.ts'
+import { stringify as jsonStringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 
 const stringify: (a: readonly Unknown[]) => string

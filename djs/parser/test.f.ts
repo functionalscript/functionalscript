@@ -4,7 +4,7 @@ import { toArray } from '../../fs/types/list/module.f.ts'
 import { sort } from '../../fs/types/object/module.f.ts'
 import { stringToList } from '../../fs/text/utf16/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
-import { stringify } from '../../json/module.f.ts'
+import { stringify } from '../../fs/json/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly DjsTokenWithMetadata[]

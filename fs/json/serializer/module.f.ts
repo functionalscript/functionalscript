@@ -3,9 +3,9 @@
  *
  * @module
  */
-import { flat, reduce, empty, type List } from '../../fs/types/list/module.f.ts'
-import { type Entry as ObjectEntry } from '../../fs/types/object/module.f.ts'
-import { type Reduce } from '../../fs/types/function/operator/module.f.ts'
+import { flat, reduce, empty, type List } from '../../types/list/module.f.ts'
+import { type Entry as ObjectEntry } from '../../types/object/module.f.ts'
+import { type Reduce } from '../../types/function/operator/module.f.ts'
 
 type Obj<T> = {
     readonly [k in string]: Unknown<T>

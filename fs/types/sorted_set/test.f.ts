@@ -1,5 +1,5 @@
 import { has, intersect, union } from './module.f.ts'
-import { stringify, type Unknown } from '../../../json/module.f.ts'
+import { stringify, type Unknown } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 import { toArray, countdown, length } from '../list/module.f.ts'
 import { flip } from '../function/module.f.ts'

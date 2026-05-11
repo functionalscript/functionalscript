@@ -1,5 +1,5 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.ts'
-import { stringify as jsonStringify } from '../../../json/module.f.ts'
+import { stringify as jsonStringify } from '../../json/module.f.ts'
 import { sort } from '../object/module.f.ts'
 
 const stringify = jsonStringify(sort)
