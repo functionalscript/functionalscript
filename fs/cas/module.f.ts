@@ -6,7 +6,7 @@
 import { computeSync, sha256, type Sha2 } from '../crypto/sha2/module.f.ts'
 import { parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
-import { cBase32ToVec, vecToCBase32 } from '../types/cbase32/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { begin, pure, type Effect, type Operation } from '../types/effects/module.f.ts'
 import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp } from '../types/effects/node/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'

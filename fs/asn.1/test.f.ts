@@ -1,5 +1,5 @@
-import { empty, length, listToVec, msb, uint, unpack, vec, vec8, type Vec } from "../bit_vec/module.f.ts"
-import { asBase } from "../nominal/module.f.ts"
+import { empty, length, listToVec, msb, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.ts"
+import { asBase } from "../types/nominal/module.f.ts"
 import {
     decodeRaw,
     decodeInteger,

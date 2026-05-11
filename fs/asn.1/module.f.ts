@@ -1,4 +1,4 @@
-import { bitLength, max } from "../bigint/module.f.ts"
+import { bitLength, max } from "../types/bigint/module.f.ts"
 import {
     empty,
     isVec,
@@ -11,8 +11,8 @@ import {
     vec8,
     type Unpacked,
     type Vec
-} from "../bit_vec/module.f.ts"
-import { identity } from "../function/module.f.ts"
+} from "../types/bit_vec/module.f.ts"
+import { identity } from "../types/function/module.f.ts"
 import { encode as b128encode, decode as b128decode } from "../base128/module.f.ts"
 
 const pop = msb.popFront

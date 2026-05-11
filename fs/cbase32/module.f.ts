@@ -3,8 +3,8 @@
  *
  * @module
  */
-import { msb, lsb, type Vec, length, vec, empty } from "../bit_vec/module.f.ts"
-import type { Nullable } from "../nullable/module.f.ts"
+import { msb, lsb, type Vec, length, vec, empty } from "../types/bit_vec/module.f.ts"
+import type { Nullable } from "../types/nullable/module.f.ts"
 
 //                         0123456789abcdef
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
