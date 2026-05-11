@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { fromIo, type Io } from '../io/module.f.ts'
+import { fromIo, type Io } from '../fs/io/module.f.ts'
 import { compile } from '../fs/djs/module.f.ts'
 import { main as testMain } from '../fs/dev/tf/module.f.ts'
 import { main as casMain } from '../fs/cas/module.f.ts'
