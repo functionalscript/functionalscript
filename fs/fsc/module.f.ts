@@ -3,18 +3,18 @@
  *
  * @module
  */
-import { strictEqual } from '../fs/types/function/operator/module.f.ts'
+import { strictEqual } from '../types/function/operator/module.f.ts'
 import {
     merge as rangeMapMerge,
     fromRange,
     get,
     type RangeMapArray,
     type RangeMerge,
-} from '../fs/types/range_map/module.f.ts'
-import { reduce as listReduce, toArray, map, type List } from '../fs/types/list/module.f.ts'
-import { range as asciiRange } from '../fs/text/ascii/module.f.ts'
-import { fn } from '../fs/types/function/module.f.ts'
-import { one, type Range } from '../fs/types/range/module.f.ts'
+} from '../types/range_map/module.f.ts'
+import { reduce as listReduce, toArray, map, type List } from '../types/list/module.f.ts'
+import { range as asciiRange } from '../text/ascii/module.f.ts'
+import { fn } from '../types/function/module.f.ts'
+import { one, type Range } from '../types/range/module.f.ts'
 
 const fromCharCode = String.fromCharCode
 
