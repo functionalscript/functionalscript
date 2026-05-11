@@ -1,6 +1,6 @@
-import type { Equal, Fold, Reduce } from '../../fs/types/function/operator/module.f.ts'
-import { prime_field, sqrt, type PrimeField } from '../../fs/types/prime_field/module.f.ts'
-import { repeat } from '../../fs/types/monoid/module.f.ts'
+import type { Equal, Fold, Reduce } from '../../types/function/operator/module.f.ts'
+import { prime_field, sqrt, type PrimeField } from '../../types/prime_field/module.f.ts'
+import { repeat } from '../../types/monoid/module.f.ts'
 
 /**
  * A 2D point represented as a pair of `bigint` values `[x, y]`.
