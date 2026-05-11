@@ -4,7 +4,7 @@
  * @module
  */
 import { fromIo, type Io } from '../io/module.f.ts'
-import type { Sign } from '../types/function/compare/module.f.ts'
+import type { Sign } from '../fs/types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
     all,
@@ -15,10 +15,10 @@ import {
     type All,
     type NodeProgram,
     type Readdir
-} from '../types/effects/node/module.f.ts'
+} from '../fs/types/effects/node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
-import { unwrap } from '../types/result/module.f.ts'
-import { begin, pure, type Effect } from '../types/effects/module.f.ts'
+import { unwrap } from '../fs/types/result/module.f.ts'
+import { begin, pure, type Effect } from '../fs/types/effects/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 

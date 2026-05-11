@@ -3,9 +3,9 @@
  *
  * @module
  */
-import { flat, flatMap, type List, stateScan, type Thunk } from '../../types/list/module.f.ts'
-import type { StateScan } from '../../types/function/operator/module.f.ts'
-import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
+import { flat, flatMap, type List, stateScan, type Thunk } from '../../fs/types/list/module.f.ts'
+import type { StateScan } from '../../fs/types/function/operator/module.f.ts'
+import type { Array1, Array2, Array3 } from '../../fs/types/array/module.f.ts'
 
 /**
  * An unsigned 8-bit integer, represents a single byte.

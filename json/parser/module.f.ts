@@ -3,13 +3,13 @@
  *
  * @module
  */
-import { error, ok, type Result } from '../../types/result/module.f.ts'
-import { type List, fold, first, drop, toArray, concat } from '../../types/list/module.f.ts'
-import { type Fold } from '../../types/function/operator/module.f.ts'
+import { error, ok, type Result } from '../../fs/types/result/module.f.ts'
+import { type List, fold, first, drop, toArray, concat } from '../../fs/types/list/module.f.ts'
+import { type Fold } from '../../fs/types/function/operator/module.f.ts'
 import { type JsonToken } from '../tokenizer/module.f.ts'
-import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
+import { setReplace, type OrderedMap } from '../../fs/types/ordered_map/module.f.ts'
 import { type Unknown } from '../module.f.ts'
-import { fromMap } from '../../types/object/module.f.ts'
+import { fromMap } from '../../fs/types/object/module.f.ts'
 
 type JsonObject = {
     readonly kind: 'object'

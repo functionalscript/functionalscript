@@ -4,14 +4,14 @@
  * @module
  */
 import type { Unknown, Object } from '../module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.ts'
-import type { Entry as ObjectEntry } from '../../types/object/module.f.ts'
-import { fold } from '../../types/list/module.f.ts'
-import { concat } from '../../types/string/module.f.ts'
-import { type List, flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.ts'
+import type { Fold } from '../../fs/types/function/operator/module.f.ts'
+import type { Entry as ObjectEntry } from '../../fs/types/object/module.f.ts'
+import { fold } from '../../fs/types/list/module.f.ts'
+import { concat } from '../../fs/types/string/module.f.ts'
+import { type List, flat, flatMap, map, concat as listConcat } from '../../fs/types/list/module.f.ts'
 const { entries } = Object
-import { compose, fn } from '../../types/function/module.f.ts'
-import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
+import { compose, fn } from '../../fs/types/function/module.f.ts'
+import { serialize as bigintSerialize } from '../../fs/types/bigint/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../json/serializer/module.f.ts'
 
 const colon = [':']

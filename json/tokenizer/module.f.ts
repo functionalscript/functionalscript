@@ -3,9 +3,9 @@
  *
  * @module
  */
-import { type StateScan } from '../../types/function/operator/module.f.ts'
-import { concat, empty, flat, stateScan, type List } from '../../types/list/module.f.ts'
-import { multiply } from '../../types/bigfloat/module.f.ts'
+import { type StateScan } from '../../fs/types/function/operator/module.f.ts'
+import { concat, empty, flat, stateScan, type List } from '../../fs/types/list/module.f.ts'
+import { multiply } from '../../fs/types/bigfloat/module.f.ts'
 import {
     tokenize as jsTokenize,
     type EofToken,

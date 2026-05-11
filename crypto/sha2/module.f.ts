@@ -3,17 +3,17 @@
  *
  * @module
  */
-import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
-import { mask } from "../../types/bigint/module.f.ts"
+import type { Array16, Array3, Array4, Array8 } from '../../fs/types/array/module.f.ts'
+import { mask } from "../../fs/types/bigint/module.f.ts"
 import {
     vec,
     length,
     empty,
     msb,
     type Vec
-} from '../../types/bit_vec/module.f.ts'
-import type { Fold } from '../../types/function/operator/module.f.ts'
-import { fold, type List } from '../../types/list/module.f.ts'
+} from '../../fs/types/bit_vec/module.f.ts'
+import type { Fold } from '../../fs/types/function/operator/module.f.ts'
+import { fold, type List } from '../../fs/types/list/module.f.ts'
 
 const { concat, popFront, front } = msb
 

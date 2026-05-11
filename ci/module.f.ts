@@ -4,8 +4,8 @@
  * @module
  */
 import { utf8 } from '../text/module.f.ts'
-import { begin, pure, type Effect } from '../types/effects/module.f.ts'
-import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
+import { begin, pure, type Effect } from '../fs/types/effects/module.f.ts'
+import { writeFile, type NodeOp } from '../fs/types/effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
 import { type Architecture, type GitHubAction, type Job, type Jobs, type Os, architecture, os, toSteps } from './common/module.f.ts'
 import { rustSteps } from './rust/module.f.ts'

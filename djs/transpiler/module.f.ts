@@ -4,17 +4,17 @@
  * @module
  */
 import { type Unknown } from '../module.f.ts'
-import { type Result, error, ok } from '../../types/result/module.f.ts'
-import { fold, drop, map as listMap, type List, toArray, includes } from '../../types/list/module.f.ts'
-import { type Fold } from '../../types/function/operator/module.f.ts'
+import { type Result, error, ok } from '../../fs/types/result/module.f.ts'
+import { fold, drop, map as listMap, type List, toArray, includes } from '../../fs/types/list/module.f.ts'
+import { type Fold } from '../../fs/types/function/operator/module.f.ts'
 import { tokenize } from '../tokenizer/module.f.ts'
-import { setReplace, at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
+import { setReplace, at, type OrderedMap } from '../../fs/types/ordered_map/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { decodeUtf8 } from '../../types/uint8array/module.f.ts'
+import { decodeUtf8 } from '../../fs/types/uint8array/module.f.ts'
 
 export type ParseContext = {
     readonly fs: Fs

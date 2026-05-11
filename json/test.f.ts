@@ -1,6 +1,6 @@
 import { setProperty, stringify } from './module.f.ts'
-import { sort } from '../types/object/module.f.ts'
-import { identity } from '../types/function/module.f.ts'
+import { sort } from '../fs/types/object/module.f.ts'
+import { identity } from '../fs/types/function/module.f.ts'
 
 export default {
     setProperty: () => {

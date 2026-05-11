@@ -1,7 +1,7 @@
-import { utf8 } from "../../text/module.f.ts";
-import { repeat, uint, vec } from "../../types/bit_vec/module.f.ts"
-import { flip } from "../../types/function/module.f.ts"
-import { map } from '../../types/list/module.f.ts'
+import { utf8 } from '../../text/module.f.ts'
+import { repeat, uint, vec } from '../../fs/types/bit_vec/module.f.ts'
+import { flip } from '../../fs/types/function/module.f.ts'
+import { map } from '../../fs/types/list/module.f.ts'
 import {
     base32,
     base64,

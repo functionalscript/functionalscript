@@ -1,5 +1,6 @@
 import { arrayWrap, boolSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.ts'
-import * as list from '../../types/list/module.f.ts'
+import * as list from '../../fs/types/list/module.f.ts'
+
 const { toArray } = list
 
 export default {

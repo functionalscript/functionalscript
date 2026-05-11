@@ -7,8 +7,8 @@ import type { Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
 import { stringify, stringifyAsTree } from './serializer/module.f.ts'
-import { sort } from '../types/object/module.f.ts'
-import { encodeUtf8 } from '../types/uint8array/module.f.ts'
+import { sort } from '../fs/types/object/module.f.ts'
+import { encodeUtf8 } from '../fs/types/uint8array/module.f.ts'
 
 export type Object = {
    readonly [k in string]: Unknown

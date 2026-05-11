@@ -3,9 +3,9 @@
  *
  * @module
  */
-import type { Array2 } from '../../types/array/module.f.ts'
-import { bitLength, divUp, roundUp, type Unary } from '../../types/bigint/module.f.ts'
-import { empty, length, listToVec, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import type { Array2 } from '../../fs/types/array/module.f.ts'
+import { bitLength, divUp, roundUp, type Unary } from '../../fs/types/bigint/module.f.ts'
+import { empty, length, listToVec, msb, repeat, unpack, vec, vec8, type Vec } from '../../fs/types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
 import type { Curve } from '../secp/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'

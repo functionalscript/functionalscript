@@ -1,10 +1,10 @@
 import { normalize } from '../path/module.f.ts'
-import { type Effect } from '../types/effects/module.f.ts'
-import { asyncRun } from '../types/effects/module.ts'
-import type { ExecResult, Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
-import { asBase, asNominal } from '../types/nominal/module.f.ts'
-import { error, ok, type Result } from '../types/result/module.f.ts'
-import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
+import { type Effect } from '../fs/types/effects/module.f.ts'
+import { asyncRun } from '../fs/types/effects/module.ts'
+import type { Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../fs/types/effects/node/module.f.ts'
+import { asBase, asNominal } from '../fs/types/nominal/module.f.ts'
+import { error, ok, type Result } from '../fs/types/result/module.f.ts'
+import { fromVec, listToVec, toVec } from '../fs/types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem

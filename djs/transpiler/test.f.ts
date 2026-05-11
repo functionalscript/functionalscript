@@ -1,10 +1,10 @@
-import { sort } from '../../types/object/module.f.ts'
-import { setReplace, type OrderedMap } from '../../types/ordered_map/module.f.ts'
+import { sort } from '../../fs/types/object/module.f.ts'
+import { setReplace, type OrderedMap } from '../../fs/types/ordered_map/module.f.ts'
 import { transpile } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { createVirtualIo } from '../../io/virtual/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
-import { encodeUtf8 } from '../../types/uint8array/module.f.ts'
+import { encodeUtf8 } from '../../fs/types/uint8array/module.f.ts'
 
 const virtualFs
     :(map: OrderedMap<Uint8Array>) => Fs

@@ -1,7 +1,7 @@
-import { next, flat, map, type List } from '../types/list/module.f.ts'
-import { concat } from '../types/string/module.f.ts'
-import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
-import { compose, fn } from '../types/function/module.f.ts'
+import { next, flat, map, type List } from '../fs/types/list/module.f.ts'
+import { concat } from '../fs/types/string/module.f.ts'
+import { at, type Entry as ObjectEntry } from '../fs/types/object/module.f.ts'
+import { compose, fn } from '../fs/types/function/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
 
 const { entries } = Object

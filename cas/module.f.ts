@@ -3,14 +3,14 @@
  *
  * @module
  */
-import { computeSync, sha256, type Sha2 } from "../crypto/sha2/module.f.ts"
-import { parse } from "../path/module.f.ts"
-import type { Vec } from "../types/bit_vec/module.f.ts"
-import { cBase32ToVec, vecToCBase32 } from "../types/cbase32/module.f.ts"
-import { begin, pure, type Effect, type Operation } from "../types/effects/module.f.ts"
-import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp } from "../types/effects/node/module.f.ts"
-import { toOption } from "../types/nullable/module.f.ts"
-import { unwrap } from "../types/result/module.f.ts"
+import { computeSync, sha256, type Sha2 } from '../crypto/sha2/module.f.ts'
+import { parse } from '../path/module.f.ts'
+import type { Vec } from '../fs/types/bit_vec/module.f.ts'
+import { cBase32ToVec, vecToCBase32 } from '../fs/types/cbase32/module.f.ts'
+import { begin, pure, type Effect, type Operation } from '../fs/types/effects/module.f.ts'
+import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp } from '../fs/types/effects/node/module.f.ts'
+import { toOption } from '../fs/types/nullable/module.f.ts'
+import { unwrap } from '../fs/types/result/module.f.ts'
 
 export type KvStore<O extends Operation> = {
     /** Reads a value by key; returns `undefined` when the key does not exist. */

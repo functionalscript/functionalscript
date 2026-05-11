@@ -1,8 +1,8 @@
-import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
+import { descentParser, type AstRuleMeta, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
 import type { JsToken } from '../../js/tokenizer/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
-import type { StateScan } from '../../types/function/operator/module.f.ts'
-import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
+import type { StateScan } from '../../fs/types/function/operator/module.f.ts'
+import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../fs/types/list/module.f.ts'
 import { jsGrammar } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
@@ -12,7 +12,7 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
     return m(name, cpm)
 }
 
-const tokenizeString 
+const tokenizeString
     : (s: string) => string
     = s => {
         const m = descentParser(jsGrammar())
@@ -92,7 +92,7 @@ const getTokensFromAstRuleOrCodePoint
 
         return getTokensFromAstRule(value)
     }
-    
+
 const getTokensFromAstSequence
     : (seq: AstSequenceMeta<unknown>) => List<FlatToken>
     = seq => {
@@ -128,7 +128,7 @@ const getTokensFromMatchResult
 export default {
     isValid: [() => {
             const m = descentParser(jsGrammar())
-            
+
             const expect = (s: string, expected: boolean) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
@@ -137,7 +137,7 @@ export default {
                     throw JSON.stringify([s, mr])
                 }
             }
-            
+
             expect('"', false)
             expect('   true   ', true)
             expect('   tr2ue   ', true)
