@@ -199,6 +199,22 @@ export default {
                 assertError(validate(t)(null))
             },
         },
+        // Manually constructed `or` thunks (not produced by `or(...)`) have no
+        // precomputed analysis. Validate should still handle them by computing
+        // the analysis on the fly.
+        manualThunk: {
+            ok: () => {
+                const t = () => ['or', false, 42, 'hello'] as const
+                assertOk(validate(t)(false))
+                assertOk(validate(t)(42))
+                assertOk(validate(t)('hello'))
+            },
+            error: () => {
+                const t = () => ['or', false, 42, 'hello'] as const
+                assertError(validate(t)(true))
+                assertError(validate(t)('world'))
+            },
+        },
         thunks: {
             ok: () => {
                 const t = or(number, string)

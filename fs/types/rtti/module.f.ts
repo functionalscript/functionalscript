@@ -173,9 +173,54 @@ export const record: MakeType1<'record'> = type1('record')
 /** Schema type for a union of types `T`. */
 export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 
+/**
+ * Precomputed grouping of an `or` schema's variants for fast dispatch.
+ *
+ * Primitive const variants (`null`, `undefined`, `boolean`, `number`, `string`,
+ * `bigint`) are collected into a `Set` so consumers can match them in O(1).
+ * The remaining variants (object/tuple consts and thunks) are kept in their
+ * original order; consumers fall back to a linear scan for those.
+ *
+ * Note: `Set` uses SameValueZero, so `NaN` matches `NaN`. This is a small
+ * semantic improvement over the previous `===` behavior, where `NaN` const
+ * schemas would never match any value.
+ */
+export type OrAnalysis = {
+    readonly primitives: ReadonlySet<unknown>
+    readonly others: readonly Type[]
+}
+
+/**
+ * Groups an `or` schema's variants into a fast-dispatch shape.
+ *
+ * Used by `or(...)` at construction time and also available as a fallback
+ * for thunks not produced by `or` (e.g. manually constructed `or` schemas).
+ */
+export const analyzeOr = (types: readonly Type[]): OrAnalysis => {
+    const primitives = new Set<unknown>()
+    const others: Type[] = []
+    for (const t of types) {
+        if (typeof t === 'function' || (typeof t === 'object' && t !== null)) {
+            others.push(t)
+        } else {
+            primitives.add(t)
+        }
+    }
+    return { primitives, others }
+}
+
+const orAnalysisMap = new WeakMap<Function, OrAnalysis>()
+
+/** Returns the precomputed analysis for an `or` thunk produced by `or(...)`, or `undefined`. */
+export const orAnalysis = (thunk: Function): OrAnalysis | undefined =>
+    orAnalysisMap.get(thunk)
+
 /** Constructs a schema that validates a value matching any of the given schemas. */
-export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
-    () => ['or', ...types]
+export const or = <T extends readonly Type[]>(...types: T): Or<T> => {
+    const thunk: Or<T> = () => ['or', ...types]
+    orAnalysisMap.set(thunk, analyzeOr(types))
+    return thunk
+}
 
 /** Constructs a schema that validates a value matching `T` or `undefined`. */
 export const option = <T extends Type>(t: T): Or<readonly[T, undefined]> =>
