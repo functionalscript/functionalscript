@@ -1,11 +1,11 @@
-import { map, flatMap, flat, concat as listConcat, type List } from '../fs/types/list/module.f.ts'
-import { concat, concat as stringConcat } from '../fs/types/string/module.f.ts'
-import type { Entry } from '../fs/types/object/module.f.ts'
-import { compose } from '../fs/types/function/module.f.ts'
-import { stringToList } from '../fs/text/utf16/module.f.ts'
-import { includes } from '../fs/types/array/module.f.ts'
-import { type Vec } from '../fs/types/bit_vec/module.f.ts'
-import { utf8 } from '../fs/text/module.f.ts'
+import { map, flatMap, flat, concat as listConcat, type List } from '../types/list/module.f.ts'
+import { concat, concat as stringConcat } from '../types/string/module.f.ts'
+import type { Entry } from '../types/object/module.f.ts'
+import { compose } from '../types/function/module.f.ts'
+import { stringToList } from '../text/utf16/module.f.ts'
+import { includes } from '../types/array/module.f.ts'
+import { type Vec } from '../types/bit_vec/module.f.ts'
+import { utf8 } from '../text/module.f.ts'
 
 const { fromCharCode } = String
 const { entries } = Object
