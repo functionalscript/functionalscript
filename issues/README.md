@@ -292,8 +292,16 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API, but should not participate in the recursive evaluation chain.
 - [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
-- [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts). Analyze the variants of an `or` schema and group similar items together (e.g. objects with overlapping shapes, primitive consts) so dispatch can be faster than a linear scan over every variant.
-  Note: this analysis must live in the `or` function itself (in [../types/rtti/module.f.ts](../types/rtti/module.f.ts)), not in `orParse` or `orValidate`. `or` is used in many places — `orValidate`, `orParse`, and manual schema construction — so the grouping should be performed once at schema construction time and shared by all consumers.
+- [ ] 130. Optimization of `or` in [../types/rtti/module.f.ts](../types/rtti/module.f.ts) by removing redundant subset variants. If `or` has variants `A` and `B` where `A` is a subset of `B`, `A` can be dropped — every value `A` accepts is already accepted by `B`, so `A` never contributes a unique match. After this simplification, dispatch has fewer variants to scan.
+
+  Examples of subset relationships:
+  - A primitive const is a subset of its primitive type: `42 ⊆ number`, `'hi' ⊆ string`, `true ⊆ boolean`.
+  - A narrower const tuple/struct is a subset of a wider one (matching keys/positions, narrower element types).
+  - Any type is a subset of `unknown`.
+
+  This requires generic subset utilities on `Type` (e.g. a `subset(a, b): boolean` predicate, possibly alongside `equal(a, b)`). These utilities are reusable beyond `or` optimization (see also 141).
+
+  Note: this analysis must live in the `or` function itself (in [../types/rtti/module.f.ts](../types/rtti/module.f.ts)), not in `orParse` or `orValidate`. `or` is used in many places — `orValidate`, `orParse`, and manual schema construction — so the simplification should be performed once at schema construction time and shared by all consumers.
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
@@ -333,6 +341,15 @@ require setting a flag when walking through a test tree as soon as a node has a 
      const t = null as const
      const a: Ts<typeof t> = ...
      ```
+- [ ] 142. `NaN` handling in `constPrimitiveValidate` (and `parse`'s primitive path) in [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts). The current check uses `rtti === value`, but `NaN === NaN` is `false`, so a `NaN` const schema never matches any value — including `NaN` itself.
+
+  ```ts
+  validate(NaN as number)(NaN) // currently error, expected ok
+  ```
+
+  Options: use `Object.is(rtti, value)`, or `Number.isNaN(rtti) && Number.isNaN(value)` as an extra branch, or explicitly forbid `NaN` (and `±Infinity`?) as const schemas. Decide whether `+0` vs `-0` should be distinguished (`===` treats them equal; `Object.is` distinguishes them).
+
+  Audit other primitive comparisons in the codebase for the same issue.
 
 ## Language Specification
 
