@@ -5,7 +5,6 @@
   "exports": {
     "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
     "./bnf/module.f.ts": "./bnf/module.f.ts",
-    "./cas/module.f.ts": "./cas/module.f.ts",
     "./ci/bun/module.f.ts": "./ci/bun/module.f.ts",
     "./ci/common/module.f.ts": "./ci/common/module.f.ts",
     "./ci/config/module.f.ts": "./ci/config/module.f.ts",
@@ -20,6 +19,7 @@
     "./dev/version/module.f.ts": "./dev/version/module.f.ts",
     "./fjs/module.f.ts": "./fjs/module.f.ts",
     "./fjs/module.ts": "./fjs/module.ts",
+    "./fs/cas/module.f.ts": "./fs/cas/module.f.ts",
     "./fs/crypto/hmac/module.f.ts": "./fs/crypto/hmac/module.f.ts",
     "./fs/crypto/secp/module.f.ts": "./fs/crypto/secp/module.f.ts",
     "./fs/crypto/sha2/module.f.ts": "./fs/crypto/sha2/module.f.ts",
