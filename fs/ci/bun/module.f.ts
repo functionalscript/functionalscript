@@ -26,5 +26,5 @@ const installBun = installOnWindowsArm({
 export const bunSteps = (v: Os, a: Architecture): readonly MetaStep[] => clean([
     installBun(v)(a),
     test({ run: 'bun test --timeout 20000' }),
-    test({ run: 'bun ./fjs/module.ts t' }),
+    test({ run: 'bun ./fs/fjs/module.ts t' }),
 ])
