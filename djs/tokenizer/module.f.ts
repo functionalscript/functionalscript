@@ -6,7 +6,7 @@
 import type { StateScan } from '../../fs/types/function/operator/module.f.ts'
 import { empty, flat, map, stateScan, type List } from '../../fs/types/list/module.f.ts'
 import { multiply } from '../../fs/types/bigfloat/module.f.ts'
-import * as jsTokenizer from '../../js/tokenizer/module.f.ts'
+import * as jsTokenizer from '../../fs/js/tokenizer/module.f.ts'
 
 export type DjsToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined'} |

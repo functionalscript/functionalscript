@@ -11,7 +11,7 @@ import { setReplace, at, type OrderedMap } from '../../fs/types/ordered_map/modu
 import { fromMap } from '../../fs/types/object/module.f.ts'
 import type { Fs } from '../../io/module.f.ts'
 import type { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/module.f.ts'
-import type { TokenMetadata } from '../../js/tokenizer/module.f.ts'
+import type { TokenMetadata } from '../../fs/js/tokenizer/module.f.ts'
 
 export type ParseContext = {
     readonly fs: Fs

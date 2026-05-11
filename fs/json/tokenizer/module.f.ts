@@ -14,7 +14,7 @@ import {
     type JsTokenWithMetadata,
     type NumberToken,
     type StringToken
-} from '../../../js/tokenizer/module.f.ts'
+} from '../../js/tokenizer/module.f.ts'
 
 export type JsonToken = |
     {readonly kind: 'true' | 'false' | 'null' } |

@@ -31,6 +31,7 @@
     "./djs/transpiler/module.f.ts": "./djs/transpiler/module.f.ts",
     "./fjs/module.f.ts": "./fjs/module.f.ts",
     "./fjs/module.ts": "./fjs/module.ts",
+    "./fs/js/tokenizer/module.f.ts": "./fs/js/tokenizer/module.f.ts",
     "./fs/json/module.f.ts": "./fs/json/module.f.ts",
     "./fs/json/parser/module.f.ts": "./fs/json/parser/module.f.ts",
     "./fs/json/serializer/module.f.ts": "./fs/json/serializer/module.f.ts",
@@ -98,8 +99,7 @@
     "./html/module.f.ts": "./html/module.f.ts",
     "./io/module.f.ts": "./io/module.f.ts",
     "./io/module.ts": "./io/module.ts",
-    "./io/virtual/module.f.ts": "./io/virtual/module.f.ts",
-    "./js/tokenizer/module.f.ts": "./js/tokenizer/module.f.ts"
+    "./io/virtual/module.f.ts": "./io/virtual/module.f.ts"
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
