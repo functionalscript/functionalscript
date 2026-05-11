@@ -103,7 +103,7 @@
   },
   "tasks": {
     "doc": "deno doc --html **/module.f.ts",
-    "fjs": "deno run --allow-read --allow-write --allow-env --allow-net ./fjs/module.ts",
+    "fjs": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts",
     "test": "deno test --allow-read --allow-env",
     "coverage": "deno test --allow-read --allow-env --coverage"
   },
