@@ -31,6 +31,7 @@
     "./djs/transpiler/module.f.ts": "./djs/transpiler/module.f.ts",
     "./fjs/module.f.ts": "./fjs/module.f.ts",
     "./fjs/module.ts": "./fjs/module.ts",
+    "./fs/fsm/module.f.ts": "./fs/fsm/module.f.ts",
     "./fs/html/module.f.ts": "./fs/html/module.f.ts",
     "./fs/js/tokenizer/module.f.ts": "./fs/js/tokenizer/module.f.ts",
     "./fs/json/module.f.ts": "./fs/json/module.f.ts",
@@ -96,7 +97,6 @@
     "./fs/types/uint8array/module.f.ts": "./fs/types/uint8array/module.f.ts",
     "./fs/website/module.f.ts": "./fs/website/module.f.ts",
     "./fsc/module.f.ts": "./fsc/module.f.ts",
-    "./fsm/module.f.ts": "./fsm/module.f.ts",
     "./io/module.f.ts": "./io/module.f.ts",
     "./io/module.ts": "./io/module.ts",
     "./io/virtual/module.f.ts": "./io/virtual/module.f.ts"

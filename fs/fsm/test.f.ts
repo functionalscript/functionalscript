@@ -1,10 +1,10 @@
 import { dfa, run, toRange, toUnion, type Grammar } from './module.f.ts'
-import { union } from '../fs/types/byte_set/module.f.ts'
-import { sort, fromEntries } from '../fs/types/object/module.f.ts'
-import { stringify } from '../fs/json/module.f.ts'
-import { identity } from '../fs/types/function/module.f.ts'
-import { toArray } from '../fs/types/list/module.f.ts'
-import { stringToList } from '../fs/text/utf16/module.f.ts'
+import { union } from '../types/byte_set/module.f.ts'
+import { sort, fromEntries } from '../types/object/module.f.ts'
+import { stringify } from '../json/module.f.ts'
+import { identity } from '../types/function/module.f.ts'
+import { toArray } from '../types/list/module.f.ts'
+import { stringToList } from '../text/utf16/module.f.ts'
 
 const stringifyIdentity = stringify(identity)
 
