@@ -399,3 +399,33 @@ number literals as an LSB double floating point (8 bytes - LSB picked here since
 representation more commonly used in popular processor architectures).
 
 1. [ ] [Call-like instructions](./9100-call-like-instructions.md)
+
+### Byte Code Structures
+
+```rust
+struct Array<T> {
+    len: u32,
+    array: [T; self.len],
+}
+
+type String = Array<u16>;
+
+// LSB first.
+type BigUInt = Array<u64>;
+
+type Object = Array<(String, Any)>;
+
+// The main structure for serialization.
+type Code = Array<u8>;
+
+struct Function {
+    length: u32,
+    code: Code,
+}
+
+// Not for serialization — a parser resolves all imports.
+struct Module {
+    import: Array<String>,
+    code: Code,
+}
+```
