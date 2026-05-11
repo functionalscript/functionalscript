@@ -1,5 +1,5 @@
-import { msb, u8List, u8ListToVec, type Vec } from '../fs/types/bit_vec/module.f.ts'
-import { flatMap, type List } from '../fs/types/list/module.f.ts'
+import { msb, u8List, u8ListToVec, type Vec } from '../types/bit_vec/module.f.ts'
+import { flatMap, type List } from '../types/list/module.f.ts'
 import { fromCodePointList, toCodePointList } from './utf8/module.f.ts'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.ts'
 

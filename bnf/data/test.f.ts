@@ -1,5 +1,5 @@
 import { stringify } from '../../json/module.f.ts'
-import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../fs/text/utf16/module.f.ts'
 import { identity } from '../../fs/types/function/module.f.ts'
 import { map, toArray } from '../../fs/types/list/module.f.ts'
 import { sort } from '../../fs/types/object/module.f.ts'

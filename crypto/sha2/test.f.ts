@@ -1,4 +1,4 @@
-import { utf8 } from '../../text/module.f.ts'
+import { utf8 } from '../../fs/text/module.f.ts'
 import { repeat, uint, vec } from '../../fs/types/bit_vec/module.f.ts'
 import { flip } from '../../fs/types/function/module.f.ts'
 import { map } from '../../fs/types/list/module.f.ts'

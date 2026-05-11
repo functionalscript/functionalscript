@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Range } from '../../fs/types/range/module.f.ts'
+import type { Range } from '../../types/range/module.f.ts'
 
 const at = (s: string) => (i: number) => {
     const r = s.codePointAt(i)

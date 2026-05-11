@@ -1,4 +1,4 @@
-import { utf8, utf8ToString } from '../../text/module.f.ts'
+import { utf8, utf8ToString } from '../../fs/text/module.f.ts'
 import { isVec } from '../../fs/types/bit_vec/module.f.ts'
 import { all, writeFile } from '../../fs/types/effects/node/module.f.ts'
 import { emptyState, virtual } from '../../fs/types/effects/node/virtual/module.f.ts'

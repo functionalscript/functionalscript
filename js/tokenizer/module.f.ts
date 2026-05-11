@@ -61,7 +61,7 @@ import {
     leftCurlyBracket,
     rightCurlyBracket,
     dollarSign
-}  from '../../text/ascii/module.f.ts'
+}  from '../../fs/text/ascii/module.f.ts'
 
 const { fromCharCode } = String
 

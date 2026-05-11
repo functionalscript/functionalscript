@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { utf8 } from '../text/module.f.ts'
+import { utf8 } from '../fs/text/module.f.ts'
 import { begin, pure, type Effect } from '../fs/types/effects/module.f.ts'
 import { writeFile, type NodeOp } from '../fs/types/effects/node/module.f.ts'
 import { images } from './config/module.f.ts'

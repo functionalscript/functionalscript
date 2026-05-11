@@ -1,4 +1,4 @@
-import { utf8 } from "../../text/module.f.ts"
+import { utf8 } from "../../fs/text/module.f.ts"
 import type { Array4 } from "../../fs/types/array/module.f.ts"
 import { empty, msb, repeat, vec, vec8, type Vec } from "../../fs/types/bit_vec/module.f.ts"
 import { hmac } from "../hmac/module.f.ts"

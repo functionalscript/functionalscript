@@ -17,7 +17,7 @@ import {
 import { type Fold, type Scan, strictEqual } from '../fs/types/function/operator/module.f.ts'
 import { stringify } from '../json/module.f.ts'
 import { identity } from '../fs/types/function/module.f.ts'
-import { stringToList } from '../text/utf16/module.f.ts'
+import { stringToList } from '../fs/text/utf16/module.f.ts'
 import { cmp } from '../fs/types/string/module.f.ts'
 
 type Rule = readonly [string, ByteSet, string]

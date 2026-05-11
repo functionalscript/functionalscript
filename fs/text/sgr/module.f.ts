@@ -8,7 +8,7 @@
 // C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
-import type { Io, Writable } from "../../io/module.f.ts"
+import type { Io, Writable } from "../../../io/module.f.ts"
 
 export const backspace: string = '\x08'
 

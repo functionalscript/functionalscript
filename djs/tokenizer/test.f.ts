@@ -2,7 +2,7 @@ import { tokenize, type DjsToken, type DjsTokenWithMetadata } from './module.f.t
 import { map, toArray } from '../../fs/types/list/module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 import { sort } from '../../fs/types/object/module.f.ts'
-import { stringToList } from '../../text/utf16/module.f.ts'
+import { stringToList } from '../../fs/text/utf16/module.f.ts'
 
 const tokenizeString
     : (s: string) => readonly DjsToken[]

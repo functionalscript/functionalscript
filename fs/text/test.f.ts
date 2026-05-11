@@ -1,5 +1,5 @@
 import { flat, utf8, utf8ToString, type Block } from './module.f.ts'
-import { join } from '../fs/types/string/module.f.ts'
+import { join } from '../types/string/module.f.ts'
 
 export default {
     block: () => {

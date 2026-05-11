@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { utf8, utf8ToString } from '../../text/module.f.ts'
+import { utf8, utf8ToString } from '../../fs/text/module.f.ts'
 import { begin, pure, type Effect } from '../../fs/types/effects/module.f.ts'
 import { all, readFile, writeFile, type All, type ReadFile, type WriteFile } from '../../fs/types/effects/node/module.f.ts'
 import { unwrap } from '../../fs/types/result/module.f.ts'
