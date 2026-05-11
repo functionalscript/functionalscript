@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { descentParser } from "../../../bnf/data/module.f.ts"
+import { descentParser } from "../../bnf/data/module.f.ts"
 import {
     eof,
     join0Plus,
@@ -22,7 +22,7 @@ import {
     unicodeRange,
     type RangeVariant,
     type Rule
-} from "../../../bnf/module.f.ts"
+} from "../../bnf/module.f.ts"
 import { todo } from "../../../dev/module.f.ts"
 
 export const parse = (input: string): boolean => {

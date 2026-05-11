@@ -4,12 +4,12 @@
  *
  * @module
  */
-import { type CodePoint, stringToCodePointList } from '../../fs/text/utf16/module.f.ts'
-import { strictEqual } from '../../fs/types/function/operator/module.f.ts'
-import { map, toArray } from '../../fs/types/list/module.f.ts'
-import { rangeMap, type RangeMapArray } from '../../fs/types/range_map/module.f.ts'
-import { contains, set, type StringSet } from '../../fs/types/string_set/module.f.ts'
-import { contains as rangeContains } from '../../fs/types/range/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import { strictEqual } from '../../types/function/operator/module.f.ts'
+import { map, toArray } from '../../types/list/module.f.ts'
+import { rangeMap, type RangeMapArray } from '../../types/range_map/module.f.ts'
+import { contains, set, type StringSet } from '../../types/string_set/module.f.ts'
+import { contains as rangeContains } from '../../types/range/module.f.ts'
 import {
     oneEncode,
     rangeDecode,

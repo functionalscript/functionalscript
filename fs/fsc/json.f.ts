@@ -1,4 +1,4 @@
-import { join0Plus, rangeEncode, range, remove, repeat0Plus, type Rule, set, type TerminalRange, option } from '../../bnf/module.f.ts'
+import { join0Plus, rangeEncode, range, remove, repeat0Plus, type Rule, set, type TerminalRange, option } from '../bnf/module.f.ts'
 
 // space
 

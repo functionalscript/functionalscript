@@ -6,9 +6,9 @@
  *
  * @module
  */
-import { codePointListToString, stringToCodePointList } from '../fs/text/utf16/module.f.ts'
-import { type Array2, isArray2 } from '../fs/types/array/module.f.ts'
-import { map, toArray, repeat as listRepeat } from '../fs/types/list/module.f.ts'
+import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.ts'
+import { type Array2, isArray2 } from '../types/array/module.f.ts'
+import { map, toArray, repeat as listRepeat } from '../types/list/module.f.ts'
 
 // Types
 

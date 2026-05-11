@@ -3,8 +3,6 @@
   "version": "0.13.1",
   "license": "MIT",
   "exports": {
-    "./bnf/data/module.f.ts": "./bnf/data/module.f.ts",
-    "./bnf/module.f.ts": "./bnf/module.f.ts",
     "./ci/bun/module.f.ts": "./ci/bun/module.f.ts",
     "./ci/common/module.f.ts": "./ci/common/module.f.ts",
     "./ci/config/module.f.ts": "./ci/config/module.f.ts",
@@ -19,6 +17,8 @@
     "./dev/version/module.f.ts": "./dev/version/module.f.ts",
     "./fjs/module.f.ts": "./fjs/module.f.ts",
     "./fjs/module.ts": "./fjs/module.ts",
+    "./fs/bnf/data/module.f.ts": "./fs/bnf/data/module.f.ts",
+    "./fs/bnf/module.f.ts": "./fs/bnf/module.f.ts",
     "./fs/cas/module.f.ts": "./fs/cas/module.f.ts",
     "./fs/crypto/hmac/module.f.ts": "./fs/crypto/hmac/module.f.ts",
     "./fs/crypto/secp/module.f.ts": "./fs/crypto/secp/module.f.ts",
