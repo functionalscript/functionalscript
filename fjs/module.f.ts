@@ -6,7 +6,7 @@
 import { fromIo, type Io } from '../io/module.f.ts'
 import { compile } from '../fs/djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'
-import { main as casMain } from '../cas/module.f.ts'
+import { main as casMain } from '../fs/cas/module.f.ts'
 import type { NodeProgram } from '../fs/types/effects/node/module.f.ts'
 
 export const main = async(io: Io): Promise<number> => {
