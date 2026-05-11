@@ -11,11 +11,11 @@
     "prepack": "tsc --NoEmit false",
     "test20": "npm run prepack && node --test",
     "test": "tsc && node --test --experimental-strip-types --experimental-test-coverage --test-coverage-include=**/module.f.ts",
-    "index": "node ./fjs/module.ts r ./dev/index/module.f.ts",
+    "index": "node ./fjs/module.ts r ./fs/dev/index/module.f.ts",
     "fst": "node ./fjs/module.ts t",
     "start": "node ./fjs/module.ts",
     "ci-update": "node ./fjs/module.ts r ./ci/module.f.ts",
-    "update": "git clean -fdx && npm install && npm run index && npm run ci-update",
+    "update": "npm install && npm run index && npm run ci-update",
     "website": "node --experimental-strip-types ./fjs/module.ts r ./fs/website/module.f.ts"
   },
   "engines": {

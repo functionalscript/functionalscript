@@ -1,4 +1,4 @@
-import { assert } from '../../../dev/module.f.ts'
+import { assert } from '../../dev/module.f.ts'
 import { emptyState, patriciaTrie, type State } from './module.f.ts'
 
 type NodeList = readonly [bigint, bigint, bigint][]

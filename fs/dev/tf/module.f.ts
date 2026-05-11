@@ -3,10 +3,10 @@
  *
  * @module
  */
-import { fold } from '../../fs/types/list/module.f.ts'
-import { reset, fgGreen, fgRed, bold, type CsiConsole, stdio, stderr } from '../../fs/text/sgr/module.f.ts'
-import type * as Result from '../../fs/types/result/module.f.ts'
-import type { Io, Performance, TryCatch } from '../../io/module.f.ts'
+import { fold } from '../../types/list/module.f.ts'
+import { reset, fgGreen, fgRed, bold, type CsiConsole, stdio, stderr } from '../../text/sgr/module.f.ts'
+import type * as Result from '../../types/result/module.f.ts'
+import type { Io, Performance, TryCatch } from '../../../io/module.f.ts'
 import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
 
 type DependencyMap = {

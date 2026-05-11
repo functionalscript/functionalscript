@@ -23,7 +23,7 @@ import {
     type RangeVariant,
     type Rule
 } from "../../bnf/module.f.ts"
-import { todo } from "../../../dev/module.f.ts"
+import { todo } from "../../dev/module.f.ts"
 
 export const parse = (input: string): boolean => {
     const m = descentParser(jsGrammar())
