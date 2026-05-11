@@ -31,7 +31,7 @@
  *
  * @module
  */
-import type { Unknown } from '../../../../djs/module.f.ts'
+import type { Unknown } from '../../../djs/module.f.ts'
 import {
     type Const,
     type ConstObject,
@@ -47,7 +47,7 @@ import { error, ok, type Error, type Result as CommonResult } from '../../result
 import type { Ts } from '../ts/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
-import type { Primitive } from '../../../../djs/module.f.ts'
+import type { Primitive } from '../../../djs/module.f.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
 export type Path = readonly string[]

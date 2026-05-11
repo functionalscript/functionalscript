@@ -25,7 +25,7 @@
  *
  * @module
  */
-import type { Unknown } from '../../../../djs/module.f.ts'
+import type { Unknown } from '../../../djs/module.f.ts'
 import {
     type Const,
     type ConstObject,

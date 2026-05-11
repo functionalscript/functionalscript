@@ -2,7 +2,7 @@ import { validate, type ValidationError } from './module.f.ts'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
 import type { Assert, Equal } from '../../ts/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
-import type { Unknown as DjsUnknown } from '../../../../djs/module.f.ts'
+import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 
 const assertOk = ([k]: readonly [string, unknown]) => { if (k !== 'ok') { throw 'expected ok' } }
 const assertError = ([k]: readonly [string, unknown]) => { if (k !== 'error') { throw 'expected error' } }

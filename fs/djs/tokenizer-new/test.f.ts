@@ -1,8 +1,8 @@
-import { descentParser, type AstRuleMeta, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
-import type { JsToken } from '../../fs/js/tokenizer/module.f.ts'
-import { type CodePoint, stringToCodePointList } from '../../fs/text/utf16/module.f.ts'
-import type { StateScan } from '../../fs/types/function/operator/module.f.ts'
-import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../fs/types/list/module.f.ts'
+import { descentParser, type AstRuleMeta, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../../bnf/data/module.f.ts'
+import type { JsToken } from '../../js/tokenizer/module.f.ts'
+import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
+import type { StateScan } from '../../types/function/operator/module.f.ts'
+import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
 import { jsGrammar } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]

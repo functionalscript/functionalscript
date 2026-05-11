@@ -1,6 +1,6 @@
 import { tokenize, type JsonToken } from './module.f.ts'
 import { toArray } from '../../types/list/module.f.ts'
-import { stringifyAsTree } from '../../../djs/serializer/module.f.ts'
+import { stringifyAsTree } from '../../djs/serializer/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
 import { stringToList } from '../../text/utf16/module.f.ts'
 

@@ -1,7 +1,7 @@
 import { countRefs, stringify, stringifyAsTree } from './module.f.ts'
-import { sort } from '../../fs/types/object/module.f.ts'
-import { identity } from '../../fs/types/function/module.f.ts'
-import { setProperty } from '../../fs/json/module.f.ts'
+import { sort } from '../../types/object/module.f.ts'
+import { identity } from '../../types/function/module.f.ts'
+import { setProperty } from '../../json/module.f.ts'
 
 export default {
     stringify: [

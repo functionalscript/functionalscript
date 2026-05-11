@@ -8,7 +8,7 @@
  * type expression string for a given RTTI schema.
  */
 import { type Equal, type Assert, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
-import type { Unknown as DjsUnknown } from '../../../../djs/module.f.ts'
+import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Tag0, Tag1, Const, Struct, Tuple, Type } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
