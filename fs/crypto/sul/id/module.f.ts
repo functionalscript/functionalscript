@@ -6,7 +6,7 @@
  * @module
  */
 
-import { toArray } from '../../list/module.f.ts'
+import { toArray } from '../../../types/list/module.f.ts'
 import {
     length,
     listToVec,
@@ -16,14 +16,14 @@ import {
     unpack,
     vec,
     type Vec
-} from '../../bit_vec/module.f.ts'
+} from '../../../types/bit_vec/module.f.ts'
 import { assertEq } from '../../../../dev/module.f.ts'
 import { utf8 } from '../../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../../crypto/sha2/module.f.ts'
 import { literal3ToVec } from '../level/literal/module.f.ts'
-import { log2 } from '../../bigint/module.f.ts'
-import { asBase, asNominal, type Nominal } from '../../nominal/module.f.ts'
+import { log2 } from '../../../types/bigint/module.f.ts'
+import { asBase, asNominal, type Nominal } from '../../../types/nominal/module.f.ts'
 
 /** A 256-bit SUL identifier. One of three variants: level-3 literal, raw bit vector, or SHA2 hash. */
 export type Id = Nominal<

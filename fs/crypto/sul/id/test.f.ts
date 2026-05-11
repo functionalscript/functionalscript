@@ -1,8 +1,8 @@
 import { assert, assertEq } from '../../../../dev/module.f.ts'
-import { mask } from '../../bigint/module.f.ts'
-import { vec } from '../../bit_vec/module.f.ts'
+import { mask } from '../../../types/bigint/module.f.ts'
+import { vec } from '../../../types/bit_vec/module.f.ts'
 import { compress, hashId, isHash, isRaw, level3Id, rawId } from './module.f.ts'
-import { asBase } from '../../nominal/module.f.ts'
+import { asBase } from '../../../types/nominal/module.f.ts'
 
 // literal3ToVec bit patterns for symbols used below:
 //   0  → vec(8n)(0n)     4  → vec(8n)(3n)
