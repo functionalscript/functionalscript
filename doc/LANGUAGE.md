@@ -18,13 +18,13 @@ const result = thirdPartyModule.someFunction('hello')
 ## 2. Packages
 
 FunctionalScript uses a `package.json` file to define a package. This file is compatible with [Node.js `package.json`](https://nodejs.org/en/knowledge/getting-started/npm/what-is-the-file-package-json/).
-The preferred way to reference dependencies is to use a GitHub URL. These dependencies in a `package.json` file could look like this,
+These dependencies in a `package.json` file could look like this,
 
 ```json
 {
    // ...
    "dependencies": {
-      "third-party-package": "github:exampleorg/thirdpartypackage"
+      "third-party-package": "thirdpartypackage"
    }
    // ...
 }
@@ -33,7 +33,7 @@ The preferred way to reference dependencies is to use a GitHub URL. These depend
 **Note:** this repository is also a FunctionalScript package, and it can be used as a library. To install this package, use
 
 ```
-npm install -S github:functionalscript/functionalscript
+npm install -S functionalscript
 ```
 
 ## 3. Module Structure

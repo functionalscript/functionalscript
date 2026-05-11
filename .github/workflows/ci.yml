@@ -171,7 +171,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./fjs/module.ts t"
+          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -336,7 +336,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./fjs/module.ts t"
+          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -501,7 +501,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./fjs/module.ts t"
+          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -666,7 +666,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./fjs/module.ts t"
+          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -837,7 +837,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./fjs/module.ts t"
+          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -999,7 +999,7 @@
           "run": "bun test --timeout 20000"
         },
         {
-          "run": "bun ./fjs/module.ts t"
+          "run": "bun ./fs/fjs/module.ts t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"

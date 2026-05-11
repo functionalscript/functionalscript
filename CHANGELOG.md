@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.14.0
+
+- Restructure [773](https://github.com/functionalscript/functionalscript/pull/773)
 - Test framework: detect pass-on-throw tests by enclosing `throw` key, supporting function references and grouped tests [769](https://github.com/functionalscript/functionalscript/pull/769)
 - CI: centralize tool versions, split into per-tool modules, add Playwright browser cache [764](https://github.com/functionalscript/functionalscript/pull/764)
 - Refactor StateScan to swap input and state parameter order [763](https://github.com/functionalscript/functionalscript/pull/763).
