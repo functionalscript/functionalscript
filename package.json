@@ -14,7 +14,7 @@
     "index": "node ./fjs/module.ts r ./fs/dev/index/module.f.ts",
     "fst": "node ./fjs/module.ts t",
     "start": "node ./fjs/module.ts",
-    "ci-update": "node ./fjs/module.ts r ./ci/module.f.ts",
+    "ci-update": "node ./fjs/module.ts r ./fs/ci/module.f.ts",
     "update": "npm install && npm run index && npm run ci-update",
     "website": "node --experimental-strip-types ./fjs/module.ts r ./fs/website/module.f.ts"
   },
