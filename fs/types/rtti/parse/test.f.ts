@@ -248,22 +248,6 @@ export default {
             // The const tuple `[number]` matches first and returns a length-1 result.
             assertDeepEqual(out, [1])
         },
-        // Manually constructed `or` thunks (not produced by `or(...)`) have no
-        // precomputed analysis. Parse should still handle them by computing
-        // the analysis on the fly.
-        manualThunk: {
-            ok: () => {
-                const t = () => ['or', false, 42, 'hello'] as const
-                assertOk(parse(t)(false))
-                assertOk(parse(t)(42))
-                assertOk(parse(t)('hello'))
-            },
-            error: () => {
-                const t = () => ['or', false, 42, 'hello'] as const
-                assertError(parse(t)(true))
-                assertError(parse(t)('world'))
-            },
-        },
     },
     option: {
         ok: () => {

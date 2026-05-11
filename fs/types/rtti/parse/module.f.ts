@@ -27,12 +27,9 @@
  */
 import type { Unknown } from '../../../djs/module.f.ts'
 import {
-    analyzeOr,
-    orAnalysis,
     type Const,
     type ConstObject,
     type Info1,
-    type OrAnalysis,
     type Struct,
     type Tuple,
     type Type,
@@ -150,12 +147,8 @@ const findFirst = find
     (verror('no match'))
     ((k: any) => k[0] === 'ok')
 
-const orParse = (a: OrAnalysis) => {
-    const { primitives, others } = a
-    return (value: Unknown) => primitives.has(value)
-        ? ok(value)
-        : findFirst(listMap(t => (parse as any)(t)(value))(others))
-}
+const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
+    value => findFirst(listMap(t => (parse as any)(t)(value))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.
@@ -189,7 +182,7 @@ export const parse = <T extends Type>(rtti: T): Parse<T> => {
             case 'array': return arrayParse(value[0]) as any
             case 'record': return recordParse(value[0]) as any
             case 'unknown': return ok as any
-            case 'or': return orParse(orAnalysis(rtti) ?? analyzeOr(value)) as any
+            case 'or': return orParse(value) as any
         }
         return primitive0Validate(tag) as any
     }

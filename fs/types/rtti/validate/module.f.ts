@@ -33,13 +33,10 @@
  */
 import type { Unknown } from '../../../djs/module.f.ts'
 import {
-    analyzeOr,
-    orAnalysis,
     type Const,
     type ConstObject,
     type Info0,
     type Info1,
-    type OrAnalysis,
     type Primitive0,
     type Struct,
     type Tag1,
@@ -179,20 +176,16 @@ const constValidate = <T extends Const>(rtti: T): Validate<T> =>
         ? constObjectValidate(rtti) as any
         : constPrimitiveValidate(rtti) as any
 
-const orValidate = (a: OrAnalysis) => {
-    const { primitives, others } = a
-    const all = others.map(r => validate(r))
-    return (value: Unknown) => {
-        if (primitives.has(value)) {
-            return ok(value)
-        }
+const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> => {
+    const all = rtti.map(r => validate(r))
+    return value => {
         for (const i of all) {
             const r = (i as any)(value)
             if (r[0] === 'ok') {
                 return r
             }
         }
-        return verror('no match')
+        return verror('no match') as any
     }
 }
 
@@ -220,7 +213,7 @@ export const validate = <T extends Type>(rtti: T): Validate<T> => {
             case 'array': return arrayValidate(value[0]) as any
             case 'record': return recordValidate(value[0]) as any
             case 'unknown': return ok as any
-            case 'or': return orValidate(orAnalysis(rtti) ?? analyzeOr(value)) as any
+            case 'or': return orValidate(value) as any
         }
         return primitive0Validate(tag) as any
     }
