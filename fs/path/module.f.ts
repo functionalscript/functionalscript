@@ -3,10 +3,10 @@
  *
  * @module
  */
-import type { Fold, Reduce, Unary } from '../fs/types/function/operator/module.f.ts'
-import { type List, fold, last, take, length, concat as listConcat, toArray } from '../fs/types/list/module.f.ts'
-import { join } from '../fs/types/string/module.f.ts'
-import { concat as stringConcat } from '../fs/types/string/module.f.ts'
+import type { Fold, Reduce, Unary } from '../types/function/operator/module.f.ts'
+import { type List, fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.ts'
+import { join } from '../types/string/module.f.ts'
+import { concat as stringConcat } from '../types/string/module.f.ts'
 
 const foldNormalizeOp: Fold<string, List<string>>
 = input => state => {

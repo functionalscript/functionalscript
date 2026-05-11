@@ -1,4 +1,4 @@
-import { normalize } from '../path/module.f.ts'
+import { normalize } from '../fs/path/module.f.ts'
 import { type Effect } from '../fs/types/effects/module.f.ts'
 import { asyncRun } from '../fs/types/effects/module.ts'
 import type { Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../fs/types/effects/node/module.f.ts'

@@ -4,7 +4,7 @@
  * @module
  */
 import { todo } from '../../../../../dev/module.f.ts'
-import { parse } from '../../../../../path/module.f.ts'
+import { parse } from '../../../../path/module.f.ts'
 import { isVec, type Vec } from '../../../bit_vec/module.f.ts'
 import { error, ok } from '../../../result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
