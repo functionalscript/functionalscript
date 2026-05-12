@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- RTTI: fix `NaN` handling in const validation by using `Object.is` instead of `===` [777](https://github.com/functionalscript/functionalscript/pull/777)
+
 ## 0.14.0
 
 - Restructure [773](https://github.com/functionalscript/functionalscript/pull/773)
