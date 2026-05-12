@@ -165,9 +165,15 @@ const constObjectValidate = <T extends ConstObject>(rtti: T): Validate<T> =>
         ? tupleValidate(rtti) as any
         : structValidate(rtti) as any
 
-/** Validates a primitive `Const` schema using strict equality (`===`). */
+/**
+ * Validates a primitive `Const` schema using `Object.is` (SameValue).
+ *
+ * `Object.is` is used instead of `===` so that:
+ * - `NaN` const schemas match `NaN` values (`===` would always fail because `NaN !== NaN`).
+ * - `+0` and `-0` are treated as distinct const values.
+ */
 export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
-    value => rtti === value
+    value => Object.is(rtti, value)
         ? ok(value) as any
         : verror('unexpected value') as any
 
