@@ -332,7 +332,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
      const t = null as const
      const a: Ts<typeof t> = ...
      ```
-- [ ] 142. `NaN` handling in `constPrimitiveValidate` (and `parse`'s primitive path) in [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts). The current check uses `rtti === value`, but `NaN === NaN` is `false`, so a `NaN` const schema never matches any value — including `NaN` itself.
+- [X] 142. `NaN` handling in `constPrimitiveValidate` (and `parse`'s primitive path) in [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts). The current check uses `rtti === value`, but `NaN === NaN` is `false`, so a `NaN` const schema never matches any value — including `NaN` itself.
 
   ```ts
   validate(NaN as number)(NaN) // currently error, expected ok

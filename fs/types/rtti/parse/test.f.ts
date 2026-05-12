@@ -112,6 +112,35 @@ export default {
             ok: () => assertOk(parse(42 as const)(42)),
             error: () => assertError(parse(42 as const)(43)),
         },
+        nan: {
+            ok: () => assertOk(parse(NaN as number)(NaN)),
+            error: () => {
+                assertError(parse(NaN as number)(0))
+                assertError(parse(0 as const)(NaN))
+                assertError(parse(42 as const)(NaN))
+            },
+        },
+        infinity: {
+            ok: () => {
+                assertOk(parse(Infinity as number)(Infinity))
+                assertOk(parse(-Infinity as number)(-Infinity))
+            },
+            error: () => {
+                assertError(parse(Infinity as number)(-Infinity))
+                assertError(parse(Infinity as number)(0))
+            },
+        },
+        signedZero: {
+            // `Object.is` distinguishes +0 and -0; `===` treats them equal.
+            distinct: () => {
+                assertError(parse(0 as const)(-0))
+                assertError(parse(-0 as number)(0))
+            },
+            self: () => {
+                assertOk(parse(0 as const)(0))
+                assertOk(parse(-0 as number)(-0))
+            },
+        },
         string: {
             ok: () => assertOk(parse('hello' as const)('hello')),
             error: () => assertError(parse('hello' as const)('world')),
