@@ -2,7 +2,7 @@
 
 Adaptive arithmetic encoding.
 
-- A dictionary with frequencies (a number of items). A sum of all frequencies equal to a number of symbols in the sequence.
+- A dictionary with frequencies (a number of items). A sum of all frequencies equals to a number of symbols in the sequence.
   - symbol: frequency (integer)
 - An arithmetic sequence.
 
