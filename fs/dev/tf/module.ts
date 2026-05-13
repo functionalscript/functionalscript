@@ -2,7 +2,7 @@ import { io } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
 import { isTest, parseTestSet } from './module.f.ts'
 import * as nodeTest from 'node:test'
-import { playwright } from '../../ci/config/module.f.ts'
+import { asyncImport } from '../../io/module.ts'
 
 //
 
@@ -32,7 +32,7 @@ const createBunFramework = (fw: typeof nodeTest): CommonFramework =>
     (prefix, f) => f((name, v) => fw.test(`${prefix}: ${name}`, v))
 
 const createPlaywrightFramework = async (): Promise<CommonFramework> => {
-    const pwTest = (await import(`@playwright/test@${playwright}`)).test
+    const pwTest = (await asyncImport('@playwright/test') as any).test
     return (prefix, f) => f((name, v) => pwTest(`${prefix}: ${name}`, v))
 }
 

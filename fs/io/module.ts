@@ -9,6 +9,8 @@ import { error, ok } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
 
+export const asyncImport = (v: string): Promise<Module> => import(v)
+
 export const io: Io = {
     console,
     fs,
@@ -16,7 +18,7 @@ export const io: Io = {
     asyncImport: (v: string): Promise<Module> => {
         const s0 = v.includes(':') || v.startsWith('/') ? v : concat(process.cwd())(v)
         const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
-        return import(s1)
+        return asyncImport(s1)
     },
     performance,
     fetch,

@@ -1,5 +1,5 @@
 import { node, tsgo } from '../config/module.f.ts'
-import { type Jobs, type MetaStep, type Os, clean, install, test, ubuntu } from '../common/module.f.ts'
+import { type Jobs, type MetaStep, type Os, clean, findTgz, install, test, ubuntu } from '../common/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
@@ -18,10 +18,6 @@ export const nodeTests = (version: string) => (extra: readonly MetaStep[]): read
     ...extra,
 ])
 
-const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
-
-// const nodeTest = (v: string) => major(v) === '20' ? 'run test20' : 'test'
-
 const nodeSteps = (v: string) => [
     install(installNode(v)),
     test({ run: 'npm ci' }),
@@ -33,15 +29,10 @@ export const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
     ubuntu(nodeSteps(v))
 ]))
 
-
-export const nodeMainSteps = (v: Os): readonly MetaStep[] => nodeTests(node.default)([
+export const nodeMainSteps = (extra: readonly MetaStep[]): readonly MetaStep[] => nodeTests(node.default)([
     // TypeScript Preview
     install({ run: `npm install -g @typescript/native-preview@${tsgo}`}),
     test({ run: 'tsgo' }),
-    // publishing
-    test({ run: 'npm pack' }),
-    test({ run: `npm install -g ${findTgz(v)}` }),
-    test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
-    test({ run: 'fjs t' }),
-    test({ run: 'npm uninstall functionalscript -g' }),
+    // extra
+    ...extra,
 ])
