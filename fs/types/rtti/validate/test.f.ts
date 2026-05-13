@@ -96,6 +96,35 @@ export default {
             },
             error: () => assertError(validate(42 as const)(43)),
         },
+        nan: {
+            ok: () => assertOk(validate(NaN as number)(NaN)),
+            error: () => {
+                assertError(validate(NaN as number)(0))
+                assertError(validate(0 as const)(NaN))
+                assertError(validate(42 as const)(NaN))
+            },
+        },
+        infinity: {
+            ok: () => {
+                assertOk(validate(Infinity as number)(Infinity))
+                assertOk(validate(-Infinity as number)(-Infinity))
+            },
+            error: () => {
+                assertError(validate(Infinity as number)(-Infinity))
+                assertError(validate(Infinity as number)(0))
+            },
+        },
+        signedZero: {
+            // `Object.is` distinguishes +0 and -0; `===` treats them equal.
+            distinct: () => {
+                assertError(validate(0 as const)(-0))
+                assertError(validate(-0 as number)(0))
+            },
+            self: () => {
+                assertOk(validate(0 as const)(0))
+                assertOk(validate(-0 as number)(-0))
+            },
+        },
         string: {
             ok: () => {
                 type _ = Assert<Equal<Ts<'hello'>, 'hello'>>
