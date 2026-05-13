@@ -26,7 +26,7 @@ jobs:
           deno-version: 2
       - run: npm ci
       - run: npm run index
-      - run: npm publish
+      - run: npm publish --provenance
         continue-on-error: true
         # env:
         #  NODE_AUTH_TOKEN: ${{secrets.npm_token}}
