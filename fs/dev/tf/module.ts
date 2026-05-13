@@ -32,7 +32,7 @@ const createBunFramework = (fw: typeof nodeTest): CommonFramework =>
     (prefix, f) => f((name, v) => fw.test(`${prefix}: ${name}`, v))
 
 const createPlaywrightFramework = async (): Promise<CommonFramework> => {
-    const pwTest = (await asyncImport('@playwright/test')).test
+    const pwTest = (await asyncImport('@playwright/test') as any).test
     return (prefix, f) => f((name, v) => pwTest(`${prefix}: ${name}`, v))
 }
 
