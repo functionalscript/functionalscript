@@ -14,21 +14,33 @@ import { playwrightJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
 
-const job = (rust: boolean, extra: readonly MetaStep[]) => (o: Os) => (a: Architecture) : readonly [string, Job] => {
+const job = (
+    rust: boolean,
+    nodeExtra: readonly MetaStep[],
+    denoExtra: readonly MetaStep[],
+    bunExtra: readonly MetaStep[],
+) => (o: Os) => (a: Architecture): readonly [string, Job] => {
     const id = `${o}-${a}`
     const image = images[o][a]
     const result = [
         ...(rust ? rustSteps(o, a) : []),
-        ...nodeMainSteps(extra),
-        ...denoSteps,
-        ...bunSteps(o, a),
+        ...nodeMainSteps(nodeExtra),
+        ...denoSteps(denoExtra),
+        ...bunSteps(bunExtra)(o, a),
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
-export const ci = (rust: boolean, extra: (os: Os) => readonly MetaStep[]): Effect<NodeOp, number> => {
+export type Setup = {
+    readonly rust: boolean,
+    readonly nodeExtra: (os: Os) => readonly MetaStep[],
+    readonly denoExtra: readonly MetaStep[],
+    readonly bunExtra: readonly MetaStep[],
+}
+
+export const ci = ({ rust, nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, number> => {
     const jobs: Jobs = {
-        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, extra(o))(o)))),
+        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o), denoExtra, bunExtra)(o)))),
         ...nodeVersions,
         playwright: playwrightJob,
     }
@@ -42,12 +54,22 @@ export const ci = (rust: boolean, extra: (os: Os) => readonly MetaStep[]): Effec
         .step(() => pure(0))
 }
 
-const defaultEffect: Effect<NodeOp, number> = ci(true, o => [
-    test({ run: 'npm pack' }),
-    test({ run: `npm install -g ${findTgz(o)}` }),
-    test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
-    test({ run: 'fjs t' }),
-    test({ run: 'npm uninstall functionalscript -g' }),
-])
+const defaultEffect: Effect<NodeOp, number> = ci({
+    rust: true,
+    nodeExtra: o => [
+        test({ run: 'npm pack' }),
+        test({ run: `npm install -g ${findTgz(o)}` }),
+        test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
+        test({ run: 'fjs t' }),
+        test({ run: 'npm uninstall functionalscript -g' }),
+    ],
+    denoExtra: [
+        test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
+        test({ run: 'deno task fjs t' }),
+    ],
+    bunExtra: [
+        test({ run: 'bun ./fs/fjs/module.ts t' }),
+    ]
+})
 
 export default () => defaultEffect
