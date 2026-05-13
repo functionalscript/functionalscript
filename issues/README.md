@@ -249,7 +249,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
 - [ ] 91. Create a separate nominal type for UTF-8.
 - [ ] 92. Create a separate nominal type for MSB and LSB bit vectors.
-- [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions.
+- [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions and Playwright.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
 - [X] 101. Monad's IO design. Using Effects.
