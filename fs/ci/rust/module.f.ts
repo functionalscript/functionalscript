@@ -34,7 +34,7 @@ const i686 = (a: Architecture, v: Os): readonly MetaStep[] => {
     return []
 }
 
-export const rustSteps = (a: Architecture, v: Os): readonly MetaStep[] => [
+export const rustSteps = (v: Os, a: Architecture): readonly MetaStep[] => [
     test({ run: 'cargo fmt -- --check' }),
     test({ run: 'cargo clippy -- -D warnings' }),
     ...cargoTest(),

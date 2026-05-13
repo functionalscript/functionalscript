@@ -14,20 +14,20 @@ import { playwrightJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
 
-const job = (v: Os) => (a: Architecture): readonly [string, Job] => {
-    const id = `${v}-${a}`
-    const image = images[v][a]
+const job = (o: Os) => (a: Architecture): readonly [string, Job] => {
+    const id = `${o}-${a}`
+    const image = images[o][a]
     const result = [
-        ...rustSteps(a, v),
-        ...nodeMainSteps(v),
+        ...rustSteps(o, a),
+        ...nodeMainSteps(o),
         ...denoSteps,
-        ...bunSteps(v, a),
+        ...bunSteps(o, a),
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
 const jobs: Jobs = {
-    ...Object.fromEntries(os.flatMap(v => architecture.map(job(v)))),
+    ...Object.fromEntries(os.flatMap(o => architecture.map(job(o)))),
     ...nodeVersions,
     playwright: playwrightJob,
 }
