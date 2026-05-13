@@ -82,3 +82,5 @@ export const ubuntu = (ms: readonly MetaStep[]): Job => ({
     'runs-on': images.ubuntu.intel,
     steps: toSteps(ms)
 })
+
+export const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'

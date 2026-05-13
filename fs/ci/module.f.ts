@@ -7,28 +7,28 @@ import { utf8 } from '../text/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
-import { type Architecture, type GitHubAction, type Job, type Jobs, type Os, architecture, os, toSteps } from './common/module.f.ts'
+import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, findTgz, os, test, toSteps } from './common/module.f.ts'
 import { rustSteps } from './rust/module.f.ts'
 import { nodeMainSteps, nodeVersions } from './node/module.f.ts'
 import { playwrightJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
 
-const job = (rust: boolean) => (o: Os) => (a: Architecture): readonly [string, Job] => {
+const job = (rust: boolean, extra: readonly MetaStep[]) => (o: Os) => (a: Architecture) : readonly [string, Job] => {
     const id = `${o}-${a}`
     const image = images[o][a]
     const result = [
         ...(rust ? rustSteps(o, a) : []),
-        ...nodeMainSteps(o),
+        ...nodeMainSteps(extra),
         ...denoSteps,
         ...bunSteps(o, a),
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
-export const ci = (rust: boolean): Effect<NodeOp, number> => {
+export const ci = (rust: boolean, extra: (os: Os) => readonly MetaStep[]): Effect<NodeOp, number> => {
     const jobs: Jobs = {
-        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust)(o)))),
+        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, extra(o))(o)))),
         ...nodeVersions,
         playwright: playwrightJob,
     }
@@ -42,6 +42,12 @@ export const ci = (rust: boolean): Effect<NodeOp, number> => {
         .step(() => pure(0))
 }
 
-const defaultEffect: Effect<NodeOp, number> = ci(true)
+const defaultEffect: Effect<NodeOp, number> = ci(true, o => [
+    test({ run: 'npm pack' }),
+    test({ run: `npm install -g ${findTgz(o)}` }),
+    test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
+    test({ run: 'fjs t' }),
+    test({ run: 'npm uninstall functionalscript -g' }),
+])
 
 export default () => defaultEffect
