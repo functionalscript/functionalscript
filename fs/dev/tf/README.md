@@ -12,4 +12,4 @@ And then run it as
 
 - `deno test --allow-env --allow-read`,
 - `node --test`,
-- `bun test`
+- `bun test`.
