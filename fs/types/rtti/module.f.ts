@@ -177,6 +177,25 @@ export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 const variantTag = (t: Type): string | null =>
     typeof t === 'function' ? t()[0] as string : null
 
+const isPrim0 = (s: string): boolean =>
+    (primitive0List as readonly string[]).includes(s)
+
+type FlattenAcc = readonly[ReadonlySet<Type>, readonly Type[]]
+
+const flattenStep = ([visited, out]: FlattenAcc, t: Type): FlattenAcc => {
+    if (typeof t === 'function' && !visited.has(t)) {
+        const nextVisited: ReadonlySet<Type> = new Set([...visited, t])
+        const info = t()
+        if (info[0] === 'or') {
+            const [v, inner] = (info.slice(1) as readonly Type[])
+                .reduce(flattenStep, [nextVisited, []] as FlattenAcc)
+            return [v, [...out, ...inner]]
+        }
+        return [nextVisited, [...out, t]]
+    }
+    return [visited, [...out, t]]
+}
+
 /**
  * Walks `types` and produces a flat list of `or` variants:
  *
@@ -184,23 +203,24 @@ const variantTag = (t: Type): string | null =>
  * - Each thunk is resolved at most once; thunks reached a second time are
  *   kept as-is, so self-referential `or` schemas terminate.
  */
-const flattenOr = (types: readonly Type[]): readonly Type[] => {
-    type Acc = readonly[ReadonlySet<Type>, readonly Type[]]
-    const step = ([visited, out]: Acc, t: Type): Acc => {
-        if (typeof t === 'function' && !visited.has(t)) {
-            const nextVisited: ReadonlySet<Type> = new Set([...visited, t])
-            const info = t()
-            if (info[0] === 'or') {
-                const [v, inner] = (info.slice(1) as readonly Type[])
-                    .reduce(step, [nextVisited, []] as Acc)
-                return [v, [...out, ...inner]]
-            }
-            return [nextVisited, [...out, t]]
-        }
-        return [visited, [...out, t]]
-    }
-    return types.reduce(step, [new Set<Type>(), []] as Acc)[1]
+const flattenOr = (types: readonly Type[]): readonly Type[] =>
+    types.reduce(flattenStep, [new Set<Type>(), []] as FlattenAcc)[1]
+
+type CollectAcc = readonly[boolean, ReadonlySet<string>]
+
+const collectStep = ([u, p]: CollectAcc, t: Type): CollectAcc => {
+    if (u) { return [u, p] }
+    const tag = variantTag(t)
+    if (tag === 'unknown') { return [true, p] }
+    return tag !== null && isPrim0(tag) ? [u, new Set([...p, tag])] : [u, p]
 }
+
+type DedupAcc = readonly[ReadonlySet<string>, readonly Type[]]
+
+const dedupStep = ([primThunks, acc]: DedupAcc, t: Type): DedupAcc =>
+    primThunks.has(typeof t) || acc.some(r => Object.is(r, t))
+        ? [primThunks, acc]
+        : [primThunks, [...acc, t]]
 
 /**
  * Drops variants that are trivially subsumed by another variant.
@@ -219,27 +239,13 @@ const flattenOr = (types: readonly Type[]): readonly Type[] => {
  */
 const reduceOr = (types: readonly Type[]): readonly Type[] => {
     const flat = flattenOr(types)
-    type Collect = readonly[boolean, ReadonlySet<string>]
-    const isPrim0 = (s: string): boolean =>
-        (primitive0List as readonly string[]).includes(s)
-    const [hasUnknown, primThunks] = flat.reduce<Collect>(
-        ([u, p], t) => {
-            if (u) { return [u, p] }
-            const tag = variantTag(t)
-            if (tag === 'unknown') { return [true, p] }
-            if (tag !== null && isPrim0(tag)) { return [u, new Set([...p, tag])] }
-            return [u, p]
-        },
-        [false, new Set<string>()] as Collect,
+    const [hasUnknown, primThunks] = flat.reduce(
+        collectStep,
+        [false, new Set<string>()] as CollectAcc,
     )
-    if (hasUnknown) { return [unknown] }
-    return flat.reduce<readonly Type[]>(
-        (acc, t) =>
-            primThunks.has(typeof t) || acc.some(r => Object.is(r, t))
-                ? acc
-                : [...acc, t],
-        [],
-    )
+    return hasUnknown
+        ? [unknown]
+        : flat.reduce(dedupStep, [primThunks, []] as DedupAcc)[1]
 }
 
 /**
