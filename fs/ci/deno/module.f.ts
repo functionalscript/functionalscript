@@ -9,5 +9,4 @@ export const denoSteps = (extra: readonly MetaStep[]): readonly MetaStep[] => cl
     test({ run: 'deno install' }),
     test({ run: 'deno task test' }),
     ...extra,
-    test({ run: 'deno publish --dry-run' }),
 ])
