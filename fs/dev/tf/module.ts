@@ -69,7 +69,7 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
     }
 }
 
-const run = async(): Promise<void> => {
+export const run = async(): Promise<void> => {
     const x = await loadModuleMap(io)
     for (const [i, v] of Object.entries(x)) {
         if (isTest(i)) {
@@ -78,5 +78,4 @@ const run = async(): Promise<void> => {
     }
 }
 
-// we need `await` for Playwright.
-await run()
+
