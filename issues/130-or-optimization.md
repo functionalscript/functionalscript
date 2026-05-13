@@ -9,10 +9,10 @@ Optimize and normalize `or` in [../fs/types/rtti/module.f.ts](../fs/types/rtti/m
 If `or` has variants `A` and `B` where `A ⊆ B` (every value `A` accepts is also accepted by `B`), `A` can be dropped — it never contributes a unique match.
 
 Examples:
-- A primitive const is a subset of its primitive type: `42 ⊆ number`, `'hi' ⊆ string`, `true ⊆ boolean`.
-- A narrower const tuple/struct is a subset of a wider one (matching keys/positions, narrower element types).
-- Any type is a subset of `unknown` — `or(unknown, ...rest)` simplifies to `unknown`.
-- Duplicate variants (`A ⊆ A` and `A ⊇ A`) collapse to a single variant.
+- [x] A primitive const is a subset of its primitive type: `42 ⊆ number`, `'hi' ⊆ string`, `true ⊆ boolean`.
+- [ ] A narrower const tuple/struct is a subset of a wider one (matching keys/positions, narrower element types).
+- [x] Any type is a subset of `unknown` — `or(unknown, ...rest)` simplifies to `unknown`.
+- [x] Duplicate variants (`A ⊆ A` and `A ⊇ A`) collapse to a single variant.
 
 This requires generic subset utilities on `Type`:
 
@@ -21,32 +21,30 @@ const equal = (a: Type, b: Type): boolean => ...
 const subset = (sub: Type, sup: Type): boolean => ...
 ```
 
-These utilities are reusable beyond `or` optimization (see also 141).
+These utilities are reusable beyond `or` optimization (see also 141). Currently `or` uses ad-hoc checks for the cases above (`Object.is`-based dedup, `'unknown'` tag check, `primitive0List` membership) instead of generic `equal`/`subset` predicates.
 
 ### 2. Flatten nested `or`
 
-`or` variants that are themselves `or` thunks should be flattened into the outer `or`. After flattening, the analysis (subset removal, normalization) applies to the combined variants.
+- [x] `or` variants that are themselves `or` thunks should be flattened into the outer `or`. After flattening, the analysis (subset removal, normalization) applies to the combined variants.
 
 ```ts
 or(or(a, b), c)        // should normalize to: or(a, b, c)
 or(a, () => ['or', b]) // should normalize to: or(a, b)
 ```
 
-Flattening must work for both `or(...)` calls and manually constructed `() => ['or', ...]` thunks discovered as variants.
+- [x] Flattening must work for both `or(...)` calls and manually constructed `() => ['or', ...]` thunks discovered as variants.
 
 ### 3. Normalize the canonical result
 
 Two constructions that describe the same set must produce the same result of `or` (e.g. structurally equal output and/or the same memoized identity):
 
-```ts
-or(a, b)            // ≡ or(b, a)
-or(a, a, b)         // ≡ or(a, b)
-or(or(a, b), c)     // ≡ or(a, b, c)
-or(unknown, 42)     // ≡ unknown
-or(number, 42)      // ≡ number
-```
+- [ ] `or(a, b)            // ≡ or(b, a)`
+- [x] `or(a, a, b)         // ≡ or(a, b)`
+- [x] `or(or(a, b), c)     // ≡ or(a, b, c)`
+- [x] `or(unknown, 42)     // ≡ unknown`
+- [x] `or(number, 42)      // ≡ number`
 
-This implies a canonical ordering on `Type` and a stable layout for the resulting variants. The order chosen should not affect observable semantics, since redundant variants have been removed.
+This implies a canonical ordering on `Type` and a stable layout for the resulting variants. The order chosen should not affect observable semantics, since redundant variants have been removed. The reordering itself is still TODO — it needs a total order on `Type` that includes thunks, which depends on the generic `equal`/`subset` predicates from goal 1.
 
 ## Note on location
 
