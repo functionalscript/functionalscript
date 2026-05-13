@@ -18,6 +18,7 @@ const job = (
     rust: boolean,
     nodeExtra: readonly MetaStep[],
     denoExtra: readonly MetaStep[],
+    bunExtra: readonly MetaStep[],
 ) => (o: Os) => (a: Architecture): readonly [string, Job] => {
     const id = `${o}-${a}`
     const image = images[o][a]
@@ -25,7 +26,7 @@ const job = (
         ...(rust ? rustSteps(o, a) : []),
         ...nodeMainSteps(nodeExtra),
         ...denoSteps(denoExtra),
-        ...bunSteps(o, a),
+        ...bunSteps(bunExtra)(o, a),
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
@@ -34,11 +35,12 @@ export type Setup = {
     readonly rust: boolean,
     readonly nodeExtra: (os: Os) => readonly MetaStep[],
     readonly denoExtra: readonly MetaStep[],
+    readonly bunExtra: readonly MetaStep[],
 }
 
-export const ci = ({ rust, nodeExtra, denoExtra }: Setup): Effect<NodeOp, number> => {
+export const ci = ({ rust, nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, number> => {
     const jobs: Jobs = {
-        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o), denoExtra)(o)))),
+        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o), denoExtra, bunExtra)(o)))),
         ...nodeVersions,
         playwright: playwrightJob,
     }
@@ -64,6 +66,9 @@ const defaultEffect: Effect<NodeOp, number> = ci({
     denoExtra: [
         test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
         test({ run: 'deno task fjs t' }),
+    ],
+    bunExtra: [
+        test({ run: 'bun ./fs/fjs/module.ts t' }),
     ]
 })
 

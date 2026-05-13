@@ -26,7 +26,7 @@ const githubState = {
 }
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): Gha => {
-    const [state, result] = virtual(githubState)(ci({ rust, nodeExtra, denoExtra: [] }))
+    const [state, result] = virtual(githubState)(ci({ rust, nodeExtra, denoExtra: [], bunExtra: [] }))
     assert(result === 0, result)
     const dotGithub = state.root['.github']
     assert(dotGithub !== undefined && !isVec(dotGithub), dotGithub)
