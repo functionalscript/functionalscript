@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "license": "MIT",
   "exports": {
     "./fs/asn.1/module.f.ts": "./fs/asn.1/module.f.ts",
@@ -24,6 +24,7 @@
     "./fs/dev/index/module.f.ts": "./fs/dev/index/module.f.ts",
     "./fs/dev/module.f.ts": "./fs/dev/module.f.ts",
     "./fs/dev/tf/module.f.ts": "./fs/dev/tf/module.f.ts",
+    "./fs/dev/tf/module.ts": "./fs/dev/tf/module.ts",
     "./fs/dev/version/module.f.ts": "./fs/dev/version/module.f.ts",
     "./fs/djs/ast/module.f.ts": "./fs/djs/ast/module.f.ts",
     "./fs/djs/module.f.ts": "./fs/djs/module.f.ts",
