@@ -14,13 +14,17 @@ import { playwrightJob } from './playwright/module.f.ts'
 import { bunSteps } from './bun/module.f.ts'
 import { denoSteps } from './deno/module.f.ts'
 
-const job = (rust: boolean, extra: readonly MetaStep[]) => (o: Os) => (a: Architecture) : readonly [string, Job] => {
+const job = (
+    rust: boolean,
+    nodeExtra: readonly MetaStep[],
+    denoExtra: readonly MetaStep[],
+) => (o: Os) => (a: Architecture): readonly [string, Job] => {
     const id = `${o}-${a}`
     const image = images[o][a]
     const result = [
         ...(rust ? rustSteps(o, a) : []),
-        ...nodeMainSteps(extra),
-        ...denoSteps,
+        ...nodeMainSteps(nodeExtra),
+        ...denoSteps(denoExtra),
         ...bunSteps(o, a),
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
@@ -29,11 +33,12 @@ const job = (rust: boolean, extra: readonly MetaStep[]) => (o: Os) => (a: Archit
 export type Setup = {
     readonly rust: boolean,
     readonly nodeExtra: (os: Os) => readonly MetaStep[],
+    readonly denoExtra: readonly MetaStep[],
 }
 
-export const ci = ({ rust, nodeExtra }: Setup): Effect<NodeOp, number> => {
+export const ci = ({ rust, nodeExtra, denoExtra }: Setup): Effect<NodeOp, number> => {
     const jobs: Jobs = {
-        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
+        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o), denoExtra)(o)))),
         ...nodeVersions,
         playwright: playwrightJob,
     }
@@ -55,6 +60,10 @@ const defaultEffect: Effect<NodeOp, number> = ci({
         test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
         test({ run: 'fjs t' }),
         test({ run: 'npm uninstall functionalscript -g' }),
+    ],
+    denoExtra: [
+        test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
+        test({ run: 'deno task fjs t' }),
     ]
 })
 
