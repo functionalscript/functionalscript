@@ -15,13 +15,13 @@ export const images = {
 } as const
 
 // https://bun.sh/
-export const bun = '1.3.13'
+export const bun = '1.3.14'
 
 // https://deno.com/
 export const deno = '2.7.14'
 
 // https://www.npmjs.com/package/playwright
-export const playwright = '1.59.1'
+export const playwright = '1.60.0'
 
 // https://rust-lang.org/
 export const rust = '1.95.0'
@@ -39,4 +39,4 @@ export const wasmtime = '44.0.1'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260511.1'
+export const tsgo = '7.0.0-dev.20260512.1'

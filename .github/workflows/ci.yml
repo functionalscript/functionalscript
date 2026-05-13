@@ -36,7 +36,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260511.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260512.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -47,7 +47,7 @@
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
-            "bun-version": "1.3.13"
+            "bun-version": "1.3.14"
           }
         },
         {
@@ -207,7 +207,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260511.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260512.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -218,7 +218,7 @@
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
-            "bun-version": "1.3.13"
+            "bun-version": "1.3.14"
           }
         },
         {
@@ -372,7 +372,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260511.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260512.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -383,7 +383,7 @@
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
-            "bun-version": "1.3.13"
+            "bun-version": "1.3.14"
           }
         },
         {
@@ -537,7 +537,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260511.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260512.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -548,7 +548,7 @@
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
-            "bun-version": "1.3.13"
+            "bun-version": "1.3.14"
           }
         },
         {
@@ -702,7 +702,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260511.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260512.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -713,7 +713,7 @@
         {
           "uses": "oven-sh/setup-bun@v2",
           "with": {
-            "bun-version": "1.3.13"
+            "bun-version": "1.3.14"
           }
         },
         {
@@ -873,7 +873,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260511.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260512.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -1079,11 +1079,11 @@
           "uses": "actions/cache@v4",
           "with": {
             "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-24.04-playwright-1.59.1"
+            "key": "ubuntu-24.04-playwright-1.60.0"
           }
         },
         {
-          "run": "npm install -g playwright@1.59.1"
+          "run": "npm install -g playwright@1.60.0"
         },
         {
           "run": "playwright install-deps"
