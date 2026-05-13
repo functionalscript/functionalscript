@@ -175,20 +175,19 @@ export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 
 /** Reads the tag of a thunk variant, or returns `null` for a `Const`. */
 const variantTag = (t: Type): string | null =>
-    typeof t === 'function' ? t()[0] as string : null
+    typeof t === 'function' ? t()[0] : null
 
-const isPrim0 = (s: string): boolean =>
-    (primitive0List as readonly string[]).includes(s)
+const isPrim0 = includes(primitive0List)
 
 type FlattenAcc = readonly[ReadonlySet<Type>, readonly Type[]]
 
 const flattenStep = ([visited, out]: FlattenAcc, t: Type): FlattenAcc => {
     if (typeof t === 'function' && !visited.has(t)) {
-        const nextVisited: ReadonlySet<Type> = new Set([...visited, t])
+        const nextVisited = new Set([...visited, t])
         const info = t()
         if (info[0] === 'or') {
-            const [v, inner] = (info.slice(1) as readonly Type[])
-                .reduce(flattenStep, [nextVisited, []] as FlattenAcc)
+            const [v, inner] = info.slice(1)
+                .reduce(flattenStep, [nextVisited, []])
             return [v, [...out, ...inner]]
         }
         return [nextVisited, [...out, t]]
@@ -204,7 +203,7 @@ const flattenStep = ([visited, out]: FlattenAcc, t: Type): FlattenAcc => {
  *   kept as-is, so self-referential `or` schemas terminate.
  */
 const flattenOr = (types: readonly Type[]): readonly Type[] =>
-    types.reduce(flattenStep, [new Set<Type>(), []] as FlattenAcc)[1]
+    types.reduce(flattenStep, [new Set<Type>(), []])[1]
 
 type CollectAcc = readonly[boolean, ReadonlySet<string>]
 
@@ -237,15 +236,15 @@ const dedupStep = ([primThunks, acc]: DedupAcc, t: Type): DedupAcc =>
  * Full structural subset (tuples/structs/`or`/recursive schemas) is left to
  * a future change — see goals 1 and 3 of issue 130.
  */
-const reduceOr = (types: readonly Type[]): readonly Type[] => {
+const reduceOr = <T extends Type[]>(types: readonly Type[]): readonly Type[] => {
     const flat = flattenOr(types)
     const [hasUnknown, primThunks] = flat.reduce(
         collectStep,
-        [false, new Set<string>()] as CollectAcc,
+        [false, new Set<string>()],
     )
     return hasUnknown
         ? [unknown]
-        : flat.reduce(dedupStep, [primThunks, []] as DedupAcc)[1]
+        : flat.reduce(dedupStep, [primThunks, []])[1]
 }
 
 /**
@@ -261,8 +260,8 @@ const reduceOr = (types: readonly Type[]): readonly Type[] => {
  * See `issues/130-or-optimization.md`.
  */
 export const or = <T extends readonly Type[]>(...types: T): Or<T> => {
-    const reduced = reduceOr(types)
-    return (() => ['or', ...reduced]) as unknown as Or<T>
+    const reduced = reduceOr(types) as T
+    return (() => ['or', ...reduced])
 }
 
 /** Constructs a schema that validates a value matching `T` or `undefined`. */
