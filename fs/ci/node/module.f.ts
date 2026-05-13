@@ -20,12 +20,12 @@ export const nodeTests = (version: string) => (extra: readonly MetaStep[]): read
 
 const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'
 
-const nodeTest = (v: string) => major(v) === '20' ? 'run test20' : 'test'
+// const nodeTest = (v: string) => major(v) === '20' ? 'run test20' : 'test'
 
 const nodeSteps = (v: string) => [
     install(installNode(v)),
     test({ run: 'npm ci' }),
-    test({ run: `npm ${nodeTest(v)}`}),
+    test({ run: 'npm t'}),
 ]
 
 export const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [

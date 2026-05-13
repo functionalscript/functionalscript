@@ -1006,26 +1006,6 @@
         }
       ]
     },
-    "node20": {
-      "runs-on": "ubuntu-24.04",
-      "steps": [
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "20.20.2"
-          }
-        },
-        {
-          "uses": "actions/checkout@v5"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npm run test20"
-        }
-      ]
-    },
     "node22": {
       "runs-on": "ubuntu-24.04",
       "steps": [
@@ -1042,7 +1022,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         }
       ]
     },
@@ -1062,7 +1042,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         }
       ]
     },
