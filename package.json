@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.14.2",
+  "version": "0.14.3",
   "type": "module",
   "files": [
     "**/*.js",
@@ -9,7 +9,6 @@
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
     "prepack": "tsc --NoEmit false",
-    "test20": "npm run prepack && node --test",
     "test": "tsc && node --test --experimental-strip-types --experimental-test-coverage --test-coverage-include=**/module.f.ts",
     "index": "node ./fs/fjs/module.ts r ./fs/dev/index/module.f.ts",
     "fst": "node ./fs/fjs/module.ts t",
