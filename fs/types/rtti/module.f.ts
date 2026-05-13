@@ -173,9 +173,110 @@ export const record: MakeType1<'record'> = type1('record')
 /** Schema type for a union of types `T`. */
 export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 
-/** Constructs a schema that validates a value matching any of the given schemas. */
-export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
-    () => ['or', ...types]
+/**
+ * Walks `types` and produces a flat list of `or` variants:
+ *
+ * - Variants whose thunk resolves to `['or', ...]` are inlined.
+ * - Each thunk is resolved at most once; thunks reached a second time are
+ *   kept as-is, so self-referential `or` schemas terminate.
+ */
+const flattenOr = (types: readonly Type[]): readonly Type[] => {
+    const out: Type[] = []
+    const visited = new Set<Type>()
+    const walk = (ts: readonly Type[]): void => {
+        for (const t of ts) {
+            if (typeof t === 'function' && !visited.has(t)) {
+                visited.add(t)
+                const info = t()
+                if (info[0] === 'or') {
+                    walk(info.slice(1) as readonly Type[])
+                    continue
+                }
+            }
+            out.push(t)
+        }
+    }
+    walk(types)
+    return out
+}
+
+/** Reads the tag of a thunk variant once, or returns `null` for a `Const`. */
+const variantTag = (t: Type): string | null =>
+    typeof t === 'function' ? t()[0] as string : null
+
+/**
+ * Equality on `Type` variants used for `or` deduplication.
+ *
+ * - Reference equality covers thunks and object/tuple consts.
+ * - `Object.is` covers primitive consts (so `NaN` and `±0` behave like
+ *   `constPrimitiveValidate`).
+ *
+ * Deep structural equality on struct/tuple consts is intentionally out of
+ * scope — see goals 1 and 3 of issue 130.
+ */
+const sameVariant = (a: Type, b: Type): boolean => {
+    const ta = typeof a
+    if (ta !== typeof b) { return false }
+    // For primitive consts, use `Object.is` so `+0` and `-0` are distinct (and
+    // `NaN` is equal to itself), matching `constPrimitiveValidate`. Reference
+    // equality is reserved for objects/functions, where `0 === -0` would
+    // otherwise spuriously collapse them.
+    if (ta !== 'function' && ta !== 'object') { return Object.is(a, b) }
+    return a === b
+}
+
+/**
+ * Drops variants that are trivially subsumed by another variant.
+ *
+ * Trivial subset rules handled here:
+ * - any variant ⊆ `unknown` — if `unknown` is present, the entire union is
+ *   `unknown`.
+ * - a primitive const ⊆ its primitive type thunk — `42 ⊆ number`,
+ *   `'hi' ⊆ string`, `true ⊆ boolean`, `7n ⊆ bigint`.
+ *
+ * Full structural subset (tuples/structs/`or`/recursive schemas) is left to
+ * a future change — see goals 1 and 3 of issue 130.
+ */
+const reduceOr = (types: readonly Type[]): readonly Type[] => {
+    const flat = flattenOr(types)
+    const primThunks = new Set<string>()
+    for (const t of flat) {
+        const tag = variantTag(t)
+        if (tag === 'unknown') { return [unknown] }
+        if (tag === 'boolean' || tag === 'number' || tag === 'string' || tag === 'bigint') {
+            primThunks.add(tag)
+        }
+    }
+    const result: Type[] = []
+    for (const t of flat) {
+        const tt = typeof t
+        if ((tt === 'boolean' || tt === 'number' || tt === 'string' || tt === 'bigint')
+            && primThunks.has(tt)) {
+            continue
+        }
+        if (result.some(r => sameVariant(r, t))) { continue }
+        result.push(t)
+    }
+    return result
+}
+
+/**
+ * Constructs a schema that validates a value matching any of the given schemas.
+ *
+ * The resulting `or` is normalized at construction time:
+ * - nested `or` thunks are flattened into the outer union,
+ * - any `unknown` variant collapses the whole union to `unknown`,
+ * - primitive consts subsumed by a matching primitive thunk are dropped
+ *   (e.g. `or(42, number)` → `or(number)`),
+ * - duplicate variants (by reference or `Object.is` for primitives) are
+ *   deduplicated.
+ *
+ * See `issues/130-or-optimization.md`.
+ */
+export const or = <T extends readonly Type[]>(...types: T): Or<T> => {
+    const reduced = reduceOr(types)
+    return (() => ['or', ...reduced]) as unknown as Or<T>
+}
 
 /** Constructs a schema that validates a value matching `T` or `undefined`. */
 export const option = <T extends Type>(t: T): Or<readonly[T, undefined]> =>
