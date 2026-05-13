@@ -26,9 +26,14 @@ const job = (rust: boolean, extra: readonly MetaStep[]) => (o: Os) => (a: Archit
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
-export const ci = (rust: boolean, extra: (os: Os) => readonly MetaStep[]): Effect<NodeOp, number> => {
+export type Setup = {
+    readonly rust: boolean,
+    readonly nodeExtra: (os: Os) => readonly MetaStep[],
+}
+
+export const ci = ({ rust, nodeExtra }: Setup): Effect<NodeOp, number> => {
     const jobs: Jobs = {
-        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, extra(o))(o)))),
+        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
         ...nodeVersions,
         playwright: playwrightJob,
     }
@@ -42,12 +47,15 @@ export const ci = (rust: boolean, extra: (os: Os) => readonly MetaStep[]): Effec
         .step(() => pure(0))
 }
 
-const defaultEffect: Effect<NodeOp, number> = ci(true, o => [
-    test({ run: 'npm pack' }),
-    test({ run: `npm install -g ${findTgz(o)}` }),
-    test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
-    test({ run: 'fjs t' }),
-    test({ run: 'npm uninstall functionalscript -g' }),
-])
+const defaultEffect: Effect<NodeOp, number> = ci({
+    rust: true,
+    nodeExtra: o => [
+        test({ run: 'npm pack' }),
+        test({ run: `npm install -g ${findTgz(o)}` }),
+        test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
+        test({ run: 'fjs t' }),
+        test({ run: 'npm uninstall functionalscript -g' }),
+    ]
+})
 
 export default () => defaultEffect
