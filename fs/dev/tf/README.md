@@ -3,7 +3,9 @@
 To enable testing in your project, you can add a simple test runner file `all.tets.ts` like this:
 
 ```ts
-import {} from 'functionalscript/dev/tf/all.test.js'
+import { run } from 'functionalscript/fs/dev/tf/all.test.js'
+
+await run()
 ```
 
 And then run it as
