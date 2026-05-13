@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.14.1
+
+- CI: add `ci(rust: boolean)` function to conditionally include Rust steps [780](https://github.com/functionalscript/functionalscript/pull/780)
 - RTTI: fix `NaN` handling in const validation by using `Object.is` instead of `===` [777](https://github.com/functionalscript/functionalscript/pull/777)
 
 ## 0.14.0
