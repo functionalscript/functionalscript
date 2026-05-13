@@ -173,6 +173,10 @@ export const record: MakeType1<'record'> = type1('record')
 /** Schema type for a union of types `T`. */
 export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 
+/** Reads the tag of a thunk variant, or returns `null` for a `Const`. */
+const variantTag = (t: Type): string | null =>
+    typeof t === 'function' ? t()[0] as string : null
+
 /**
  * Walks `types` and produces a flat list of `or` variants:
  *
@@ -181,48 +185,21 @@ export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
  *   kept as-is, so self-referential `or` schemas terminate.
  */
 const flattenOr = (types: readonly Type[]): readonly Type[] => {
-    const out: Type[] = []
-    const visited = new Set<Type>()
-    const walk = (ts: readonly Type[]): void => {
-        for (const t of ts) {
-            if (typeof t === 'function' && !visited.has(t)) {
-                visited.add(t)
-                const info = t()
-                if (info[0] === 'or') {
-                    walk(info.slice(1) as readonly Type[])
-                    continue
-                }
+    type Acc = readonly[ReadonlySet<Type>, readonly Type[]]
+    const step = ([visited, out]: Acc, t: Type): Acc => {
+        if (typeof t === 'function' && !visited.has(t)) {
+            const nextVisited: ReadonlySet<Type> = new Set([...visited, t])
+            const info = t()
+            if (info[0] === 'or') {
+                const [v, inner] = (info.slice(1) as readonly Type[])
+                    .reduce(step, [nextVisited, []] as Acc)
+                return [v, [...out, ...inner]]
             }
-            out.push(t)
+            return [nextVisited, [...out, t]]
         }
+        return [visited, [...out, t]]
     }
-    walk(types)
-    return out
-}
-
-/** Reads the tag of a thunk variant once, or returns `null` for a `Const`. */
-const variantTag = (t: Type): string | null =>
-    typeof t === 'function' ? t()[0] as string : null
-
-/**
- * Equality on `Type` variants used for `or` deduplication.
- *
- * - Reference equality covers thunks and object/tuple consts.
- * - `Object.is` covers primitive consts (so `NaN` and `±0` behave like
- *   `constPrimitiveValidate`).
- *
- * Deep structural equality on struct/tuple consts is intentionally out of
- * scope — see goals 1 and 3 of issue 130.
- */
-const sameVariant = (a: Type, b: Type): boolean => {
-    const ta = typeof a
-    if (ta !== typeof b) { return false }
-    // For primitive consts, use `Object.is` so `+0` and `-0` are distinct (and
-    // `NaN` is equal to itself), matching `constPrimitiveValidate`. Reference
-    // equality is reserved for objects/functions, where `0 === -0` would
-    // otherwise spuriously collapse them.
-    if (ta !== 'function' && ta !== 'object') { return Object.is(a, b) }
-    return a === b
+    return types.reduce(step, [new Set<Type>(), []] as Acc)[1]
 }
 
 /**
@@ -234,30 +211,35 @@ const sameVariant = (a: Type, b: Type): boolean => {
  * - a primitive const ⊆ its primitive type thunk — `42 ⊆ number`,
  *   `'hi' ⊆ string`, `true ⊆ boolean`, `7n ⊆ bigint`.
  *
+ * `Object.is` is used for deduplication, so `NaN` collapses with itself and
+ * `+0` and `-0` stay distinct — matching `constPrimitiveValidate`.
+ *
  * Full structural subset (tuples/structs/`or`/recursive schemas) is left to
  * a future change — see goals 1 and 3 of issue 130.
  */
 const reduceOr = (types: readonly Type[]): readonly Type[] => {
     const flat = flattenOr(types)
-    const primThunks = new Set<string>()
-    for (const t of flat) {
-        const tag = variantTag(t)
-        if (tag === 'unknown') { return [unknown] }
-        if (tag === 'boolean' || tag === 'number' || tag === 'string' || tag === 'bigint') {
-            primThunks.add(tag)
-        }
-    }
-    const result: Type[] = []
-    for (const t of flat) {
-        const tt = typeof t
-        if ((tt === 'boolean' || tt === 'number' || tt === 'string' || tt === 'bigint')
-            && primThunks.has(tt)) {
-            continue
-        }
-        if (result.some(r => sameVariant(r, t))) { continue }
-        result.push(t)
-    }
-    return result
+    type Collect = readonly[boolean, ReadonlySet<string>]
+    const isPrim0 = (s: string): boolean =>
+        (primitive0List as readonly string[]).includes(s)
+    const [hasUnknown, primThunks] = flat.reduce<Collect>(
+        ([u, p], t) => {
+            if (u) { return [u, p] }
+            const tag = variantTag(t)
+            if (tag === 'unknown') { return [true, p] }
+            if (tag !== null && isPrim0(tag)) { return [u, new Set([...p, tag])] }
+            return [u, p]
+        },
+        [false, new Set<string>()] as Collect,
+    )
+    if (hasUnknown) { return [unknown] }
+    return flat.reduce<readonly Type[]>(
+        (acc, t) =>
+            primThunks.has(typeof t) || acc.some(r => Object.is(r, t))
+                ? acc
+                : [...acc, t],
+        [],
+    )
 }
 
 /**
@@ -268,8 +250,7 @@ const reduceOr = (types: readonly Type[]): readonly Type[] => {
  * - any `unknown` variant collapses the whole union to `unknown`,
  * - primitive consts subsumed by a matching primitive thunk are dropped
  *   (e.g. `or(42, number)` → `or(number)`),
- * - duplicate variants (by reference or `Object.is` for primitives) are
- *   deduplicated.
+ * - duplicate variants are deduplicated via `Object.is`.
  *
  * See `issues/130-or-optimization.md`.
  */
