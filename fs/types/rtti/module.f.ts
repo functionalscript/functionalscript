@@ -173,9 +173,96 @@ export const record: MakeType1<'record'> = type1('record')
 /** Schema type for a union of types `T`. */
 export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 
-/** Constructs a schema that validates a value matching any of the given schemas. */
-export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
-    () => ['or', ...types]
+/** Reads the tag of a thunk variant, or returns `null` for a `Const`. */
+const variantTag = (t: Type): string | null =>
+    typeof t === 'function' ? t()[0] : null
+
+const isPrim0 = includes(primitive0List)
+
+type FlattenAcc = readonly[ReadonlySet<Type>, readonly Type[]]
+
+const flattenStep = ([visited, out]: FlattenAcc, t: Type): FlattenAcc => {
+    if (typeof t === 'function' && !visited.has(t)) {
+        const nextVisited = new Set([...visited, t])
+        const info = t()
+        if (info[0] === 'or') {
+            const [v, inner] = info.slice(1)
+                .reduce(flattenStep, [nextVisited, []])
+            return [v, [...out, ...inner]]
+        }
+        return [nextVisited, [...out, t]]
+    }
+    return [visited, [...out, t]]
+}
+
+/**
+ * Walks `types` and produces a flat list of `or` variants:
+ *
+ * - Variants whose thunk resolves to `['or', ...]` are inlined.
+ * - Each thunk is resolved at most once; thunks reached a second time are
+ *   kept as-is, so self-referential `or` schemas terminate.
+ */
+const flattenOr = (types: readonly Type[]): readonly Type[] =>
+    types.reduce(flattenStep, [new Set<Type>(), []])[1]
+
+type CollectAcc = readonly[boolean, ReadonlySet<string>]
+
+const collectStep = ([u, p]: CollectAcc, t: Type): CollectAcc => {
+    if (u) { return [u, p] }
+    const tag = variantTag(t)
+    if (tag === 'unknown') { return [true, p] }
+    return tag !== null && isPrim0(tag) ? [u, new Set([...p, tag])] : [u, p]
+}
+
+type DedupAcc = readonly[ReadonlySet<string>, readonly Type[]]
+
+const dedupStep = ([primThunks, acc]: DedupAcc, t: Type): DedupAcc =>
+    primThunks.has(typeof t) || acc.some(r => Object.is(r, t))
+        ? [primThunks, acc]
+        : [primThunks, [...acc, t]]
+
+/**
+ * Drops variants that are trivially subsumed by another variant.
+ *
+ * Trivial subset rules handled here:
+ * - any variant ⊆ `unknown` — if `unknown` is present, the entire union is
+ *   `unknown`.
+ * - a primitive const ⊆ its primitive type thunk — `42 ⊆ number`,
+ *   `'hi' ⊆ string`, `true ⊆ boolean`, `7n ⊆ bigint`.
+ *
+ * `Object.is` is used for deduplication, so `NaN` collapses with itself and
+ * `+0` and `-0` stay distinct — matching `constPrimitiveValidate`.
+ *
+ * Full structural subset (tuples/structs/`or`/recursive schemas) is left to
+ * a future change — see goals 1 and 3 of issue 130.
+ */
+const reduceOr = <T extends Type[]>(types: readonly Type[]): readonly Type[] => {
+    const flat = flattenOr(types)
+    const [hasUnknown, primThunks] = flat.reduce(
+        collectStep,
+        [false, new Set<string>()],
+    )
+    return hasUnknown
+        ? [unknown]
+        : flat.reduce(dedupStep, [primThunks, []])[1]
+}
+
+/**
+ * Constructs a schema that validates a value matching any of the given schemas.
+ *
+ * The resulting `or` is normalized at construction time:
+ * - nested `or` thunks are flattened into the outer union,
+ * - any `unknown` variant collapses the whole union to `unknown`,
+ * - primitive consts subsumed by a matching primitive thunk are dropped
+ *   (e.g. `or(42, number)` → `or(number)`),
+ * - duplicate variants are deduplicated via `Object.is`.
+ *
+ * See `issues/130-or-optimization.md`.
+ */
+export const or = <T extends readonly Type[]>(...types: T): Or<T> => {
+    const reduced = reduceOr(types) as T
+    return (() => ['or', ...reduced])
+}
 
 /** Constructs a schema that validates a value matching `T` or `undefined`. */
 export const option = <T extends Type>(t: T): Or<readonly[T, undefined]> =>
