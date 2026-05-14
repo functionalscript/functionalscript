@@ -116,6 +116,53 @@ export default {
                 assertEq(variantsOf(or(0 as number, -0 as number)).length, 2)
             },
         },
+        booleanPairCollapse: {
+            basic: () => {
+                // `{ true, false }` covers all of `boolean` — collapses to `boolean`.
+                const v = variantsOf(or(true as const, false as const))
+                assertEq(v.length, 1)
+                assertEq(v[0], boolean)
+            },
+            reversed: () => {
+                // Order doesn't matter.
+                const v = variantsOf(or(false as const, true as const))
+                assertEq(v.length, 1)
+                assertEq(v[0], boolean)
+            },
+            repeated: () => {
+                // Duplicate `true`/`false` consts still collapse to a single `boolean`.
+                const v = variantsOf(or(true as const, true as const, false as const, false as const))
+                assertEq(v.length, 1)
+                assertEq(v[0], boolean)
+            },
+            withOtherVariants: () => {
+                // Other variants are preserved; const number `42` is dropped by the
+                // existing `number` thunk subset rule.
+                const v = variantsOf(or(true as const, 42 as const, false as const, number))
+                assertEq(v.length, 2)
+                assertEq(v[0], boolean)
+                assertEq(v[1], number)
+            },
+            onlyTrueKept: () => {
+                // Without a matching `false`, no collapse — the const is kept as-is.
+                const v = variantsOf(or(true as const))
+                assertEq(v.length, 1)
+                assertEq(v[0], true)
+            },
+            onlyFalseKept: () => {
+                // Without a matching `true`, no collapse — the const is kept as-is.
+                const v = variantsOf(or(false as const))
+                assertEq(v.length, 1)
+                assertEq(v[0], false)
+            },
+            nested: () => {
+                // Collapse applies after flattening nested `or`s.
+                const v = variantsOf(or(or(true as const, 42 as const), false as const))
+                assertEq(v.length, 2)
+                assertEq(v[0], boolean)
+                assertEq(v[1], 42)
+            },
+        },
         emptyStillNever: () => {
             assertEq(variantsOf(or()).length, 0)
             assertEq(variantsOf(never).length, 0)

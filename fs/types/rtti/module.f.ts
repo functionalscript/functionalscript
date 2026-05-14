@@ -214,6 +214,26 @@ const collectStep = ([u, p]: CollectAcc, t: Type): CollectAcc => {
     return tag !== null && isPrim0(tag) ? [u, new Set([...p, tag])] : [u, p]
 }
 
+type CollapseAcc = readonly[boolean, readonly Type[]]
+
+const collapseBoolStep = ([replaced, acc]: CollapseAcc, t: Type): CollapseAcc => {
+    if (typeof t !== 'boolean') { return [replaced, [...acc, t]] }
+    if (replaced) { return [replaced, acc] }
+    return [true, [...acc, boolean]]
+}
+
+/**
+ * Collapses the full `{ true, false }` coverage of `boolean` into the
+ * `boolean` thunk. When both `true` and `false` consts appear in `flat` and
+ * the `boolean` thunk is not already present, replace the first boolean const
+ * with the `boolean` thunk and drop the rest. The subsequent dedup step then
+ * removes any other boolean consts that fall under the new primitive thunk.
+ */
+const collapseBooleanPair = (flat: readonly Type[]): readonly Type[] =>
+    flat.includes(true) && flat.includes(false)
+        ? flat.reduce(collapseBoolStep, [false, []] as CollapseAcc)[1]
+        : flat
+
 type DedupAcc = readonly[ReadonlySet<string>, readonly Type[]]
 
 const dedupStep = ([primThunks, acc]: DedupAcc, t: Type): DedupAcc =>
@@ -229,6 +249,8 @@ const dedupStep = ([primThunks, acc]: DedupAcc, t: Type): DedupAcc =>
  *   `unknown`.
  * - a primitive const ⊆ its primitive type thunk — `42 ⊆ number`,
  *   `'hi' ⊆ string`, `true ⊆ boolean`, `7n ⊆ bigint`.
+ * - the pair `{ true, false }` covers `boolean` — `or(true, false)` collapses
+ *   to `or(boolean)`.
  *
  * `Object.is` is used for deduplication, so `NaN` collapses with itself and
  * `+0` and `-0` stay distinct — matching `constPrimitiveValidate`.
@@ -237,7 +259,7 @@ const dedupStep = ([primThunks, acc]: DedupAcc, t: Type): DedupAcc =>
  * a future change — see goals 1 and 3 of issue 130.
  */
 const reduceOr = <T extends Type[]>(types: readonly Type[]): readonly Type[] => {
-    const flat = flattenOr(types)
+    const flat = collapseBooleanPair(flattenOr(types))
     const [hasUnknown, primThunks] = flat.reduce(
         collectStep,
         [false, new Set<string>()],
@@ -253,6 +275,8 @@ const reduceOr = <T extends Type[]>(types: readonly Type[]): readonly Type[] => 
  * The resulting `or` is normalized at construction time:
  * - nested `or` thunks are flattened into the outer union,
  * - any `unknown` variant collapses the whole union to `unknown`,
+ * - the pair `{ true, false }` collapses to the `boolean` thunk
+ *   (e.g. `or(true, false)` → `or(boolean)`),
  * - primitive consts subsumed by a matching primitive thunk are dropped
  *   (e.g. `or(42, number)` → `or(number)`),
  * - duplicate variants are deduplicated via `Object.is`.

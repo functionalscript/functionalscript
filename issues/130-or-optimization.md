@@ -14,8 +14,8 @@ Examples:
 - [x] Any type is a subset of `unknown` — `or(unknown, ...rest)` simplifies to `unknown`.
 - [x] Duplicate variants (`A ⊆ A` and `A ⊇ A`) collapse to a single variant.
 - [ ] A complete set of variants that together cover a wider type collapses to that wider type:
-  - `['or', true, false]` ≡ `['boolean']`.
-  - `['or', ...all primitive type thunks, ...all object/array thunks]` ≡ `['unknown']` (a union of every variant that makes up `unknown` is `unknown`).
+  - [x] `['or', true, false]` ≡ `['boolean']`.
+  - [ ] `['or', ...all primitive type thunks, ...all object/array thunks]` ≡ `['unknown']` (a union of every variant that makes up `unknown` is `unknown`).
 
 This requires generic subset utilities on `Type`:
 
