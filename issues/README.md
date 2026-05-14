@@ -292,7 +292,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API, but should not participate in the recursive evaluation chain.
 - [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
 - [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
-- [ ] [130-or-optimization](./130-or-optimization.md). Optimize and normalize `or`: drop subset variants, flatten nested `or`, and produce a canonical result so equivalent constructions are structurally equal. **Paused — blocked by 143.**
+- [ ] [130-or-optimization](./130-or-optimization.md). **Superseded by 143.** Canonical-form properties of `or` are now properties of the data form by construction; nothing to do on the thunk form.
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
@@ -341,7 +341,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
   Options: use `Object.is(rtti, value)`, or `Number.isNaN(rtti) && Number.isNaN(value)` as an extra branch, or explicitly forbid `NaN` (and `±Infinity`?) as const schemas. Decide whether `+0` vs `-0` should be distinguished (`===` treats them equal; `Object.is` distinguishes them).
 
   Audit other primitive comparisons in the codebase for the same issue.
-- [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Prerequisite for the remaining goals of 130 (canonical ordering, structural subset, coverage collapse).
+- [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Two forms with one job each — thunks for ergonomic construction, data for all algebra (union, subset, canonical form, dispatch). Supersedes 130.
 
 ## Language Specification
 

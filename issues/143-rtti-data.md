@@ -1,17 +1,29 @@
 # 143. RTTI: Serializable Data Representation
 
-Introduce a function-free, serializable representation of `Type` in [../fs/types/rtti/module.f.ts](../fs/types/rtti/module.f.ts), modeled after [../fs/bnf/data/](../fs/bnf/data/). All structural analysis on schemas — flattening, deduplication, subset removal, value-set coverage collapse, and canonical ordering — should run on this data form instead of on the lazy thunk graph.
+A function-free, serializable representation of `Type` in [../fs/types/rtti/module.f.ts](../fs/types/rtti/module.f.ts), modeled after [../fs/bnf/data/](../fs/bnf/data/). The motivation is to give RTTI a clear two-form architecture and to move *all* schema algebra (union, subset, normalization, dispatch) off the thunk graph and onto a representation built for it.
 
-## Motivation
+## Principle
 
-The current `Type` is `Const | (() => Info)`. Function thunks are convenient for recursion but hard to compare: two thunks that describe the same schema are unequal under `Object.is`, have no natural ordering, and need bespoke walking with a visited set to terminate on cycles. The current ad‑hoc analysis in `reduceOr`/`flattenOr` handles a few special cases (`unknown` collapse, primitive-thunk subset, same-reference dedup) but does not scale to the remaining goals of [130](./130-or-optimization.md):
+Two forms with one job each:
 
-- Canonical ordering of variants (`or(a, b) ≡ or(b, a)`).
-- Structural subset for tuples/structs.
-- Full coverage collapse (`{ true, false }` → `boolean`, all primitive+container thunks → `unknown`).
-- Stable identity for equivalent schemas built two different ways.
+1. **Thunk form** — what users construct. Cheap, lazy, ergonomic. `or(...types)` simply captures its arguments; no flattening, no dedup, no subset analysis, no allocation surprise. Recursion uses self-referencing thunks. This is the construction surface and nothing more.
+2. **Data form** — function-free, comparable, sortable, serializable. Every node has a stable structural identity. All schema algebra lives here: canonical ordering, structural equality, subset, union normalization, coverage collapse, and any future operations (intersection, negation, etc.).
 
-A serializable form gives us all of these for free: every node is comparable, sortable, and serializable; recursion becomes a named reference into a rule map.
+`toData` is the single bridge. It runs once, lazily, when a consumer actually needs canonical form (validation, parsing, serialization, comparison). Schemas that are built but never consumed pay nothing.
+
+### Two parsers
+
+A natural consequence of the two forms is two parsers:
+
+- **Thunk-direct parser** — what `fs/types/rtti/validate/` and `fs/types/rtti/parse/` already are. Walks the thunk graph at dispatch time. Simple, no preprocessing, good for ad-hoc use.
+- **Data-driven parser** — consumes a `RuleSet` produced by `toData`. Benefits from the canonical form: smaller dispatch tables, sub-set drops already applied, predictable variant ordering. Good for hot paths and for any consumer that needs the same schema many times.
+
+Both should be supported. Users who don't care reach for the thunk parser; users who care about throughput or repeat use go through `toData` once and use the data parser.
+
+### What this implies
+
+- Schema identity is a property of the *data* form, not the thunk form. Two `or(a, b)` calls produce two distinct thunks; `toData(or(a, b))` and `toData(or(b, a))` produce structurally identical data. This is the design, not a defect — do not add memoization to `or(...)` to "fix" thunk identity.
+- The current `reduceOr` / `flattenOr` machinery in `or` is the wrong layer and should be removed when `toData` lands. See [130](./130-or-optimization.md), which is superseded by this issue.
 
 ## Design
 
@@ -27,17 +39,26 @@ Sketches of the direction to explore:
 
 The right choice of primitives (which kinds, how each kind encodes its sub-set, how references are named) is the open question. Once fixed, `or` normalization, `equal`, `subset`, canonical ordering, and serialization all fall out from kind-wise set operations.
 
-## Downstream consumers
-
-`validate` and `parse` can be refactored to consume the data form directly. The thunk form remains the user-facing API; a single `toData` (and possibly `fromData`) bridges the two. As a stepping stone, `validate`/`parse` may keep their thunk-based dispatch and only call into the data form for `or` normalization.
+Prior art worth reading before committing to a shape: CDuce / Castagna's work on semantic subtyping, and BDD-based encodings of set-theoretic types — they have already worked out canonical forms and decidable subtyping for recursive types.
 
 ## Implications for `or`
 
-Once the data form exists, `or` itself should be reverted to a lazy, allocation-free constructor: drop the current `reduceOr`/`flattenOr` pass and have `or(...types)` simply return a thunk that captures its arguments. All normalization — flattening, dedup, subset removal, coverage collapse, canonical ordering — moves to the data form and runs only once, when the schema is converted via `toData` ahead of validation, parsing, or any other operation that needs a canonical view. Schemas that are constructed but never used pay nothing; schemas that are used pay a single one-shot conversion.
+Once the data form exists, `or` reverts to a one-line lazy constructor:
+
+```ts
+export const or = <T extends readonly Type[]>(...types: T): Or<T> =>
+    () => ['or', ...types]
+```
+
+The existing `reduceOr` / `flattenOr` pass — and the test cases that exercise it — should be deleted. Equivalent behavior is re-established on the data form, where it generalizes uniformly across all operations and consumers.
+
+## Downstream consumers
+
+`validate` and `parse` keep their thunk-direct implementations unchanged. A data-driven variant is added that consumes a `RuleSet`. The two coexist.
 
 ## Related
 
-- [130](./130-or-optimization.md) — depends on this issue; the remaining goals (canonical ordering, structural subset, coverage collapse) are naturally expressed on the data form.
+- [130](./130-or-optimization.md) — superseded by this issue. With the two-form architecture, "optimize `or`" is not a separate project: the canonical-form properties are properties of the data form by construction.
 - [141](./README.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
 
 ## Location
