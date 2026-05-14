@@ -11,53 +11,30 @@ The current `Type` is `Const | (() => Info)`. Function thunks are convenient for
 - Full coverage collapse (`{ true, false }` → `boolean`, all primitive+container thunks → `unknown`).
 - Stable identity for equivalent schemas built two different ways.
 
-A serializable form gives us all of these for free: every node is comparable, sortable, and serializable; recursion becomes a named reference into a `Rule` map.
+A serializable form gives us all of these for free: every node is comparable, sortable, and serializable; recursion becomes a named reference into a rule map.
 
-## Shape (sketch)
+## Design
 
-Following the conventions of `fs/bnf/data/module.f.ts`:
+The concrete data shape still needs to be designed — this issue is the place to do that work. The design should be grounded in **set theory**: a `Type` denotes a set of values, and `or` is set union. The representation should make that structure explicit so that union, intersection, subset, and equality become straightforward operations rather than tag-by-tag case analysis.
 
-```ts
-// Each named rule is a `Const`, a tagged nullary marker, or a tagged node
-// whose children are name references into the rule set.
-type Rule =
-    | readonly['const', Const]
-    | readonly['unknown']
-    | readonly['bigint']
-    | readonly['boolean']
-    | readonly['number']
-    | readonly['string']
-    | readonly['array', string]
-    | readonly['record', string]
-    | readonly['or', readonly string[]]
+Sketches of the direction to explore:
 
-type RuleSet = Readonly<Record<string, Rule>>
+- **Top level is a union of subsets of non-overlapping kinds of data.** A schema is a disjoint union over a fixed set of "kinds" (e.g. `null`-ish, booleans, numbers, strings, bigints, arrays/tuples, records/structs). Each kind contributes its own sub-representation; the kinds do not overlap, so union/intersection/subset reduce to kind-wise operations.
+- **Finite-domain kinds can be encoded as bitsets.** `null`, `undefined`, `true`, `false` are singletons of a fixed, small enumeration; a bitset captures any subset of them. `or(true, false)` then collapses to "boolean" simply because the corresponding bits are set; no special-case rule needed.
+- **Arrays and tuples belong to the same kind.** A tuple is just an array whose length is constrained and whose positions carry distinct element types — the value sets overlap (e.g. `readonly [number]` ⊂ `readonly number[]`), so they must share a single representation rather than be separate variants.
+- **Records and structs belong to the same kind**, for the same reason: a struct is a record whose keys are constrained and whose values carry distinct types per key.
+- **Recursion via named/indexed references.** Following `fs/bnf/data/`, the overall shape can be a `Record<string, UnionSet>` or `readonly UnionSet[]`; nested types reference their definitions by name or index. Cycles become reference cycles in the map, not function thunks.
 
-// Entry-point: returns the rule set plus the name of the root rule.
-const toData = (t: Type): readonly[RuleSet, string] => ...
-```
-
-`toData` walks the thunk graph, deduplicating reachable thunks by identity (à la `find`/`toDataAdd` in `bnf/data`) and giving each one a stable name. Cycles terminate naturally — a thunk reached a second time resolves to its existing name. `Const` values are interned in the same rule map.
-
-## Normalization on the data form
-
-Once a schema is in `RuleSet` form, `or` normalization is straightforward:
-
-1. **Flatten.** Inline any variant whose target rule is itself `['or', ...]`.
-2. **Deduplicate.** Variant lists are sets of rule names — duplicates collapse trivially.
-3. **Subset drop.** With every node sortable and comparable, generic `equal`/`subset` predicates can be written by recursing over `RuleSet`.
-4. **Coverage collapse.** `{ true, false }` → `boolean`; the full primitive+container cover → `unknown`.
-5. **Canonical ordering.** Sort variant names by a total order on `Rule` (tag, then payload). This yields a stable, structurally comparable result for any two equivalent constructions.
+The right choice of primitives (which kinds, how each kind encodes its sub-set, how references are named) is the open question. Once fixed, `or` normalization, `equal`, `subset`, canonical ordering, and serialization all fall out from kind-wise set operations.
 
 ## Downstream consumers
 
-`validate` and `parse` can be refactored to consume `RuleSet` directly. The thunk form remains the user-facing API; `toData` is the single bridge. As a stepping stone, `validate`/`parse` may keep their thunk-based dispatch and call `toData` only inside `or` to normalize its variants.
+`validate` and `parse` can be refactored to consume the data form directly. The thunk form remains the user-facing API; a single `toData` (and possibly `fromData`) bridges the two. As a stepping stone, `validate`/`parse` may keep their thunk-based dispatch and only call into the data form for `or` normalization.
 
 ## Related
 
 - [130](./130-or-optimization.md) — depends on this issue; the remaining goals (canonical ordering, structural subset, coverage collapse) are naturally expressed on the data form.
 - [141](./README.md) — universal, extensible type system based on custom RTTI. The `equal`/`subset` predicates introduced here are the first concrete instance of the proposed `TypeSystem<T>` interface.
-- [125](./README.md) — `bun test` returned-function handling. Unrelated to dispatch, but shares the goal of making schema-driven test data uniform.
 
 ## Location
 
