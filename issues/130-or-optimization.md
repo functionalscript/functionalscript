@@ -1,5 +1,13 @@
 # 130. RTTI: `or` Optimization and Normalization
 
+> **Status: paused — blocked by [143](./143-rtti-data.md).**
+>
+> All further work on this issue is on hold until the serializable data
+> representation lands. The existing ad‑hoc analysis in `or` (`reduceOr` /
+> `flattenOr`) will be removed; `or` will revert to a lazy, allocation-free
+> constructor, and normalization will happen on the data form. See the
+> _Dependencies_ section below.
+
 Optimize and normalize `or` in [../fs/types/rtti/module.f.ts](../fs/types/rtti/module.f.ts) at schema construction time. After this pass, an `or` schema should be in a canonical form: two constructions that describe the same set of values should produce structurally identical results, and dispatch should have fewer variants to scan.
 
 ## Goals
@@ -51,7 +59,15 @@ This implies a canonical ordering on `Type` and a stable layout for the resultin
 
 ## Dependencies
 
-- [143-rtti-data](./143-rtti-data.md). The remaining goals — canonical ordering, structural subset on tuples/structs, and full coverage collapse (`{ true, false }` → `boolean`) — depend on a function-free, serializable representation of `Type` that nodes can be compared, sorted, and traversed without bespoke visited-set logic. Implement 143 first; this issue's analysis should then run on the data form, not on the thunk graph directly.
+This issue is **paused** until [143-rtti-data](./143-rtti-data.md) lands.
+
+The remaining goals — canonical ordering, structural subset on tuples/structs, and full coverage collapse (`{ true, false }` → `boolean`) — depend on a function-free, serializable representation of `Type` whose nodes can be compared, sorted, and traversed without bespoke visited-set logic. Once 143 is in place:
+
+1. Drop the current `reduceOr` / `flattenOr` machinery in `or`. `or(...types)` reverts to a lazy thunk that simply captures its arguments.
+2. Move all normalization (flatten, dedup, subset removal, coverage collapse, canonical ordering) to the data form, run once during `toData`.
+3. Re-implement and re-test the goals listed above on the data form rather than the thunk graph.
+
+No code work on this issue should start before 143; the existing checkboxes describe behavior that lives on the wrong representation and will be migrated wholesale.
 
 ## Note on location
 
