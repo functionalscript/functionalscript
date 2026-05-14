@@ -31,6 +31,10 @@ The right choice of primitives (which kinds, how each kind encodes its sub-set, 
 
 `validate` and `parse` can be refactored to consume the data form directly. The thunk form remains the user-facing API; a single `toData` (and possibly `fromData`) bridges the two. As a stepping stone, `validate`/`parse` may keep their thunk-based dispatch and only call into the data form for `or` normalization.
 
+## Implications for `or`
+
+Once the data form exists, `or` itself should be reverted to a lazy, allocation-free constructor: drop the current `reduceOr`/`flattenOr` pass and have `or(...types)` simply return a thunk that captures its arguments. All normalization — flattening, dedup, subset removal, coverage collapse, canonical ordering — moves to the data form and runs only once, when the schema is converted via `toData` ahead of validation, parsing, or any other operation that needs a canonical view. Schemas that are constructed but never used pay nothing; schemas that are used pay a single one-shot conversion.
+
 ## Related
 
 - [130](./130-or-optimization.md) — depends on this issue; the remaining goals (canonical ordering, structural subset, coverage collapse) are naturally expressed on the data form.
