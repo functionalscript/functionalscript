@@ -341,6 +341,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
   Options: use `Object.is(rtti, value)`, or `Number.isNaN(rtti) && Number.isNaN(value)` as an extra branch, or explicitly forbid `NaN` (and `±Infinity`?) as const schemas. Decide whether `+0` vs `-0` should be distinguished (`===` treats them equal; `Object.is` distinguishes them).
 
   Audit other primitive comparisons in the codebase for the same issue.
+- [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Prerequisite for the remaining goals of 130 (canonical ordering, structural subset, coverage collapse).
 
 ## Language Specification
 

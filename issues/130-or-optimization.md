@@ -49,6 +49,10 @@ Two constructions that describe the same set must produce the same result of `or
 
 This implies a canonical ordering on `Type` and a stable layout for the resulting variants. The order chosen should not affect observable semantics, since redundant variants have been removed. The reordering itself is still TODO — it needs a total order on `Type` that includes thunks, which depends on the generic `equal`/`subset` predicates from goal 1.
 
+## Dependencies
+
+- [143-rtti-data](./143-rtti-data.md). The remaining goals — canonical ordering, structural subset on tuples/structs, and full coverage collapse (`{ true, false }` → `boolean`) — depend on a function-free, serializable representation of `Type` that nodes can be compared, sorted, and traversed without bespoke visited-set logic. Implement 143 first; this issue's analysis should then run on the data form, not on the thunk graph directly.
+
 ## Note on location
 
 This analysis must live in the `or` function itself (in [../fs/types/rtti/module.f.ts](../fs/types/rtti/module.f.ts)), not in `orParse` or `orValidate`. `or` is used in many places — `orValidate`, `orParse`, and manual schema construction — so the simplification should be performed once at schema construction time and shared by all consumers.
@@ -57,3 +61,4 @@ This analysis must live in the `or` function itself (in [../fs/types/rtti/module
 
 - 141 (universal, extensible type system): the `subset`/`equal` predicates introduced here align with the proposed `TypeSystem<T>` interface.
 - 142 (`NaN` handling in `constPrimitiveValidate`): affects how primitive const equality/subset is defined.
+- 143 (serializable data representation): see Dependencies above.
