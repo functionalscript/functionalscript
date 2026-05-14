@@ -168,6 +168,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "bun install"
+        },
+        {
           "run": "bun test --timeout 20000"
         },
         {
@@ -331,6 +334,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "bun install"
         },
         {
           "run": "bun test --timeout 20000"
@@ -498,6 +504,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "bun install"
+        },
+        {
           "run": "bun test --timeout 20000"
         },
         {
@@ -661,6 +670,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "bun install"
         },
         {
           "run": "bun test --timeout 20000"
@@ -834,6 +846,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "bun install"
+        },
+        {
           "run": "bun test --timeout 20000"
         },
         {
@@ -994,6 +1009,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "bun install"
         },
         {
           "run": "bun test --timeout 20000"
