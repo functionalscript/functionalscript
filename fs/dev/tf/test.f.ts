@@ -21,3 +21,15 @@ export default {
         },
     },
 }
+
+// Non-default exports are walked as a sibling test group (see issue 27).
+export const namedExportTest = () => {
+    if (2 + 2 !== 4) { throw 'arithmetic broken' }
+}
+
+export const namedExportGroup = {
+    nested: () => {
+        if ('a' + 'b' !== 'ab') { throw 'string concat broken' }
+    },
+    throw: () => { throw 'expected to throw' },
+}

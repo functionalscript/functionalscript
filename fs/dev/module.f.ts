@@ -31,6 +31,7 @@ export const assertEq = <T>(a: T, b: T): void =>
 
 export type Module = {
     readonly default?: unknown
+    readonly [k: string]: unknown
 }
 
 type Entry<T> = readonly[string, T]
