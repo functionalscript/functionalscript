@@ -238,7 +238,7 @@
   }
   ```
 - [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
-- [ ] 91. Create a separate nominal type for UTF-8.
+- [X] 91. Create a separate nominal type for UTF-8. **Closed: won't do.** Every concrete caller (crypto, hashing, `writeFile`) consumes UTF-8 output as opaque bytes, so a nominal `Utf8` would only force `utf8ToVec(utf8(...))` wrapping at the call sites without catching any real bug. The `utf8`/`utf8ToString` function names already document the encoding contract.
 - [ ] 92. Create a separate nominal type for MSB and LSB bit vectors.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions and Playwright.
 - [ ] 96. CI caching.
