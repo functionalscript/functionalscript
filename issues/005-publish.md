@@ -19,7 +19,7 @@ This problem will go away as soon as ECMAScript supports for [Type Annotations](
 
 ## Updating Packages
 
-Currently, we regenerate `exports` in [./jsr.json](./index.f.ts) using `npm run update` during CD (publishing).
+Currently, we regenerate `exports` in [./deno.json](./deno.json) using `npm run update` during CD (publishing).
 
 We don't check in CI if it was regenerated. The idea is that CI should check if all generated files in Git are updated:
 
@@ -32,4 +32,4 @@ We abandoned the idea to publish on every commit on `main`. Instead, we publish 
 
 ## CI Publishing (merge to `main`)
 
-Check if the version is new, then publish.
+- [X] Check if the version is new, then publish.

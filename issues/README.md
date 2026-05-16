@@ -2,6 +2,13 @@
 
 - [ ] [005-publish](./005-publish.md)
 - [ ] 9. Generating a Website.
+  - [X] A minimal web-page
+  - [X] Generates Deno and Rust docs and publish them.
+  - [ ] Convert `README.md` files into HTML and publish them.
+  - [ ] Source code highlighting.
+  - [ ] One `main.css`
+  - [ ] Convention for `page.f.ts`. The `page.f.ts` generates a demo webpage that demonstrate functionality of a module `module.f.ts` where the file is located.
+  - [ ] In browser test runner (we need to switch out test framework to Effects first).
 - [ ] 10. Short URL table.
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
@@ -9,10 +16,9 @@
 - [ ] P5 20. The test framework should be able to run a subset of tests.
 - [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output. Blocked by 139.
 - [ ] 23. a console program similar to one that we have in the NaNVM repo.
-- [ ] 24. Create `./fsc.ts` that supports the same behavior as the current NaNVM Rust implementation:
+- [ ] P5 24. Create `./fsc.ts` that supports the same behavior as the current NaNVM Rust implementation:
     - [ ] run `node ./fsc.ts input.f.js output.f.js`
     - [ ] run `deno ./fsc.ts input.f.js output.f.js`
-- [X] 27. Test Framework parses non-default export.
 - [ ] 28. Make a distinction between unit tests, examples, and API tests.
     - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
       ```ts
@@ -26,11 +32,6 @@
     - Examples use only public API and are located in `*example.f.ts` files.
     - API tests use only public API and are located in `*test.f.ts` files.
 - [ ] 29. Test in a browser. It's important for such browsers as Firefox because we don't have SpiderMonkey as a CLI.
-- [X] 30. Infra for exception-throwing tests that pass on the throw should be improved.
-For example, 'throw' field could not be an immediate function but a reference to a helper function that throws
-(e.g., 'test_throw') - in this case, the current infra will not recognize the 'throw' as the function name.
-Also, 'throw' could be a group of test functions (all of them passing tests when throwing). These improvements
-require setting a flag when walking through a test tree as soon as a node has a 'throw' as its name.
 - [ ] [031-formal-grammar](./031-formal-grammar.md).
 - [ ] 032. Implement a stupid, non-deterministic parser using [031-formal-grammar](./031-formal-grammar.md).
 - [ ] 033. Rust: VM: implement `Any` and other types as wrappers
@@ -257,7 +258,7 @@ require setting a flag when walking through a test tree as soon as a node has a 
 - [ ] 112. CAS
 - [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
 - [ ] 114. A generic command line parser that can produce help.
-- [ ] 115. Run-time types. See also https://arktype.io/
+- [X] 115. Run-time types. See also https://arktype.io/
   1. We need a more powerful type system than TS. See `bnf` or `effects`.
   2. Validating type match at run-time.
 - [ ] 116. Report the TSGO regression (see `btree`).
@@ -332,15 +333,6 @@ require setting a flag when walking through a test tree as soon as a node has a 
      const t = null as const
      const a: Ts<typeof t> = ...
      ```
-- [X] 142. `NaN` handling in `constPrimitiveValidate` (and `parse`'s primitive path) in [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts). The current check uses `rtti === value`, but `NaN === NaN` is `false`, so a `NaN` const schema never matches any value — including `NaN` itself.
-
-  ```ts
-  validate(NaN as number)(NaN) // currently error, expected ok
-  ```
-
-  Options: use `Object.is(rtti, value)`, or `Number.isNaN(rtti) && Number.isNaN(value)` as an extra branch, or explicitly forbid `NaN` (and `±Infinity`?) as const schemas. Decide whether `+0` vs `-0` should be distinguished (`===` treats them equal; `Object.is` distinguishes them).
-
-  Audit other primitive comparisons in the codebase for the same issue.
 - [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Two forms with one job each — thunks for ergonomic construction, data for all algebra (union, subset, canonical form, dispatch). Supersedes 130.
 
 ## Language Specification
