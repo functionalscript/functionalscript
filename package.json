@@ -18,7 +18,7 @@
     "website": "node --experimental-strip-types ./fs/fjs/module.ts r ./fs/website/module.f.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "fjs": "fs/fjs/module.js"

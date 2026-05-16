@@ -12,7 +12,7 @@
 - [ ] 24. Create `./fsc.ts` that supports the same behavior as the current NaNVM Rust implementation:
     - [ ] run `node ./fsc.ts input.f.js output.f.js`
     - [ ] run `deno ./fsc.ts input.f.js output.f.js`
-- [ ] 27. Test Framework parses non-default export.
+- [X] 27. Test Framework parses non-default export.
 - [ ] 28. Make a distinction between unit tests, examples, and API tests.
     - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
       ```ts
