@@ -16,7 +16,7 @@ import {
     type NodeProgram,
     type Readdir
 } from '../types/effects/node/module.f.ts'
-import { asUtf8, utf8, utf8ToString } from '../text/module.f.ts'
+import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 
@@ -105,7 +105,7 @@ const denoJson = './deno.json'
 const index2 = begin
     .step(() => updateVersion)
     .step(() => readFile(denoJson))
-    .step(v => pure(JSON.parse(utf8ToString(asUtf8(unwrap(v)))) as unknown))
+    .step(v => pure(JSON.parse(utf8ToString(unwrap(v))) as unknown))
 
 const allFiles2aa = begin
     .step(() => allFiles2('.'))

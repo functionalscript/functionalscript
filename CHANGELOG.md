@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Text: `Utf8` is now a nominal subtype of `Vec`, with an `asUtf8` helper to mark a `Vec` as a valid UTF-8 byte sequence ([i91](./issues/README.md))
 - Test framework: parse non-default exports — a test file can now spread its tests across multiple named exports ([i27](./issues/README.md)) [790](https://github.com/functionalscript/functionalscript/pull/790)
 
 ## 0.14.1
