@@ -145,7 +145,7 @@ export const test = <T>(input: Input<T>): readonly[number, T] => {
                 const others = Object.fromEntries(
                     Object.entries(v).filter(([key, val]) =>
                         key !== 'default' && (
-                            (typeof val === 'function' && (val as Function).length === 0) ||
+                            (typeof val === 'function' && val.length === 0) ||
                             (typeof val === 'object' && val !== null)
                         )
                     )
