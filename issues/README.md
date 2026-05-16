@@ -22,12 +22,8 @@
 - [ ] 28. Make a distinction between unit tests, examples, and API tests.
     - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
       ```ts
-      import { unit } from 'dev/unit-test.f.ts'
-      unit({
-        check4: () => {
-            if (2 + 2 !== 4) { throw '2+2 != 4' }
-        }
-      })
+      import { assert } from 'dev/module.f.ts'
+      assert(2 + 2 === 4)
       ```
     - Examples use only public API and are located in `*example.f.ts` files.
     - API tests use only public API and are located in `*test.f.ts` files.
@@ -52,7 +48,7 @@
   export type B = A | string
   ```
 
-- [ ] 41. BNF should use byte parsing instead of codePoint. In this case, we can parse binary files as well.
+- [X] 41. BNF should use byte parsing instead of codePoint. In this case, we can parse binary files as well.
 - [ ] 42. Try mixing serializable BNFs.
 - [ ] 43. state-full parser.
   ```ts
@@ -89,12 +85,6 @@
 - [ ] 58. 1) There is a todo in line 259 of big_uint.rs; that issue should be clarified.
           2) Replace panic in BigUint::shl with returning an error code.
 - [ ] 59. Hash table improvement https://arxiv.org/pdf/2501.02305
-- [ ] 64. Implement IO as mutable
-  ```ts
-  type Io<S> = {
-      readonly log: (s: S, msg: string) => void
-  }
-  ```
 - [ ] 65. Investigate mutability inference
 - [ ] 66. Only forward objects are visible. Example:
   ```ts
@@ -131,7 +121,7 @@
   fn serialize(v: bool) => u8 {
       if v == false { 0 } else { 1 }
   }
-  fn deserialize(v: u8) -> bool {
+  fn deserialize(v: u8) => bool {
       if v == 0 { false } else { true }
   }
   ```
@@ -289,10 +279,6 @@
   1. Create a test file `integration/test.f.ts` and rename it to something like `integration/uncomment-test.f.ts`. The file should be renamed back when we need to test an engine.
   2. The file should contain multiple tests using objects, arrays, and functions. At least one function should produce a similar structure.
   3. At least one function should be `throw`.
-- [X] 126. `types/rtti` should support `undefined`, `null` instead of `"undefined"` and `"null"`.
-- [X] 127. Simplify `types/rtti/ts/module.f.ts` to reduce TypeScript type instantiation depth. Flatten the `*Ts` helper chain (`ConstTs` → `TupleTs`/`StructTs` → `Ts`) into a single `Ts` conditional type to avoid hitting TypeScript's recursion limit. The intermediate `*Ts` types can remain as derived aliases for the public API, but should not participate in the recursive evaluation chain.
-- [X] [128-rtti-deserialize](./128-rtti-deserialize.md)
-- [X] 129. `validate` from [../types/rtti/validate/module.f.ts](../types/rtti/validate/module.f.ts) should return a path in case of an error.
 - [ ] [130-or-optimization](./130-or-optimization.md). **Superseded by 143.** Canonical-form properties of `or` are now properties of the data form by construction; nothing to do on the thunk form.
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
