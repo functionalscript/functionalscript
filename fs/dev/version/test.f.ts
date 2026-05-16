@@ -1,4 +1,4 @@
-import { utf8, utf8ToString } from '../../text/module.f.ts'
+import { asUtf8, utf8, utf8ToString } from '../../text/module.f.ts'
 import { isVec } from '../../types/bit_vec/module.f.ts'
 import { all, writeFile } from '../../types/effects/node/module.f.ts'
 import { emptyState, virtual } from '../../types/effects/node/virtual/module.f.ts'
@@ -92,7 +92,7 @@ export default {
         if (result !== 0) { throw result }
         const vec = newState.root['package.json']
         if (!isVec(vec)) { throw vec }
-        const n = utf8ToString(vec)
+        const n = utf8ToString(asUtf8(vec))
         if (n !== e) { throw [n, e] }
     }
 }

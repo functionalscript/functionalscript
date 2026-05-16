@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { utf8, utf8ToString } from '../../text/module.f.ts'
+import { asUtf8, utf8, utf8ToString } from '../../text/module.f.ts'
 import { begin, pure, type Effect } from '../../types/effects/module.f.ts'
 import { all, readFile, writeFile, type All, type ReadFile, type WriteFile } from '../../types/effects/node/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
@@ -14,7 +14,7 @@ const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
 const readJson = (name: string) => begin
     .step(() =>readFile(jsonFile(name)))
-    .step(v => pure(parse(utf8ToString(unwrap(v)))))
+    .step(v => pure(parse(utf8ToString(asUtf8(unwrap(v))))))
 
 const writeVersion = (version: string) => (name: string) => begin
     .step(() => readJson(name))

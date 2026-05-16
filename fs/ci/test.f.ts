@@ -1,5 +1,5 @@
 import { ci } from './module.f.ts'
-import { utf8ToString } from '../text/module.f.ts'
+import { asUtf8, utf8ToString } from '../text/module.f.ts'
 import { isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test } from './common/module.f.ts'
 import { assert } from '../dev/module.f.ts'
@@ -34,7 +34,7 @@ const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []
     assert(workflows !== undefined && !isVec(workflows), workflows)
     const file = workflows['ci.yml']
     assert(isVec(file), file)
-    return JSON.parse(utf8ToString(file))
+    return JSON.parse(utf8ToString(asUtf8(file)))
 }
 
 export default {

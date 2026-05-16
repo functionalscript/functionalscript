@@ -4,8 +4,7 @@ import type { Entry } from '../types/object/module.f.ts'
 import { compose } from '../types/function/module.f.ts'
 import { stringToList } from '../text/utf16/module.f.ts'
 import { includes } from '../types/array/module.f.ts'
-import { type Vec } from '../types/bit_vec/module.f.ts'
-import { utf8 } from '../text/module.f.ts'
+import { utf8, type Utf8 } from '../text/module.f.ts'
 
 const { fromCharCode } = String
 const { entries } = Object
@@ -155,7 +154,7 @@ const commonHead = [
  * // <!DOCTYPE html><html><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
  * ```
  */
-export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Vec =>
+export const htmlUtf8 = (...head: readonly Node[]) => (...body: readonly Node[]): Utf8 =>
     utf8(htmlToString(['html',
         ['head', ...commonHead, ...head],
         ['body', ...body]]
