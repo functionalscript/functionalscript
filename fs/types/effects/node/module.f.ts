@@ -9,7 +9,7 @@ export type IoResult<T> = Result<T, unknown>
 
 // all
 
-export type All = ['all', <T>(_: readonly Effect<never, T>[]) => readonly T[]]
+export type All = ['all', (...effects: Effect<never, unknown>[]) => readonly unknown[]]
 
 const doAll: Func<All> = do_('all')
 
@@ -32,7 +32,7 @@ export const both =
 
 // fetch
 
-export type Fetch = ['fetch', (_: readonly[string]) => IoResult<Vec>]
+export type Fetch = ['fetch', (url: string) => IoResult<Vec>]
 
 export const fetch: Func<Fetch> = do_('fetch')
 
@@ -40,16 +40,14 @@ export const fetch: Func<Fetch> = do_('fetch')
 
 export type MakeDirectoryOptions = { readonly recursive: true }
 
-export type MkdirParam = readonly[string, MakeDirectoryOptions?]
-
-export type Mkdir = readonly['mkdir', (_: MkdirParam) => IoResult<void>]
+export type Mkdir = readonly['mkdir', (path: string, options?: MakeDirectoryOptions) => IoResult<void>]
 
 export const mkdir: Func<Mkdir> =
     do_('mkdir')
 
 // readFile
 
-export type ReadFile = readonly['readFile', (_: readonly[string]) => IoResult<Vec>]
+export type ReadFile = readonly['readFile', (path: string) => IoResult<Vec>]
 
 export const readFile: Func<ReadFile> =
     do_('readFile')
@@ -70,25 +68,21 @@ export type ReaddirOptions = {
     readonly recursive?: true
 }
 
-export type ReaddirParam = readonly[string, ReaddirOptions]
-
-export type Readdir = readonly['readdir', (_: ReaddirParam) => IoResult<readonly Dirent[]>]
+export type Readdir = readonly['readdir', (path: string, options: ReaddirOptions) => IoResult<readonly Dirent[]>]
 
 export const readdir: Func<Readdir> =
     do_('readdir')
 
 // writeFile
 
-export type WriteFileParam = readonly[string, Vec]
-
-export type WriteFile = readonly['writeFile', (_: WriteFileParam) => IoResult<void>]
+export type WriteFile = readonly['writeFile', (path: string, data: Vec) => IoResult<void>]
 
 export const writeFile: Func<WriteFile> =
     do_('writeFile')
 
 // rm
 
-export type Rm = readonly['rm', (_: readonly[string]) => IoResult<void>]
+export type Rm = readonly['rm', (path: string) => IoResult<void>]
 
 export const rm: Func<Rm> =
     do_('rm')
@@ -100,9 +94,7 @@ export type ExecResult = {
     readonly stderr: string
 }
 
-export type ExecParam = readonly[string, string?]
-
-export type Exec = readonly['exec', (_: ExecParam) => IoResult<ExecResult>]
+export type Exec = readonly['exec', (command: string, stdin?: string) => IoResult<ExecResult>]
 
 export const exec: Func<Exec> =
     do_('exec')
@@ -113,14 +105,14 @@ export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec
 
 // error
 
-export type Error = ['error', (_: readonly[string]) => void]
+export type Error = ['error', (message: string) => void]
 
 export const error: Func<Error> =
     do_('error')
 
 // log
 
-export type Log = ['log', (_: readonly[string]) => void]
+export type Log = ['log', (message: string) => void]
 
 export const log: Func<Log> =
     do_('log')
@@ -155,7 +147,7 @@ export type ServerResponse = {
 
 export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse>
 
-export type CreateServer = ['createServer', (_: readonly[RequestListener<Operation>]) => Server]
+export type CreateServer = ['createServer', (listener: RequestListener<Operation>) => Server]
 
 export const createServer
     : <O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server> =
@@ -163,7 +155,7 @@ export const createServer
 
 // listen
 
-export type Listen = ['listen', (_: readonly[Server, number]) => void]
+export type Listen = ['listen', (server: Server, port: number) => void]
 
 export const listen: Func<Listen> =
     do_('listen')
@@ -174,7 +166,7 @@ export type Http = CreateServer | Listen
 
 // Wait forever
 
-export type Forever = ['forever', (_: readonly[]) => never]
+export type Forever = ['forever', () => never]
 
 export const forever: Func<Forever> =
     do_('forever')

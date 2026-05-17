@@ -5,7 +5,7 @@
  */
 
 export type Operation =
-    readonly[string, (_: never) => unknown]
+    readonly[string, (..._: readonly never[]) => unknown]
 
 export type Effect<O extends Operation, T> = {
     value: Value<O, T>
@@ -22,7 +22,7 @@ export type DoKPR<O extends Operation, T, K extends string, PR extends readonly[
     readonly[K, PR[0], (_: PR[1]) => Effect<O, T>]
 
 export type Pr<O extends Operation, K extends O[0]> =
-    O extends readonly[K, (_: infer P) => infer R] ? readonly[P, R] : never
+    O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never
 
 export type DoK<O extends Operation, T, K extends O[0]> =
     DoKPR<O, T, K, Pr<O, K>>
