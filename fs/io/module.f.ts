@@ -204,7 +204,7 @@ export const fromIo = ({
             }
             return toVec(new Uint8Array(await response.arrayBuffer()))
         }),
-        mkdir: (path, options) => tc(async() => { await mkdir(path, options) }),
+        mkdir: (...p) => tc(async() => { await mkdir(...p) }),
         readFile: path => tc(async() => toVec(await readFile(path))),
         readdir: (path, r) => tc(async() =>
             (await readdir(path, { ...r, withFileTypes: true }))

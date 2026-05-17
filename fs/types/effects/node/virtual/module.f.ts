@@ -144,10 +144,10 @@ const map: MemOperationMap<NodeOp, State> = {
         return result === undefined ? [state, error('not found')] : [state, ok(result)]
     },
     mkdir: (state, path, p) => mkdir(p !== undefined)(state, path),
-    readFile: (state, path) => readFile(state, path),
+    readFile,
     readdir: (state, path, { recursive }) => readdir(path, recursive === true)(state, path),
     writeFile: (state, path, payload) => writeFile(payload)(state, path),
-    rm: (state, path) => rm(state, path),
+    rm,
     exec: todo,
     createServer: todo,
     listen: todo,

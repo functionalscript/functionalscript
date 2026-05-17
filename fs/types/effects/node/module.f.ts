@@ -9,7 +9,7 @@ export type IoResult<T> = Result<T, unknown>
 
 // all
 
-export type All = ['all', (...effects: Effect<never, unknown>[]) => readonly unknown[]]
+export type All = ['all', <T>(...effects: Effect<never, T>[]) => readonly T[]]
 
 const doAll: Func<All> = do_('all')
 
