@@ -366,10 +366,10 @@ export default {
     //         const result = tokenizeString('"\\/"')
     //         if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('"\\x"')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"\\x"')
+            if (result !== 'error') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('"\\')
     //         if (result !== 'error') { throw result }
