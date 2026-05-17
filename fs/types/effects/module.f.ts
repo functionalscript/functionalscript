@@ -51,13 +51,8 @@ export type Return<O extends Operation> = F<O>[1]
 
 export const do_ =
     <O extends Operation>(cmd: O[0]) =>
-    (param: Param<O>): Effect<O, Return<O>> =>
-    doFull(cmd, param, pure)
-
-export const doRest =
-    <O extends Operation>(cmd: O[0]) =>
     (...param: Param<O>): Effect<O, Return<O>> =>
-    do_(cmd)(param as Param<O>)
+    doFull(cmd, param as Param<O>, pure)
 
 export const begin: Effect<never, void> = pure(undefined)
 
@@ -67,9 +62,7 @@ export type ToAsyncOperationMap<O extends Operation> = {
 
 export type F<O extends Operation> = Pr<O, O[0]>
 
-export type Func<O extends Operation> = (_: Param<O>) => Effect<O, Return<O>>
-
-export type RestFunc<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
+export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
 
 export type ListEffect<O extends Operation, T> =
     Effect<O, readonly[T, ListEffect<O, T>] | undefined>

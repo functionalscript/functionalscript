@@ -124,7 +124,7 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     return [rest as Dir, okVoid]
 })
 
-const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
+const console = (name: 'stderr'|'stdout') => (state: State, [payload]: readonly[string]) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
 const map: MemOperationMap<NodeOp, State> = {
@@ -139,15 +139,15 @@ const map: MemOperationMap<NodeOp, State> = {
     },
     error: console('stderr'),
     log: console('stdout'),
-    fetch: (state, url) => {
+    fetch: (state, [url]) => {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]
     },
     mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
-    readFile,
+    readFile: (state, [path]) => readFile(state, path),
     readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
     writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
-    rm: (state, path) => rm(state, path),
+    rm: (state, [path]) => rm(state, path),
     exec: todo,
     createServer: todo,
     listen: todo,

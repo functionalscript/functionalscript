@@ -2,7 +2,7 @@ import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type RestFunc, type ToAsyncOperationMap, doRest, do_
+    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -22,7 +22,7 @@ const doAll: Func<All> = do_('all')
  */
 export const all =
     <O extends Operation, T>(...a: readonly Effect<O, T>[]): Effect<O | All, readonly T[]> =>
-    doAll(a as readonly Effect<never, T>[]) as Effect<O | All, readonly T[]>
+    doAll(...a as readonly Effect<never, T>[]) as Effect<O | All, readonly T[]>
 
 export const both =
     <O0 extends Operation, T0>(a: Effect<O0, T0>) =>
@@ -32,7 +32,7 @@ export const both =
 
 // fetch
 
-export type Fetch = ['fetch', (_: string) => IoResult<Vec>]
+export type Fetch = ['fetch', (_: readonly[string]) => IoResult<Vec>]
 
 export const fetch: Func<Fetch> = do_('fetch')
 
@@ -44,12 +44,12 @@ export type MkdirParam = readonly[string, MakeDirectoryOptions?]
 
 export type Mkdir = readonly['mkdir', (_: MkdirParam) => IoResult<void>]
 
-export const mkdir: RestFunc<Mkdir> =
-    doRest('mkdir')
+export const mkdir: Func<Mkdir> =
+    do_('mkdir')
 
 // readFile
 
-export type ReadFile = readonly['readFile', (_: string) => IoResult<Vec>]
+export type ReadFile = readonly['readFile', (_: readonly[string]) => IoResult<Vec>]
 
 export const readFile: Func<ReadFile> =
     do_('readFile')
@@ -74,8 +74,8 @@ export type ReaddirParam = readonly[string, ReaddirOptions]
 
 export type Readdir = readonly['readdir', (_: ReaddirParam) => IoResult<readonly Dirent[]>]
 
-export const readdir: RestFunc<Readdir> =
-    doRest('readdir')
+export const readdir: Func<Readdir> =
+    do_('readdir')
 
 // writeFile
 
@@ -83,12 +83,12 @@ export type WriteFileParam = readonly[string, Vec]
 
 export type WriteFile = readonly['writeFile', (_: WriteFileParam) => IoResult<void>]
 
-export const writeFile: RestFunc<WriteFile> =
-    doRest('writeFile')
+export const writeFile: Func<WriteFile> =
+    do_('writeFile')
 
 // rm
 
-export type Rm = readonly['rm', (_: string) => IoResult<void>]
+export type Rm = readonly['rm', (_: readonly[string]) => IoResult<void>]
 
 export const rm: Func<Rm> =
     do_('rm')
@@ -104,8 +104,8 @@ export type ExecParam = readonly[string, string?]
 
 export type Exec = readonly['exec', (_: ExecParam) => IoResult<ExecResult>]
 
-export const exec: RestFunc<Exec> =
-    doRest('exec')
+export const exec: Func<Exec> =
+    do_('exec')
 
 // Fs
 
@@ -113,14 +113,14 @@ export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec
 
 // error
 
-export type Error = ['error', (_: string) => void]
+export type Error = ['error', (_: readonly[string]) => void]
 
 export const error: Func<Error> =
     do_('error')
 
 // log
 
-export type Log = ['log', (_: string) => void]
+export type Log = ['log', (_: readonly[string]) => void]
 
 export const log: Func<Log> =
     do_('log')
@@ -155,7 +155,7 @@ export type ServerResponse = {
 
 export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse>
 
-export type CreateServer = ['createServer', (_: RequestListener<Operation>) => Server]
+export type CreateServer = ['createServer', (_: readonly[RequestListener<Operation>]) => Server]
 
 export const createServer
     : <O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server> =
@@ -165,8 +165,8 @@ export const createServer
 
 export type Listen = ['listen', (_: readonly[Server, number]) => void]
 
-export const listen: RestFunc<Listen> =
-    doRest('listen')
+export const listen: Func<Listen> =
+    do_('listen')
 
 // HTTP
 
@@ -174,7 +174,7 @@ export type Http = CreateServer | Listen
 
 // Wait forever
 
-export type Forever = ['forever', () => never]
+export type Forever = ['forever', (_: readonly[]) => never]
 
 export const forever: Func<Forever> =
     do_('forever')

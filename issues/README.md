@@ -266,7 +266,7 @@
 - [ ] 118.
   - [X] Create example repository: https://github.com/functionalscript/file-server-example.
   - [ ] use it in CI.
-- [ ] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
+- [X] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
 - [ ] 122. Consider adding a new file type for applications. For example, `node.f.ts` or `app.f.ts`.
       These files should have `export default` with type `NodeProgram`.
       Then we may have other application files, for example, `web.f.ts`.
