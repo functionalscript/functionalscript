@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 - Test framework: parse non-default exports — a test file can now spread its tests across multiple named exports ([i27](./issues/README.md)) [790](https://github.com/functionalscript/functionalscript/pull/790)
-- Effects: unify `do_`/`doRest` and `Func`/`RestFunc` into a single rest-parameter form; operation payload types are now uniformly tuples ([i121](./issues/README.md)) [791](https://github.com/functionalscript/functionalscript/pull/791)
+- Effects: unify `do_`/`doRest` and `Func`/`RestFunc` into a single rest-parameter form; operation payload types are now uniformly tuples ([i121](./issues/README.md)) [794](https://github.com/functionalscript/functionalscript/pull/794)
 
 ## 0.14.1
 
