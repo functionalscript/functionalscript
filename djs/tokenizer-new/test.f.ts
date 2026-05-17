@@ -326,10 +326,10 @@ export default {
             const result = tokenizeString(']')
             if (result !== '[{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('ᄑ')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('ᄑ')
+            if (result !== 'error') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('{ \t\n\r}')
     //         if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
