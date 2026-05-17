@@ -194,31 +194,31 @@ export const fromIo = ({
     childProcess,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
-        all: async effects => await Promise.all(effects.map(result)),
-        error: async ([message]) => error(message),
-        log: async ([message]) => log(message),
-        fetch: async ([url]) => tc(async() => {
+        all: async (...effects) => await Promise.all(effects.map(result)),
+        error: async message => error(message),
+        log: async message => log(message),
+        fetch: async url => tc(async() => {
             const response = await fetch(url)
             if (!response.ok) {
                 throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
             }
             return toVec(new Uint8Array(await response.arrayBuffer()))
         }),
-        mkdir: param => tc(async() => { await mkdir(...param) }),
-        readFile: ([path]) => tc(async() => toVec(await readFile(path))),
-        readdir: ([path, r]) => tc(async() =>
+        mkdir: (path, options) => tc(async() => { await mkdir(path, options) }),
+        readFile: path => tc(async() => toVec(await readFile(path))),
+        readdir: (path, r) => tc(async() =>
             (await readdir(path, { ...r, withFileTypes: true }))
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
-        writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
-        rm: ([path]) => tc(() => rm(path)),
-        exec: ([command, stdin]) => new Promise(resolve => {
+        writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
+        rm: path => tc(() => rm(path)),
+        exec: (command, stdin) => new Promise(resolve => {
             const child = childProcess.exec(command, (e, stdout, stderr) =>
                 resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
             )
             child.stdin?.end(stdin)
         }),
-        createServer: async ([requestListener]) => {
+        createServer: async requestListener => {
             const erl = requestListener as Erl<NodeOp>
             const nodeRl: RequestListener = async(req, res) => {
                 const reqBody = await collect(req)
@@ -236,7 +236,7 @@ export const fromIo = ({
             const server: EffectServer = asNominal(createServer(nodeRl))
             return server
         },
-        listen: async ([server, port]) => {
+        listen: async (server, port) => {
             const s = asBase(server) as Server
             s.listen(port)
         },

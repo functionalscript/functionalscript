@@ -57,7 +57,7 @@ export const do_ =
 export const begin: Effect<never, void> = pure(undefined)
 
 export type ToAsyncOperationMap<O extends Operation> = {
-    readonly [K in O[0]]: (payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
+    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
 }
 
 export type F<O extends Operation> = Pr<O, O[0]>

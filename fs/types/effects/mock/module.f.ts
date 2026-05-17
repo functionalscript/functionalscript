@@ -6,7 +6,7 @@
 import type { Effect, Operation, Pr } from "../module.f.ts"
 
 export type MemOperationMap<O extends Operation, S> = {
-    readonly [K in O[0]]: (state: S, payload: Pr<O, K>[0]) => readonly[S, Pr<O, K>[1]]
+    readonly [K in O[0]]: (state: S, ...payload: Pr<O, K>[0]) => readonly[S, Pr<O, K>[1]]
 }
 
 export type RunInstance<O extends Operation, S> =
@@ -29,7 +29,7 @@ export const run =
         }
         const [cmd, payload, cont] = value
         const operation = o[cmd]
-        const [ns, m] = operation(s, payload)
+        const [ns, m] = operation(s, ...payload)
         s = ns
         e = cont(m)
     }
