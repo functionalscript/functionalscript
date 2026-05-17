@@ -374,14 +374,14 @@ export default {
             const result = tokenizeString('"\\')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('"\r"')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('"\n null')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"\r"')
+            if (result !== 'error') { throw result }
+        },
+        () => {
+            const result = tokenizeString('"\n null')
+            if (result !== 'error') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('"\\b\\f\\n\\r\\t"')
     //         if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
@@ -394,10 +394,10 @@ export default {
     //         const result = tokenizeString('"\\uaBcDEeFf"')
     //         if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
     //     },
-    //     () => {
-    //         const result = tokenizeString('"\\uEeFg"')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"\\uEeFg"')
+            if (result !== 'error') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('0')
     //         if (result !== '[{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
@@ -406,14 +406,14 @@ export default {
         //     const result = tokenizeString('[0]')
         //     if (result !== '[{"kind":"["},{"bf":[0n,0],"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         // },
-    //     () => {
-    //         const result = tokenizeString('00')
-    //         if (result !== 'error') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('0abc,')
-    //         if (result !== 'error') { throw result }
-    //     },
+        // () => {
+        //     const result = tokenizeString('00')
+        //     if (result !== 'error') { throw result }
+        // },
+        // () => {
+        //     const result = tokenizeString('0abc,')
+        //     if (result !== 'error') { throw result }
+        // },
     //     () => {
     //         const result = tokenizeString('123456789012345678901234567890')
     //         if (result !== '[{"bf":[123456789012345678901234567890n,0],"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
