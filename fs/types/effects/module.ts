@@ -11,7 +11,7 @@ export const asyncRun =
         }
         const [command, payload, continuation] = value
         const operation = map[command]
-        const result = await operation(payload)
+        const result = await operation(...payload)
         effect = continuation(result)
     }
 }

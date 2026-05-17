@@ -194,7 +194,7 @@ export const fromIo = ({
     childProcess,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
-        all: async effects => await Promise.all(effects.map(result)),
+        all: async (...effects) => await Promise.all(effects.map(result)),
         error: async message => error(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
@@ -204,15 +204,15 @@ export const fromIo = ({
             }
             return toVec(new Uint8Array(await response.arrayBuffer()))
         }),
-        mkdir: param => tc(async() => { await mkdir(...param) }),
+        mkdir: (...p) => tc(async() => { await mkdir(...p) }),
         readFile: path => tc(async() => toVec(await readFile(path))),
-        readdir: ([path, r]) => tc(async() =>
+        readdir: (path, r) => tc(async() =>
             (await readdir(path, { ...r, withFileTypes: true }))
             .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
         ),
-        writeFile: ([path, data]) => tc(() => writeFile(path, fromVec(data))),
+        writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
-        exec: ([command, stdin]) => new Promise(resolve => {
+        exec: (command, stdin) => new Promise(resolve => {
             const child = childProcess.exec(command, (e, stdout, stderr) =>
                 resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
             )
@@ -236,7 +236,7 @@ export const fromIo = ({
             const server: EffectServer = asNominal(createServer(nodeRl))
             return server
         },
-        listen: async ([server, port]) => {
+        listen: async (server, port) => {
             const s = asBase(server) as Server
             s.listen(port)
         },

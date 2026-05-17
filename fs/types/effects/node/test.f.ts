@@ -19,7 +19,7 @@ export default {
             }
             const [cmd, p, cont] = value
             if (cmd !== 'readFile') { throw cmd }
-            if (p !== 'hello') { throw p }
+            if (p[0] !== 'hello') { throw p }
             e = cont(['ok', vec8(0x15n)])
         }
     },

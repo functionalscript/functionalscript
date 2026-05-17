@@ -128,7 +128,7 @@ const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
 const map: MemOperationMap<NodeOp, State> = {
-    all: (state, a) => {
+    all: (state, ...a) => {
         let e: readonly unknown[] = []
         for (const i of a) {
             const [ns, ei] = virtual(state)(i)
@@ -143,11 +143,11 @@ const map: MemOperationMap<NodeOp, State> = {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]
     },
-    mkdir: (state, [path, p]) => mkdir(p !== undefined)(state, path),
+    mkdir: (state, path, p) => mkdir(p !== undefined)(state, path),
     readFile,
-    readdir: (state, [path, { recursive }]) => readdir(path, recursive === true)(state, path),
-    writeFile: (state, [path, payload]) => writeFile(payload)(state, path),
-    rm: (state, path) => rm(state, path),
+    readdir: (state, path, { recursive }) => readdir(path, recursive === true)(state, path),
+    writeFile: (state, path, payload) => writeFile(payload)(state, path),
+    rm,
     exec: todo,
     createServer: todo,
     listen: todo,
