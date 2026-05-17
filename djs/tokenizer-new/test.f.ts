@@ -370,10 +370,10 @@ export default {
             const result = tokenizeString('"\\x"')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('"\\')
-    //         if (result !== 'error') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"\\')
+            if (result !== 'error') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('"\r"')
     //         if (result !== 'error') { throw result }
