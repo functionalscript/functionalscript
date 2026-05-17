@@ -18,6 +18,9 @@ const tokenizeString
         const m = descentParser(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
         const mr = descentParserCpOnly(m, '', cp)
+        if (cp.length === 0) {
+            return JSON.stringify([{kind: 'eof'}])
+        }
         if (!mr[1])
             return 'error'
         if (cp.length > 0 && mr[2] !== cp.length)
