@@ -25,7 +25,7 @@ const jobSchema = {
     steps: array(stepSchema)
 } as const satisfies unknown
 
-const jobsSchema = record(jobSchema)
+const jobsSchema = record(jobSchema) satisfies unknown
 
 const gitHubActionSchema = {
     name: string,
@@ -38,7 +38,7 @@ export type Job = Ts<typeof jobSchema>
 export type Jobs = Ts<typeof jobsSchema>
 export type GitHubAction = Ts<typeof gitHubActionSchema>
 
-export const parseGitHubAction = rttiParse(gitHubActionSchema)
+export const parseGitHubAction = rttiParse(gitHubActionSchema) satisfies unknown
 
 export type StepType = 'install' | 'test'
 
