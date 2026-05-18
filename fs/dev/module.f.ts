@@ -7,12 +7,15 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
+    access,
     all,
     both,
+    import_,
     readdir,
     readFile,
     writeFile,
     type All,
+    type NodeOp,
     type NodeProgram,
     type Readdir
 } from '../types/effects/node/module.f.ts'
@@ -52,8 +55,6 @@ export const env
                 r.value
     }
 
-type ModuleArray = readonly (readonly[string, Module])[]
-
 export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
         .step(() => readdir(p, {}))
@@ -78,33 +79,30 @@ export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> =>
     return load(s)
 }
 
-const exists = (io: Io) => {
-    const { access } = io.fs.promises
-    return async(path: string): Promise<boolean> => {
-        try {
-            await access(path)
-            return true
-        } catch {
-            return false
-        }
+const loadFile = (f: string): Effect<NodeOp, readonly[string, Module] | undefined> => {
+    const doImport = import_(f).step(r => pure([f, unwrap(r) as Module] as const))
+    if (f.endsWith('.f.js')) { return doImport }
+    if (f.endsWith('.f.ts')) {
+        return access(f.substring(0, f.length - 3) + '.js')
+            .step(r => r[0] === 'ok' ? pure(undefined) : doImport)
     }
+    return pure(undefined)
 }
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
-    const { asyncImport, process: { env } } = io
-    const ex = exists(io)
+    const { process: { env } } = io
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
-    let map: ModuleArray = []
-    for (const f of await fromIo(io)(allFiles(s))) {
-        if (f.endsWith('.f.js') ||
-            (f.endsWith('.f.ts') && !(await ex(f.substring(0, f.length - 3) + '.js')))
-        ) {
-            const source = await asyncImport(f)
-            map = [...map, [f, source]]
-        }
-    }
-    return Object.fromEntries(map.toSorted(cmp))
+    const effect = allFiles(s)
+        .step(files => all(...files.map(loadFile)))
+        .step(entries => pure(
+            Object.fromEntries(
+                entries
+                    .flatMap(e => e !== undefined ? [e] : [])
+                    .toSorted(cmp)
+            )
+        ))
+    return fromIo(io)(effect)
 }
 
 const denoJson = './deno.json'

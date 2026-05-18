@@ -53,6 +53,7 @@ where `<...Module documentation...>` should be documentation for the module.
 - Add an entry for the change under `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md), in the same `Topic: short description [NNN](url)` style as existing entries. The link must point to the pull request (`/pull/NNN`), not to an issue — update it to the real PR number once the PR is opened.
 - When the version is bumped in `deno.json`/`package.json`, create a new `## X.Y.Z` section in `CHANGELOG.md` immediately after `## Unreleased` and move all entries from `## Unreleased` into it, leaving `## Unreleased` empty.
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references to built-in or external Node modules such as `node:path` in `.f.ts` files.
+- Prefer `.flatMap(e => e !== undefined ? [e] : [])` over `.filter((e): e is T => e !== undefined)` to remove `undefined` entries from an array. Type predicates in `filter` are error-prone: if the element type changes, the predicate silently becomes wrong. `flatMap` narrows correctly without a manual type annotation.
 - Use `let` variables only within the function body where they are declared.
 - CLI parameters are preferred over environment variables when adding new features.
 - Ensure all of the above tests pass before submitting changes.
