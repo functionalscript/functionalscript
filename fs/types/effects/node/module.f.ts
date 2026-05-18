@@ -99,9 +99,16 @@ export type Exec = readonly['exec', (command: string, stdin?: string) => IoResul
 export const exec: Func<Exec> =
     do_('exec')
 
+// access
+
+export type Access = readonly['access', (path: string) => IoResult<void>]
+
+export const access: Func<Access> =
+    do_('access')
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec
+export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec | Access
 
 // error
 

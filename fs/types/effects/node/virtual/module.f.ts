@@ -114,6 +114,12 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
     return ok(f(base, dir))
 })
 
+const access = readOperation((dir, path): IoResult<void> => {
+    if (path.length === 0) { return okVoid }
+    if (path.length !== 1) { return error('no such file or directory') }
+    return dir[path[0]] !== undefined ? okVoid : error('no such file or directory')
+})
+
 const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     if (path.length !== 1) { return [dir, error('invalid path')] }
     const [name] = path
@@ -147,6 +153,7 @@ const map: MemOperationMap<NodeOp, State> = {
     readFile,
     readdir: (state, path, { recursive }) => readdir(path, recursive === true)(state, path),
     writeFile: (state, path, payload) => writeFile(payload)(state, path),
+    access,
     rm,
     exec: todo,
     createServer: todo,

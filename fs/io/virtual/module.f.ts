@@ -24,6 +24,7 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
             rm: (_path: string, _options?: RmOptions) => Promise.resolve(),
             mkdir: (_path: string, _options?: MakeDirectoryOptions) => Promise.resolve(undefined),
             copyFile: (_src: string, _dest: string) => Promise.resolve(),
+            access: (_path: string) => Promise.resolve(),
         }
     },
     process: {

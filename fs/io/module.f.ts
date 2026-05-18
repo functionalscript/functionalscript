@@ -1,7 +1,14 @@
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl, Env } from '../types/effects/node/module.f.ts'
+import type {
+    Server as EffectServer,
+    Headers,
+    IoResult,
+    NodeOp,
+    RequestListener as Erl,
+    Env 
+} from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
@@ -46,6 +53,7 @@ export type Fs = {
         readonly rm: (path: string, options?: RmOptions) => Promise<void>
         readonly mkdir: (path: string, options?: MakeDirectoryOptions) => Promise<string|undefined>
         readonly copyFile: (src: string, dest: string) => Promise<void>
+        readonly access: (path: string) => Promise<void>
     }
 }
 
@@ -181,7 +189,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 
 export const fromIo = ({
     console: { error, log },
-    fs: { promises: { mkdir, readFile, readdir, writeFile, rm } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
     childProcess,
@@ -209,6 +217,7 @@ export const fromIo = ({
         ),
         writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
+        access: path => tc(() => access(path)),
         exec: (command, stdin) => new Promise(resolve => {
             const child = childProcess.exec(command, (e, stdout, stderr) =>
                 resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))

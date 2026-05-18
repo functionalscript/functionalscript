@@ -54,7 +54,7 @@ export const env
 
 type ModuleArray = readonly (readonly[string, Module])[]
 
-export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> => {
+export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
         .step(() => readdir(p, {}))
         .step(d => {
@@ -78,21 +78,27 @@ export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> =
     return load(s)
 }
 
-const allFiles = (io: Io) => (s: string): Promise<readonly string[]> =>
-    fromIo(io)(allFiles2(s))
+const exists = (io: Io) => {
+    const { access } = io.fs.promises
+    return async(path: string): Promise<boolean> => {
+        try {
+            await access(path)
+            return true
+        } catch {
+            return false
+        }
+    }
+}
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
-    const {
-        fs: { existsSync },
-        asyncImport
-    } = io
-    let map: ModuleArray = []
-    const e = io.process.env
-    const initCwd = e['INIT_CWD']
+    const { asyncImport, process: { env } } = io
+    const ex = exists(io)
+    const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
-    for (const f of await allFiles(io)(s)) {
+    let map: ModuleArray = []
+    for (const f of await fromIo(io)(allFiles(s))) {
         if (f.endsWith('.f.js') ||
-            (f.endsWith('.f.ts') && !existsSync(f.substring(0, f.length - 3) + '.js'))
+            (f.endsWith('.f.ts') && !(await ex(f.substring(0, f.length - 3) + '.js')))
         ) {
             const source = await asyncImport(f)
             map = [...map, [f, source]]
@@ -109,7 +115,7 @@ const index2 = begin
     .step(v => pure(JSON.parse(utf8ToString(unwrap(v))) as unknown))
 
 const allFiles2aa = begin
-    .step(() => allFiles2('.'))
+    .step(() => allFiles('.'))
     .step(files => {
         const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
         const exportsA = list.map(v => [v, `./${v.substring(2)}`] as const)
