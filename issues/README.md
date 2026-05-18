@@ -2,13 +2,13 @@
 
 - [ ] [005-publish](./005-publish.md)
 - [ ] 9. Generating a Website.
-  - [X] A minimal web-page
-  - [X] Generates Deno and Rust docs and publish them.
-  - [ ] Convert `README.md` files into HTML and publish them.
-  - [ ] Source code highlighting.
-  - [ ] One `main.css`
-  - [ ] Convention for `page.f.ts`. The `page.f.ts` generates a demo webpage that demonstrate functionality of a module `module.f.ts` where the file is located.
-  - [ ] In browser test runner (we need to switch out test framework to Effects first).
+  - [X] 1. A minimal webpage
+  - [X] 2. Generate Deno and Rust docs and publish them.
+  - [ ] 3. Convert `README.md` files into HTML and publish them.
+  - [ ] 4. Source code highlighting.
+  - [ ] 5. One `main.css`
+  - [ ] 6. Convention for `page.f.ts`. The `page.f.ts` generates a demo webpage that demonstrates the functionality of the module `module.f.ts` located in the same directory.
+  - [ ] 7. In the browser test runner (we need to switch our test framework to Effects first).
 - [ ] 10. Short URL table.
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
