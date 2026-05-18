@@ -47,8 +47,6 @@
   type A = number
   export type B = A | string
   ```
-
-- [X] 41. BNF should use byte parsing instead of codePoint. In this case, we can parse binary files as well.
 - [ ] 42. Try mixing serializable BNFs.
 - [ ] 43. state-full parser.
   ```ts
@@ -237,36 +235,17 @@
       }
   }
   ```
-- [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
-- [X] 91. Create a separate nominal type for UTF-8. **Closed: won't do.** Every concrete caller (crypto, hashing, `writeFile`) consumes UTF-8 output as opaque bytes, so a nominal `Utf8` would only force `utf8ToVec(utf8(...))` wrapping at the call sites without catching any real bug. The `utf8`/`utf8ToString` function names already document the encoding contract.
 - [ ] 92. Create a separate nominal type for MSB and LSB bit vectors.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions and Playwright.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
-- [X] 101. Monad's IO design. Using Effects.
-- [X] 111. Fix `npm` publishing.
 - [ ] 112. CAS
 - [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
 - [ ] 114. A generic command line parser that can produce help.
-- [X] 115. Run-time types. See also https://arktype.io/
-  1. We need a more powerful type system than TS. See `bnf` or `effects`.
-  2. Validating type match at run-time.
 - [ ] 116. Report the TSGO regression (see `btree`).
-- [X] 117. Should we remove `map` and `pipe` functions from `Effect`?
-  ```ts
-  // current
-  readFile('a.txt')
-    .pipe(v => writeFile('b', v))
-  // proposal
-  effect
-    .pipe(() => readFile('a.txt'))
-    .pipe(v => writeFile('b', v))
-    .result
-  ```
 - [ ] 118.
   - [X] Create example repository: https://github.com/functionalscript/file-server-example.
   - [ ] use it in CI.
-- [X] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
 - [ ] 122. Consider adding a new file type for applications. For example, `node.f.ts` or `app.f.ts`.
       These files should have `export default` with type `NodeProgram`.
       Then we may have other application files, for example, `web.f.ts`.
@@ -284,14 +263,8 @@
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. Use async functions and await instead of `.then`
-- [X] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
 - [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support type narrowing properly.
-- [X] 135. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
-  Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`
-  Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
-  Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
 - [ ] 136. CI should have all tools and image versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodically updated. We will also need instructions on how to check the newest tool version in `README.md`.
-- [X] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
 - [ ] 138. Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from 136.
 - [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently, it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
 - [ ] 140. We should have 100% test coverage for all `module.f.ts` files.
