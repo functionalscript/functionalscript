@@ -5,9 +5,10 @@ import type {
     Server as EffectServer,
     Headers,
     IoResult,
+    Module,
     NodeOp,
     RequestListener as Erl,
-    Env 
+    Env
 } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
@@ -63,13 +64,6 @@ export type Fs = {
 export type Console = {
     readonly log: (...d: unknown[]) => void,
     readonly error: (...d: unknown[]) => void
-}
-
-/**
- * Represents an ES module with a default export
- */
-export type Module = {
-    readonly default: unknown
 }
 
 /**
@@ -192,6 +186,7 @@ export const fromIo = ({
     fetch,
     http: { createServer },
     childProcess,
+    asyncImport,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -217,6 +212,7 @@ export const fromIo = ({
         writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
         access: path => tc(() => access(path)),
+        import: path => tc(() => asyncImport(path)),
         exec: (command, stdin) => new Promise(resolve => {
             const child = childProcess.exec(command, (e, stdout, stderr) =>
                 resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))

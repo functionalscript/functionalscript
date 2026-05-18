@@ -178,6 +178,16 @@ export type Forever = ['forever', () => never]
 export const forever: Func<Forever> =
     do_('forever')
 
+// import
+
+export type Module = {
+    readonly default: unknown
+}
+
+export type Import = ['import', (path: string) => IoResult<Module>]
+
+export const import_: Func<Import> = do_('import')
+
 // Node
 
 export type NodeOp =
@@ -187,6 +197,7 @@ export type NodeOp =
     | Fs
     | Http
     | Forever
+    | Import
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 
