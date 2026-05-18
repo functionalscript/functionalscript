@@ -320,6 +320,8 @@
      const a: Ts<typeof t> = ...
      ```
 - [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Two forms with one job each — thunks for ergonomic construction, data for all algebra (union, subset, canonical form, dispatch). Supersedes 130.
+- [ ] 144. TypeScript proposal: distinguish prototype member functions (which require `this`) from free functions. For example, `Array.push` can only be called as `array.push(5)` — detaching it with `const p = array.push; p(5)` is a runtime error because `this` is lost. TypeScript currently types both forms identically and does not prevent the detached call. The proposal is for TypeScript to track whether a function captures `this`, and reject uses where `this` would be unbound.
+- [ ] 145. Use Docker containers for Linux CI jobs. Running Linux jobs inside a Docker container allows GitHub Actions to cache the container image, so tool installation (Node, Rust, Bun, Deno, Wasmer, Wasmtime, etc.) is paid once per image rebuild rather than on every CI run. The cache key must include all tool versions and the target architecture. macOS and Windows jobs are unaffected.
 
 ## Language Specification
 
