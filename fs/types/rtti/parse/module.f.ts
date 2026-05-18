@@ -21,7 +21,7 @@
  * extra fields or tuple elements.
  *
  * The error shape, path bookkeeping, primitive checks, and schema
- * recognition (`match`) are shared with `validate` through
+ * recognition (`visit`) are shared with `validate` through
  * `../common/module.f.ts`; only container construction differs.
  *
  * @module
@@ -39,13 +39,14 @@ import { isObject as commonIsObject } from '../../object/module.f.ts'
 import { find, map as listMap } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
-    match,
     prependPath,
     primitive0Validate,
     verror,
+    visit,
     type Result as CommonValidateResult,
     type Validate,
     type ValidationError,
+    type Visitor,
 } from '../common/module.f.ts'
 
 export { type Path, type ValidationError } from '../common/module.f.ts'
@@ -164,16 +165,16 @@ const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or',
  * parse({ a: number } as const)({ a: 1, b: 2 }) // ['ok', { a: 1 }]
  * ```
  */
-export const parse = <T extends Type>(rtti: T): Parse<T> => {
-    const k = match(rtti)
-    switch (k.kind) {
-        case 'tuple': return tupleParse(k.tuple) as any
-        case 'struct': return structParse(k.struct) as any
-        case 'array': return arrayParse(k.item) as any
-        case 'record': return recordParse(k.item) as any
-        case 'or': return orParse(k.variants) as any
-        case 'constPrimitive': return constPrimitiveValidate(k.value) as any
-        case 'primitive0': return primitive0Validate(k.tag) as any
-        case 'unknown': return ok as any
-    }
-}
+const parseVisitor = {
+    tuple: tupleParse,
+    struct: structParse,
+    array: arrayParse,
+    record: recordParse,
+    or: orParse,
+    constPrimitive: constPrimitiveValidate,
+    primitive0: primitive0Validate,
+    unknown: () => ok,
+} as unknown as Visitor<(value: Unknown) => unknown>
+
+export const parse = <T extends Type>(rtti: T): Parse<T> =>
+    visit(parseVisitor)(rtti) as any

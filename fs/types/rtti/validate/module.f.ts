@@ -13,11 +13,11 @@
  *
  * ## Dispatch strategy
  *
- * Schema recognition is delegated to `match` in `../common/module.f.ts`,
- * which collapses the `Type` ADT into a flat discriminated union; the
- * top-level `switch` then routes each variant to the matching handler.
- * `validate` returns the original value on success — no fresh allocation —
- * which is the only behavior that distinguishes it from `parse`.
+ * Schema recognition is delegated to `visit` in `../common/module.f.ts`,
+ * which routes each `Type` variant to a handler in the `Visitor` record
+ * defined below. `validate` returns the original value on success — no
+ * fresh allocation — which is the only behavior that distinguishes it
+ * from `parse`.
  *
  * ## Recursion safety
  *
@@ -40,11 +40,12 @@ import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
 import {
     constPrimitiveValidate,
-    match,
     prependPath,
     primitive0Validate,
     verror,
+    visit,
     type Validate,
+    type Visitor,
 } from '../common/module.f.ts'
 
 export {
@@ -171,16 +172,16 @@ const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly
  * v(['a'])             // ['error', { path: ['0'], message: 'unexpected value' }]
  * ```
  */
-export const validate = <T extends Type>(rtti: T): Validate<T> => {
-    const k = match(rtti)
-    switch (k.kind) {
-        case 'tuple': return tupleValidate(k.tuple) as any
-        case 'struct': return structValidate(k.struct) as any
-        case 'array': return arrayValidate(k.item) as any
-        case 'record': return recordValidate(k.item) as any
-        case 'or': return orValidate(k.variants) as any
-        case 'constPrimitive': return constPrimitiveValidate(k.value) as any
-        case 'primitive0': return primitive0Validate(k.tag) as any
-        case 'unknown': return ok as any
-    }
-}
+const validateVisitor = {
+    tuple: tupleValidate,
+    struct: structValidate,
+    array: arrayValidate,
+    record: recordValidate,
+    or: orValidate,
+    constPrimitive: constPrimitiveValidate,
+    primitive0: primitive0Validate,
+    unknown: () => ok,
+} as unknown as Visitor<(value: Unknown) => unknown>
+
+export const validate = <T extends Type>(rtti: T): Validate<T> =>
+    visit(validateVisitor)(rtti) as any

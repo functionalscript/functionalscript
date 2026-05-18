@@ -2,7 +2,7 @@
 
 `Ts<T>` (in [`fs/types/rtti/ts/module.f.ts`](../fs/types/rtti/ts/module.f.ts)) maps a schema `Type` to its TypeScript type by walking the schema's structural shape with conditional types and `infer`. It works for direct uses (`Ts<typeof someSchema>`), but it is fragile: any internal generic that resolves to `Ts<any>`, `Ts<Type>`, or a deeply nested combination distributes across every branch of the conditional and trips TS's depth/cycle limit (`error TS2589: Type instantiation is excessively deep and possibly infinite`).
 
-The current `validate` and `parse` modules work around this with liberal `as any` casts: the public boundary is typed correctly via `Ts<T>`, but the internals deliberately bypass the checker because the structural walk cannot be made non-overflowing while preserving the rest of the design. The shared kernel from [i133](./README.md) did not change this — the `match` helper was specifically chosen over a generic `dispatch<R>` because the latter forced TS to evaluate `Ts<any>` and overflowed.
+The current `validate` and `parse` modules work around this with liberal `as any` casts: the public boundary is typed correctly via `Ts<T>`, but the internals deliberately bypass the checker because the structural walk cannot be made non-overflowing while preserving the rest of the design. The shared kernel from [i133](./README.md) takes the same workaround: the `Visitor<R>` is assembled with an `as unknown as Visitor<(v: Unknown) => unknown>` cast so the generic per-variant helpers don't force TS to evaluate `Ts<any>`.
 
 This issue tracks the inference problem and the design space around fixing it.
 
@@ -102,6 +102,6 @@ Start with option 1 (constrain `Ts<T>` to short-circuit on `any`) — cheapest a
 
 ## Related
 
-- [i133](./README.md) — the shared kernel refactor that triggered this analysis. The `match`/flat-`Kind` approach was chosen over a generic `dispatch<R>` because the latter overflowed on `Ts<any>`.
+- [i133](./README.md) — the shared kernel refactor that triggered this analysis. The visitor is assembled with an opaque return type and a top-level cast specifically because generic per-variant helpers would otherwise force TS to evaluate `Ts<any>`.
 - [i143](./143-rtti-data.md) — the serializable data form. Whatever inference strategy is adopted here must extend to the data form, since both forms describe the same set of TS types.
 - [i141](./README.md) — universal extensible type system based on custom RTTI. Inference quality is one of the things a generic `TypeSystem<T>` interface needs to consider.

@@ -10,11 +10,11 @@
  * - The error shape (`ValidationError`, `Path`) and path bookkeeping
  *   (`verror`, `prependPath`).
  * - Primitive checks (`primitive0Validate`, `constPrimitiveValidate`).
- * - The `Validate<T>`/`Result<T>` types — `parse` uses the same signatures.
- * - `match`: collapses the two-level `Type` ADT (`Const | Thunk`, plus a
- *   thunk tag) into a single flat discriminated `Kind` union; both
- *   consumers switch on the result once instead of duplicating the
- *   recognition logic.
+ * - The `Validate<T>`/`Result<T>` signatures — `parse` uses the same shape.
+ * - `visit`: a visitor over the `Type` ADT. Callers supply a `Visitor<R>`
+ *   with one handler per variant; `visit(v)(rtti)` recognizes `rtti` and
+ *   calls the matching handler. Both consumers compose their top-level
+ *   function from a visitor.
  *
  * Keeping the kernel here also removes `parse`'s incidental dependency on
  * `validate` and gives future schema-driven consumers (e.g. the data form
@@ -75,47 +75,45 @@ export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T
         : verror('unexpected value') as any
 
 /**
- * The recognized variants of `Type`, in a flat discriminated union.
- *
- * `match` collapses the original two-level shape (`Const | Thunk`, plus a
- * thunk tag) into a single discriminator that callers can switch on once.
- * Both `validate` and `parse` build their dispatch tables on top of this.
+ * One handler per `Type` variant. Both `validate` and `parse` provide a
+ * `Visitor<R>` where `R` is the per-variant output (e.g. a `Validate` function).
  */
-export type Kind =
-    | { readonly kind: 'tuple', readonly tuple: Tuple }
-    | { readonly kind: 'struct', readonly struct: Struct }
-    | { readonly kind: 'array', readonly item: Type }
-    | { readonly kind: 'record', readonly item: Type }
-    | { readonly kind: 'or', readonly variants: readonly Type[] }
-    | { readonly kind: 'constPrimitive', readonly value: Primitive }
-    | { readonly kind: 'primitive0', readonly tag: Primitive0 }
-    | { readonly kind: 'unknown' }
+export type Visitor<R> = {
+    readonly tuple: (rtti: Tuple) => R
+    readonly struct: (rtti: Struct) => R
+    readonly array: (item: Type) => R
+    readonly record: (item: Type) => R
+    readonly or: (variants: readonly Type[]) => R
+    readonly constPrimitive: (p: Primitive) => R
+    readonly primitive0: (tag: Primitive0) => R
+    readonly unknown: () => R
+}
 
-const matchConst = (c: Const): Kind =>
+const visitConst = <R>(v: Visitor<R>) => (c: Const): R =>
     typeof c === 'object' && c !== null
-        ? (isArray(c) ? { kind: 'tuple', tuple: c } : { kind: 'struct', struct: c as Struct })
-        : { kind: 'constPrimitive', value: c as Primitive }
+        ? (isArray(c) ? v.tuple(c) : v.struct(c as Struct))
+        : v.constPrimitive(c as Primitive)
 
 /**
- * Recognizes a schema `Type` and returns its variant as a flat `Kind`.
+ * Visits a schema `Type` by dispatching to the matching handler in `v`.
  *
  * - `Thunk` schemas are evaluated once to read the `Info` descriptor, then
- *   tagged by their leading tag (`'const'`, `'array'`, `'record'`,
- *   `'unknown'`, `'or'`, or a `Tag0` primitive).
+ *   routed by tag (`'const'`, `'array'`, `'record'`, `'unknown'`, `'or'`,
+ *   or a `Tag0` primitive).
  * - `Const` schemas (primitives, tuples, structs) are routed directly to
  *   `tuple`, `struct`, or `constPrimitive`.
  */
-export const match = (rtti: Type): Kind => {
+export const visit = <R>(v: Visitor<R>) => (rtti: Type): R => {
     if (typeof rtti === 'function') {
         const [tag, ...value] = rtti()
         switch (tag) {
-            case 'const': return matchConst(value[0] as Const)
-            case 'array': return { kind: 'array', item: value[0] }
-            case 'record': return { kind: 'record', item: value[0] }
-            case 'unknown': return { kind: 'unknown' }
-            case 'or': return { kind: 'or', variants: value }
+            case 'const': return visitConst(v)(value[0] as Const)
+            case 'array': return v.array(value[0])
+            case 'record': return v.record(value[0])
+            case 'unknown': return v.unknown()
+            case 'or': return v.or(value)
         }
-        return { kind: 'primitive0', tag: tag as Primitive0 }
+        return v.primitive0(tag as Primitive0)
     }
-    return matchConst(rtti)
+    return visitConst(v)(rtti)
 }
