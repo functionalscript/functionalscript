@@ -13,10 +13,9 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
         error: (..._d: unknown[]) => {}
     },
     fs: {
-        writeSync: (fd:number, s: string) => {},
+        writeSync: (_fd: number, _s: string) => {},
         writeFileSync: (_file: string, _data: Uint8Array) => { },
         readFileSync: (path: string) => { return at(path)(files) },
-        existsSync: (path: string) => { return at(path)(files) !== null },
         promises: {
             readdir: (_path: string) => Promise.resolve([]),
             readFile: (_path: string) => Promise.resolve(new Uint8Array()),
@@ -24,6 +23,7 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
             rm: (_path: string, _options?: RmOptions) => Promise.resolve(),
             mkdir: (_path: string, _options?: MakeDirectoryOptions) => Promise.resolve(undefined),
             copyFile: (_src: string, _dest: string) => Promise.resolve(),
+            access: (_path: string) => Promise.resolve(),
         }
     },
     process: {

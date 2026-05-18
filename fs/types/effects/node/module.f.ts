@@ -99,9 +99,16 @@ export type Exec = readonly['exec', (command: string, stdin?: string) => IoResul
 export const exec: Func<Exec> =
     do_('exec')
 
+// access
+
+export type Access = readonly['access', (path: string) => IoResult<void>]
+
+export const access: Func<Access> =
+    do_('access')
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec
+export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec | Access
 
 // error
 
@@ -171,6 +178,16 @@ export type Forever = ['forever', () => never]
 export const forever: Func<Forever> =
     do_('forever')
 
+// import
+
+export type Module = {
+    readonly default: unknown
+}
+
+export type Import = ['import', (path: string) => IoResult<Module>]
+
+export const import_: Func<Import> = do_('import')
+
 // Node
 
 export type NodeOp =
@@ -180,6 +197,7 @@ export type NodeOp =
     | Fs
     | Http
     | Forever
+    | Import
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 

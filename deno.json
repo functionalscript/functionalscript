@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "license": "MIT",
   "exports": {
     "./fs/asn.1/module.f.ts": "./fs/asn.1/module.f.ts",

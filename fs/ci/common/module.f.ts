@@ -1,4 +1,8 @@
 import { images, rust } from '../config/module.f.ts'
+import { option, array, record, string } from '../../types/rtti/module.f.ts'
+import { type Ts } from '../../types/rtti/ts/module.f.ts'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
+import type { Unknown } from '../../json/module.f.ts'
 
 export const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -10,30 +14,31 @@ export type Architecture = typeof architecture[number]
 
 export type Image = typeof images[Os][Architecture]
 
-export type Step = {
-    readonly run?: string
-    readonly uses?: string
-    readonly with?: {
-        readonly [k: string]: string
-    }
-}
+const stepSchema = {
+    run: option(string),
+    uses: option(string),
+    with: option(record(string))
+} as const satisfies unknown
 
-export type Job = {
-    readonly 'runs-on': Image
-    readonly steps: readonly Step[]
-}
+const jobSchema = {
+    'runs-on': string,
+    steps: array(stepSchema)
+} as const satisfies unknown
 
-export type Jobs = {
-    readonly [jobs: string]: Job
-}
+const jobsSchema = record(jobSchema) satisfies unknown
 
-export type GitHubAction = {
-    readonly name: string
-    readonly on: {
-        readonly pull_request?: {}
-    }
-    readonly jobs: Jobs
-}
+const gitHubActionSchema = {
+    name: string,
+    on: { pull_request: option({}) },
+    jobs: jobsSchema
+} as const satisfies unknown
+
+export type Step = Ts<typeof stepSchema>
+export type Job = Ts<typeof jobSchema>
+export type Jobs = Ts<typeof jobsSchema>
+export type GitHubAction = Ts<typeof gitHubActionSchema>
+
+export const parseGitHubAction = rttiParse(gitHubActionSchema) satisfies unknown
 
 export type StepType = 'install' | 'test'
 

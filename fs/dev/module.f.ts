@@ -7,18 +7,24 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
+    access,
     all,
     both,
+    import_,
     readdir,
     readFile,
     writeFile,
     type All,
+    type NodeOp,
     type NodeProgram,
     type Readdir
 } from '../types/effects/node/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
+import { parse as jsonParse } from '../json/module.f.ts'
+import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -52,9 +58,7 @@ export const env
                 r.value
     }
 
-type ModuleArray = readonly (readonly[string, Module])[]
-
-export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> => {
+export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
         .step(() => readdir(p, {}))
         .step(d => {
@@ -78,37 +82,37 @@ export const allFiles2 = (s: string): Effect<Readdir | All, readonly string[]> =
     return load(s)
 }
 
-const allFiles = (io: Io) => (s: string): Promise<readonly string[]> =>
-    fromIo(io)(allFiles2(s))
+const loadFile = (f: string): Effect<NodeOp, readonly (readonly[string, Module])[]> => {
+    const doImport = import_(f).step(r => pure([[f, unwrap(r)] as const]))
+    if (f.endsWith('.f.js')) { return doImport }
+    if (f.endsWith('.f.ts')) {
+        return access(f.substring(0, f.length - 3) + '.js')
+            .step(r => r[0] === 'ok' ? pure([]) : doImport)
+    }
+    return pure([])
+}
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
-    const {
-        fs: { existsSync },
-        asyncImport
-    } = io
-    let map: ModuleArray = []
-    const initCwd = env(io)('INIT_CWD')
+    const { process: { env } } = io
+    const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
-    for (const f of await allFiles(io)(s)) {
-        if (f.endsWith('.f.js') ||
-            (f.endsWith('.f.ts') && !existsSync(f.substring(0, f.length - 3) + '.js'))
-        ) {
-            const source = await asyncImport(f)
-            map = [...map, [f, source]]
-        }
-    }
-    return Object.fromEntries(map.toSorted(cmp))
+    const effect = allFiles(s)
+        .step(files => all(...files.map(loadFile)))
+        .step(entries => pure(Object.fromEntries(entries.flat().toSorted(cmp))))
+    return fromIo(io)(effect)
 }
 
 const denoJson = './deno.json'
 
+const parseDenoJson = rttiParse(record(rttiUnknown))
+
 const index2 = begin
     .step(() => updateVersion)
     .step(() => readFile(denoJson))
-    .step(v => pure(JSON.parse(utf8ToString(unwrap(v))) as unknown))
+    .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
 
 const allFiles2aa = begin
-    .step(() => allFiles2('.'))
+    .step(() => allFiles('.'))
     .step(files => {
         const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
         const exportsA = list.map(v => [v, `./${v.substring(2)}`] as const)
@@ -117,7 +121,7 @@ const allFiles2aa = begin
 
 const index3 = both(index2)(allFiles2aa)
     .step(([jsr_json, exports]) => {
-        const json = JSON.stringify({ ...jsr_json as object, exports }, null, 2)
+        const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
         return writeFile(denoJson, utf8(json))
     })
     .step(() => pure(0))
