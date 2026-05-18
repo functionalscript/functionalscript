@@ -45,7 +45,7 @@ export type TupleTs<T extends Tuple> =
     { readonly[K in keyof T]: Ts<T[K]> }
 
 type OptionalFields<T extends Struct> = {
-    readonly[K in (keyof T) as undefined extends Ts<T[K]> ? K : never]?: Ts<T[K]>
+    readonly[K in keyof T as undefined extends Ts<T[K]> ? K : never]?: Ts<T[K]>
 }
 type RequiredFields<T extends Struct> = {
     readonly[K in keyof T as undefined extends Ts<T[K]> ? never : K]: Ts<T[K]>
