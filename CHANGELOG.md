@@ -9,9 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.0
 
-- RTTI `Ts<>`: infer optional fields — struct keys whose schema includes `undefined` (e.g. via `option(t)`) now produce optional properties `T?` instead of `T | undefined` [NNN](https://github.com/functionalscript/functionalscript/pull/NNN)
-- CI: move GitHub Action RTTI schemas (`Step`, `Job`, `Jobs`, `GitHubAction`) from `test.f.ts` to `common/module.f.ts` and derive their types with `Ts<>` [NNN](https://github.com/functionalscript/functionalscript/pull/NNN)
-- CI: add `--allow-slow-types` to `deno publish` and `deno publish --dry-run` until deno_graph 0.107.2 ships in a Deno release ([i147](./issues/README.md)) [NNN](https://github.com/functionalscript/functionalscript/pull/NNN)
+- RTTI `Ts<>`: optional field inference; CI: derive `Step`/`Job`/`GitHubAction` types from RTTI schemas; allow `--allow-slow-types` in Deno publish ([i147](./issues/README.md)) [798](https://github.com/functionalscript/functionalscript/pull/798)
 - RTTI: extract shared kernel (error shape, primitive checks, `match` recognizer) from `validate`/`parse` into a new `rtti/common` module ([i133](./issues/README.md)) [797](https://github.com/functionalscript/functionalscript/pull/797)
 - NodeProgram: move `Env` to `fs/types/effects/node` and add as second parameter [795](https://github.com/functionalscript/functionalscript/pull/795)
 
