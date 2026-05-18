@@ -26,7 +26,7 @@ const jobSchema = {
 
 const jobsSchema = record(jobSchema)
 
-export const gitHubActionSchema = {
+const gitHubActionSchema = {
     name: string,
     on: { pull_request: option({}) },
     jobs: jobsSchema

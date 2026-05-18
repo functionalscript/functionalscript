@@ -1,19 +1,19 @@
 import { ci } from './module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
 import { isVec } from '../types/bit_vec/module.f.ts'
-import { type MetaStep, type Os, test, gitHubActionSchema, parseGitHubAction } from './common/module.f.ts'
+import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../dev/module.f.ts'
 import { emptyState, virtual } from '../types/effects/node/virtual/module.f.ts'
 import { type Ts } from '../types/rtti/ts/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 
-type Gha = Ts<typeof gitHubActionSchema>
+// type Gha = Ts<typeof gitHubActionSchema>
 
-const hasRun = (cmd: string) => (gha: Gha): boolean =>
+const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
     Object.values(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
 
-const hasRunInJob = (jobId: string, cmd: string) => (gha: Gha): boolean =>
+const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false
 
 const githubState = {
@@ -21,7 +21,7 @@ const githubState = {
     root: { '.github': { workflows: {} } },
 }
 
-const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): Gha => {
+const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
     const [state, result] = virtual(githubState)(ci({ rust, nodeExtra, denoExtra: [], bunExtra: [] }))
     assert(result === 0, result)
     const dotGithub = state.root['.github']
