@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- NodeProgram: add `env` parameter [795](https://github.com/functionalscript/functionalscript/pull/795)
+
 ## 0.15.0
 
 - Effects: unify `do_`/`doRest` and `Func`/`RestFunc` into a single rest-parameter form; operation payload types are now uniformly tuples ([i121](./issues/README.md)) [794](https://github.com/functionalscript/functionalscript/pull/794)
