@@ -185,4 +185,11 @@ export type NodeEffect<T> = Effect<NodeOp, T>
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 
-export type NodeProgram = (argv: readonly string[]) => Effect<NodeOp, number>
+/**
+ * The environment variables.
+ */
+export type Env = {
+    readonly [k: string]: string|undefined
+}
+
+export type NodeProgram = (argv: readonly string[], env: Env) => Effect<NodeOp, number>

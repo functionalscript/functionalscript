@@ -46,8 +46,8 @@ export type NodeRun = (p: NodeProgram) => Promise<number>
 
 export const ioRun = (io: Io): NodeRun => {
     const r = fromIo(io)
-    const { argv } = io.process
-    return p => r(p(argv))
+    const { argv, env } = io.process
+    return p => r(p(argv, env))
 }
 
 const effectRun: NodeRun = ioRun(io)
