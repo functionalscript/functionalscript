@@ -2,6 +2,7 @@ import { images, rust } from '../config/module.f.ts'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
+import type { Unknown } from '../../json/module.f.ts'
 
 export const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -17,12 +18,12 @@ const stepSchema = {
     run: option(string),
     uses: option(string),
     with: option(record(string))
-} as const
+} as const satisfies unknown
 
 const jobSchema = {
     'runs-on': string,
     steps: array(stepSchema)
-} as const
+} as const satisfies unknown
 
 const jobsSchema = record(jobSchema)
 
@@ -30,7 +31,7 @@ const gitHubActionSchema = {
     name: string,
     on: { pull_request: option({}) },
     jobs: jobsSchema
-} as const
+} as const satisfies unknown
 
 export type Step = Ts<typeof stepSchema>
 export type Job = Ts<typeof jobSchema>
