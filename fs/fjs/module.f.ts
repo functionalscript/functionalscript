@@ -11,7 +11,9 @@ import type { NodeProgram } from '../types/effects/node/module.f.ts'
 
 export const main = async(io: Io): Promise<number> => {
     const { error } = io.console
-    const [command, ...rest] = io.process.argv.slice(2)
+    const { process, asyncImport } = io
+    const { env } = process
+    const [command, ...rest] = process.argv.slice(2)
     const eRun = fromIo(io)
     switch (command) {
         case 'test':
@@ -26,8 +28,8 @@ export const main = async(io: Io): Promise<number> => {
         case 'run':
         case 'r':
             const [file, ...args] = rest
-            const m = await io.asyncImport(file)
-            return eRun((m.default as NodeProgram)(args))
+            const m = await asyncImport(file)
+            return eRun((m.default as NodeProgram)(args, env))
         case undefined:
             error('Error: command is required')
             return Promise.resolve(1)
