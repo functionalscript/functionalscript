@@ -45,7 +45,6 @@ export type Fs = {
     readonly writeSync: (fd:number, s: string) => void
     readonly writeFileSync: (file: string, data: Uint8Array) => void
     readonly readFileSync: (path: string) => Uint8Array | null
-    readonly existsSync: (path: string) => boolean
     readonly promises: {
         readonly readFile: (path: string) => Promise<Uint8Array>
         readonly writeFile: (path: string, data: Uint8Array) => Promise<void>
