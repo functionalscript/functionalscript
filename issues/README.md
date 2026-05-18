@@ -284,7 +284,7 @@
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. Use async functions and await instead of `.then`
-- [ ] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
+- [X] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
 - [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support type narrowing properly.
 - [X] 135. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
   Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`

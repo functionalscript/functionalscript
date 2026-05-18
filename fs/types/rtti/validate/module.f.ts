@@ -13,15 +13,11 @@
  *
  * ## Dispatch strategy
  *
- * - **`Thunk`** schemas are evaluated lazily: the thunk is called once to obtain an
- *   `Info` descriptor, then dispatched by tag:
- *   - `'const'` — delegates to `constValidate`
- *   - `'unknown'` — always succeeds (any DJS value is valid)
- *   - `Tag1` (`'array'`, `'record'`) — delegates to `containerValidate`
- *   - `Tag0` (`'boolean'`, `'number'`, `'string'`, `'bigint'`) — uses `typeof` check
- *   - `'or'` — tries each variant; reports `'no match'` at the current location if all fail
- * - **`Const`** schemas (primitives, tuples, structs) validate by exact equality or
- *   recursive field/element checking.
+ * Schema recognition is delegated to `match` in `../common/module.f.ts`,
+ * which collapses the `Type` ADT into a flat discriminated union; the
+ * top-level `switch` then routes each variant to the matching handler.
+ * `validate` returns the original value on success — no fresh allocation —
+ * which is the only behavior that distinguishes it from `parse`.
  *
  * ## Recursion safety
  *
@@ -33,44 +29,34 @@
  */
 import type { Unknown } from '../../../djs/module.f.ts'
 import {
-    type Const,
-    type ConstObject,
-    type Info0,
     type Info1,
-    type Primitive0,
     type Struct,
     type Tag1,
     type Tuple,
-    type Type
+    type Type,
 } from '../module.f.ts'
-import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
-import type { Ts } from '../ts/module.f.ts'
+import { ok } from '../../result/module.f.ts'
 import { isArray as commonIsArray } from '../../array/module.f.ts'
 import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
-import type { Primitive } from '../../../djs/module.f.ts'
+import {
+    constPrimitiveValidate,
+    match,
+    prependPath,
+    primitive0Validate,
+    verror,
+    type Validate,
+} from '../common/module.f.ts'
 
-/** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
-export type Path = readonly string[]
-
-/** Detailed validation failure: the offending `path` plus a short `message`. */
-export type ValidationError = {
-    readonly path: Path
-    readonly message: string
-}
-
-/** Validation result: either the typed value or a `ValidationError`. */
-export type Result<T extends Type> = CommonResult<Ts<T>, ValidationError>
-
-/** A function that validates an unknown value against schema `T`. */
-export type Validate<T extends Type> = (value: Unknown) => Result<T>
-
-/** Builds an error result with empty path and the given message. */
-export const verror = (message: string): Error<ValidationError> =>
-    error({ path: [], message })
-
-/** Prepends `key` to the error's path, used to build the path bottom-up. */
-export const prependPath = (key: string, r: Error<ValidationError>): Error<ValidationError> =>
-    error({ path: [key, ...r[1].path], message: r[1].message })
+export {
+    constPrimitiveValidate,
+    prependPath,
+    primitive0Validate,
+    verror,
+    type Path,
+    type Result,
+    type Validate,
+    type ValidationError,
+} from '../common/module.f.ts'
 
 /** Type guard narrowing `Unknown` to a specific container type `C`. */
 type IsContainer<C extends Unknown> = (value: Unknown) => value is C
@@ -124,10 +110,6 @@ const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
 
 const recordValidate = containerValidate<'record'>(isObject, Object.entries)
 
-/** Validates a `Tag0` primitive schema using `typeof`. */
-export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
-    value => typeof value === tag ? ok(value) as any : verror('unexpected value') as any
-
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
  * Iterates over the schema's entries and validates each corresponding
@@ -142,7 +124,7 @@ const constContainerValidate =
     }
     for (const [k, v] of Object.entries(rtti)) {
         const item = getItem(value, k)
-        const r = (validate(v) as any)(item) as Result<T>
+        const r = (validate(v) as any)(item) as ReturnType<Validate<T>>
         if (r[0] === 'error') {
             return prependPath(k, r) as any
         }
@@ -159,28 +141,6 @@ const structValidate = constContainerValidate<ReadonlyRecord<string, Unknown>>(
     isObject,
     (value, k) => value[k]
 )
-
-const constObjectValidate = <T extends ConstObject>(rtti: T): Validate<T> =>
-    commonIsArray(rtti)
-        ? tupleValidate(rtti) as any
-        : structValidate(rtti) as any
-
-/**
- * Validates a primitive `Const` schema using `Object.is` (SameValue).
- *
- * `Object.is` is used instead of `===` so that:
- * - `NaN` const schemas match `NaN` values (`===` would always fail because `NaN !== NaN`).
- * - `+0` and `-0` are treated as distinct const values.
- */
-export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
-    value => Object.is(rtti, value)
-        ? ok(value) as any
-        : verror('unexpected value') as any
-
-const constValidate = <T extends Const>(rtti: T): Validate<T> =>
-    typeof rtti === 'object' && rtti !== null
-        ? constObjectValidate(rtti) as any
-        : constPrimitiveValidate(rtti) as any
 
 const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly['or', ...T]> => {
     const all = rtti.map(r => validate(r))
@@ -212,16 +172,15 @@ const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly
  * ```
  */
 export const validate = <T extends Type>(rtti: T): Validate<T> => {
-    if (typeof rtti === 'function') {
-        const [tag, ...value] = rtti()
-        switch (tag) {
-            case 'const': return constValidate(value[0] as Const) as any
-            case 'array': return arrayValidate(value[0]) as any
-            case 'record': return recordValidate(value[0]) as any
-            case 'unknown': return ok as any
-            case 'or': return orValidate(value) as any
-        }
-        return primitive0Validate(tag) as any
+    const k = match(rtti)
+    switch (k.kind) {
+        case 'tuple': return tupleValidate(k.tuple) as any
+        case 'struct': return structValidate(k.struct) as any
+        case 'array': return arrayValidate(k.item) as any
+        case 'record': return recordValidate(k.item) as any
+        case 'or': return orValidate(k.variants) as any
+        case 'constPrimitive': return constPrimitiveValidate(k.value) as any
+        case 'primitive0': return primitive0Validate(k.tag) as any
+        case 'unknown': return ok as any
     }
-    return constValidate(rtti) as any
 }
