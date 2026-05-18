@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- NodeProgram: add `env` parameter [795](https://github.com/functionalscript/functionalscript/pull/795)
+- NodeProgram: move `Env` to `fs/types/effects/node` and add as second parameter [795](https://github.com/functionalscript/functionalscript/pull/795)
 
 ## 0.15.0
 
