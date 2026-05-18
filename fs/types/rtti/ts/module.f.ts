@@ -44,14 +44,17 @@ export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
     { readonly[K in keyof T]: Ts<T[K]> }
 
+type OptionalFields<T extends Struct> = {
+    readonly[K in (keyof T) as undefined extends Ts<T[K]> ? K : never]?: Ts<T[K]>
+}
+type RequiredFields<T extends Struct> = {
+    readonly[K in keyof T as undefined extends Ts<T[K]> ? never : K]: Ts<T[K]>
+}
+
 /** Maps a struct schema to a readonly object of resolved types, with optional fields for schemas that include `undefined`. */
 export type StructTs<T extends Struct> =
-    (keyof { [K in keyof T as undefined extends Ts<T[K]> ? K : never]: 1 } extends never
-        ? unknown
-        : { readonly[K in keyof T as undefined extends Ts<T[K]> ? K : never]?: Ts<T[K]> }) &
-    (keyof { [K in keyof T as undefined extends Ts<T[K]> ? never : K]: 1 } extends never
-        ? unknown
-        : { readonly[K in keyof T as undefined extends Ts<T[K]> ? never : K]: Ts<T[K]> })
+    (keyof OptionalFields<T> extends never ? unknown : OptionalFields<T>) &
+    (keyof RequiredFields<T> extends never ? unknown : RequiredFields<T>)
 
 /**
  * Converts a schema `Type` to its corresponding TypeScript type.
