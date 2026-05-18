@@ -20,38 +20,39 @@
  * a schema-based parser keeps working when newer versions of the format add
  * extra fields or tuple elements.
  *
- * Error path semantics, error type, and primitive/const-primitive checks are
- * shared with `validate`; only container construction differs.
+ * The error shape, path bookkeeping, primitive checks, and schema
+ * recognition (`visit`) are shared with `validate` through
+ * `../common/module.f.ts`; only container construction differs.
  *
  * @module
  */
 import type { Unknown } from '../../../djs/module.f.ts'
 import {
-    type Const,
-    type ConstObject,
     type Info1,
     type Struct,
     type Tuple,
     type Type,
 } from '../module.f.ts'
 import { ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
+import { isArray as commonIsArray } from '../../array/module.f.ts'
+import { isObject as commonIsObject } from '../../object/module.f.ts'
+import { find, map as listMap } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
     prependPath,
     primitive0Validate,
     verror,
-    type Result as ValidateResult,
+    visit,
+    type Result as CommonValidateResult,
     type Validate,
     type ValidationError,
-} from '../validate/module.f.ts'
-import { isArray as commonIsArray } from '../../array/module.f.ts'
-import { isObject as commonIsObject } from '../../object/module.f.ts'
-import { find, map as listMap } from '../../list/module.f.ts'
+    type Visitor,
+} from '../common/module.f.ts'
 
-export type { Path, ValidationError } from '../validate/module.f.ts'
+export { type Path, type ValidationError } from '../common/module.f.ts'
 
 /** Parse result: either the freshly constructed typed value or a `ValidationError`. */
-export type Result<T extends Type> = ValidateResult<T>
+export type Result<T extends Type> = CommonValidateResult<T>
 
 /** A function that parses an unknown value into the schema `T`. */
 export type Parse<T extends Type> = Validate<T>
@@ -133,16 +134,6 @@ const structParse = <T extends Struct>(rtti: T): Parse<T> => value => {
         : prependPath(err[0], err[1])) as any
 }
 
-const constObjectParse = <T extends ConstObject>(rtti: T): Parse<T> =>
-    commonIsArray(rtti)
-        ? tupleParse(rtti) as any
-        : structParse(rtti) as any
-
-const constParse = <T extends Const>(rtti: T): Parse<T> =>
-    typeof rtti === 'object' && rtti !== null
-        ? constObjectParse(rtti) as any
-        : constPrimitiveValidate(rtti) as any
-
 const findFirst = find
     (verror('no match'))
     ((k: any) => k[0] === 'ok')
@@ -174,17 +165,16 @@ const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or',
  * parse({ a: number } as const)({ a: 1, b: 2 }) // ['ok', { a: 1 }]
  * ```
  */
-export const parse = <T extends Type>(rtti: T): Parse<T> => {
-    if (typeof rtti === 'function') {
-        const [tag, ...value] = rtti()
-        switch (tag) {
-            case 'const': return constParse(value[0] as Const) as any
-            case 'array': return arrayParse(value[0]) as any
-            case 'record': return recordParse(value[0]) as any
-            case 'unknown': return ok as any
-            case 'or': return orParse(value) as any
-        }
-        return primitive0Validate(tag) as any
-    }
-    return constParse(rtti) as any
-}
+const parseVisitor = {
+    tuple: tupleParse,
+    struct: structParse,
+    array: arrayParse,
+    record: recordParse,
+    or: orParse,
+    constPrimitive: constPrimitiveValidate,
+    primitive0: primitive0Validate,
+    unknown: () => ok,
+} as unknown as Visitor<(value: Unknown) => unknown>
+
+export const parse = <T extends Type>(rtti: T): Parse<T> =>
+    visit(parseVisitor)(rtti) as any

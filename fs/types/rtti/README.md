@@ -8,7 +8,12 @@ A type-safe schema system for describing TypeScript types at runtime and validat
 
 - `module.f.ts` — schema construction: defines `Type`, `Info`, and schema builder values
 - `ts/module.f.ts` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
-- `validate/module.f.ts` — runtime validation: `validate(schema)(value)` returns `Result`
+- `common/module.f.ts` — shared kernel for runtime consumers: error shape, path
+  bookkeeping, primitive checks, and `match` (the flat `Kind` recognizer)
+- `validate/module.f.ts` — runtime validation: `validate(schema)(value)` returns
+  the original value (or `Result` on error)
+- `parse/module.f.ts` — runtime deserialization: `parse(schema)(value)` returns
+  a freshly constructed value containing only the declared fields/elements
 
 ## Schema types
 
