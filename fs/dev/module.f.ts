@@ -22,6 +22,9 @@ import {
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
+import { parse as jsonParse } from '../json/module.f.ts'
+import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -79,14 +82,14 @@ export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> =>
     return load(s)
 }
 
-const loadFile = (f: string): Effect<NodeOp, readonly[string, Module] | undefined> => {
-    const doImport = import_(f).step(r => pure([f, unwrap(r) as Module] as const))
+const loadFile = (f: string): Effect<NodeOp, readonly (readonly[string, Module])[]> => {
+    const doImport = import_(f).step(r => pure([[f, unwrap(r)] as const]))
     if (f.endsWith('.f.js')) { return doImport }
     if (f.endsWith('.f.ts')) {
         return access(f.substring(0, f.length - 3) + '.js')
-            .step(r => r[0] === 'ok' ? pure(undefined) : doImport)
+            .step(r => r[0] === 'ok' ? pure([]) : doImport)
     }
-    return pure(undefined)
+    return pure([])
 }
 
 export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
@@ -95,22 +98,18 @@ export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     const effect = allFiles(s)
         .step(files => all(...files.map(loadFile)))
-        .step(entries => pure(
-            Object.fromEntries(
-                entries
-                    .flatMap(e => e !== undefined ? [e] : [])
-                    .toSorted(cmp)
-            )
-        ))
+        .step(entries => pure(Object.fromEntries(entries.flat().toSorted(cmp))))
     return fromIo(io)(effect)
 }
 
 const denoJson = './deno.json'
 
+const parseDenoJson = rttiParse(record(rttiUnknown))
+
 const index2 = begin
     .step(() => updateVersion)
     .step(() => readFile(denoJson))
-    .step(v => pure(JSON.parse(utf8ToString(unwrap(v))) as unknown))
+    .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
 
 const allFiles2aa = begin
     .step(() => allFiles('.'))
@@ -122,7 +121,7 @@ const allFiles2aa = begin
 
 const index3 = both(index2)(allFiles2aa)
     .step(([jsr_json, exports]) => {
-        const json = JSON.stringify({ ...jsr_json as object, exports }, null, 2)
+        const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
         return writeFile(denoJson, utf8(json))
     })
     .step(() => pure(0))
