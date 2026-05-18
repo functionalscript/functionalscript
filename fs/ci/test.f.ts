@@ -1,20 +1,14 @@
 import { ci } from './module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
 import { isVec } from '../types/bit_vec/module.f.ts'
-import { type MetaStep, type Os, test } from './common/module.f.ts'
+import { type MetaStep, type Os, test, gitHubActionSchema, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../dev/module.f.ts'
 import { emptyState, virtual } from '../types/effects/node/virtual/module.f.ts'
-import { option, array, record, string } from '../types/rtti/module.f.ts'
 import { type Ts } from '../types/rtti/ts/module.f.ts'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 
-const stepSchema = { run: option(string), uses: option(string) }
-const jobSchema = { steps: array(stepSchema) }
-const ghaSchema = { jobs: record(jobSchema) }
-
-type Gha = Ts<typeof ghaSchema>
+type Gha = Ts<typeof gitHubActionSchema>
 
 const hasRun = (cmd: string) => (gha: Gha): boolean =>
     Object.values(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
@@ -36,7 +30,7 @@ const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []
     assert(workflows !== undefined && !isVec(workflows), workflows)
     const file = workflows['ci.yml']
     assert(isVec(file), file)
-    return unwrap(rttiParse(ghaSchema)(jsonParse(utf8ToString(file))))
+    return unwrap(parseGitHubAction(jsonParse(utf8ToString(file))))
 }
 
 export default {

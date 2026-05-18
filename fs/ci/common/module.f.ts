@@ -1,4 +1,6 @@
 import { images, rust } from '../config/module.f.ts'
+import { option, array, record, string } from '../../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
 
 export const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -34,6 +36,14 @@ export type GitHubAction = {
     }
     readonly jobs: Jobs
 }
+
+const stepSchema = { run: option(string), uses: option(string) }
+const jobSchema = { steps: array(stepSchema) }
+const gitHubActionSchema = { jobs: record(jobSchema) }
+
+export { gitHubActionSchema }
+
+export const parseGitHubAction = rttiParse(gitHubActionSchema)
 
 export type StepType = 'install' | 'test'
 
