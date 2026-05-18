@@ -201,7 +201,11 @@ export const fromIo = ({
         readFile: path => tc(async() => toVec(await readFile(path))),
         readdir: (path, r) => tc(async() =>
             (await readdir(path, { ...r, withFileTypes: true }))
-            .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
+            .map(v => ({
+                name: v.name,
+                parentPath: normalize(v.parentPath),
+                isFile: v.isFile()
+            }))
         ),
         writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
