@@ -140,7 +140,7 @@ export type Io = {
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
     readonly childProcess: ChildProcess
-    readonly temporalNow: () => bigint
+    readonly temporalNow: () => Temporal.Instant
 }
 
 export type App = (io: Io) => Promise<number>

@@ -1,11 +1,13 @@
 /**
- * Temporal effect for reading the current instant as epoch nanoseconds.
+ * Temporal effect for reading the current instant.
  *
  * @module
  */
 import { type Func, do_ } from '../module.f.ts'
 
-export type Now = readonly['now', () => bigint]
+export type Instant = Temporal.Instant
+
+export type Now = readonly['now', () => Instant]
 
 export const now: Func<Now> = do_('now')
 

@@ -6,7 +6,7 @@ export default {
     now: () => {
         const epochNs = 1_000_000_000n
         const [state, result] = virtual({ ...emptyState, epochNs })(now())
-        assert(result === epochNs, result)
+        assert(result.epochNanoseconds === epochNs, result)
         assert(state.epochNs === epochNs, state.epochNs)
     },
 }

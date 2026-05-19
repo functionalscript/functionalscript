@@ -162,7 +162,7 @@ const map: MemOperationMap<NodeOp, State> = {
     createServer: todo,
     listen: todo,
     forever: todo,
-    now: (state) => [state, state.epochNs],
+    now: (state) => [state, new Temporal.Instant(state.epochNs)],
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)
