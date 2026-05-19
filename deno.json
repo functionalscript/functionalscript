@@ -71,6 +71,7 @@
     "./fs/types/effects/module.ts": "./fs/types/effects/module.ts",
     "./fs/types/effects/node/module.f.ts": "./fs/types/effects/node/module.f.ts",
     "./fs/types/effects/node/virtual/module.f.ts": "./fs/types/effects/node/virtual/module.f.ts",
+    "./fs/types/effects/temporal/module.f.ts": "./fs/types/effects/temporal/module.f.ts",
     "./fs/types/function/compare/module.f.ts": "./fs/types/function/compare/module.f.ts",
     "./fs/types/function/module.f.ts": "./fs/types/function/module.f.ts",
     "./fs/types/function/operator/module.f.ts": "./fs/types/function/operator/module.f.ts",

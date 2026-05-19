@@ -21,6 +21,6 @@ export const playwrightJob: Job = {
         // we have to use `npx` to make sure that we respect `@playwright/test` version from
         // the `package.json`.
         ...['chromium', 'firefox', 'webkit'].map(browser =>
-            test({ run: `npx playwright test --browser=${browser}` })),
+            test({ run: `NODE_OPTIONS=--harmony-temporal npx playwright test --browser=${browser}` })),
     ]))
 }
