@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effects: add `now` operation returning epoch nanoseconds as `bigint` via `Date.now()`; virtual runner exposes `epochNs` for deterministic tests [803](https://github.com/functionalscript/functionalscript/pull/803)
+
 ## 0.16.0
 
 - RTTI `Ts<>`: optional field inference; CI: derive `Step`/`Job`/`GitHubAction` types from RTTI schemas; allow `--allow-slow-types` in Deno publish ([i147](./issues/README.md)) [798](https://github.com/functionalscript/functionalscript/pull/798)
