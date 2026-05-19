@@ -41,12 +41,18 @@
   - use content (serialization). This can be slow with a non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 - [ ] [039-radix-encoding.md](./039-radix-encoding.md)
-- [ ] 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
+- [ ] P5 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
 
   ```ts
   type A = number
   export type B = A | string
   ```
+
+  Notes:
+  - FunctionalScript doesn't have RegEx, so an ad-hoc text-scan implementation in `.f.ts` is not possible.
+  - The task is more about an external tool: it requires emitting `.d.ts` via `tsc` and inspecting the output (or driving the TypeScript Compiler API), neither of which belongs inside a FunctionalScript module.
+  - The proper place for this check is a FunctionalScript parser, which is not available yet.
+  - Low priority (P5).
 - [ ] 42. Try mixing serializable BNFs.
 - [ ] 43. state-full parser.
   ```ts
