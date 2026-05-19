@@ -115,5 +115,8 @@
     "semiColons": false,
     "singleQuote": true,
     "lineWidth": 80
+  },
+  "compilerOptions": {
+    "lib": ["deno.window", "esnext", "esnext.temporal"]
   }
 }
