@@ -241,7 +241,8 @@ export const fromIo = ({
             const s = asBase(server) as Server
             s.listen(port)
         },
-        forever: () => new Promise(() => {})
+        forever: () => new Promise(() => {}),
+        now: async () => BigInt(Date.now()) * 1_000_000n,
     })
     return result
 }

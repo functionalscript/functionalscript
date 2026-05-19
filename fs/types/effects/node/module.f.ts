@@ -188,6 +188,12 @@ export type Import = ['import', (path: string) => IoResult<Module>]
 
 export const import_: Func<Import> = do_('import')
 
+// now
+
+export type Now = readonly['now', () => bigint]
+
+export const now: Func<Now> = do_('now')
+
 // Node
 
 export type NodeOp =
@@ -198,6 +204,7 @@ export type NodeOp =
     | Http
     | Forever
     | Import
+    | Now
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 
