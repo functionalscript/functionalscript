@@ -47,4 +47,5 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     childProcess: {
         exec: todo,
     },
+    temporalNow: () => 0n,
 })

@@ -4,6 +4,9 @@ import type { Result } from '../../result/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
 } from '../module.f.ts'
+export type { Now, TemporalOp } from '../temporal/module.f.ts'
+export { now } from '../temporal/module.f.ts'
+import type { TemporalOp } from '../temporal/module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
 
@@ -198,6 +201,7 @@ export type NodeOp =
     | Http
     | Forever
     | Import
+    | TemporalOp
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 

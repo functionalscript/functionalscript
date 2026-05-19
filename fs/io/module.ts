@@ -1,3 +1,4 @@
+/// <reference lib="esnext.temporal" />
 import http from 'node:http'
 import childProcess from 'node:child_process'
 import fs from 'node:fs'
@@ -38,6 +39,9 @@ export const io: Io = {
     },
     http,
     childProcess,
+    temporalNow: () => typeof Temporal !== 'undefined'
+        ? Temporal.Now.instant().epochNanoseconds
+        : BigInt(Date.now()) * 1_000_000n,
 }
 
 export const legacyRun: Run = run(io)

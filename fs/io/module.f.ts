@@ -140,6 +140,7 @@ export type Io = {
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
     readonly childProcess: ChildProcess
+    readonly temporalNow: () => bigint
 }
 
 export type App = (io: Io) => Promise<number>
@@ -187,6 +188,7 @@ export const fromIo = ({
     http: { createServer },
     childProcess,
     asyncImport,
+    temporalNow,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -241,7 +243,8 @@ export const fromIo = ({
             const s = asBase(server) as Server
             s.listen(port)
         },
-        forever: () => new Promise(() => {})
+        forever: () => new Promise(() => {}),
+        now: async () => temporalNow(),
     })
     return result
 }
