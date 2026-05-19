@@ -1,6 +1,6 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { pure } from "../module.f.ts"
-import { fetch, mkdir, readdir, readFile, rm, writeFile } from "./module.f.ts"
+import { fetch, mkdir, now, readdir, readFile, rm, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -222,5 +222,9 @@ export default {
             if (result !== 'invalid path') { throw result }
             if (state.root.tmp === undefined) { throw state.root }
         },
+    },
+    now: () => {
+        const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000n })(now())
+        if (result !== 1_000_000n) { throw result }
     },
 }
