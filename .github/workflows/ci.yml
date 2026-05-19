@@ -1070,7 +1070,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0"
+            "node-version": "26.1.0"
           }
         },
         {
@@ -1096,13 +1096,13 @@
           "run": "npm ci"
         },
         {
-          "run": "NODE_OPTIONS=--harmony-temporal npx playwright test --browser=chromium"
+          "run": "npx playwright test --browser=chromium"
         },
         {
-          "run": "NODE_OPTIONS=--harmony-temporal npx playwright test --browser=firefox"
+          "run": "npx playwright test --browser=firefox"
         },
         {
-          "run": "NODE_OPTIONS=--harmony-temporal npx playwright test --browser=webkit"
+          "run": "npx playwright test --browser=webkit"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"

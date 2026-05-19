@@ -7,7 +7,7 @@ const playwrightImage = images.ubuntu.intel
 // Playwright installation is stuck on Node 26 (May 7 2026) so we use Node 24.
 export const playwrightJob: Job = {
     'runs-on': playwrightImage,
-    steps: toSteps(basicNode(node.others.at(-1)!)([
+    steps: toSteps(basicNode(node.default!)([
         install({
             uses: 'actions/cache@v4',
             with: {
@@ -21,6 +21,6 @@ export const playwrightJob: Job = {
         // we have to use `npx` to make sure that we respect `@playwright/test` version from
         // the `package.json`.
         ...['chromium', 'firefox', 'webkit'].map(browser =>
-            test({ run: `NODE_OPTIONS=--harmony-temporal npx playwright test --browser=${browser}` })),
+            test({ run: `npx playwright test --browser=${browser}` })),
     ]))
 }
