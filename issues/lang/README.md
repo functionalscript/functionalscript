@@ -109,7 +109,7 @@ The FJS can have functions. The format requires additional run-time information 
 2. [ ] [type inference](./3370-type-inference.md)
 3. [ ] [promise](./3380-promise.md)
 4. [ ] [class](./3390-class.md)
-5. [ ] Temporal classes.
+5. [ ] Temporal classes. See https://github.com/functionalscript/functionalscript/pull/801
 
 ### 3.4. Syntactic Sugar
 
