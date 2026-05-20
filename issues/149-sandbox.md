@@ -63,7 +63,7 @@ Coverage information would allow the test framework to aggregate per-test covera
 - **Node.js (simple):** plain try/catch + `performance.now()` in the same synchronous block.
 - **Node.js (worker):** run `f` in a `worker_thread`; enforces time and memory limits via worker termination.
 - **Browser:** run `f` in a `Worker`; same limit enforcement.
-- **Virtual runner:** injects a controlled `SandboxResult` for deterministic tests — both the result and the duration are fully controllable, making the test framework testable by its own mechanism.
+- **Virtual runner:** calls `f()` synchronously and returns `duration: 0`, giving deterministic results in tests. Full injection of controlled results and durations (needed to test the test framework itself) is future work tracked in [i148](./148-test-framework-effects.md).
 
 ## Related
 

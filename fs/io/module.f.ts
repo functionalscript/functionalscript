@@ -17,7 +17,8 @@ import type {
     Module,
     NodeOp,
     RequestListener as Erl,
-    Env
+    Env,
+    SandboxResult
 } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
@@ -256,15 +257,16 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox: async f => {
-            let before = 0
+            const g = (result: Result<unknown, unknown>, after: number) =>
+                ({ result, duration: after - before } as const)
+            const before = perfNow()
             try {
-                before = perfNow()
                 const value = f()
                 const after = perfNow()
-                return { result: ok(value), duration: after - before }
+                return g(ok(value), after)
             } catch (e) {
                 const after = perfNow()
-                return { result: error(e), duration: after - before }
+                return g(error(e), after)
             }
         },
     })
