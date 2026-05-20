@@ -32,7 +32,7 @@ Replace `Input<T>` and the `Io` dependency with a proper Effect program.
 |---------|-------------------|
 | `log(s)` | `Log` (`log`) |
 | `error(s)` | `Error` (`error`) |
-| `io.performance.now()` | `Now` (`now`) — epoch ns as `bigint` |
+| `io.performance.now()` + `tryCatch` | `Sandbox` — runs a plain sync function, catches errors, measures time; new operation |
 | `tryCatch(f)` | new `TryCatch` operation, or handled inline |
 | `env(k)` | already in `NodeProgram` signature as `Env` parameter |
 | `loadModuleMap2(env)` | already `Effect<Access \| Import \| All \| Readdir, ModuleMap>` |
@@ -46,23 +46,53 @@ Replace `Input<T>` and the `Io` dependency with a proper Effect program.
 
 Option 1 is cleaner: `TryCatch` is already a concept in `Io`, and making it an operation allows the virtual runner to control it for deterministic error testing.
 
-### Timing with `Now`
+### Timing with a performance counter
 
-The current `measure` helper calls `io.performance.now()` before and after a test function. With the `Now` effect returning epoch nanoseconds, timing becomes:
+The current `measure` helper calls `io.performance.now()` before and after a test function. `io.performance.now()` is a high-resolution monotonic counter (sub-millisecond, relative to an arbitrary origin) — different from the `Now` effect which returns epoch nanoseconds from `Date.now()`. For timing test execution we need the performance counter, not the wall clock.
+
+Two design options:
+
+**Option A — raw `Perf` counter** (call before and after, compute delta manually, keep `TryCatch` separate):
 
 ```ts
-const before: Effect<Now, bigint> = now()
-// run test
-const after: Effect<Now, bigint> = now()
-// delta = after - before (nanoseconds)
+export type Perf = readonly['perf', () => number]
+export const perf: Func<Perf> = do_('perf')
 ```
+
+```ts
+const timedTest = (f: () => unknown): Effect<Perf | TryCatch, readonly[Result<unknown, unknown>, number]> =>
+    begin
+    .step(() => perf())
+    .step(before => tryCatch(f)
+        .step(result => perf()
+            .step(after => pure([result, after - before] as const))
+        )
+    )
+```
+
+Verbose, requires two separate operations, and the virtual runner must coordinate them independently. Critically, since effects execute as async tasks, the scheduler can insert arbitrary work between the two `perf()` calls, making the measured delta inaccurate.
+
+**Option B — `Trial` effect** (takes a plain sync function, combines try/catch and timing in one operation):
+
+```ts
+export type Trial = ['sandbox', <T>(f: () => T) => readonly[Result<T, unknown>, number]]
+export const sandbox: Func<Trial> = do_('sandbox')
+```
+
+The runner executes `f()`, catches any thrown value, measures elapsed time via `performance.now()`, and returns `[result, delta]`. Usage:
+
+```ts
+sandbox(myTest)  // Effect<Trial, readonly[Result<unknown, unknown>, number]>
+```
+
+Option B is preferred: one operation replaces both `TryCatch` and `Measure`, the runner owns both the clock and the error boundary, and the virtual runner can inject controlled results and deltas for deterministic tests. Only plain sync functions are accepted — no effects, no promises — which matches exactly what test functions are. Because the function runs synchronously inside the operation, the before/after clock reads happen in the same turn of the event loop with no scheduler interleaving, giving accurate timings. The name `sandbox` is intentional: it implies both the try/catch ("sandbox" from "try") and a measured test run. Future parameters (memory limit, time limit) are not expressible inside a JS engine today but can be added to the operation payload later without breaking the API. Implementations that use workers (e.g. a browser runner or a Node worker-threads runner) get isolation and limit enforcement for free from the worker boundary.
 
 ### Target shape
 
 The test program becomes a `NodeProgram` (or effect with a subset of `NodeOp`):
 
 ```ts
-type TestOp = Log | Error | Now | TryCatch | Access | Import | All | Readdir
+type TestOp = Log | Error | Trial | Access | Import | All | Readdir
 
 const testProgram: (argv: readonly string[], env: Env) => Effect<TestOp, number>
 ```
