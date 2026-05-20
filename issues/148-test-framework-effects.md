@@ -2,6 +2,8 @@
 
 The test framework in [`fs/dev/tf/module.f.ts`](../fs/dev/tf/module.f.ts) currently runs on the [`Io`](../fs/io/module.f.ts) interface rather than the Effects system. This blocks running tests in any environment that doesn't implement `Io` (e.g. a browser), and duplicates effect-threading machinery that the rest of the codebase gets for free from the effect runner.
 
+A deeper problem: the test framework cannot test itself. `Io` has no pure in-process mock — testing code that depends on `Io` requires a real runtime environment. Effects, by contrast, can be virtualized entirely within FunctionalScript using the virtual runner, so the test framework becomes testable by its own mechanism.
+
 ## Current design
 
 `main` receives an `Io` and calls `fromIo(io)(loadModuleMap2(...))` to discover test modules, then passes control to `test(input)` where `input` is an `Input<T>`:
