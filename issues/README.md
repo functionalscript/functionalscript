@@ -272,7 +272,7 @@
 - [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support type narrowing properly.
 - [ ] 136. CI should have all tools and image versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodically updated. We will also need instructions on how to check the newest tool version in `README.md`.
 - [ ] 138. Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from 136.
-- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently, it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
+- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. See [148-test-framework-effects](./148-test-framework-effects.md) for the detailed design.
 - [ ] 140. We should have 100% test coverage for all `module.f.ts` files.
 - [ ] 141. Design for a universal, extensible type system based on custom RTTI. How it should work:
   1. We should define an interface for type validation. For example
@@ -303,6 +303,8 @@
 - [ ] 145. Use Docker containers for Linux CI jobs. Running Linux jobs inside a Docker container allows GitHub Actions to cache the container image, so tool installation (Node, Rust, Bun, Deno, Wasmer, Wasmtime, etc.) is paid once per image rebuild rather than on every CI run. The cache key must include all tool versions and the target architecture. macOS and Windows jobs are unaffected.
 - [ ] [146-rtti-ts-inference](./146-rtti-ts-inference.md). `Ts<T>` walks schema structure on every query, which overflows TS's depth budget for `Ts<any>` and forces `as any` casts in `validate`/`parse`. Compares Zod/Valibot/ArkType approaches and sketches the design space.
 - [ ] 147. Deno slow-types: Deno's JSR publisher requires full explicit type annotations on exported `const`. For complex schemas defined with `as const`, writing out the full type is impractical. A fix via `satisfies` is proposed in [deno_graph#639](https://github.com/denoland/deno_graph/pull/639) and is available in deno_graph 0.107.2, but Deno 2.7.14 still ships deno_graph 0.107.1. Until a Deno release includes deno_graph 0.107.2, add `--allow-slow-types` to the `deno publish` and `deno publish --dry-run` commands. Remove `--allow-slow-types` once the required Deno version is available.
+- [ ] [148-test-framework-effects](./148-test-framework-effects.md). Redesign the test framework (`dev/tf/module.f.ts`) as an Effect program, replacing the hand-rolled `Input<T>` threading and `Io` dependency. Unblocks browser testing (i29, i36), silent mode (i21), and subset runs (i20).
+
 
 ## Language Specification
 
