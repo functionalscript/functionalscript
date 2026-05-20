@@ -199,7 +199,7 @@ export const import_: Func<Import> = do_('import')
 
 // now
 
-export type Now = readonly['now', () => bigint]
+export type Now = readonly['now', () => number]
 
 export const now: Func<Now> = do_('now')
 
@@ -207,7 +207,12 @@ export const now: Func<Now> = do_('now')
 
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
-    readonly duration: bigint  // nanoseconds
+    /**
+     * Measured milliseconds but it's not limited to that.
+     * Instead, they represent times as floating-point numbers
+     * with up to microsecond precision.
+     */
+    readonly duration: number
 }
 
 export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]

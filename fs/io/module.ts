@@ -38,7 +38,7 @@ export const io: Io = {
     },
     http,
     childProcess,
-    now: () => BigInt(Date.now()) * 1_000_000n,
+    now: () => Date.now(),
 }
 
 export const legacyRun: Run = run(io)

@@ -149,7 +149,7 @@ export type Io = {
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
     readonly childProcess: ChildProcess
-    readonly now: () => bigint
+    readonly now: () => number
 }
 
 export type App = (io: Io) => Promise<number>
@@ -261,10 +261,10 @@ export const fromIo = ({
                 before = perfNow()
                 const value = f()
                 const after = perfNow()
-                return { result: ok(value), duration: BigInt(Math.round((after - before) * 1_000_000)) }
+                return { result: ok(value), duration: after - before }
             } catch (e) {
                 const after = perfNow()
-                return { result: error(e), duration: BigInt(Math.round((after - before) * 1_000_000)) }
+                return { result: error(e), duration: after - before }
             }
         },
     })

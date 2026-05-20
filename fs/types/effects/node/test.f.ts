@@ -224,15 +224,15 @@ export default {
         },
     },
     now: () => {
-        const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000n })(now())
-        if (result !== 1_000_000n) { throw result }
+        const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000 })(now())
+        if (result !== 1_000_000) { throw result }
     },
     sandbox: {
         ok: () => {
             const [_, { result, duration }] = virtual(emptyState)(sandbox(() => 42))
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== 42) { throw result[1] }
-            if (duration !== 0n) { throw duration }
+            if (duration !== 0) { throw duration }
         },
         error: () => {
             const err = new Error('fail')
