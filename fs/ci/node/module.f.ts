@@ -1,3 +1,9 @@
+/**
+ * CI step builders for Node.js: setup-node installation, common npm
+ * install/test sequences, per-version job matrices, and the main TSGO step.
+ *
+ * @module
+ */
 import { node, tsgo } from '../config/module.f.ts'
 import { type Jobs, type MetaStep, type Os, clean, findTgz, install, test, ubuntu } from '../common/module.f.ts'
 

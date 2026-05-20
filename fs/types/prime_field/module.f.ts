@@ -1,3 +1,11 @@
+/**
+ * Prime field arithmetic over `bigint`: `prime_field(p)` builds a `PrimeField`
+ * with negation, addition, subtraction, multiplication, division via modular
+ * inverse, and exponentiation; `sqrt` returns a square-root function when
+ * `p % 4 === 3`.
+ *
+ * @module
+ */
 import type { Unary, Reduce } from '../bigint/module.f.ts'
 import { repeat } from '../monoid/module.f.ts'
 

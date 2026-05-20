@@ -1,3 +1,10 @@
+/**
+ * JSON tree types and utilities: `Primitive`/`Unknown` value shapes,
+ * `setProperty` for immutable nested updates, and a `stringify` built from the
+ * serializer wraps.
+ *
+ * @module
+ */
 import { next, flat, map, type List } from '../types/list/module.f.ts'
 import { concat } from '../types/string/module.f.ts'
 import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'

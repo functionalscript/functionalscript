@@ -1,3 +1,10 @@
+/**
+ * JavaScript tokenizer built as a range-map state machine over code points,
+ * producing tokens for keywords, identifiers, punctuators, comments, strings,
+ * and numeric literals (including `BigFloat`).
+ *
+ * @module
+ */
 import { strictEqual, type Scan, type StateScan } from '../../types/function/operator/module.f.ts'
 import { merge, fromRange, get, type RangeMapArray, type RangeMerge } from '../../types/range_map/module.f.ts'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap, type List } from '../../types/list/module.f.ts'

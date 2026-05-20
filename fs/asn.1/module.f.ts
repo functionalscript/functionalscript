@@ -1,3 +1,9 @@
+/**
+ * ASN.1 BER/DER encoding and decoding over bit vectors. Includes tag/class
+ * helpers, length-prefixed payloads, and OID conversion via Base-128.
+ *
+ * @module
+ */
 import { bitLength, max } from "../types/bigint/module.f.ts"
 import {
     empty,
