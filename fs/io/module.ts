@@ -4,10 +4,14 @@ import fs from 'node:fs'
 import process from 'node:process'
 import { fromIo, type Io, type Run, run } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
-import type { Module, NodeProgram } from '../types/effects/node/module.f.ts'
-import { error, ok } from '../types/result/module.f.ts'
+import type { Module, NodeProgram, SandboxResult } from '../types/effects/node/module.f.ts'
+import { error, ok, type Result } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
+
+const { now: perfNow } = performance
+
+const { now } = Date
 
 export const asyncImport = (v: string): Promise<Module> => import(v)
 
@@ -38,15 +42,25 @@ export const io: Io = {
     },
     http,
     childProcess,
-    now: () => Date.now(),
-    sandbox: f => {
-        const before = performance.now()
+    now,
+    sandbox: <T>(f: () => T) => {
+        let result: Result<T, unknown>
+        let duration = 0
         try {
-            const value = f()
-            return { result: ok(value), duration: performance.now() - before }
+            let value: T
+            let before = 0
+            try {
+                before = perfNow()
+                value = f()
+            } finally {
+                const after = perfNow()
+                duration = after - before
+            }
+            result = ok(value)
         } catch (e) {
-            return { result: error(e), duration: performance.now() - before }
+            result = error(e)
         }
+        return { result, duration }
     },
 }
 
