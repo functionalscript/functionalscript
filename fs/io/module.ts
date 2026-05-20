@@ -38,6 +38,7 @@ export const io: Io = {
     },
     http,
     childProcess,
+    now: () => Date.now(),
 }
 
 export const legacyRun: Run = run(io)

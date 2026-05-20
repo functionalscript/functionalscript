@@ -21,7 +21,7 @@ export type State = {
     internet: {
         readonly[url: string]: Vec
     }
-    epochNs: bigint
+    epochNs: number
 }
 
 export const emptyState: State = {
@@ -29,7 +29,7 @@ export const emptyState: State = {
     stderr: '',
     root: {},
     internet: {},
-    epochNs: 0n,
+    epochNs: 0,
 }
 
 const operation =
@@ -163,6 +163,11 @@ const map: MemOperationMap<NodeOp, State> = {
     listen: todo,
     forever: todo,
     now: (state) => [state, state.epochNs],
+    sandbox: (state, f) => {
+        let result
+        try { result = ok(f()) } catch (e) { result = error(e) }
+        return [state, { result, duration: 0 }]
+    },
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)

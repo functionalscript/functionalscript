@@ -17,7 +17,8 @@ import type {
     Module,
     NodeOp,
     RequestListener as Erl,
-    Env
+    Env,
+    SandboxResult
 } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
@@ -149,6 +150,7 @@ export type Io = {
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
     readonly childProcess: ChildProcess
+    readonly now: () => number
 }
 
 export type App = (io: Io) => Promise<number>
@@ -190,16 +192,18 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 }
 
 export const fromIo = ({
-    console: { error, log },
+    console: { error: logError, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
     childProcess,
     asyncImport,
+    performance: { now: perfNow },
+    now: ioNow,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
-        error: async message => error(message),
+        error: async message => logError(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
             const response = await fetch(url)
@@ -251,7 +255,20 @@ export const fromIo = ({
             s.listen(port)
         },
         forever: () => new Promise(() => {}),
-        now: async () => BigInt(Date.now()) * 1_000_000n,
+        now: async () => ioNow(),
+        sandbox: async f => {
+            const g = (result: Result<unknown, unknown>, after: number) =>
+                ({ result, duration: after - before } as const)
+            const before = perfNow()
+            try {
+                const value = f()
+                const after = perfNow()
+                return g(ok(value), after)
+            } catch (e) {
+                const after = perfNow()
+                return g(error(e), after)
+            }
+        },
     })
     return result
 }

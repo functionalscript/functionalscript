@@ -7,7 +7,12 @@ A `Sandbox` effect that runs a plain synchronous function in an isolated, measur
 ```ts
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
-    readonly duration: bigint  // nanoseconds; future fields: allocatedMemory, maxStack, coverage, etc.
+    /**
+     * Measured milliseconds but it's not limited to that.
+     * Instead, they represent times as floating-point numbers
+     * with up to microsecond precision.
+     */
+    readonly duration: number  // future fields: allocatedMemory, maxStack, coverage, etc.
 }
 
 export type Sandbox = ['sandbox', <T>(f: () => T) => SandboxResult<T>]
@@ -44,7 +49,7 @@ export type Coverage = {
 
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
-    readonly duration: bigint
+    readonly duration: number
     readonly coverage?: Coverage
     // readonly allocatedMemory?: bigint
     // readonly maxStack?: bigint
@@ -58,7 +63,7 @@ Coverage information would allow the test framework to aggregate per-test covera
 - **Node.js (simple):** plain try/catch + `performance.now()` in the same synchronous block.
 - **Node.js (worker):** run `f` in a `worker_thread`; enforces time and memory limits via worker termination.
 - **Browser:** run `f` in a `Worker`; same limit enforcement.
-- **Virtual runner:** injects a controlled `SandboxResult` for deterministic tests — both the result and the duration are fully controllable, making the test framework testable by its own mechanism.
+- **Virtual runner:** calls `f()` synchronously and returns `duration: 0`, giving deterministic results in tests. Full injection of controlled results and durations (needed to test the test framework itself) is future work tracked in [i148](./148-test-framework-effects.md).
 
 ## Related
 
