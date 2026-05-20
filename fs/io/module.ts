@@ -4,12 +4,10 @@ import fs from 'node:fs'
 import process from 'node:process'
 import { fromIo, type Io, type Run, run } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
-import type { Module, NodeProgram, SandboxResult } from '../types/effects/node/module.f.ts'
+import type { Module, NodeProgram } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
-
-const { now: perfNow } = performance
 
 const { now } = Date
 
@@ -45,22 +43,17 @@ export const io: Io = {
     now,
     sandbox: <T>(f: () => T) => {
         let result: Result<T, unknown>
-        let duration = 0
+        let after: number
+        const before = performance.now()
         try {
-            let value: T
-            let before = 0
-            try {
-                before = perfNow()
-                value = f()
-            } finally {
-                const after = perfNow()
-                duration = after - before
-            }
+            const value = f()
+            after = performance.now()
             result = ok(value)
         } catch (e) {
+            after = performance.now()
             result = error(e)
         }
-        return { result, duration }
+        return { result, duration: after - before }
     },
 }
 
