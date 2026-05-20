@@ -34,7 +34,7 @@ Replace `Input<T>` and the `Io` dependency with a proper Effect program.
 |---------|-------------------|
 | `log(s)` | `Log` (`log`) |
 | `error(s)` | `Error` (`error`) |
-| `io.performance.now()` + `tryCatch` | `Sandbox` — runs a plain sync function, catches errors, measures time; new operation |
+| `io.performance.now()` + `tryCatch` | `Sandbox` ([i149](./149-sandbox.md)) — runs a plain sync function, catches errors, measures time; new operation |
 | `tryCatch(f)` | new `TryCatch` operation, or handled inline |
 | `env(k)` | already in `NodeProgram` signature as `Env` parameter |
 | `loadModuleMap2(env)` | already `Effect<Access \| Import \| All \| Readdir, ModuleMap>` |
@@ -137,5 +137,6 @@ The manifest approach sidesteps the absence of filesystem APIs in the browser: i
 ## Related
 
 - [i139](./README.md) — the task entry tracking this migration.
+- [i149](./149-sandbox.md) — the `Sandbox` effect: try/catch + timing in one atomic operation, used by the redesigned test walk.
 - [i803](https://github.com/functionalscript/functionalscript/pull/803) — adds `Now` (epoch ns via `Date.now()`), one of the operations the redesigned framework needs.
 - [i122](./README.md) — `node.f.ts` / `app.f.ts` file type for applications; the redesigned test runner would be such an application.
