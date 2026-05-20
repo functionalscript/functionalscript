@@ -1,3 +1,10 @@
+/**
+ * Indented text `Block` rendering and UTF-8 helpers: `flat` flattens a nested
+ * block into prefixed lines, while `utf8`/`utf8ToString` convert between
+ * strings and MSB-first UTF-8 bit vectors.
+ *
+ * @module
+ */
 import { msb, u8List, u8ListToVec, type Vec } from '../types/bit_vec/module.f.ts'
 import { flatMap, type List } from '../types/list/module.f.ts'
 import { fromCodePointList, toCodePointList } from './utf8/module.f.ts'

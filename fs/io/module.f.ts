@@ -1,3 +1,12 @@
+/**
+ * Legacy `Io` interface and adapter (`fromIo`) bridging the old IO API to the
+ * effect runner.
+ *
+ * @deprecated Use `fs/types/effects/node` (see issue
+ * [i139](../../issues/README.md)).
+ *
+ * @module
+ */
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'

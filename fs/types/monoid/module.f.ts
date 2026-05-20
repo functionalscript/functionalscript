@@ -1,3 +1,10 @@
+/**
+ * Monoids: the `Monoid<T>` algebraic structure (identity plus associative
+ * binary operation) and `repeat`, which applies the operation `n` times using
+ * exponentiation by squaring.
+ *
+ * @module
+ */
 import type { Fold, Reduce } from '../function/operator/module.f.ts'
 
 /**

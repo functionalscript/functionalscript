@@ -1,3 +1,10 @@
+/**
+ * Centralized version pins and OS images used by the CI generator: runner
+ * images, tool versions (Bun, Deno, Playwright, Rust, Node, Wasmtime, Wasmer,
+ * TSGO).
+ *
+ * @module
+ */
 // https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories
 export const images = {
     ubuntu: {

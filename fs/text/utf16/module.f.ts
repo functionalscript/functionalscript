@@ -1,3 +1,10 @@
+/**
+ * UTF-16 utilities: convert between strings, UTF-16 code units, and Unicode
+ * code points, including surrogate-pair encoding/decoding via streaming
+ * `stateScan` operations.
+ *
+ * @module
+ */
 import {
     map,
     flat,

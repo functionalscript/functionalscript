@@ -1,3 +1,12 @@
+/**
+ * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
+ * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
+ * subprocess `exec`, console (`log`, `error`), `import_`, `now`, `forever`,
+ * and `all`/`both` parallelism; defines the `NodeOp`/`NodeProgram` types used
+ * by the Node runner.
+ *
+ * @module
+ */
 import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
