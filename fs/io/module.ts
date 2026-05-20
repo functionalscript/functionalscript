@@ -39,6 +39,15 @@ export const io: Io = {
     http,
     childProcess,
     now: () => Date.now(),
+    sandbox: f => {
+        const before = performance.now()
+        try {
+            const value = f()
+            return { result: ok(value), duration: performance.now() - before }
+        } catch (e) {
+            return { result: error(e), duration: performance.now() - before }
+        }
+    },
 }
 
 export const legacyRun: Run = run(io)

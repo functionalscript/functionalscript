@@ -42,7 +42,7 @@ const framework: CommonFramework =
     isBun ? createBunFramework(nodeTest) :
         createFramework(nodeTest)
 
-const parse = parseTestSet(io.tryCatch)
+const parse = parseTestSet(io.sandbox)
 
 const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc) => {
     let subTests = [x]
