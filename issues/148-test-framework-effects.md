@@ -50,7 +50,7 @@ Option 1 is cleaner: `TryCatch` is already a concept in `Io`, and making it an o
 
 ### Timing with a performance counter
 
-The current `measure` helper calls `io.performance.now()` before and after a test function. `io.performance.now()` is a high-resolution monotonic counter (sub-millisecond, relative to an arbitrary origin) — different from the `Now` effect which returns epoch nanoseconds from `Date.now()`. For timing test execution we need the performance counter, not the wall clock.
+The current `measure` helper calls `io.performance.now()` before and after a test function. `io.performance.now()` is a high-resolution monotonic counter returning floating-point milliseconds with up to microsecond precision — different from the `Now` effect which returns epoch milliseconds. For timing test execution we need the performance counter, not the wall clock.
 
 Two design options:
 
@@ -79,14 +79,14 @@ Verbose, requires two separate operations, and the virtual runner must coordinat
 ```ts
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
-    readonly duration: bigint  // nanoseconds; future fields: allocatedMemory, maxStack, etc.
+    readonly duration: number  // ms, microsecond precision; future fields: allocatedMemory, maxStack, etc.
 }
 
 export type Sandbox = ['sandbox', <T>(f: () => T) => SandboxResult<T>]
 export const sandbox: Func<Sandbox> = do_('sandbox')
 ```
 
-`duration` is in nanoseconds (`bigint`) for consistency with the `Now` effect and to avoid floating-point imprecision. `SandboxResult<T>` is intentionally a named record rather than a tuple so future measurements (allocated memory, maximum stack depth, etc.) can be added as new fields without breaking existing consumers. The runner executes `f()` synchronously, catches any thrown value, measures elapsed time via `performance.now()`, and returns the named result. Usage:
+`duration` is a floating-point `number` in milliseconds with up to microsecond precision, matching `performance.now()` directly. `SandboxResult<T>` is intentionally a named record rather than a tuple so future measurements (allocated memory, maximum stack depth, etc.) can be added as new fields without breaking existing consumers. The runner executes `f()` synchronously, catches any thrown value, measures elapsed time via `performance.now()`, and returns the named result. Usage:
 
 ```ts
 sandbox(myTest)  // Effect<Sandbox, SandboxResult<unknown>>

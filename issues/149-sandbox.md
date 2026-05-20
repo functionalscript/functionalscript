@@ -7,7 +7,12 @@ A `Sandbox` effect that runs a plain synchronous function in an isolated, measur
 ```ts
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
-    readonly duration: bigint  // nanoseconds; future fields: allocatedMemory, maxStack, coverage, etc.
+    /**
+     * Measured milliseconds but it's not limited to that.
+     * Instead, they represent times as floating-point numbers
+     * with up to microsecond precision.
+     */
+    readonly duration: number  // future fields: allocatedMemory, maxStack, coverage, etc.
 }
 
 export type Sandbox = ['sandbox', <T>(f: () => T) => SandboxResult<T>]
@@ -44,7 +49,7 @@ export type Coverage = {
 
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
-    readonly duration: bigint
+    readonly duration: number
     readonly coverage?: Coverage
     // readonly allocatedMemory?: bigint
     // readonly maxStack?: bigint
