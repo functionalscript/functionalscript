@@ -1,3 +1,9 @@
+/**
+ * Numeric list reductions (`sum`, `min`, `max`), comparison via `cmp`, and
+ * `countOnes` for 32-bit population count using SWAR.
+ *
+ * @module
+ */
 import { reduce, type List } from '../list/module.f.ts'
 import { addition, min as minOp, max as maxOp } from '../function/operator/module.f.ts'
 import { type Sign, cmp as uCmp } from '../function/compare/module.f.ts'

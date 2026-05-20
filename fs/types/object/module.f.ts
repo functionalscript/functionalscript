@@ -1,3 +1,10 @@
+/**
+ * Plain-object helpers and types: `Map<T>`/`Entry<T>` shapes, safe property
+ * lookup via `at`, conversions between entries and `OrderedMap`, and the
+ * `OneKey`/`SingleProperty`/`NotUnion` utility types.
+ *
+ * @module
+ */
 import { isArray } from '../array/module.f.ts'
 import { iterable, type List } from '../list/module.f.ts'
 import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'

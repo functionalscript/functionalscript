@@ -1,3 +1,10 @@
+/**
+ * TypeScript source-emitter helpers: the `Equal`/`Assert` compile-time
+ * predicates and a `Printer` that renders tuples, structs, arrays, records,
+ * primitive literals, and unions as TypeScript type expressions.
+ *
+ * @module
+ */
 export type Equal<A, B> =
     (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
         ? true

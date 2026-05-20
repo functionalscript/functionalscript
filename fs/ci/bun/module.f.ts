@@ -1,3 +1,9 @@
+/**
+ * CI step builder for Bun: installs the pinned Bun version (with a PowerShell
+ * fallback for Windows ARM) and runs `bun install` and `bun test`.
+ *
+ * @module
+ */
 import { bun } from '../config/module.f.ts'
 import { type Architecture, type MetaStep, type Os, type Step, clean, install, test } from '../common/module.f.ts'
 

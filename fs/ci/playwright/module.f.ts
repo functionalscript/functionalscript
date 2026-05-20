@@ -1,3 +1,9 @@
+/**
+ * CI job that installs Playwright (with a browser-cache step) and runs the
+ * test suite against Chromium, Firefox, and WebKit.
+ *
+ * @module
+ */
 import { images, node, playwright } from '../config/module.f.ts'
 import { type Job, install, test, toSteps } from '../common/module.f.ts'
 import { basicNode } from '../node/module.f.ts'
