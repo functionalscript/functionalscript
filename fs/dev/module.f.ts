@@ -14,7 +14,10 @@ import {
     readdir,
     readFile,
     writeFile,
+    type Access,
     type All,
+    type Env,
+    type Import,
     type NodeOp,
     type NodeProgram,
     type Readdir
@@ -82,7 +85,7 @@ export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> =>
     return load(s)
 }
 
-const loadFile = (f: string): Effect<NodeOp, readonly (readonly[string, Module])[]> => {
+const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> => {
     const doImport = import_(f).step(r => pure([[f, unwrap(r)] as const]))
     if (f.endsWith('.f.js')) { return doImport }
     if (f.endsWith('.f.ts')) {
@@ -92,15 +95,16 @@ const loadFile = (f: string): Effect<NodeOp, readonly (readonly[string, Module])
     return pure([])
 }
 
-export const loadModuleMap = async (io: Io): Promise<ModuleMap> => {
-    const { process: { env } } = io
+export const loadModuleMap2 = (env: Env): Effect<Access | Import | All | Readdir, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
-    const effect = allFiles(s)
+    return allFiles(s)
         .step(files => all(...files.map(loadFile)))
         .step(entries => pure(Object.fromEntries(entries.flat().toSorted(cmp))))
-    return fromIo(io)(effect)
 }
+
+export const loadModuleMap = async (io: Io): Promise<ModuleMap> =>
+    fromIo(io)(loadModuleMap2(io.process.env))
 
 const denoJson = './deno.json'
 
