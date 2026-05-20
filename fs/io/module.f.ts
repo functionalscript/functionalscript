@@ -149,6 +149,7 @@ export type Io = {
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
     readonly childProcess: ChildProcess
+    readonly now: () => bigint
 }
 
 export type App = (io: Io) => Promise<number>
@@ -196,6 +197,8 @@ export const fromIo = ({
     http: { createServer },
     childProcess,
     asyncImport,
+    performance: { now: perfNow },
+    now: ioNow,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -251,14 +254,17 @@ export const fromIo = ({
             s.listen(port)
         },
         forever: () => new Promise(() => {}),
-        now: async () => BigInt(Date.now()) * 1_000_000n,
+        now: async () => ioNow(),
         sandbox: async f => {
-            const before = performance.now()
+            let before = 0
             try {
+                before = perfNow()
                 const value = f()
-                return { result: ok(value), duration: BigInt(Math.round((performance.now() - before) * 1_000_000)) }
+                const after = perfNow()
+                return { result: ok(value), duration: BigInt(Math.round((after - before) * 1_000_000)) }
             } catch (e) {
-                return { result: error(e), duration: BigInt(Math.round((performance.now() - before) * 1_000_000)) }
+                const after = perfNow()
+                return { result: error(e), duration: BigInt(Math.round((after - before) * 1_000_000)) }
             }
         },
     })
