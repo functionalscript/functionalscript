@@ -203,6 +203,17 @@ export type Now = readonly['now', () => bigint]
 
 export const now: Func<Now> = do_('now')
 
+// sandbox
+
+export type SandboxResult<T> = {
+    readonly result: Result<T, unknown>
+    readonly duration: bigint  // nanoseconds
+}
+
+export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
+
+export const sandbox: Func<Sandbox> = do_('sandbox')
+
 // Node
 
 export type NodeOp =
@@ -214,6 +225,7 @@ export type NodeOp =
     | Forever
     | Import
     | Now
+    | Sandbox
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 

@@ -1,6 +1,6 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { pure } from "../module.f.ts"
-import { fetch, mkdir, now, readdir, readFile, rm, writeFile } from "./module.f.ts"
+import { fetch, mkdir, now, readdir, readFile, rm, sandbox, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -226,5 +226,19 @@ export default {
     now: () => {
         const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000n })(now())
         if (result !== 1_000_000n) { throw result }
+    },
+    sandbox: {
+        ok: () => {
+            const [_, { result, duration }] = virtual(emptyState)(sandbox(() => 42))
+            if (result[0] !== 'ok') { throw result }
+            if (result[1] !== 42) { throw result[1] }
+            if (duration !== 0n) { throw duration }
+        },
+        error: () => {
+            const err = new Error('fail')
+            const [_, { result }] = virtual(emptyState)(sandbox(() => { throw err }))
+            if (result[0] !== 'error') { throw result }
+            if (result[1] !== err) { throw result[1] }
+        },
     },
 }

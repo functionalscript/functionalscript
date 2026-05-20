@@ -190,7 +190,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 }
 
 export const fromIo = ({
-    console: { error, log },
+    console: { error: logError, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
@@ -199,7 +199,7 @@ export const fromIo = ({
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
-        error: async message => error(message),
+        error: async message => logError(message),
         log: async message => log(message),
         fetch: async url => tc(async() => {
             const response = await fetch(url)
@@ -252,6 +252,15 @@ export const fromIo = ({
         },
         forever: () => new Promise(() => {}),
         now: async () => BigInt(Date.now()) * 1_000_000n,
+        sandbox: async f => {
+            const before = performance.now()
+            try {
+                const value = f()
+                return { result: ok(value), duration: BigInt(Math.round((performance.now() - before) * 1_000_000)) }
+            } catch (e) {
+                return { result: error(e), duration: BigInt(Math.round((performance.now() - before) * 1_000_000)) }
+            }
+        },
     })
     return result
 }

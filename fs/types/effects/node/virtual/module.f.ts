@@ -163,6 +163,11 @@ const map: MemOperationMap<NodeOp, State> = {
     listen: todo,
     forever: todo,
     now: (state) => [state, state.epochNs],
+    sandbox: (state, f) => {
+        let result
+        try { result = ok(f()) } catch (e) { result = error(e) }
+        return [state, { result, duration: 0n }]
+    },
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)
