@@ -74,20 +74,26 @@ const timedTest = (f: () => unknown): Effect<Perf | TryCatch, readonly[Result<un
 
 Verbose, requires two separate operations, and the virtual runner must coordinate them independently. Critically, since effects execute as async tasks, the scheduler can insert arbitrary work between the two `perf()` calls, making the measured delta inaccurate.
 
-**Option B — `Trial` effect** (takes a plain sync function, combines try/catch and timing in one operation):
+**Option B — `Sandbox` effect** (takes a plain sync function, combines try/catch and timing in one operation):
 
 ```ts
-export type Trial = ['sandbox', <T>(f: () => T) => readonly[Result<T, unknown>, number]]
-export const sandbox: Func<Trial> = do_('sandbox')
+export type SandboxResult<T> = {
+    readonly result: Result<T, unknown>
+    readonly duration: bigint  // nanoseconds; future fields: allocatedMemory, maxStack, etc.
+}
+
+export type Sandbox = ['sandbox', <T>(f: () => T) => SandboxResult<T>]
+export const sandbox: Func<Sandbox> = do_('sandbox')
 ```
 
-The runner executes `f()`, catches any thrown value, measures elapsed time via `performance.now()`, and returns `[result, delta]`. Usage:
+`duration` is in nanoseconds (`bigint`) for consistency with the `Now` effect and to avoid floating-point imprecision. `SandboxResult<T>` is intentionally a named record rather than a tuple so future measurements (allocated memory, maximum stack depth, etc.) can be added as new fields without breaking existing consumers. The runner executes `f()` synchronously, catches any thrown value, measures elapsed time via `performance.now()`, and returns the named result. Usage:
 
 ```ts
-sandbox(myTest)  // Effect<Trial, readonly[Result<unknown, unknown>, number]>
+sandbox(myTest)  // Effect<Sandbox, SandboxResult<unknown>>
+const { result, duration } = await run(sandbox(myTest))
 ```
 
-Option B is preferred: one operation replaces both `TryCatch` and `Measure`, the runner owns both the clock and the error boundary, and the virtual runner can inject controlled results and deltas for deterministic tests. Only plain sync functions are accepted — no effects, no promises — which matches exactly what test functions are. Because the function runs synchronously inside the operation, the before/after clock reads happen in the same turn of the event loop with no scheduler interleaving, giving accurate timings. The name `sandbox` is intentional: it implies both the try/catch ("sandbox" from "try") and a measured test run. Future parameters (memory limit, time limit) are not expressible inside a JS engine today but can be added to the operation payload later without breaking the API. Implementations that use workers (e.g. a browser runner or a Node worker-threads runner) get isolation and limit enforcement for free from the worker boundary.
+Option B is preferred: one operation replaces both `TryCatch` and `Measure`, the runner owns both the clock and the error boundary, and the virtual runner can inject controlled results and durations for deterministic tests. Only plain sync functions are accepted — no effects, no promises — which matches exactly what test functions are. Because the function runs synchronously inside the operation, the before/after clock reads happen in the same turn of the event loop with no scheduler interleaving, giving accurate timings. Future parameters (memory limit, time limit) are not expressible inside a JS engine today but can be added to the operation payload later without breaking the API. Implementations that use workers (e.g. a browser runner or a Node worker-threads runner) get isolation and limit enforcement for free from the worker boundary.
 
 ### Target shape
 
