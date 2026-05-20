@@ -6,6 +6,7 @@
 import type { Io, MakeDirectoryOptions, RmOptions } from '../module.f.ts'
 import { at, type OrderedMap } from '../../types/ordered_map/module.f.ts'
 import { todo } from '../../dev/module.f.ts'
+import { error, ok } from '../../types/result/module.f.ts'
 
 export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     console: {
@@ -47,5 +48,12 @@ export const createVirtualIo = (files: OrderedMap<Uint8Array>): Io => ({
     },
     childProcess: {
         exec: todo,
+    },
+    sandbox: f => {
+        try {
+            return { result: ok(f()), duration: 0 }
+        } catch (e) {
+            return { result: error(e), duration: 0 }
+        }
     },
 })

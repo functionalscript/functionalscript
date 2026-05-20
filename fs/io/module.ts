@@ -5,9 +5,11 @@ import process from 'node:process'
 import { fromIo, type Io, type Run, run } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
 import type { Module, NodeProgram } from '../types/effects/node/module.f.ts'
-import { error, ok } from '../types/result/module.f.ts'
+import { error, ok, type Result } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
+
+const { now } = Date
 
 export const asyncImport = (v: string): Promise<Module> => import(v)
 
@@ -38,7 +40,21 @@ export const io: Io = {
     },
     http,
     childProcess,
-    now: () => Date.now(),
+    now,
+    sandbox: <T>(f: () => T) => {
+        let result: Result<T, unknown>
+        let after: number
+        const before = performance.now()
+        try {
+            const value = f()
+            after = performance.now()
+            result = ok(value)
+        } catch (e) {
+            after = performance.now()
+            result = error(e)
+        }
+        return { result, duration: after - before }
+    },
 }
 
 export const legacyRun: Run = run(io)

@@ -104,6 +104,8 @@ export type Process = {
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
+export type Sandbox = <T>(f: () => T) => SandboxResult<T>
+
 export type Server = {
     readonly listen: (port: number) => void
 }
@@ -151,6 +153,7 @@ export type Io = {
     readonly http: Http
     readonly childProcess: ChildProcess
     readonly now: () => number
+    readonly sandbox: Sandbox
 }
 
 export type App = (io: Io) => Promise<number>
@@ -198,8 +201,8 @@ export const fromIo = ({
     http: { createServer },
     childProcess,
     asyncImport,
-    performance: { now: perfNow },
     now: ioNow,
+    sandbox: ioSandbox,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -256,19 +259,7 @@ export const fromIo = ({
         },
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
-        sandbox: async f => {
-            const g = (result: Result<unknown, unknown>, after: number) =>
-                ({ result, duration: after - before } as const)
-            const before = perfNow()
-            try {
-                const value = f()
-                const after = perfNow()
-                return g(ok(value), after)
-            } catch (e) {
-                const after = perfNow()
-                return g(error(e), after)
-            }
-        },
+        sandbox: async f => ioSandbox(f),
     })
     return result
 }
