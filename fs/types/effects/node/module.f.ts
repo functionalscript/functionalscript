@@ -1,7 +1,7 @@
 /**
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, console (`log`, `error`), `import_`, `now`, `forever`,
+ * subprocess `exec`, console (`log`, `error`), `import_`, `now`, `sandbox`, `forever`,
  * and `all`/`both` parallelism; defines the `NodeOp`/`NodeProgram` types used
  * by the Node runner.
  *
@@ -217,6 +217,24 @@ export type SandboxResult<T> = {
 
 export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
 
+/**
+ * Runs a plain synchronous function in an isolated, measured environment.
+ *
+ * Combines try/catch and high-resolution timing into a single atomic operation.
+ * Only plain synchronous functions are accepted — no effects, no promises.
+ *
+ * Using a single operation rather than separate `TryCatch` + `Perf` effects is
+ * necessary for correctness: effects execute as async tasks, so the scheduler
+ * can insert arbitrary work between two separate timing calls, making the
+ * measured delta inaccurate. Here the clock reads happen synchronously around
+ * the function call with nothing in between.
+ *
+ * Future parameters (time limit, memory limit) can be added to the payload
+ * without breaking the API. Worker-based implementations can enforce hard
+ * limits via worker termination.
+ *
+ * @see {@link SandboxResult}
+ */
 export const sandbox: Func<Sandbox> = do_('sandbox')
 
 // Node
