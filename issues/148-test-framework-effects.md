@@ -100,32 +100,26 @@ Option B is preferred: one operation replaces both `TryCatch` and `Measure`, the
 The test program becomes a `NodeProgram` (or effect with a subset of `NodeOp`):
 
 ```ts
-type TestOp = Log | Error | Trial | Access | Import | All | Readdir
+type TestOp = Log | Error | Sandbox | Access | Import | All | Readdir
 
 const testProgram: (argv: readonly string[], env: Env) => Effect<TestOp, number>
 ```
 
 The `module.ts` adapter (Node/Bun/Playwright dispatcher) calls `fromIo(io)(testProgram(argv, env))` — a single line, identical to every other Node program in the codebase.
 
-## Browser test runner
+## Multiple runners
 
-Once the test runner is an effect, a `BrowserOp` runner can execute the same `Effect<TestOp, number>` in a browser. The browser runner would:
+A key principle: unit tests must never depend on third-party test frameworks or runners. The Effects-based framework is self-contained — it owns its own output, timing, and exit code. Third-party runners (Node `--test`, Bun, Playwright) are optional integration points, not requirements.
 
-- Implement `Log`/`Error` by writing to the DOM.
-- Implement `Now` via `BigInt(Date.now()) * 1_000_000n`.
-- Implement `TryCatch` with a try/catch wrapper.
-- Implement `Readdir`/`Access`/`Import` by fetching a pre-built module manifest (a JSON file listing all test modules, generated at build time).
-
-The manifest approach sidesteps the absence of filesystem APIs in the browser: instead of walking the directory tree at runtime, the build step emits a `test-manifest.json` that the browser runner fetches.
+Once the test runner is an effect program, any environment that implements `TestOp` can run it. A browser runner, a worker-based runner, or a custom CI runner all become possible by providing a different implementation of the same operation set.
 
 ## Migration path
 
-1. Add `TryCatch` operation to `NodeOp` and implement in `fromIo` and the virtual runner.
+1. Implement `Sandbox` ([i149](./149-sandbox.md)) and `IsTty` ([i150](./README.md)) in `NodeOp`, `fromIo`, and the virtual runner.
 2. Rewrite the inner test walk (`test(input)`) as a pure function returning `Effect<TestOp, TestState>`.
 3. Replace `main(io)` with `testProgram(argv, env)` returning `Effect<TestOp, number>`.
 4. Update `module.ts` to call `fromIo(io)(testProgram(...))`.
 5. Delete `Input<T>`, `measure`, `anyLog` helpers (now redundant).
-6. Add `BrowserOp` runner and a browser entry point (`dev/test.html`) — see [i29](./README.md) and [i36](./README.md).
 
 ## Unblocked by this change
 

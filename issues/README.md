@@ -305,6 +305,7 @@
 - [ ] 147. Deno slow-types: Deno's JSR publisher requires full explicit type annotations on exported `const`. For complex schemas defined with `as const`, writing out the full type is impractical. A fix via `satisfies` is proposed in [deno_graph#639](https://github.com/denoland/deno_graph/pull/639) and is available in deno_graph 0.107.2, but Deno 2.7.14 still ships deno_graph 0.107.1. Until a Deno release includes deno_graph 0.107.2, add `--allow-slow-types` to the `deno publish` and `deno publish --dry-run` commands. Remove `--allow-slow-types` once the required Deno version is available.
 - [ ] [148-test-framework-effects](./148-test-framework-effects.md). Redesign the test framework (`dev/tf/module.f.ts`) as an Effect program, replacing the hand-rolled `Input<T>` threading and `Io` dependency. Unblocks browser testing (i29, i36), silent mode (i21), and subset runs (i20).
 - [ ] [149-sandbox](./149-sandbox.md). `Sandbox` effect: runs a plain sync function with try/catch and timing in one atomic operation; future fields for memory/stack limits; worker-based implementations enforce hard limits.
+- [ ] [150-tty](./150-tty.md). `IsTty` effect: reports whether a file descriptor is connected to a terminal; used by the test framework to gate ANSI color output.
 
 
 ## Language Specification
