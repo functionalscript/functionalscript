@@ -1,3 +1,10 @@
+/**
+ * CI step builder for the Rust crate: `cargo fmt`, `cargo clippy`, native and
+ * `--release` test runs, plus matrix entries for WASM targets (Wasmtime,
+ * Wasmer) and the 32-bit `i686` targets.
+ *
+ * @module
+ */
 import { wasmer, wasmtime } from '../config/module.f.ts'
 import { type Architecture, type MetaStep, type Os, install, test } from '../common/module.f.ts'
 

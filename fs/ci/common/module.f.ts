@@ -1,3 +1,10 @@
+/**
+ * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
+ * `MetaStep` representation used by tool-specific modules, and assemblers like
+ * `install`, `test`, `clean`, `ubuntu`, and `toSteps`.
+ *
+ * @module
+ */
 import { images, rust } from '../config/module.f.ts'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
