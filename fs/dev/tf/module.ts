@@ -1,8 +1,9 @@
 import { io } from '../../io/module.ts'
-import { loadModuleMap } from '../module.f.ts'
+import { loadModuleMap2 } from '../module.f.ts'
 import { isTest, parseTestSet } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
+import { fromIo } from '../../io/module.f.ts'
 
 //
 
@@ -71,7 +72,7 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 }
 
 export const run = async(): Promise<void> => {
-    const x = await loadModuleMap(io)
+    const x = await fromIo(io)(loadModuleMap2(io.process.env))
     for (const [i, v] of Object.entries(x)) {
         if (isTest(i)) {
             framework(i, scanModule(['', v.default, false]))
