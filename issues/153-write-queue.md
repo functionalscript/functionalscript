@@ -34,6 +34,8 @@ const writeAll = async (
 
 `stream.write(data)` returns `true` if the data was flushed immediately, or `false` if it was buffered and the caller should back off. `once(stream, 'drain')` resolves when the stream is ready for more data.
 
+> **Note:** when `write()` returns `false`, the data is already buffered internally — it is not lost and must not be retried. `drain` only signals that it is safe to write the *next* message.
+
 ## Impact
 
 - `Io` exposes `stdout` and `stderr` as `NodeJS.WritableStream` (rather than bare `{ fd, isTTY }`) so `writeAll` can call `.write()` and listen for `'drain'`
