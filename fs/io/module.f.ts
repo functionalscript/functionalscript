@@ -18,8 +18,10 @@ import type {
     NodeOp,
     RequestListener as Erl,
     Env,
-    SandboxResult
+    SandboxResult,
+    WriteConsoles,
 } from '../types/effects/node/module.f.ts'
+import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
@@ -154,6 +156,7 @@ export type Io = {
     readonly childProcess: ChildProcess
     readonly now: () => number
     readonly sandbox: Sandbox
+    readonly write: (stream: WriteConsoles, data: Vec) => Promise<void>
 }
 
 export type App = (io: Io) => Promise<number>
