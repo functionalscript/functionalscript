@@ -35,7 +35,7 @@ export const rust = '1.95.0'
 
 // https://nodejs.org/en/download
 export const node = {
-    default: '26.1.0',
+    default: '26.2.0',
     others: ['22.22.3', '24.15.0'],
 } as const
 
@@ -46,4 +46,4 @@ export const wasmtime = '44.0.1'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260517.1'
+export const tsgo = '7.0.0-dev.20260519.1'
