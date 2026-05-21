@@ -199,7 +199,6 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 }
 
 export const fromIo = ({
-    console: { error: logError, log },
     fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
@@ -211,8 +210,6 @@ export const fromIo = ({
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
-        // error: async message => logError(message),
-        //log: async message => log(message),
         fetch: async url => tc(async() => {
             const response = await fetch(url)
             if (!response.ok) {

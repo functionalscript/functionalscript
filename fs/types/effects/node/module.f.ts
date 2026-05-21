@@ -1,9 +1,9 @@
 /**
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, console (`log`, `error`), `import_`, `now`, `sandbox`, `forever`,
- * and `all`/`both` parallelism; defines the `NodeOp`/`NodeProgram` types used
- * by the Node runner.
+ * subprocess `exec`, `log`/`error` (wrappers over `write`), `import_`, `now`,
+ * `sandbox`, `forever`, and `all`/`both` parallelism; defines the
+ * `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * @module
  */
@@ -11,7 +11,6 @@ import { utf8 } from '../../../text/module.f.ts'
 import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
-import { encodeUtf8, toVec } from '../../uint8array/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
 } from '../module.f.ts'
@@ -189,11 +188,17 @@ export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void
 
 export const write: Func<Write> = do_('write')
 
+/**
+ * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
+ * Shared implementation for `log` and `error`.
+ */
 const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> =>
     write(stream, utf8(s + '\n'))
 
+/** Writes a line to `stdout`. Replaces the retired `Log` effect. */
 export const log = writeString('stdout')
 
+/** Writes a line to `stderr`. Replaces the retired `Error` effect. */
 export const error = writeString('stderr')
 
 // now

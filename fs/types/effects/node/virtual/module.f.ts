@@ -133,9 +133,6 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     return [rest as Dir, okVoid]
 })
 
-const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
-    [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
-
 const map: MemOperationMap<NodeOp, State> = {
     all: (state, ...a) => {
         let e: readonly unknown[] = []
@@ -146,8 +143,6 @@ const map: MemOperationMap<NodeOp, State> = {
         }
         return [state, e]
     },
-    // error: console('stderr'),
-    // log: console('stdout'),
     fetch: (state, url) => {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]
