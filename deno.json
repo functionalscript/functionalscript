@@ -40,7 +40,6 @@
     "./fs/html/module.f.ts": "./fs/html/module.f.ts",
     "./fs/io/module.f.ts": "./fs/io/module.f.ts",
     "./fs/io/module.ts": "./fs/io/module.ts",
-    "./fs/io/virtual/module.f.ts": "./fs/io/virtual/module.f.ts",
     "./fs/js/tokenizer/module.f.ts": "./fs/js/tokenizer/module.f.ts",
     "./fs/json/module.f.ts": "./fs/json/module.f.ts",
     "./fs/json/parser/module.f.ts": "./fs/json/parser/module.f.ts",

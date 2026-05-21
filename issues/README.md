@@ -306,7 +306,7 @@
 - [ ] [148-test-framework-effects](./148-test-framework-effects.md). Redesign the test framework (`dev/tf/module.f.ts`) as an Effect program, replacing the hand-rolled `Input<T>` threading and `Io` dependency. Unblocks browser testing (i29, i36), silent mode (i21), and subset runs (i20).
 - [x] [149-sandbox](./149-sandbox.md). `Sandbox` effect: runs a plain sync function with try/catch and timing in one atomic operation; future fields for memory/stack limits; worker-based implementations enforce hard limits.
 - [ ] [150-tty](./150-tty.md). `IsTty` effect: reports whether a file descriptor is connected to a terminal; used by the test framework to gate ANSI color output.
-- [ ] [151-transpiler-effects](./151-transpiler-effects.md). Convert DJS transpiler (`fs/djs/transpiler/module.f.ts`) from legacy `Fs`/`readFileSync` to `ReadFile` effect; update tests to use the virtual effect runner instead of `createVirtualIo`. Unblocks deletion of `fs/io/virtual/module.f.ts`.
+- [x] [151-transpiler-effects](./151-transpiler-effects.md). Convert DJS transpiler (`fs/djs/transpiler/module.f.ts`) from legacy `Fs`/`readFileSync` to `ReadFile` effect; update tests to use the virtual effect runner instead of `createVirtualIo`. Unblocks deletion of `fs/io/virtual/module.f.ts`.
 
 
 ## Language Specification

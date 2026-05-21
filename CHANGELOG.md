@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- DJS transpiler: replace `Fs`/`readFileSync` with `ReadFile` effect; tests use virtual effect runner; delete `fs/io/virtual` ([i151](./issues/151-transpiler-effects.md)) [811](https://github.com/functionalscript/functionalscript/pull/811)
 - IO: expose `sandbox` on `Io` interface; test framework: replace `measure`+`tryCatch` with `sandbox`, eliminating state threading ([i149](./issues/149-sandbox.md)) [809](https://github.com/functionalscript/functionalscript/pull/809)
 - Effects: add `sandbox` operation — runs a plain sync function with try/catch and `performance.now()` timing in one atomic operation; `SandboxResult<T>` carries result and duration ([i149](./issues/149-sandbox.md)) [808](https://github.com/functionalscript/functionalscript/pull/808)
 - Docs: add the required JSDoc `@module` header to every `module.f.ts` that was missing one, so each module has a one-line description on JSR ([i13](./issues/README.md)) [804](https://github.com/functionalscript/functionalscript/pull/804)
