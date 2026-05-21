@@ -78,7 +78,7 @@ export const parseTestSet = (sandbox: <R>(f: () => R) => SandboxResult<R>) => (t
     return []
 }
 
-export const test = (input: Input): number => {
+const test = (input: Input): number => {
     const { moduleMap, log, error, sandbox, env } = input
     const isGitHub = env('GITHUB_ACTION') !== undefined
     const parse = parseTestSet(sandbox)
