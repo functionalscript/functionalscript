@@ -12,9 +12,13 @@ import { import_, type NodeProgram, type NodeProgramOptions } from '../types/eff
 export const main = async(io: Io): Promise<number> => {
     const { error } = io.console
     const { process } = io
-    const { env } = process
+    const { env, stdout, stderr } = process
     const [command, ...rest] = process.argv.slice(2)
     const eRun = fromIo(io)
+    const std = {
+        stdout: { isTTY: stdout.isTTY },
+        stderr: { isTTY: stderr.isTTY },
+    }
     switch (command) {
         case 'test':
         case 't':
@@ -30,7 +34,7 @@ export const main = async(io: Io): Promise<number> => {
             const [file, ...args] = rest
             return eRun(import_(file).step(result => {
                 if (result[0] === 'error') { throw result[1] }
-                const options: NodeProgramOptions = { args, env }
+                const options: NodeProgramOptions = { args, env, std }
                 return (result[1].default as NodeProgram)(options)
             }))
         case undefined:

@@ -5,10 +5,11 @@
  */
 import { todo } from '../../../../dev/module.f.ts'
 import { parse } from '../../../../path/module.f.ts'
+import { decodeUtf8, fromVec } from '../../../uint8array/module.f.ts'
 import { isVec, type Vec } from '../../../bit_vec/module.f.ts'
 import { error, ok } from '../../../result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
-import type { Dirent, IoResult, NodeOp } from '../module.f.ts'
+import type { Dirent, IoResult, NodeOp, WriteConsoles } from '../module.f.ts'
 
 export type Dir = {
     readonly[name in string]?: Dir | Vec
@@ -135,6 +136,9 @@ const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
 const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
     [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
+const writeOp = (state: State, stream: WriteConsoles, data: Vec) =>
+    [{ ...state, [stream]: `${state[stream]}${decodeUtf8(fromVec(data))}` }, undefined] as const
+
 const map: MemOperationMap<NodeOp, State> = {
     all: (state, ...a) => {
         let e: readonly unknown[] = []
@@ -147,6 +151,7 @@ const map: MemOperationMap<NodeOp, State> = {
     },
     error: console('stderr'),
     log: console('stdout'),
+    write: writeOp,
     fetch: (state, url) => {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]

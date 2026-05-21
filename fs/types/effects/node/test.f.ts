@@ -1,6 +1,7 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { pure } from "../module.f.ts"
-import { fetch, mkdir, now, readdir, readFile, rm, sandbox, writeFile } from "./module.f.ts"
+import { encodeUtf8, toVec } from "../../uint8array/module.f.ts"
+import { fetch, mkdir, now, readdir, readFile, rm, sandbox, write, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -239,6 +240,28 @@ export default {
             const [_, { result }] = virtual(emptyState)(sandbox(() => { throw err }))
             if (result[0] !== 'error') { throw result }
             if (result[1] !== err) { throw result[1] }
+        },
+    },
+    write: {
+        stdout: () => {
+            const [state] = virtual(emptyState)(
+                write('stdout', toVec(encodeUtf8('hello')))
+            )
+            if (state.stdout !== 'hello') { throw state.stdout }
+            if (state.stderr !== '') { throw state.stderr }
+        },
+        stderr: () => {
+            const [state] = virtual(emptyState)(
+                write('stderr', toVec(encodeUtf8('boom')))
+            )
+            if (state.stderr !== 'boom') { throw state.stderr }
+            if (state.stdout !== '') { throw state.stdout }
+        },
+        append: () => {
+            const [state] = virtual({ ...emptyState, stdout: 'a' })(
+                write('stdout', toVec(encodeUtf8('b')))
+            )
+            if (state.stdout !== 'ab') { throw state.stdout }
         },
     },
 }

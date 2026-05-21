@@ -63,8 +63,15 @@ export type NodeRun = (p: NodeProgram) => Promise<number>
 
 export const ioRun = (io: Io): NodeRun => {
     const r = fromIo(io)
-    const { argv, env } = io.process
-    const options: NodeProgramOptions = { args: argv.slice(2), env }
+    const { argv, env, stdout, stderr } = io.process
+    const options: NodeProgramOptions = {
+        args: argv.slice(2),
+        env,
+        std: {
+            stdout: { isTTY: stdout.isTTY },
+            stderr: { isTTY: stderr.isTTY },
+        },
+    }
     return p => r(p(options))
 }
 

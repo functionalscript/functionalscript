@@ -88,5 +88,9 @@ Defaults `isTTY: false` (strips SGR in tests). Captured output appended to state
 
 ## Migration
 
-- `fs/dev/tf/module.f.ts`: replace `stdio(io)`/`stderr(io)` with `csiWrite(options)('stdout')`/`csiWrite(options)('stderr')`
-- Close [i150](./150-tty.md) as superseded — the `IsTty` effect is no longer needed since `isTTY` is a startup constant carried in `NodeProgramOptions`
+- `fs/dev/tf/module.f.ts`: replace `stdio(io)`/`stderr(io)` with `csiWrite(options)('stdout')`/`csiWrite(options)('stderr')` — blocked by [i148](./148-test-framework-effects.md); deferred until the test framework moves off the legacy `Io` interface.
+- Close [i150](./150-tty.md) as superseded — the `IsTty` effect is no longer needed since `isTTY` is a startup constant carried in `NodeProgramOptions`. **Done.**
+
+## Status
+
+- Effect infrastructure (`Write`, `WriteConsoles`, `NodeProgramOptions.std`), virtual runner, `fromIo` mapping, and `csiWrite` helper landed. Old `Io`-based `console`/`stdio`/`stderr` in `fs/text/sgr/module.f.ts` are kept until the test framework migrates ([i148](./148-test-framework-effects.md)).

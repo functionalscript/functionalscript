@@ -53,7 +53,9 @@ export type ReadDir =
  * @see https://nodejs.org/api/fs.html
  */
 export type Fs = {
-    readonly writeSync: (fd:number, s: string) => void
+    readonly writeSync:
+        & ((fd: number, s: string) => void)
+        & ((fd: number, data: Uint8Array) => void)
     readonly writeFileSync: (file: string, data: Uint8Array) => void
     readonly readFileSync: (path: string) => Uint8Array | null
     readonly promises: {
@@ -196,7 +198,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 
 export const fromIo = ({
     console: { error: logError, log },
-    fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access }, writeSync },
     fetch,
     http: { createServer },
     childProcess,
@@ -208,6 +210,10 @@ export const fromIo = ({
         all: async (...effects) => await Promise.all(effects.map(result)),
         error: async message => logError(message),
         log: async message => log(message),
+        write: async (stream, data) => {
+            const fd = stream === 'stdout' ? 1 : 2
+            writeSync(fd, fromVec(data))
+        },
         fetch: async url => tc(async() => {
             const response = await fetch(url)
             if (!response.ok) {

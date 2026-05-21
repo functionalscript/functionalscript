@@ -1,9 +1,9 @@
 /**
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, console (`log`, `error`), `import_`, `now`, `sandbox`, `forever`,
- * and `all`/`both` parallelism; defines the `NodeOp`/`NodeProgram` types used
- * by the Node runner.
+ * subprocess `exec`, console (`log`, `error`), raw byte `write` to stdout/stderr,
+ * `import_`, `now`, `sandbox`, `forever`, and `all`/`both` parallelism; defines
+ * the `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * @module
  */
@@ -137,6 +137,22 @@ export const log: Func<Log> =
 
 export type Console = Log | Error
 
+// write
+
+/**
+ * Named output streams. Extensible to file descriptors or additional channels.
+ */
+export type WriteConsoles = 'stdout' | 'stderr'
+
+/**
+ * Raw byte write to a named output stream. Encoding-agnostic: callers supply
+ * a `Vec`. TTY-aware formatting belongs to higher-level helpers
+ * (see `fs/text/sgr/module.f.ts`).
+ */
+export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void]
+
+export const write: Func<Write> = do_('write')
+
 // Server
 
 export type Server =
@@ -243,6 +259,7 @@ export type NodeOp =
     | All
     | Fetch
     | Console
+    | Write
     | Fs
     | Http
     | Forever
@@ -261,9 +278,17 @@ export type Env = {
     readonly [k: string]: string|undefined
 }
 
+/**
+ * TTY status of an output stream, known at process startup and unchanging.
+ */
+export type StreamInfo = {
+    readonly isTTY: boolean
+}
+
 export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
+    readonly std: { readonly[k in WriteConsoles]: StreamInfo }
 }
 
 export type NodeProgram = (options: NodeProgramOptions) => Effect<NodeOp, number>

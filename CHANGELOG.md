@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effects: add `Write` operation — raw byte write to `stdout`/`stderr`; `NodeProgramOptions.std` carries the TTY status of each stream; `csiWrite` helper in `fs/text/sgr/module.f.ts` strips ANSI SGR sequences for non-TTY streams; supersedes [i150](./issues/150-tty.md) ([i152](./issues/152-write-effect.md)) [816](https://github.com/functionalscript/functionalscript/pull/816)
+
 ## 0.17.0
 
 - Effects: replace `NodeProgram`'s two positional parameters with `NodeProgramOptions` — `{ args, env }` [814](https://github.com/functionalscript/functionalscript/pull/814)
