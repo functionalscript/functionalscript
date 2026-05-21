@@ -1,6 +1,6 @@
-# 153. Write Queue for Atomic Async Output
+l# 153. Async Write with Backpressure
 
-Asynchronous writes to `stdout` and `stderr` via the `Write` effect ([i152](./152-write-effect.md)) create a race condition: if two effects call `write` concurrently, their byte sequences can interleave and corrupt each other's output.
+Asynchronous writes to `stdout` and `stderr` via the `Write` effect ([i152](./152-write-effect.md)) must respect Node.js stream backpressure to avoid dropping or corrupting data when the internal buffer is full.
 
 ## Use case
 
@@ -9,53 +9,37 @@ Asynchronous writes to `stdout` and `stderr` via the `Write` effect ([i152](./15
 await Promise.all(results.map(r => write('stdout', encode(r))))
 ```
 
-Without a queue, the byte sequences of large messages overlap in the output. With the queue, each message is enqueued atomically and drained in submission order, so the output is always coherent even though the writes proceed concurrently from the caller's perspective.
+Each individual `stream.write()` call is atomic — Node.js treats the data as a unit. The only hazard is ignoring backpressure: if the stream's internal buffer fills up and `write()` returns `false`, subsequent writes must wait for the `drain` event before proceeding.
 
-## Problem
+A manual queue (promise chain) would also serialise writes, but it accumulates unboundedly in memory: if messages are produced faster than the OS can drain them, the queue grows without limit. The backpressure approach avoids this — when the stream's buffer is full, `write()` returns `false` and the producer pauses until `drain` fires, naturally throttling the producer to the speed of the consumer.
 
-Node.js streams are not atomic. Concurrent `fs.write(fd, buffer)` calls may partially overlap if buffers are large enough to be split across multiple OS write calls. Even small writes can interleave when scheduled across async ticks.
+This gives the right performance characteristics in both cases:
+- **Large computations with occasional prints**: `write()` returns `true` (buffer not full) so the computation never waits — printing is effectively free.
+- **Small computations printing many large messages**: the producer is throttled when the buffer fills, preventing unbounded memory growth.
 
 ## Solution
 
-Each output stream (`stdout`, `stderr`) needs a **queue** — a serial executor that:
-
-1. Accepts write requests without blocking the caller (fire-and-forget from the effect's perspective)
-2. Drains requests one at a time, preserving submission order
-3. Guarantees each message is written atomically (no interleaving with other messages)
-
-This is the standard producer–consumer pattern applied to a stream.
-
-## Design sketch
-
 ```ts
-const writeAsync = (fd: number, data: Uint8Array): Promise<void> =>
-    new Promise((resolve, reject) => {
-        fs.write(fd, data, err => err ? reject(err) : resolve())
-    })
+import { once } from 'node:events'
 
-type WriteQueue = {
-    readonly enqueue: (data: Uint8Array) => void
-}
-
-const createWriteQueue = (fd: number): WriteQueue => {
-    let tail: Promise<void> = Promise.resolve()
-    return {
-        enqueue: data => {
-            tail = tail
-                .then(() => writeAsync(fd, data))
-                .catch(() => {}) // reset queue to resolved so next write still runs
-        }
+const writeAll = async (
+    stream: NodeJS.WritableStream,
+    data: Uint8Array,
+): Promise<void> => {
+    if (!stream.write(data)) {
+        await once(stream, 'drain')
     }
 }
 ```
 
-`enqueue` returns `void` immediately; `tail` chains each write behind the previous one. The caller does not await, but ordering and atomicity are preserved.
+`stream.write(data)` returns `true` if the data was flushed immediately, or `false` if it was buffered and the caller should back off. `once(stream, 'drain')` resolves when the stream is ready for more data.
+
+> **Note:** when `write()` returns `false`, the data is already buffered internally — it is not lost and must not be retried. `drain` only signals that it is safe to write the *next* message.
 
 ## Impact
 
-- `Io.write` can return `void` instead of `Promise<void>` from the caller's perspective
-- The `Write` effect handler in `fromIo` calls `queue.enqueue(fromVec(data))` synchronously
-- Queues are created once at startup (one per stream) and held in the `fromIo` closure
+- `Io` exposes `stdout` and `stderr` as `NodeJS.WritableStream` (rather than bare `{ fd, isTTY }`) so `writeAll` can call `.write()` and listen for `'drain'`
+- The `Write` effect handler in `fromIo` calls `writeAll(stream, fromVec(data))`
 - Virtual runner is unaffected (synchronous, no concurrency)
 
 ## Related
