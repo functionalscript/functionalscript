@@ -308,8 +308,7 @@
 - [ ] [150-tty](./150-tty.md). `IsTty` effect: reports whether a file descriptor is connected to a terminal; used by the test framework to gate ANSI color output.
 - [x] [151-transpiler-effects](./151-transpiler-effects.md). Convert DJS transpiler (`fs/djs/transpiler/module.f.ts`) from legacy `Fs`/`readFileSync` to `ReadFile` effect; update tests to use the virtual effect runner instead of `createVirtualIo`. Unblocks deletion of `fs/io/virtual/module.f.ts`.
 - [ ] [152-write-effect](./152-write-effect.md). `Write` effect and TTY-aware console: `write(stream, data)` with `WriteConsoles = 'stdout' | 'stderr'`; `csiWrite` wrapper reads `isTTY` from `NodeProgramOptions.std`; supersedes i150.
-- [ ] [153-write-queue](./153-write-queue.md). Async write with backpressure: use `stream.write()` + `once(stream, 'drain')` for atomic, backpressure-aware writes to `stdout`/`stderr`.
-
+- [X] [153-write-queue](./153-write-queue.md). Async write with backpressure: use `stream.write()` + `once(stream, 'drain')` for atomic, backpressure-aware writes to `stdout`/`stderr`.
 
 ## Language Specification
 
