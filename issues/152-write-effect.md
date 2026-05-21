@@ -92,5 +92,9 @@ Defaults `isTTY: false` (strips SGR in tests). Captured output appended to state
 
 ## Migration
 
-- `fs/dev/tf/module.f.ts`: replace `stdio(io)`/`stderr(io)` with `csiWrite(options)('stdout')`/`csiWrite(options)('stderr')`
+- `fs/dev/tf/module.f.ts`: replace `stdio(io)`/`stderr(io)` with `csiWrite(options)('stdout')`/`csiWrite(options)('stderr')` — blocked on [i148](./148-test-framework-effects.md) (test framework must become an Effect program first)
 - Close [i150](./150-tty.md) as superseded — the `IsTty` effect is no longer needed since `isTTY` is a startup constant carried in `NodeProgramOptions`
+
+## Future: retire `Console` effects
+
+Once `tf/module.f.ts` (and any other caller) is fully converted to use `write`, the `Log` and `Error` effects (`Console` union) can be retired. `write('stdout', ...)` and `write('stderr', ...)` subsume them, with the added benefit of raw-byte delivery and TTY-aware SGR stripping at the application level.

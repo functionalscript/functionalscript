@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effects: add `Write` effect (`write(stream, data)`) and `WriteConsoles` to `NodeOp`; add `std` to `NodeProgramOptions` for startup TTY constants; add `csiWrite` to `fs/text/sgr` for TTY-aware UTF-8 writes; wire `write` handler in `fromIo` and virtual runner ([i152](./issues/152-write-effect.md)) [816](https://github.com/functionalscript/functionalscript/pull/816)
 - IO: add `write(stream, data)` to `Io` with backpressure via `stream.write()` + `once(stream, 'drain')`; add `WriteConsoles` type ([i153](./issues/153-write-queue.md)) [821](https://github.com/functionalscript/functionalscript/pull/821)
 
 ## 0.17.0

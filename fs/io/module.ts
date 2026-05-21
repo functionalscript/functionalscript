@@ -2,9 +2,9 @@ import http from 'node:http'
 import childProcess from 'node:child_process'
 import fs from 'node:fs'
 import process from 'node:process'
-import { once } from 'node:events'
-import { fromIo, type Io, type Run, run } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
+import { once } from 'node:events'
+import { fromIo, type Io, type Run, run, runProgram } from './module.f.ts'
 import type { Module, NodeProgram, NodeProgramOptions, WriteConsoles } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
@@ -90,13 +90,7 @@ export const legacyRun: Run = run(io)
 
 export type NodeRun = (p: NodeProgram) => Promise<number>
 
-export const ioRun = (io: Io): NodeRun => {
-    const r = fromIo(io)
-    const { argv, env } = io.process
-    const options: NodeProgramOptions = { args: argv.slice(2), env }
-    return p => r(p(options))
-}
-
-const effectRun: NodeRun = ioRun(io)
+const effectRun: NodeRun =
+    runProgram(io)(io.process.argv.slice(2))
 
 export default effectRun

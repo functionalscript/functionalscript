@@ -19,6 +19,7 @@ import type {
     RequestListener as Erl,
     Env,
     SandboxResult,
+    NodeProgram,
     WriteConsoles,
 } from '../types/effects/node/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
@@ -55,7 +56,7 @@ export type ReadDir =
  * @see https://nodejs.org/api/fs.html
  */
 export type Fs = {
-    readonly writeSync: (fd:number, s: string) => void
+    readonly writeSync: (fd: number, s: string) => void
     readonly writeFileSync: (file: string, data: Uint8Array) => void
     readonly readFileSync: (path: string) => Uint8Array | null
     readonly promises: {
@@ -206,6 +207,7 @@ export const fromIo = ({
     asyncImport,
     now: ioNow,
     sandbox: ioSandbox,
+    write: ioWrite,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -263,6 +265,21 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
+        write: ioWrite,
     })
     return result
+}
+
+export const runProgram = (io: Io) => {
+    const { process: { env, stdout, stderr } } = io
+    const f = fromIo(io)
+    return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
+        f(program({
+            args,
+            env,
+            std: {
+                stdout: { isTTY: stdout.isTTY },
+                stderr: { isTTY: stderr.isTTY },
+            },
+        }))
 }
