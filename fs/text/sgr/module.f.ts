@@ -9,6 +9,9 @@
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
 import type { Io, Writable } from "../../io/module.f.ts"
+import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
+import { type Effect } from '../../types/effects/module.f.ts'
+import { encodeUtf8, toVec } from '../../types/uint8array/module.f.ts'
 
 export const backspace: string = '\x08'
 
@@ -98,3 +101,15 @@ export const stdio = (io: Io): CsiConsole => console(io)(io.process.stdout)
 
 /** Writes to process stderr using a TTY-aware CSI console. */
 export const stderr = (io: Io): CsiConsole => console(io)(io.process.stderr)
+
+const sgrPattern = /\x1b\[[0-9;]*m/g
+
+/**
+ * Effect-based TTY-aware write. Strips ANSI SGR sequences when the target
+ * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
+ */
+export const csiWrite =
+    (o: NodeProgramOptions) => (stream: WriteConsoles) => (s: string): Effect<Write, void> => {
+        const line = o.std[stream].isTTY ? s : s.replace(sgrPattern, '')
+        return write(stream, toVec(encodeUtf8(line + '\n')))
+    }

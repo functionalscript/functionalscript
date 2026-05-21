@@ -22,7 +22,7 @@ import type {
 } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
-import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
+import { decodeUtf8, fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
@@ -53,7 +53,7 @@ export type ReadDir =
  * @see https://nodejs.org/api/fs.html
  */
 export type Fs = {
-    readonly writeSync: (fd:number, s: string) => void
+    readonly writeSync: (fd: number, s: string) => void
     readonly writeFileSync: (file: string, data: Uint8Array) => void
     readonly readFileSync: (path: string) => Uint8Array | null
     readonly promises: {
@@ -196,7 +196,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 
 export const fromIo = ({
     console: { error: logError, log },
-    fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
+    fs: { writeSync, promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
     childProcess,
@@ -260,6 +260,7 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
+        write: async (stream, data) => { writeSync(stream === 'stdout' ? 1 : 2, decodeUtf8(fromVec(data))) },
     })
     return result
 }

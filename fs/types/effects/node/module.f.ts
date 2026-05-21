@@ -197,6 +197,14 @@ export type Import = ['import', (path: string) => IoResult<Module>]
 
 export const import_: Func<Import> = do_('import')
 
+// write
+
+export type WriteConsoles = 'stdout' | 'stderr'
+
+export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void]
+
+export const write: Func<Write> = do_('write')
+
 // now
 
 export type Now = readonly['now', () => number]
@@ -249,6 +257,7 @@ export type NodeOp =
     | Import
     | Now
     | Sandbox
+    | Write
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 
@@ -264,6 +273,7 @@ export type Env = {
 export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
+    readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
 }
 
 export type NodeProgram = (options: NodeProgramOptions) => Effect<NodeOp, number>
