@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Effects: replace `NodeProgram`'s two positional parameters with `NodeProgramOptions` — `{ args, env }` [814](https://github.com/functionalscript/functionalscript/pull/814)
 - `tf`: remove `Input` intermediary type; `test` takes `Io` directly [813](https://github.com/functionalscript/functionalscript/pull/813)
 - `fjs`: convert `run`/`r` command from `asyncImport`/`await` to `import_` effect [812](https://github.com/functionalscript/functionalscript/pull/812)
 - DJS transpiler: replace `Fs`/`readFileSync` with `ReadFile` effect; tests use virtual effect runner; delete `fs/io/virtual` ([i151](./issues/151-transpiler-effects.md)) [811](https://github.com/functionalscript/functionalscript/pull/811)
