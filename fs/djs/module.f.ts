@@ -3,15 +3,12 @@
  *
  * @module
  */
-import type { Io } from '../io/module.f.ts'
+import { fromIo, type Io } from '../io/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
 import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
-import { encodeUtf8, toVec } from '../types/uint8array/module.f.ts'
-import { ok, error } from '../types/result/module.f.ts'
-import { asyncRun } from '../types/effects/module.ts'
-import type { ReadFile } from '../types/effects/node/module.f.ts'
+import { encodeUtf8 } from '../types/uint8array/module.f.ts'
 
 export type Object = {
    readonly [k in string]: Unknown
@@ -32,16 +29,7 @@ export const compile = (io: Io) => async (args: readonly string[]): Promise<numb
 
     const inputFileName = args[0]
     const outputFileName = args[1]
-    const run = asyncRun<ReadFile>({
-        readFile: async path => {
-            try {
-                return ok(toVec(await fs.promises.readFile(path)))
-            } catch (e) {
-                return error(e)
-            }
-        }
-    })
-    const result = await run(transpile(inputFileName))
+    const result = await fromIo(io)(transpile(inputFileName))
     switch (result[0]) {
         case 'ok': {
             if (outputFileName.endsWith('.json'))
