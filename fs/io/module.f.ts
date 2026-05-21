@@ -25,7 +25,7 @@ import type {
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
-import { decodeUtf8, fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
+import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
@@ -200,14 +200,14 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 
 export const fromIo = ({
     console: { error: logError, log },
-    fs: { writeSync, promises: { mkdir, readFile, readdir, writeFile, rm, access } },
-    process: { stdout: { fd: stdoutFd }, stderr: { fd: stderrFd } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
     childProcess,
     asyncImport,
     now: ioNow,
     sandbox: ioSandbox,
+    write: ioWrite,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -265,7 +265,7 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
-        write: async (stream, data) => { writeSync(stream === 'stdout' ? stdoutFd : stderrFd, decodeUtf8(fromVec(data))) },
+        write: ioWrite,
     })
     return result
 }
