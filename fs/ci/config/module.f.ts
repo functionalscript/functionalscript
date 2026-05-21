@@ -36,7 +36,7 @@ export const rust = '1.95.0'
 // https://nodejs.org/en/download
 export const node = {
     default: '26.2.0',
-    others: ['22.20.0', '24.15.0'],
+    others: ['22.22.3', '24.15.0'],
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
