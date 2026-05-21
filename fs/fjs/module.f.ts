@@ -7,7 +7,7 @@ import { fromIo, type Io } from '../io/module.f.ts'
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'
 import { main as casMain } from '../cas/module.f.ts'
-import { import_, type NodeProgram } from '../types/effects/node/module.f.ts'
+import { import_, type NodeProgram, type NodeProgramOptions } from '../types/effects/node/module.f.ts'
 
 export const main = async(io: Io): Promise<number> => {
     const { error } = io.console
@@ -30,7 +30,8 @@ export const main = async(io: Io): Promise<number> => {
             const [file, ...args] = rest
             return eRun(import_(file).step(result => {
                 if (result[0] === 'error') { throw result[1] }
-                return (result[1].default as NodeProgram)(args, env)
+                const options: NodeProgramOptions = { args, env }
+                return (result[1].default as NodeProgram)(options)
             }))
         case undefined:
             error('Error: command is required')

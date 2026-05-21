@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import process from 'node:process'
 import { fromIo, type Io, type Run, run } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
-import type { Module, NodeProgram } from '../types/effects/node/module.f.ts'
+import type { Module, NodeProgram, NodeProgramOptions } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 
 const prefix = 'file:///'
@@ -64,7 +64,8 @@ export type NodeRun = (p: NodeProgram) => Promise<number>
 export const ioRun = (io: Io): NodeRun => {
     const r = fromIo(io)
     const { argv, env } = io.process
-    return p => r(p(argv, env))
+    const options: NodeProgramOptions = { args: argv.slice(2), env }
+    return p => r(p(options))
 }
 
 const effectRun: NodeRun = ioRun(io)

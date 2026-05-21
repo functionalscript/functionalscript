@@ -261,4 +261,9 @@ export type Env = {
     readonly [k: string]: string|undefined
 }
 
-export type NodeProgram = (argv: readonly string[], env: Env) => Effect<NodeOp, number>
+export type NodeProgramOptions = {
+    readonly args: readonly string[]
+    readonly env: Env
+}
+
+export type NodeProgram = (options: NodeProgramOptions) => Effect<NodeOp, number>
