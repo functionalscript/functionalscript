@@ -146,8 +146,8 @@ const map: MemOperationMap<NodeOp, State> = {
         }
         return [state, e]
     },
-    error: console('stderr'),
-    log: console('stdout'),
+    // error: console('stderr'),
+    // log: console('stdout'),
     fetch: (state, url) => {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]

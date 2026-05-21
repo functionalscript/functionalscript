@@ -7,9 +7,11 @@
  *
  * @module
  */
+import { utf8 } from '../../../text/module.f.ts'
 import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
+import { encodeUtf8, toVec } from '../../uint8array/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
 } from '../module.f.ts'
@@ -119,24 +121,6 @@ export const access: Func<Access> =
 
 export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec | Access
 
-// error
-
-export type Error = ['error', (message: string) => void]
-
-export const error: Func<Error> =
-    do_('error')
-
-// log
-
-export type Log = ['log', (message: string) => void]
-
-export const log: Func<Log> =
-    do_('log')
-
-// Console
-
-export type Console = Log | Error
-
 // Server
 
 export type Server =
@@ -205,6 +189,13 @@ export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void
 
 export const write: Func<Write> = do_('write')
 
+const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> =>
+    write(stream, utf8(s + '\n'))
+
+export const log = writeString('stdout')
+
+export const error = writeString('stderr')
+
 // now
 
 export type Now = readonly['now', () => number]
@@ -250,7 +241,6 @@ export const sandbox: Func<Sandbox> = do_('sandbox')
 export type NodeOp =
     | All
     | Fetch
-    | Console
     | Fs
     | Http
     | Forever

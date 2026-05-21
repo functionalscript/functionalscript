@@ -10,8 +10,10 @@ import { sort } from '../types/object/module.f.ts'
 import { encodeUtf8, toVec } from '../types/uint8array/module.f.ts'
 import { type Effect, pure } from '../types/effects/module.f.ts'
 import {
-    error, writeFile,
-    type Error, type WriteFile, type ReadFile,
+    writeFile,
+    type WriteFile, type ReadFile,
+    type Write,
+    error,
 } from '../types/effects/node/module.f.ts'
 
 export type Object = {
@@ -24,7 +26,7 @@ export type Primitive = JsonPrimitive | bigint | undefined
 
 export type Unknown = Primitive | Object | Array
 
-type CompileOp = ReadFile | WriteFile | Error
+type CompileOp = ReadFile | WriteFile | Write
 
 export const compile: (args: readonly string[]) => Effect<CompileOp, number>
     = args => {

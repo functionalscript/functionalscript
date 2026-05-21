@@ -211,8 +211,8 @@ export const fromIo = ({
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
-        error: async message => logError(message),
-        log: async message => log(message),
+        // error: async message => logError(message),
+        //log: async message => log(message),
         fetch: async url => tc(async() => {
             const response = await fetch(url)
             if (!response.ok) {
