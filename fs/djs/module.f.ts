@@ -10,8 +10,8 @@ import { sort } from '../types/object/module.f.ts'
 import { encodeUtf8, toVec } from '../types/uint8array/module.f.ts'
 import { type Effect, pure } from '../types/effects/module.f.ts'
 import {
-    error as logError, writeFile,
-    type Error as ConsoleError, type WriteFile, type ReadFile,
+    error, writeFile,
+    type Error, type WriteFile, type ReadFile,
 } from '../types/effects/node/module.f.ts'
 
 export type Object = {
@@ -24,19 +24,19 @@ export type Primitive = JsonPrimitive | bigint | undefined
 
 export type Unknown = Primitive | Object | Array
 
-type CompileOp = ReadFile | WriteFile | ConsoleError
+type CompileOp = ReadFile | WriteFile | Error
 
 export const compile: (args: readonly string[]) => Effect<CompileOp, number>
     = args => {
         if (args.length < 2) {
-            return logError('Error: Requires 2 or more arguments').step(() => pure(1))
+            return error('Error: Requires 2 or more arguments').step(() => pure(1))
         }
         const inputFileName = args[0]
         const outputFileName = args[1]
         return transpile(inputFileName).step((result): Effect<CompileOp, number> => {
             if (result[0] === 'error') {
                 const metadata = result[1].metadata
-                return logError(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`).step(() => pure(0))
+                return error(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`).step(() => pure(0))
             }
             const content = outputFileName.endsWith('.json')
                 ? stringifyAsTree(sort)(result[1])
