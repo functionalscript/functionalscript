@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- IO: add `write(stream, data)` to `Io` with backpressure via `stream.write()` + `once(stream, 'drain')`; add `WriteConsoles` type ([i153](./issues/153-write-queue.md))
+
 ## 0.17.0
 
 - Effects: replace `NodeProgram`'s two positional parameters with `NodeProgramOptions` — `{ args, env }` [814](https://github.com/functionalscript/functionalscript/pull/814)
