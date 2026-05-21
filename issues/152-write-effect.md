@@ -86,6 +86,10 @@ const options: NodeProgramOptions = {
 
 Defaults `isTTY: false` (strips SGR in tests). Captured output appended to state for assertions.
 
+## Dependencies
+
+- [i153](./153-write-queue.md) — the `write` handler in `fromIo` must use the write queue to guarantee atomic, ordered delivery; implement i153 first.
+
 ## Migration
 
 - `fs/dev/tf/module.f.ts`: replace `stdio(io)`/`stderr(io)` with `csiWrite(options)('stdout')`/`csiWrite(options)('stderr')` — blocked on [i148](./148-test-framework-effects.md) (test framework must become an Effect program first)
