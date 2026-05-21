@@ -18,7 +18,8 @@ import type {
     NodeOp,
     RequestListener as Erl,
     Env,
-    SandboxResult
+    SandboxResult,
+    NodeProgram
 } from '../types/effects/node/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
@@ -263,4 +264,18 @@ export const fromIo = ({
         write: async (stream, data) => { writeSync(stream === 'stdout' ? 1 : 2, decodeUtf8(fromVec(data))) },
     })
     return result
+}
+
+export const runProgram = (io: Io) => {
+    const { process: { env, stdout, stderr } } = io
+    const f = fromIo(io)
+    return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
+        f(program({
+            args,
+            env,
+            std: {
+                stdout: { isTTY: stdout.isTTY },
+                stderr: { isTTY: stderr.isTTY },
+            },
+        }))
 }

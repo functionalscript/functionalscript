@@ -2,11 +2,10 @@ import http from 'node:http'
 import childProcess from 'node:child_process'
 import fs from 'node:fs'
 import process from 'node:process'
-import { type Io, type Run, run } from './module.f.ts'
+import { type Io, type Run, run, runProgram } from './module.f.ts'
 import { concat } from '../path/module.f.ts'
 import type { Module, NodeProgram } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
-import { runProgram } from '../fjs/module.f.ts'
 
 const prefix = 'file:///'
 
@@ -62,9 +61,7 @@ export const legacyRun: Run = run(io)
 
 export type NodeRun = (p: NodeProgram) => Promise<number>
 
-export const ioRun = (io: Io): NodeRun =>
+const effectRun: NodeRun =
     runProgram(io)(io.process.argv.slice(2))
-
-const effectRun: NodeRun = ioRun(io)
 
 export default effectRun

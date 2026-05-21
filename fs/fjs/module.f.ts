@@ -3,30 +3,15 @@
  *
  * @module
  */
-import { fromIo, type Io } from '../io/module.f.ts'
+import { fromIo, runProgram, type Io } from '../io/module.f.ts'
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../dev/tf/module.f.ts'
 import { main as casMain } from '../cas/module.f.ts'
 import { import_, type NodeProgram } from '../types/effects/node/module.f.ts'
 
-export const runProgram = (io: Io) => {
-    const { process: { env, stdout, stderr } } = io
-    const f = fromIo(io)
-    return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
-        f(program({
-            args,
-            env,
-            std: {
-                stdout: { isTTY: stdout.isTTY },
-                stderr: { isTTY: stderr.isTTY },
-            },
-        }))
-}
-
 export const main = async(io: Io): Promise<number> => {
     const { error } = io.console
     const { process } = io
-    const { env, stdout, stderr: stderrStream } = process
     const [command, ...rest] = process.argv.slice(2)
     const eRun = fromIo(io)
     switch (command) {
