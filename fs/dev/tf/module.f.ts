@@ -4,20 +4,10 @@
  * @module
  */
 import { fold } from '../../types/list/module.f.ts'
-import { reset, fgGreen, fgRed, bold, type CsiConsole, stdio, stderr } from '../../text/sgr/module.f.ts'
+import { reset, fgGreen, fgRed, bold, stdio, stderr } from '../../text/sgr/module.f.ts'
 import type { Io } from '../../io/module.f.ts'
 import type { SandboxResult } from '../../types/effects/node/module.f.ts'
-import { env, loadModuleMap, type ModuleMap, type Module } from '../module.f.ts'
-
-type Log = CsiConsole
-
-type Input = {
-    readonly moduleMap: ModuleMap,
-    readonly log: Log,
-    readonly error: Log,
-    readonly sandbox: <R>(f: () => R) => SandboxResult<R>,
-    readonly env: (n: string) => string|undefined
- }
+import { env, loadModuleMap, type Module } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -78,9 +68,13 @@ export const parseTestSet = (sandbox: <R>(f: () => R) => SandboxResult<R>) => (t
     return []
 }
 
-export const test = (input: Input): number => {
-    const { moduleMap, log, error, sandbox, env } = input
-    const isGitHub = env('GITHUB_ACTION') !== undefined
+const test = async(io: Io): Promise<number> => {
+    const moduleMap = await loadModuleMap(io)
+    const log = stdio(io)
+    const error = stderr(io)
+    const { sandbox } = io
+    const env_ = env(io)
+    const isGitHub = env_('GITHUB_ACTION') !== undefined
     const parse = parseTestSet(sandbox)
     const f
         : (k: readonly[string, Module]) => (ts: TestState) => TestState
@@ -159,10 +153,4 @@ export const anyLog = (f: (s: string) => void) => (s: string) => <T>(state: T): 
     return state
 }
 
-export const main = async(io: Io): Promise<number> => test({
-    moduleMap: await loadModuleMap(io),
-    log: stdio(io),
-    error: stderr(io),
-    sandbox: io.sandbox,
-    env: env(io),
-})
+export const main = test
