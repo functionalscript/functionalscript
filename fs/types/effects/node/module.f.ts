@@ -261,6 +261,8 @@ export type Env = {
     readonly [k: string]: string|undefined
 }
 
+export type WriteConsoles = 'stdout' | 'stderr'
+
 export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
