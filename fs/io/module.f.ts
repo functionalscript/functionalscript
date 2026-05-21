@@ -198,6 +198,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 export const fromIo = ({
     console: { error: logError, log },
     fs: { writeSync, promises: { mkdir, readFile, readdir, writeFile, rm, access } },
+    process: { stdout: { fd: stdoutFd }, stderr: { fd: stderrFd } },
     fetch,
     http: { createServer },
     childProcess,
@@ -261,7 +262,7 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
-        write: async (stream, data) => { writeSync(stream === 'stdout' ? 1 : 2, decodeUtf8(fromVec(data))) },
+        write: async (stream, data) => { writeSync(stream === 'stdout' ? stdoutFd : stderrFd, decodeUtf8(fromVec(data))) },
     })
     return result
 }
