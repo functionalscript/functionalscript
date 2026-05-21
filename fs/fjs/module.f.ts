@@ -21,7 +21,7 @@ export const main = async(io: Io): Promise<number> => {
             return testMain(io)
         case 'compile':
         case 'c':
-            return compile(io)(rest)
+            return eRun(compile(rest))
         case 'cas':
         case 's':
             return eRun(casMain(rest))
