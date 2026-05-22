@@ -4,7 +4,7 @@
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
-import { sandbox, type NodeOp, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
+import { sandbox, type NodeOp, type NodeProgram } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect } from '../../types/effects/module.f.ts'
 import { loadModuleMap2, type Module } from '../module.f.ts'
 
@@ -60,12 +60,13 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     return []
 }
 
-const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
-    const isGitHub = options.env['GITHUB_ACTION'] !== undefined
-    const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
-    const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
+export type Reporter = {
+    readonly log: (s: string) => Effect<NodeOp, void>
+    readonly fail: (file: string, name: string, result: unknown, duration: number) => Effect<NodeOp, void>
+}
 
-    return loadModuleMap2(options.env).step(moduleMap => {
+export const test = (reporter: Reporter): NodeProgram => options =>
+    loadModuleMap2(options.env).step(moduleMap => {
         const walk
             : (k: string) => (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
             = k => i => throws => v => ts => {
@@ -74,14 +75,14 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
             if (set instanceof Array) {
                 return set.reduce(
                     (acc: Effect<NodeOp, TestState>, [ck, cv]) =>
-                        acc.step(ts => csiLog(`${i}${ck}:`).step(() => next(throws || ck === 'throw')(cv)(ts))),
+                        acc.step(ts => reporter.log(`${i}${ck}:`).step(() => next(throws || ck === 'throw')(cv)(ts))),
                     pure(ts)
                 )
             }
             return sandbox(set.fn).step(({ result: [s, r], duration }) => {
                 const { throws } = set
                 if (throws !== (s === 'ok')) {
-                    return csiLog(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`).step(() => {
+                    return reporter.log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`).step(() => {
                         const ts2 = addPass(duration)(ts)
                         // Only non-throw tests walk their return value as a fresh sub-tree;
                         // thrown values are discarded. The sub-tree's `throws` resets to false.
@@ -90,16 +91,7 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                     })
                 }
                 const ts2 = addFail(duration)(ts)
-                if (isGitHub) {
-                    // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
-                    // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                    return csiError(`::error file=${k},line=1,title=${i}()::${r}`).step(() =>
-                        pure(ts2)
-                    )
-                }
-                return csiError(`${i}() ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
-                    csiError(`${fgRed}${r}${reset}`).step(() => pure(ts2))
-                )
+                return reporter.fail(k, `${i}()`, r, duration).step(() => pure(ts2))
             })
         }
         const entries: readonly[string, Module][] = Object.entries(moduleMap)
@@ -107,7 +99,7 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
             (acc: Effect<NodeOp, TestState>, [k, v]) =>
                 acc.step(ts => {
                     if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
-                    return csiLog(`testing ${k}`).step(() =>
+                    return reporter.log(`testing ${k}`).step(() =>
                         walk(k)('| ')(false)(v.default)(ts).step(ts => {
                             // Non-default exports are walked as a sibling test group so
                             // a test file can spread its tests across multiple named
@@ -132,13 +124,29 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
             pure({ time: 0, pass: 0, fail: 0 })
         ).step(ts => {
             const fgFail = ts.fail === 0 ? fgGreen : fgRed
-            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`).step(() =>
-                csiLog(`${bold}Time: ${timeFormat(ts.time)}${reset}`).step(() =>
+            return reporter.log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`).step(() =>
+                reporter.log(`${bold}Time: ${timeFormat(ts.time)}${reset}`).step(() =>
                     pure(ts.fail !== 0 ? 1 : 0)
                 )
             )
         })
     })
-}
 
-export const main = test
+export const main: NodeProgram = options => {
+    const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
+    const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
+    const isGitHub = options.env['GITHUB_ACTION'] !== undefined
+    const reporter: Reporter = {
+        log: csiLog,
+        fail: isGitHub
+            // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+            // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
+            ? (file, name, result, _duration) =>
+                csiError(`::error file=${file},line=1,title=${name}::${result}`)
+            : (_file, name, result, duration) =>
+                csiError(`${name} ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                    csiError(`${fgRed}${result}${reset}`)
+                )
+    }
+    return test(reporter)(options)
+}
