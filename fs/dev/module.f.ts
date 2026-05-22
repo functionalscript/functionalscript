@@ -103,9 +103,6 @@ export const loadModuleMap2 = (env: Env): Effect<Access | Import | All | Readdir
         .step(entries => pure(Object.fromEntries(entries.flat().toSorted(cmp))))
 }
 
-export const loadModuleMap = async (io: Io): Promise<ModuleMap> =>
-    fromIo(io)(loadModuleMap2(io.process.env))
-
 const denoJson = './deno.json'
 
 const parseDenoJson = rttiParse(record(rttiUnknown))

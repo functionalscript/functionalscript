@@ -60,9 +60,18 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     return []
 }
 
+/**
+ * Receives semantic test-run events. Each method is the runner's notification
+ * of an event; the reporter decides how to render it (terminal, GitHub
+ * annotations, JSON, node `--test`, etc.). `path` strings are the runner's
+ * `| `-indented location indicators (e.g. `| math`, `| | ()`).
+ */
 export type Reporter = {
-    readonly log: (s: string) => Effect<NodeOp, void>
-    readonly fail: (file: string, name: string, result: unknown, duration: number) => Effect<NodeOp, void>
+    readonly moduleStart: (file: string) => Effect<NodeOp, void>
+    readonly enter: (path: string) => Effect<NodeOp, void>
+    readonly pass: (path: string, duration: number) => Effect<NodeOp, void>
+    readonly fail: (file: string, path: string, result: unknown, duration: number) => Effect<NodeOp, void>
+    readonly summary: (pass: number, fail: number, time: number) => Effect<NodeOp, void>
 }
 
 export const test = (reporter: Reporter): NodeProgram => options =>
@@ -75,14 +84,14 @@ export const test = (reporter: Reporter): NodeProgram => options =>
             if (set instanceof Array) {
                 return set.reduce(
                     (acc: Effect<NodeOp, TestState>, [ck, cv]) =>
-                        acc.step(ts => reporter.log(`${i}${ck}:`).step(() => next(throws || ck === 'throw')(cv)(ts))),
+                        acc.step(ts => reporter.enter(`${i}${ck}`).step(() => next(throws || ck === 'throw')(cv)(ts))),
                     pure(ts)
                 )
             }
             return sandbox(set.fn).step(({ result: [s, r], duration }) => {
                 const { throws } = set
                 if (throws !== (s === 'ok')) {
-                    return reporter.log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`).step(() => {
+                    return reporter.pass(`${i}()`, duration).step(() => {
                         const ts2 = addPass(duration)(ts)
                         // Only non-throw tests walk their return value as a fresh sub-tree;
                         // thrown values are discarded. The sub-tree's `throws` resets to false.
@@ -99,7 +108,7 @@ export const test = (reporter: Reporter): NodeProgram => options =>
             (acc: Effect<NodeOp, TestState>, [k, v]) =>
                 acc.step(ts => {
                     if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
-                    return reporter.log(`testing ${k}`).step(() =>
+                    return reporter.moduleStart(k).step(() =>
                         walk(k)('| ')(false)(v.default)(ts).step(ts => {
                             // Non-default exports are walked as a sibling test group so
                             // a test file can spread its tests across multiple named
@@ -122,14 +131,7 @@ export const test = (reporter: Reporter): NodeProgram => options =>
                     )
                 }),
             pure({ time: 0, pass: 0, fail: 0 })
-        ).step(ts => {
-            const fgFail = ts.fail === 0 ? fgGreen : fgRed
-            return reporter.log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`).step(() =>
-                reporter.log(`${bold}Time: ${timeFormat(ts.time)}${reset}`).step(() =>
-                    pure(ts.fail !== 0 ? 1 : 0)
-                )
-            )
-        })
+        ).step(ts => reporter.summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
     })
 
 export const main: NodeProgram = options => {
@@ -137,16 +139,24 @@ export const main: NodeProgram = options => {
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     const reporter: Reporter = {
-        log: csiLog,
+        moduleStart: file => csiLog(`testing ${file}`),
+        enter: path => csiLog(`${path}:`),
+        pass: (path, duration) => csiLog(`${path} ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
         fail: isGitHub
             // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
             // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-            ? (file, name, result, _duration) =>
-                csiError(`::error file=${file},line=1,title=${name}::${result}`)
-            : (_file, name, result, duration) =>
-                csiError(`${name} ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+            ? (file, path, result, _duration) =>
+                csiError(`::error file=${file},line=1,title=${path}::${result}`)
+            : (_file, path, result, duration) =>
+                csiError(`${path} ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
                     csiError(`${fgRed}${result}${reset}`)
-                )
+                ),
+        summary: (pass, fail, time) => {
+            const fgFail = fail === 0 ? fgGreen : fgRed
+            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`).step(() =>
+                csiLog(`${bold}Time: ${timeFormat(time)}${reset}`)
+            )
+        }
     }
     return test(reporter)(options)
 }
