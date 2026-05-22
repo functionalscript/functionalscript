@@ -83,8 +83,8 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                 if (throws !== (s === 'ok')) {
                     return csiLog(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`).step(() => {
                         const ts2 = addPass(duration)(ts)
-                        // The result of a function is walked as a fresh sub-tree;
-                        // the parent's `throws` flag does not propagate into it.
+                        // Only non-throw tests walk their return value as a fresh sub-tree;
+                        // thrown values are discarded. The sub-tree's `throws` resets to false.
                         if (!throws) { return next(false)(r)(ts2) }
                         return pure(ts2)
                     })
