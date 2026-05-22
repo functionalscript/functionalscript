@@ -86,21 +86,21 @@ const test = async(io: Io): Promise<number> => {
                 }
                 ts = fold(f)(ts)(set)
             } else {
-                const { result: [s, r], duration: delta } = sandbox(set.fn)
+                const { result: [s, r], duration } = sandbox(set.fn)
                 const passed = set.throws ? s === 'error' : s === 'ok'
                 if (!passed) {
-                    ts = addFail(delta)(ts)
+                    ts = addFail(duration)(ts)
                     if (isGitHub) {
                         // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
                         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
                         error(`::error file=${k},line=1,title=${i}()::${r}`)
                     } else {
-                        error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
+                        error(`${i}() ${fgRed}error${reset}, ${timeFormat(duration)}`)
                         error(`${fgRed}${r}${reset}`)
                     }
                 } else {
-                    ts = addPass(delta)(ts)
-                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
+                    ts = addPass(duration)(ts)
+                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`);
                     // The result of a function is walked as a fresh sub-tree;
                     // the parent's `throws` flag does not propagate into it.
                     if (!set.throws) { ts = next(false)(r)(ts) }
