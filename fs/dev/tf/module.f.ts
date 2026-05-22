@@ -87,8 +87,14 @@ const test = async(io: Io): Promise<number> => {
                 ts = fold(f)(ts)(set)
             } else {
                 const { result: [s, r], duration } = sandbox(set.fn)
-                const passed = set.throws ? s === 'error' : s === 'ok'
-                if (!passed) {
+                const { throws } = set
+                if (throws !== (s === 'ok')) {
+                    ts = addPass(duration)(ts)
+                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`);
+                    // The result of a function is walked as a fresh sub-tree;
+                    // the parent's `throws` flag does not propagate into it.
+                    if (!throws) { ts = next(false)(r)(ts) }
+                } else {
                     ts = addFail(duration)(ts)
                     if (isGitHub) {
                         // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
@@ -98,12 +104,6 @@ const test = async(io: Io): Promise<number> => {
                         error(`${i}() ${fgRed}error${reset}, ${timeFormat(duration)}`)
                         error(`${fgRed}${r}${reset}`)
                     }
-                } else {
-                    ts = addPass(duration)(ts)
-                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`);
-                    // The result of a function is walked as a fresh sub-tree;
-                    // the parent's `throws` flag does not propagate into it.
-                    if (!set.throws) { ts = next(false)(r)(ts) }
                 }
             }
             return ts
