@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import process from 'node:process'
 import { concat } from '../path/module.f.ts'
 import { once } from 'node:events'
-import { fromIo, type Io, type Run, run, runProgram } from './module.f.ts'
+import { fromIo, type Io, runProgram } from './module.f.ts'
 import type { Module, NodeProgram, NodeProgramOptions, WriteConsoles } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
@@ -85,8 +85,6 @@ export const io: Io = {
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
 }
-
-export const legacyRun: Run = run(io)
 
 export type NodeRun = (p: NodeProgram) => Promise<number>
 
