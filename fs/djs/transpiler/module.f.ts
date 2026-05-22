@@ -12,9 +12,9 @@ import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { decodeUtf8, fromVec } from '../../types/uint8array/module.f.ts'
 import { type Effect, pure } from '../../types/effects/module.f.ts'
 import { readFile, type ReadFile } from '../../types/effects/node/module.f.ts'
+import { utf8ToString } from '../../text/module.f.ts'
 
 export type ParseContext = {
     readonly complete: OrderedMap<djsResult>
@@ -43,7 +43,7 @@ const parseModule
         if (result[0] === 'error') {
             return pure(error({ message: 'file not found', metadata: null }))
         }
-        const tokens = tokenize(stringToList(decodeUtf8(fromVec(result[1]))))(path)
+        const tokens = tokenize(stringToList(utf8ToString(result[1])))(path)
         return pure(parseFromTokens(tokens))
     })
 
