@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `fjs`: convert `main` to `NodeProgram`; dispatch sub-commands by returning Effects directly; remove `Io`/`fromIo`/`runProgram` dependency; `module.ts` switches from `legacyRun` to `effectRun` ([i122](./issues/README.md))
 - `tf`: convert `main` to `NodeProgram` — `(options: NodeProgramOptions) => Effect<NodeOp, number>`; replace `Io` dependency with `loadModuleMap2`, `sandbox` effect, and `csiWrite`; sequential test walk uses effectful `.reduce()` + `.step()` instead of synchronous `fold` ([i148](./issues/148-test-framework-effects.md)) [828](https://github.com/functionalscript/functionalscript/pull/828)
 - `tf`: eliminate double `sandbox` call for throw-tests; `parseTestSet` returns `TestEntry = { fn, throws }` instead of a wrapper; discriminate branches with `instanceof Array`; add `TestEntry` type; document dependency-free test design in README; add no-type-predicate rule to `AGENTS.md` ([i154](./issues/154-parseset-throws.md)) [827](https://github.com/functionalscript/functionalscript/pull/827)
 - `uint8array`: mark module deprecated — use `utf8`/`utf8ToString` from `fs/text` and `bit_vec` directly; replace all internal usages in `djs`, `sgr`, and virtual runner
