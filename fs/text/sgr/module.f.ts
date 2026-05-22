@@ -11,7 +11,7 @@
 import type { Io, Writable } from "../../io/module.f.ts"
 import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
 import { type Effect } from '../../types/effects/module.f.ts'
-import { encodeUtf8, toVec } from '../../types/uint8array/module.f.ts'
+import { utf8 } from "../module.f.ts"
 
 export const backspace: string = '\x08'
 
@@ -111,5 +111,5 @@ export const stderr = (io: Io): CsiConsole => console(io)(io.process.stderr)
 export const csiWrite = (o: NodeProgramOptions) => (stream: WriteConsoles) => {
     const toStr = str(o.std[stream].isTTY)
     return (s: string): Effect<Write, void> =>
-        write(stream, toVec(encodeUtf8(toStr(s))))
+        write(stream, utf8(toStr(s)))
 }

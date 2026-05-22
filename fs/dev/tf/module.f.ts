@@ -148,9 +148,4 @@ const test = async(io: Io): Promise<number> => {
     return ts.fail !== 0 ? 1 : 0
 }
 
-export const anyLog = (f: (s: string) => void) => (s: string) => <T>(state: T): T => {
-    f(s)
-    return state
-}
-
 export const main = test

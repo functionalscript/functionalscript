@@ -5,9 +5,9 @@
  */
 import { todo } from '../../../../dev/module.f.ts'
 import { parse } from '../../../../path/module.f.ts'
+import { utf8ToString } from '../../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../bit_vec/module.f.ts'
 import { error, ok } from '../../../result/module.f.ts'
-import { decodeUtf8, fromVec } from '../../../uint8array/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import type { Dirent, IoResult, NodeOp } from '../module.f.ts'
 
@@ -165,7 +165,7 @@ const map: MemOperationMap<NodeOp, State> = {
         return [state, { result, duration: 0 }]
     },
     write: (state, stream, data) => {
-        const s = decodeUtf8(fromVec(data))
+        const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
     },
 }
