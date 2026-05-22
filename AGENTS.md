@@ -55,6 +55,7 @@ where `<...Module documentation...>` should be documentation for the module.
 - When the version is bumped in `deno.json`/`package.json`, create a new `## X.Y.Z` section in `CHANGELOG.md` immediately after `## Unreleased` and move all entries from `## Unreleased` into it, leaving `## Unreleased` empty.
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references to built-in or external Node modules such as `node:path` in `.f.ts` files.
 - Prefer `.flatMap(e => e !== undefined ? [e] : [])` over `.filter((e): e is T => e !== undefined)` to remove `undefined` entries from an array. Type predicates in `filter` are error-prone: if the element type changes, the predicate silently becomes wrong. `flatMap` narrows correctly without a manual type annotation.
+- Avoid TypeScript type predicates (`(x: T): x is U`). They are error-prone: the compiler trusts the annotation unconditionally, so if the runtime check diverges from the declared type the error is silent. Use `instanceof` for class/constructor discrimination, or restructure the union so a structural check (e.g. `instanceof Array`) narrows correctly without a predicate.
 - Avoid `as` type assertions (except `as const`). They silence the type checker and hide real bugs — if a cast is needed, it usually means the types or the code structure should be improved instead.
 - Use `let` variables only within the function body where they are declared.
 - CLI parameters are preferred over environment variables when adding new features.

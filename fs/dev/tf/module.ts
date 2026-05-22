@@ -42,8 +42,6 @@ const framework: CommonFramework =
     isBun ? createBunFramework(nodeTest) :
         createFramework(nodeTest)
 
-const parse = parseTestSet(io.sandbox)
-
 const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc) => {
     let subTests = [x]
     while (true) {
@@ -54,19 +52,25 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
         subTests = rest
         //
         const [name, value, throws] = first
-        const set = parse(throws)(value)
-        if (typeof set === 'function') {
-            await subTestRunner(name, () => {
-                const r = set()
-                // The result of a function is walked as a fresh sub-tree;
-                // the parent's `throws` flag does not propagate into it.
-                subTests = [...subTests, [`${name}()`, r, false]]
-            })
-        } else {
+        const set = parseTestSet(throws)(value)
+        if (set instanceof Array) {
             for (const [j, y] of set) {
                 const pr = `${name}/${j}`
                 subTests = [...subTests, [pr, y, throws || j === 'throw']]
             }
+        } else {
+            await subTestRunner(name, () => {
+                if (set.throws) {
+                    let threw = false
+                    try { set.fn() } catch (_) { threw = true }
+                    if (!threw) { throw new Error(`${name}() expected to throw`) }
+                } else {
+                    const r = set.fn()
+                    // The result of a function is walked as a fresh sub-tree;
+                    // the parent's `throws` flag does not propagate into it.
+                    subTests = [...subTests, [`${name}()`, r, false]]
+                }
+            })
         }
     }
 }

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `tf`: eliminate double `sandbox` call for throw-tests; `parseTestSet` returns `TestEntry = { fn, throws }` instead of a wrapper; discriminate branches with `instanceof Array`; add `TestEntry` type; document dependency-free test design in README; add no-type-predicate rule to `AGENTS.md` ([i154](./issues/154-parseset-throws.md)) [827](https://github.com/functionalscript/functionalscript/pull/827)
 - `uint8array`: mark module deprecated — use `utf8`/`utf8ToString` from `fs/text` and `bit_vec` directly; replace all internal usages in `djs`, `sgr`, and virtual runner
 - `tf`: remove unused `anyLog` helper
 - Effects: retire `Log`/`Error`/`Console` operation types; replace with `log`/`error` helpers built on `write` — `log(s)` writes to `stdout`, `error(s)` to `stderr`, both UTF-8-encoded with `\n` [822](https://github.com/functionalscript/functionalscript/pull/822)
