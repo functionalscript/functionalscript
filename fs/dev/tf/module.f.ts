@@ -75,7 +75,7 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                 return set.reduce(
                     (acc: Effect<NodeOp, TestState>, [ck, cv]) =>
                         acc.step(ts => csiLog(`${i}${ck}:`).step(() => next(throws || ck === 'throw')(cv)(ts))),
-                    pure(ts) as Effect<NodeOp, TestState>
+                    pure(ts)
                 )
             }
             return sandbox(set.fn).step(({ result: [s, r], duration }) => {
@@ -86,7 +86,7 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                         // The result of a function is walked as a fresh sub-tree;
                         // the parent's `throws` flag does not propagate into it.
                         if (!throws) { return next(false)(r)(ts2) }
-                        return pure(ts2) as Effect<NodeOp, TestState>
+                        return pure(ts2)
                     })
                 }
                 const ts2 = addFail(duration)(ts)
@@ -94,11 +94,11 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                     // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
                     // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
                     return csiError(`::error file=${k},line=1,title=${i}()::${r}`).step(() =>
-                        pure(ts2) as Effect<NodeOp, TestState>
+                        pure(ts2)
                     )
                 }
                 return csiError(`${i}() ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
-                    csiError(`${fgRed}${r}${reset}`).step(() => pure(ts2) as Effect<NodeOp, TestState>)
+                    csiError(`${fgRed}${r}${reset}`).step(() => pure(ts2))
                 )
             })
         }
@@ -125,16 +125,16 @@ const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                             if (Object.keys(others).length !== 0) {
                                 return walk(k)('| ')(false)(others)(ts)
                             }
-                            return pure(ts) as Effect<NodeOp, TestState>
+                            return pure(ts)
                         })
                     )
                 }),
-            pure({ time: 0, pass: 0, fail: 0 }) as Effect<NodeOp, TestState>
+            pure({ time: 0, pass: 0, fail: 0 })
         ).step(ts => {
             const fgFail = ts.fail === 0 ? fgGreen : fgRed
             return csiLog(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`).step(() =>
                 csiLog(`${bold}Time: ${timeFormat(ts.time)}${reset}`).step(() =>
-                    pure(ts.fail !== 0 ? 1 : 0) as Effect<NodeOp, number>
+                    pure(ts.fail !== 0 ? 1 : 0)
                 )
             )
         })
