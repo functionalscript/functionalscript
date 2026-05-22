@@ -81,6 +81,4 @@ export default {
 }
 ```
 
-The `throw` flag does **not** propagate into sub-trees produced by return values.
-
-Only **return values** of non-throw tests are walked. A value thrown by a throw-test is discarded — even if it is an object containing zero-parameter functions, it is never traversed.
+Only **return values** of non-throw tests are walked as sub-trees, and the `throw` flag always resets to false for the sub-tree. Thrown values are discarded and never traversed, even if they are objects containing zero-parameter functions.
