@@ -6,7 +6,6 @@
 import { fold } from '../../types/list/module.f.ts'
 import { reset, fgGreen, fgRed, bold, stdio, stderr } from '../../text/sgr/module.f.ts'
 import type { Io } from '../../io/module.f.ts'
-import type { SandboxResult } from '../../types/effects/node/module.f.ts'
 import { env, loadModuleMap, type Module } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
@@ -35,26 +34,19 @@ const timeFormat = (a: number) => {
 
 export type Test = () => unknown
 
-export type TestSet = Test | readonly(readonly[string, unknown])[]
+export type TestEntry = {
+    readonly fn: Test
+    readonly throws: boolean
+}
 
-export const parseTestSet = (sandbox: <R>(f: () => R) => SandboxResult<R>) => (throws: boolean) => (x: unknown): TestSet => {
+export type TestSet = TestEntry | readonly(readonly[string, unknown])[]
+
+export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
                 const xt = x as Test
-                if (!throws && xt.name !== 'throw') {
-                    return xt
-                }
-                // Pass-on-throw: the test passes if it throws. Triggered when the
-                // enclosing tree node is named 'throw' (so any function reference
-                // works, not only inline ones whose inferred name is 'throw').
-                return () => {
-                    const { result: [tag, value] } = sandbox(xt)
-                    if (tag === 'ok') {
-                        throw value
-                    }
-                    return value
-                }
+                return { fn: xt, throws: throws || xt.name === 'throw' }
             }
             break
         }
@@ -75,7 +67,6 @@ const test = async(io: Io): Promise<number> => {
     const { sandbox } = io
     const env_ = env(io)
     const isGitHub = env_('GITHUB_ACTION') !== undefined
-    const parse = parseTestSet(sandbox)
     const f
         : (k: readonly[string, Module]) => (ts: TestState) => TestState
         = ([k, v]) => {
@@ -84,10 +75,20 @@ const test = async(io: Io): Promise<number> => {
             = i => throws => v => ts => {
             const next = test(`${i}| `)
 
-            const set = parse(throws)(v)
-            if (typeof set === 'function') {
-                const { result: [s, r], duration: delta } = sandbox(set)
-                if (s !== 'ok') {
+            const set = parseTestSet(throws)(v)
+            if (set instanceof Array) {
+                const f
+                    : (k: readonly[string|number, unknown]) => (ts: TestState) => TestState
+                    = ([k, v]) => ts => {
+                    log(`${i}${k}:`);
+                    ts = next(throws || k === 'throw')(v)(ts)
+                    return ts
+                }
+                ts = fold(f)(ts)(set)
+            } else {
+                const { result: [s, r], duration: delta } = sandbox(set.fn)
+                const passed = set.throws ? s === 'error' : s === 'ok'
+                if (!passed) {
                     ts = addFail(delta)(ts)
                     if (isGitHub) {
                         // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
@@ -102,17 +103,8 @@ const test = async(io: Io): Promise<number> => {
                     log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
                     // The result of a function is walked as a fresh sub-tree;
                     // the parent's `throws` flag does not propagate into it.
-                    ts = next(false)(r)(ts)
+                    if (!set.throws) { ts = next(false)(r)(ts) }
                 }
-            } else {
-                const f
-                    : (k: readonly[string|number, unknown]) => (ts: TestState) => TestState
-                    = ([k, v]) => ts => {
-                    log(`${i}${k}:`);
-                    ts = next(throws || k === 'throw')(v)(ts)
-                    return ts
-                }
-                ts = fold(f)(ts)(set)
             }
             return ts
         }
