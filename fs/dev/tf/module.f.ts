@@ -3,10 +3,10 @@
  *
  * @module
  */
-import { fold } from '../../types/list/module.f.ts'
-import { reset, fgGreen, fgRed, bold, stdio, stderr } from '../../text/sgr/module.f.ts'
-import type { Io } from '../../io/module.f.ts'
-import { env, loadModuleMap, type Module } from '../module.f.ts'
+import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
+import { sandbox, type NodeOp, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
+import { pure, type Effect } from '../../types/effects/module.f.ts'
+import { loadModuleMap2, type Module } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -14,7 +14,7 @@ type TestState = {
     readonly time: number,
     readonly pass: number,
     readonly fail: number,
- }
+}
 
 const addPass = (delta: number) => (ts: TestState): TestState =>
     ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
@@ -60,85 +60,85 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     return []
 }
 
-const test = async(io: Io): Promise<number> => {
-    const moduleMap = await loadModuleMap(io)
-    const log = stdio(io)
-    const error = stderr(io)
-    const { sandbox } = io
-    const env_ = env(io)
-    const isGitHub = env_('GITHUB_ACTION') !== undefined
-    const f
-        : (k: readonly[string, Module]) => (ts: TestState) => TestState
-        = ([k, v]) => {
-        const test
-            : (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => TestState
-            = i => throws => v => ts => {
-            const next = test(`${i}| `)
+const test = (options: NodeProgramOptions): Effect<NodeOp, number> => {
+    const isGitHub = options.env['GITHUB_ACTION'] !== undefined
+    const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
+    const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
 
+    return loadModuleMap2(options.env).step(moduleMap => {
+        const walk
+            : (k: string) => (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
+            = k => i => throws => v => ts => {
+            const next = walk(k)(`${i}| `)
             const set = parseTestSet(throws)(v)
             if (set instanceof Array) {
-                const f
-                    : (k: readonly[string|number, unknown]) => (ts: TestState) => TestState
-                    = ([k, v]) => ts =>
-                {
-                    log(`${i}${k}:`);
-                    ts = next(throws || k === 'throw')(v)(ts)
-                    return ts
-                }
-                ts = fold(f)(ts)(set)
-            } else {
-                const { result: [s, r], duration } = sandbox(set.fn)
+                return set.reduce(
+                    (acc: Effect<NodeOp, TestState>, [ck, cv]) =>
+                        acc.step(ts => csiLog(`${i}${ck}:`).step(() => next(throws || ck === 'throw')(cv)(ts))),
+                    pure(ts) as Effect<NodeOp, TestState>
+                )
+            }
+            return sandbox(set.fn).step(({ result: [s, r], duration }) => {
                 const { throws } = set
                 if (throws !== (s === 'ok')) {
-                    ts = addPass(duration)(ts)
-                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`);
-                    // The result of a function is walked as a fresh sub-tree;
-                    // the parent's `throws` flag does not propagate into it.
-                    if (!throws) { ts = next(false)(r)(ts) }
-                } else {
-                    ts = addFail(duration)(ts)
-                    if (isGitHub) {
-                        // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
-                        // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                        error(`::error file=${k},line=1,title=${i}()::${r}`)
-                    } else {
-                        error(`${i}() ${fgRed}error${reset}, ${timeFormat(duration)}`)
-                        error(`${fgRed}${r}${reset}`)
-                    }
+                    return csiLog(`${i}() ${fgGreen}ok${reset}, ${timeFormat(duration)}`).step(() => {
+                        const ts2 = addPass(duration)(ts)
+                        // The result of a function is walked as a fresh sub-tree;
+                        // the parent's `throws` flag does not propagate into it.
+                        if (!throws) { return next(false)(r)(ts2) }
+                        return pure(ts2) as Effect<NodeOp, TestState>
+                    })
                 }
-            }
-            return ts
-        }
-        return ts => {
-            if (isTest(k)) {
-                log(`testing ${k}`);
-                ts = test('| ')(false)(v.default)(ts)
-                // Non-default exports are walked as a sibling test group so
-                // a test file can spread its tests across multiple named
-                // exports (see issue 27 in `issues/README.md`). Skip exports
-                // that parseTestSet would treat as empty (constants, types,
-                // non-test helpers) to avoid noisy empty entries in output.
-                const others = Object.fromEntries(
-                    Object.entries(v).filter(([key, val]) =>
-                        key !== 'default' && (
-                            (typeof val === 'function' && val.length === 0) ||
-                            (typeof val === 'object' && val !== null)
-                        )
+                const ts2 = addFail(duration)(ts)
+                if (isGitHub) {
+                    // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+                    // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
+                    return csiError(`::error file=${k},line=1,title=${i}()::${r}`).step(() =>
+                        pure(ts2) as Effect<NodeOp, TestState>
                     )
-                )
-                if (Object.keys(others).length !== 0) {
-                    ts = test('| ')(false)(others)(ts)
                 }
-            }
-            return ts
+                return csiError(`${i}() ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                    csiError(`${fgRed}${r}${reset}`).step(() => pure(ts2) as Effect<NodeOp, TestState>)
+                )
+            })
         }
-    }
-    let ts: TestState = { time: 0, pass: 0, fail: 0 }
-    ts = fold(f)(ts)(Object.entries(moduleMap))
-    const fgFail = ts.fail === 0 ? fgGreen : fgRed
-    log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)
-    log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)
-    return ts.fail !== 0 ? 1 : 0
+        const entries: readonly[string, Module][] = Object.entries(moduleMap)
+        return entries.reduce(
+            (acc: Effect<NodeOp, TestState>, [k, v]) =>
+                acc.step(ts => {
+                    if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
+                    return csiLog(`testing ${k}`).step(() =>
+                        walk(k)('| ')(false)(v.default)(ts).step(ts => {
+                            // Non-default exports are walked as a sibling test group so
+                            // a test file can spread its tests across multiple named
+                            // exports (see issue 27 in `issues/README.md`). Skip exports
+                            // that parseTestSet would treat as empty (constants, types,
+                            // non-test helpers) to avoid noisy empty entries in output.
+                            const others = Object.fromEntries(
+                                Object.entries(v).filter(([key, val]) =>
+                                    key !== 'default' && (
+                                        (typeof val === 'function' && val.length === 0) ||
+                                        (typeof val === 'object' && val !== null)
+                                    )
+                                )
+                            )
+                            if (Object.keys(others).length !== 0) {
+                                return walk(k)('| ')(false)(others)(ts)
+                            }
+                            return pure(ts) as Effect<NodeOp, TestState>
+                        })
+                    )
+                }),
+            pure({ time: 0, pass: 0, fail: 0 }) as Effect<NodeOp, TestState>
+        ).step(ts => {
+            const fgFail = ts.fail === 0 ? fgGreen : fgRed
+            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`).step(() =>
+                csiLog(`${bold}Time: ${timeFormat(ts.time)}${reset}`).step(() =>
+                    pure(ts.fail !== 0 ? 1 : 0) as Effect<NodeOp, number>
+                )
+            )
+        })
+    })
 }
 
 export const main = test
