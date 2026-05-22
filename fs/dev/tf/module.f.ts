@@ -45,8 +45,8 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
-                const xt = x as Test
-                return { fn: xt, throws: throws || xt.name === 'throw' }
+                const fn = x as Test
+                return { fn, throws: throws || fn.name === 'throw' }
             }
             break
         }
@@ -79,7 +79,8 @@ const test = async(io: Io): Promise<number> => {
             if (set instanceof Array) {
                 const f
                     : (k: readonly[string|number, unknown]) => (ts: TestState) => TestState
-                    = ([k, v]) => ts => {
+                    = ([k, v]) => ts =>
+                {
                     log(`${i}${k}:`);
                     ts = next(throws || k === 'throw')(v)(ts)
                     return ts
