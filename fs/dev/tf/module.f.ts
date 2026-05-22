@@ -74,7 +74,7 @@ export type Reporter = {
     readonly summary: (pass: number, fail: number, time: number) => Effect<NodeOp, void>
 }
 
-export const test = (reporter: Reporter): NodeProgram => options =>
+export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): NodeProgram => options =>
     loadModuleMap2(options.env).step(moduleMap => {
         const walk
             : (k: string) => (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
@@ -84,14 +84,14 @@ export const test = (reporter: Reporter): NodeProgram => options =>
             if (set instanceof Array) {
                 return set.reduce(
                     (acc: Effect<NodeOp, TestState>, [ck, cv]) =>
-                        acc.step(ts => reporter.enter(`${i}${ck}`).step(() => next(throws || ck === 'throw')(cv)(ts))),
+                        acc.step(ts => enter(`${i}${ck}`).step(() => next(throws || ck === 'throw')(cv)(ts))),
                     pure(ts)
                 )
             }
             return sandbox(set.fn).step(({ result: [s, r], duration }) => {
                 const { throws } = set
                 if (throws !== (s === 'ok')) {
-                    return reporter.pass(`${i}()`, duration).step(() => {
+                    return pass(`${i}()`, duration).step(() => {
                         const ts2 = addPass(duration)(ts)
                         // Only non-throw tests walk their return value as a fresh sub-tree;
                         // thrown values are discarded. The sub-tree's `throws` resets to false.
@@ -100,7 +100,7 @@ export const test = (reporter: Reporter): NodeProgram => options =>
                     })
                 }
                 const ts2 = addFail(duration)(ts)
-                return reporter.fail(k, `${i}()`, r, duration).step(() => pure(ts2))
+                return fail(k, `${i}()`, r, duration).step(() => pure(ts2))
             })
         }
         const entries: readonly[string, Module][] = Object.entries(moduleMap)
@@ -108,7 +108,7 @@ export const test = (reporter: Reporter): NodeProgram => options =>
             (acc: Effect<NodeOp, TestState>, [k, v]) =>
                 acc.step(ts => {
                     if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
-                    return reporter.moduleStart(k).step(() =>
+                    return moduleStart(k).step(() =>
                         walk(k)('| ')(false)(v.default)(ts).step(ts => {
                             // Non-default exports are walked as a sibling test group so
                             // a test file can spread its tests across multiple named
@@ -131,7 +131,7 @@ export const test = (reporter: Reporter): NodeProgram => options =>
                     )
                 }),
             pure({ time: 0, pass: 0, fail: 0 })
-        ).step(ts => reporter.summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
+        ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
     })
 
 export const main: NodeProgram = options => {
