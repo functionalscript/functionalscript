@@ -21,20 +21,20 @@ export type Architecture = typeof architecture[number]
 
 export type Image = typeof images[Os][Architecture]
 
-const stepSchema = {
+export const stepSchema = {
     run: option(string),
     uses: option(string),
     with: option(record(string))
 } as const satisfies unknown
 
-const jobSchema = {
+export const jobSchema = {
     'runs-on': string,
     steps: array(stepSchema)
 } as const satisfies unknown
 
-const jobsSchema = record(jobSchema) satisfies unknown
+export const jobsSchema = record(jobSchema) satisfies unknown
 
-const gitHubActionSchema = {
+export const gitHubActionSchema = {
     name: string,
     on: { pull_request: option({}) },
     jobs: jobsSchema

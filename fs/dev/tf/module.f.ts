@@ -3,11 +3,10 @@
  *
  * @module
  */
-import { fold } from '../../types/list/module.f.ts'
-import { reset, fgGreen, fgRed, bold, stdio, stderr } from '../../text/sgr/module.f.ts'
-import type { Io } from '../../io/module.f.ts'
-import type { SandboxResult } from '../../types/effects/node/module.f.ts'
-import { env, loadModuleMap, type Module } from '../module.f.ts'
+import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
+import { sandbox, type NodeOp, type NodeProgram, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
+import { pure, type Effect } from '../../types/effects/module.f.ts'
+import { loadModuleMap, type Module } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -15,7 +14,7 @@ type TestState = {
     readonly time: number,
     readonly pass: number,
     readonly fail: number,
- }
+}
 
 const addPass = (delta: number) => (ts: TestState): TestState =>
     ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
@@ -35,26 +34,19 @@ const timeFormat = (a: number) => {
 
 export type Test = () => unknown
 
-export type TestSet = Test | readonly(readonly[string, unknown])[]
+export type TestEntry = {
+    readonly fn: Test
+    readonly throws: boolean
+}
 
-export const parseTestSet = (sandbox: <R>(f: () => R) => SandboxResult<R>) => (throws: boolean) => (x: unknown): TestSet => {
+export type TestSet = TestEntry | readonly(readonly[string, unknown])[]
+
+export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
-                const xt = x as Test
-                if (!throws && xt.name !== 'throw') {
-                    return xt
-                }
-                // Pass-on-throw: the test passes if it throws. Triggered when the
-                // enclosing tree node is named 'throw' (so any function reference
-                // works, not only inline ones whose inferred name is 'throw').
-                return () => {
-                    const { result: [tag, value] } = sandbox(xt)
-                    if (tag === 'ok') {
-                        throw value
-                    }
-                    return value
-                }
+                const fn = x as Test
+                return { fn, throws: throws || fn.name === 'throw' }
             }
             break
         }
@@ -68,84 +60,140 @@ export const parseTestSet = (sandbox: <R>(f: () => R) => SandboxResult<R>) => (t
     return []
 }
 
-const test = async(io: Io): Promise<number> => {
-    const moduleMap = await loadModuleMap(io)
-    const log = stdio(io)
-    const error = stderr(io)
-    const { sandbox } = io
-    const env_ = env(io)
-    const isGitHub = env_('GITHUB_ACTION') !== undefined
-    const parse = parseTestSet(sandbox)
-    const f
-        : (k: readonly[string, Module]) => (ts: TestState) => TestState
-        = ([k, v]) => {
-        const test
-            : (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => TestState
-            = i => throws => v => ts => {
-            const next = test(`${i}| `)
-
-            const set = parse(throws)(v)
-            if (typeof set === 'function') {
-                const { result: [s, r], duration: delta } = sandbox(set)
-                if (s !== 'ok') {
-                    ts = addFail(delta)(ts)
-                    if (isGitHub) {
-                        // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
-                        // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-                        error(`::error file=${k},line=1,title=${i}()::${r}`)
-                    } else {
-                        error(`${i}() ${fgRed}error${reset}, ${timeFormat(delta)}`)
-                        error(`${fgRed}${r}${reset}`)
-                    }
-                } else {
-                    ts = addPass(delta)(ts)
-                    log(`${i}() ${fgGreen}ok${reset}, ${timeFormat(delta)}`);
-                    // The result of a function is walked as a fresh sub-tree;
-                    // the parent's `throws` flag does not propagate into it.
-                    ts = next(false)(r)(ts)
-                }
-            } else {
-                const f
-                    : (k: readonly[string|number, unknown]) => (ts: TestState) => TestState
-                    = ([k, v]) => ts => {
-                    log(`${i}${k}:`);
-                    ts = next(throws || k === 'throw')(v)(ts)
-                    return ts
-                }
-                ts = fold(f)(ts)(set)
-            }
-            return ts
-        }
-        return ts => {
-            if (isTest(k)) {
-                log(`testing ${k}`);
-                ts = test('| ')(false)(v.default)(ts)
-                // Non-default exports are walked as a sibling test group so
-                // a test file can spread its tests across multiple named
-                // exports (see issue 27 in `issues/README.md`). Skip exports
-                // that parseTestSet would treat as empty (constants, types,
-                // non-test helpers) to avoid noisy empty entries in output.
-                const others = Object.fromEntries(
-                    Object.entries(v).filter(([key, val]) =>
-                        key !== 'default' && (
-                            (typeof val === 'function' && val.length === 0) ||
-                            (typeof val === 'object' && val !== null)
-                        )
-                    )
-                )
-                if (Object.keys(others).length !== 0) {
-                    ts = test('| ')(false)(others)(ts)
-                }
-            }
-            return ts
-        }
-    }
-    let ts: TestState = { time: 0, pass: 0, fail: 0 }
-    ts = fold(f)(ts)(Object.entries(moduleMap))
-    const fgFail = ts.fail === 0 ? fgGreen : fgRed
-    log(`${bold}Number of tests: pass: ${fgGreen}${ts.pass}${reset}${bold}, fail: ${fgFail}${ts.fail}${reset}${bold}, total: ${ts.pass + ts.fail}${reset}`)
-    log(`${bold}Time: ${timeFormat(ts.time)}${reset}`)
-    return ts.fail !== 0 ? 1 : 0
+/**
+ * Receives semantic test-run events. Each method is the runner's notification
+ * of an event; the reporter decides how to render it (terminal, GitHub
+ * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
+ * leading to the current location, e.g. `['math', 'add']`.
+ */
+export type Reporter = {
+    readonly moduleStart: (file: string) => Effect<NodeOp, void>
+    readonly enter: (path: readonly string[]) => Effect<NodeOp, void>
+    readonly pass: (path: readonly string[], duration: number) => Effect<NodeOp, void>
+    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<NodeOp, void>
+    readonly summary: (pass: number, fail: number, time: number) => Effect<NodeOp, void>
 }
 
-export const main = test
+export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): NodeProgram => options =>
+    loadModuleMap(options.env).step(moduleMap => {
+        const walk
+            : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
+            = k => path => throws => v => ts => {
+            const set = parseTestSet(throws)(v)
+            if (set instanceof Array) {
+                return set.reduce(
+                    (acc: Effect<NodeOp, TestState>, [ck, cv]) => {
+                        const sub = [...path, ck]
+                        const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
+                        // Emit `enter` only for sub-tree values (objects/arrays). Leaf
+                        // values (functions, primitives) skip `enter` so the reporter
+                        // can combine the key with the pass/fail line.
+                        return typeof cv === 'object' && cv !== null
+                            ? acc.step(ts => enter(sub).step(() => recurse(ts)))
+                            : acc.step(recurse)
+                    },
+                    pure(ts)
+                )
+            }
+            return sandbox(set.fn).step(({ result: [s, r], duration }) => {
+                const { throws } = set
+                if (throws !== (s === 'ok')) {
+                    return pass(path, duration).step(() => {
+                        const ts2 = addPass(duration)(ts)
+                        // Only non-throw tests walk their return value as a fresh sub-tree;
+                        // thrown values are discarded. The sub-tree's `throws` resets to false.
+                        if (!throws) { return walk(k)(path)(false)(r)(ts2) }
+                        return pure(ts2)
+                    })
+                }
+                const ts2 = addFail(duration)(ts)
+                return fail(k, path, r, duration).step(() => pure(ts2))
+            })
+        }
+        const entries: readonly[string, Module][] = Object.entries(moduleMap)
+        return entries.reduce(
+            (acc: Effect<NodeOp, TestState>, [k, v]) =>
+                acc.step(ts => {
+                    if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
+                    return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
+                }),
+            pure({ time: 0, pass: 0, fail: 0 })
+        ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
+    })
+
+const isAlpha = (c: string): boolean =>
+    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
+const isDigit = (c: string): boolean => c >= '0' && c <= '9'
+
+export const isInteger = (s: string): boolean =>
+    s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
+export const isIdentifier = (s: string): boolean =>
+    s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
+
+/**
+ * Renders a key chain as a JS object path: integer-like keys become numbers,
+ * other strings are JSON-stringified. E.g. `['math', 'add']` → `["math","add"]`,
+ * `['users', '3', 'name']` → `["users",3,"name"]`. Used for the GitHub
+ * annotation `title=` field where the full unambiguous path is desired.
+ */
+export const fmtPath = (path: readonly string[]): string =>
+    JSON.stringify(path.map(k => isInteger(k) ? Number(k) : k))
+
+/**
+ * Renders a key chain for terminal output: `| ` per level of depth, followed
+ * by the last segment formatted as a bare integer, a bare identifier, or a
+ * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
+ * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
+ */
+export const fmtTerm = (path: readonly string[]): string => {
+    const indent = '| '.repeat(path.length)
+    if (path.length === 0) { return `${indent}()` }
+    const last = path[path.length - 1]
+    return `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
+}
+
+/**
+ * Percent-encodes characters that GitHub workflow-command property values
+ * treat as separators (`%`, `:`, `,`) plus newlines.
+ * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+ */
+export const ghEscape = (s: string): string =>
+    s.replaceAll('%', '%25')
+        .replaceAll(':', '%3A')
+        .replaceAll(',', '%2C')
+        .replaceAll('\r', '%0D')
+        .replaceAll('\n', '%0A')
+
+/**
+ * The terminal/GitHub reporter used by `fjs t`. Output goes through
+ * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
+ * `GITHUB_ACTION` is set, failures are emitted as `::error` workflow
+ * annotations instead of colored lines. Exported as a factory so the
+ * GitHub format path can be exercised directly from tests.
+ */
+export const defaultReporter = (options: NodeProgramOptions): Reporter => {
+    const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
+    const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
+    const isGitHub = options.env['GITHUB_ACTION'] !== undefined
+    return {
+        moduleStart: file => csiLog(`testing ${file}`),
+        enter: path => csiLog(`${fmtTerm(path)}:`),
+        pass: (path, duration) => csiLog(`${fmtTerm(path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
+        fail: isGitHub
+            // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
+            ? (file, path, result, _duration) =>
+                csiError(`::error file=${file},line=1,title=${ghEscape(fmtPath(path))}::${ghEscape(String(result))}`)
+            : (_file, path, result, duration) =>
+                csiError(`${fmtTerm(path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                    csiError(`${fgRed}${result}${reset}`)
+                ),
+        summary: (pass, fail, time) => {
+            const fgFail = fail === 0 ? fgGreen : fgRed
+            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`).step(() =>
+                csiLog(`${bold}Time: ${timeFormat(time)}${reset}`)
+            )
+        }
+    }
+}
+
+export const main: NodeProgram = options => test(defaultReporter(options))(options)
