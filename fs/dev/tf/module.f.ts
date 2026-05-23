@@ -121,8 +121,14 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
         ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
     })
 
-const isInteger = (s: string): boolean => /^(?:0|[1-9]\d*)$/.test(s)
-const isIdentifier = (s: string): boolean => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(s)
+const isAlpha = (c: string): boolean =>
+    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
+const isDigit = (c: string): boolean => c >= '0' && c <= '9'
+
+const isInteger = (s: string): boolean =>
+    s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
+const isIdentifier = (s: string): boolean =>
+    s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
 /**
  * Renders a key chain as a JS object path: integer-like keys become numbers,
@@ -152,11 +158,11 @@ const fmtTerm = (path: readonly string[]): string => {
  * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
  */
 const ghEscape = (s: string): string =>
-    s.replace(/%/g, '%25')
-        .replace(/:/g, '%3A')
-        .replace(/,/g, '%2C')
-        .replace(/\r/g, '%0D')
-        .replace(/\n/g, '%0A')
+    s.replaceAll('%', '%25')
+        .replaceAll(':', '%3A')
+        .replaceAll(',', '%2C')
+        .replaceAll('\r', '%0D')
+        .replaceAll('\n', '%0A')
 
 export const main: NodeProgram = options => {
     const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
