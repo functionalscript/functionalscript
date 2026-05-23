@@ -7,8 +7,6 @@ import { emptyState, virtual } from '../types/effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 
-// type Gha = Ts<typeof gitHubActionSchema>
-
 const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
     Object.values(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
 
