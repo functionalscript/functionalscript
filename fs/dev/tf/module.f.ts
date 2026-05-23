@@ -74,8 +74,8 @@ export type Reporter<O extends Operation> = {
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
 }
 
+
 const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O|Sandbox, TestState> => {
-    if (!isTest(k)) { return pure(ts) }
     const walk
         : (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
         = path => throws => v => ts =>
@@ -117,7 +117,7 @@ const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Repo
 
 const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O|Sandbox, number> => {
     const { summary } = reporter
-    const entries = Object.entries(moduleMap)
+    const entries = Object.entries(moduleMap).filter(([k]) => isTest(k))
     return entries.reduce(
         (acc: Effect<O|Sandbox, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
         pure({ time: 0, pass: 0, fail: 0 })
