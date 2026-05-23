@@ -1,0 +1,139 @@
+# 157. JSON/DJS: extract the shared value-machine core
+
+DJS is a superset of JSON: every JSON value is a DJS value, plus DJS adds
+`bigint`, `undefined`, identifier keys, const references, and module
+(`import`/`const`/`export default`) framing. Because of that relationship the
+two stacks should share their value-level machinery. Today they don't — three
+separate pairs of modules each fork the same JSON value algorithm and then add
+the small DJS delta on top.
+
+The shared lexical engine (`fs/js/tokenizer/module.f.ts`) is already factored
+correctly: both tokenizers delegate all character classification, escape
+decoding, and number parsing to it. The duplication is one level up, in the
+**value** layer: parser, serializer, and the tokenizer's minus-rewriter.
+
+This issue tracks all three because they share one root cause; each part can be
+landed independently.
+
+## 1. Parser value-state machine (strongest)
+
+`fs/json/parser/module.f.ts` and `fs/djs/parser/module.f.ts` implement the
+*same* container-building state machine. The value-state alphabet is identical:
+
+```ts
+// json/parser/module.f.ts:32
+status: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
+// djs/parser/module.f.ts:73
+valueState: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
+```
+
+and so is the helper set, structurally line-for-line:
+
+| Helper | json/parser | djs/parser |
+|---|---|---|
+| `addKeyToObject` / `addValueToObject` / `addToArray` | 52–62 | 242–252 |
+| `pushKey` / `pushValue` | 64–77 | 254–274 |
+| `startArray` / `endArray` / `startObject` / `endObject` | 79–111 | 285–324 |
+| `tokenToValue` | 113–124 | 326–339 |
+| `isValueToken` | 126–137 | 341–354 |
+| `parseValueOp` … `parseObjectCommaOp` | 139–201 | 356–497 |
+| value-state dispatch in `foldOp` | 209–221 | 516–527 |
+
+The differences are exactly the additive deltas DRY targets:
+
+- DJS's `isValueToken` / `tokenToValue` add `bigint` and `undefined`.
+- DJS accepts `'id'` as an object key (identifier properties, [i77](./README.md))
+  in `parseObjectStartOp` / `parseObjectCommaOp`.
+- DJS threads `metadata` into every error for source positions.
+- DJS supports `pushRef` for const references and builds `['array', …]` /
+  `['object', …]` AST tuples instead of plain arrays/objects.
+
+The JSON value grammar (push/start/end/dispatch over the 9-state alphabet) is
+the same in both. A parameterized factory — e.g. `fs/js/value_parser/module.f.ts`
+— would take a small config record:
+
+```ts
+type ValueParser<Token, Value, Container> = {
+    readonly isValueToken: (t: Token) => boolean
+    readonly tokenToValue: (t: Token) => Value
+    readonly array: { empty: Container, push: (c, v) => Container, build: c => Value }
+    readonly object: { empty: Container, key: (c, k) => Container, push: (c, v) => Container, build: c => Value }
+    readonly onError: (state, token) => State          // metadata vs no-metadata
+    readonly extraKey?: (t: Token) => string | null    // id-as-key
+    readonly extraValue?: (t: Token, state) => State | null  // refs
+}
+```
+
+JSON instantiates it with plain JS containers and no metadata; DJS instantiates
+it with AST-tuple containers, metadata-carrying errors, and the id/ref hooks,
+then wraps the result in its module-level (`import`/`const`/`export`) machine,
+which stays DJS-specific.
+
+## 2. Recursive serializer walker (three copies)
+
+The same recursive `typeof`-dispatch walker is written three times:
+
+- `fs/json/module.f.ts:49` (`serialize`)
+- `fs/djs/serializer/module.f.ts:79` (`serializeWithoutConst`)
+- `fs/djs/serializer/module.f.ts:117` (`serializeWithConst`)
+
+Each defines the identical closure cluster: `propertySerialize`
+(`flat([stringSerialize(k), colon, f(v)])`), `mapPropertySerialize`,
+`objectSerialize = fn(entries).map(sort).map(mapPropertySerialize).map(objectWrap).result`,
+the recursive `f` switching on `typeof`, and
+`arraySerialize = compose(map(f))(arrayWrap)`. The serializer already imports
+its primitives (`stringSerialize`, `objectWrap`, `arrayWrap`, …) from
+`fs/json/serializer/module.f.ts`, so the leaves are shared; only the walker was
+copied.
+
+The deltas:
+
+- JSON's `f` handles `boolean | number | string | null | Array | Object`;
+  DJS adds `bigint` and `undefined`.
+- `serializeWithConst` is `serializeWithoutConst` plus a 6-line ref-counter
+  short-circuit prepended to `f` (`djs/serializer/module.f.ts:138–143`).
+
+**Sub-task 2b (clearest, smallest):** the two DJS functions collapse into one
+factory taking an optional ref-lookup callback — when absent, the const
+short-circuit is skipped and you get `serializeWithoutConst`. This removes ~40
+duplicated lines inside one file with no cross-module coordination.
+
+A `serializeValue` factory (in `json/serializer`) parameterized by the extra
+`typeof` cases and an optional pre-`f` hook covers all three call sites.
+
+## 3. Tokenizer minus-rewriter
+
+`fs/json/tokenizer/module.f.ts:27–101` and `fs/djs/tokenizer/module.f.ts:26–116`
+both wrap `js/tokenizer` and run the same two-state (`'def' | '-'`) `stateScan`
+that folds a leading `-` into the following number token:
+
+```ts
+// json:73
+case 'number': return [[{ kind: 'number', bf: multiply(input.token.bf)(-1n), value: `-${input.token.value}` }], { kind: 'def'}]
+// djs:81
+case 'number': return [[{ kind: 'number', bf: multiply(input.bf)(-1n), value: `-${input.value}` }], { kind: 'def'}]
+```
+
+Both define a matching `ScanState`, a `mapToken` allow-list, `parseDefaultState`,
+`parseMinusState`, and a `scanToken` state dispatch. DJS additionally negates
+`bigint` (line 80) and threads metadata; JSON drops `ws`/`nl` in `mapToken`
+while DJS keeps them. A `negateOnMinus` scan factory parameterized by the token
+allow-list and an optional bigint case removes the duplication.
+
+> `fs/djs/tokenizer-new/module.f.ts` is a separate, BNF-grammar-based
+> experiment (`todo()`-stubbed) and is **not** part of this duplication.
+
+## Notes
+
+- Only extract once both consumers exist — they do here (JSON and DJS are both
+  shipping). This satisfies the "second real consumer" rule in `AGENTS.md`.
+- Watch the existing DJS serializer's in-place mutation of `Refs`
+  (`addRef`/`getConstantSelf` call `refs.set(...)` and assign `refCounter[2]`),
+  which already violates the no-mutation convention; the extraction is a good
+  moment to thread an immutable accumulator instead.
+
+## Related
+
+- [i003](./003-djs.md), [i17](./017-djs-extension.md) — DJS design and its
+  relationship to JSON.
+- [i77](./README.md) — identifier property names, the DJS object-key delta.
