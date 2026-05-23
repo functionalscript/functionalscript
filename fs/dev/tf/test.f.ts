@@ -3,7 +3,10 @@ import type { NodeProgramOptions } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq } from '../module.f.ts'
-import { test, type Reporter } from './module.f.ts'
+import {
+    test, defaultReporter, fmtPath, fmtTerm, ghEscape, isInteger, isIdentifier,
+    type Reporter,
+} from './module.f.ts'
 
 type Event =
     | readonly['moduleStart', string]
@@ -39,6 +42,15 @@ const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly[readonly Ev
     const state = { ...emptyState, root: dir }
     const [, exitCode] = virtual(state)(test(reporter)(options(initCwd)))
     return [getEvents(), exitCode]
+}
+
+// Runs the real `defaultReporter` and returns its captured stdout/stderr so the
+// terminal and GitHub output formats can be asserted directly.
+const runMain = (dir: Record<string, JsModule>, github = false): readonly[string, string, number] => {
+    const state = { ...emptyState, root: dir }
+    const opts = options('.', github)
+    const [finalState, exitCode] = virtual(state)(test(defaultReporter(opts))(opts))
+    return [finalState.stdout, finalState.stderr, exitCode]
 }
 
 // flat object: two passing tests
@@ -172,4 +184,105 @@ export const multipleFiles = () => {
     const [, pass, fail] = events[events.length - 1]
     assertEq(pass, 2)
     assertEq(fail, 0)
+}
+
+// a function literally named `throw` is a throwing test even when its key is not `throw`
+export const throwByFunctionName = () => {
+    const named = ({ throw: () => fail0() }).throw
+    const [events, exit] = run({
+        't.test.f.ts': () => ({ here: named }),
+    })
+    assertEq(exit, 0)
+    const passEvents = events.filter(e => e[0] === 'pass')
+    assertEq(passEvents.length, 1)
+    assertEq(passEvents[0][1][0], 'here')
+}
+
+// every module export — `default` and named — becomes a top-level path segment
+export const namedExports = () => {
+    const [events, exit] = run({
+        'e.test.f.ts': () => ({ default: ok0, helper: ok0 }),
+    })
+    assertEq(exit, 0)
+    const passEvents = events.filter(e => e[0] === 'pass')
+    assertEq(passEvents.length, 2)
+    assertEq(passEvents[0][1][0], 'default')
+    assertEq(passEvents[1][1][0], 'helper')
+}
+
+// the default (non-GitHub) reporter formats module/pass/summary lines on stdout
+export const defaultReporterOutput = () => {
+    const [stdout, stderr, exit] = runMain({
+        'a.test.f.ts': () => ({ x: ok0 }),
+    })
+    assertEq(exit, 0)
+    assertEq(stderr, '')
+    assertEq(
+        stdout,
+        'testing ./a.test.f.ts\n'
+        + '| x: ok, 0.0000 ms\n'
+        + 'Number of tests: pass: 1, fail: 0, total: 1\n'
+        + 'Time: 0.0000 ms\n',
+    )
+}
+
+// a failure on the non-GitHub reporter writes the error to stderr, not stdout
+export const defaultReporterFailOutput = () => {
+    const [, stderr, exit] = runMain({
+        'a.test.f.ts': () => ({ bad: fail0 }),
+    })
+    assertEq(exit, 1)
+    assertEq(stderr, '| bad: error, 0.0000 ms\noops\n')
+}
+
+// the GitHub reporter emits an `::error` annotation with a percent-encoded
+// title (the JSON path) and message
+export const githubReporterOutput = () => {
+    const [, stderr, exit] = runMain({
+        's.test.f.ts': () => ({ 'a:b,c%d': fail0 }),
+    }, true)
+    assertEq(exit, 1)
+    assertEq(
+        stderr,
+        '::error file=./s.test.f.ts,line=1,title=["a%3Ab%2Cc%25d"]::oops\n',
+    )
+}
+
+// direct unit tests for the pure path-format helpers
+export const helpers = {
+    isInteger: () => {
+        assert(isInteger('0'))
+        assert(isInteger('123'))
+        assert(!isInteger(''))
+        assert(!isInteger('01'))
+        assert(!isInteger('1a'))
+        assert(!isInteger('-1'))
+    },
+    isIdentifier: () => {
+        assert(isIdentifier('abc'))
+        assert(isIdentifier('_x'))
+        assert(isIdentifier('$y'))
+        assert(isIdentifier('a1'))
+        assert(!isIdentifier(''))
+        assert(!isIdentifier('1a'))
+        assert(!isIdentifier('a-b'))
+    },
+    fmtPath: () => {
+        assertEq(fmtPath([]), '[]')
+        assertEq(fmtPath(['math', 'add']), '["math","add"]')
+        assertEq(fmtPath(['users', '3', 'name']), '["users",3,"name"]')
+    },
+    fmtTerm: () => {
+        assertEq(fmtTerm([]), '()')
+        assertEq(fmtTerm(['math', 'add']), '| | add')
+        assertEq(fmtTerm(['a', '0']), '| | 0')
+        assertEq(fmtTerm(['x', 'hello world']), '| | "hello world"')
+    },
+    ghEscape: () => {
+        assertEq(ghEscape('a%b'), 'a%25b')
+        assertEq(ghEscape('a:b'), 'a%3Ab')
+        assertEq(ghEscape('a,b'), 'a%2Cb')
+        assertEq(ghEscape('a\r\nb'), 'a%0D%0Ab')
+        assertEq(ghEscape('a%b:c,d'), 'a%25b%3Ac%2Cd')
+    },
 }
