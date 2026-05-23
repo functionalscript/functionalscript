@@ -108,7 +108,7 @@ export const stderr = (io: Io): CsiConsole => console(io)(io.process.stderr)
  * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
  * Does NOT append `\n` — callers are responsible for line termination.
  */
-export const csiWrite = (o: NodeProgramOptions) => (stream: WriteConsoles) => {
+export const csiWrite = (o: NodeProgramOptions) => (stream: WriteConsoles): (s: string) => Effect<Write, void> => {
     const toStr = str(o.std[stream].isTTY)
     return (s: string): Effect<Write, void> =>
         write(stream, utf8(toStr(s)))
