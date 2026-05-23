@@ -6,7 +6,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
 import { sandbox, type NodeOp, type NodeProgram, type NodeProgramOptions, type Program, type Sandbox, type Write } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type LoadModuleOperations, type Module } from '../module.f.ts'
+import { loadModuleMap, type LoadModuleOperations, type Module, type ModuleMap } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -74,53 +74,55 @@ export type Reporter<O extends Operation> = {
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
 }
 
-export const test = <O extends Operation>({ moduleStart, enter, pass, fail, summary }: Reporter<O>): Program<O|LoadModuleOperations|Sandbox> => options =>
-    loadModuleMap(options.env).step(moduleMap => {
-        const walk
-            : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
-            = k => path => throws => v => ts =>
-        {
-            const set = parseTestSet(throws)(v)
-            if (set instanceof Array) {
-                return set.reduce(
-                    (acc: Effect<O|Sandbox, TestState>, [ck, cv]) => {
-                        const sub = [...path, ck]
-                        const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
-                        // Emit `enter` only for sub-tree values (objects/arrays). Leaf
-                        // values (functions, primitives) skip `enter` so the reporter
-                        // can combine the key with the pass/fail line.
-                        return typeof cv === 'object' && cv !== null
-                            ? acc.step(ts => enter(sub).step(() => recurse(ts)))
-                            : acc.step(recurse)
-                    },
-                    pure(ts)
-                )
-            }
-            return sandbox(set.fn).step(({ result: [s, r], duration }) => {
-                const { throws } = set
-                if (throws !== (s === 'ok')) {
-                    return pass(path, duration).step(() => {
-                        const ts2 = addPass(duration)(ts)
-                        // Only non-throw tests walk their return value as a fresh sub-tree;
-                        // thrown values are discarded. The sub-tree's `throws` resets to false.
-                        if (!throws) { return walk(k)(path)(false)(r)(ts2) }
-                        return pure(ts2)
-                    })
-                }
-                const ts2 = addFail(duration)(ts)
-                return fail(k, path, r, duration).step(() => pure(ts2))
-            })
+const runModuleMap = <O extends Operation>({ moduleStart, enter, pass, fail, summary }: Reporter<O>) => (moduleMap: ModuleMap): Effect<O|Sandbox, number> => {
+    const walk
+        : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
+        = k => path => throws => v => ts =>
+    {
+        const set = parseTestSet(throws)(v)
+        if (set instanceof Array) {
+            return set.reduce(
+                (acc: Effect<O|Sandbox, TestState>, [ck, cv]) => {
+                    const sub = [...path, ck]
+                    const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
+                    // Emit `enter` only for sub-tree values (objects/arrays). Leaf
+                    // values (functions, primitives) skip `enter` so the reporter
+                    // can combine the key with the pass/fail line.
+                    return typeof cv === 'object' && cv !== null
+                        ? acc.step(ts => enter(sub).step(() => recurse(ts)))
+                        : acc.step(recurse)
+                },
+                pure(ts)
+            )
         }
-        const entries = Object.entries(moduleMap)
-        return entries.reduce(
-            (acc: Effect<O|Sandbox, TestState>, [k, v]) =>
-                acc.step(ts => {
-                    if (!isTest(k)) { return pure(ts) }
-                    return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
-                }),
-            pure({ time: 0, pass: 0, fail: 0 })
-        ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
-    })
+        return sandbox(set.fn).step(({ result: [s, r], duration }) => {
+            const { throws } = set
+            if (throws !== (s === 'ok')) {
+                return pass(path, duration).step(() => {
+                    const ts2 = addPass(duration)(ts)
+                    // Only non-throw tests walk their return value as a fresh sub-tree;
+                    // thrown values are discarded. The sub-tree's `throws` resets to false.
+                    if (!throws) { return walk(k)(path)(false)(r)(ts2) }
+                    return pure(ts2)
+                })
+            }
+            const ts2 = addFail(duration)(ts)
+            return fail(k, path, r, duration).step(() => pure(ts2))
+        })
+    }
+    const entries = Object.entries(moduleMap)
+    return entries.reduce(
+        (acc: Effect<O|Sandbox, TestState>, [k, v]) =>
+            acc.step(ts => {
+                if (!isTest(k)) { return pure(ts) }
+                return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
+            }),
+        pure({ time: 0, pass: 0, fail: 0 })
+    ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
+}
+
+export const test = <O extends Operation>(reporter: Reporter<O>): Program<O|LoadModuleOperations|Sandbox> => options =>
+    loadModuleMap(options.env).step(runModuleMap(reporter))
 
 const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
