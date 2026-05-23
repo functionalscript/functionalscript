@@ -15,9 +15,11 @@ type Event =
     | readonly['fail', string, readonly string[], unknown, number]
     | readonly['summary', number, number, number]
 
-const makeReporter = (): readonly[Reporter, () => readonly Event[]] => {
+type TestReporter = Reporter<never>
+
+const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     const events: Event[] = []
-    const reporter: Reporter = {
+    const reporter: TestReporter = {
         moduleStart: file => { events.push(['moduleStart', file]); return pure(undefined) },
         enter: path => { events.push(['enter', [...path]]); return pure(undefined) },
         pass: (path, duration) => { events.push(['pass', [...path], duration]); return pure(undefined) },

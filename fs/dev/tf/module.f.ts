@@ -4,9 +4,9 @@
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
-import { sandbox, type NodeOp, type NodeProgram, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
-import { pure, type Effect } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type Module } from '../module.f.ts'
+import { sandbox, type NodeOp, type NodeProgram, type NodeProgramOptions, type Program, type Sandbox, type Write } from '../../types/effects/node/module.f.ts'
+import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
+import { loadModuleMap, type LoadModuleOperations, type Module } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -66,23 +66,24 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
  * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
  * leading to the current location, e.g. `['math', 'add']`.
  */
-export type Reporter = {
-    readonly moduleStart: (file: string) => Effect<NodeOp, void>
-    readonly enter: (path: readonly string[]) => Effect<NodeOp, void>
-    readonly pass: (path: readonly string[], duration: number) => Effect<NodeOp, void>
-    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<NodeOp, void>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<NodeOp, void>
+export type Reporter<O extends Operation> = {
+    readonly moduleStart: (file: string) => Effect<O, void>
+    readonly enter: (path: readonly string[]) => Effect<O, void>
+    readonly pass: (path: readonly string[], duration: number) => Effect<O, void>
+    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
+    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
 }
 
-export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): NodeProgram => options =>
+export const test = <O extends Operation>({ moduleStart, enter, pass, fail, summary }: Reporter<O>): Program<O|LoadModuleOperations|Sandbox> => options =>
     loadModuleMap(options.env).step(moduleMap => {
         const walk
-            : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
-            = k => path => throws => v => ts => {
+            : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
+            = k => path => throws => v => ts =>
+        {
             const set = parseTestSet(throws)(v)
             if (set instanceof Array) {
                 return set.reduce(
-                    (acc: Effect<NodeOp, TestState>, [ck, cv]) => {
+                    (acc: Effect<O|Sandbox, TestState>, [ck, cv]) => {
                         const sub = [...path, ck]
                         const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
                         // Emit `enter` only for sub-tree values (objects/arrays). Leaf
@@ -112,9 +113,9 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
         }
         const entries: readonly[string, Module][] = Object.entries(moduleMap)
         return entries.reduce(
-            (acc: Effect<NodeOp, TestState>, [k, v]) =>
+            (acc: Effect<O|Sandbox, TestState>, [k, v]) =>
                 acc.step(ts => {
-                    if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
+                    if (!isTest(k)) { return pure(ts) }
                     return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
                 }),
             pure({ time: 0, pass: 0, fail: 0 })
@@ -171,7 +172,7 @@ export const ghEscape = (s: string): string =>
  * annotations instead of colored lines. Exported as a factory so the
  * GitHub format path can be exercised directly from tests.
  */
-export const defaultReporter = (options: NodeProgramOptions): Reporter => {
+export const defaultReporter = (options: NodeProgramOptions): Reporter<Write> => {
     const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
