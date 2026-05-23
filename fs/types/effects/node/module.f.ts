@@ -273,4 +273,6 @@ export type NodeProgramOptions = {
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
 }
 
-export type NodeProgram = (options: NodeProgramOptions) => Effect<NodeOp, number>
+export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>
+
+export type NodeProgram = Program<NodeOp>
