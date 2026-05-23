@@ -102,8 +102,9 @@ const runModuleMap = <O extends Operation>({ moduleStart, enter, pass, fail, sum
                     const ts2 = addPass(duration)(ts)
                     // Only non-throw tests walk their return value as a fresh sub-tree;
                     // thrown values are discarded. The sub-tree's `throws` resets to false.
-                    if (!throws) { return walk(k)(path)(false)(r)(ts2) }
-                    return pure(ts2)
+                    return throws
+                        ? pure(ts2)
+                        : walk(k)(path)(false)(r)(ts2)
                 })
             }
             const ts2 = addFail(duration)(ts)
@@ -113,12 +114,14 @@ const runModuleMap = <O extends Operation>({ moduleStart, enter, pass, fail, sum
     const entries = Object.entries(moduleMap)
     return entries.reduce(
         (acc: Effect<O|Sandbox, TestState>, [k, v]) =>
-            acc.step(ts => {
-                if (!isTest(k)) { return pure(ts) }
-                return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
-            }),
+            acc.step(ts => isTest(k)
+                ? moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
+                : pure(ts)
+            ),
         pure({ time: 0, pass: 0, fail: 0 })
-    ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
+    )
+    .step(ts => summary(ts.pass, ts.fail, ts.time)
+    .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
 export const test = <O extends Operation>(reporter: Reporter<O>): Program<O|LoadModuleOperations|Sandbox> => options =>
