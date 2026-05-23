@@ -115,27 +115,7 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
             (acc: Effect<NodeOp, TestState>, [k, v]) =>
                 acc.step(ts => {
                     if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
-                    return moduleStart(k).step(() =>
-                        walk(k)([])(false)(v.default)(ts).step(ts => {
-                            // Non-default exports are walked as a sibling test group so
-                            // a test file can spread its tests across multiple named
-                            // exports (see issue 27 in `issues/README.md`). Skip exports
-                            // that parseTestSet would treat as empty (constants, types,
-                            // non-test helpers) to avoid noisy empty entries in output.
-                            const others = Object.fromEntries(
-                                Object.entries(v).filter(([key, val]) =>
-                                    key !== 'default' && (
-                                        (typeof val === 'function' && val.length === 0) ||
-                                        (typeof val === 'object' && val !== null)
-                                    )
-                                )
-                            )
-                            if (Object.keys(others).length !== 0) {
-                                return walk(k)([])(false)(others)(ts)
-                            }
-                            return pure(ts)
-                        })
-                    )
+                    return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
                 }),
             pure({ time: 0, pass: 0, fail: 0 })
         ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
