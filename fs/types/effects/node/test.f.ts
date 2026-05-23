@@ -47,9 +47,9 @@ export default {
             )
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (tmp === undefined || isVec(tmp)) { throw state.root }
+            if (typeof tmp !== 'object') { throw state.root }
             const cache = tmp.cache
-            if (cache === undefined || isVec(cache)) { throw tmp }
+            if (typeof cache !== 'object') { throw tmp }
         },
         nonRec: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -205,7 +205,7 @@ export default {
             })(rm('tmp/cache'))
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (tmp === undefined || isVec(tmp)) { throw state.root }
+            if (typeof tmp !== 'object') { throw state.root }
             if (tmp.cache !== undefined) { throw tmp }
         },
         noSuchFile: () => {
@@ -228,15 +228,20 @@ export default {
         if (result !== 1_000_000) { throw result }
     },
     sandbox: {
+        // Virtual `sandbox` is now a pass-through: the function is expected
+        // to return a `SandboxResult` directly. Fixtures dictate the result
+        // (and `duration`) instead of the runner measuring.
         ok: () => {
-            const [_, { result, duration }] = virtual(emptyState)(sandbox(() => 42))
+            const [_, { result, duration }] = virtual(emptyState)(
+                sandbox(() => ({ result: ['ok', 42], duration: 0 }) as never))
             if (result[0] !== 'ok') { throw result }
             if (result[1] !== 42) { throw result[1] }
             if (duration !== 0) { throw duration }
         },
         error: () => {
             const err = new Error('fail')
-            const [_, { result }] = virtual(emptyState)(sandbox(() => { throw err }))
+            const [_, { result }] = virtual(emptyState)(
+                sandbox(() => ({ result: ['error', err], duration: 0 }) as never))
             if (result[0] !== 'error') { throw result }
             if (result[1] !== err) { throw result[1] }
         },
