@@ -2,6 +2,7 @@ import { pure } from '../../types/effects/module.f.ts'
 import type { NodeProgramOptions } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
+import { assert, assertEq } from '../module.f.ts'
 import { test, type Reporter } from './module.f.ts'
 
 type Event =
@@ -45,14 +46,15 @@ export const flat = () => {
     const [events, exit] = run({
         'a.test.f.ts': () => ({ a: ok0, b: ok1 }),
     })
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const [e0, e1, e2, e3] = events
-    if (e0[0] !== 'moduleStart') { throw e0 }
-    if (e1[0] !== 'pass' || e1[1][0] !== 'a') { throw e1 }
-    if (e2[0] !== 'pass' || e2[1][0] !== 'b') { throw e2 }
-    if (e3[0] !== 'summary') { throw e3 }
+    assertEq(e0[0], 'moduleStart')
+    assert(e1[0] === 'pass' && e1[1][0] === 'a')
+    assert(e2[0] === 'pass' && e2[1][0] === 'b')
+    assertEq(e3[0], 'summary')
     const [, pass, fail] = e3
-    if (pass !== 2 || fail !== 0) { throw e3 }
+    assertEq(pass, 2)
+    assertEq(fail, 0)
 }
 
 // nested object: sub-tree triggers enter event
@@ -60,15 +62,16 @@ export const nested = () => {
     const [events, exit] = run({
         'n.test.f.ts': () => ({ math: { add: ok0, sub: ok0 } }),
     })
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const [e0, e1, e2, e3, e4] = events
-    if (e0[0] !== 'moduleStart') { throw e0 }
-    if (e1[0] !== 'enter' || e1[1][0] !== 'math') { throw e1 }
-    if (e2[0] !== 'pass' || e2[1][1] !== 'add') { throw e2 }
-    if (e3[0] !== 'pass' || e3[1][1] !== 'sub') { throw e3 }
-    if (e4[0] !== 'summary') { throw e4 }
+    assertEq(e0[0], 'moduleStart')
+    assert(e1[0] === 'enter' && e1[1][0] === 'math')
+    assert(e2[0] === 'pass' && e2[1][1] === 'add')
+    assert(e3[0] === 'pass' && e3[1][1] === 'sub')
+    assertEq(e4[0], 'summary')
     const [, pass, fail] = e4
-    if (pass !== 2 || fail !== 0) { throw e4 }
+    assertEq(pass, 2)
+    assertEq(fail, 0)
 }
 
 // throw key: tests inside 'throw' pass on error result
@@ -76,14 +79,15 @@ export const throwKey = () => {
     const [events, exit] = run({
         't.test.f.ts': () => ({ throw: { a: fail0 } }),
     })
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const [e0, e1, e2, e3] = events
-    if (e0[0] !== 'moduleStart') { throw e0 }
-    if (e1[0] !== 'enter' || e1[1][0] !== 'throw') { throw e1 }
-    if (e2[0] !== 'pass' || e2[1][0] !== 'throw' || e2[1][1] !== 'a') { throw e2 }
-    if (e3[0] !== 'summary') { throw e3 }
+    assertEq(e0[0], 'moduleStart')
+    assert(e1[0] === 'enter' && e1[1][0] === 'throw')
+    assert(e2[0] === 'pass' && e2[1][0] === 'throw' && e2[1][1] === 'a')
+    assertEq(e3[0], 'summary')
     const [, pass, fail] = e3
-    if (pass !== 1 || fail !== 0) { throw e3 }
+    assertEq(pass, 1)
+    assertEq(fail, 0)
 }
 
 // throw key fails when test does not throw (returns ok in throw context)
@@ -91,11 +95,12 @@ export const throwKeyFail = () => {
     const [events, exit] = run({
         't.test.f.ts': () => ({ throw: { a: ok0 } }),
     })
-    if (exit !== 1) { throw exit }
+    assertEq(exit, 1)
     const [, , e2, e3] = events
-    if (e2[0] !== 'fail') { throw e2 }
+    assertEq(e2[0], 'fail')
     const [, pass, fail] = e3
-    if (pass !== 0 || fail !== 1) { throw e3 }
+    assertEq(pass, 0)
+    assertEq(fail, 1)
 }
 
 // mixed pass/fail updates summary counts
@@ -103,11 +108,12 @@ export const mixedPassFail = () => {
     const [events, exit] = run({
         'm.test.f.ts': () => ({ good: ok0, bad: fail0 }),
     })
-    if (exit !== 1) { throw exit }
+    assertEq(exit, 1)
     const summary = events[events.length - 1]
-    if (summary[0] !== 'summary') { throw summary }
+    assertEq(summary[0], 'summary')
     const [, pass, fail] = summary
-    if (pass !== 1 || fail !== 1) { throw summary }
+    assertEq(pass, 1)
+    assertEq(fail, 1)
 }
 
 // return-value sub-tree: passing test's return value is walked
@@ -122,12 +128,12 @@ export const returnValueSubTree = () => {
         }),
     })
     // outer passes, then inner (from return value) also passes
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'pass')
-    if (passEvents.length !== 2) { throw passEvents }
+    assertEq(passEvents.length, 2)
     const [p0, p1] = passEvents
-    if (p0[1][0] !== 'outer') { throw p0 }
-    if (p1[1][1] !== 'inner') { throw p1 }
+    assertEq(p0[1][0], 'outer')
+    assertEq(p1[1][1], 'inner')
 }
 
 // integer-indexed array keys appear as numeric path segments
@@ -135,11 +141,11 @@ export const arrayKeys = () => {
     const [events, exit] = run({
         'a.test.f.ts': () => ({ arr: [ok0, ok0] }),
     })
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'pass')
-    if (passEvents.length !== 2) { throw passEvents }
-    if (passEvents[0][1][1] !== '0') { throw passEvents[0] }
-    if (passEvents[1][1][1] !== '1') { throw passEvents[1] }
+    assertEq(passEvents.length, 2)
+    assertEq(passEvents[0][1][1], '0')
+    assertEq(passEvents[1][1][1], '1')
 }
 
 // non-test files are skipped (only files ending in test.f.ts/js are loaded)
@@ -148,10 +154,10 @@ export const nonTestFilesSkipped = () => {
         'helper.ts': () => ({ a: ok0 }),
         'b.test.f.ts': () => ({ x: ok0 }),
     })
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const starts = events.filter(e => e[0] === 'moduleStart')
-    if (starts.length !== 1) { throw starts }
-    if (starts[0][1] !== './b.test.f.ts') { throw starts[0] }
+    assertEq(starts.length, 1)
+    assertEq(starts[0][1], './b.test.f.ts')
 }
 
 // multiple test files each emit their own moduleStart
@@ -160,9 +166,10 @@ export const multipleFiles = () => {
         'a.test.f.ts': () => ({ x: ok0 }),
         'b.test.f.ts': () => ({ y: ok0 }),
     })
-    if (exit !== 0) { throw exit }
+    assertEq(exit, 0)
     const starts = events.filter(e => e[0] === 'moduleStart')
-    if (starts.length !== 2) { throw starts }
+    assertEq(starts.length, 2)
     const [, pass, fail] = events[events.length - 1]
-    if (pass !== 2 || fail !== 0) { throw [pass, fail] }
+    assertEq(pass, 2)
+    assertEq(fail, 0)
 }
