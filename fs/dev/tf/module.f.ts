@@ -111,7 +111,7 @@ export const test = <O extends Operation>({ moduleStart, enter, pass, fail, summ
                 return fail(k, path, r, duration).step(() => pure(ts2))
             })
         }
-        const entries: readonly[string, Module][] = Object.entries(moduleMap)
+        const entries = Object.entries(moduleMap)
         return entries.reduce(
             (acc: Effect<O|Sandbox, TestState>, [k, v]) =>
                 acc.step(ts => {
