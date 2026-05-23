@@ -41,7 +41,7 @@
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -162,7 +162,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run --allow-slow-types"
+          "run": "deno publish --dry-run"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -215,7 +215,7 @@
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -330,7 +330,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run --allow-slow-types"
+          "run": "deno publish --dry-run"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -383,7 +383,7 @@
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -498,7 +498,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run --allow-slow-types"
+          "run": "deno publish --dry-run"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -551,7 +551,7 @@
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -666,7 +666,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run --allow-slow-types"
+          "run": "deno publish --dry-run"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -719,7 +719,7 @@
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -840,7 +840,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run --allow-slow-types"
+          "run": "deno publish --dry-run"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -893,7 +893,7 @@
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -1005,7 +1005,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run --allow-slow-types"
+          "run": "deno publish --dry-run"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1050,7 +1050,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0"
+            "node-version": "24.16.0"
           }
         },
         {

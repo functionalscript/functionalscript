@@ -66,7 +66,7 @@ const defaultEffect: Effect<NodeOp, number> = ci({
     denoExtra: [
         test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
         test({ run: 'deno task fjs t' }),
-        test({ run: 'deno publish --dry-run --allow-slow-types' }),
+        test({ run: 'deno publish --dry-run' }),
     ],
     bunExtra: [
         test({ run: 'bun ./fs/fjs/module.ts t' }),
