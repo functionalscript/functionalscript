@@ -74,17 +74,18 @@ export type Reporter<O extends Operation> = {
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
 }
 
-const runModuleMap = <O extends Operation>({ moduleStart, enter, pass, fail, summary }: Reporter<O>) => (moduleMap: ModuleMap): Effect<O|Sandbox, number> => {
+const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O|Sandbox, TestState> => {
+    if (!isTest(k)) { return pure(ts) }
     const walk
-        : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
-        = k => path => throws => v => ts =>
+        : (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
+        = path => throws => v => ts =>
     {
         const set = parseTestSet(throws)(v)
         if (set instanceof Array) {
             return set.reduce(
                 (acc: Effect<O|Sandbox, TestState>, [ck, cv]) => {
                     const sub = [...path, ck]
-                    const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
+                    const recurse = walk(sub)(throws || ck === 'throw')(cv)
                     // Emit `enter` only for sub-tree values (objects/arrays). Leaf
                     // values (functions, primitives) skip `enter` so the reporter
                     // can combine the key with the pass/fail line.
@@ -104,20 +105,21 @@ const runModuleMap = <O extends Operation>({ moduleStart, enter, pass, fail, sum
                     // thrown values are discarded. The sub-tree's `throws` resets to false.
                     return throws
                         ? pure(ts2)
-                        : walk(k)(path)(false)(r)(ts2)
+                        : walk(path)(false)(r)(ts2)
                 })
             }
             const ts2 = addFail(duration)(ts)
             return fail(k, path, r, duration).step(() => pure(ts2))
         })
     }
+    return moduleStart(k).step(() => walk([])(false)(v)(ts))
+}
+
+const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O|Sandbox, number> => {
+    const { summary } = reporter
     const entries = Object.entries(moduleMap)
     return entries.reduce(
-        (acc: Effect<O|Sandbox, TestState>, [k, v]) =>
-            acc.step(ts => isTest(k)
-                ? moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
-                : pure(ts)
-            ),
+        (acc: Effect<O|Sandbox, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
         pure({ time: 0, pass: 0, fail: 0 })
     )
     .step(ts => summary(ts.pass, ts.fail, ts.time)
