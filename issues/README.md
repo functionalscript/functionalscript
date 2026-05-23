@@ -311,6 +311,7 @@
 - [X] [153-write-queue](./153-write-queue.md). Async write with backpressure: use `stream.write()` + `once(stream, 'drain')` for atomic, backpressure-aware writes to `stdout`/`stderr`.
 - [x] [154-parseset-throws](./154-parseset-throws.md). `parseTestSet`: eliminate double `sandbox` call for throw-tests; return `TestEntry = { fn, throws }` instead of a wrapper function; discriminate from the array branch via `Array.isArray`.
 - [ ] [155-test-runner-integration](./155-test-runner-integration.md). Three problems: (1) `module.f.ts` and `module.ts` duplicate the test-tree walk; (2) `isGitHub` branching hardcodes a CI environment inside the walker; (3) Bun silently drops dynamically-registered subtests — fix by running generated sub-trees inline.
+- [ ] [156-tf-virtual-tests](./156-tf-virtual-tests.md). Test the `dev/tf` runner itself: virtual test files via an `import`-dictionary lookup, test functions that return `SandboxResult` directly (deterministic, no clock), a capture reporter that records structured events. Covers walker, path formatting, throw semantics, return-value sub-trees, summary counts.
 
 ## Language Specification
 
