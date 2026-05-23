@@ -6,7 +6,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
 import { sandbox, type NodeOp, type NodeProgram } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect } from '../../types/effects/module.f.ts'
-import { loadModuleMap2, type Module } from '../module.f.ts'
+import { loadModuleMap, type Module } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -75,7 +75,7 @@ export type Reporter = {
 }
 
 export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): NodeProgram => options =>
-    loadModuleMap2(options.env).step(moduleMap => {
+    loadModuleMap(options.env).step(moduleMap => {
         const walk
             : (k: string) => (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
             = k => i => throws => v => ts => {

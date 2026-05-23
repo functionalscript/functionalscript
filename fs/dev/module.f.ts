@@ -95,7 +95,7 @@ const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string,
     return pure([])
 }
 
-export const loadModuleMap2 = (env: Env): Effect<Access | Import | All | Readdir, ModuleMap> => {
+export const loadModuleMap = (env: Env): Effect<Access | Import | All | Readdir, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     return allFiles(s)
