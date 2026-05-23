@@ -101,10 +101,8 @@ const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Repo
                 return pass(path, duration).step(() => {
                     // Only non-throw tests walk their return value as a fresh sub-tree;
                     // thrown values are discarded. The sub-tree's `throws` resets to false.
-                    const x = throws
-                        ? pure
-                        : walk(path, false, r)
-                    return x(addPass(duration)(ts))
+                    const cont = throws ? pure : walk(path, false, r)
+                    return cont(addPass(duration)(ts))
                 })
             }
             return fail(k, path, r, duration).step(() => pure(addFail(duration)(ts)))
