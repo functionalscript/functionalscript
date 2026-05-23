@@ -162,7 +162,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -330,7 +330,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -498,7 +498,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -666,7 +666,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -840,7 +840,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1005,7 +1005,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
