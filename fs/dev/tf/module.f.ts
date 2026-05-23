@@ -39,7 +39,7 @@ export type TestEntry = {
     readonly throws: boolean
 }
 
-export type TestSet = TestEntry | readonly(readonly[string, unknown])[]
+export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
 
 export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     switch (typeof x) {
@@ -75,17 +75,16 @@ export type Reporter<O extends Operation> = {
 }
 
 
-const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O|Sandbox, TestState> => {
+const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> => {
     const walk
-        : (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<O|Sandbox, TestState>
-        = path => throws => v => ts =>
+        = (path: readonly string[], throws: boolean, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> =>
     {
         const set = parseTestSet(throws)(v)
         if (set instanceof Array) {
             return set.reduce(
-                (acc: Effect<O|Sandbox, TestState>, [ck, cv]) => {
+                (acc: Effect<O | Sandbox, TestState>, [ck, cv]) => {
                     const sub = [...path, ck]
-                    const recurse = walk(sub)(throws || ck === 'throw')(cv)
+                    const recurse = walk(sub, throws || ck === 'throw', cv)
                     // Emit `enter` only for sub-tree values (objects/arrays). Leaf
                     // values (functions, primitives) skip `enter` so the reporter
                     // can combine the key with the pass/fail line.
@@ -100,33 +99,32 @@ const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Repo
             const { throws } = set
             if (throws !== (s === 'ok')) {
                 return pass(path, duration).step(() => {
-                    const ts2 = addPass(duration)(ts)
                     // Only non-throw tests walk their return value as a fresh sub-tree;
                     // thrown values are discarded. The sub-tree's `throws` resets to false.
-                    return throws
-                        ? pure(ts2)
-                        : walk(path)(false)(r)(ts2)
+                    const x = throws
+                        ? pure
+                        : walk(path, false, r)
+                    return x(addPass(duration)(ts))
                 })
             }
-            const ts2 = addFail(duration)(ts)
-            return fail(k, path, r, duration).step(() => pure(ts2))
+            return fail(k, path, r, duration).step(() => pure(addFail(duration)(ts)))
         })
     }
-    return moduleStart(k).step(() => walk([])(false)(v)(ts))
+    return moduleStart(k).step(() => walk([], false, v)(ts))
 }
 
-const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O|Sandbox, number> => {
+const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | Sandbox, number> => {
     const { summary } = reporter
     const entries = Object.entries(moduleMap).filter(([k]) => isTest(k))
     return entries.reduce(
-        (acc: Effect<O|Sandbox, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
+        (acc: Effect<O | Sandbox, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
         pure({ time: 0, pass: 0, fail: 0 })
     )
-    .step(ts => summary(ts.pass, ts.fail, ts.time)
-    .step(() => pure(ts.fail !== 0 ? 1 : 0)))
+        .step(ts => summary(ts.pass, ts.fail, ts.time)
+            .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
-export const test = <O extends Operation>(reporter: Reporter<O>): Program<O|LoadModuleOperations|Sandbox> => options =>
+export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations | Sandbox> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 const isAlpha = (c: string): boolean =>
