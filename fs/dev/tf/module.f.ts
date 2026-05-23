@@ -63,44 +63,45 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
 /**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
- * annotations, JSON, node `--test`, etc.). `path` strings are the runner's
- * `| `-indented location indicators (e.g. `| math`, `| | ()`).
+ * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
+ * leading to the current location, e.g. `['math', 'add']`.
  */
 export type Reporter = {
     readonly moduleStart: (file: string) => Effect<NodeOp, void>
-    readonly enter: (path: string) => Effect<NodeOp, void>
-    readonly pass: (path: string, duration: number) => Effect<NodeOp, void>
-    readonly fail: (file: string, path: string, result: unknown, duration: number) => Effect<NodeOp, void>
+    readonly enter: (path: readonly string[]) => Effect<NodeOp, void>
+    readonly pass: (path: readonly string[], duration: number) => Effect<NodeOp, void>
+    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<NodeOp, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<NodeOp, void>
 }
 
 export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): NodeProgram => options =>
     loadModuleMap(options.env).step(moduleMap => {
         const walk
-            : (k: string) => (i: string) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
-            = k => i => throws => v => ts => {
-            const next = walk(k)(`${i}| `)
+            : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
+            = k => path => throws => v => ts => {
             const set = parseTestSet(throws)(v)
             if (set instanceof Array) {
                 return set.reduce(
-                    (acc: Effect<NodeOp, TestState>, [ck, cv]) =>
-                        acc.step(ts => enter(`${i}${ck}`).step(() => next(throws || ck === 'throw')(cv)(ts))),
+                    (acc: Effect<NodeOp, TestState>, [ck, cv]) => {
+                        const sub = [...path, ck]
+                        return acc.step(ts => enter(sub).step(() => walk(k)(sub)(throws || ck === 'throw')(cv)(ts)))
+                    },
                     pure(ts)
                 )
             }
             return sandbox(set.fn).step(({ result: [s, r], duration }) => {
                 const { throws } = set
                 if (throws !== (s === 'ok')) {
-                    return pass(`${i}()`, duration).step(() => {
+                    return pass(path, duration).step(() => {
                         const ts2 = addPass(duration)(ts)
                         // Only non-throw tests walk their return value as a fresh sub-tree;
                         // thrown values are discarded. The sub-tree's `throws` resets to false.
-                        if (!throws) { return next(false)(r)(ts2) }
+                        if (!throws) { return walk(k)(path)(false)(r)(ts2) }
                         return pure(ts2)
                     })
                 }
                 const ts2 = addFail(duration)(ts)
-                return fail(k, `${i}()`, r, duration).step(() => pure(ts2))
+                return fail(k, path, r, duration).step(() => pure(ts2))
             })
         }
         const entries: readonly[string, Module][] = Object.entries(moduleMap)
@@ -109,7 +110,7 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
                 acc.step(ts => {
                     if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
                     return moduleStart(k).step(() =>
-                        walk(k)('| ')(false)(v.default)(ts).step(ts => {
+                        walk(k)([])(false)(v.default)(ts).step(ts => {
                             // Non-default exports are walked as a sibling test group so
                             // a test file can spread its tests across multiple named
                             // exports (see issue 27 in `issues/README.md`). Skip exports
@@ -124,7 +125,7 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
                                 )
                             )
                             if (Object.keys(others).length !== 0) {
-                                return walk(k)('| ')(false)(others)(ts)
+                                return walk(k)([])(false)(others)(ts)
                             }
                             return pure(ts)
                         })
@@ -134,21 +135,40 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
         ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
     })
 
+/**
+ * Renders a key chain as a JS object path: integer-like keys become numbers,
+ * other strings are JSON-stringified. E.g. `['math', 'add']` → `["math","add"]`,
+ * `['users', '3', 'name']` → `["users",3,"name"]`.
+ */
+const fmtPath = (path: readonly string[]): string =>
+    JSON.stringify(path.map(k => /^(?:0|[1-9]\d*)$/.test(k) ? Number(k) : k))
+
+/**
+ * Percent-encodes characters that GitHub workflow-command property values
+ * treat as separators (`%`, `:`, `,`) plus newlines.
+ * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
+ */
+const ghEscape = (s: string): string =>
+    s.replace(/%/g, '%25')
+        .replace(/:/g, '%3A')
+        .replace(/,/g, '%2C')
+        .replace(/\r/g, '%0D')
+        .replace(/\n/g, '%0A')
+
 export const main: NodeProgram = options => {
     const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     const reporter: Reporter = {
         moduleStart: file => csiLog(`testing ${file}`),
-        enter: path => csiLog(`${path}:`),
-        pass: (path, duration) => csiLog(`${path} ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
+        enter: path => csiLog(`${fmtPath(path)}:`),
+        pass: (path, duration) => csiLog(`${fmtPath(path)} ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
         fail: isGitHub
-            // https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
             // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
             ? (file, path, result, _duration) =>
-                csiError(`::error file=${file},line=1,title=${path}::${result}`)
+                csiError(`::error file=${file},line=1,title=${ghEscape(fmtPath(path))}::${ghEscape(String(result))}`)
             : (_file, path, result, duration) =>
-                csiError(`${path} ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                csiError(`${fmtPath(path)} ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
                     csiError(`${fgRed}${result}${reset}`)
                 ),
         summary: (pass, fail, time) => {
