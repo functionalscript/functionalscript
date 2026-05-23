@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `tf`: extract `runModule` and `runModuleMap`; filter with `isTest` before reduce; `walk` drops the module-key parameter [841](https://github.com/functionalscript/functionalscript/pull/841)
 - `tf`: virtual tests via `JsModule` + pass-through `sandbox`; `Reporter<O>` generic; `Program<O>` generic type; `LoadModuleOperations` alias; export `defaultReporter`, `fmtPath`, `fmtTerm`, `ghEscape`, `isInteger`, `isIdentifier` ([i156](./issues/156-tf-virtual-tests.md)) [840](https://github.com/functionalscript/functionalscript/pull/840)
 - Effects: Node: Virtual: new file type - JsModule. PR [834](https://github.com/functionalscript/functionalscript/pull/834)
 - `tf`: extract `Reporter` interface (`moduleStart` / `enter` / `pass` / `fail` / `summary`, each an `Effect<NodeOp, void>`); `test` now takes a `Reporter` and returns a `NodeProgram`; `main` builds the default CSI/GitHub reporter and calls `test(reporter)(options)`; `isGitHub` branching moves out of the walker into the default reporter; describe quiet/dynamic-progress reporter modes in [i155](./issues/155-test-runner-integration.md); remove unused `loadModuleMap` from `dev/module.f.ts`
