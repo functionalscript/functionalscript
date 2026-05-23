@@ -4,9 +4,16 @@
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
-import { sandbox, type NodeOp, type NodeProgram, type NodeProgramOptions, type Program, type Sandbox, type Write } from '../../types/effects/node/module.f.ts'
+import {
+    sandbox,
+    type NodeProgram,
+    type NodeProgramOptions,
+    type Program,
+    type Sandbox,
+    type Write
+} from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type LoadModuleOperations, type Module, type ModuleMap } from '../module.f.ts'
+import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -73,7 +80,6 @@ export type Reporter<O extends Operation> = {
     readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
 }
-
 
 const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> => {
     const walk
