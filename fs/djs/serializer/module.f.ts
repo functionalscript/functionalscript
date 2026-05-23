@@ -18,7 +18,7 @@ const colon = [':']
 
 export const undefinedSerialize = ['undefined']
 
-type RefCounter = [number, number, boolean]
+type RefCounter = readonly [number, number]
 
 type Entry = ObjectEntry<Unknown>
 
@@ -26,50 +26,48 @@ type Entries = List<Entry>
 
 type MapEntries = (entries: Entries) => Entries
 
-type Refs = Map<Unknown, RefCounter>
+type Refs = ReadonlyMap<Unknown, RefCounter>
 
 type GetConstsState = {
-    refs: Refs,
-    consts: List<Unknown>
+    readonly added: ReadonlySet<Unknown>
+    readonly consts: List<Unknown>
 }
 
-const getConstantsOp
-    : Fold<Unknown, GetConstsState>
-    = djs => state => {
-        switch (typeof djs) {
-            case 'boolean': { return state }
-            case 'number':
-            case 'string':
-            case 'bigint': { return getConstantSelf(djs)(state) }
-            default: {
-                if (djs === null) { return state }
-                if (djs === undefined) { return state }
-                if (djs instanceof Array) {
-                    return getConstantSelf(djs)(fold(getConstantsOp)(state)(djs))
-                }
-
-                return getConstantSelf(djs)(fold(getConstantsOp)(state)(map(entryValue)(entries(djs))))
-            }
-        }
-    }
-
-const getConstantSelf
-    : Fold<Unknown, GetConstsState>
-    = djs => state => {
-        const refs = state.refs
-        const refCounter = refs.get(djs)
-        if (refCounter !== undefined && refCounter[1] > 1 && !refCounter[2]) {
-            refCounter[2] = true
-            refs.set(djs, refCounter)
-            return { refs, consts: { head: state.consts, tail: [djs] } }
-        }
-        return state
-    }
-
 const getConstants
-    : Fold<Unknown, GetConstsState>
-    = djs => refs => {
-        return getConstantsOp(djs)(refs)
+    : (refs: Refs) => (djs: Unknown) => List<Unknown>
+    = refs => {
+        const checkSelf
+            : Fold<Unknown, GetConstsState>
+            = djs => state => {
+                const refCounter = refs.get(djs)
+                if (refCounter !== undefined && refCounter[1] > 1 && !state.added.has(djs)) {
+                    return {
+                        added: new Set([...state.added, djs]),
+                        consts: { head: state.consts, tail: [djs] }
+                    }
+                }
+                return state
+            }
+        const op
+            : Fold<Unknown, GetConstsState>
+            = djs => state => {
+                switch (typeof djs) {
+                    case 'boolean': { return state }
+                    case 'number':
+                    case 'string':
+                    case 'bigint': { return checkSelf(djs)(state) }
+                    default: {
+                        if (djs === null) { return state }
+                        if (djs === undefined) { return state }
+                        if (djs instanceof Array) {
+                            return checkSelf(djs)(fold(op)(state)(djs))
+                        }
+                        return checkSelf(djs)(fold(op)(state)(map(entryValue)(entries(djs))))
+                    }
+                }
+            }
+        const init: GetConstsState = { added: new Set(), consts: [] }
+        return djs => op(djs)(init).consts
     }
 
 const entryValue
@@ -172,17 +170,17 @@ const addRef
     : Fold<Unknown, Refs>
     = djs => refs => {
         const refCounter = refs.get(djs)
-        if (refCounter === undefined) {
-            return refs.set(djs, [refs.size, 1, false])
-        }
-        return refs.set(djs, [refCounter[0], refCounter[1] + 1, false])
+        const newCounter: RefCounter = refCounter === undefined
+            ? [refs.size, 1]
+            : [refCounter[0], refCounter[1] + 1]
+        return new Map([...refs, [djs, newCounter]])
     }
 
 export const stringify
     : (sort: MapEntries) => (djs: Unknown) => string
     = sort => djs => {
         const refs = countRefs(djs)
-        const consts = getConstants(djs)({ refs, consts: [] }).consts
+        const consts = getConstants(refs)(djs)
         const constSerialize
             : (entry: Unknown) => List<string>
             = entry => {

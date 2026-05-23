@@ -11,11 +11,11 @@ export default {
                 const refs = countRefs(djs)
                 if (refs.size !== 3) { throw refs.size }
                 const refsBigInt = stringifyAsTree(sort)(refs.get(3n))
-                if (refsBigInt !== '[0,1,false]') { throw refsBigInt }
+                if (refsBigInt !== '[0,1]') { throw refsBigInt }
                 const refsString = stringifyAsTree(sort)(refs.get("str"))
-                if (refsString !== '[1,1,false]') { throw refsString }
+                if (refsString !== '[1,1]') { throw refsString }
                 const refsRoot = stringifyAsTree(sort)(refs.get(djs))
-                if (refsRoot !== '[2,1,false]') { throw refsRoot }
+                if (refsRoot !== '[2,1]') { throw refsRoot }
                 if (refs.get(null) !== undefined) { throw refs.get(null) }
             },
             testArray: () => {
@@ -24,9 +24,9 @@ export default {
                 const refs = countRefs(djs)
                 if (refs.size !== 2) { throw refs.size }
                 const refsArray = stringifyAsTree(sort)(refs.get(array))
-                if (refsArray !== '[0,3,false]') { throw refsArray }
+                if (refsArray !== '[0,3]') { throw refsArray }
                 const refsRoot = stringifyAsTree(sort)(refs.get(djs))
-                if (refsRoot !== '[1,1,false]') { throw refsRoot }
+                if (refsRoot !== '[1,1]') { throw refsRoot }
             },
             testObj: () => {
                 const obj = { "a": 1, "b": 2 }
@@ -34,9 +34,9 @@ export default {
                 const refs = countRefs(djs)
                 if (refs.size !== 2) { throw refs.size }
                 const refsObj = stringifyAsTree(sort)(refs.get(obj))
-                if (refsObj !== '[0,2,false]') { throw refsObj }
+                if (refsObj !== '[0,2]') { throw refsObj }
                 const refsRoot = stringifyAsTree(sort)(refs.get(djs))
-                if (refsRoot !== '[1,1,false]') { throw refsRoot }
+                if (refsRoot !== '[1,1]') { throw refsRoot }
             },
         },
         {
