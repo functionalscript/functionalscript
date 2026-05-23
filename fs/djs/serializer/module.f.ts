@@ -76,9 +76,18 @@ const entryValue
     : (kv: readonly [string, Unknown]) => Unknown
     = kv => kv[1]
 
-export const serializeWithoutConst
-    : (mapEntries: MapEntries) => (value: Unknown) => List<string>
-    = sort => {
+/**
+ * A pre-hook consulted before each value's default serialization.
+ * Returning a non-null list short-circuits the default path; this is how
+ * `serializeWithConst` substitutes repeated values with `c<N>` references.
+ */
+type RefLookup = (value: Unknown) => List<string> | null
+
+const noRef: RefLookup = () => null
+
+const buildSerialize
+    : (refLookup: RefLookup) => (sort: MapEntries) => (value: Unknown) => List<string>
+    = refLookup => sort => {
         const propertySerialize
             : (kv: readonly [string, Unknown]) => List<string>
             = ([k, v]) => flat([
@@ -97,6 +106,8 @@ export const serializeWithoutConst
         const f
             : (value: Unknown) => List<string>
             = value => {
+                const ref = refLookup(value)
+                if (ref !== null) { return ref }
                 switch (typeof value) {
                     case 'boolean': { return boolSerialize(value) }
                     case 'number': { return numberSerialize(value) }
@@ -114,49 +125,20 @@ export const serializeWithoutConst
         return f
     }
 
+export const serializeWithoutConst
+    : (mapEntries: MapEntries) => (value: Unknown) => List<string>
+    = buildSerialize(noRef)
+
 const serializeWithConst
     : (sort: MapEntries) => (refs: Refs) => (root: Unknown) => (djs: Unknown) => List<string>
-    = sort => refs => root => {
-        const propertySerialize
-            : (kv: readonly [string, Unknown]) => List<string>
-            = ([k, v]) => flat([
-                stringSerialize(k),
-                colon,
-                f(v)
-            ])
-        const mapPropertySerialize = map(propertySerialize)
-        const objectSerialize
-            : (object: Object) => List<string>
-            = fn(entries)
-                .map(sort)
-                .map(mapPropertySerialize)
-                .map(objectWrap)
-                .result
-        const f
-            : (value: Unknown) => List<string>
-            = value => {
-                if (value !== root) {
-                    const refCounter = refs.get(value)
-                    if (refCounter !== undefined && refCounter[1] > 1) {
-                        return [`c${refCounter[0]}`]
-                    }
-                }
-                switch (typeof value) {
-                    case 'boolean': { return boolSerialize(value) }
-                    case 'number': { return numberSerialize(value) }
-                    case 'string': { return stringSerialize(value) }
-                    case 'bigint': { return [bigintSerialize(value)] }
-                    default: {
-                        if (value === null) { return nullSerialize }
-                        if (value === undefined) { return undefinedSerialize }
-                        if (value instanceof Array) { return arraySerialize(value) }
-                        return objectSerialize(value)
-                    }
-                }
-            }
-        const arraySerialize = compose(map(f))(arrayWrap)
-        return f
-    }
+    = sort => refs => root => buildSerialize(value => {
+        if (value === root) { return null }
+        const refCounter = refs.get(value)
+        if (refCounter !== undefined && refCounter[1] > 1) {
+            return [`c${refCounter[0]}`]
+        }
+        return null
+    })(sort)
 
 const countRefsOp
     : Fold<Unknown, Refs>
