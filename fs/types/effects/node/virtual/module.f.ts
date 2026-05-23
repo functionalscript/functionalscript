@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { todo } from '../../../../dev/module.f.ts'
+import { assert, todo } from '../../../../dev/module.f.ts'
 import { parse } from '../../../../path/module.f.ts'
 import { utf8ToString } from '../../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../bit_vec/module.f.ts'
@@ -19,8 +19,7 @@ import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.
  * via `typeof === 'function'`, and lets the fixture compute the module on
  * each import for closures/state.
  */
-export type JsModule = () => unknown
-
+export type JsModule = () => Module
 
 export type Dir = {
     readonly[name in string]?: Dir | Vec | JsModule
@@ -99,9 +98,8 @@ const readFile = readOperation((dir, path): IoResult<Vec> => {
 const import_ = readOperation((dir, path): IoResult<Module> => {
     if (path.length !== 1) { return error('no such file') }
     const entry = dir[path[0]]
-    if (entry === undefined) { return error('no such file') }
     if (typeof entry !== 'function') { return error(`'${path[0]}' is not a JsModule`) }
-    return ok(entry() as Module)
+    return ok(entry())
 })
 
 const writeFileError = error('invalid file')

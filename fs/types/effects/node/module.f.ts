@@ -173,7 +173,7 @@ export const forever: Func<Forever> =
 // import
 
 export type Module = {
-    readonly default: unknown
+    readonly [k in string]: unknown
 }
 
 export type Import = ['import', (path: string) => IoResult<Module>]
