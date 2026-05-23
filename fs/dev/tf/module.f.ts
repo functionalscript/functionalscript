@@ -84,7 +84,13 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
                 return set.reduce(
                     (acc: Effect<NodeOp, TestState>, [ck, cv]) => {
                         const sub = [...path, ck]
-                        return acc.step(ts => enter(sub).step(() => walk(k)(sub)(throws || ck === 'throw')(cv)(ts)))
+                        const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
+                        // Emit `enter` only for sub-tree values (objects/arrays). Leaf
+                        // values (functions, primitives) skip `enter` so the reporter
+                        // can combine the key with the pass/fail line.
+                        return typeof cv === 'object' && cv !== null
+                            ? acc.step(ts => enter(sub).step(() => recurse(ts)))
+                            : acc.step(recurse)
                     },
                     pure(ts)
                 )
@@ -135,13 +141,30 @@ export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): Nod
         ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
     })
 
+const isInteger = (s: string): boolean => /^(?:0|[1-9]\d*)$/.test(s)
+const isIdentifier = (s: string): boolean => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(s)
+
 /**
  * Renders a key chain as a JS object path: integer-like keys become numbers,
  * other strings are JSON-stringified. E.g. `['math', 'add']` → `["math","add"]`,
- * `['users', '3', 'name']` → `["users",3,"name"]`.
+ * `['users', '3', 'name']` → `["users",3,"name"]`. Used for the GitHub
+ * annotation `title=` field where the full unambiguous path is desired.
  */
 const fmtPath = (path: readonly string[]): string =>
-    JSON.stringify(path.map(k => /^(?:0|[1-9]\d*)$/.test(k) ? Number(k) : k))
+    JSON.stringify(path.map(k => isInteger(k) ? Number(k) : k))
+
+/**
+ * Renders a key chain for terminal output: `| ` per level of depth, followed
+ * by the last segment formatted as a bare integer, a bare identifier, or a
+ * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
+ * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
+ */
+const fmtTerm = (path: readonly string[]): string => {
+    const indent = '| '.repeat(path.length)
+    if (path.length === 0) { return `${indent}()` }
+    const last = path[path.length - 1]
+    return `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
+}
 
 /**
  * Percent-encodes characters that GitHub workflow-command property values
@@ -161,14 +184,14 @@ export const main: NodeProgram = options => {
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     const reporter: Reporter = {
         moduleStart: file => csiLog(`testing ${file}`),
-        enter: path => csiLog(`${fmtPath(path)}:`),
-        pass: (path, duration) => csiLog(`${fmtPath(path)} ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
+        enter: path => csiLog(`${fmtTerm(path)}:`),
+        pass: (path, duration) => csiLog(`${fmtTerm(path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
         fail: isGitHub
             // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
             ? (file, path, result, _duration) =>
                 csiError(`::error file=${file},line=1,title=${ghEscape(fmtPath(path))}::${ghEscape(String(result))}`)
             : (_file, path, result, duration) =>
-                csiError(`${fmtPath(path)} ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                csiError(`${fmtTerm(path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
                     csiError(`${fgRed}${result}${reset}`)
                 ),
         summary: (pass, fail, time) => {
