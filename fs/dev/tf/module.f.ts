@@ -4,7 +4,7 @@
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
-import { sandbox, type NodeOp, type NodeProgram } from '../../types/effects/node/module.f.ts'
+import { sandbox, type NodeOp, type NodeProgram, type NodeProgramOptions } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type Module } from '../module.f.ts'
 
@@ -125,9 +125,9 @@ const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
 const isDigit = (c: string): boolean => c >= '0' && c <= '9'
 
-const isInteger = (s: string): boolean =>
+export const isInteger = (s: string): boolean =>
     s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
-const isIdentifier = (s: string): boolean =>
+export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
 /**
@@ -136,7 +136,7 @@ const isIdentifier = (s: string): boolean =>
  * `['users', '3', 'name']` → `["users",3,"name"]`. Used for the GitHub
  * annotation `title=` field where the full unambiguous path is desired.
  */
-const fmtPath = (path: readonly string[]): string =>
+export const fmtPath = (path: readonly string[]): string =>
     JSON.stringify(path.map(k => isInteger(k) ? Number(k) : k))
 
 /**
@@ -145,7 +145,7 @@ const fmtPath = (path: readonly string[]): string =>
  * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
  * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
  */
-const fmtTerm = (path: readonly string[]): string => {
+export const fmtTerm = (path: readonly string[]): string => {
     const indent = '| '.repeat(path.length)
     if (path.length === 0) { return `${indent}()` }
     const last = path[path.length - 1]
@@ -157,18 +157,25 @@ const fmtTerm = (path: readonly string[]): string => {
  * treat as separators (`%`, `:`, `,`) plus newlines.
  * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
  */
-const ghEscape = (s: string): string =>
+export const ghEscape = (s: string): string =>
     s.replaceAll('%', '%25')
         .replaceAll(':', '%3A')
         .replaceAll(',', '%2C')
         .replaceAll('\r', '%0D')
         .replaceAll('\n', '%0A')
 
-export const main: NodeProgram = options => {
+/**
+ * The terminal/GitHub reporter used by `fjs t`. Output goes through
+ * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
+ * `GITHUB_ACTION` is set, failures are emitted as `::error` workflow
+ * annotations instead of colored lines. Exported as a factory so the
+ * GitHub format path can be exercised directly from tests.
+ */
+export const defaultReporter = (options: NodeProgramOptions): Reporter => {
     const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
-    const reporter: Reporter = {
+    return {
         moduleStart: file => csiLog(`testing ${file}`),
         enter: path => csiLog(`${fmtTerm(path)}:`),
         pass: (path, duration) => csiLog(`${fmtTerm(path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
@@ -187,5 +194,6 @@ export const main: NodeProgram = options => {
             )
         }
     }
-    return test(reporter)(options)
 }
+
+export const main: NodeProgram = options => test(defaultReporter(options))(options)
