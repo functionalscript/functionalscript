@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Sign, Cmp } from '../function/compare/module.f.ts'
+import { type Sign, type Cmp, bsearch } from '../function/compare/module.f.ts'
 import { type List, next } from '../list/module.f.ts'
 import type { Nullable } from '../nullable/module.f.ts'
 import { identity } from '../function/module.f.ts'
@@ -51,33 +51,6 @@ const cmpReduce = <T>(cmp: Cmp<T>): CmpReduceOp<T> => () => a => b => {
 }
 
 const mergeTail = (): <T>(tail: List<T>) => List<T> => identity
-
-/**
- * Binary search over `[0, len)`. `probe(mid)` returns the sign of the search
- * key relative to the element at `mid` (`-1` before, `0` at, `1` after). On a
- * hit it returns the matching index; on a miss it returns the converged lower
- * bound `b` (the insertion point), which may equal `len`.
- */
-export const bsearch
-    = (len: number) => (probe: (mid: number) => Sign): number => {
-        let b = 0
-        let e = len - 1
-        while (true) {
-            if (e < b) { return b }
-            const mid = b + (e - b >> 1)
-            switch (probe(mid)) {
-                case -1: {
-                    e = mid - 1
-                    break
-                }
-                case 0: { return mid }
-                case 1: {
-                    b = mid + 1
-                    break
-                }
-            }
-        }
-    }
 
 export const find = <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>): T|null => {
     const cmpValue = cmp(value)
