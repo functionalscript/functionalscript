@@ -38,6 +38,10 @@ export const cmp = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): Sign 
  * key relative to the element at `mid` (`-1` before, `0` at, `1` after). On a
  * hit it returns the matching index; on a miss it returns the converged lower
  * bound `b` (the insertion point), which may equal `len`.
+ *
+ * `probe` must be monotonic over `[0, len)`: scanning indices left to right its
+ * result is non-increasing — a run of `1`s, then `0`s, then `-1`s. A
+ * non-monotonic probe yields an undefined position.
  */
 export const bsearch
     = (len: number) => (probe: (mid: number) => Sign): number => {
