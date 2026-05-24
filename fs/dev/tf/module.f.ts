@@ -117,7 +117,7 @@ const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Repo
     return moduleStart(k).step(() => walk([], false, v)(ts))
 }
 
-const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | Sandbox, number> => {
+export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | Sandbox, number> => {
     const { summary } = reporter
     const entries = Object.entries(moduleMap).filter(([k]) => isTest(k))
     return entries.reduce(
