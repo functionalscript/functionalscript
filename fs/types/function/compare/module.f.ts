@@ -9,6 +9,8 @@ export type Sign = -1|0|1
 
 export type Compare<T> = (_: T) => Sign
 
+export type Cmp<T> = (a: T) => Compare<T>
+
 export const index3: <T>(cmp: Compare<T>) => (value: T) => Index3
     = cmp => value => (cmp(value) + 1) as Index3
 
@@ -30,3 +32,34 @@ export type Cmp2<A, B> =
 
 export const cmp = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): Sign =>
     a as any < b ? -1 : a as any > b ? 1 : 0
+
+/**
+ * Binary search over `[0, len)`. `probe(mid)` returns the sign of the search
+ * key relative to the element at `mid` (`-1` before, `0` at, `1` after). On a
+ * hit it returns the matching index; on a miss it returns the converged lower
+ * bound `b` (the insertion point), which may equal `len`.
+ *
+ * `probe` must be monotonic over `[0, len)`: scanning indices left to right its
+ * result is non-increasing — a run of `1`s, then `0`s, then `-1`s. A
+ * non-monotonic probe yields an undefined position.
+ */
+export const bsearch
+    = (len: number) => (probe: (mid: number) => Sign): number => {
+        let b = 0
+        let e = len - 1
+        while (true) {
+            if (e < b) { return b }
+            const mid = b + (e - b >> 1)
+            switch (probe(mid)) {
+                case -1: {
+                    e = mid - 1
+                    break
+                }
+                case 0: { return mid }
+                case 1: {
+                    b = mid + 1
+                    break
+                }
+            }
+        }
+    }
