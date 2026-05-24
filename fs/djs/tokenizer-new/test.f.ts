@@ -41,10 +41,14 @@ type FlatToken = string | number
 
 type TokenScanState = [string, List<number>]
 
+const isNlTag = (tag: string): boolean => tag === '\n' || tag === '\r'
+
 const scanFunc
     : StateScan<FlatToken, TokenScanState, List<Token>>
     = (input, state) => {
         if (typeof input === 'string') {
+            if (isNlTag(input) && isNlTag(state[0]))
+                return [null, state]
             const newState: TokenScanState = [input, []]
             if (state[0] === '') {
                 return [null, newState]
@@ -70,6 +74,8 @@ const filterFunc
             case ',':
             case 'number':
             case 'string':
+            case '\n':
+            case '\r':
                 return true
             default:
                 return false
@@ -87,6 +93,9 @@ const toJsToken
             case ':':
             case ',':
                 return {kind: tk[0]}
+            case '\n':
+            case '\r':
+                return {kind: 'nl'}
             default:
                 return null
         }
@@ -330,10 +339,10 @@ export default {
             const result = tokenizeString('ᄑ')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('{ \t\n\r}')
-    //         if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('{ \t\n\r}')
+            if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('""')
     //         if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
