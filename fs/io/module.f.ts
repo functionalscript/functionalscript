@@ -1,7 +1,28 @@
+/**
+ * Legacy `Io` interface and adapter (`fromIo`) bridging the old IO API to the
+ * effect runner.
+ *
+ * @deprecated Use `fs/types/effects/node` (see issue
+ * [i139](../../issues/README.md)).
+ *
+ * @module
+ */
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type { Server as EffectServer, Headers, IoResult, NodeOp, RequestListener as Erl } from '../types/effects/node/module.f.ts'
+import type {
+    Server as EffectServer,
+    Headers,
+    IoResult,
+    Module,
+    NodeOp,
+    RequestListener as Erl,
+    Env,
+    SandboxResult,
+    NodeProgram,
+    WriteConsoles,
+} from '../types/effects/node/module.f.ts'
+import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
@@ -35,10 +56,9 @@ export type ReadDir =
  * @see https://nodejs.org/api/fs.html
  */
 export type Fs = {
-    readonly writeSync: (fd:number, s: string) => void
+    readonly writeSync: (fd: number, s: string) => void
     readonly writeFileSync: (file: string, data: Uint8Array) => void
     readonly readFileSync: (path: string) => Uint8Array | null
-    readonly existsSync: (path: string) => boolean
     readonly promises: {
         readonly readFile: (path: string) => Promise<Uint8Array>
         readonly writeFile: (path: string, data: Uint8Array) => Promise<void>
@@ -46,6 +66,7 @@ export type Fs = {
         readonly rm: (path: string, options?: RmOptions) => Promise<void>
         readonly mkdir: (path: string, options?: MakeDirectoryOptions) => Promise<string|undefined>
         readonly copyFile: (src: string, dest: string) => Promise<void>
+        readonly access: (path: string) => Promise<void>
     }
 }
 
@@ -56,13 +77,6 @@ export type Fs = {
 export type Console = {
     readonly log: (...d: unknown[]) => void,
     readonly error: (...d: unknown[]) => void
-}
-
-/**
- * Represents an ES module with a default export
- */
-export type Module = {
-    readonly default: unknown
 }
 
 /**
@@ -92,6 +106,8 @@ export type Process = {
 }
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
+
+export type Sandbox = <T>(f: () => T) => SandboxResult<T>
 
 export type Server = {
     readonly listen: (port: number) => void
@@ -139,13 +155,9 @@ export type Io = {
     readonly asyncTryCatch: <T>(f: () => Promise<T>) => Promise<Result<T, unknown>>
     readonly http: Http
     readonly childProcess: ChildProcess
-}
-
-/**
- * The environment variables.
- */
-export type Env = {
-    readonly [k: string]: string|undefined
+    readonly now: () => number
+    readonly sandbox: Sandbox
+    readonly write: (stream: WriteConsoles, data: Vec) => Promise<void>
 }
 
 export type App = (io: Io) => Promise<number>
@@ -187,16 +199,17 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
 }
 
 export const fromIo = ({
-    console: { error, log },
-    fs: { promises: { mkdir, readFile, readdir, writeFile, rm } },
+    fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
     childProcess,
+    asyncImport,
+    now: ioNow,
+    sandbox: ioSandbox,
+    write: ioWrite,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
-        error: async message => error(message),
-        log: async message => log(message),
         fetch: async url => tc(async() => {
             const response = await fetch(url)
             if (!response.ok) {
@@ -208,10 +221,16 @@ export const fromIo = ({
         readFile: path => tc(async() => toVec(await readFile(path))),
         readdir: (path, r) => tc(async() =>
             (await readdir(path, { ...r, withFileTypes: true }))
-            .map(v => ({ name: v.name, parentPath: normalize(v.parentPath), isFile: v.isFile() }))
+            .map(v => ({
+                name: v.name,
+                parentPath: normalize(v.parentPath),
+                isFile: v.isFile()
+            }))
         ),
         writeFile: (path, data) => tc(() => writeFile(path, fromVec(data))),
         rm: path => tc(() => rm(path)),
+        access: path => tc(() => access(path)),
+        import: path => tc(() => asyncImport(path)),
         exec: (command, stdin) => new Promise(resolve => {
             const child = childProcess.exec(command, (e, stdout, stderr) =>
                 resolve(e !== null ? ['error', e] as const : ok({ stdout, stderr }))
@@ -240,7 +259,24 @@ export const fromIo = ({
             const s = asBase(server) as Server
             s.listen(port)
         },
-        forever: () => new Promise(() => {})
+        forever: () => new Promise(() => {}),
+        now: async () => ioNow(),
+        sandbox: async f => ioSandbox(f),
+        write: ioWrite,
     })
     return result
+}
+
+export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
+    const { process: { env, stdout, stderr } } = io
+    const f = fromIo(io)
+    return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
+        f(program({
+            args,
+            env,
+            std: {
+                stdout: { isTTY: stdout.isTTY },
+                stderr: { isTTY: stderr.isTTY },
+            },
+        }))
 }

@@ -32,16 +32,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.2.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260521.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -162,7 +162,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -206,16 +206,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.2.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260521.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -330,7 +330,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -374,16 +374,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.2.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260521.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -498,7 +498,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -542,16 +542,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.2.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260521.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -666,7 +666,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -710,16 +710,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.2.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260521.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -840,7 +840,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -884,16 +884,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.2.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260521.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.0"
           }
         },
         {
@@ -1005,7 +1005,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1050,7 +1050,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0"
+            "node-version": "24.16.0"
           }
         },
         {
@@ -1070,7 +1070,7 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0"
+            "node-version": "26.2.0"
           }
         },
         {

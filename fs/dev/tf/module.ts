@@ -1,8 +1,13 @@
 import { io } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { isTest, parseTestSet } from './module.f.ts'
+import { isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
+import { fromIo } from '../../io/module.f.ts'
+import { pure, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
+import { asyncRun } from '../../types/effects/module.ts'
+import type { Sandbox } from '../../types/effects/node/module.f.ts'
+import { ok } from '../../types/result/module.f.ts'
 
 //
 
@@ -41,8 +46,6 @@ const framework: CommonFramework =
     isBun ? createBunFramework(nodeTest) :
         createFramework(nodeTest)
 
-const parse = parseTestSet(io.tryCatch)
-
 const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc) => {
     let subTests = [x]
     while (true) {
@@ -53,30 +56,58 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
         subTests = rest
         //
         const [name, value, throws] = first
-        const set = parse(throws)(value)
-        if (typeof set === 'function') {
-            await subTestRunner(name, () => {
-                const r = set()
-                // The result of a function is walked as a fresh sub-tree;
-                // the parent's `throws` flag does not propagate into it.
-                subTests = [...subTests, [`${name}()`, r, false]]
-            })
-        } else {
+        const set = parseTestSet(throws)(value)
+        if (set instanceof Array) {
             for (const [j, y] of set) {
                 const pr = `${name}/${j}`
                 subTests = [...subTests, [pr, y, throws || j === 'throw']]
             }
+        } else {
+            await subTestRunner(name, () => {
+                if (set.throws) {
+                    let threw = false
+                    try { set.fn() } catch (_) { threw = true }
+                    if (!threw) { throw new Error(`${name}() expected to throw`) }
+                } else {
+                    const r = set.fn()
+                    // The result of a function is walked as a fresh sub-tree;
+                    // the parent's `throws` flag does not propagate into it.
+                    subTests = [...subTests, [`${name}()`, r, false]]
+                }
+            })
         }
     }
 }
 
+const noOp = () => pure(undefined)
+
+const reporter: Reporter<never> = {
+    moduleStart: noOp,
+    enter: noOp,
+    pass: noOp,
+    fail: noOp,
+    summary: noOp,
+}
+
+const map: ToAsyncOperationMap<Sandbox> = {
+    sandbox: async(_f) => ({
+        result: ok(undefined),
+        duration: 0,
+    }),
+} as const
+
+export const run2 = async(): Promise<void> => {
+    const fio = fromIo(io)
+    const moduleMap = await fio(loadModuleMap(io.process.env))
+    const runner = runModuleMap(reporter)(moduleMap)
+    asyncRun(map)(runner)
+}
+
 export const run = async(): Promise<void> => {
-    const x = await loadModuleMap(io)
-    for (const [i, v] of Object.entries(x)) {
+    const moduleMap = await fromIo(io)(loadModuleMap(io.process.env))
+    for (const [i, v] of Object.entries(moduleMap)) {
         if (isTest(i)) {
             framework(i, scanModule(['', v.default, false]))
         }
     }
 }
-
-

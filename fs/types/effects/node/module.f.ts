@@ -1,3 +1,13 @@
+/**
+ * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
+ * `writeFile`, `rm`, `access`), networking (`fetch`, `createServer`, `listen`),
+ * subprocess `exec`, `log`/`error` (wrappers over `write`), `import_`, `now`,
+ * `sandbox`, `forever`, and `all`/`both` parallelism; defines the
+ * `NodeOp`/`NodeProgram` types used by the Node runner.
+ *
+ * @module
+ */
+import { utf8 } from '../../../text/module.f.ts'
 import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
@@ -99,27 +109,16 @@ export type Exec = readonly['exec', (command: string, stdin?: string) => IoResul
 export const exec: Func<Exec> =
     do_('exec')
 
+// access
+
+export type Access = readonly['access', (path: string) => IoResult<void>]
+
+export const access: Func<Access> =
+    do_('access')
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec
-
-// error
-
-export type Error = ['error', (message: string) => void]
-
-export const error: Func<Error> =
-    do_('error')
-
-// log
-
-export type Log = ['log', (message: string) => void]
-
-export const log: Func<Log> =
-    do_('log')
-
-// Console
-
-export type Console = Log | Error
+export type Fs = Mkdir | ReadFile | Readdir | WriteFile | Rm | Exec | Access
 
 // Server
 
@@ -171,18 +170,109 @@ export type Forever = ['forever', () => never]
 export const forever: Func<Forever> =
     do_('forever')
 
+// import
+
+export type Module = {
+    readonly [k in string]: unknown
+}
+
+export type Import = ['import', (path: string) => IoResult<Module>]
+
+export const import_: Func<Import> = do_('import')
+
+// write
+
+export type WriteConsoles = 'stdout' | 'stderr'
+
+export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void]
+
+export const write: Func<Write> = do_('write')
+
+/**
+ * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
+ * Shared implementation for `log` and `error`.
+ */
+const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> =>
+    write(stream, utf8(s + '\n'))
+
+export type Console = (s: string) => Effect<Write, void>
+
+/** Writes a line to `stdout`. Replaces the retired `Log` effect. */
+export const log: Console = writeString('stdout')
+
+/** Writes a line to `stderr`. Replaces the retired `Error` effect. */
+export const error: Console = writeString('stderr')
+
+// now
+
+export type Now = readonly['now', () => number]
+
+export const now: Func<Now> = do_('now')
+
+// sandbox
+
+export type SandboxResult<T> = {
+    readonly result: Result<T, unknown>
+    /**
+     * Measured milliseconds but it's not limited to that.
+     * Instead, they represent times as floating-point numbers
+     * with up to microsecond precision.
+     */
+    readonly duration: number
+}
+
+export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
+
+/**
+ * Runs a plain synchronous function in an isolated, measured environment.
+ *
+ * Combines try/catch and high-resolution timing into a single atomic operation.
+ * Only plain synchronous functions are accepted — no effects, no promises.
+ *
+ * Using a single operation rather than separate `TryCatch` + `Perf` effects is
+ * necessary for correctness: effects execute as async tasks, so the scheduler
+ * can insert arbitrary work between two separate timing calls, making the
+ * measured delta inaccurate. Here the clock reads happen synchronously around
+ * the function call with nothing in between.
+ *
+ * Future parameters (time limit, memory limit) can be added to the payload
+ * without breaking the API. Worker-based implementations can enforce hard
+ * limits via worker termination.
+ *
+ * @see {@link SandboxResult}
+ */
+export const sandbox: Func<Sandbox> = do_('sandbox')
+
 // Node
 
 export type NodeOp =
     | All
     | Fetch
-    | Console
     | Fs
     | Http
     | Forever
+    | Import
+    | Now
+    | Sandbox
+    | Write
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 
-export type NodeProgram = (argv: readonly string[]) => Effect<NodeOp, number>
+/**
+ * The environment variables.
+ */
+export type Env = {
+    readonly [k: string]: string|undefined
+}
+
+export type NodeProgramOptions = {
+    readonly args: readonly string[]
+    readonly env: Env
+    readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
+}
+
+export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>
+
+export type NodeProgram = Program<NodeOp>

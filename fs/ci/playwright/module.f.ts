@@ -1,13 +1,18 @@
+/**
+ * CI job that installs Playwright (with a browser-cache step) and runs the
+ * test suite against Chromium, Firefox, and WebKit.
+ *
+ * @module
+ */
 import { images, node, playwright } from '../config/module.f.ts'
 import { type Job, install, test, toSteps } from '../common/module.f.ts'
 import { basicNode } from '../node/module.f.ts'
 
 const playwrightImage = images.ubuntu.intel
 
-// Playwright installation is stuck on Node 26 (May 7 2026) so we use Node 24.
 export const playwrightJob: Job = {
     'runs-on': playwrightImage,
-    steps: toSteps(basicNode(node.others.at(-1)!)([
+    steps: toSteps(basicNode(node.default)([
         install({
             uses: 'actions/cache@v4',
             with: {

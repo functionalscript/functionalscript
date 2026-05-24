@@ -9,7 +9,7 @@
  */
 import { type Equal, type Assert, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
-import type { Tag0, Tag1, Const, Struct, Tuple, Type } from '../module.f.ts'
+import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 
 /** Maps a `Tag0` to its TypeScript type. */
@@ -24,7 +24,7 @@ export type Info0Ts<T extends Tag0> =
 /** Maps a `Const` schema to its TypeScript type. */
 export type ConstTs<T> =
     T extends readonly Type[] ? TupleTs<T> :
-    T extends { readonly[k in string]: Type } ? { readonly[K in keyof T]: Ts<T[K]> } :
+    T extends { readonly[k in string]: Type } ? StructTs<T> :
     T
 
 /** Maps a `Tag1` and inner type to its TypeScript type. */
@@ -44,8 +44,17 @@ export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
     { readonly[K in keyof T]: Ts<T[K]> }
 
-/** Maps a struct schema to a readonly object of resolved types. */
-export type StructTs<T extends Struct> = { readonly[K in keyof T]: Ts<T[K]> }
+type OptionalFields<T extends Struct> = {
+    readonly[K in keyof T as undefined extends Ts<T[K]> ? K : never]?: Ts<T[K]>
+}
+type RequiredFields<T extends Struct> = {
+    readonly[K in keyof T as undefined extends Ts<T[K]> ? never : K]: Ts<T[K]>
+}
+
+/** Maps a struct schema to a readonly object of resolved types, with optional fields for schemas that include `undefined`. */
+export type StructTs<T extends Struct> =
+    (keyof OptionalFields<T> extends never ? unknown : OptionalFields<T>) &
+    (keyof RequiredFields<T> extends never ? unknown : RequiredFields<T>)
 
 /**
  * Converts a schema `Type` to its corresponding TypeScript type.
@@ -143,6 +152,10 @@ type _tuple = Assert<Equal<Ts<readonly[12, true]>, readonly[12, true]>>
 type _struct = Assert<Equal<
     Ts<{ readonly a: 'hello', readonly b: readonly[]}>,
     { readonly a: 'hello', readonly b: readonly[]}
+>>
+type _structOption = Assert<Equal<
+    Ts<{ readonly a: RttiString, readonly b: Or<readonly[RttiString, undefined]> }>,
+    { readonly a: string } & { readonly b?: string | undefined }
 >>
 
 type _const = Assert<Equal<Ts<() => readonly['const', 12]>, 12>>

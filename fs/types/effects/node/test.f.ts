@@ -1,6 +1,6 @@
 import { empty, isVec, uint, vec8 } from "../../bit_vec/module.f.ts"
 import { pure } from "../module.f.ts"
-import { fetch, mkdir, readdir, readFile, rm, writeFile } from "./module.f.ts"
+import { fetch, mkdir, now, readdir, readFile, rm, sandbox, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
 export default {
@@ -47,9 +47,9 @@ export default {
             )
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (tmp === undefined || isVec(tmp)) { throw state.root }
+            if (typeof tmp !== 'object') { throw state.root }
             const cache = tmp.cache
-            if (cache === undefined || isVec(cache)) { throw tmp }
+            if (typeof cache !== 'object') { throw tmp }
         },
         nonRec: () => {
             const [state, [t, result]] = virtual(emptyState)(
@@ -205,7 +205,7 @@ export default {
             })(rm('tmp/cache'))
             if (t !== 'ok') { throw result }
             const tmp = state.root.tmp
-            if (tmp === undefined || isVec(tmp)) { throw state.root }
+            if (typeof tmp !== 'object') { throw state.root }
             if (tmp.cache !== undefined) { throw tmp }
         },
         noSuchFile: () => {
@@ -221,6 +221,29 @@ export default {
             if (t !== 'error') { throw result }
             if (result !== 'invalid path') { throw result }
             if (state.root.tmp === undefined) { throw state.root }
+        },
+    },
+    now: () => {
+        const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000 })(now())
+        if (result !== 1_000_000) { throw result }
+    },
+    sandbox: {
+        // Virtual `sandbox` is now a pass-through: the function is expected
+        // to return a `SandboxResult` directly. Fixtures dictate the result
+        // (and `duration`) instead of the runner measuring.
+        ok: () => {
+            const [_, { result, duration }] = virtual(emptyState)(
+                sandbox(() => ({ result: ['ok', 42], duration: 0 }) as never))
+            if (result[0] !== 'ok') { throw result }
+            if (result[1] !== 42) { throw result[1] }
+            if (duration !== 0) { throw duration }
+        },
+        error: () => {
+            const err = new Error('fail')
+            const [_, { result }] = virtual(emptyState)(
+                sandbox(() => ({ result: ['error', err], duration: 0 }) as never))
+            if (result[0] !== 'error') { throw result }
+            if (result[1] !== err) { throw result[1] }
         },
     },
 }

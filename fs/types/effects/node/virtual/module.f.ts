@@ -3,15 +3,26 @@
  *
  * @module
  */
-import { todo } from '../../../../dev/module.f.ts'
+import { assert, todo } from '../../../../dev/module.f.ts'
 import { parse } from '../../../../path/module.f.ts'
+import { utf8ToString } from '../../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../bit_vec/module.f.ts'
 import { error, ok } from '../../../result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
-import type { Dirent, IoResult, NodeOp } from '../module.f.ts'
+import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
+
+/**
+ * In-memory JS module entry. When `import_` is called on the path, the
+ * function is invoked and its return value is the module value (with a
+ * `default` export and optional named exports). Using a function (not a
+ * plain value) lets the entry be distinguished from `Vec`/`Dir` at runtime
+ * via `typeof === 'function'`, and lets the fixture compute the module on
+ * each import for closures/state.
+ */
+export type JsModule = () => Module
 
 export type Dir = {
-    readonly[name in string]?: Dir | Vec
+    readonly[name in string]?: Dir | Vec | JsModule
 }
 
 export type State = {
@@ -21,6 +32,7 @@ export type State = {
     internet: {
         readonly[url: string]: Vec
     }
+    epochNs: number
 }
 
 export const emptyState: State = {
@@ -28,6 +40,7 @@ export const emptyState: State = {
     stderr: '',
     root: {},
     internet: {},
+    epochNs: 0,
 }
 
 const operation =
@@ -40,7 +53,7 @@ const operation =
         }
         const [first, ...rest] = path
         const subDir = dir[first]
-        if (subDir === undefined || isVec(subDir)) {
+        if (typeof subDir !== 'object') {
             return op(dir, path)
         }
         const [newSubDir, r] = f(subDir, rest)
@@ -77,8 +90,16 @@ const readFileError = error('no such file')
 const readFile = readOperation((dir, path): IoResult<Vec> => {
     if (path.length !== 1) { return readFileError }
     const file = dir[path[0]]
+    if (typeof file === 'function') { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     if (!isVec(file)) { return error(`'${path[0]}' is not a file`) }
     return ok(file)
+})
+
+const import_ = readOperation((dir, path): IoResult<Module> => {
+    if (path.length !== 1) { return error('no such file') }
+    const entry = dir[path[0]]
+    if (typeof entry !== 'function') { return error(`'${path[0]}' is not a JsModule`) }
+    return ok(entry())
 })
 
 const writeFileError = error('invalid file')
@@ -103,10 +124,10 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
         let result: readonly Dirent[] = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const isFile = isVec(content)
+            const isFile = typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(`${parentPath}/${name}`, content)]
+                result = [...result, ...f(`${parentPath}/${name}`, content as Dir)]
             }
         }
         return result
@@ -114,18 +135,21 @@ const readdir = (base: string, recursive: boolean) => readOperation((dir, path):
     return ok(f(base, dir))
 })
 
+const access = readOperation((dir, path): IoResult<void> => {
+    if (path.length === 0) { return okVoid }
+    if (path.length !== 1) { return error('no such file or directory') }
+    return dir[path[0]] !== undefined ? okVoid : error('no such file or directory')
+})
+
 const rm = operation((dir, path): readonly[Dir, IoResult<void>] => {
     if (path.length !== 1) { return [dir, error('invalid path')] }
     const [name] = path
     const entry = dir[name]
     if (entry === undefined) { return [dir, error('no such file')] }
-    if (!isVec(entry)) { return [dir, error('is a directory')] }
+    if (typeof entry === 'object') { return [dir, error('is a directory')] }
     const { [name]: _, ...rest } = dir
     return [rest as Dir, okVoid]
 })
-
-const console = (name: 'stderr'|'stdout') => (state: State, payload: string) =>
-    [{ ...state, [name]: `${state[name]}${payload}\n` }, undefined] as const
 
 const map: MemOperationMap<NodeOp, State> = {
     all: (state, ...a) => {
@@ -137,8 +161,6 @@ const map: MemOperationMap<NodeOp, State> = {
         }
         return [state, e]
     },
-    error: console('stderr'),
-    log: console('stdout'),
     fetch: (state, url) => {
         const result = state.internet[url]
         return result === undefined ? [state, error('not found')] : [state, ok(result)]
@@ -147,11 +169,26 @@ const map: MemOperationMap<NodeOp, State> = {
     readFile,
     readdir: (state, path, { recursive }) => readdir(path, recursive === true)(state, path),
     writeFile: (state, path, payload) => writeFile(payload)(state, path),
+    access,
+    import: import_,
     rm,
     exec: todo,
     createServer: todo,
     listen: todo,
     forever: todo,
+    now: (state) => [state, state.epochNs],
+    // Virtual sandbox is a pass-through: the fixture's test function is
+    // expected to return a `SandboxResult` directly (encoding pass/fail and a
+    // chosen duration), so the handler invokes it without try/catch or clock
+    // reads. This makes test outcomes deterministic — fixtures dictate the
+    // result instead of the runner measuring real execution. A genuine
+    // exception in a fixture propagates loudly as a bug in the fixture.
+    // See: issues/156-tf-virtual-tests.md
+    sandbox: (state, f) => [state, f() as SandboxResult<unknown>],
+    write: (state, stream, data) => {
+        const s = utf8ToString(data)
+        return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined] as const
+    },
 }
 
 export const virtual: RunInstance<NodeOp, State> = run(map)

@@ -2,13 +2,13 @@
 
 - [ ] [005-publish](./005-publish.md)
 - [ ] 9. Generating a Website.
-  - [X] A minimal web-page
-  - [X] Generates Deno and Rust docs and publish them.
-  - [ ] Convert `README.md` files into HTML and publish them.
-  - [ ] Source code highlighting.
-  - [ ] One `main.css`
-  - [ ] Convention for `page.f.ts`. The `page.f.ts` generates a demo webpage that demonstrate functionality of a module `module.f.ts` where the file is located.
-  - [ ] In browser test runner (we need to switch out test framework to Effects first).
+  - [X] 1. A minimal webpage
+  - [X] 2. Generate Deno and Rust docs and publish them.
+  - [ ] 3. Convert `README.md` files into HTML and publish them.
+  - [ ] 4. Source code highlighting.
+  - [ ] 5. One `main.css`
+  - [ ] 6. Convention for `page.f.ts`. The `page.f.ts` generates a demo webpage that demonstrates the functionality of the module `module.f.ts` located in the same directory.
+  - [ ] 7. In the browser test runner (we need to switch our test framework to Effects first).
 - [ ] 10. Short URL table.
 - [ ] [011-fs-load](./011-fs-load.md)
 - [ ] 13. Docs for JSR. See https://jsr.io/@functionalscript/functionalscript/score
@@ -41,14 +41,18 @@
   - use content (serialization). This can be slow with a non-CA VM. Functions are still hard to serialize.
 - [ ] 38. Rust: bigint: Optimize multiplication https://www.youtube.com/watch?v=AMl6EJHfUWo
 - [ ] [039-radix-encoding.md](./039-radix-encoding.md)
-- [ ] 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
+- [ ] P5 40. TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
 
   ```ts
   type A = number
   export type B = A | string
   ```
 
-- [X] 41. BNF should use byte parsing instead of codePoint. In this case, we can parse binary files as well.
+  Notes:
+  - FunctionalScript doesn't have RegEx, so an ad-hoc text-scan implementation in `.f.ts` is not possible.
+  - The task is more about an external tool: it requires emitting `.d.ts` via `tsc` and inspecting the output (or driving the TypeScript Compiler API), neither of which belongs inside a FunctionalScript module.
+  - The proper place for this check is a FunctionalScript parser, which is not available yet.
+  - Low priority (P5).
 - [ ] 42. Try mixing serializable BNFs.
 - [ ] 43. state-full parser.
   ```ts
@@ -237,36 +241,17 @@
       }
   }
   ```
-- [X] 90. Change npm publishing. See https://docs.npmjs.com/trusted-publishers
-- [X] 91. Create a separate nominal type for UTF-8. **Closed: won't do.** Every concrete caller (crypto, hashing, `writeFile`) consumes UTF-8 output as opaque bytes, so a nominal `Utf8` would only force `utf8ToVec(utf8(...))` wrapping at the call sites without catching any real bug. The `utf8`/`utf8ToString` function names already document the encoding contract.
 - [ ] 92. Create a separate nominal type for MSB and LSB bit vectors.
 - [ ] 95. Move some CI tasks to Docker. For example, testing on old Node versions and Playwright.
 - [ ] 96. CI caching.
 - [ ] 97. Smart CA CI for FunctionalScript.
-- [X] 101. Monad's IO design. Using Effects.
-- [X] 111. Fix `npm` publishing.
 - [ ] 112. CAS
 - [ ] 113. Create an ECMAScript proposal for `BigInt.bitLen()`
 - [ ] 114. A generic command line parser that can produce help.
-- [X] 115. Run-time types. See also https://arktype.io/
-  1. We need a more powerful type system than TS. See `bnf` or `effects`.
-  2. Validating type match at run-time.
 - [ ] 116. Report the TSGO regression (see `btree`).
-- [X] 117. Should we remove `map` and `pipe` functions from `Effect`?
-  ```ts
-  // current
-  readFile('a.txt')
-    .pipe(v => writeFile('b', v))
-  // proposal
-  effect
-    .pipe(() => readFile('a.txt'))
-    .pipe(v => writeFile('b', v))
-    .result
-  ```
 - [ ] 118.
   - [X] Create example repository: https://github.com/functionalscript/file-server-example.
   - [ ] use it in CI.
-- [X] 121. Simplify `do_` constants by always using multiple input parameters `...params`.
 - [ ] 122. Consider adding a new file type for applications. For example, `node.f.ts` or `app.f.ts`.
       These files should have `export default` with type `NodeProgram`.
       Then we may have other application files, for example, `web.f.ts`.
@@ -284,16 +269,10 @@
 - [ ] 132. `exec`:
   - 1. Keep most implementation code in `module.f.ts` instead of `module.ts`
   - 2. Use async functions and await instead of `.then`
-- [ ] 133. Investigate common parts in `rtti/validate` and `rtti/parse`.
 - [ ] 134. A proposal for nominal types in TypeScript. The main reason is that the current `Nominal` type doesn't support type narrowing properly.
-- [X] 135. Refactor `StateScan` in [types/function/operator/module.f.ts](../types/function/operator/module.f.ts) to put input before state.
-  Current: `StateScan<I, S, O> = (prior: S) => (input: I) => readonly[O, S]`
-  Problem: partial application on state (`op(prior)`) caches state, making it easy to accidentally reuse a stale state snapshot across multiple calls.
-  Proposal: `StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]` (or equivalent uncurried form), consistent with the `push(c: Candidate<T>, state: State<S, T>) => State<S, T>` convention adopted in `types/patricia_trie`.
 - [ ] 136. CI should have all tools and image versions in a specific file. This file is a kind of `lock` file for the CI. The lock file will be periodically updated. We will also need instructions on how to check the newest tool version in `README.md`.
-- [X] 137. Implement CI tool installation caching using image and tool versions as keys (see 136). This way we can invalidate the cache when we would like to install a new version of a tool or on a new image.
 - [ ] 138. Implement a script that will update the lock file by reading the latest versions of tools from the internet using the instructions from 136.
-- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. Currently, it threads `log`/`error`/`measure`/`tryCatch`/`state` through a custom `Input<T>` instead of running on the effect runner used by the rest of the codebase. Once it runs on Effects, layered features like silent/verbose mode (21), running a subset of tests (20), and parsing non-default exports (27) become straightforward.
+- [ ] 139. Translate the test framework (`dev/tf/module.f.ts`) to Effects. See [148-test-framework-effects](./148-test-framework-effects.md) for the detailed design.
 - [ ] 140. We should have 100% test coverage for all `module.f.ts` files.
 - [ ] 141. Design for a universal, extensible type system based on custom RTTI. How it should work:
   1. We should define an interface for type validation. For example
@@ -320,6 +299,26 @@
      const a: Ts<typeof t> = ...
      ```
 - [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Two forms with one job each — thunks for ergonomic construction, data for all algebra (union, subset, canonical form, dispatch). Supersedes 130.
+- [ ] 144. TypeScript proposal: distinguish prototype member functions (which require `this`) from free functions. For example, `Array.push` can only be called as `array.push(5)` — detaching it with `const p = array.push; p(5)` is a runtime error because `this` is lost. TypeScript currently types both forms identically and does not prevent the detached call. The proposal is for TypeScript to track whether a function captures `this`, and reject uses where `this` would be unbound.
+- [ ] 145. Use Docker containers for Linux CI jobs. Running Linux jobs inside a Docker container allows GitHub Actions to cache the container image, so tool installation (Node, Rust, Bun, Deno, Wasmer, Wasmtime, etc.) is paid once per image rebuild rather than on every CI run. The cache key must include all tool versions and the target architecture. macOS and Windows jobs are unaffected.
+- [ ] [146-rtti-ts-inference](./146-rtti-ts-inference.md). `Ts<T>` walks schema structure on every query, which overflows TS's depth budget for `Ts<any>` and forces `as any` casts in `validate`/`parse`. Compares Zod/Valibot/ArkType approaches and sketches the design space.
+- [ ] 147. Deno slow-types: Deno's JSR publisher requires full explicit type annotations on exported `const`. For complex schemas defined with `as const`, writing out the full type is impractical. A fix via `satisfies` is proposed in [deno_graph#639](https://github.com/denoland/deno_graph/pull/639) and is available in deno_graph 0.107.2, but the fix doesn't work when the constant is used in `export type` as `typeof`. Deno 2.8.0 ships deno_graph 0.108.2 but the issue persists. Keep `--allow-slow-types` flag on `deno publish` and `deno publish --dry-run` commands until this is fully resolved.
+- [x] [148-test-framework-effects](./148-test-framework-effects.md). Redesign the test framework (`dev/tf/module.f.ts`) as an Effect program, replacing the hand-rolled `Input<T>` threading and `Io` dependency. Unblocks browser testing (i29, i36), silent mode (i21), and subset runs (i20).
+- [x] [149-sandbox](./149-sandbox.md). `Sandbox` effect: runs a plain sync function with try/catch and timing in one atomic operation; future fields for memory/stack limits; worker-based implementations enforce hard limits.
+- [ ] [150-tty](./150-tty.md). `IsTty` effect: reports whether a file descriptor is connected to a terminal; used by the test framework to gate ANSI color output.
+- [x] [151-transpiler-effects](./151-transpiler-effects.md). Convert DJS transpiler (`fs/djs/transpiler/module.f.ts`) from legacy `Fs`/`readFileSync` to `ReadFile` effect; update tests to use the virtual effect runner instead of `createVirtualIo`. Unblocks deletion of `fs/io/virtual/module.f.ts`.
+- [X] [152-write-effect](./152-write-effect.md). `Write` effect and TTY-aware console: `write(stream, data)` with `WriteConsoles = 'stdout' | 'stderr'`; `csiWrite` wrapper reads `isTTY` from `NodeProgramOptions.std`; supersedes i150.
+- [X] [153-write-queue](./153-write-queue.md). Async write with backpressure: use `stream.write()` + `once(stream, 'drain')` for atomic, backpressure-aware writes to `stdout`/`stderr`.
+- [x] [154-parseset-throws](./154-parseset-throws.md). `parseTestSet`: eliminate double `sandbox` call for throw-tests; return `TestEntry = { fn, throws }` instead of a wrapper function; discriminate from the array branch via `Array.isArray`.
+- [ ] [155-test-runner-integration](./155-test-runner-integration.md). Three problems: (1) `module.f.ts` and `module.ts` duplicate the test-tree walk; (2) `isGitHub` branching hardcodes a CI environment inside the walker; (3) Bun silently drops dynamically-registered subtests — fix by running generated sub-trees inline.
+- [x] [156-tf-virtual-tests](./156-tf-virtual-tests.md). Test the `dev/tf` runner itself: virtual test files via an `import`-dictionary lookup, test functions that return `SandboxResult` directly (deterministic, no clock), a capture reporter that records structured events. Covers walker, path formatting, throw semantics, return-value sub-trees, summary counts.
+- [ ] [157-json-djs-shared-core](./157-json-djs-shared-core.md). DRY: DJS is a superset of JSON, yet the parser value-state machine, the recursive serializer walker (3 copies), and the tokenizer minus-rewriter are each forked between `fs/json` and `fs/djs`. Extract a shared value-parser factory, a `serializeValue` factory, and a `negateOnMinus` scan factory.
+- [ ] [158-sorted-binary-search](./158-sorted-binary-search.md). DRY: `sorted_list.find` and `range_map.get` duplicate the same midpoint binary-search loop — extract a `bsearch` helper returning the converged position. Plus: the curried `Cmp<T>` alias is re-declared in `sorted_list` and `sorted_set`; export it from `function/compare` instead.
+- [ ] [159-nanvm-trait-boilerplate](./159-nanvm-trait-boilerplate.md). DRY (Rust): the VM wrapper newtypes repeat near-identical `Serializable`/`SizedIndex`/`Index`/`PartialEq` impls across `string`/`array`/`object`/`bigint`/`function`; collapse them with a `container_traits!` macro. Also: macro the primitive `Serializable`/`Le` impls, and merge `obj`/`arr`/`fn_to_primitive` into one generic helper.
+- [ ] [160-nibble-set-dead-or-factory](./160-nibble-set-dead-or-factory.md). DRY: `nibble_set` duplicates `byte_set`'s bitmask algebra but has zero consumers. Default recommendation: delete the dead module. Alternative (only if a nibble consumer is planned): extract a `bitSet` factory parameterized over the numeric domain.
+- [ ] [161-keyed-btree-collection](./161-keyed-btree-collection.md). DRY/architecture: `string_set` and `ordered_map` are parallel thin wrappers over the same string-keyed B-tree. Propose a shared `keyedCollection(keyOf, keyCmp)` core, making explicit that a set is a map whose key is its value.
+- [ ] [162-rtti-parse-container-factories](./162-rtti-parse-container-factories.md). DRY: `rtti/validate` factors its array/record and tuple/struct handlers into two factories, but `rtti/parse` hand-writes all four. Mirror the factory pair in `parse` (with a `rebuild` callback for the transformed output).
+- [ ] [163-reporter-test-method](./163-reporter-test-method.md). Add `test(throws, f)` to `Reporter<O>` so the walker delegates test execution to the reporter; removes the hardcoded `Sandbox` dependency from `runModule` and enables `module.ts` to reuse the Effects walker without its own scan loop.
 
 ## Language Specification
 

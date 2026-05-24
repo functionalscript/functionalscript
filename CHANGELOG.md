@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `tf`: issue [i163](./issues/163-reporter-test-method.md) — `Reporter.test` design doc; export `runModuleMap`; experimental `run2` in `module.ts` [843](https://github.com/functionalscript/functionalscript/pull/843)
+- `tf`: extract `runModule`/`runModuleMap`; flatten `walk` signature; filter before reduce; rename pass-continuation to `cont` [842](https://github.com/functionalscript/functionalscript/pull/842)
+- `tf`: virtual tests via `JsModule` + pass-through `sandbox`; `Reporter<O>` generic; `Program<O>` generic type; `LoadModuleOperations` alias; export `defaultReporter`, `fmtPath`, `fmtTerm`, `ghEscape`, `isInteger`, `isIdentifier` ([i156](./issues/156-tf-virtual-tests.md)) [840](https://github.com/functionalscript/functionalscript/pull/840)
+- Effects: Node: Virtual: new file type - JsModule. PR [834](https://github.com/functionalscript/functionalscript/pull/834)
+- `tf`: extract `Reporter` interface (`moduleStart` / `enter` / `pass` / `fail` / `summary`, each an `Effect<NodeOp, void>`); `test` now takes a `Reporter` and returns a `NodeProgram`; `main` builds the default CSI/GitHub reporter and calls `test(reporter)(options)`; `isGitHub` branching moves out of the walker into the default reporter; describe quiet/dynamic-progress reporter modes in [i155](./issues/155-test-runner-integration.md); remove unused `loadModuleMap` from `dev/module.f.ts`
+- `fjs`: convert `main` to `NodeProgram`; dispatch sub-commands by returning Effects directly; remove `Io`/`fromIo`/`runProgram` dependency; `module.ts` switches from `legacyRun` to `effectRun` ([i122](./issues/README.md)) [830](https://github.com/functionalscript/functionalscript/pull/830)
+- `tf`: convert `main` to `NodeProgram` — `(options: NodeProgramOptions) => Effect<NodeOp, number>`; replace `Io` dependency with `loadModuleMap2`, `sandbox` effect, and `csiWrite`; sequential test walk uses effectful `.reduce()` + `.step()` instead of synchronous `fold` ([i148](./issues/148-test-framework-effects.md)) [828](https://github.com/functionalscript/functionalscript/pull/828)
+- `tf`: eliminate double `sandbox` call for throw-tests; `parseTestSet` returns `TestEntry = { fn, throws }` instead of a wrapper; discriminate branches with `instanceof Array`; add `TestEntry` type; document dependency-free test design in README; add no-type-predicate rule to `AGENTS.md` ([i154](./issues/154-parseset-throws.md)) [827](https://github.com/functionalscript/functionalscript/pull/827)
+- `uint8array`: mark module deprecated — use `utf8`/`utf8ToString` from `fs/text` and `bit_vec` directly; replace all internal usages in `djs`, `sgr`, and virtual runner
+- `tf`: remove unused `anyLog` helper
+- Effects: retire `Log`/`Error`/`Console` operation types; replace with `log`/`error` helpers built on `write` — `log(s)` writes to `stdout`, `error(s)` to `stderr`, both UTF-8-encoded with `\n` [822](https://github.com/functionalscript/functionalscript/pull/822)
+- Effects: add `Write` effect (`write(stream, data)`) and `WriteConsoles` to `NodeOp`; add `std` to `NodeProgramOptions` for startup TTY constants; add `csiWrite` to `fs/text/sgr` for TTY-aware UTF-8 writes; wire `write` handler in `fromIo` and virtual runner ([i152](./issues/152-write-effect.md)) [816](https://github.com/functionalscript/functionalscript/pull/816)
+- IO: add `write(stream, data)` to `Io` with backpressure via `stream.write()` + `once(stream, 'drain')`; add `WriteConsoles` type ([i153](./issues/153-write-queue.md)) [821](https://github.com/functionalscript/functionalscript/pull/821)
+
+## 0.17.0
+
+- Effects: replace `NodeProgram`'s two positional parameters with `NodeProgramOptions` — `{ args, env }` [814](https://github.com/functionalscript/functionalscript/pull/814)
+- `tf`: remove `Input` intermediary type; `test` takes `Io` directly [813](https://github.com/functionalscript/functionalscript/pull/813)
+- `fjs`: convert `run`/`r` command from `asyncImport`/`await` to `import_` effect [812](https://github.com/functionalscript/functionalscript/pull/812)
+- DJS transpiler: replace `Fs`/`readFileSync` with `ReadFile` effect; tests use virtual effect runner; delete `fs/io/virtual` ([i151](./issues/151-transpiler-effects.md)) [811](https://github.com/functionalscript/functionalscript/pull/811)
+- IO: expose `sandbox` on `Io` interface; test framework: replace `measure`+`tryCatch` with `sandbox`, eliminating state threading ([i149](./issues/149-sandbox.md)) [809](https://github.com/functionalscript/functionalscript/pull/809)
+- Effects: add `sandbox` operation — runs a plain sync function with try/catch and `performance.now()` timing in one atomic operation; `SandboxResult<T>` carries result and duration ([i149](./issues/149-sandbox.md)) [808](https://github.com/functionalscript/functionalscript/pull/808)
+- Docs: add the required JSDoc `@module` header to every `module.f.ts` that was missing one, so each module has a one-line description on JSR ([i13](./issues/README.md)) [804](https://github.com/functionalscript/functionalscript/pull/804)
+
+## 0.16.1
+
+- Effects: add `now` operation returning epoch nanoseconds as `bigint` via `Date.now()`; virtual runner exposes `epochNs` for deterministic tests [803](https://github.com/functionalscript/functionalscript/pull/803)
+
+## 0.16.0
+
+- RTTI `Ts<>`: optional field inference; CI: derive `Step`/`Job`/`GitHubAction` types from RTTI schemas; allow `--allow-slow-types` in Deno publish ([i147](./issues/README.md)) [798](https://github.com/functionalscript/functionalscript/pull/798)
+- RTTI: extract shared kernel (error shape, primitive checks, `match` recognizer) from `validate`/`parse` into a new `rtti/common` module ([i133](./issues/README.md)) [797](https://github.com/functionalscript/functionalscript/pull/797)
+- NodeProgram: move `Env` to `fs/types/effects/node` and add as second parameter [795](https://github.com/functionalscript/functionalscript/pull/795)
+
 ## 0.15.0
 
 - Effects: unify `do_`/`doRest` and `Func`/`RestFunc` into a single rest-parameter form; operation payload types are now uniformly tuples ([i121](./issues/README.md)) [794](https://github.com/functionalscript/functionalscript/pull/794)

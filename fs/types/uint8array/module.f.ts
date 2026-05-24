@@ -1,5 +1,11 @@
 /**
- * Conversions between Uint8Array values and bit vectors.
+ * Conversions between `Uint8Array` values and bit vectors.
+ *
+ * @deprecated FunctionalScript represents byte data as `bigint`-based bit
+ * vectors (`Vec` from `fs/types/bit_vec`). Use `utf8`/`utf8ToString` from
+ * `fs/text` for string encoding, and the `bit_vec` module directly for raw
+ * byte manipulation. `Uint8Array` interop belongs at Node.js boundaries only
+ * (e.g. `fromVec`/`toVec` when reading or writing files).
  *
  * @module
  */
