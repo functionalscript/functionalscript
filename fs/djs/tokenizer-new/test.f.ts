@@ -42,13 +42,15 @@ type FlatToken = string | number
 type TokenScanState = [string, List<number>]
 
 const isNlTag = (tag: string): boolean => tag === '\n' || tag === '\r'
+const isWsTag = (tag: string): boolean => tag === ' ' || tag === '\t'
 
 const scanFunc
     : StateScan<FlatToken, TokenScanState, List<Token>>
     = (input, state) => {
         if (typeof input === 'string') {
-            if (isNlTag(input) && isNlTag(state[0]))
-                return [null, state]
+            if (isNlTag(input) && isNlTag(state[0])) return [null, state]
+            if (isWsTag(input) && isWsTag(state[0])) return [null, state]
+            if (isNlTag(input) && isWsTag(state[0])) return [null, [input, []]]
             const newState: TokenScanState = [input, []]
             if (state[0] === '') {
                 return [null, newState]
@@ -76,6 +78,8 @@ const filterFunc
             case 'string':
             case '\n':
             case '\r':
+            case ' ':
+            case '\t':
                 return true
             default:
                 return false
@@ -96,6 +100,9 @@ const toJsToken
             case '\n':
             case '\r':
                 return {kind: 'nl'}
+            case ' ':
+            case '\t':
+                return {kind: 'ws'}
             case 'string':
                 return {kind: 'string', value: String.fromCodePoint(...tk[1].slice(1, -1))}
             default:
@@ -357,10 +364,10 @@ export default {
             const result = tokenizeString('"value')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('"value1" "value2"')
-    //         if (result !== '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"value1" "value2"')
+            if (result !== '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]') { throw result }
+        },
         () => {
             const result = tokenizeString('"')
             if (result !== 'error') { throw result }
