@@ -101,7 +101,7 @@ export const run2 = async(): Promise<void> => {
     const fio = fromIo(io)
     const moduleMap = await fio(loadModuleMap(io.process.env))
     const runner = runModuleMap(reporter)(moduleMap)
-    asyncRun(map)(runner)
+    await asyncRun(map)(runner)
 }
 
 export const run = async(): Promise<void> => {
