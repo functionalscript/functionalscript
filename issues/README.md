@@ -319,6 +319,7 @@
 - [ ] [161-keyed-btree-collection](./161-keyed-btree-collection.md). DRY/architecture: `string_set` and `ordered_map` are parallel thin wrappers over the same string-keyed B-tree. Propose a shared `keyedCollection(keyOf, keyCmp)` core, making explicit that a set is a map whose key is its value.
 - [ ] [162-rtti-parse-container-factories](./162-rtti-parse-container-factories.md). DRY: `rtti/validate` factors its array/record and tuple/struct handlers into two factories, but `rtti/parse` hand-writes all four. Mirror the factory pair in `parse` (with a `rebuild` callback for the transformed output).
 - [ ] [163-reporter-test-method](./163-reporter-test-method.md). Add `test(throws, f)` to `Reporter<O>` so the walker delegates test execution to the reporter; removes the hardcoded `Sandbox` dependency from `runModule` and enables `module.ts` to reuse the Effects walker without its own scan loop.
+- [ ] [164-capture-reporter-immutable](./164-capture-reporter-immutable.md). `dev/tf/test.f.ts`: replace the mutable `events.push(...)` array in `makeReporter` with an immutable `Capture` effect accumulated into virtual `State`, consistent with the no-mutation rule.
 
 ## Language Specification
 

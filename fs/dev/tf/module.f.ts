@@ -10,10 +10,12 @@ import {
     type NodeProgramOptions,
     type Program,
     type Sandbox,
+    type SandboxResult,
     type Write
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
+import type { Result } from '../../types/result/module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -79,6 +81,7 @@ export type Reporter<O extends Operation> = {
     readonly pass: (path: readonly string[], duration: number) => Effect<O, void>
     readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
+    readonly test: (throws: boolean, fn: () => unknown) => Effect<O, SandboxResult<unknown>>
 }
 
 const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> => {
@@ -174,6 +177,16 @@ export const ghEscape = (s: string): string =>
         .replaceAll('\r', '%0D')
         .replaceAll('\n', '%0A')
 
+export const defaultTest = (throws: boolean, fn: () => unknown): Effect<Sandbox, SandboxResult<unknown>> =>
+    sandbox(fn).step(r => {
+        if (throws) {
+            const { result: [s, v], duration } = r
+            const result: Result<unknown, unknown> = s === 'ok' ? ['error', v] : ['ok', v]
+            r = { result, duration: r.duration }
+        }
+        return pure(r)
+    })
+
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
  * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
@@ -181,7 +194,7 @@ export const ghEscape = (s: string): string =>
  * annotations instead of colored lines. Exported as a factory so the
  * GitHub format path can be exercised directly from tests.
  */
-export const defaultReporter = (options: NodeProgramOptions): Reporter<Write> => {
+export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|Sandbox> => {
     const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
@@ -202,7 +215,15 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write> =>
             return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`).step(() =>
                 csiLog(`${bold}Time: ${timeFormat(time)}${reset}`)
             )
-        }
+        },
+        test: (throws, fn) => sandbox(fn).step(r => {
+            if (throws) {
+                const { result: [s, v], duration } = r
+                const result: Result<unknown, unknown> = s === 'ok' ? ['error', v] : ['ok', v]
+                r = { result, duration: r.duration }
+            }
+            return pure(r)
+        })
     }
 }
 

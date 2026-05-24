@@ -1,6 +1,6 @@
 import { io } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
+import { defaultTest, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
@@ -81,12 +81,13 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 
 const noOp = () => pure(undefined)
 
-const reporter: Reporter<never> = {
+const reporter: Reporter<Sandbox> = {
     moduleStart: noOp,
     enter: noOp,
     pass: noOp,
     fail: noOp,
     summary: noOp,
+    test: defaultTest,
 }
 
 const map: ToAsyncOperationMap<Sandbox> = {
