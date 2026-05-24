@@ -9,6 +9,8 @@ export type Sign = -1|0|1
 
 export type Compare<T> = (_: T) => Sign
 
+export type Cmp<T> = (a: T) => Compare<T>
+
 export const index3: <T>(cmp: Compare<T>) => (value: T) => Index3
     = cmp => value => (cmp(value) + 1) as Index3
 

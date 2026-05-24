@@ -35,7 +35,7 @@
  * ```
  */
 
-import { genericMerge, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.ts'
+import { genericMerge, bsearch, type TailReduce, type ReduceOp, type SortedList } from '../sorted_list/module.f.ts'
 import { next } from '../list/module.f.ts'
 import type { Nullable } from '../nullable/module.f.ts'
 import { cmp } from '../number/module.f.ts'
@@ -97,19 +97,8 @@ export const merge: <T>(op: Properties<T>) => RangeMerge<T>
 
 export const get: <T>(def: T) => (value: number) => (rm: RangeMapArray<T>) => T
     = def => value => rm => {
-        const len = rm.length
-        let b = 0
-        let e = len - 1
-        while (true) {
-            if (b >= len) { return def }
-            if (e - b < 0) { return rm[b][0] }
-            const mid = b + (e - b >> 1)
-            if (value <= rm[mid][1]) {
-                e = mid - 1
-            } else {
-                b = mid + 1
-            }
-        }
+        const pos = bsearch(rm.length)(mid => value <= rm[mid][1] ? -1 : 1)
+        return pos < rm.length ? rm[pos][0] : def
     }
 
 export const fromRange: <T>(def: T) => (r: Range) => (value: T) => RangeMapArray<T>
