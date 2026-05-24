@@ -1,6 +1,6 @@
 import { io } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
+import { defaultTest, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
@@ -56,7 +56,7 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
         subTests = rest
         //
         const [name, value, throws] = first
-        const set = parseTestSet(throws)(value)
+        const set = parseTestSet(throws, value)
         if (set instanceof Array) {
             for (const [j, y] of set) {
                 const pr = `${name}/${j}`
@@ -81,12 +81,13 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 
 const noOp = () => pure(undefined)
 
-const reporter: Reporter<never> = {
+const reporter: Reporter<Sandbox> = {
     moduleStart: noOp,
     enter: noOp,
     pass: noOp,
     fail: noOp,
     summary: noOp,
+    test: defaultTest,
 }
 
 const map: ToAsyncOperationMap<Sandbox> = {
@@ -100,7 +101,7 @@ export const run2 = async(): Promise<void> => {
     const fio = fromIo(io)
     const moduleMap = await fio(loadModuleMap(io.process.env))
     const runner = runModuleMap(reporter)(moduleMap)
-    asyncRun(map)(runner)
+    await asyncRun(map)(runner)
 }
 
 export const run = async(): Promise<void> => {

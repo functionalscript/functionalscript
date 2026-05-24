@@ -1,11 +1,12 @@
 import { pure } from '../../types/effects/module.f.ts'
-import type { NodeProgramOptions } from '../../types/effects/node/module.f.ts'
+import type { NodeProgramOptions, Sandbox } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq } from '../module.f.ts'
 import {
     test, defaultReporter, fmtPath, fmtTerm, ghEscape, isInteger, isIdentifier,
     type Reporter,
+    defaultTest,
 } from './module.f.ts'
 
 type Event =
@@ -15,7 +16,7 @@ type Event =
     | readonly['fail', string, readonly string[], unknown, number]
     | readonly['summary', number, number, number]
 
-type TestReporter = Reporter<never>
+type TestReporter = Reporter<Sandbox>
 
 const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     const events: Event[] = []
@@ -25,6 +26,7 @@ const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
         pass: (path, duration) => { events.push(['pass', [...path], duration]); return pure(undefined) },
         fail: (file, path, result, duration) => { events.push(['fail', file, [...path], result, duration]); return pure(undefined) },
         summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
+        test: defaultTest,
     }
     return [reporter, () => events]
 }
