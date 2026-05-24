@@ -17,16 +17,16 @@ const tokenizeString
     = s => {
         const m = descentParser(jsGrammar())
         const cp = toArray(stringToCodePointList(s))
-        const mr = descentParserCpOnly(m, '', cp)
+        const [ast, ok, len] = descentParserCpOnly(m, '', cp)
         if (cp.length === 0) {
             return JSON.stringify([{kind: 'eof'}])
         }
-        if (!mr[1])
+        if (!ok)
             return 'error'
-        if (cp.length > 0 && mr[2] !== cp.length)
+        if (cp.length > 0 && len !== cp.length)
             return 'error'
 
-        const flatTokens = getTokensFromMatchResult(mr)
+        const flatTokens = getTokensFromAstRule(ast)
         const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
         const tokens = flat(stateScan(scanFunc)(['', []])(filterTokens))
         const jsTokens = concat(map(toJsToken)(tokens))([{kind: 'eof'}])
@@ -145,11 +145,6 @@ const getTokensFromAstRule
         return { first: token, tail: getTokensFromAstSequence(ast.sequence)}
     }
 
-const getTokensFromMatchResult
-    : (mr: DescentMatchResult<unknown>) => List<FlatToken>
-    = mr => {
-        return getTokensFromAstRule(mr[0])
-    }
 
 export default {
     isValid: [() => {
