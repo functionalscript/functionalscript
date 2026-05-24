@@ -320,6 +320,7 @@
 - [ ] [162-rtti-parse-container-factories](./162-rtti-parse-container-factories.md). DRY: `rtti/validate` factors its array/record and tuple/struct handlers into two factories, but `rtti/parse` hand-writes all four. Mirror the factory pair in `parse` (with a `rebuild` callback for the transformed output).
 - [ ] [163-reporter-test-method](./163-reporter-test-method.md). Add `test(throws, f)` to `Reporter<O>` so the walker delegates test execution to the reporter; removes the hardcoded `Sandbox` dependency from `runModule` and enables `module.ts` to reuse the Effects walker without its own scan loop.
 - [ ] [164-uncurry-accumulators](./164-uncurry-accumulators.md). P5. Generalize the `StateScan` uncurry refactor (763) to the other state-threading accumulator types: `Fold`/`Reduce` and `sorted_list`'s `ReduceOp`/`TailReduce` still curry their data parameters, inviting per-element/accumulator closures that are meaningless to cache and a state-leak hazard. Uncurry to `(input, acc) => …`; keep `Binary`/`Equal`/`Unary` curried.
+- [ ] [165-layered-parser](./165-layered-parser.md). Layered parser: a BNF-driven tokenizer maps code-points (plus file/position meta) to single-symbol tokens (`s`, `n`, `i`, …) carrying value/position as meta information, feeding a second BNF parser layer. Open questions: keyword disambiguation, meta-info propagation through reductions, unified error representation across layers.
 
 ## Language Specification
 
