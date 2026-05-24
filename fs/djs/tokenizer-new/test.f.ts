@@ -349,10 +349,10 @@ export default {
             const result = tokenizeString('""')
             if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
         },
-        // () => {
-        //     const result = tokenizeString('"value"')
-        //     if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
-        // },
+        () => {
+            const result = tokenizeString('"value"')
+            if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
+        },
         () => {
             const result = tokenizeString('"value')
             if (result !== 'error') { throw result }
