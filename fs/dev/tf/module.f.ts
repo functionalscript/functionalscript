@@ -4,9 +4,16 @@
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
-import { sandbox, type NodeOp, type NodeProgram } from '../../types/effects/node/module.f.ts'
-import { pure, type Effect } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type Module } from '../module.f.ts'
+import {
+    sandbox,
+    type NodeProgram,
+    type NodeProgramOptions,
+    type Program,
+    type Sandbox,
+    type Write
+} from '../../types/effects/node/module.f.ts'
+import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
+import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -39,7 +46,7 @@ export type TestEntry = {
     readonly throws: boolean
 }
 
-export type TestSet = TestEntry | readonly(readonly[string, unknown])[]
+export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
 
 export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
     switch (typeof x) {
@@ -66,68 +73,71 @@ export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
  * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
  * leading to the current location, e.g. `['math', 'add']`.
  */
-export type Reporter = {
-    readonly moduleStart: (file: string) => Effect<NodeOp, void>
-    readonly enter: (path: readonly string[]) => Effect<NodeOp, void>
-    readonly pass: (path: readonly string[], duration: number) => Effect<NodeOp, void>
-    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<NodeOp, void>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<NodeOp, void>
+export type Reporter<O extends Operation> = {
+    readonly moduleStart: (file: string) => Effect<O, void>
+    readonly enter: (path: readonly string[]) => Effect<O, void>
+    readonly pass: (path: readonly string[], duration: number) => Effect<O, void>
+    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
+    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
 }
 
-export const test = ({ moduleStart, enter, pass, fail, summary }: Reporter): NodeProgram => options =>
-    loadModuleMap(options.env).step(moduleMap => {
-        const walk
-            : (k: string) => (path: readonly string[]) => (throws: boolean) => (v: unknown) => (ts: TestState) => Effect<NodeOp, TestState>
-            = k => path => throws => v => ts => {
-            const set = parseTestSet(throws)(v)
-            if (set instanceof Array) {
-                return set.reduce(
-                    (acc: Effect<NodeOp, TestState>, [ck, cv]) => {
-                        const sub = [...path, ck]
-                        const recurse = walk(k)(sub)(throws || ck === 'throw')(cv)
-                        // Emit `enter` only for sub-tree values (objects/arrays). Leaf
-                        // values (functions, primitives) skip `enter` so the reporter
-                        // can combine the key with the pass/fail line.
-                        return typeof cv === 'object' && cv !== null
-                            ? acc.step(ts => enter(sub).step(() => recurse(ts)))
-                            : acc.step(recurse)
-                    },
-                    pure(ts)
-                )
-            }
-            return sandbox(set.fn).step(({ result: [s, r], duration }) => {
-                const { throws } = set
-                if (throws !== (s === 'ok')) {
-                    return pass(path, duration).step(() => {
-                        const ts2 = addPass(duration)(ts)
-                        // Only non-throw tests walk their return value as a fresh sub-tree;
-                        // thrown values are discarded. The sub-tree's `throws` resets to false.
-                        if (!throws) { return walk(k)(path)(false)(r)(ts2) }
-                        return pure(ts2)
-                    })
-                }
-                const ts2 = addFail(duration)(ts)
-                return fail(k, path, r, duration).step(() => pure(ts2))
-            })
+const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> => {
+    const walk
+        = (path: readonly string[], throws: boolean, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> =>
+    {
+        const set = parseTestSet(throws)(v)
+        if (set instanceof Array) {
+            return set.reduce(
+                (acc: Effect<O | Sandbox, TestState>, [ck, cv]) => {
+                    const sub = [...path, ck]
+                    const recurse = walk(sub, throws || ck === 'throw', cv)
+                    // Emit `enter` only for sub-tree values (objects/arrays). Leaf
+                    // values (functions, primitives) skip `enter` so the reporter
+                    // can combine the key with the pass/fail line.
+                    return typeof cv === 'object' && cv !== null
+                        ? acc.step(ts => enter(sub).step(() => recurse(ts)))
+                        : acc.step(recurse)
+                },
+                pure(ts)
+            )
         }
-        const entries: readonly[string, Module][] = Object.entries(moduleMap)
-        return entries.reduce(
-            (acc: Effect<NodeOp, TestState>, [k, v]) =>
-                acc.step(ts => {
-                    if (!isTest(k)) { return pure(ts) as Effect<NodeOp, TestState> }
-                    return moduleStart(k).step(() => walk(k)([])(false)(v)(ts))
-                }),
-            pure({ time: 0, pass: 0, fail: 0 })
-        ).step(ts => summary(ts.pass, ts.fail, ts.time).step(() => pure(ts.fail !== 0 ? 1 : 0)))
-    })
+        return sandbox(set.fn).step(({ result: [s, r], duration }) => {
+            const { throws } = set
+            if (throws !== (s === 'ok')) {
+                return pass(path, duration).step(() => {
+                    // Only non-throw tests walk their return value as a fresh sub-tree;
+                    // thrown values are discarded. The sub-tree's `throws` resets to false.
+                    const cont = throws ? pure : walk(path, false, r)
+                    return cont(addPass(duration)(ts))
+                })
+            }
+            return fail(k, path, r, duration).step(() => pure(addFail(duration)(ts)))
+        })
+    }
+    return moduleStart(k).step(() => walk([], false, v)(ts))
+}
+
+const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | Sandbox, number> => {
+    const { summary } = reporter
+    const entries = Object.entries(moduleMap).filter(([k]) => isTest(k))
+    return entries.reduce(
+        (acc: Effect<O | Sandbox, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
+        pure({ time: 0, pass: 0, fail: 0 })
+    )
+        .step(ts => summary(ts.pass, ts.fail, ts.time)
+            .step(() => pure(ts.fail !== 0 ? 1 : 0)))
+}
+
+export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations | Sandbox> => options =>
+    loadModuleMap(options.env).step(runModuleMap(reporter))
 
 const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
 const isDigit = (c: string): boolean => c >= '0' && c <= '9'
 
-const isInteger = (s: string): boolean =>
+export const isInteger = (s: string): boolean =>
     s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
-const isIdentifier = (s: string): boolean =>
+export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
 /**
@@ -136,7 +146,7 @@ const isIdentifier = (s: string): boolean =>
  * `['users', '3', 'name']` → `["users",3,"name"]`. Used for the GitHub
  * annotation `title=` field where the full unambiguous path is desired.
  */
-const fmtPath = (path: readonly string[]): string =>
+export const fmtPath = (path: readonly string[]): string =>
     JSON.stringify(path.map(k => isInteger(k) ? Number(k) : k))
 
 /**
@@ -145,7 +155,7 @@ const fmtPath = (path: readonly string[]): string =>
  * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
  * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
  */
-const fmtTerm = (path: readonly string[]): string => {
+export const fmtTerm = (path: readonly string[]): string => {
     const indent = '| '.repeat(path.length)
     if (path.length === 0) { return `${indent}()` }
     const last = path[path.length - 1]
@@ -157,18 +167,25 @@ const fmtTerm = (path: readonly string[]): string => {
  * treat as separators (`%`, `:`, `,`) plus newlines.
  * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
  */
-const ghEscape = (s: string): string =>
+export const ghEscape = (s: string): string =>
     s.replaceAll('%', '%25')
         .replaceAll(':', '%3A')
         .replaceAll(',', '%2C')
         .replaceAll('\r', '%0D')
         .replaceAll('\n', '%0A')
 
-export const main: NodeProgram = options => {
+/**
+ * The terminal/GitHub reporter used by `fjs t`. Output goes through
+ * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
+ * `GITHUB_ACTION` is set, failures are emitted as `::error` workflow
+ * annotations instead of colored lines. Exported as a factory so the
+ * GitHub format path can be exercised directly from tests.
+ */
+export const defaultReporter = (options: NodeProgramOptions): Reporter<Write> => {
     const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
-    const reporter: Reporter = {
+    return {
         moduleStart: file => csiLog(`testing ${file}`),
         enter: path => csiLog(`${fmtTerm(path)}:`),
         pass: (path, duration) => csiLog(`${fmtTerm(path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
@@ -187,5 +204,6 @@ export const main: NodeProgram = options => {
             )
         }
     }
-    return test(reporter)(options)
 }
+
+export const main: NodeProgram = options => test(defaultReporter(options))(options)

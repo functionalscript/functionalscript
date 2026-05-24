@@ -173,7 +173,7 @@ export const forever: Func<Forever> =
 // import
 
 export type Module = {
-    readonly default: unknown
+    readonly [k in string]: unknown
 }
 
 export type Import = ['import', (path: string) => IoResult<Module>]
@@ -195,11 +195,13 @@ export const write: Func<Write> = do_('write')
 const writeString = (stream: WriteConsoles) => (s: string): Effect<Write, void> =>
     write(stream, utf8(s + '\n'))
 
+export type Console = (s: string) => Effect<Write, void>
+
 /** Writes a line to `stdout`. Replaces the retired `Log` effect. */
-export const log = writeString('stdout')
+export const log: Console = writeString('stdout')
 
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
-export const error = writeString('stderr')
+export const error: Console = writeString('stderr')
 
 // now
 
@@ -271,4 +273,6 @@ export type NodeProgramOptions = {
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
 }
 
-export type NodeProgram = (options: NodeProgramOptions) => Effect<NodeOp, number>
+export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>
+
+export type NodeProgram = Program<NodeOp>

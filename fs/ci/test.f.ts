@@ -4,11 +4,8 @@ import { isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../dev/module.f.ts'
 import { emptyState, virtual } from '../types/effects/node/virtual/module.f.ts'
-import { type Ts } from '../types/rtti/ts/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-
-// type Gha = Ts<typeof gitHubActionSchema>
 
 const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
     Object.values(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
@@ -25,9 +22,9 @@ const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []
     const [state, result] = virtual(githubState)(ci({ rust, nodeExtra, denoExtra: [], bunExtra: [] }))
     assert(result === 0, result)
     const dotGithub = state.root['.github']
-    assert(dotGithub !== undefined && !isVec(dotGithub), dotGithub)
+    assert(typeof dotGithub === 'object', dotGithub)
     const workflows = dotGithub['workflows']
-    assert(workflows !== undefined && !isVec(workflows), workflows)
+    assert(typeof workflows === 'object', workflows)
     const file = workflows['ci.yml']
     assert(isVec(file), file)
     return unwrap(parseGitHubAction(jsonParse(utf8ToString(file))))

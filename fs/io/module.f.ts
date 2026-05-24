@@ -267,7 +267,7 @@ export const fromIo = ({
     return result
 }
 
-export const runProgram = (io: Io) => {
+export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
     const { process: { env, stdout, stderr } } = io
     const f = fromIo(io)
     return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>

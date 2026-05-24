@@ -20,11 +20,11 @@ const cat = listToVec(msb)
 const pop8 = pop(8n)
 
 const check = (tag: bigint, v: Vec, rest: Vec) => {
-        const s = encodeRaw([tag, v])
-        const [[t0, v0], r] = decodeRaw(concat(s)(rest))
-        if (t0 !== tag) { throw `t0: ${t0}` }
-        if (v0 !== v) { throw `v0: ${asBase(v0)}` }
-        if (r !== rest) { throw `r: ${asBase(r)}` }
+    const s = encodeRaw([tag, v])
+    const [[t0, v0], r] = decodeRaw(concat(s)(rest))
+    if (t0 !== tag) { throw `t0: ${t0}` }
+    if (v0 !== v) { throw `v0: ${asBase(v0)}` }
+    if (r !== rest) { throw `r: ${asBase(r)}` }
 }
 
 const integerValueCheck = (i: bigint, v: Vec) => {
