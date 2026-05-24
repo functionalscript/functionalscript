@@ -50,7 +50,7 @@ export type TestEntry = {
 
 export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
 
-export const parseTestSet = (throws: boolean) => (x: unknown): TestSet => {
+export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
@@ -81,19 +81,24 @@ export type Reporter<O extends Operation> = {
     readonly pass: (path: readonly string[], duration: number) => Effect<O, void>
     readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
-    readonly test: (throws: boolean, fn: () => unknown) => Effect<O, SandboxResult<unknown>>
+    readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
-const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Reporter<O>) => (k: string, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> => {
-    const walk
-        = (path: readonly string[], throws: boolean, v: unknown) => (ts: TestState): Effect<O | Sandbox, TestState> =>
+const runModule =
+    <O extends Operation>({ moduleStart, enter, pass, fail, test }: Reporter<O>) =>
+    (k: string, v: unknown) =>
+    (ts: TestState): Effect<O, TestState> =>
+{
+    const walk =
+        (path: readonly string[], oldThrows: boolean, v: unknown) =>
+        (ts: TestState): Effect<O, TestState> =>
     {
-        const set = parseTestSet(throws)(v)
+        const set = parseTestSet(oldThrows, v)
         if (set instanceof Array) {
             return set.reduce(
-                (acc: Effect<O | Sandbox, TestState>, [ck, cv]) => {
+                (acc: Effect<O, TestState>, [ck, cv]) => {
                     const sub = [...path, ck]
-                    const recurse = walk(sub, throws || ck === 'throw', cv)
+                    const recurse = walk(sub, oldThrows || ck === 'throw', cv)
                     // Emit `enter` only for sub-tree values (objects/arrays). Leaf
                     // values (functions, primitives) skip `enter` so the reporter
                     // can combine the key with the pass/fail line.
@@ -104,13 +109,12 @@ const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Repo
                 pure(ts)
             )
         }
-        return sandbox(set.fn).step(({ result: [s, r], duration }) => {
-            const { throws } = set
-            if (throws !== (s === 'ok')) {
+        return test(set).step(({ result: [s, r], duration }) => {
+            if (s === 'ok') {
                 return pass(path, duration).step(() => {
                     // Only non-throw tests walk their return value as a fresh sub-tree;
                     // thrown values are discarded. The sub-tree's `throws` resets to false.
-                    const cont = throws ? pure : walk(path, false, r)
+                    const cont = set.throws ? pure : walk(path, false, r)
                     return cont(addPass(duration)(ts))
                 })
             }
@@ -120,18 +124,18 @@ const runModule = <O extends Operation>({ moduleStart, enter, pass, fail }: Repo
     return moduleStart(k).step(() => walk([], false, v)(ts))
 }
 
-export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | Sandbox, number> => {
+export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O, number> => {
     const { summary } = reporter
     const entries = Object.entries(moduleMap).filter(([k]) => isTest(k))
     return entries.reduce(
-        (acc: Effect<O | Sandbox, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
+        (acc: Effect<O, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
         pure({ time: 0, pass: 0, fail: 0 })
     )
         .step(ts => summary(ts.pass, ts.fail, ts.time)
             .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
-export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations | Sandbox> => options =>
+export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 const isAlpha = (c: string): boolean =>
@@ -177,7 +181,7 @@ export const ghEscape = (s: string): string =>
         .replaceAll('\r', '%0D')
         .replaceAll('\n', '%0A')
 
-export const defaultTest = (throws: boolean, fn: () => unknown): Effect<Sandbox, SandboxResult<unknown>> =>
+export const defaultTest = ({ fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
     sandbox(fn).step(r => {
         if (throws) {
             const { result: [s, v], duration } = r
@@ -216,14 +220,7 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
                 csiLog(`${bold}Time: ${timeFormat(time)}${reset}`)
             )
         },
-        test: (throws, fn) => sandbox(fn).step(r => {
-            if (throws) {
-                const { result: [s, v], duration } = r
-                const result: Result<unknown, unknown> = s === 'ok' ? ['error', v] : ['ok', v]
-                r = { result, duration: r.duration }
-            }
-            return pure(r)
-        })
+        test: defaultTest,
     }
 }
 

@@ -56,7 +56,7 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
         subTests = rest
         //
         const [name, value, throws] = first
-        const set = parseTestSet(throws)(value)
+        const set = parseTestSet(throws, value)
         if (set instanceof Array) {
             for (const [j, y] of set) {
                 const pr = `${name}/${j}`
