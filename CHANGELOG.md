@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `types`: DRY — extract shared `bsearch` helper used by `sorted_list.find` and `range_map.get`; move curried `Cmp<T>` alias to `function/compare` and import it in `sorted_list`/`sorted_set` ([i158](./issues/158-sorted-binary-search.md)) [845](https://github.com/functionalscript/functionalscript/pull/845)
 - `tf`: issue [i163](./issues/163-reporter-test-method.md) — `Reporter.test` design doc; export `runModuleMap`; experimental `run2` in `module.ts` [843](https://github.com/functionalscript/functionalscript/pull/843)
 - `tf`: extract `runModule`/`runModuleMap`; flatten `walk` signature; filter before reduce; rename pass-continuation to `cont` [842](https://github.com/functionalscript/functionalscript/pull/842)
 - `tf`: virtual tests via `JsModule` + pass-through `sandbox`; `Reporter<O>` generic; `Program<O>` generic type; `LoadModuleOperations` alias; export `defaultReporter`, `fmtPath`, `fmtTerm`, `ghEscape`, `isInteger`, `isIdentifier` ([i156](./issues/156-tf-virtual-tests.md)) [840](https://github.com/functionalscript/functionalscript/pull/840)
