@@ -96,6 +96,8 @@ const toJsToken
             case '\n':
             case '\r':
                 return {kind: 'nl'}
+            case 'string':
+                return {kind: 'string', value: String.fromCodePoint(...tk[1].slice(1, -1))}
             default:
                 return null
         }
@@ -343,10 +345,10 @@ export default {
             const result = tokenizeString('{ \t\n\r}')
             if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('""')
-    //         if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('""')
+            if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+        },
         // () => {
         //     const result = tokenizeString('"value"')
         //     if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
