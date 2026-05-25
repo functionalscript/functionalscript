@@ -324,7 +324,8 @@
 - [ ] [167-bit-vec-msb-concat](./167-bit-vec-msb-concat.md). DRY: four modules (`crypto/sign`, `asn.1`, `sul/id`, `sul/level/literal`) each re-bind the identical `listToVec(msb)` under a different local name. Export the bound `msbConcat` from `bit_vec` so consumers import it instead of re-deriving.
 - [ ] [168-utf-codepoint-decoder](./168-utf-codepoint-decoder.md). DRY: `utf8` and `utf16` share a byte-for-byte streaming decoder skeleton (`eofList = [null]`, the unit-vs-EOF scan op, and `toCodePointList = flat(stateScan(op)(null)(flat([input, eofList])))`) plus a duplicated `errorMask`. Extract a `decoder(byteOp, eofOp, init)` factory and move `errorMask` to a shared code-point module.
 - [ ] [169-map-list-iterable](./169-map-list-iterable.md). Clarity/reuse: `types/map`'s private `concat`/`filter` generators are the only hand-rolled iterables outside `list`. Either drop them for `new Map([...m, e])` / `new Map([...m].filter(...))`, or share an `Iterable`-level layer once a second consumer exists.
-- [ ] [170-ci-tool-steps](./170-ci-tool-steps.md). DRY: `ci/bun`, `ci/deno`, and `ci/node` repeat the same `clean([install(setup), ...test(cmd), ...extra])` shape. Extract a `toolSteps(setup, cmds)` builder in `ci/common`, with the install step passed in to accommodate bun's per-OS variant.
+- [ ] [170-ci-tool-steps](./170-ci-tool-steps.md).
+- [ ] [171-tf-fn-name-throw](./171-tf-fn-name-throw.md). Remove `fn.name === 'throw'` from `parseTestSet`; throw semantics should be determined solely by the property key, not by engine-inferred function names. DRY: `ci/bun`, `ci/deno`, and `ci/node` repeat the same `clean([install(setup), ...test(cmd), ...extra])` shape. Extract a `toolSteps(setup, cmds)` builder in `ci/common`, with the install step passed in to accommodate bun's per-OS variant.
 
 ## Language Specification
 
