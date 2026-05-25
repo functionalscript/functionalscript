@@ -1,5 +1,5 @@
 import { pure } from '../../types/effects/module.f.ts'
-import type { NodeProgramOptions, Sandbox } from '../../types/effects/node/module.f.ts'
+import type { NodeProgramOptions, Sandbox, SandboxResult } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq } from '../module.f.ts'
@@ -12,8 +12,7 @@ import {
 type Event =
     | readonly['moduleStart', string]
     | readonly['enter', Path]
-    | readonly['pass', string, Path, number]
-    | readonly['fail', string, Path, unknown, number]
+    | readonly['result', string, Path, SandboxResult<unknown>]
     | readonly['summary', number, number, number]
 
 type TestReporter = Reporter<Sandbox>
@@ -23,8 +22,7 @@ const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     const reporter: TestReporter = {
         moduleStart: file => { events.push(['moduleStart', file]); return pure(undefined) },
         enter: path => { events.push(['enter', [...path]]); return pure(undefined) },
-        pass: (file, path, duration) => { events.push(['pass', file, [...path], duration]); return pure(undefined) },
-        fail: (file, path, result, duration) => { events.push(['fail', file, [...path], result, duration]); return pure(undefined) },
+        result: (file, path, r) => { events.push(['result', file, [...path], r]); return pure(undefined) },
         summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
         test: defaultTest,
     }
@@ -65,8 +63,8 @@ export const flat = () => {
     assertEq(exit, 0)
     const [e0, e1, e2, e3] = events
     assertEq(e0[0], 'moduleStart')
-    assert(e1[0] === 'pass' && e1[2][0] === 'a')
-    assert(e2[0] === 'pass' && e2[2][0] === 'b')
+    assert(e1[0] === 'result' && e1[2][0] === 'a')
+    assert(e2[0] === 'result' && e2[2][0] === 'b')
     assertEq(e3[0], 'summary')
     const [, pass, fail] = e3
     assertEq(pass, 2)
@@ -82,8 +80,8 @@ export const nested = () => {
     const [e0, e1, e2, e3, e4] = events
     assertEq(e0[0], 'moduleStart')
     assert(e1[0] === 'enter' && e1[1][0] === 'math')
-    assert(e2[0] === 'pass' && e2[2][1] === 'add')
-    assert(e3[0] === 'pass' && e3[2][1] === 'sub')
+    assert(e2[0] === 'result' && e2[2][1] === 'add')
+    assert(e3[0] === 'result' && e3[2][1] === 'sub')
     assertEq(e4[0], 'summary')
     const [, pass, fail] = e4
     assertEq(pass, 2)
@@ -99,7 +97,7 @@ export const throwKey = () => {
     const [e0, e1, e2, e3] = events
     assertEq(e0[0], 'moduleStart')
     assert(e1[0] === 'enter' && e1[1][0] === 'throw')
-    assert(e2[0] === 'pass' && e2[2][0] === 'throw' && e2[2][1] === 'a')
+    assert(e2[0] === 'result' && e2[2][0] === 'throw' && e2[2][1] === 'a')
     assertEq(e3[0], 'summary')
     const [, pass, fail] = e3
     assertEq(pass, 1)
@@ -145,7 +143,7 @@ export const returnValueSubTree = () => {
     })
     // outer passes, then inner (from return value) also passes
     assertEq(exit, 0)
-    const passEvents = events.filter(e => e[0] === 'pass')
+    const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
     const [p0, p1] = passEvents
     assertEq(p0[2][0], 'outer')
@@ -158,7 +156,7 @@ export const arrayKeys = () => {
         'a.test.f.ts': () => ({ arr: [ok0, ok0] }),
     })
     assertEq(exit, 0)
-    const passEvents = events.filter(e => e[0] === 'pass')
+    const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
     assertEq(passEvents[0][2][1], '0')
     assertEq(passEvents[1][2][1], '1')
@@ -197,7 +195,7 @@ export const throwByFunctionName = () => {
         't.test.f.ts': () => ({ here: named }),
     })
     assertEq(exit, 0)
-    const passEvents = events.filter(e => e[0] === 'pass')
+    const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 1)
     assertEq(passEvents[0][2][0], 'here')
 }
@@ -208,7 +206,7 @@ export const namedExports = () => {
         'e.test.f.ts': () => ({ default: ok0, helper: ok0 }),
     })
     assertEq(exit, 0)
-    const passEvents = events.filter(e => e[0] === 'pass')
+    const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
     assertEq(passEvents[0][2][0], 'default')
     assertEq(passEvents[1][2][0], 'helper')

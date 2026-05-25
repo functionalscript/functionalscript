@@ -80,14 +80,13 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
 export type Reporter<O extends Operation> = {
     readonly moduleStart: (file: string) => Effect<O, void>
     readonly enter: (path: Path) => Effect<O, void>
-    readonly pass: (file: string, path: Path, duration: number) => Effect<O, void>
-    readonly fail: (file: string, path: Path, result: unknown, duration: number) => Effect<O, void>
+    readonly result: (file: string, path: Path, r: SandboxResult<unknown>) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
 const runModule =
-    <O extends Operation>({ moduleStart, enter, pass, fail, test }: Reporter<O>) =>
+    <O extends Operation>({ moduleStart, enter, result, test }: Reporter<O>) =>
     (k: string, v: unknown) =>
     (ts: TestState): Effect<O, TestState> =>
 {
@@ -111,17 +110,18 @@ const runModule =
                 pure(ts)
             )
         }
-        return test(set).step(({ result: [s, r], duration }) => {
-            if (s === 'ok') {
-                return pass(k, path, duration).step(() => {
+        return test(set).step(sr => {
+            const { result: [s, r], duration } = sr
+            return result(k, path, sr).step(() => {
+                if (s === 'ok') {
                     // Only non-throw tests walk their return value as a fresh sub-tree;
                     // thrown values are discarded. `null` marks the call boundary so
                     // paths render as e.g. `outer().inner()`. `throws` resets to false.
                     const cont = set.throws ? pure : walk([...path, null], false, r)
                     return cont(addPass(duration)(ts))
-                })
-            }
-            return fail(k, path, r, duration).step(() => pure(addFail(duration)(ts)))
+                }
+                return pure(addFail(duration)(ts))
+            })
         })
     }
     return moduleStart(k).step(() => walk([], false, v)(ts))
@@ -221,15 +221,15 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     return {
         moduleStart: _file => pure(undefined),
         enter: _path => pure(undefined),
-        pass: (file, path, duration) => csiLog(`${fmtImport(file, path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
-        fail: isGitHub
-            // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-            ? (file, path, result, _duration) =>
-                csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(result))}`)
-            : (file, path, result, duration) =>
-                csiError(`${fmtImport(file, path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
-                    csiError(`${fgRed}${result}${reset}`)
-                ),
+        // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
+        result: (file, path, { result: [s, v], duration }) =>
+            s === 'ok'
+                ? csiLog(`${fmtImport(file, path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`)
+                : isGitHub
+                    ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
+                    : csiError(`${fmtImport(file, path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                        csiError(`${fgRed}${v}${reset}`)
+                    ),
         summary: (pass, fail, time) => {
             const fgFail = fail === 0 ? fgGreen : fgRed
             return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`).step(() =>
