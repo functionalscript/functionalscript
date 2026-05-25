@@ -163,7 +163,7 @@ const fmtKey = (k: string | null): string =>
  * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
  */
 export const fmtPath = (path: readonly (string | null)[]): string =>
-    path.reduce<string>((acc, k) => acc + fmtKey(k), '')
+    path.reduce((acc: string, k) => acc + fmtKey(k), '')
 
 /**
  * Formats a fully-qualified test identifier as a JS-like expression, e.g.
