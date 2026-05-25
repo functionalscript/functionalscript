@@ -18,7 +18,6 @@ import {
     type All,
     type Env,
     type Import,
-    type NodeOp,
     type NodeProgram,
     type Readdir
 } from '../types/effects/node/module.f.ts'
@@ -28,6 +27,7 @@ import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
+import { relativize } from '../path/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -103,12 +103,11 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     const prefix = s === '.' ? '' : s
     return allFiles(s)
         .step(files => all(...files.map(loadFile)))
-        .step(entries => {
-            const flat = entries.flat()
-            const relative = prefix === '' ? flat
-                : flat.map(([k, v]) => [k.startsWith(prefix) ? `.${k.slice(prefix.length)}` : k, v] as const)
-            return pure(Object.fromEntries(relative.toSorted(cmp)))
-        })
+        .step(entries => pure(Object.fromEntries(
+            entries.flat()
+                .map(([k, v]) => [relativize(prefix, k), v] as const)
+                .toSorted(cmp)
+        )))
 }
 
 const denoJson = './deno.json'
