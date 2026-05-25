@@ -52,3 +52,11 @@ export const concat: Reduce<string>
     const s = stringConcat([a, '/', b])
     return normalize(s)
 }
+
+/**
+ * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged
+ * if it does not start with `base` or `base` is empty.
+ * E.g. `relativize('/repo', '/repo/fs/a.ts')` → `'./fs/a.ts'`.
+ */
+export const relativize = (base: string, path: string): string =>
+    base !== '' && path.startsWith(base) ? `.${path.slice(base.length)}` : path
