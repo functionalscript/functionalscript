@@ -192,9 +192,9 @@ export const multipleFiles = () => {
 
 // a function literally named `throw` is a throwing test even when its key is not `throw`
 export const throwByFunctionName = () => {
-    //const named = ({ throw: () => fail0() }).throw // `bun` calls the function `named` instead if `throw`
+    // `bun` calls the function `named` instead of `throw`
+    //const named = ({ throw: () => fail0() }).throw
     const x = { throw: () => fail0() }
-    console.log(x.throw.name)
     const [events, exit] = run({
         't.test.f.ts': () => ({ here: x.throw }),
     })
