@@ -55,6 +55,8 @@ import {
 
 export { type Path, type ValidationError } from '../common/module.f.ts'
 
+const { entries } = Object
+
 /** Parse result: either the freshly constructed typed value or a `ValidationError`. */
 export type Result<T extends Type> = CommonValidateResult<T>
 
@@ -111,8 +113,6 @@ const containerParse =
         ? ok(rebuild(okEntries(results)))
         : prependPath(err[0], err[1])) as any
 }
-
-const { entries } = Object
 
 const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
 
