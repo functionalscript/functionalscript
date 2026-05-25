@@ -15,7 +15,7 @@ import {
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
-import type { Result } from '../../types/result/module.f.ts'
+import { invert } from '../../types/result/module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -73,13 +73,15 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
  * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
- * leading to the current location, e.g. `['math', 'add']`.
+ * leading to the current location; `null` marks a function-call boundary, e.g.
+ * `['outer', null, 'inner']` means `outer` was invoked and its return value
+ * contained `inner`.
  */
 export type Reporter<O extends Operation> = {
     readonly moduleStart: (file: string) => Effect<O, void>
-    readonly enter: (path: readonly string[]) => Effect<O, void>
-    readonly pass: (path: readonly string[], duration: number) => Effect<O, void>
-    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
+    readonly enter: (path: Path) => Effect<O, void>
+    readonly pass: (file: string, path: Path, duration: number) => Effect<O, void>
+    readonly fail: (file: string, path: Path, result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
@@ -90,7 +92,7 @@ const runModule =
     (ts: TestState): Effect<O, TestState> =>
 {
     const walk =
-        (path: readonly string[], oldThrows: boolean, v: unknown) =>
+        (path: Path, oldThrows: boolean, v: unknown) =>
         (ts: TestState): Effect<O, TestState> =>
     {
         const set = parseTestSet(oldThrows, v)
@@ -111,10 +113,11 @@ const runModule =
         }
         return test(set).step(({ result: [s, r], duration }) => {
             if (s === 'ok') {
-                return pass(path, duration).step(() => {
+                return pass(k, path, duration).step(() => {
                     // Only non-throw tests walk their return value as a fresh sub-tree;
-                    // thrown values are discarded. The sub-tree's `throws` resets to false.
-                    const cont = set.throws ? pure : walk(path, false, r)
+                    // thrown values are discarded. `null` marks the call boundary so
+                    // paths render as e.g. `outer().inner()`. `throws` resets to false.
+                    const cont = set.throws ? pure : walk([...path, null], false, r)
                     return cont(addPass(duration)(ts))
                 })
             }
@@ -138,6 +141,8 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
 export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
+export type Path = readonly (string | null)[]
+
 const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
 const isDigit = (c: string): boolean => c >= '0' && c <= '9'
@@ -147,14 +152,28 @@ export const isInteger = (s: string): boolean =>
 export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
+const fmtKey = (k: string | null): string =>
+    k === null ? '()'
+    : isInteger(k) ? `[${k}]`
+    : isIdentifier(k) ? `.${k}`
+    : `[${JSON.stringify(k)}]`
+
 /**
- * Renders a key chain as a JS object path: integer-like keys become numbers,
- * other strings are JSON-stringified. E.g. `['math', 'add']` → `["math","add"]`,
- * `['users', '3', 'name']` → `["users",3,"name"]`. Used for the GitHub
- * annotation `title=` field where the full unambiguous path is desired.
+ * Renders a key chain as a JS property-access expression: identifier keys use
+ * dot notation, integer keys use `[N]`, other strings use `["key"]`, and `null`
+ * emits `()` to mark a function-call boundary.
+ * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
  */
-export const fmtPath = (path: readonly string[]): string =>
-    JSON.stringify(path.map(k => isInteger(k) ? Number(k) : k))
+export const fmtPath = (path: Path): string =>
+    path.reduce((acc: string, k) => acc + fmtKey(k), '')
+
+/**
+ * Formats a fully-qualified test identifier as a JS-like expression, e.g.
+ * `import("./math.test.f.ts").add()` or `import("./a.test.f.ts").users[3].name()`.
+ * Self-contained per line — suitable for parallel output and as a CLI filter argument.
+ */
+export const fmtImport = (file: string, path: Path): string =>
+    `import(${JSON.stringify(file)})${fmtPath(path)}()`
 
 /**
  * Renders a key chain for terminal output: `| ` per level of depth, followed
@@ -162,10 +181,11 @@ export const fmtPath = (path: readonly string[]): string =>
  * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
  * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
  */
-export const fmtTerm = (path: readonly string[]): string => {
-    const indent = '| '.repeat(path.length)
-    if (path.length === 0) { return `${indent}()` }
-    const last = path[path.length - 1]
+export const fmtTerm = (path: Path): string => {
+    const keys = path.flatMap(k => k !== null ? [k] : [])
+    const indent = '| '.repeat(keys.length)
+    if (keys.length === 0) { return `${indent}()` }
+    const last = keys[keys.length - 1]
     return `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
 }
 
@@ -182,14 +202,8 @@ export const ghEscape = (s: string): string =>
         .replaceAll('\n', '%0A')
 
 export const defaultTest = ({ fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
-    sandbox(fn).step(r => {
-        if (throws) {
-            const { result: [s, v], duration } = r
-            const result: Result<unknown, unknown> = s === 'ok' ? ['error', v] : ['ok', v]
-            r = { result, duration: r.duration }
-        }
-        return pure(r)
-    })
+    sandbox(fn)
+    .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
@@ -203,15 +217,15 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     return {
-        moduleStart: file => csiLog(`testing ${file}`),
-        enter: path => csiLog(`${fmtTerm(path)}:`),
-        pass: (path, duration) => csiLog(`${fmtTerm(path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
+        moduleStart: _file => pure(undefined),
+        enter: _path => pure(undefined),
+        pass: (file, path, duration) => csiLog(`${fmtImport(file, path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
         fail: isGitHub
             // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
             ? (file, path, result, _duration) =>
-                csiError(`::error file=${file},line=1,title=${ghEscape(fmtPath(path))}::${ghEscape(String(result))}`)
-            : (_file, path, result, duration) =>
-                csiError(`${fmtTerm(path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(result))}`)
+            : (file, path, result, duration) =>
+                csiError(`${fmtImport(file, path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
                     csiError(`${fgRed}${result}${reset}`)
                 ),
         summary: (pass, fail, time) => {

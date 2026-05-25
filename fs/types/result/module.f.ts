@@ -60,3 +60,9 @@ export const unwrap = <T, E>([kind, v]: Result<T, E>): T => {
     if (kind === 'error') { throw v }
     return v
 }
+
+/**
+ * Swaps the `ok` and `error` cases of a result.
+ */
+export const invert = <T, E>([k, v]: Result<T, E>): Result<E, T> =>
+    k === 'ok' ? error(v) : ok(v)

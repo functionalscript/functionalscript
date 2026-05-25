@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { fromIo, type Io } from '../io/module.f.ts'
+import type { Io } from '../io/module.f.ts'
 import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
@@ -18,7 +18,6 @@ import {
     type All,
     type Env,
     type Import,
-    type NodeOp,
     type NodeProgram,
     type Readdir
 } from '../types/effects/node/module.f.ts'
@@ -28,6 +27,7 @@ import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
+import { relativize } from '../path/module.f.ts'
 
 export const todo = (): never => { throw 'not implemented' }
 
@@ -100,9 +100,14 @@ export type LoadModuleOperations = Access | Import | All | Readdir
 export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
+    const prefix = s === '.' ? '' : s
     return allFiles(s)
         .step(files => all(...files.map(loadFile)))
-        .step(entries => pure(Object.fromEntries(entries.flat().toSorted(cmp))))
+        .step(entries => pure(Object.fromEntries(
+            entries.flat()
+                .map(([k, v]) => [relativize(prefix, k), v] as const)
+                .toSorted(cmp)
+        )))
 }
 
 const denoJson = './deno.json'

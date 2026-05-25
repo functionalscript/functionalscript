@@ -1,0 +1,95 @@
+# 170. `fs/ci`: a shared tool step builder for bun/deno/node
+
+The three runtime-specific CI modules each build the same job shape — "install
+the tool, run its install command, run its test command, then append extra
+steps, all wrapped in `clean(...)`":
+
+```ts
+// ci/bun/module.f.ts:32
+export const bunSteps = (extra) => (v, a) => clean([
+    installBun(v)(a),
+    test({ run: 'bun install' }),
+    test({ run: 'bun test --timeout 20000' }),
+    ...extra,
+])
+
+// ci/deno/module.f.ts:10
+export const denoSteps = (extra) => clean([
+    install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': deno } }),
+    test({ run: 'deno install' }),
+    test({ run: 'deno task test' }),
+    ...extra,
+])
+
+// ci/node/module.f.ts:15,27
+export const basicNode = (version) => (extra) => clean([
+    install(installNode(version)),
+    test({ run: 'npm ci' }),
+    ...extra,
+])
+const nodeSteps = (v) => [           // (not wrapped in clean — see caveats)
+    install(installNode(v)),
+    test({ run: 'npm ci' }),
+    test({ run: 'npm t' }),
+]
+```
+
+The skeleton `clean([ install(setup), …test({ run }) , ...extra ])` is repeated
+verbatim. The deltas are exactly the install action and the command strings:
+
+| | install step | commands |
+|---|---|---|
+| bun | `oven-sh/setup-bun@v2` (+ Windows-ARM PowerShell variant) | `bun install`, `bun test --timeout 20000` |
+| deno | `denoland/setup-deno@v2` | `deno install`, `deno task test` |
+| node | `actions/setup-node@v6` | `npm ci`, `npm test`, `npm run fst` (varies per builder) |
+
+## Proposed abstraction
+
+A `toolSteps` helper in `fs/ci/common/module.f.ts`, taking a pre-built install
+`MetaStep` and a list of command strings:
+
+```ts
+// ci/common/module.f.ts
+export const toolSteps =
+    (setup: MetaStep, cmds: readonly string[]) =>
+    (extra: readonly MetaStep[]): readonly MetaStep[] =>
+        clean([setup, ...cmds.map(run => test({ run })), ...extra])
+```
+
+- `denoSteps  = toolSteps(install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': deno } }), ['deno install', 'deno task test'])`
+- `bunSteps   = (extra) => (v, a) => toolSteps(installBun(v)(a), ['bun install', 'bun test --timeout 20000'])(extra)`
+- node's `basicNode`/`nodeTests`/`nodeSteps` build on the same helper with their
+  npm command lists.
+
+The install step is passed in (not the raw action) precisely because bun's
+install varies per `(Os, Architecture)` via `installOnWindowsArm`
+(`ci/bun/module.f.ts:16`); deno and node pass a fixed `install(...)`.
+
+## Why this qualifies
+
+- Three real consumers (bun, deno, node), all shipping — well past the
+  "second real consumer" bar.
+- The shape (`clean` + install + N test commands + extra) is identical; only
+  data (action descriptor, command strings) differs, which is the textbook
+  case for a data-parameterized factory in `AGENTS.md`.
+
+## Caveats / why this is an idea, not a mechanical edit
+
+- **Partial fit for node.** `nodeMainSteps` (`ci/node/module.f.ts:38`) appends a
+  TSGO `install({ run: … })` step *between* test commands, and `nodeVersions`
+  uses the un-`clean`'d `nodeSteps`. The factory cleanly covers the
+  install-then-commands prefix; node's bespoke tails stay as `...extra` or as
+  thin wrappers over `toolSteps`.
+- **`clean` boundary.** `nodeSteps` (used by `nodeVersions` at
+  `ci/node/module.f.ts:33`) is deliberately *not* wrapped in `clean`, unlike the
+  others. Either expose `toolSteps` returning the pre-`clean` list and let
+  callers `clean` (matching `ubuntu`/`toSteps` composition), or accept a
+  `clean?: boolean` flag. Decide this before implementing.
+- The mechanical savings are modest (a handful of lines per module); the value
+  is making the "install a runtime, run its install+test" recipe a single named
+  thing, so a fourth runtime reuses it instead of forking a fourth copy.
+
+## Related
+
+- `fs/ci/common/module.f.ts` already centralizes `install`/`test`/`clean`/
+  `ubuntu`/`toSteps`; `toolSteps` is the next composition up the same ladder.
