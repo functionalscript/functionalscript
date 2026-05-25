@@ -99,9 +99,6 @@ const visitConst = <R>(v: Visitor<R>) => (c: Const): R =>
 /** Type guard narrowing `Unknown` to a specific container type `C`. */
 export type IsContainer<C extends Unknown> = (value: Unknown) => value is C
 
-/** Extracts `[key, value]` entries from a container, with stringified keys for path reporting. */
-export type GetEntries<C extends Unknown> = (value: C) => ReadonlyArray<readonly[string, Unknown]>
-
 /** Maps a `Tag1` to its runtime container type. */
 export type Container<K extends Tag1> = K extends 'array'
     ? ReadonlyArray<Unknown>

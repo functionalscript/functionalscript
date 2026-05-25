@@ -46,7 +46,6 @@ import {
     verror,
     visit,
     type Container,
-    type GetEntries,
     type IsContainer,
     type Result as CommonValidateResult,
     type Validate,
