@@ -36,14 +36,17 @@ import {
     type Type,
 } from '../module.f.ts'
 import { ok } from '../../result/module.f.ts'
-import { isArray as commonIsArray } from '../../array/module.f.ts'
-import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
+import { type ReadonlyRecord } from '../../object/module.f.ts'
 import {
     constPrimitiveValidate,
+    isArray,
+    isObject,
     prependPath,
     primitive0Validate,
     verror,
     visit,
+    type Container,
+    type IsContainer,
     type Validate,
     type Visitor,
 } from '../common/module.f.ts'
@@ -59,16 +62,7 @@ export {
     type ValidationError,
 } from '../common/module.f.ts'
 
-/** Type guard narrowing `Unknown` to a specific container type `C`. */
-type IsContainer<C extends Unknown> = (value: Unknown) => value is C
-
-/** Extracts `[key, value]` entries from a container, with stringified keys for path reporting. */
-type GetEntries<C extends Unknown> = (value: C) => ReadonlyArray<readonly[string, Unknown]>
-
-/** Maps a `Tag1` to its runtime container type. */
-type Container<K extends Tag1> = K extends 'array'
-    ? ReadonlyArray<Unknown>
-    : ReadonlyRecord<string, Unknown>
+const { entries } = Object
 
 /**
  * Builds a validator for `array` or `record` schemas.
@@ -76,20 +70,20 @@ type Container<K extends Tag1> = K extends 'array'
  * non-empty) to avoid infinite recursion with recursive schemas.
  */
 const containerValidate =
-    <K extends Tag1>(isContainer: IsContainer<Container<K>>, getEntries: GetEntries<Container<K>>) =>
+    <K extends Tag1>(isContainer: IsContainer<Container<K>>) =>
     <I extends Type>(item: I): Validate<Info1<K, I>> => value =>
 {
     if (!isContainer(value)) {
         return verror('unexpected value') as any
     }
-    const entries = getEntries(value)
-    if (entries.length === 0) {
+    const e = entries(value)
+    if (e.length === 0) {
         return ok(value)
     }
     // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
     //       Otherwise, we can get infinite recursion on empty arrays and objects
     const itemValidate = validate(item)
-    for (const [k, v] of entries) {
+    for (const [k, v] of e) {
         const r = itemValidate(v)
         if (r[0] === 'error') {
             return prependPath(k, r) as any
@@ -98,18 +92,9 @@ const containerValidate =
     return ok(value)
 }
 
-const isArray: IsContainer<ReadonlyArray<Unknown>> =
-    value => commonIsArray(value)
+const arrayValidate = containerValidate<'array'>(isArray)
 
-const arrayEntries = (value: ReadonlyArray<Unknown>): ReadonlyArray<readonly[string, Unknown]> =>
-    value.map((v, i) => [String(i), v] as const)
-
-const arrayValidate = containerValidate<'array'>(isArray, arrayEntries)
-
-const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
-    value => commonIsObject(value)
-
-const recordValidate = containerValidate<'record'>(isObject, Object.entries)
+const recordValidate = containerValidate<'record'>(isObject)
 
 /**
  * Builds a validator for `Tuple` or `Struct` const schemas.
