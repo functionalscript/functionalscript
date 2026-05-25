@@ -100,9 +100,15 @@ export type LoadModuleOperations = Access | Import | All | Readdir
 export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
+    const prefix = s === '.' ? '' : s
     return allFiles(s)
         .step(files => all(...files.map(loadFile)))
-        .step(entries => pure(Object.fromEntries(entries.flat().toSorted(cmp))))
+        .step(entries => {
+            const flat = entries.flat()
+            const relative = prefix === '' ? flat
+                : flat.map(([k, v]) => [k.startsWith(prefix) ? `.${k.slice(prefix.length)}` : k, v] as const)
+            return pure(Object.fromEntries(relative.toSorted(cmp)))
+        })
 }
 
 const denoJson = './deno.json'
