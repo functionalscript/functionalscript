@@ -327,6 +327,7 @@
 - [ ] [170-ci-tool-steps](./170-ci-tool-steps.md).
 - [ ] [171-tf-fn-name-throw](./171-tf-fn-name-throw.md). Remove `fn.name === 'throw'` from `parseTestSet`; throw semantics should be determined solely by the property key, not by engine-inferred function names. DRY: `ci/bun`, `ci/deno`, and `ci/node` repeat the same `clean([install(setup), ...test(cmd), ...extra])` shape. Extract a `toolSteps(setup, cmds)` builder in `ci/common`, with the install step passed in to accommodate bun's per-OS variant.
 - [ ] [172-rtti-validate-parse-skeleton](./172-rtti-validate-parse-skeleton.md). Investigate collapsing the parallel `validate`/`parse` container factories into one shared skeleton in `common` with an injected `build` callback (identity for `validate`, `rebuild` for `parse`). Catch: `validate`'s no-allocation/short-circuit contract vs `parse`'s map-all/rebuild. Defer until a third consumer (i143 data form) exists.
+- [ ] [173-csi-edsl](./173-csi-edsl.md). Introduce a structured eDSL for composing ANSI CSI/SGR sequences in `fs/text/sgr/module.f.ts`, analogous to the HTML eDSL in `fs/html/module.f.ts`. A `Block = readonly [Options, readonly (string | Block)[]]` tree replaces hand-rolled template-literal concatenation.
 
 ## Language Specification
 
