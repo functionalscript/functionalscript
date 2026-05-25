@@ -28,12 +28,14 @@ import {
     type Info0,
     type Primitive0,
     type Struct,
+    type Tag1,
     type Tuple,
     type Type,
 } from '../module.f.ts'
 import { error, ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
 import type { Ts } from '../ts/module.f.ts'
-import { isArray } from '../../array/module.f.ts'
+import { isArray as commonIsArray } from '../../array/module.f.ts'
+import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
 export type Path = readonly string[]
@@ -91,8 +93,31 @@ export type Visitor<R> = {
 
 const visitConst = <R>(v: Visitor<R>) => (c: Const): R =>
     typeof c === 'object' && c !== null
-        ? (isArray(c) ? v.tuple(c) : v.struct(c as Struct))
+        ? (commonIsArray(c) ? v.tuple(c) : v.struct(c as Struct))
         : v.constPrimitive(c as Primitive)
+
+/** Type guard narrowing `Unknown` to a specific container type `C`. */
+export type IsContainer<C extends Unknown> = (value: Unknown) => value is C
+
+/** Extracts `[key, value]` entries from a container, with stringified keys for path reporting. */
+export type GetEntries<C extends Unknown> = (value: C) => ReadonlyArray<readonly[string, Unknown]>
+
+/** Maps a `Tag1` to its runtime container type. */
+export type Container<K extends Tag1> = K extends 'array'
+    ? ReadonlyArray<Unknown>
+    : ReadonlyRecord<string, Unknown>
+
+/** `IsContainer` guard for arrays, shared by `validate` and `parse`. */
+export const isArray: IsContainer<ReadonlyArray<Unknown>> =
+    value => commonIsArray(value)
+
+/** `GetEntries` for arrays: pairs each element with its stringified index. */
+export const arrayEntries = (value: ReadonlyArray<Unknown>): ReadonlyArray<readonly[string, Unknown]> =>
+    value.map((v, i) => [String(i), v] as const)
+
+/** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
+export const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
+    value => commonIsObject(value)
 
 /**
  * Visits a schema `Type` by dispatching to the matching handler in `v`.

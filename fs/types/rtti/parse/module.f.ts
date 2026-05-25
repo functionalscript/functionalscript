@@ -30,19 +30,25 @@ import type { Unknown } from '../../../djs/module.f.ts'
 import {
     type Info1,
     type Struct,
+    type Tag1,
     type Tuple,
     type Type,
 } from '../module.f.ts'
 import { ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
-import { isArray as commonIsArray } from '../../array/module.f.ts'
-import { isObject as commonIsObject } from '../../object/module.f.ts'
+import { type ReadonlyRecord } from '../../object/module.f.ts'
 import { find, map as listMap } from '../../list/module.f.ts'
 import {
+    arrayEntries,
     constPrimitiveValidate,
+    isArray,
+    isObject,
     prependPath,
     primitive0Validate,
     verror,
     visit,
+    type Container,
+    type GetEntries,
+    type IsContainer,
     type Result as CommonValidateResult,
     type Validate,
     type ValidationError,
@@ -59,80 +65,97 @@ export type Parse<T extends Type> = Validate<T>
 
 type ItemResult = CommonResult<Unknown, ValidationError>
 
-const indexedFirstError = (results: readonly ItemResult[]): readonly[number, Error<ValidationError>] | null => {
-    // TODO: findIndex breaks type inference,
-    //       we should replace it with something else.
-    const i = results.findIndex(r => r[0] === 'error')
-    return i < 0 ? null : [i, results[i] as Error<ValidationError>]
-}
+type KeyedResult = readonly[string, ItemResult]
 
 const keyedFirstError = (
-    results: readonly (readonly[string, ItemResult])[],
+    results: readonly KeyedResult[],
 ): readonly[string, Error<ValidationError>] | null => {
     const e = results.find(([, r]) => r[0] === 'error')
     return e === undefined ? null : [e[0], e[1] as Error<ValidationError>]
 }
 
-const arrayParse =
-    <I extends Type>(item: I): Parse<Info1<'array', I>> => value =>
-{
-    if (!commonIsArray(value)) {
-        return verror('unexpected value')
-    }
-    if (value.length === 0) {
-        return ok([] as any)
-    }
-    // Note: we shouldn't instantiate `itemParse` until we know the array is non-empty.
-    //       Otherwise, we can get infinite recursion on empty arrays for recursive schemas.
-    const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const results = value.map(itemParse)
-    const err = indexedFirstError(results)
-    return (err === null
-        ? ok(results.map(r => r[1]))
-        : prependPath(String(err[0]), err[1])) as any
-}
+/** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
+type Rebuild = (entries: ReadonlyArray<readonly[string, Unknown]>) => Unknown
 
-const recordParse =
-    <I extends Type>(item: I): Parse<Info1<'record', I>> => value =>
+const arrayRebuild: Rebuild = entries => entries.map(([, v]) => v)
+
+const recordRebuild: Rebuild = entries => Object.fromEntries(entries)
+
+/** Drops the `'ok'` tag from each result, yielding the rebuild's `[key, value]` entries. */
+const okEntries = (results: readonly KeyedResult[]): ReadonlyArray<readonly[string, Unknown]> =>
+    results.map(([k, r]) => [k, r[1]] as const)
+
+/**
+ * Builds a parser for `array` or `record` schemas. Mirrors `validate`'s
+ * `containerValidate`, but rebuilds a fresh container from each item's parsed
+ * result instead of returning the value unchanged. The inner item parser is
+ * instantiated lazily (only when the container is non-empty) so recursive
+ * schemas don't recurse forever on empty containers.
+ */
+const containerParse =
+    <K extends Tag1>(
+        isContainer: IsContainer<Container<K>>,
+        getEntries: GetEntries<Container<K>>,
+        rebuild: Rebuild,
+    ) =>
+    <I extends Type>(item: I): Parse<Info1<K, I>> => value =>
 {
-    if (!commonIsObject(value)) {
-        return verror('unexpected value')
+    if (!isContainer(value)) {
+        return verror('unexpected value') as any
     }
-    const entries = Object.entries(value)
+    const entries = getEntries(value)
     if (entries.length === 0) {
-        return ok({} as any)
+        return ok(rebuild([])) as any
     }
     const itemParse = parse(item) as (v: Unknown) => ItemResult
     const results = entries.map(([k, v]) => [k, itemParse(v)] as const)
     const err = keyedFirstError(results)
     return (err === null
-        ? ok(Object.fromEntries(results.map(([k, r]) => [k, r[1]])))
+        ? ok(rebuild(okEntries(results)))
         : prependPath(err[0], err[1])) as any
 }
 
-const tupleParse = <T extends Tuple>(rtti: T): Parse<T> => value => {
-    if (!commonIsArray(value)) {
-        return verror('unexpected value')
-    }
-    const results = rtti.map((t, i) => (parse(t) as any)(value[i]) as ItemResult)
-    const err = indexedFirstError(results)
-    return (err === null
-        ? ok(results.map(r => r[1]))
-        : prependPath(String(err[0]), err[1])) as any
-}
+const arrayParse = containerParse<'array'>(isArray, arrayEntries, arrayRebuild)
 
-const structParse = <T extends Struct>(rtti: T): Parse<T> => value => {
-    if (!commonIsObject(value)) {
-        return verror('unexpected value')
+const recordParse = containerParse<'record'>(isObject, Object.entries, recordRebuild)
+
+/**
+ * Builds a parser for `Tuple` or `Struct` const schemas. Mirrors `validate`'s
+ * `constContainerValidate`: it iterates the schema's entries (so extra tuple
+ * elements and undeclared struct keys are dropped) and rebuilds the result
+ * from each parsed item.
+ */
+const constContainerParse =
+    <C extends Unknown>(
+        isContainer: IsContainer<C>,
+        getItem: (value: C, k: string) => Unknown,
+        rebuild: Rebuild,
+    ) =>
+    <T extends Tuple|Struct>(rtti: T): Parse<T> => value =>
+{
+    if (!isContainer(value)) {
+        return verror('unexpected value') as any
     }
     const results = Object.entries(rtti).map(
-        ([k, t]) => [k, (parse(t) as any)(value[k]) as ItemResult] as const,
+        ([k, t]) => [k, (parse(t) as any)(getItem(value, k)) as ItemResult] as const,
     )
     const err = keyedFirstError(results)
     return (err === null
-        ? ok(Object.fromEntries(results.map(([k, r]) => [k, r[1]])))
+        ? ok(rebuild(okEntries(results)))
         : prependPath(err[0], err[1])) as any
 }
+
+const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
+    isArray,
+    (value, k) => value[Number(k)],
+    arrayRebuild,
+)
+
+const structParse = constContainerParse<ReadonlyRecord<string, Unknown>>(
+    isObject,
+    (value, k) => value[k],
+    recordRebuild,
+)
 
 const findFirst = find
     (verror('no match'))

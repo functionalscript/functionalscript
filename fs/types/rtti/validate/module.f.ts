@@ -36,14 +36,19 @@ import {
     type Type,
 } from '../module.f.ts'
 import { ok } from '../../result/module.f.ts'
-import { isArray as commonIsArray } from '../../array/module.f.ts'
-import { isObject as commonIsObject, type ReadonlyRecord } from '../../object/module.f.ts'
+import { type ReadonlyRecord } from '../../object/module.f.ts'
 import {
+    arrayEntries,
     constPrimitiveValidate,
+    isArray,
+    isObject,
     prependPath,
     primitive0Validate,
     verror,
     visit,
+    type Container,
+    type GetEntries,
+    type IsContainer,
     type Validate,
     type Visitor,
 } from '../common/module.f.ts'
@@ -58,17 +63,6 @@ export {
     type Validate,
     type ValidationError,
 } from '../common/module.f.ts'
-
-/** Type guard narrowing `Unknown` to a specific container type `C`. */
-type IsContainer<C extends Unknown> = (value: Unknown) => value is C
-
-/** Extracts `[key, value]` entries from a container, with stringified keys for path reporting. */
-type GetEntries<C extends Unknown> = (value: C) => ReadonlyArray<readonly[string, Unknown]>
-
-/** Maps a `Tag1` to its runtime container type. */
-type Container<K extends Tag1> = K extends 'array'
-    ? ReadonlyArray<Unknown>
-    : ReadonlyRecord<string, Unknown>
 
 /**
  * Builds a validator for `array` or `record` schemas.
@@ -98,16 +92,7 @@ const containerValidate =
     return ok(value)
 }
 
-const isArray: IsContainer<ReadonlyArray<Unknown>> =
-    value => commonIsArray(value)
-
-const arrayEntries = (value: ReadonlyArray<Unknown>): ReadonlyArray<readonly[string, Unknown]> =>
-    value.map((v, i) => [String(i), v] as const)
-
 const arrayValidate = containerValidate<'array'>(isArray, arrayEntries)
-
-const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
-    value => commonIsObject(value)
 
 const recordValidate = containerValidate<'record'>(isObject, Object.entries)
 
