@@ -111,10 +111,6 @@ export type Container<K extends Tag1> = K extends 'array'
 export const isArray: IsContainer<ReadonlyArray<Unknown>> =
     value => commonIsArray(value)
 
-/** `GetEntries` for arrays: pairs each element with its stringified index. */
-export const arrayEntries = (value: ReadonlyArray<Unknown>): ReadonlyArray<readonly[string, Unknown]> =>
-    value.map((v, i) => [String(i), v] as const)
-
 /** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
 export const isObject: IsContainer<ReadonlyRecord<string, Unknown>> =
     value => commonIsObject(value)

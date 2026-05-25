@@ -38,7 +38,6 @@ import { ok, type Error, type Result as CommonResult } from '../../result/module
 import { type ReadonlyRecord } from '../../object/module.f.ts'
 import { find, map as listMap } from '../../list/module.f.ts'
 import {
-    arrayEntries,
     constPrimitiveValidate,
     isArray,
     isObject,
@@ -95,7 +94,6 @@ const okEntries = (results: readonly KeyedResult[]): ReadonlyArray<readonly[stri
 const containerParse =
     <K extends Tag1>(
         isContainer: IsContainer<Container<K>>,
-        getEntries: GetEntries<Container<K>>,
         rebuild: Rebuild,
     ) =>
     <I extends Type>(item: I): Parse<Info1<K, I>> => value =>
@@ -103,21 +101,23 @@ const containerParse =
     if (!isContainer(value)) {
         return verror('unexpected value') as any
     }
-    const entries = getEntries(value)
-    if (entries.length === 0) {
+    const e = entries(value)
+    if (e.length === 0) {
         return ok(rebuild([])) as any
     }
     const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const results = entries.map(([k, v]) => [k, itemParse(v)] as const)
+    const results = e.map(([k, v]) => [k, itemParse(v)] as const)
     const err = keyedFirstError(results)
     return (err === null
         ? ok(rebuild(okEntries(results)))
         : prependPath(err[0], err[1])) as any
 }
 
-const arrayParse = containerParse<'array'>(isArray, arrayEntries, arrayRebuild)
+const { entries } = Object
 
-const recordParse = containerParse<'record'>(isObject, Object.entries, recordRebuild)
+const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
+
+const recordParse = containerParse<'record'>(isObject, recordRebuild)
 
 /**
  * Builds a parser for `Tuple` or `Struct` const schemas. Mirrors `validate`'s
