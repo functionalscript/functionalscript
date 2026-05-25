@@ -108,7 +108,8 @@ export const run = async(): Promise<void> => {
     const moduleMap = await fromIo(io)(loadModuleMap(io.process.env))
     for (const [i, v] of Object.entries(moduleMap)) {
         if (isTest(i)) {
-            framework(i, scanModule(['', v.default, false]))
+            const value = 'default' in v ? v.default : v
+            framework(i, scanModule(['', value, false]))
         }
     }
 }
