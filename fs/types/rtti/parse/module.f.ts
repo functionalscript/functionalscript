@@ -135,7 +135,7 @@ const constContainerParse =
     if (!isContainer(value)) {
         return verror('unexpected value') as any
     }
-    const results = Object.entries(rtti).map(
+    const results = entries(rtti).map(
         ([k, t]) => [k, (parse(t) as any)(getItem(value, k)) as ItemResult] as const,
     )
     const err = keyedFirstError(results)
