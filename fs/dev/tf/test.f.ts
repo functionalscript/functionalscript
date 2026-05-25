@@ -111,7 +111,7 @@ export const throwKeyFail = () => {
     })
     assertEq(exit, 1)
     const [, , e2, e3] = events
-    assertEq(e2[0], 'fail')
+    assertEq(e2[0], 'result')
     const [, pass, fail] = e3
     assertEq(pass, 0)
     assertEq(fail, 1)

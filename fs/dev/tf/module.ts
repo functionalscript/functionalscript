@@ -84,8 +84,7 @@ const noOp = () => pure(undefined)
 const reporter: Reporter<Sandbox> = {
     moduleStart: noOp,
     enter: noOp,
-    pass: noOp,
-    fail: noOp,
+    result: noOp,
     summary: noOp,
     test: defaultTest,
 }
