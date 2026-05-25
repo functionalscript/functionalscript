@@ -79,9 +79,9 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
  */
 export type Reporter<O extends Operation> = {
     readonly moduleStart: (file: string) => Effect<O, void>
-    readonly enter: (path: readonly (string | null)[]) => Effect<O, void>
-    readonly pass: (file: string, path: readonly (string | null)[], duration: number) => Effect<O, void>
-    readonly fail: (file: string, path: readonly (string | null)[], result: unknown, duration: number) => Effect<O, void>
+    readonly enter: (path: Path) => Effect<O, void>
+    readonly pass: (file: string, path: Path, duration: number) => Effect<O, void>
+    readonly fail: (file: string, path: Path, result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
@@ -92,7 +92,7 @@ const runModule =
     (ts: TestState): Effect<O, TestState> =>
 {
     const walk =
-        (path: readonly (string | null)[], oldThrows: boolean, v: unknown) =>
+        (path: Path, oldThrows: boolean, v: unknown) =>
         (ts: TestState): Effect<O, TestState> =>
     {
         const set = parseTestSet(oldThrows, v)
@@ -141,6 +141,8 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
 export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
+export type Path = readonly (string | null)[]
+
 const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
 const isDigit = (c: string): boolean => c >= '0' && c <= '9'
@@ -162,7 +164,7 @@ const fmtKey = (k: string | null): string =>
  * emits `()` to mark a function-call boundary.
  * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
  */
-export const fmtPath = (path: readonly (string | null)[]): string =>
+export const fmtPath = (path: Path): string =>
     path.reduce((acc: string, k) => acc + fmtKey(k), '')
 
 /**
@@ -170,7 +172,7 @@ export const fmtPath = (path: readonly (string | null)[]): string =>
  * `import("./math.test.f.ts").add()` or `import("./a.test.f.ts").users[3].name()`.
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
  */
-export const fmtImport = (file: string, path: readonly (string | null)[]): string =>
+export const fmtImport = (file: string, path: Path): string =>
     `import(${JSON.stringify(file)})${fmtPath(path)}()`
 
 /**
@@ -179,7 +181,7 @@ export const fmtImport = (file: string, path: readonly (string | null)[]): strin
  * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
  * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
  */
-export const fmtTerm = (path: readonly (string | null)[]): string => {
+export const fmtTerm = (path: Path): string => {
     const keys = path.flatMap(k => k !== null ? [k] : [])
     const indent = '| '.repeat(keys.length)
     if (keys.length === 0) { return `${indent}()` }
