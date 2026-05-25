@@ -11,7 +11,8 @@ import {
     type Program,
     type Sandbox,
     type SandboxResult,
-    type Write
+    type Write,
+    type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
@@ -207,6 +208,9 @@ export const defaultTest = ({ fn, throws }: TestEntry): Effect<Sandbox, SandboxR
     sandbox(fn)
     .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
 
+const fmtResultLine = (file: string, path: Path, color: string, label: string, duration: number): string =>
+    `${fmtImport(file, path)}: ${color}${label}${reset}, ${timeFormat(duration)}`
+
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
  * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
@@ -215,8 +219,13 @@ export const defaultTest = ({ fn, throws }: TestEntry): Effect<Sandbox, SandboxR
  * GitHub format path can be exercised directly from tests.
  */
 export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|Sandbox> => {
-    const csiLog = (s: string) => csiWrite(options)('stdout')(s + '\n')
-    const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
+    const write = csiWrite(options)
+    const line = (w: WriteConsoles) => {
+        const x = write(w)
+        return (s: string) => x(s + '\n')
+    }
+    const csiLog = line('stdout')
+    const csiError = line('stderr')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     return {
         moduleStart: _file => pure(undefined),
@@ -224,20 +233,19 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
         result: (file, path, { result: [s, v], duration }) =>
             s === 'ok'
-                ? csiLog(`${fmtImport(file, path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`)
+                ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration))
                 : isGitHub
                     ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
-                    : csiError(`${fmtImport(file, path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
-                        csiError(`${fgRed}${v}${reset}`)
-                    ),
+                    : csiError(fmtResultLine(file, path, fgRed, 'error', duration))
+                        .step(() => csiError(`${fgRed}${v}${reset}`)),
         summary: (pass, fail, time) => {
             const fgFail = fail === 0 ? fgGreen : fgRed
-            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`).step(() =>
-                csiLog(`${bold}Time: ${timeFormat(time)}${reset}`)
-            )
+            return csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`)
+                .step(() => csiLog(`${bold}Time: ${timeFormat(time)}${reset}`))
         },
         test: defaultTest,
     }
 }
 
-export const main: NodeProgram = options => test(defaultReporter(options))(options)
+export const main: NodeProgram =
+    options => test(defaultReporter(options))(options)
