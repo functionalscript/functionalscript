@@ -5,15 +5,15 @@ import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq } from '../module.f.ts'
 import {
     test, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
-    type Reporter,
+    type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
 
 type Event =
     | readonly['moduleStart', string]
-    | readonly['enter', readonly (string | null)[]]
-    | readonly['pass', string, readonly (string | null)[], number]
-    | readonly['fail', string, readonly (string | null)[], unknown, number]
+    | readonly['enter', Path]
+    | readonly['pass', string, Path, number]
+    | readonly['fail', string, Path, unknown, number]
     | readonly['summary', number, number, number]
 
 type TestReporter = Reporter<Sandbox>
