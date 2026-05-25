@@ -127,15 +127,17 @@ const runModule =
     return moduleStart(k).step(() => walk([], false, v)(ts))
 }
 
+const { entries } = Object
+
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O, number> => {
     const { summary } = reporter
-    const entries = Object.entries(moduleMap).filter(([k]) => isTest(k))
-    return entries.reduce(
+    const modules = entries(moduleMap).filter(([k]) => isTest(k))
+    return modules.reduce(
         (acc: Effect<O, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
         pure({ time: 0, pass: 0, fail: 0 })
     )
-        .step(ts => summary(ts.pass, ts.fail, ts.time)
-            .step(() => pure(ts.fail !== 0 ? 1 : 0)))
+    .step(ts => summary(ts.pass, ts.fail, ts.time)
+    .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
 export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations> => options =>
