@@ -272,9 +272,10 @@ export const helpers = {
         assert(!isIdentifier('a-b'))
     },
     fmtPath: () => {
-        assertEq(fmtPath([]), '[]')
-        assertEq(fmtPath(['math', 'add']), '["math","add"]')
-        assertEq(fmtPath(['users', '3', 'name']), '["users",3,"name"]')
+        assertEq(fmtPath([]), '')
+        assertEq(fmtPath(['math', 'add']), '.math.add')
+        assertEq(fmtPath(['users', '3', 'name']), '.users[3].name')
+        assertEq(fmtPath(['x', 'hello world']), '.x["hello world"]')
     },
     fmtTerm: () => {
         assertEq(fmtTerm([]), '()')

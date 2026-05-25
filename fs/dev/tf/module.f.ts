@@ -148,13 +148,18 @@ export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
 /**
- * Renders a key chain as a JS object path: integer-like keys become numbers,
- * other strings are JSON-stringified. E.g. `['math', 'add']` → `["math","add"]`,
- * `['users', '3', 'name']` → `["users",3,"name"]`. Used for the GitHub
- * annotation `title=` field where the full unambiguous path is desired.
+ * Renders a key chain as a JS property-access expression: identifier keys use
+ * dot notation, integer keys use `[N]`, and other keys use `["key"]`.
+ * E.g. `['math', 'add']` → `.math.add`, `['users', '3', 'name']` → `.users[3].name`,
+ * `['x', 'hello world']` → `.x["hello world"]`. Used for the GitHub
+ * annotation `title=` field.
  */
 export const fmtPath = (path: readonly string[]): string =>
-    JSON.stringify(path.map(k => isInteger(k) ? Number(k) : k))
+    path.reduce((acc, k) =>
+        isInteger(k) ? `${acc}[${k}]`
+        : isIdentifier(k) ? `${acc}.${k}`
+        : `${acc}[${JSON.stringify(k)}]`
+    , '')
 
 /**
  * Renders a key chain for terminal output: `| ` per level of depth, followed
