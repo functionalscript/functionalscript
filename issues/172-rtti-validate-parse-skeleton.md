@@ -54,6 +54,47 @@ The two walks are not the *same* algorithm today:
    generics (tracked in [i146](./146-rtti-ts-inference.md)). Routing through one
    more generic `build` callback is unlikely to remove casts and may add a few.
 
+## The `getItem` parameter and TS array string-indexing
+
+`constContainer*` takes a `getItem(value, k)` accessor that differs between the
+two const shapes:
+
+```ts
+const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
+    isArray,
+    (value, k) => value[Number(k)],  // tuple: string key → number index
+    arrayRebuild,
+)
+const structParse = constContainerParse<ReadonlyRecord<string, Unknown>>(
+    isObject,
+    (value, k) => value[k],          // struct: string key directly
+    arrayRebuild,
+)
+```
+
+The split exists because the walk produces a **string** key (`Object.entries`
+gives string keys for both arrays and objects), but TypeScript rejects indexing
+an array with a string (`value[k]` where `k: string`) even though JavaScript
+handles `arr['0']` fine. So the tuple branch round-trips through
+`Number(k)` purely to satisfy the type checker.
+
+We want a clean way to express "index this container by its entry key" that
+works for both arrays and records **without** an `as` cast or the
+`Number(k)` detour. Options to weigh:
+
+- Keep the per-shape `getItem` injection (status quo): explicit, no cast, but
+  asymmetric and a reason the tuple/struct factories can't fully merge.
+- A small typed `at(container, key)` helper in `common`/`object` that accepts a
+  string key and narrows internally (e.g. via `Object` index access) so callers
+  never write the `Number(k)` conversion.
+- Drive the tuple walk from numeric indices instead of `Object.entries` (so the
+  key is already a `number` for arrays), and reconcile that with the record
+  walk's string keys — at the cost of reintroducing the index/key split that
+  [i162](./162-rtti-parse-container-factories.md) removed.
+
+Whichever shared-skeleton design wins, it must settle this so a single
+container accessor type-checks for arrays and records alike.
+
 ## Decision
 
 Defer. The duplicated skeleton is ~15 readable lines per module; unifying it
