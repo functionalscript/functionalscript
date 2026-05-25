@@ -150,6 +150,12 @@ export const isInteger = (s: string): boolean =>
 export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
+const fmtKey = (k: string | null): string =>
+    k === null ? '()'
+    : isInteger(k) ? `[${k}]`
+    : isIdentifier(k) ? `.${k}`
+    : `[${JSON.stringify(k)}]`
+
 /**
  * Renders a key chain as a JS property-access expression: identifier keys use
  * dot notation, integer keys use `[N]`, other strings use `["key"]`, and `null`
@@ -157,12 +163,7 @@ export const isIdentifier = (s: string): boolean =>
  * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
  */
 export const fmtPath = (path: readonly (string | null)[]): string =>
-    path.reduce((acc, k) =>
-        k === null ? `${acc}()`
-        : isInteger(k) ? `${acc}[${k}]`
-        : isIdentifier(k) ? `${acc}.${k}`
-        : `${acc}[${JSON.stringify(k)}]`
-    , '')
+    path.reduce<string>((acc, k) => acc + fmtKey(k), '')
 
 /**
  * Formats a fully-qualified test identifier as a JS-like expression, e.g.
