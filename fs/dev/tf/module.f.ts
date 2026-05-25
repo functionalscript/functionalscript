@@ -78,7 +78,7 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
 export type Reporter<O extends Operation> = {
     readonly moduleStart: (file: string) => Effect<O, void>
     readonly enter: (path: readonly string[]) => Effect<O, void>
-    readonly pass: (path: readonly string[], duration: number) => Effect<O, void>
+    readonly pass: (file: string, path: readonly string[], duration: number) => Effect<O, void>
     readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
@@ -111,7 +111,7 @@ const runModule =
         }
         return test(set).step(({ result: [s, r], duration }) => {
             if (s === 'ok') {
-                return pass(path, duration).step(() => {
+                return pass(k, path, duration).step(() => {
                     // Only non-throw tests walk their return value as a fresh sub-tree;
                     // thrown values are discarded. The sub-tree's `throws` resets to false.
                     const cont = set.throws ? pure : walk(path, false, r)
@@ -151,8 +151,7 @@ export const isIdentifier = (s: string): boolean =>
  * Renders a key chain as a JS property-access expression: identifier keys use
  * dot notation, integer keys use `[N]`, and other keys use `["key"]`.
  * E.g. `['math', 'add']` → `.math.add`, `['users', '3', 'name']` → `.users[3].name`,
- * `['x', 'hello world']` → `.x["hello world"]`. Used for the GitHub
- * annotation `title=` field.
+ * `['x', 'hello world']` → `.x["hello world"]`.
  */
 export const fmtPath = (path: readonly string[]): string =>
     path.reduce((acc, k) =>
@@ -160,6 +159,14 @@ export const fmtPath = (path: readonly string[]): string =>
         : isIdentifier(k) ? `${acc}.${k}`
         : `${acc}[${JSON.stringify(k)}]`
     , '')
+
+/**
+ * Formats a fully-qualified test identifier as a JS-like expression, e.g.
+ * `import("./math.test.f.ts").add()` or `import("./a.test.f.ts").users[3].name()`.
+ * Self-contained per line — suitable for parallel output and as a CLI filter argument.
+ */
+export const fmtImport = (file: string, path: readonly string[]): string =>
+    `import(${JSON.stringify(file)})${fmtPath(path)}()`
 
 /**
  * Renders a key chain for terminal output: `| ` per level of depth, followed
@@ -208,15 +215,15 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     const csiError = (s: string) => csiWrite(options)('stderr')(s + '\n')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     return {
-        moduleStart: file => csiLog(`testing ${file}`),
-        enter: path => csiLog(`${fmtTerm(path)}:`),
-        pass: (path, duration) => csiLog(`${fmtTerm(path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
+        moduleStart: _file => pure(undefined),
+        enter: _path => pure(undefined),
+        pass: (file, path, duration) => csiLog(`${fmtImport(file, path)}: ${fgGreen}ok${reset}, ${timeFormat(duration)}`),
         fail: isGitHub
             // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
             ? (file, path, result, _duration) =>
-                csiError(`::error file=${file},line=1,title=${ghEscape(fmtPath(path))}::${ghEscape(String(result))}`)
-            : (_file, path, result, duration) =>
-                csiError(`${fmtTerm(path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
+                csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(result))}`)
+            : (file, path, result, duration) =>
+                csiError(`${fmtImport(file, path)}: ${fgRed}error${reset}, ${timeFormat(duration)}`).step(() =>
                     csiError(`${fgRed}${result}${reset}`)
                 ),
         summary: (pass, fail, time) => {
