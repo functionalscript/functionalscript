@@ -11,9 +11,9 @@ import {
 
 type Event =
     | readonly['moduleStart', string]
-    | readonly['enter', readonly string[]]
-    | readonly['pass', string, readonly string[], number]
-    | readonly['fail', string, readonly string[], unknown, number]
+    | readonly['enter', readonly (string | null)[]]
+    | readonly['pass', string, readonly (string | null)[], number]
+    | readonly['fail', string, readonly (string | null)[], unknown, number]
     | readonly['summary', number, number, number]
 
 type TestReporter = Reporter<Sandbox>
@@ -149,7 +149,7 @@ export const returnValueSubTree = () => {
     assertEq(passEvents.length, 2)
     const [p0, p1] = passEvents
     assertEq(p0[2][0], 'outer')
-    assertEq(p1[2][1], 'inner')
+    assertEq(p1[2][2], 'inner')
 }
 
 // integer-indexed array keys appear as numeric path segments
@@ -275,12 +275,14 @@ export const helpers = {
         assertEq(fmtImport('./a.test.f.ts', ['math', 'add']), 'import("./a.test.f.ts").math.add()')
         assertEq(fmtImport('./a.test.f.ts', ['users', '3']), 'import("./a.test.f.ts").users[3]()')
         assertEq(fmtImport('./a.test.f.ts', ['x', 'hello world']), 'import("./a.test.f.ts").x["hello world"]()')
+        assertEq(fmtImport('./a.test.f.ts', ['outer', null, 'inner']), 'import("./a.test.f.ts").outer().inner()')
     },
     fmtPath: () => {
         assertEq(fmtPath([]), '')
         assertEq(fmtPath(['math', 'add']), '.math.add')
         assertEq(fmtPath(['users', '3', 'name']), '.users[3].name')
         assertEq(fmtPath(['x', 'hello world']), '.x["hello world"]')
+        assertEq(fmtPath(['outer', null, 'inner']), '.outer().inner')
     },
     fmtTerm: () => {
         assertEq(fmtTerm([]), '()')

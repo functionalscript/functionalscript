@@ -73,13 +73,15 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
  * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
- * leading to the current location, e.g. `['math', 'add']`.
+ * leading to the current location; `null` marks a function-call boundary, e.g.
+ * `['outer', null, 'inner']` means `outer` was invoked and its return value
+ * contained `inner`.
  */
 export type Reporter<O extends Operation> = {
     readonly moduleStart: (file: string) => Effect<O, void>
-    readonly enter: (path: readonly string[]) => Effect<O, void>
-    readonly pass: (file: string, path: readonly string[], duration: number) => Effect<O, void>
-    readonly fail: (file: string, path: readonly string[], result: unknown, duration: number) => Effect<O, void>
+    readonly enter: (path: readonly (string | null)[]) => Effect<O, void>
+    readonly pass: (file: string, path: readonly (string | null)[], duration: number) => Effect<O, void>
+    readonly fail: (file: string, path: readonly (string | null)[], result: unknown, duration: number) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
@@ -90,7 +92,7 @@ const runModule =
     (ts: TestState): Effect<O, TestState> =>
 {
     const walk =
-        (path: readonly string[], oldThrows: boolean, v: unknown) =>
+        (path: readonly (string | null)[], oldThrows: boolean, v: unknown) =>
         (ts: TestState): Effect<O, TestState> =>
     {
         const set = parseTestSet(oldThrows, v)
@@ -113,8 +115,9 @@ const runModule =
             if (s === 'ok') {
                 return pass(k, path, duration).step(() => {
                     // Only non-throw tests walk their return value as a fresh sub-tree;
-                    // thrown values are discarded. The sub-tree's `throws` resets to false.
-                    const cont = set.throws ? pure : walk(path, false, r)
+                    // thrown values are discarded. `null` marks the call boundary so
+                    // paths render as e.g. `outer().inner()`. `throws` resets to false.
+                    const cont = set.throws ? pure : walk([...path, null], false, r)
                     return cont(addPass(duration)(ts))
                 })
             }
@@ -149,13 +152,14 @@ export const isIdentifier = (s: string): boolean =>
 
 /**
  * Renders a key chain as a JS property-access expression: identifier keys use
- * dot notation, integer keys use `[N]`, and other keys use `["key"]`.
- * E.g. `['math', 'add']` → `.math.add`, `['users', '3', 'name']` → `.users[3].name`,
- * `['x', 'hello world']` → `.x["hello world"]`.
+ * dot notation, integer keys use `[N]`, other strings use `["key"]`, and `null`
+ * emits `()` to mark a function-call boundary.
+ * E.g. `['math', 'add']` → `.math.add`, `['outer', null, 'inner']` → `.outer().inner`.
  */
-export const fmtPath = (path: readonly string[]): string =>
+export const fmtPath = (path: readonly (string | null)[]): string =>
     path.reduce((acc, k) =>
-        isInteger(k) ? `${acc}[${k}]`
+        k === null ? `${acc}()`
+        : isInteger(k) ? `${acc}[${k}]`
         : isIdentifier(k) ? `${acc}.${k}`
         : `${acc}[${JSON.stringify(k)}]`
     , '')
@@ -165,7 +169,7 @@ export const fmtPath = (path: readonly string[]): string =>
  * `import("./math.test.f.ts").add()` or `import("./a.test.f.ts").users[3].name()`.
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
  */
-export const fmtImport = (file: string, path: readonly string[]): string =>
+export const fmtImport = (file: string, path: readonly (string | null)[]): string =>
     `import(${JSON.stringify(file)})${fmtPath(path)}()`
 
 /**
@@ -174,10 +178,11 @@ export const fmtImport = (file: string, path: readonly string[]): string =>
  * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
  * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
  */
-export const fmtTerm = (path: readonly string[]): string => {
-    const indent = '| '.repeat(path.length)
-    if (path.length === 0) { return `${indent}()` }
-    const last = path[path.length - 1]
+export const fmtTerm = (path: readonly (string | null)[]): string => {
+    const keys = path.flatMap(k => k !== null ? [k] : [])
+    const indent = '| '.repeat(keys.length)
+    if (keys.length === 0) { return `${indent}()` }
+    const last = keys[keys.length - 1]
     return `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
 }
 
