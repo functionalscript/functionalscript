@@ -15,7 +15,7 @@ import {
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
-import type { Result } from '../../types/result/module.f.ts'
+import { invert } from '../../types/result/module.f.ts'
 
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
@@ -202,14 +202,8 @@ export const ghEscape = (s: string): string =>
         .replaceAll('\n', '%0A')
 
 export const defaultTest = ({ fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
-    sandbox(fn).step(r => {
-        if (throws) {
-            const { result: [s, v], duration } = r
-            const result: Result<unknown, unknown> = s === 'ok' ? ['error', v] : ['ok', v]
-            r = { result, duration: r.duration }
-        }
-        return pure(r)
-    })
+    sandbox(fn)
+    .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
