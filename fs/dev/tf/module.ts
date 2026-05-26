@@ -1,4 +1,4 @@
-import { io } from '../../io/module.ts'
+import { io, tryCatch } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
 import { defaultTest, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
@@ -81,29 +81,35 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 
 const noOp = () => pure(undefined)
 
-const reporter: Reporter<Sandbox> = {
+const reporter: Reporter<never> = {
     moduleStart: noOp,
     enter: noOp,
     result: noOp,
     summary: noOp,
-    test: defaultTest,
+    test: ({ throws, fn }) => {
+        nodeTest.test('test', async t => {
+            const [s, r] = tryCatch(fn)
+            if (throws === (s === 'ok')) {
+                throw r
+            }
+        })
+        return pure({
+            result: ['ok', undefined],
+            duration: 0,
+        })
+    }
 }
 
-const map: ToAsyncOperationMap<Sandbox> = {
-    sandbox: async(_f) => ({
-        result: ok(undefined),
-        duration: 0,
-    }),
-} as const
+const map: ToAsyncOperationMap<never> = {} as const
 
-export const run2 = async(): Promise<void> => {
+export const run = async(): Promise<void> => {
     const fio = fromIo(io)
     const moduleMap = await fio(loadModuleMap(io.process.env))
     const runner = runModuleMap(reporter)(moduleMap)
     await asyncRun(map)(runner)
 }
 
-export const run = async(): Promise<void> => {
+export const run3 = async(): Promise<void> => {
     const moduleMap = await fromIo(io)(loadModuleMap(io.process.env))
     for (const [i, v] of Object.entries(moduleMap)) {
         if (isTest(i)) {
