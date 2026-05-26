@@ -81,6 +81,12 @@ where the runner is free to schedule both phases in parallel.
 Option 2 is lower risk: the Effects system stays stable while the ALIQ layer
 is developed and validated independently.
 
+The collection operators (`flatMap`, `reduce`) also map cleanly onto async
+iterators (`AsyncIterable<T>`): `flatMap` becomes `async function*` chaining
+and `reduce` becomes an `async for`-of accumulation.  This means async
+iterators are a natural third backend alongside Effects and plain arrays,
+giving streaming / backpressure semantics for free on Node and Deno.
+
 One notable advantage of the Effects backend: because a runner is just a
 function over an operation map, injecting a debug/trace backend is trivial —
 wrap each operation handler to log the call and its result.  This makes
