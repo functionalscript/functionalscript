@@ -1,5 +1,5 @@
 import { vec } from '../bit_vec/module.f.ts'
-import { toVec, fromVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
+import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.ts'
 import { strictEqual } from '../function/operator/module.f.ts'
 import { equal, fromArrayLike } from '../list/module.f.ts'
 
@@ -55,5 +55,9 @@ export default {
         const input = 'FunctionalScript 🐝'
         const output = decodeUtf8(encodeUtf8(input))
         assertEq(output, input)
+    },
+    listToVec: () => {
+        const result = listToVec([Uint8Array.from([1, 2]), Uint8Array.from([3])])
+        assertArrayEq(fromVec(result), Uint8Array.from([1, 2, 3]))
     }
 }
