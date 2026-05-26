@@ -273,7 +273,7 @@ const utf16EofToCodePointOp = (state: Utf16State): readonly[List<CodePoint>, Utf
  * ```
  */
 export const toCodePointList: (input: List<U16>) => List<CodePoint> =
-    decoder(utf16ByteToCodePointOp, utf16EofToCodePointOp, null)
+    decoder(utf16ByteToCodePointOp, utf16EofToCodePointOp)
 
 /**
  * Converts a string to a list of UTF-16 code units (U16).

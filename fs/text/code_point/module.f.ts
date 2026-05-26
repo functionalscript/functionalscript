@@ -19,21 +19,20 @@ export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 /**
  * Builds a streaming decoder from the two direction-specific steps.
  *
- * The input is processed unit by unit through `byteOp`, then a trailing
- * end-of-input marker drives `eofOp` to flush any leftover decoding state.
+ * Decoding starts from the empty (`null`) state. The input is processed unit by
+ * unit through `byteOp`, then a trailing end-of-input marker drives `eofOp` to
+ * flush any leftover decoding state.
  *
  * @param byteOp - The per-unit decoding step.
  * @param eofOp - The end-of-input step that flushes the remaining state.
- * @param init - The initial decoding state.
  * @returns A function converting a list of code units into a list of code points.
  */
 export const decoder = <Unit, S, Cp>(
-    byteOp: StateScan<Unit, S, List<Cp>>,
-    eofOp: (state: S) => readonly [List<Cp>, S],
-    init: S,
+    byteOp: StateScan<Unit, S | null, List<Cp>>,
+    eofOp: (state: S | null) => readonly [List<Cp>, S | null],
 ): (input: List<Unit>) => List<Cp> => {
-    const op: StateScan<Unit | null, S, List<Cp>> = (input, state) =>
+    const op: StateScan<Unit | null, S | null, List<Cp>> = (input, state) =>
         input === null ? eofOp(state) : byteOp(input, state)
-    const run = stateScan(op)(init)
+    const run = stateScan(op)(null)
     return input => flat(run(flat<Unit | null>([input, [null]])))
 }

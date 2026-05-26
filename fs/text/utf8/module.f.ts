@@ -214,4 +214,4 @@ const utf8EofToCodePointOp = (
  * @returns A list of Unicode code points or error codes.
  */
 export const toCodePointList: (input: List<U8>) => List<I32> =
-    decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp, null)
+    decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
