@@ -110,7 +110,8 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     return allFiles(s)
         .step(files => all(...files.map(loadFile)))
         .step(entries => pure(fromEntries(
-            entries.flat()
+            entries
+                .flat()
                 .map(([k, v]) => [relativize(prefix, k), v] as const)
                 .toSorted(cmp)
         )))
