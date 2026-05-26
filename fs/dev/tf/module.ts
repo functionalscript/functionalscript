@@ -83,7 +83,6 @@ const noOp = () => pure(undefined)
 
 const reporter: Reporter<never> = {
     moduleStart: noOp,
-    enter: noOp,
     result: noOp,
     summary: noOp,
     test: (file, path, { throws, fn }) => {

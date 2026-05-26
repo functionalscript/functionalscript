@@ -100,51 +100,38 @@ export const collectTests = (
  */
 export type Reporter<O extends Operation> = {
     readonly moduleStart: (file: string) => Effect<O, void>
-    readonly enter: (path: Path) => Effect<O, void>
     readonly result: (file: string, path: Path, r: SandboxResult<unknown>) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
-    readonly test: (file: string,path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
+    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
 const runModule =
-    <O extends Operation>({ moduleStart, enter, result, test }: Reporter<O>) =>
+    <O extends Operation>({ moduleStart, result, test }: Reporter<O>) =>
     (k: string, v: unknown) =>
     (ts: TestState): Effect<O, TestState> =>
 {
     const walk =
-        (path: Path, oldThrows: boolean, v: unknown) =>
+        (path: Path, throws: boolean, v: unknown) =>
         (ts: TestState): Effect<O, TestState> =>
-    {
-        const set = parseTestSet(oldThrows, v)
-        if (set instanceof Array) {
-            return set.reduce(
-                (acc: Effect<O, TestState>, [ck, cv]) => {
-                    const sub = [...path, ck]
-                    const recurse = walk(sub, oldThrows || ck === 'throw', cv)
-                    // Emit `enter` only for sub-tree values (objects/arrays). Leaf
-                    // values (functions, primitives) skip `enter` so the reporter
-                    // can combine the key with the pass/fail line.
-                    return typeof cv === 'object' && cv !== null
-                        ? acc.step(ts => enter(sub).step(() => recurse(ts)))
-                        : acc.step(recurse)
-                },
+            collectTests(path, throws, v).reduce(
+                (acc: Effect<O, TestState>, [testPath, set]) =>
+                    acc.step(ts =>
+                        test(k, testPath, set).step(sr => {
+                            const { result: [s, r], duration } = sr
+                            return result(k, testPath, sr).step(() => {
+                                if (s === 'ok') {
+                                    // Only non-throw tests walk their return value as a fresh
+                                    // sub-tree; `null` marks the call boundary so paths render
+                                    // as e.g. `outer().inner()`. `throws` resets to false.
+                                    const cont = set.throws ? pure : walk([...testPath, null], false, r)
+                                    return cont(addPass(duration)(ts))
+                                }
+                                return pure(addFail(duration)(ts))
+                            })
+                        })
+                    ),
                 pure(ts)
             )
-        }
-        return test(k, path, set).step(sr => {
-            const { result: [s, r], duration } = sr
-            return result(k, path, sr).step(() => {
-                if (s === 'ok') {
-                    // Only non-throw tests walk their return value as a fresh sub-tree;
-                    // thrown values are discarded. `null` marks the call boundary so
-                    // paths render as e.g. `outer().inner()`. `throws` resets to false.
-                    const cont = set.throws ? pure : walk([...path, null], false, r)
-                    return cont(addPass(duration)(ts))
-                }
-                return pure(addFail(duration)(ts))
-            })
-        })
-    }
     return moduleStart(k).step(() => walk([], false, v)(ts))
 }
 
@@ -251,7 +238,6 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     return {
         moduleStart: _file => pure(undefined),
-        enter: _path => pure(undefined),
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
         result: (file, path, { result: [s, v], duration }) =>
             s === 'ok'
