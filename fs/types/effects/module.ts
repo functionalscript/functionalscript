@@ -11,6 +11,7 @@ export const asyncRun =
         }
         const [command, payload, continuation] = value
         const operation = map[command]
+        // console.log('Running operation:', command, payload)
         const result = await operation(...payload)
         effect = continuation(result)
     }

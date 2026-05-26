@@ -81,6 +81,12 @@ where the runner is free to schedule both phases in parallel.
 Option 2 is lower risk: the Effects system stays stable while the ALIQ layer
 is developed and validated independently.
 
+One notable advantage of the Effects backend: because a runner is just a
+function over an operation map, injecting a debug/trace backend is trivial —
+wrap each operation handler to log the call and its result.  This makes
+execution order and parallelism decisions directly observable without
+modifying the program under test.
+
 ## Open questions
 
 - Is `flatMap` the right primitive, or should `all` itself accept a lazy
