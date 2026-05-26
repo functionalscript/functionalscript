@@ -101,7 +101,6 @@ export const collectTests = (
  * contained `inner`.
  */
 export type Reporter<O extends Operation> = {
-    readonly moduleStart: (file: string) => Effect<O, void>
     readonly result: (file: string, path: Path, r: SandboxResult<unknown>) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
@@ -113,33 +112,35 @@ const mergeState = (a: TestState, b: TestState): TestState =>
 const zero: TestState = { time: 0, pass: 0, fail: 0 }
 
 const runModule =
-    <O extends Operation>({ moduleStart, result, test }: Reporter<O>) =>
+    <O extends Operation>({ result, test }: Reporter<O>) =>
     (k: string, v: unknown) =>
     (ts: TestState): Effect<O | All, TestState> =>
 {
     const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
-        const effects = collectTests(path, throws, v).map(
+        const effects = collectTests(path, throws, v)
+        .map(
             ([testPath, set]): Effect<O | All, TestState> =>
-                test(k, testPath, set).step(sr => {
+                test(k, testPath, set)
+                .step(sr => {
                     const { result: [s, r], duration } = sr
-                    return result(k, testPath, sr).step((): Effect<O | All, TestState> => {
+                    return result(k, testPath, sr)
+                    .step((): Effect<O | All, TestState> => {
                         if (s === 'ok') {
                             if (set.throws) { return pure(addPass(duration)(zero)) }
                             // Walk return-value sub-tree; null marks the call boundary so
                             // paths render as e.g. `outer().inner`. throws resets to false.
-                            return walk([...testPath, null], false, r).step(sub =>
-                                pure(mergeState(addPass(duration)(zero), sub))
-                            )
+                            return walk([...testPath, null], false, r)
+                            .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
                         }
                         return pure(addFail(duration)(zero))
                     })
                 })
         )
-        return all(...effects).step(states => pure(states.reduce(mergeState, zero)))
+        return all(...effects)
+        .step(states => pure(states.reduce(mergeState, zero)))
     }
-    return moduleStart(k).step(() =>
-        walk([], false, v).step(delta => pure(mergeState(ts, delta)))
-    )
+    return walk([], false, v)
+    .step(delta => pure(mergeState(ts, delta)))
 }
 
 const { entries } = Object
@@ -244,7 +245,6 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     const csiError = line('stderr')
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     return {
-        moduleStart: _file => pure(undefined),
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
         result: (file, path, { result: [s, v], duration }) =>
             s === 'ok'

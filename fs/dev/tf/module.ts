@@ -1,13 +1,12 @@
 import { io, tryCatch } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { defaultTest, fmtImport, fmtPath, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
+import { fmtImport, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
 import { pure, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
 import { type All } from '../../types/effects/node/module.f.ts'
-import { ok } from '../../types/result/module.f.ts'
 
 //
 
@@ -82,11 +81,10 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 const noOp = () => pure(undefined)
 
 const reporter: Reporter<never> = {
-    moduleStart: noOp,
     result: noOp,
     summary: noOp,
     test: (file, path, { throws, fn }) => {
-        nodeTest.test(fmtImport(file, path), async t => {
+        nodeTest.test(fmtImport(file, path), async _t => {
             const [s, r] = tryCatch(fn)
             if (throws === (s === 'ok')) {
                 throw r
