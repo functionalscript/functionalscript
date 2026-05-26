@@ -92,6 +92,9 @@ const reporter: Reporter<never> = {
             if (throws === (s === 'ok')) {
                 throw r
             }
+            if (!throws) {
+                // add subtests
+            }
         })
         return pure({
             result: ['ok', undefined],
