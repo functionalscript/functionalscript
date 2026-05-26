@@ -6,7 +6,7 @@ import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
 import { pure, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
-import type { Sandbox } from '../../types/effects/node/module.f.ts'
+import { type All } from '../../types/effects/node/module.f.ts'
 import { ok } from '../../types/result/module.f.ts'
 
 //
@@ -102,7 +102,9 @@ const reporter: Reporter<never> = {
     }
 }
 
-const map: ToAsyncOperationMap<never> = {} as const
+const map: ToAsyncOperationMap<All> = {
+    all: async (...effects) => Promise.all(effects.map(asyncRun(map))),
+}
 
 export const run = async(): Promise<void> => {
     const fio = fromIo(io)

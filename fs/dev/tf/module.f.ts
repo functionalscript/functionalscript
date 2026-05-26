@@ -5,7 +5,9 @@
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
 import {
+    all,
     sandbox,
+    type All,
     type NodeProgram,
     type NodeProgramOptions,
     type Program,
@@ -105,50 +107,55 @@ export type Reporter<O extends Operation> = {
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
+const mergeState = (a: TestState, b: TestState): TestState =>
+    ({ time: a.time + b.time, pass: a.pass + b.pass, fail: a.fail + b.fail })
+
+const zero: TestState = { time: 0, pass: 0, fail: 0 }
+
 const runModule =
     <O extends Operation>({ moduleStart, result, test }: Reporter<O>) =>
     (k: string, v: unknown) =>
-    (ts: TestState): Effect<O, TestState> =>
+    (ts: TestState): Effect<O | All, TestState> =>
 {
-    const walk =
-        (path: Path, throws: boolean, v: unknown) =>
-        (ts: TestState): Effect<O, TestState> =>
-            collectTests(path, throws, v).reduce(
-                (acc: Effect<O, TestState>, [testPath, set]) =>
-                    acc.step(ts =>
-                        test(k, testPath, set).step(sr => {
-                            const { result: [s, r], duration } = sr
-                            return result(k, testPath, sr).step(() => {
-                                if (s === 'ok') {
-                                    // Only non-throw tests walk their return value as a fresh
-                                    // sub-tree; `null` marks the call boundary so paths render
-                                    // as e.g. `outer().inner()`. `throws` resets to false.
-                                    const cont = set.throws ? pure : walk([...testPath, null], false, r)
-                                    return cont(addPass(duration)(ts))
-                                }
-                                return pure(addFail(duration)(ts))
-                            })
-                        })
-                    ),
-                pure(ts)
-            )
-    return moduleStart(k).step(() => walk([], false, v)(ts))
+    const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
+        const effects = collectTests(path, throws, v).map(
+            ([testPath, set]): Effect<O | All, TestState> =>
+                test(k, testPath, set).step(sr => {
+                    const { result: [s, r], duration } = sr
+                    return result(k, testPath, sr).step((): Effect<O | All, TestState> => {
+                        if (s === 'ok') {
+                            if (set.throws) { return pure(addPass(duration)(zero)) }
+                            // Walk return-value sub-tree; null marks the call boundary so
+                            // paths render as e.g. `outer().inner`. throws resets to false.
+                            return walk([...testPath, null], false, r).step(sub =>
+                                pure(mergeState(addPass(duration)(zero), sub))
+                            )
+                        }
+                        return pure(addFail(duration)(zero))
+                    })
+                })
+        )
+        return all(...effects).step(states => pure(states.reduce(mergeState, zero)))
+    }
+    return moduleStart(k).step(() =>
+        walk([], false, v).step(delta => pure(mergeState(ts, delta)))
+    )
 }
 
 const { entries } = Object
 
-export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O, number> => {
+export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = entries(moduleMap).filter(([k]) => isTest(k))
     return modules.reduce(
-        (acc: Effect<O, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
+        (acc: Effect<O | All, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
         pure({ time: 0, pass: 0, fail: 0 })
     )
     .step(ts => summary(ts.pass, ts.fail, ts.time)
     .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
-export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | LoadModuleOperations> => options =>
+export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 export type Path = readonly (string | null)[]
