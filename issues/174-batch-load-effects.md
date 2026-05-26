@@ -51,6 +51,21 @@ materialise the full array before constructing the effect.  Accepting a lazy
 consume elements on demand and avoid the intermediate array.  This is a
 prerequisite improvement but is tracked separately.
 
+## `reduce` as a parallel primitive
+
+`reduce` (fold) pairs naturally with `flatMap`: once a collection of
+independent effects is expressed as a `flatMap`, a `reduce` over the results
+can be executed in a tree of parallel reductions rather than a left fold.
+This is the classic map-reduce pattern — `flatMap` fans out, `reduce`
+aggregates — and is one of the core operator pairs in ALIQ.  Expressing
+`loadModuleMap` in these terms would look like:
+
+```ts
+allFiles(s).flatMap(loadFile).reduce(merge, empty)
+```
+
+where the runner is free to schedule both phases in parallel.
+
 ## Implementation options
 
 1. **Extend `Effect` directly** — add `flatMap` / `selectMany` to the `Effect`
