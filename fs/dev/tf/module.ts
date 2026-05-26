@@ -103,6 +103,10 @@ const reporter: Reporter<never> = {
 }
 
 const map: ToAsyncOperationMap<All> = {
+    // TODO: we use the same algorithm twice. Refactor by creating a `createAll(map)`
+    // helper that takes a `map` and returns an `all` function that runs effects
+    // according to the map. There could be a problem with circular dependencies,
+    // but we can use a lazy function `() => ToAsyncOperationMap<All>` instead od `map`.
     all: async (...effects) => Promise.all(effects.map(asyncRun(map))),
 }
 
