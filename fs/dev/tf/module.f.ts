@@ -71,6 +71,26 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
 }
 
 /**
+ * Recursively collects all leaf tests reachable from `v` as `[path, entry]`
+ * pairs, without running anything. Return-value sub-trees are not walked
+ * (that requires execution); only the static object/array/function structure
+ * is traversed.
+ */
+export const collectTests = (
+    path: Path,
+    throws: boolean,
+    v: unknown,
+): readonly (readonly [Path, TestEntry])[] => {
+    const set = parseTestSet(throws, v)
+    if (set instanceof Array) {
+        return set.flatMap(([ck, cv]) =>
+            collectTests([...path, ck], throws || ck === 'throw', cv)
+        )
+    }
+    return [[path, set]]
+}
+
+/**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
  * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
