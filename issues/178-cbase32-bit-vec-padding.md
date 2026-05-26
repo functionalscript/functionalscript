@@ -1,0 +1,83 @@
+# 178. `cbase32`: move bit-vector padding/trailing-zero logic into `bit_vec`
+
+`fs/cbase32/module.f.ts` hand-rolls two pieces of pure bit-vector arithmetic
+that are conceptually `bit_vec` operations, not Base32 semantics: padding a
+vector up to a 5-bit boundary with a "1-then-zeros" terminator, and recovering
+the original length by scanning trailing zeros back to that terminator. The
+module even carries a `// TODO` asking for the second one.
+
+```ts
+// fs/cbase32/module.f.ts:30  — pad to a multiple of 5 bits with a 1-then-0s marker
+export const vecToCBase32 = (v: Vec): string => {
+    const len = length(v)
+    const extraLen = 5n - len % 5n
+    const last = 1n << (extraLen - 1n)
+    const padded = concat(v)(vec(extraLen)(last))
+    return vec5xToCBase32(padded)
+}
+
+// fs/cbase32/module.f.ts:63  — strip the marker
+export const cBase32ToVec = (s: string): Nullable<Vec> => {
+    let v = cBase32ToVec5x(s)
+    if (v === null || v === empty) { return null }
+    // TODO: replace with a function that computes trailing zeros.
+    while (true) {
+        const [last, v0] = popBack1(v)
+        v = v0
+        if (last === 1n) { return v }
+    }
+}
+```
+
+The "append a single set bit then zero-fill to a block boundary, and strip back
+to that bit to recover the payload" scheme is the classic
+Merkle–Damgård-style bit padding — a `bit_vec` concern. `cbase32` should express
+its intent (`base32 over 5-bit groups`) and delegate the bit alignment.
+
+## Proposed abstraction
+
+Add to `fs/types/bit_vec/module.f.ts` a padding pair (and/or the trailing-zero
+primitive the TODO asks for):
+
+```ts
+// pad v up to the next multiple of `block` bits using a 1-then-0s terminator
+export const padToMultiple: (block: bigint) => (v: Vec) => Vec
+// strip a 1-then-0s terminator added by padToMultiple; null if malformed/empty
+export const unpadMultiple: (v: Vec) => Nullable<Vec>
+```
+
+`cbase32` then becomes `vecToCBase32 = v => vec5xToCBase32(padToMultiple(5n)(v))`
+and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null : unpadMultiple(v) }`.
+
+## Why this qualifies
+
+- **Separation of concerns** is the primary justification: bit-alignment
+  arithmetic (`5n - len % 5n`, `1n << (extraLen - 1n)`, the trailing-zero scan)
+  belongs next to `vec`/`concat`/`length`/`popFront`, not interleaved with the
+  Crockford alphabet codec. The author already flagged the strip half as a TODO
+  wanting a `bit_vec`-level helper.
+- It removes the only `let`/`while` mutation loop from `cbase32`, replacing it
+  with a named, testable primitive.
+
+## Caveats / why this is an idea, not a mechanical edit
+
+- **Single primary consumer.** Today only `cbase32` round-trips this padding, so
+  this is the "single-consumer abstraction justified by clarity/separation"
+  case, not a 2-consumer DRY extraction. SHA-2's padding
+  (`crypto/sha2/module.f.ts:234`) looks similar but is *not* the same operation:
+  it appends a length field and relies on the fixed-width compress word's
+  implicit zero-extension rather than an explicit `padToMultiple`. Do **not**
+  try to force SHA-2 onto this helper.
+- **`block` generality.** `cbase32` only ever pads to 5; keep the `block`
+  parameter so the primitive reads as a general bit-vec operation rather than a
+  base32-specific one, but don't over-engineer beyond a single bigint argument.
+- Relatedly, `fs/asn.1/module.f.ts:128` has a `round8` (round a bit length up to
+  a byte boundary) that is the byte-aligned cousin of this concern; it is
+  single-module today and out of scope here, but a future `bit_vec` alignment
+  family could absorb both.
+
+## Related
+
+- [i167](./README.md), [i168](./README.md) — other `bit_vec`/text bit-level
+  extractions.
+- `fs/types/bit_vec/module.f.ts` — proposed home.
