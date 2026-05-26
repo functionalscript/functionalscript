@@ -83,7 +83,7 @@ export type Reporter<O extends Operation> = {
     readonly enter: (path: Path) => Effect<O, void>
     readonly result: (file: string, path: Path, r: SandboxResult<unknown>) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
-    readonly test: (set: TestEntry) => Effect<O, SandboxResult<unknown>>
+    readonly test: (file: string,path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
 const runModule =
@@ -111,7 +111,7 @@ const runModule =
                 pure(ts)
             )
         }
-        return test(set).step(sr => {
+        return test(k, path, set).step(sr => {
             const { result: [s, r], duration } = sr
             return result(k, path, sr).step(() => {
                 if (s === 'ok') {
@@ -148,10 +148,12 @@ export type Path = readonly (string | null)[]
 
 const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
+
 const isDigit = (c: string): boolean => c >= '0' && c <= '9'
 
 export const isInteger = (s: string): boolean =>
     s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
+
 export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
@@ -204,7 +206,7 @@ export const ghEscape = (s: string): string =>
         .replaceAll('\r', '%0D')
         .replaceAll('\n', '%0A')
 
-export const defaultTest = ({ fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
+export const defaultTest = (file: string, path: Path, { fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
     sandbox(fn)
     .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
 

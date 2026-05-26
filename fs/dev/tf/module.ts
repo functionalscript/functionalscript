@@ -1,6 +1,6 @@
 import { io, tryCatch } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { defaultTest, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
+import { defaultTest, fmtImport, fmtPath, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
@@ -86,8 +86,8 @@ const reporter: Reporter<never> = {
     enter: noOp,
     result: noOp,
     summary: noOp,
-    test: ({ throws, fn }) => {
-        nodeTest.test('test', async t => {
+    test: (file, path, { throws, fn }) => {
+        nodeTest.test(fmtImport(file, path), async t => {
             const [s, r] = tryCatch(fn)
             if (throws === (s === 'ok')) {
                 throw r
