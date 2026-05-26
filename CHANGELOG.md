@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `text`: DRY — extract the shared streaming code-point decoder skeleton (EOF sentinel, unit-vs-EOF dispatch, `flat(stateScan(...))` body) and the `errorMask` constant from `utf8`/`utf16` into a new `fs/text/code_point` module (`decoder` factory + `errorMask`) ([i168](./issues/168-utf-codepoint-decoder.md)) [860](https://github.com/functionalscript/functionalscript/pull/860)
 - `rtti`: DRY — `parse` mirrors `validate`'s container factories (`containerParse`/`constContainerParse` with a `rebuild` callback); move shared container guards/types (`IsContainer`, `GetEntries`, `Container`, `isArray`, `isObject`, `arrayEntries`) into the `common` kernel; drop `indexedFirstError` ([i162](./issues/162-rtti-parse-container-factories.md)) [853](https://github.com/functionalscript/functionalscript/pull/853)
 - `tf`: `fmtImport` output format (`import("./f.ts").path()`), `null` call markers in path, `Reporter.pass` gains `file`, relative module keys in `loadModuleMap` [851](https://github.com/functionalscript/functionalscript/pull/851)
 - `tf`: `Reporter.test` owns execution; `parseTestSet` uncurried; `oldThrows` rename; `defaultTest` exported; `Sandbox` removed from `runModuleMap`/`test` constraints; `run2` scaffold ([i163](./issues/163-reporter-test-method.md)) [844](https://github.com/functionalscript/functionalscript/pull/844)
