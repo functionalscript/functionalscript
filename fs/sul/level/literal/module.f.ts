@@ -6,7 +6,7 @@
  */
 
 import { log2 } from '../../../types/bigint/module.f.ts'
-import { msbListToVec, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import type { Func } from '../../../types/function/module.f.ts'
 import { strictEqual, type Equal, type StateScan } from '../../../types/function/operator/module.f.ts'
 import { equal, map, type List } from '../../../types/list/module.f.ts'
@@ -116,7 +116,7 @@ export type LiteralToVec = Func<bigint, Vec>
 const literalToVec = (prior: LiteralToVec, e: bigint): LiteralToVec => {
     const m = map(prior)
     const { decode } = level(e)
-    return literal => msbListToVec(m(decode(literal)))
+    return literal => msb.listToVec(m(decode(literal)))
 }
 
 /** Decodes a level-1 symbol to its canonical MSB bit vector. */

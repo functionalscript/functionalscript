@@ -5,7 +5,7 @@
  */
 import type { Array2 } from '../../types/array/module.f.ts'
 import { bitLength, divUp, roundUp, type Unary } from '../../types/bigint/module.f.ts'
-import { empty, length, msbListToVec, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, length, msb, repeat, unpack, vec, vec8, type Vec } from '../../types/bit_vec/module.f.ts'
 import { hmac } from '../hmac/module.f.ts'
 import type { Curve } from '../secp/module.f.ts'
 import { computeSync, type Sha2 } from '../sha2/module.f.ts'
@@ -55,7 +55,7 @@ export const fromCurve = (c: Curve): All => all(c.nf.p)
 const x01 = vec8(0x01n)
 const x00 = vec8(0x00n)
 
-export const concat = (...x: readonly Vec[]): Vec => msbListToVec(x)
+export const concat = (...x: readonly Vec[]): Vec => msb.listToVec(x)
 
 /**
  * Computes deterministic ECDSA nonce `k` as described by RFC6979.

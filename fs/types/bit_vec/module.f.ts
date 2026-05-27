@@ -226,6 +226,15 @@ export type BitOrder = {
      */
     readonly concat: Reduce
     /**
+     * Folds a list of vectors into a single vector in this bit order.
+     *
+     * Unlike `concat`, which joins exactly two vectors, this joins a whole list.
+     *
+     * @returns The concatenation of every vector in the list, or `empty` when the
+     * list is empty.
+     */
+    readonly listToVec: (list: List<Vec>) => Vec
+    /**
      * Computes the bitwise exclusive OR of two vectors after normalizing their lengths.
      *
      * @returns A function that takes a second vector and returns the XOR result.
@@ -274,14 +283,16 @@ const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }
             return [uint, pack(u)]
         }
     }
+    const concat: Reduce = a => b => {
+        const au = unpack(a)
+        const bu = unpack(b)
+        return pack(unpackConcat(au)(bu))
+    }
     return {
         front,
         removeFront,
-        concat: a => b => {
-            const au = unpack(a)
-            const bu = unpack(b)
-            return pack(unpackConcat(au)(bu))
-        },
+        concat,
+        listToVec: fold(flip(concat))(empty),
         xor: op(norm)(xor),
         unpackPopFront,
         popFront,
@@ -464,18 +475,6 @@ const vecToU8 = ({ unpackSplit }: BitOrder): (chunk: Vec) => number => {
  */
 export const u8List = (bo: BitOrder) => (v: Vec): Thunk<number> =>
     map(vecToU8(bo))(chunkList(bo)(8n)(v))
-
-/**
- * Concatenates a list of vectors using the provided bit order.
- */
-export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
-    fold(flip(concat))(empty)
-
-/**
- * Folds a list of MSB-ordered vectors into one vector — the bound `listToVec(msb)`.
- * Distinct from `msb.concat`, which joins exactly two vectors.
- */
-export const msbListToVec: (list: List<Vec>) => Vec = listToVec(msb)
 
 /**
  * Repeats a vector to create a padded block of the desired length.

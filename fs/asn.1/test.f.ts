@@ -1,4 +1,4 @@
-import { empty, length, msb, msbListToVec, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.ts"
+import { empty, length, msb, uint, unpack, vec, vec8, type Vec } from "../types/bit_vec/module.f.ts"
 import { asBase } from "../types/nominal/module.f.ts"
 import {
     decodeRaw,
@@ -188,18 +188,18 @@ export default {
     },
     encodeDecode: {
         integer: () => {
-            ch([integer, 0n], msbListToVec([vec8(BigInt(integer)), vec8(1n), vec8(0n)]))
-            ch([integer, 1n], msbListToVec([vec8(BigInt(integer)), vec8(1n), vec8(1n)]))
+            ch([integer, 0n], msb.listToVec([vec8(BigInt(integer)), vec8(1n), vec8(0n)]))
+            ch([integer, 1n], msb.listToVec([vec8(BigInt(integer)), vec8(1n), vec8(1n)]))
         },
         sequence: () => {
-            ch([constructedSequence, []], msbListToVec([vec8(BigInt(constructedSequence)), vec8(0n)]))
+            ch([constructedSequence, []], msb.listToVec([vec8(BigInt(constructedSequence)), vec8(0n)]))
             ch(
                 [constructedSequence, [[integer, 0n]]],
-                msbListToVec([vec8(BigInt(constructedSequence)), vec8(3n), encode([integer, 0n])])
+                msb.listToVec([vec8(BigInt(constructedSequence)), vec8(3n), encode([integer, 0n])])
             )
             ch(
                 [constructedSequence, [[integer, 1n], [integer, 2n]]],
-                msbListToVec([
+                msb.listToVec([
                     vec8(BigInt(constructedSequence)),
                     vec8(6n),
                     encode([integer, 1n]),
@@ -208,7 +208,7 @@ export default {
             )
             ch(
                 [constructedSequence, [[octetString, vec8(0x23n)], [boolean, true], [boolean, false]]],
-                msbListToVec([
+                msb.listToVec([
                     vec8(BigInt(constructedSequence)),
                     vec8(9n),
                     encode([octetString, vec8(0x23n)]),
@@ -219,7 +219,7 @@ export default {
         },
         set: () => {
             ch([constructedSet, [[integer, 2n], [integer, 1n]]],
-                msbListToVec([
+                msb.listToVec([
                     vec8(BigInt(constructedSet)),
                     vec8(6n),
                     encode([integer, 1n]),
@@ -231,7 +231,7 @@ export default {
     raw: [
         () => {
             const e = encodeRaw([0x00n, vec8(0x23n)])
-            if (e !== msbListToVec([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e)}: ${uint(e).toString(2)}` }
+            if (e !== msb.listToVec([vec8(0x00n), vec8(1n), vec8(0x23n)])) { throw `encode: ${length(e)}: ${uint(e).toString(2)}` }
             const [[tag, value], rest] = decodeRaw(e)
             if (rest !== empty) { throw `rest: ${asBase(rest)}` }
             if (tag !== 0x00n) { throw `tag: ${tag}` }
@@ -239,7 +239,7 @@ export default {
         },
         () => {
             const e = encodeRaw([0x1F20n, vec(16n)(0x1234n)])
-            if (e !== msbListToVec([vec8(0x1Fn), vec8(0x20n), vec8(2n), vec(16n)(0x1234n)])) {
+            if (e !== msb.listToVec([vec8(0x1Fn), vec8(0x20n), vec8(2n), vec(16n)(0x1234n)])) {
                 const l = length(e)
                 const u = uint(e)
                 throw `encode: ${l}: ${u.toString(16)}`

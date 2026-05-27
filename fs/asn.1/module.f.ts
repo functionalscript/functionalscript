@@ -10,7 +10,6 @@ import {
     isVec,
     length,
     msb,
-    msbListToVec,
     uint,
     unpack,
     vec,
@@ -52,7 +51,7 @@ const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
     const [firstByteNumber, rest] = number < tagNumberMask
         ? [number, empty]
         : [tagNumberMask, b128encode(number)]
-    return msbListToVec([vec8(classPc | firstByteNumber), rest])
+    return msb.listToVec([vec8(classPc | firstByteNumber), rest])
 }
 
 const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
@@ -138,7 +137,7 @@ const lenEncode = (uint: bigint): Vec => {
         return vec8(uint)
     }
     const { byteLen, v } = round8({ length: bitLength(uint), uint })
-    return msbListToVec([vec8(0x80n | byteLen), v])
+    return msb.listToVec([vec8(0x80n | byteLen), v])
 }
 
 /**
@@ -163,7 +162,7 @@ export type Raw = readonly [Tag, Vec]
 export const encodeRaw = ([tag, value]: Raw): Vec => {
     const tagVec = tagEncode(tag)
     const { byteLen, v } = round8(unpack(value))
-    return msbListToVec([tagVec, lenEncode(byteLen), v])
+    return msb.listToVec([tagVec, lenEncode(byteLen), v])
 }
 
 /** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
@@ -214,7 +213,7 @@ export type ObjectIdentifier = readonly bigint[]
 export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     const [first, second, ...rest] = oid
     const firstByte = first * 40n + second
-    return msbListToVec([vec8(firstByte), ...rest.map(b128encode)])
+    return msb.listToVec([vec8(firstByte), ...rest.map(b128encode)])
 }
 
 /** Decodes an OBJECT IDENTIFIER value. */
@@ -238,7 +237,7 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
 export type Sequence = readonly Record[]
 
 const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
-    msbListToVec(map(records.map(encode)))
+    msb.listToVec(map(records.map(encode)))
 
 /** Encodes a SEQUENCE payload from ordered records. */
 export const encodeSequence: (...records: Sequence) => Vec =
