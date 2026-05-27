@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.18.0
+
 - `rtti`: DRY — `parse` mirrors `validate`'s container factories (`containerParse`/`constContainerParse` with a `rebuild` callback); move shared container guards/types (`IsContainer`, `GetEntries`, `Container`, `isArray`, `isObject`, `arrayEntries`) into the `common` kernel; drop `indexedFirstError` ([i162](./issues/162-rtti-parse-container-factories.md)) [853](https://github.com/functionalscript/functionalscript/pull/853)
 - `tf`: `fmtImport` output format (`import("./f.ts").path()`), `null` call markers in path, `Reporter.pass` gains `file`, relative module keys in `loadModuleMap` [851](https://github.com/functionalscript/functionalscript/pull/851)
 - `tf`: `Reporter.test` owns execution; `parseTestSet` uncurried; `oldThrows` rename; `defaultTest` exported; `Sandbox` removed from `runModuleMap`/`test` constraints; `run2` scaffold ([i163](./issues/163-reporter-test-method.md)) [844](https://github.com/functionalscript/functionalscript/pull/844)

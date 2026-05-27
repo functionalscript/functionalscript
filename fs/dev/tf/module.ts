@@ -1,13 +1,12 @@
-import { io } from '../../io/module.ts'
+import { io, tryCatch } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { defaultTest, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
+import { fmtImport, isTest, parseTestSet, runModuleMap, type Reporter } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
 import { pure, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
-import type { Sandbox } from '../../types/effects/node/module.f.ts'
-import { ok } from '../../types/result/module.f.ts'
+import { type All } from '../../types/effects/node/module.f.ts'
 
 //
 
@@ -81,22 +80,35 @@ const scanModule = (x: Test): TestFunc => async(subTestRunner: SubTestRunnerFunc
 
 const noOp = () => pure(undefined)
 
-const reporter: Reporter<Sandbox> = {
-    moduleStart: noOp,
-    enter: noOp,
+const reporter: Reporter<never> = {
     result: noOp,
     summary: noOp,
-    test: defaultTest,
+    test: (file, path, { throws, fn }) => {
+        nodeTest.test(fmtImport(file, path), async _t => {
+            const [s, r] = tryCatch(fn)
+            if (throws === (s === 'ok')) {
+                throw r
+            }
+            if (!throws) {
+                // TODO: add subtests
+            }
+        })
+        return pure({
+            result: ['ok', undefined],
+            duration: 0,
+        })
+    }
 }
 
-const map: ToAsyncOperationMap<Sandbox> = {
-    sandbox: async(_f) => ({
-        result: ok(undefined),
-        duration: 0,
-    }),
-} as const
+const map: ToAsyncOperationMap<All> = {
+    // TODO: we use the same algorithm twice. Refactor by creating a `createAll(map)`
+    // helper that takes a `map` and returns an `all` function that runs effects
+    // according to the map. There could be a problem with circular dependencies,
+    // but we can use a lazy function `() => ToAsyncOperationMap<All>` instead od `map`.
+    all: async (...effects) => Promise.all(effects.map(asyncRun(map))),
+}
 
-export const run2 = async(): Promise<void> => {
+export const run3 = async(): Promise<void> => {
     const fio = fromIo(io)
     const moduleMap = await fio(loadModuleMap(io.process.env))
     const runner = runModuleMap(reporter)(moduleMap)
