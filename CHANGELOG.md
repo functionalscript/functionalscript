@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `bit_vec`: DRY — export `msbConcat` (bound `listToVec(msb)`) and replace the per-module `listToVec(msb)` re-binds in `crypto/sign`, `asn.1`, `sul/id`, `sul/level/literal` (and the `asn.1` test) ([i167](./issues/167-bit-vec-msb-concat.md)) [865](https://github.com/functionalscript/functionalscript/pull/865)
+
 ## 0.18.0
 
 - `rtti`: DRY — `parse` mirrors `validate`'s container factories (`containerParse`/`constContainerParse` with a `rebuild` callback); move shared container guards/types (`IsContainer`, `GetEntries`, `Container`, `isArray`, `isObject`, `arrayEntries`) into the `common` kernel; drop `indexedFirstError` ([i162](./issues/162-rtti-parse-container-factories.md)) [853](https://github.com/functionalscript/functionalscript/pull/853)
