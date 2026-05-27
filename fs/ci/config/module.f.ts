@@ -40,7 +40,7 @@ export const node = {
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '44.0.1'
+export const wasmtime = '45.0.0'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
