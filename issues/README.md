@@ -342,7 +342,7 @@
   ```
 - [ ] 185. Improve `listToVec` from `bit_vec` by concatenating subtrees. Instead of
   `(((((a + b) + c) + d) + e) + f)` which can be very slow for huge bigint, we can do
-  `(((a + b) + (c + d)) + (e + f))`. The number of operations that works with huge bigints are much smaller.
+  `(((a + b) + (c + d)) + (e + f))`. The number of operations that works with huge bigints are much smaller. We may also have an algorithm which does an operation with the smallest bigint.
 
 ## Language Specification
 
