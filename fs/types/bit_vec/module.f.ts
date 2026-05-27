@@ -472,6 +472,11 @@ export const listToVec = ({ concat }: BitOrder): (list: List<Vec>) => Vec =>
     fold(flip(concat))(empty)
 
 /**
+ * Concatenates a list of MSB-ordered vectors into one vector.
+ */
+export const msbConcat: (list: List<Vec>) => Vec = listToVec(msb)
+
+/**
  * Repeats a vector to create a padded block of the desired length.
  */
 export const repeat: Fold<bigint, Vec> =

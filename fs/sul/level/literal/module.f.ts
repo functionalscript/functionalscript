@@ -6,7 +6,7 @@
  */
 
 import { log2 } from '../../../types/bigint/module.f.ts'
-import { listToVec, msb, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { msbConcat, vec, type Vec } from '../../../types/bit_vec/module.f.ts'
 import type { Func } from '../../../types/function/module.f.ts'
 import { strictEqual, type Equal, type StateScan } from '../../../types/function/operator/module.f.ts'
 import { equal, map, type List } from '../../../types/list/module.f.ts'
@@ -109,8 +109,6 @@ export const pipelineStep: StateScan<bigint, PipelineState, bigint | undefined> 
         return [l3Out, [newL1s, newL2s, newL3s]]
     }
 
-const concat = listToVec(msb)
-
 const vec1 = vec(1n)
 
 export type LiteralToVec = Func<bigint, Vec>
@@ -118,7 +116,7 @@ export type LiteralToVec = Func<bigint, Vec>
 const literalToVec = (prior: LiteralToVec, e: bigint): LiteralToVec => {
     const m = map(prior)
     const { decode } = level(e)
-    return literal => concat(m(decode(literal)))
+    return literal => msbConcat(m(decode(literal)))
 }
 
 /** Decodes a level-1 symbol to its canonical MSB bit vector. */

@@ -9,8 +9,8 @@
 import { toArray } from '../../types/list/module.f.ts'
 import {
     length,
-    listToVec,
     msb,
+    msbConcat,
     uint,
     uintChunkList,
     unpack,
@@ -126,10 +126,8 @@ const hash2 = base32.compress(iv)
 
 const vecX20 = vec(0x20n)
 
-const ltv = listToVec(msb)
-
 const hashMerge = (a: Id, b: Id): Id =>
-    hashId(uint(ltv(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
+    hashId(uint(msbConcat(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
 
 const { concat } = msb
 

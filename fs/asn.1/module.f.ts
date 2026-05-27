@@ -9,8 +9,8 @@ import {
     empty,
     isVec,
     length,
-    listToVec,
     msb,
+    msbConcat,
     uint,
     unpack,
     vec,
@@ -24,8 +24,6 @@ import { encode as b128encode, decode as b128decode } from "../base128/module.f.
 const pop = msb.popFront
 
 const pop8 = pop(8n)
-
-const concat = listToVec(msb)
 
 // tag
 
@@ -54,7 +52,7 @@ const parsedTagEncode = ([classPc, number]: ParsedTag): Vec => {
     const [firstByteNumber, rest] = number < tagNumberMask
         ? [number, empty]
         : [tagNumberMask, b128encode(number)]
-    return concat([vec8(classPc | firstByteNumber), rest])
+    return msbConcat([vec8(classPc | firstByteNumber), rest])
 }
 
 const parsedTagDecode = (v: Vec): readonly[ParsedTag, Vec] => {
@@ -140,7 +138,7 @@ const lenEncode = (uint: bigint): Vec => {
         return vec8(uint)
     }
     const { byteLen, v } = round8({ length: bitLength(uint), uint })
-    return concat([vec8(0x80n | byteLen), v])
+    return msbConcat([vec8(0x80n | byteLen), v])
 }
 
 /**
@@ -165,7 +163,7 @@ export type Raw = readonly [Tag, Vec]
 export const encodeRaw = ([tag, value]: Raw): Vec => {
     const tagVec = tagEncode(tag)
     const { byteLen, v } = round8(unpack(value))
-    return concat([tagVec, lenEncode(byteLen), v])
+    return msbConcat([tagVec, lenEncode(byteLen), v])
 }
 
 /** Decodes a raw ASN.1 TLV tuple and returns the remaining input. */
@@ -216,7 +214,7 @@ export type ObjectIdentifier = readonly bigint[]
 export const encodeObjectIdentifier = (oid: ObjectIdentifier): Vec => {
     const [first, second, ...rest] = oid
     const firstByte = first * 40n + second
-    return concat([vec8(firstByte), ...rest.map(b128encode)])
+    return msbConcat([vec8(firstByte), ...rest.map(b128encode)])
 }
 
 /** Decodes an OBJECT IDENTIFIER value. */
@@ -240,7 +238,7 @@ export const decodeObjectIdentifier = (v: Vec): ObjectIdentifier => {
 export type Sequence = readonly Record[]
 
 const genericEncodeSequence = (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence): Vec =>
-    concat(map(records.map(encode)))
+    msbConcat(map(records.map(encode)))
 
 /** Encodes a SEQUENCE payload from ordered records. */
 export const encodeSequence: (...records: Sequence) => Vec =
