@@ -108,14 +108,14 @@ const map: ToAsyncOperationMap<All> = {
     all: async (...effects) => Promise.all(effects.map(asyncRun(map))),
 }
 
-export const run = async(): Promise<void> => {
+export const run3 = async(): Promise<void> => {
     const fio = fromIo(io)
     const moduleMap = await fio(loadModuleMap(io.process.env))
     const runner = runModuleMap(reporter)(moduleMap)
     await asyncRun(map)(runner)
 }
 
-export const run3 = async(): Promise<void> => {
+export const run = async(): Promise<void> => {
     const moduleMap = await fromIo(io)(loadModuleMap(io.process.env))
     for (const [i, v] of Object.entries(moduleMap)) {
         if (isTest(i)) {
