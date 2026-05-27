@@ -34,20 +34,25 @@ The only difference is the literal element type. `max` is even spelled two ways
 
 ## Proposed abstraction
 
-`fs/types/function/compare/module.f.ts` already owns the comparable vocabulary —
-`Cmp1 = boolean | string | number | bigint`, `Cmp2<A, B>`, and `cmp`. Define
-`min`/`max` there with the **same technique `cmp` uses** — the `Cmp1`/`Cmp2`
-generic signature plus the `as any` relational compare — and keep the names
-`min`/`max`:
+The essential requirement is the **signature**: `min`/`max` must carry the same
+`Cmp1`/`Cmp2` generic guard as `cmp`, so that a mismatched call like `min(1)("a")`
+is a compile error (you cannot mix `number` and `string`). Define them in
+`fs/types/function/compare/module.f.ts` next to `cmp`, reusing its `Cmp1`/`Cmp2`
+and keeping the names `min`/`max`:
 
 ```ts
-// fs/types/function/compare  (mirrors `cmp`)
+// fs/types/function/compare
 export const min = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): A | B =>
-    a as any < b ? a : b
+    cmp(a)(b) < 0 ? a : b
 
 export const max = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): A | B =>
-    a as any > b ? a : b
+    cmp(a)(b) > 0 ? a : b
 ```
+
+The body is an implementation detail: reusing `cmp` keeps it free of casts (the
+likely choice), and an inline `a as any < b` — exactly what `cmp` itself does —
+would be equally fine. What protects the caller is the `Cmp2<A, B>` constraint,
+not the body.
 
 Then **retire** the old copies: delete `operator.min`/`max` and
 `bigint.min`/`max`, and point their consumers (`number/module.f.ts`,
@@ -64,11 +69,15 @@ Then **retire** the old copies: delete `operator.min`/`max` and
 
 ## Caveats
 
-- The `a as any < b` form is deliberate: TypeScript rejects `<`/`>` on a
-  `Cmp1`-constrained parameter, and `cmp` already establishes exactly this
-  `as any` carve-out (`compare/module.f.ts:34`). So `min`/`max` follow the
-  sanctioned precedent rather than introducing a new style — they are the one
-  place, alongside `cmp`, where the otherwise-banned `as` is justified.
+- The `Cmp2<A, B>` constraint is the point — it gives *call-site* type safety so
+  `min(1)("a")` fails to compile. A single-parameter `<T extends Cmp1>(a: T) =>
+  (b: T)` is weaker (it pins `T` from the first argument and is awkward across
+  differing literal types), so mirror `cmp`'s two-level `Cmp1`/`Cmp2` shape rather
+  than inventing a looser one.
+- The relational compare on a `Cmp1`-constrained value needs either `cmp`
+  (preferred — no cast) or the same internal `as any` that `cmp` uses
+  (`compare/module.f.ts:34`). This is an internal detail with no bearing on the
+  protective signature.
 - Inference as a `reduce` accumulator: `number.min = reduce(minOp)(null)` needs
   `minOp` to resolve to `Fold<number, number>`. The doubly-generic `min` may need
   an explicit `min<number>` (or a small typed local) at that call site for
