@@ -334,6 +334,12 @@
 - [ ] [180-sorted-set-intersect-symmetry](./180-sorted-set-intersect-symmetry.md). Separation: `sorted_set.union` delegates to `sorted_list.merge`, but `sorted_set` defines the `intersect` engine itself. Move `intersectMerge`/`intersectReduce` into `sorted_list` as an exported `intersect`, restoring symmetry; optionally name the trivial `dropTail` reducer.
 - [ ] [182-batch-load-effects](./182-batch-load-effects.md). Introduce computational collections in effects: a `flatMap` combinator (ALIQ-style) lets a runner batch independent sub-effects instead of sequencing them. Related but separate: make `all` accept a lazy `List` from `fs/types/list`.
 - [ ] [183-tf-framework-scenario-tests](./183-tf-framework-scenario-tests.md). Scenario-based conformance tests for the Node/Deno/Bun/Playwright framework bridges: minimal `*.test.f.ts` files in `fs/dev/tf/scenarios/` covering pass, fail, return-value sub-trees, and throw — run per-framework via a script that checks exit code against a manifest of expected outcomes. References i155 (Bun subtest breakage).
+- [ ] 184. Design for test effects:
+  ```ts
+  const test = do_('test')
+  const subTest = do_('subTest')
+  // two options, `subTest` is either run (for Bun) the test or register the test (for Node, Deno).
+  ```
 
 ## Language Specification
 
