@@ -13,74 +13,62 @@ inspection, not by a failing test.
 ### Scenario files
 
 Create a directory `fs/dev/tf/scenarios/` containing minimal FunctionalScript
-modules, one per behaviour under test. Files are named `*.f.ts` (not
-`*.test.f.ts`) so the normal test discovery mechanism does not pick them up
-when running from the repository root:
+modules. Files are named `*.f.ts` (not `*.test.f.ts`) so the normal test
+discovery mechanism does not pick them up when running from the repository root.
 
-| File | What it exercises |
-|------|------------------|
-| `pass.f.ts` | All tests pass (baseline) |
-| `fail.f.ts` | One test fails (exit code 1) |
-| `return-value.f.ts` | `outer()` returns a sub-tree containing `inner` — the `.a().b()` pattern |
-| `throw.f.ts` | Tests under a `throw` key pass on error and fail on success |
+The expected exit code is encoded in the file name suffix — no separate manifest
+needed:
+
+| File | Expected exit code | What it exercises |
+|------|--------------------|------------------|
+| `return-value.pass.f.ts` | 0 | `outer()` returns a sub-tree containing `inner` — the `.a().b()` pattern |
+| `throw.pass.f.ts` | 0 | Tests under a `throw` key pass on error and fail on success |
+| `fail.fail.f.ts` | 1 | One test fails (exit code 1) |
+
+A `.pass.f.ts` suffix means the framework must exit 0; `.fail.f.ts` means it
+must exit 1. The runner script derives the expectation from the suffix — no
+manifest to keep in sync.
 
 More scenarios can be added as new edge cases are identified.
 
 ### Runner script
 
-A shell script `fs/dev/tf/scenarios/run.sh <framework> <scenario>`:
+A shell script `fs/dev/tf/scenarios/run.sh <framework> <scenario-file>`:
 
-1. Writes (or overwrites) a thin `test.f.ts` in a temporary directory that
-   re-exports the chosen scenario:
+1. Reads the expected exit code from the file name suffix (`.pass.f.ts` → 0,
+   `.fail.f.ts` → 1).
+2. Writes a thin `test.f.ts` in a temporary directory that re-exports the
+   chosen scenario:
    ```ts
-   export * from '../scenarios/<scenario>.f.ts'
+   export * from '../scenarios/<scenario-file>'
    ```
-2. Sets `INIT_CWD` to that temporary directory so exactly one `*.test.f.ts` is
+3. Sets `INIT_CWD` to that temporary directory so exactly one `*.test.f.ts` is
    discovered.
-3. Invokes the framework's runner.
-4. Compares the actual exit code against the expected value from the manifest
-   (see below).
-5. Exits 0 if they match, 1 otherwise.
+4. Invokes the framework's runner.
+5. Exits 0 if the actual exit code matches the expected one, 1 otherwise.
 
 The scenario files themselves are never `*.test.f.ts`, so they are never
 auto-discovered outside this script.
 
-### Expected-outcome manifest
-
-A manifest (e.g. `scenarios/expected.ts`) maps each scenario to the expected
-exit code per framework:
-
-```ts
-export const expected: Record<string, Record<string, number>> = {
-    'pass':         { node: 0, deno: 0, bun: 0, playwright: 0 },
-    'fail':         { node: 1, deno: 1, bun: 1, playwright: 1 },
-    'return-value': { node: 0, deno: 0, bun: 1, playwright: 0 }, // bun known broken (i155)
-    'throw':        { node: 0, deno: 0, bun: 0, playwright: 0 },
-}
-```
-
-The `bun: 1` on `return-value` is the known failure documented in
-[i155](./155-test-runner-integration.md). When i155 is fixed, that entry
-becomes `0` and the manifest update is the end-to-end proof.
-
 ### CI integration
 
 The script is called in a matrix: `framework × scenario`. A failure means the
-bridge's behaviour diverged from documented expectations, not that a test inside
-the scenario failed. This separates "the test logic is wrong" from "the
-framework bridge is wrong".
+bridge's behaviour diverged from the documented expectation encoded in the file
+name, not that a test inside the scenario failed. This separates "the test logic
+is wrong" from "the framework bridge is wrong".
+
+The known Bun failure on `return-value.pass.f.ts` ([i155](./155-test-runner-integration.md))
+will appear as an expected CI failure for that cell until i155 is fixed.
 
 ## Design notes
 
 - Scenario files are plain `*.f.ts` so they are type-checked alongside the rest
   of the codebase without a special build step.
-- Expected outcomes that differ across frameworks document known limitations, not
-  just test infrastructure.
-- If stdout/stderr comparison is needed (beyond exit code), the manifest entry
-  can be extended to include expected output snippets.
+- The suffix convention makes the expectation self-documenting and removes the
+  need for a manifest file.
 
 ## Related
 
-- i125 — original report: "`bun test` doesn't handle returned functions as tests"; proposed a manual rename of `integration/test.f.ts` to `integration/uncomment-test.f.ts` as the test vehicle. This issue replaces that manual approach with an automated script and a per-framework expected-outcome manifest.
-- [i155](./155-test-runner-integration.md) — Bun subtest / generated-test breakage; the `return-value` scenario here is the automated form of the test described in i125 §3.
+- i125 — original report: "`bun test` doesn't handle returned functions as tests"; proposed a manual rename of `integration/test.f.ts` to `integration/uncomment-test.f.ts` as the test vehicle. This issue replaces that manual approach with an automated script and suffix-convention files.
+- [i155](./155-test-runner-integration.md) — Bun subtest / generated-test breakage; the `return-value.pass.f.ts` scenario here is the automated form of the test described in i125.
 - [i170](./170-ci-tool-steps.md), [i175](./175-ci-setup-tool.md) — CI setup tooling that would run this matrix
