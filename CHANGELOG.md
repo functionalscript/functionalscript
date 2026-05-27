@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 - DJS serializer: factor out `buildSerialize(refLookup)` so `serializeWithoutConst` and `serializeWithConst` share the value→string core; the only difference (the const-ref short-circuit) is now a single `RefLookup` parameter; remove in-place mutation — `addRef` returns a fresh `Map` instead of `.set()`-mutating, and the "already added to consts" flag moves from `RefCounter[2]` into an immutable `Set<Unknown>` threaded through `getConstants`; `RefCounter` shrinks to `readonly [number, number]` and `Refs` becomes `ReadonlyMap` [832](https://github.com/functionalscript/functionalscript/pull/832)
+- `bit_vec`: DRY ([i167](./issues/167-bit-vec-msb-concat.md)) — make list concatenation a `BitOrder` member (`order.listToVec`); drop the free `listToVec` factory and replace the per-module `listToVec(msb)` re-binds in `crypto/sign`, `asn.1`, `sul/id`, `sul/level/literal` (and the `asn.1` test) with `msb.listToVec` [865](https://github.com/functionalscript/functionalscript/pull/865)
 
 ## 0.18.0
 
