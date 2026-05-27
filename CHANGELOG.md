@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 - `text`: DRY — extract the shared streaming code-point decoder skeleton (EOF sentinel, unit-vs-EOF dispatch, `flat(stateScan(...))` body) and the `errorMask` constant from `utf8`/`utf16` into a new `fs/text/code_point` module (`decoder` factory + `errorMask`) ([i168](./issues/168-utf-codepoint-decoder.md)) [860](https://github.com/functionalscript/functionalscript/pull/860)
+- `bit_vec`: DRY ([i167](./issues/167-bit-vec-msb-concat.md)) — make list concatenation a `BitOrder` member (`order.listToVec`); drop the free `listToVec` factory and replace the per-module `listToVec(msb)` re-binds in `crypto/sign`, `asn.1`, `sul/id`, `sul/level/literal` (and the `asn.1` test) with `msb.listToVec` [865](https://github.com/functionalscript/functionalscript/pull/865)
 
 ## 0.18.0
 
