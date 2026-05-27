@@ -53,6 +53,12 @@ export const roundUpE2 = (e: bigint): Unary => {
 These compile to the same shifts the hand-written `asn.1` code already uses, so
 there is no regression.
 
+The curried `(e) => (v) =>` shape is deliberate for caching: `mask(e)` is computed
+once when the divisor/exponent is fixed and captured in the returned closure, so
+the per-operand path is just `(v + m) >> e` with no recomputation. (The general
+`divUp` caches `b - 1n` the same way, and consumers already bind the partial
+application once — e.g. `const divUp8 = divUp(8n)`.)
+
 ## Consumers
 
 - **`asn.1`**: `byteLen = divUpE2(3n)(length)`, and the rounded bit length is
