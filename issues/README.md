@@ -260,10 +260,7 @@
   1. One option is to pass a state.
   2. In-memory KeyValue storage with access using effects.
   3. One function for all events that also pass a state, similar to a `scan` function.
-- [ ] 125. `bun test` doesn't handle returned functions as tests.
-  1. Create a test file `integration/test.f.ts` and rename it to something like `integration/uncomment-test.f.ts`. The file should be renamed back when we need to test an engine.
-  2. The file should contain multiple tests using objects, arrays, and functions. At least one function should produce a similar structure.
-  3. At least one function should be `throw`.
+- [ ] 125. `bun test` doesn't handle returned functions as tests. See also [i155](./155-test-runner-integration.md) and [i183](./183-tf-framework-scenario-tests.md), which replace the manual rename approach proposed here with an automated scenario matrix.
 - [ ] [130-or-optimization](./130-or-optimization.md). **Superseded by 143.** Canonical-form properties of `or` are now properties of the data form by construction; nothing to do on the thunk form.
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
@@ -336,6 +333,7 @@
 - [ ] [179-btree-collapse-root](./179-btree-collapse-root.md). DRY: `btree/set` and `btree/remove` both end with `x.length === 1 ? x[0] : x` to demote a single-child root. Name it `collapseRoot` in `btree/types` (2 consumers).
 - [ ] [180-sorted-set-intersect-symmetry](./180-sorted-set-intersect-symmetry.md). Separation: `sorted_set.union` delegates to `sorted_list.merge`, but `sorted_set` defines the `intersect` engine itself. Move `intersectMerge`/`intersectReduce` into `sorted_list` as an exported `intersect`, restoring symmetry; optionally name the trivial `dropTail` reducer.
 - [ ] [182-batch-load-effects](./182-batch-load-effects.md). Introduce computational collections in effects: a `flatMap` combinator (ALIQ-style) lets a runner batch independent sub-effects instead of sequencing them. Related but separate: make `all` accept a lazy `List` from `fs/types/list`.
+- [ ] [183-tf-framework-scenario-tests](./183-tf-framework-scenario-tests.md). Scenario-based conformance tests for the Node/Deno/Bun/Playwright framework bridges: minimal `*.test.f.ts` files in `fs/dev/tf/scenarios/` covering pass, fail, return-value sub-trees, and throw — run per-framework via a script that checks exit code against a manifest of expected outcomes. References i155 (Bun subtest breakage).
 
 ## Language Specification
 
