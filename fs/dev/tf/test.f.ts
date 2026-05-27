@@ -10,8 +10,6 @@ import {
 } from './module.f.ts'
 
 type Event =
-    | readonly['moduleStart', string]
-    | readonly['enter', Path]
     | readonly['result', string, Path, SandboxResult<unknown>]
     | readonly['summary', number, number, number]
 
@@ -20,8 +18,6 @@ type TestReporter = Reporter<Sandbox>
 const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     const events: Event[] = []
     const reporter: TestReporter = {
-        moduleStart: file => { events.push(['moduleStart', file]); return pure(undefined) },
-        enter: path => { events.push(['enter', [...path]]); return pure(undefined) },
         result: (file, path, r) => { events.push(['result', file, [...path], r]); return pure(undefined) },
         summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
         test: defaultTest,
@@ -61,29 +57,26 @@ export const flat = () => {
         'a.test.f.ts': () => ({ a: ok0, b: ok1 }),
     })
     assertEq(exit, 0)
-    const [e0, e1, e2, e3] = events
-    assertEq(e0[0], 'moduleStart')
-    assert(e1[0] === 'result' && e1[2][0] === 'a')
-    assert(e2[0] === 'result' && e2[2][0] === 'b')
-    assertEq(e3[0], 'summary')
-    const [, pass, fail] = e3
+    const [e0, e1, e2] = events
+    assert(e0[0] === 'result' && e0[2][0] === 'a')
+    assert(e1[0] === 'result' && e1[2][0] === 'b')
+    assertEq(e2[0], 'summary')
+    const [, pass, fail] = e2
     assertEq(pass, 2)
     assertEq(fail, 0)
 }
 
-// nested object: sub-tree triggers enter event
+// nested object: leaf tests carry the full path including the sub-tree key
 export const nested = () => {
     const [events, exit] = run({
         'n.test.f.ts': () => ({ math: { add: ok0, sub: ok0 } }),
     })
     assertEq(exit, 0)
-    const [e0, e1, e2, e3, e4] = events
-    assertEq(e0[0], 'moduleStart')
-    assert(e1[0] === 'enter' && e1[1][0] === 'math')
-    assert(e2[0] === 'result' && e2[2][1] === 'add')
-    assert(e3[0] === 'result' && e3[2][1] === 'sub')
-    assertEq(e4[0], 'summary')
-    const [, pass, fail] = e4
+    const [e0, e1, e2] = events
+    assert(e0[0] === 'result' && e0[2][1] === 'add')
+    assert(e1[0] === 'result' && e1[2][1] === 'sub')
+    assertEq(e2[0], 'summary')
+    const [, pass, fail] = e2
     assertEq(pass, 2)
     assertEq(fail, 0)
 }
@@ -94,12 +87,10 @@ export const throwKey = () => {
         't.test.f.ts': () => ({ throw: { a: fail0 } }),
     })
     assertEq(exit, 0)
-    const [e0, e1, e2, e3] = events
-    assertEq(e0[0], 'moduleStart')
-    assert(e1[0] === 'enter' && e1[1][0] === 'throw')
-    assert(e2[0] === 'result' && e2[2][0] === 'throw' && e2[2][1] === 'a')
-    assertEq(e3[0], 'summary')
-    const [, pass, fail] = e3
+    const [e0, e1] = events
+    assert(e0[0] === 'result' && e0[2][0] === 'throw' && e0[2][1] === 'a')
+    assertEq(e1[0], 'summary')
+    const [, pass, fail] = e1
     assertEq(pass, 1)
     assertEq(fail, 0)
 }
@@ -110,9 +101,9 @@ export const throwKeyFail = () => {
         't.test.f.ts': () => ({ throw: { a: ok0 } }),
     })
     assertEq(exit, 1)
-    const [, , e2, e3] = events
-    assertEq(e2[0], 'result')
-    const [, pass, fail] = e3
+    const [e0, e1] = events
+    assertEq(e0[0], 'result')
+    const [, pass, fail] = e1
     assertEq(pass, 0)
     assertEq(fail, 1)
 }
@@ -169,20 +160,20 @@ export const nonTestFilesSkipped = () => {
         'b.test.f.ts': () => ({ x: ok0 }),
     })
     assertEq(exit, 0)
-    const starts = events.filter(e => e[0] === 'moduleStart')
-    assertEq(starts.length, 1)
-    assertEq(starts[0][1], './b.test.f.ts')
+    const results = events.filter(e => e[0] === 'result')
+    assertEq(results.length, 1)
+    assertEq(results[0][1], './b.test.f.ts')
 }
 
-// multiple test files each emit their own moduleStart
+// multiple test files each produce result events
 export const multipleFiles = () => {
     const [events, exit] = run({
         'a.test.f.ts': () => ({ x: ok0 }),
         'b.test.f.ts': () => ({ y: ok0 }),
     })
     assertEq(exit, 0)
-    const starts = events.filter(e => e[0] === 'moduleStart')
-    assertEq(starts.length, 2)
+    const results = events.filter(e => e[0] === 'result')
+    assertEq(results.length, 2)
     const [, pass, fail] = events[events.length - 1]
     assertEq(pass, 2)
     assertEq(fail, 0)

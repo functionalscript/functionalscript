@@ -40,10 +40,10 @@ export const node = {
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '44.0.1'
+export const wasmtime = '45.0.0'
 
 // https://github.com/wasmerio/wasmer/releases
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260524.1'
+export const tsgo = '7.0.0-dev.20260526.1'

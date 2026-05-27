@@ -20,7 +20,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -36,7 +36,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260524.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260526.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -194,7 +194,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -210,7 +210,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260524.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260526.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -362,7 +362,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -378,7 +378,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260524.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260526.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -530,7 +530,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -546,7 +546,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260524.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260526.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -698,7 +698,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -714,7 +714,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260524.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260526.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -872,7 +872,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -888,7 +888,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260524.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260526.1"
         },
         {
           "uses": "denoland/setup-deno@v2",

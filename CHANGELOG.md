@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 - DJS serializer: factor out `buildSerialize(refLookup)` so `serializeWithoutConst` and `serializeWithConst` share the value→string core; the only difference (the const-ref short-circuit) is now a single `RefLookup` parameter; remove in-place mutation — `addRef` returns a fresh `Map` instead of `.set()`-mutating, and the "already added to consts" flag moves from `RefCounter[2]` into an immutable `Set<Unknown>` threaded through `getConstants`; `RefCounter` shrinks to `readonly [number, number]` and `Refs` becomes `ReadonlyMap` [832](https://github.com/functionalscript/functionalscript/pull/832)
+
+## 0.18.0
+
 - `rtti`: DRY — `parse` mirrors `validate`'s container factories (`containerParse`/`constContainerParse` with a `rebuild` callback); move shared container guards/types (`IsContainer`, `GetEntries`, `Container`, `isArray`, `isObject`, `arrayEntries`) into the `common` kernel; drop `indexedFirstError` ([i162](./issues/162-rtti-parse-container-factories.md)) [853](https://github.com/functionalscript/functionalscript/pull/853)
 - `tf`: `fmtImport` output format (`import("./f.ts").path()`), `null` call markers in path, `Reporter.pass` gains `file`, relative module keys in `loadModuleMap` [851](https://github.com/functionalscript/functionalscript/pull/851)
 - `tf`: `Reporter.test` owns execution; `parseTestSet` uncurried; `oldThrows` rename; `defaultTest` exported; `Sandbox` removed from `runModuleMap`/`test` constraints; `run2` scaffold ([i163](./issues/163-reporter-test-method.md)) [844](https://github.com/functionalscript/functionalscript/pull/844)

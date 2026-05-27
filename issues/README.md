@@ -260,10 +260,7 @@
   1. One option is to pass a state.
   2. In-memory KeyValue storage with access using effects.
   3. One function for all events that also pass a state, similar to a `scan` function.
-- [ ] 125. `bun test` doesn't handle returned functions as tests.
-  1. Create a test file `integration/test.f.ts` and rename it to something like `integration/uncomment-test.f.ts`. The file should be renamed back when we need to test an engine.
-  2. The file should contain multiple tests using objects, arrays, and functions. At least one function should produce a similar structure.
-  3. At least one function should be `throw`.
+- [ ] 125. `bun test` doesn't handle returned functions as tests. See also [i155](./155-test-runner-integration.md) and [i183](./183-tf-framework-scenario-tests.md), which replace the manual rename approach proposed here with an automated scenario matrix.
 - [ ] [130-or-optimization](./130-or-optimization.md). **Superseded by 143.** Canonical-form properties of `or` are now properties of the data form by construction; nothing to do on the thunk form.
 - [ ] 131. An allocator for `nanvm` that doesn't panic. Instead, it should return `Result<T, Any`.
 - [ ] 132. `exec`:
@@ -328,6 +325,15 @@
 - [ ] [171-tf-fn-name-throw](./171-tf-fn-name-throw.md). Remove `fn.name === 'throw'` from `parseTestSet`; throw semantics should be determined solely by the property key, not by engine-inferred function names. DRY: `ci/bun`, `ci/deno`, and `ci/node` repeat the same `clean([install(setup), ...test(cmd), ...extra])` shape. Extract a `toolSteps(setup, cmds)` builder in `ci/common`, with the install step passed in to accommodate bun's per-OS variant.
 - [ ] [172-rtti-validate-parse-skeleton](./172-rtti-validate-parse-skeleton.md). Investigate collapsing the parallel `validate`/`parse` container factories into one shared skeleton in `common` with an injected `build` callback (identity for `validate`, `rebuild` for `parse`). Catch: `validate`'s no-allocation/short-circuit contract vs `parse`'s map-all/rebuild. Defer until a third consumer (i143 data form) exists.
 - [ ] [173-csi-edsl](./173-csi-edsl.md). Introduce a structured eDSL for composing ANSI CSI/SGR sequences in `fs/text/sgr/module.f.ts`, analogous to the HTML eDSL in `fs/html/module.f.ts`. A `Block = readonly [Options, readonly (string | Block)[]]` tree replaces hand-rolled template-literal concatenation.
+- [ ] [174-range-map-lexer](./174-range-map-lexer.md). DRY: `fsc` and `js/tokenizer` are the only two code-point scanners and both hand-roll the same range-map Mealy machine — identical `union` conflict rule, `range_map.merge` wrapper, range/range-set cell combinators, and `v => c => x(c)(i)(v)(c)` dispatch — differing only in the continuation payload. Extract a `lexer(def)` factory parameterized over the state continuation.
+- [ ] [175-ci-setup-tool](./175-ci-setup-tool.md). DRY: five CI modules build `install({ uses, with: { '<x>-version': version } })` by hand (node/deno/bun/wasmtime/wasmer). Extract a `setupTool(uses, versionKey)(version)` factory in `ci/common`; complements i170/i171, which take the install step as a pre-built input.
+- [ ] [176-json-file-effects](./176-json-file-effects.md). DRY/separation: `dev`, `dev/version`, and `ci` each open-code "read+utf8-decode+JSON.parse a file" and "JSON.stringify(pretty)+utf8+write a file" over the effect API. Extract `readJsonFile`/`writeJsonFile` helpers (read: 2 consumers, write: 3).
+- [ ] [177-bigfloat-normalize-mantissa](./177-bigfloat-normalize-mantissa.md). DRY: `bigfloat`'s `increaseMantissa`/`decreaseMantissa` are an exact mirror (same zero guard, sign split, shift-and-adjust loop); collapse into one private `normalizeMantissa(shift, de, done)` factory.
+- [ ] [178-cbase32-bit-vec-padding](./178-cbase32-bit-vec-padding.md). Separation: `cbase32` inlines a 1-then-0s bit-padding scheme and a trailing-zero strip loop (the latter already flagged `// TODO`). Move `padToMultiple`/`unpadMultiple` into `bit_vec`; SHA-2's padding is deliberately *not* a match.
+- [ ] [179-btree-collapse-root](./179-btree-collapse-root.md). DRY: `btree/set` and `btree/remove` both end with `x.length === 1 ? x[0] : x` to demote a single-child root. Name it `collapseRoot` in `btree/types` (2 consumers).
+- [ ] [180-sorted-set-intersect-symmetry](./180-sorted-set-intersect-symmetry.md). Separation: `sorted_set.union` delegates to `sorted_list.merge`, but `sorted_set` defines the `intersect` engine itself. Move `intersectMerge`/`intersectReduce` into `sorted_list` as an exported `intersect`, restoring symmetry; optionally name the trivial `dropTail` reducer.
+- [ ] [182-batch-load-effects](./182-batch-load-effects.md). Introduce computational collections in effects: a `flatMap` combinator (ALIQ-style) lets a runner batch independent sub-effects instead of sequencing them. Related but separate: make `all` accept a lazy `List` from `fs/types/list`.
+- [ ] [183-tf-framework-scenario-tests](./183-tf-framework-scenario-tests.md). Scenario-based conformance tests for the Node/Deno/Bun/Playwright framework bridges: minimal `*.test.f.ts` files in `fs/dev/tf/scenarios/` covering pass, fail, return-value sub-trees, and throw — run per-framework via a script that checks exit code against a manifest of expected outcomes. References i155 (Bun subtest breakage).
 
 ## Language Specification
 
