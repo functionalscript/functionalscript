@@ -1,6 +1,6 @@
-# 187. byte-rounding: reuse `bigint.divUp`/`roundUp` in `asn.1`, and fix their type
+# 187. byte-rounding: a shift-based `divUpE2`/`roundUpE2`, reused by `asn.1` and `sign`
 
-`bigint` already exports the "round up to a multiple" arithmetic:
+`bigint` exports general round-up arithmetic that divides/multiplies:
 
 ```ts
 // fs/types/bigint/module.f.ts:272
@@ -15,8 +15,8 @@ export const roundUp: Reduce = b => {
 }
 ```
 
-`asn.1` re-derives "round a bit-length up to a whole number of bytes" twice
-instead of using them:
+`asn.1` re-derives "round a bit-length up to whole bytes" twice — but with **bit
+shifts**, not division, because the divisor is a power of two (8 = 2³):
 
 ```ts
 // fs/asn.1/module.f.ts:71  — tag length
@@ -24,54 +24,86 @@ vec(max((bitLength(tag) + 7n) >> 3n)(1n) << 3n)(tag)
 
 // fs/asn.1/module.f.ts:133
 const round8 = ({ length, uint }: Unpacked): Round8 => {
-    const byteLen = (length + 7n) >> 3n        // === divUp(8n)(length)
-    return { byteLen, v: vec(byteLen << 3n)(uint) }   // byteLen << 3n === roundUp(8n)(length)
+    const byteLen = (length + 7n) >> 3n               // divide-up by 8 via shift
+    return { byteLen, v: vec(byteLen << 3n)(uint) }   // ×8 via shift
 }
 ```
 
-`(x + 7n) >> 3n` is exactly `divUp(8n)(x)`, and `byteLen << 3n` is the bit-count
-`roundUp(8n)(x)`. `asn.1` already imports `bitLength`/`max` from `bigint`
-(`asn.1/module.f.ts:7`), so the dependency is established.
+## Performance: don't trade a shift for a division
 
-## Two coupled changes
+Naively reusing `divUp(8n)` would replace `(x + 7n) >> 3n` (a shift) with
+`(x + 7n) / 8n` (a general bigint division) — a needless slowdown for a
+power-of-two divisor. So the right shared helper is a **shift-based, power-of-two**
+variant parameterized by the exponent `e` (divisor = 2ᵉ), as the review suggests
+(`divUpE2`):
 
-**(1) Reuse.** Bind `const divUp8 = divUp(8n)` (and `roundUp8 = roundUp(8n)`) and
-use them in `round8` and `tagEncode`, keeping the byte-rounding arithmetic in one
-place. The `max(...)(1n)` "at least one byte" floor stays local to `tagEncode`.
+```ts
+// fs/types/bigint  (reuses the existing `mask`, :206)
+export const divUpE2 = (e: bigint): Unary => {
+    const m = mask(e)            // (1n << e) - 1n
+    return v => (v + m) >> e
+}
 
-**(2) Honest type.** `divUp`/`roundUp` are currently typed `Reduce`
-(`= Fold<bigint, bigint> = (a) => (b) => bigint`), the type meant for
-*associative reductions over a list* (what `sum`/`product` feed to `reduce`). But
-these are **not** reductions: the first parameter is a *fixed divisor*
-(configuration), the second is the operand. Their real consumers confirm it —
-`fs/crypto/sign/module.f.ts:14` binds `roundUp(8n)`/`divUp(8n)` as `Unary`
-operations, and the `asn.1` use above is the same `divUp(8n)` partial application.
-Retype them to advertise the config/operand split:
+export const roundUpE2 = (e: bigint): Unary => {
+    const d = divUpE2(e)
+    return v => d(v) << e
+}
+```
+
+These compile to the same shifts the hand-written `asn.1` code already uses, so
+there is no regression.
+
+## Consumers
+
+- **`asn.1`**: `byteLen = divUpE2(3n)(length)`, and the rounded bit length is
+  `byteLen << 3n` (i.e. `roundUpE2(3n)(length)`); `tagEncode` keeps its
+  `max(...)(1n)` "≥ 1 byte" floor between the divide-up and the `<< 3n`. `asn.1`
+  already imports `bitLength`/`max` from `bigint` (`asn.1:7`), so the dependency
+  is established.
+- **`crypto/sign`**: `divUp(8n)`/`roundUp(8n)` (`sign/module.f.ts:14,16`) are also
+  power-of-two (8 = 2³); migrating them to `divUpE2(3n)`/`roundUpE2(3n)` makes
+  `divUpE2` a genuine second consumer **and** swaps their general `/`/`*` for
+  shifts — a speedup for `sign` too.
+
+## Keep the general `divUp`/`roundUp` — and fix their type
+
+The general versions must stay: `bit_vec` uses `divUp(n << 1n)`
+(`bit_vec/module.f.ts:394`), whose divisor `2·n` is **not** a static power of two,
+so it genuinely needs the `/`-based form.
+
+While there, fix their type. `divUp`/`roundUp` are typed `Reduce`
+(`= Fold<bigint, bigint> = (a) => (b) => bigint`), the type for *associative
+reductions over a list* (what `sum`/`product` feed to `reduce`). But these are
+**not** reductions: the first parameter is a fixed *divisor* (configuration), the
+second the operand — `sign` already treats `divUp(8n)`/`roundUp(8n)` as `Unary`.
+Retype to advertise the config/operand split (matching `divUpE2` above):
 
 ```ts
 export const divUp = (b: bigint): Unary => { const m = b - 1n; return v => (v + m) / b }
 export const roundUp = (b: bigint): Unary => { const d = divUp(b); return v => d(v) * b }
 ```
 
-(`Unary = OpUnary<bigint, bigint>` is already imported at `bigint/module.f.ts:28`.)
-This prevents `reduce(divUp)` from silently type-checking into nonsense. `xor`
-stays a genuine `Reduce`.
+(`Unary = OpUnary<bigint, bigint>` is already imported at `bigint:28`.) This
+prevents `reduce(divUp)` from silently type-checking into nonsense. `xor` stays a
+genuine `Reduce`.
 
 ## Why this qualifies
 
-- DRY: `divUp(8n)`/`roundUp(8n)` is the same byte-rounding used by `sign` and now
-  `asn.1` (two distinct modules) — extract/reuse, don't re-derive.
-- Clarity/type-honesty: naming the curried first parameter as configuration
-  (`(divisor) => Unary`) rather than a fold accumulator documents the shape and
-  removes a latent misuse.
+- DRY with two real consumers of power-of-two byte rounding (`asn.1`, `sign`) —
+  past the second-consumer bar — without forcing a slower general division on
+  either.
+- Clarity/type-honesty: `(exponent) => Unary` / `(divisor) => Unary` document that
+  the curried first parameter is configuration, not a fold accumulator.
 
 ## Caveats
 
-- The runtime behavior and curried shape are unchanged by the retype; only the
-  declared type alias changes. The `Reduce` import in `bigint` is still used by
-  `addition`/`xor`/etc.
-- Confirm no caller currently relies on `divUp`/`roundUp` being assignable to
-  `Reduce` (none should — `sign` already treats them as `Unary`).
+- `divUpE2`/`roundUpE2` are valid **only** for power-of-two divisors; keep
+  `bit_vec`'s `divUp(n << 1n)` on the general form (its divisor isn't a static
+  power of two).
+- Behavior is identical to the existing `asn.1` shifts; confirm with the `asn.1`
+  tests. The `sign` migration is also behavior-preserving (8 = 2³).
+- The retype of `divUp`/`roundUp` changes only the declared type, not the runtime
+  shape; the `Reduce` import in `bigint` is still used by `addition`/`xor`/etc.
 
 ## Related
 
