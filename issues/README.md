@@ -340,6 +340,9 @@
   const subTest = do_('subTest')
   // two options, `subTest` is either run (for Bun) the test or register the test (for Node, Deno).
   ```
+- [ ] 185. Improve `listToVec` from `bit_vec` by concatenating subtrees. Instead of
+  `(((((a + b) + c) + d) + e) + f)` which can be very slow for huge bigint, we can do
+  `(((a + b) + (c + d)) + (e + f))`. The number of operations that works with huge bigints are much smaller.
 
 ## Language Specification
 
