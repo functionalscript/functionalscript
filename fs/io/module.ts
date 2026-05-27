@@ -41,6 +41,14 @@ const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promis
 
 export const asyncImport = (v: string): Promise<Module> => import(v)
 
+export const tryCatch: <T>(f: () => T) => Result<T, unknown> = f => {
+    try {
+        return ok(f())
+    } catch (e) {
+        return error(e)
+    }
+}
+
 export const io: Io = {
     console,
     fs,
@@ -52,13 +60,7 @@ export const io: Io = {
     },
     performance,
     fetch,
-    tryCatch: f => {
-        try {
-            return ok(f())
-        } catch (e) {
-            return error(e)
-        }
-    },
+    tryCatch,
     asyncTryCatch: async f => {
         try {
             return ok(await f())

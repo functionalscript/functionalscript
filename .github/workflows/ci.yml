@@ -20,7 +20,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -194,7 +194,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -362,7 +362,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -530,7 +530,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -698,7 +698,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -872,7 +872,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
