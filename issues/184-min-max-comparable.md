@@ -1,4 +1,4 @@
-# 184. `function`: a generic comparable `min`/`max`, shared by `operator` and `bigint`
+# 184. `function`: a generic comparable `min`/`max`, retiring the per-type copies
 
 The exact same two-line "pick the smaller / larger of two values" algorithm is
 written out in two modules, differing only in the element type.
@@ -35,38 +35,47 @@ The only difference is the literal element type. `max` is even spelled two ways
 ## Proposed abstraction
 
 `fs/types/function/compare/module.f.ts` already owns the comparable vocabulary —
-`Cmp1 = boolean | string | number | bigint` and `cmp` (which compares any two
-`Cmp1` values). Add a generic `minBy`/`maxBy` there, expressed via `cmp` so the
-relational operator never touches a bare type parameter:
+`Cmp1 = boolean | string | number | bigint`, `Cmp2<A, B>`, and `cmp`. Define
+`min`/`max` there with the **same technique `cmp` uses** — the `Cmp1`/`Cmp2`
+generic signature plus the `as any` relational compare — and keep the names
+`min`/`max`:
 
 ```ts
-// fs/types/function/compare
-export const minBy = <T extends Cmp1>(a: T) => (b: T): T => cmp(a)(b) <= 0 ? a : b
-export const maxBy = <T extends Cmp1>(a: T) => (b: T): T => cmp(a)(b) >= 0 ? a : b
+// fs/types/function/compare  (mirrors `cmp`)
+export const min = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): A | B =>
+    a as any < b ? a : b
+
+export const max = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): A | B =>
+    a as any > b ? a : b
 ```
 
-Then `operator.min`/`max` and `bigint.min`/`max` become one-line typed bindings
-(`export const min: Reduce<number> = minBy`, `export const min = minBy<bigint>`),
-preserving their current names and signatures for every existing caller.
+Then **retire** the old copies: delete `operator.min`/`max` and
+`bigint.min`/`max`, and point their consumers (`number/module.f.ts`,
+`bit_vec/module.f.ts`, `asn.1/module.f.ts`) at the single `compare.min`/`max`.
 
 ## Why this qualifies
 
 - DRY with two real consumers (`number` via `operator`, `bit_vec`/`asn.1` via
-  `bigint`) — past the second-consumer bar in `AGENTS.md`.
-- The `cmp`-based body removes the textual `min`-uses-`<` / `max`-uses-`>`
-  inconsistency and is reusable by `string` ordering too (`string` already
-  delegates to `compare`).
+  `bigint`) — past the second-consumer bar in `AGENTS.md`. One generic pair
+  replaces both per-type copies.
+- Removes the textual `min`-uses-`<` / `max`-uses-`>` inconsistency, and the same
+  `min`/`max` then works for `string` ordering too (`string` already delegates to
+  `compare`).
 
 ## Caveats
 
-- A naive `<T>(a: T) => (b: T) => a < b ? ...` does **not** type-check: TypeScript
-  rejects `<` on a bare type parameter, which is why `cmp` itself uses an internal
-  `as any` (`compare/module.f.ts:34`). Routing `minBy`/`maxBy` through `cmp`
-  avoids introducing any new `as` cast (banned by `AGENTS.md` except `as const`).
-- `operator.min: Reduce<number>` is consumed as a `reduce` accumulator; confirm
-  the bound `minBy` still satisfies `Reduce<number> = Fold<number, number>` so
-  `number/module.f.ts`'s `reduce(minOp)(null)` type-checks unchanged.
-- Pure relocation/parameterization: no behavior change for any caller.
+- The `a as any < b` form is deliberate: TypeScript rejects `<`/`>` on a
+  `Cmp1`-constrained parameter, and `cmp` already establishes exactly this
+  `as any` carve-out (`compare/module.f.ts:34`). So `min`/`max` follow the
+  sanctioned precedent rather than introducing a new style — they are the one
+  place, alongside `cmp`, where the otherwise-banned `as` is justified.
+- Inference as a `reduce` accumulator: `number.min = reduce(minOp)(null)` needs
+  `minOp` to resolve to `Fold<number, number>`. The doubly-generic `min` may need
+  an explicit `min<number>` (or a small typed local) at that call site for
+  `reduce` to infer the fold type; instantiate where inference needs help.
+- Retiring removes the `min as minOp`/`max as maxOp` aliases in `number` and the
+  `min`/`max` exports from `operator` and `bigint`; update those import sites.
+- Behavior-preserving for all callers.
 
 ## Related
 
