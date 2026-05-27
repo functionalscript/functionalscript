@@ -55,7 +55,9 @@ export const fromCurve = (c: Curve): All => all(c.nf.p)
 const x01 = vec8(0x01n)
 const x00 = vec8(0x00n)
 
-export const concat = (...x: readonly Vec[]): Vec => msb.listToVec(x)
+const { listToVec } = msb
+
+export const concat = (...x: readonly Vec[]): Vec => listToVec(x)
 
 /**
  * Computes deterministic ECDSA nonce `k` as described by RFC6979.

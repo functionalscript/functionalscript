@@ -113,10 +113,12 @@ const vec1 = vec(1n)
 
 export type LiteralToVec = Func<bigint, Vec>
 
+const { listToVec } = msb
+
 const literalToVec = (prior: LiteralToVec, e: bigint): LiteralToVec => {
     const m = map(prior)
     const { decode } = level(e)
-    return literal => msb.listToVec(m(decode(literal)))
+    return literal => listToVec(m(decode(literal)))
 }
 
 /** Decodes a level-1 symbol to its canonical MSB bit vector. */
