@@ -21,13 +21,12 @@ import {
     type SandboxResult,
     type NodeProgram,
     type WriteConsoles,
+    type TestContext,
 } from '../types/effects/node/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
-import type { TestContext } from 'node:test'
-import * as nodeTest from 'node:test'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
@@ -160,7 +159,7 @@ export type Io = {
     readonly now: () => number
     readonly sandbox: Sandbox
     readonly write: (stream: WriteConsoles, data: Vec) => Promise<void>
-    readonly test: (context: TestContext, name: string, options: { readonly expectFailure: boolean }, fn: (t: TestContext) => void | Promise<void>) => void
+    readonly testContext: TestContext
 }
 
 export type App = (io: Io) => Promise<number>
@@ -267,13 +266,13 @@ export const fromIo = ({
         sandbox: async f => ioSandbox(f),
         write: ioWrite,
         test: async (ctx, name, expectFailure, test) =>
-            (ctx || nodeTest).test(name, { expectFailure }, async t => result(test(t))),
+            ctx.test(name, { expectFailure }, async t => result(test(t))),
     })
     return result
 }
 
 export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
-    const { process: { env, stdout, stderr } } = io
+    const { process: { env, stdout, stderr }, testContext } = io
     const f = fromIo(io)
     return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
         f(program({
@@ -283,5 +282,6 @@ export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeP
                 stdout: { isTTY: stdout.isTTY },
                 stderr: { isTTY: stderr.isTTY },
             },
+            testContext,
         }))
 }

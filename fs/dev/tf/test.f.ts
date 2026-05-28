@@ -25,10 +25,13 @@ const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     return [reporter, () => events]
 }
 
+const noopTestContext = { test: () => {} }
+
 const options = (initCwd: string, github = false): NodeProgramOptions => ({
     args: [],
     env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTION: 'true' } : {}) },
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
+    testContext: noopTestContext,
 })
 
 const ok0 = (): unknown => ({ result: ['ok', undefined] as const, duration: 0 })

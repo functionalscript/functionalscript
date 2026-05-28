@@ -8,6 +8,7 @@ import { fromIo, type Io, runProgram } from './module.f.ts'
 import type { Module, NodeProgram, NodeProgramOptions, WriteConsoles } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
+import * as testContext from 'node:test'
 
 const prefix = 'file:///'
 
@@ -86,8 +87,7 @@ export const io: Io = {
         return { result, duration: after - before }
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
-    test: (ctx, name, options, fn) =>
-        ctx.test(name, options, fn),
+    testContext,
 }
 
 export type NodeRun = (p: NodeProgram) => Promise<number>

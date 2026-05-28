@@ -256,7 +256,7 @@ export type TestContext = {
 }
 
 export type Test =
-    readonly['test', (ctx: TestContext|undefined, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
 
 export const test: Func<Test> = do_('test')
 
@@ -289,6 +289,7 @@ export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
+    readonly testContext: TestContext
 }
 
 export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>
