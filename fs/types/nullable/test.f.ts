@@ -1,4 +1,4 @@
-import { map, toOption } from './module.f.ts'
+import { map, match, toOption } from './module.f.ts'
 
 export default [
     () => {
@@ -13,5 +13,10 @@ export default [
         if (opt1.length !== 1 || opt1[0] !== 5) { throw opt1 }
         const opt2 = toOption(null)
         if (opt2.length !== 0) { throw opt2 }
+    },
+    () => {
+        const double = match((v: number) => v * 2)(() => -1)
+        if (double(3) !== 6) { throw double(3) }
+        if (double(null) !== -1) { throw double(null) }
     }
 ]
