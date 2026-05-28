@@ -20,3 +20,7 @@ export type Tree<T> = TNode<T> | null
 export type Branch1<T> = readonly[TNode<T>]
 
 export type Branch7<T> = readonly[...Branch5<T>, T, TNode<T>]
+
+export const collapseRoot
+    : <T>(b: Branch1<T> | Branch3<T> | Branch5<T>) => TNode<T>
+    = b => b.length === 1 ? b[0] : b
