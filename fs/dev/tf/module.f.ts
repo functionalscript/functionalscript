@@ -183,6 +183,18 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
 export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
+export const registerModuleMap =
+    (moduleMap: ModuleMap): Effect<RegisterTest | All, void> => {
+        const modules = entries(moduleMap).filter(([k]) => isTest(k))
+        if (modules.length === 0) { return pure(undefined) }
+        return all(...modules.map(([k, v]) => registerModule(k, v))).step(() => pure(undefined))
+    }
+
+export const register: Program<RegisterTest | All | LoadModuleOperations> = options =>
+    loadModuleMap(options.env).step(moduleMap =>
+        registerModuleMap(moduleMap).step(() => pure(0))
+    )
+
 export type Path = readonly (string | null)[]
 
 const isAlpha = (c: string): boolean =>

@@ -1,6 +1,6 @@
 import { io } from '../../io/module.ts'
 import { loadModuleMap } from '../module.f.ts'
-import { isTest, type RegisterTest, registerModule } from './module.f.ts'
+import { type RegisterTest, registerModuleMap } from './module.f.ts'
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
@@ -36,9 +36,5 @@ const map: ToAsyncOperationMap<RegisterTest | All> = isPlaywright
 
 export const run = async (): Promise<void> => {
     const moduleMap = await fromIo(io)(loadModuleMap(io.process.env))
-    for (const [k, v] of Object.entries(moduleMap)) {
-        if (isTest(k)) {
-            await asyncRun(map)(registerModule(k, v))
-        }
-    }
+    await asyncRun(map)(registerModuleMap(moduleMap))
 }
