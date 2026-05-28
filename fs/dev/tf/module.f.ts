@@ -109,7 +109,7 @@ export type Reporter<O extends Operation> = {
 }
 
 export type Register<O extends Operation> = {
-    readonly register:(file: string, path: Path, set: TestEntry) => Effect<Operation, void>
+    readonly register:(name: string, expectFailure: boolean, test: () => Effect<O, void>) => void
 }
 
 const mergeState = (a: TestState, b: TestState): TestState =>
