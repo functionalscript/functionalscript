@@ -7,30 +7,15 @@ import { type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
 import { type All } from '../../types/effects/node/module.f.ts'
 
-//
-
-type TestContext = {
-    test: TestFn
+const map: ToAsyncOperationMap<RegisterTest | All> = {
+    all: async (...effects) => Promise.all(effects.map(aMap)),
+    registerTest: async (ctx, name, expectFailure, test) =>
+        ctx.test(name, { expectFailure }, async t => aMap(test(t))),
 }
 
-type TestFn = (
-    name: string,
-    options: { readonly expectFailure: boolean },
-    fn: (t: TestContext) => void | Promise<void>
-) => void
-
-const makeMap = (testFn: TestContext): ToAsyncOperationMap<RegisterTest | All> => {
-    const m: ToAsyncOperationMap<RegisterTest | All> = {
-        all: async (...effects) => Promise.all(effects.map(asyncRun(m))),
-        registerTest: async (name, expectFailure, test) =>
-            testFn.test(name, { expectFailure }, async t => asyncRun(makeMap(t))(test())),
-    }
-    return m
-}
-
-const map: ToAsyncOperationMap<RegisterTest | All> = makeMap(nodeTest)
+const aMap = asyncRun(map)
 
 export const run = async (): Promise<void> => {
     const moduleMap = await fromIo(io)(loadModuleMap(io.process.env))
-    await asyncRun(map)(registerModuleMap(moduleMap))
+    await aMap(registerModuleMap(nodeTest, moduleMap))
 }

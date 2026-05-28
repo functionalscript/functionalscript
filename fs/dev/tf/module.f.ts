@@ -108,28 +108,34 @@ export type Reporter<O extends Operation> = {
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
-export type Register<O extends Operation> = {
-    readonly register:(name: string, expectFailure: boolean, test: () => Effect<O, void>) => void
+export type TestFn = (
+    name: string,
+    options: { readonly expectFailure: boolean },
+    fn: (t: TestContext) => void | Promise<void>
+) => void
+
+export type TestContext = {
+    readonly test: TestFn
 }
 
 export type RegisterTest =
-    readonly['registerTest', (name: string, expectFailure: boolean, test: () => Effect<RegisterTest | All, void>) => void]
+    readonly['registerTest', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<RegisterTest | All, void>) => void]
 
 export const registerTest: Func<RegisterTest> = do_('registerTest')
 
 export const registerModule =
-    (k: string, v: unknown): Effect<RegisterTest | All, void> => {
-        const registerOne = ([path, { fn, throws }]: TestAndPath): Effect<RegisterTest, void> =>
-            registerTest(fmtImport(k, path), throws, (): Effect<RegisterTest | All, void> => {
+    (ctx: TestContext, k: string, v: unknown): Effect<RegisterTest | All, void> => {
+        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath): Effect<RegisterTest, void> =>
+            registerTest(ctx, fmtImport(k, path), throws, (t): Effect<RegisterTest | All, void> => {
                 if (throws) { fn(); return pure(undefined) }
                 const r = fn()
                 const sub = collectTests([...path, null], false, r)
                 if (sub.length === 0) { return pure(undefined) }
-                return all(...sub.map(registerOne)).step(() => pure(undefined))
+                return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
             })
         const tests = collectTests([], false, v)
         if (tests.length === 0) { return pure(undefined) }
-        return all(...tests.map(registerOne)).step(() => pure(undefined))
+        return all(...tests.map(e => registerOne(ctx, e))).step(() => pure(undefined))
     }
 
 const mergeState = (a: TestState, b: TestState): TestState =>
@@ -184,16 +190,11 @@ export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | Al
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 export const registerModuleMap =
-    (moduleMap: ModuleMap): Effect<RegisterTest | All, void> => {
+    (ctx: TestContext, moduleMap: ModuleMap): Effect<RegisterTest | All, void> => {
         const modules = entries(moduleMap).filter(([k]) => isTest(k))
         if (modules.length === 0) { return pure(undefined) }
-        return all(...modules.map(([k, v]) => registerModule(k, v))).step(() => pure(undefined))
+        return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
     }
-
-export const register: Program<RegisterTest | All | LoadModuleOperations> = options =>
-    loadModuleMap(options.env).step(moduleMap =>
-        registerModuleMap(moduleMap).step(() => pure(0))
-    )
 
 export type Path = readonly (string | null)[]
 
