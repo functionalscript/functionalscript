@@ -4,7 +4,7 @@ import { fmtImport, isTest, parseTestSet, runModuleMap, type Reporter } from './
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
-import { pure, type Effect, type Operation, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
+import { do_, pure, type Effect, type Func, type Operation, type Param, type Return, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
 import { type All } from '../../types/effects/node/module.f.ts'
 
@@ -90,6 +90,7 @@ const reporter: Reporter<never> = {
                 throw r
             }
             if (!throws) {
+                
                 // TODO: add subtests
             }
         })
@@ -124,9 +125,36 @@ export const run = async(): Promise<void> => {
     }
 }
 
-type RegisterTestFunc<C> = (name: string, test: (c: C) => Promise<void>) => void
+type RegisterTestFunc<C> =
+    (name: string, test: (c: C) => Promise<void>) => void
 
-type RegisterSubTestFunc<C> = (c: C, name: string, test: () => Promise<void>) => void
+type RegisterSubTestFunc<C> =
+    (c: C, name: string, test: () => Promise<void>) => void
+
+type RegisterTestEffect<C, O extends Operation> =
+    (name: string, test: (c: C) => Effect<O, void>) => void
+
+type RegisterSubTestEffect<C, O extends Operation> =
+    (c: C, name: string, test: () => Effect<O, void>) => void
+
+type RegisterTest<C, O extends Operation> =
+    readonly['registerTest', RegisterTestEffect<C, O>]
+
+const registerTest:
+    <C, O extends Operation>(..._: Param<RegisterTest<C, O>>) => Effect<O, Return<O>> =
+    do_('registerTest')
+
+type RegisterSubTest<C, O extends Operation> =
+    readonly['registerSubTest', RegisterSubTestEffect<C, O>]
+
+const registerSubTest:
+    <C, O extends Operation>(..._: Param<RegisterSubTest<C, O>>) => Effect<O, Return<O>> =
+    do_('registerSubTest')
+
+
+type NodeRegisterTest<O extends Operation> = RegisterTestEffect<nodeTest.TestContext, O>
+
+type NodeRegisterSubTest<O extends Operation> = RegisterSubTestEffect<nodeTest.TestContext, O>
 
 /*
 type TestName = string
