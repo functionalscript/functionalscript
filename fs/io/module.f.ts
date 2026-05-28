@@ -10,17 +10,18 @@
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type {
-    Server as EffectServer,
-    Headers,
-    IoResult,
-    Module,
-    NodeOp,
-    RequestListener as Erl,
-    Env,
-    SandboxResult,
-    NodeProgram,
-    WriteConsoles,
+import {
+    type Server as EffectServer,
+    type Headers,
+    type IoResult,
+    type Module,
+    type NodeOp,
+    type RequestListener as Erl,
+    type Env,
+    type SandboxResult,
+    type NodeProgram,
+    type WriteConsoles,
+    test,
 } from '../types/effects/node/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
@@ -263,6 +264,8 @@ export const fromIo = ({
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
         write: ioWrite,
+        test: async (ctx, name, expectFailure, test) =>
+            ctx.test(name, { expectFailure }, async t => result(test(t))),
     })
     return result
 }

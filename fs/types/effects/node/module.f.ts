@@ -272,6 +272,7 @@ export type NodeOp =
     | Now
     | Sandbox
     | Write
+    | Test
 
 export type NodeEffect<T> = Effect<NodeOp, T>
 
