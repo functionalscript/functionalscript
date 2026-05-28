@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Branch1, Branch3, Branch5, Branch7, TNode, Tree } from '../types/module.f.ts'
+import { collapseRoot, type Branch1, type Branch3, type Branch5, type Branch7, type TNode, type Tree } from '../types/module.f.ts'
 import { find, type First, type PathItem, type Result } from '../find/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { fold } from '../../list/module.f.ts'
@@ -104,8 +104,7 @@ const nodeSet
             }
         }
     }
-    const r = reduceBranch(f())(tail)
-    return r.length === 1 ? r[0] : r
+    return collapseRoot(reduceBranch(f())(tail))
 }
 
 export const set
