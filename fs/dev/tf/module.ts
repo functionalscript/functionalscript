@@ -4,7 +4,7 @@ import { fmtImport, isTest, parseTestSet, runModuleMap, type Reporter } from './
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
-import { pure, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
+import { do_, pure, type Effect, type Func, type Operation, type Param, type Return, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
 import { type All } from '../../types/effects/node/module.f.ts'
 
@@ -90,6 +90,7 @@ const reporter: Reporter<never> = {
                 throw r
             }
             if (!throws) {
+
                 // TODO: add subtests
             }
         })
@@ -123,3 +124,47 @@ export const run = async(): Promise<void> => {
         }
     }
 }
+
+type RegisterTestFunc<C> =
+    (name: string, test: (c: C) => Promise<void>) => void
+
+type RegisterSubTestFunc<C> =
+    (c: C, name: string, test: () => Promise<void>) => void
+
+type RegisterTestEffect<C> =
+    (name: string, test: (c: C) => Effect<RegisterSubTest<C>, void>) => void
+
+type RegisterSubTestEffect<C> =
+    (c: C, name: string, test: (c: C) => Effect<RegisterSubTest<C>, void>) => void
+
+type RegisterTest<C> =
+    readonly['registerTest', RegisterTestEffect<C>]
+
+const registerTest:
+    <C>(..._: Param<RegisterTest<C>>) => Effect<RegisterTest<C>, Return<RegisterTest<C>>> =
+    do_('registerTest')
+
+type RegisterSubTest<C> =
+    readonly['registerSubTest', RegisterSubTestEffect<C>]
+
+const registerSubTest:
+    <C>(..._: Param<RegisterSubTest<C>>) => Effect<RegisterSubTest<C>, Return<RegisterSubTest<C>>> =
+    do_('registerSubTest')
+
+
+type NodeRegisterTest = RegisterTest<nodeTest.TestContext>
+
+type NodeRegisterSubTest = RegisterSubTest<nodeTest.TestContext>
+
+type NodeTestFramework = NodeRegisterTest | NodeRegisterSubTest
+
+const map2: ToAsyncOperationMap<NodeTestFramework> = {
+    registerTest: async (name, test) => {
+        nodeTest.test(name, t => run2(test(t)))
+    },
+    registerSubTest: async (c, name, test) => {
+        c.test(name, t => run2(test(t)))
+    },
+}
+
+const run2 = asyncRun(map2)
