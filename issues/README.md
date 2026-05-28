@@ -344,12 +344,7 @@
 - [ ] [191-bigfloat-with-sign](./191-bigfloat-with-sign.md). DRY: `bigfloat`'s `round53` and `decToBin` both strip the sign (`abs(m)`/`BigInt(sign(m))`), do unsigned work, and re-apply via `multiply(...)(s)`. Factor a private `withSign(m, e)(f)` magnitude envelope. Distinct from i177 (which pairs the mantissa shift loops).
 - [ ] [192-error-exit-effect](./192-error-exit-effect.md). DRY: `cas` (local `e`) and `fjs` (three inline sites) both encode `error(s).step(() => pure(1))`. Lift an `errorExit(s)` helper into `types/effects/node` next to `error`/`pure`.
 - [ ] [193-btree-path-fold-engine](./193-btree-path-fold-engine.md). Investigate: `btree/set` and `btree/remove` both end with `fold(<rebuild parent at PathItem index 0|2|4>)` over a `Path<T>` plus the i179 root collapse. Extract a shared `foldPath` scaffold parameterized by the three slot handlers — but the accumulator types and `Branch5` splitting differ, so confirm the unified signature needs no `as` cast first.
-- [ ] 194. Design for test effects:
-  ```ts
-  const test = do_('test')
-  const subTest = do_('subTest')
-  // two options, `subTest` is either run (for Bun) the test or register the test (for Node, Deno).
-  ```
+- [ ] [194-test-effects](./194-test-effects.md)
 - [ ] 195. Improve `listToVec` from `bit_vec` by changing concatenation order. Instead of
   `(((((a + b) + c) + d) + e) + f)` which can be very slow for huge bigint, we can do
   `(((a + b) + (c + d)) + (e + f))`. The number of operations that works with huge bigints is much smaller, $O(n)$ vs $O(\log n)$.
