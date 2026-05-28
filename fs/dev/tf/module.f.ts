@@ -104,7 +104,10 @@ export type Reporter<O extends Operation> = {
     readonly result: (file: string, path: Path, r: SandboxResult<unknown>) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
-    // readonly register:(file: string, path: Path, set: TestEntry) => Effect<Operation, void>
+}
+
+export type Register<O extends Operation> = {
+    readonly register:(file: string, path: Path, set: TestEntry) => Effect<Operation, void>
 }
 
 const mergeState = (a: TestState, b: TestState): TestState =>
