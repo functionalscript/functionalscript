@@ -21,8 +21,10 @@ import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.
  */
 export type JsModule = () => Module
 
+export type Entity = Vec | Dir | JsModule
+
 export type Dir = {
-    readonly[name in string]?: Dir | Vec | JsModule
+    readonly[name in string]?: Entity
 }
 
 export type State = {

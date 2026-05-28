@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/module.f.ts'
+import { collapseRoot, type Leaf1, type TNode, type Branch1, type Branch3, type Branch5, type Tree } from '../types/module.f.ts'
 import type { Compare } from '../../function/compare/module.f.ts'
 import { type Path, type PathItem, find } from '../find/module.f.ts'
 import { fold, concat, next } from '../../list/module.f.ts'
@@ -134,8 +134,7 @@ export const nodeRemove
     const tailR = next(tail)
     if (tailR === null) { return first }
     const { first: tf, tail: tt } = tailR
-    const result = reduce(initReduce(tf)(first))(tt)
-    return result.length === 1 ? result[0] : result
+    return collapseRoot(reduce(initReduce(tf)(first))(tt))
 }
 
 export const remove: <T>(c: Compare<T>) => (tree: Tree<T>) => Tree<T>
