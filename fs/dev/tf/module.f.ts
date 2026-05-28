@@ -16,7 +16,7 @@ import {
     type Write,
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
-import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
+import { pure, do_, type Effect, type Func, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
@@ -111,6 +111,26 @@ export type Reporter<O extends Operation> = {
 export type Register<O extends Operation> = {
     readonly register:(name: string, expectFailure: boolean, test: () => Effect<O, void>) => void
 }
+
+export type RegisterTest =
+    readonly['registerTest', (name: string, expectFailure: boolean, test: () => Effect<RegisterTest | All, void>) => void]
+
+export const registerTest: Func<RegisterTest> = do_('registerTest')
+
+export const registerModule =
+    (k: string, v: unknown): Effect<RegisterTest | All, void> => {
+        const registerOne = ([path, { fn, throws }]: TestAndPath): Effect<RegisterTest, void> =>
+            registerTest(fmtImport(k, path), throws, (): Effect<RegisterTest | All, void> => {
+                if (throws) { fn(); return pure(undefined) }
+                const r = fn()
+                const sub = collectTests([...path, null], false, r)
+                if (sub.length === 0) { return pure(undefined) }
+                return all(...sub.map(registerOne)).step(() => pure(undefined))
+            })
+        const tests = collectTests([], false, v)
+        if (tests.length === 0) { return pure(undefined) }
+        return all(...tests.map(registerOne)).step(() => pure(undefined))
+    }
 
 const mergeState = (a: TestState, b: TestState): TestState =>
     ({ time: a.time + b.time, pass: a.pass + b.pass, fail: a.fail + b.fail })
