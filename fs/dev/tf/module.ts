@@ -90,7 +90,7 @@ const reporter: Reporter<never> = {
                 throw r
             }
             if (!throws) {
-                
+
                 // TODO: add subtests
             }
         })
@@ -131,36 +131,40 @@ type RegisterTestFunc<C> =
 type RegisterSubTestFunc<C> =
     (c: C, name: string, test: () => Promise<void>) => void
 
-type RegisterTestEffect<C, O extends Operation> =
-    (name: string, test: (c: C) => Effect<O, void>) => void
+type RegisterTestEffect<C> =
+    (name: string, test: (c: C) => Effect<RegisterSubTest<C>, void>) => void
 
-type RegisterSubTestEffect<C, O extends Operation> =
-    (c: C, name: string, test: () => Effect<O, void>) => void
+type RegisterSubTestEffect<C> =
+    (c: C, name: string, test: (c: C) => Effect<RegisterSubTest<C>, void>) => void
 
-type RegisterTest<C, O extends Operation> =
-    readonly['registerTest', RegisterTestEffect<C, O>]
+type RegisterTest<C> =
+    readonly['registerTest', RegisterTestEffect<C>]
 
 const registerTest:
-    <C, O extends Operation>(..._: Param<RegisterTest<C, O>>) => Effect<O, Return<O>> =
+    <C>(..._: Param<RegisterTest<C>>) => Effect<RegisterTest<C>, Return<RegisterTest<C>>> =
     do_('registerTest')
 
-type RegisterSubTest<C, O extends Operation> =
-    readonly['registerSubTest', RegisterSubTestEffect<C, O>]
+type RegisterSubTest<C> =
+    readonly['registerSubTest', RegisterSubTestEffect<C>]
 
 const registerSubTest:
-    <C, O extends Operation>(..._: Param<RegisterSubTest<C, O>>) => Effect<O, Return<O>> =
+    <C>(..._: Param<RegisterSubTest<C>>) => Effect<RegisterSubTest<C>, Return<RegisterSubTest<C>>> =
     do_('registerSubTest')
 
 
-type NodeRegisterTest<O extends Operation> = RegisterTestEffect<nodeTest.TestContext, O>
+type NodeRegisterTest = RegisterTest<nodeTest.TestContext>
 
-type NodeRegisterSubTest<O extends Operation> = RegisterSubTestEffect<nodeTest.TestContext, O>
+type NodeRegisterSubTest = RegisterSubTest<nodeTest.TestContext>
 
-/*
-type TestName = string
+type NodeTestFramework = NodeRegisterTest | NodeRegisterSubTest
 
-// Register the test for external test-frameworks (Node, Deno).
-type RunTest<H, O extends Operation> = (name: TestName, test: (h: H) => Effect<O, void>) => void
-// Register the test for Node, Deno and run the test for Bun and Playwright
-type RunSubTest<H> = (h: H, name: TestName, test: () => void) => void
-*/
+const map2: ToAsyncOperationMap<NodeTestFramework> = {
+    registerTest: async (name, test) => {
+        nodeTest.test(name, t => run2(test(t)))
+    },
+    registerSubTest: async (c, name, test) => {
+        c.test(name, t => run2(test(t)))
+    },
+}
+
+const run2 = asyncRun(map2)
