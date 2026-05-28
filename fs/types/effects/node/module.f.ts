@@ -256,7 +256,7 @@ export type TestContext = {
 }
 
 export type Test =
-    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
+    readonly['test', (ctx: TestContext|undefined, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
 
 export const test: Func<Test> = do_('test')
 

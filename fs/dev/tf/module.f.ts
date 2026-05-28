@@ -112,8 +112,8 @@ export type Reporter<O extends Operation> = {
 }
 
 export const registerModule =
-    (ctx: TestContext, k: string, v: unknown): Effect<Test | All, void> => {
-        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
+    (ctx: TestContext|undefined, k: string, v: unknown): Effect<Test | All, void> => {
+        const registerOne = (ctx: TestContext|undefined, [path, { fn, throws }]: TestAndPath) =>
             test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All, void> => {
                 if (throws) { fn(); return pure(undefined) }
                 const r = fn()
@@ -178,7 +178,7 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 export const registerModuleMap =
-    (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All, void> => {
+    (ctx: TestContext|undefined, moduleMap: ModuleMap): Effect<Test | All, void> => {
         const modules = entries(moduleMap).filter(([k]) => isTest(k))
         if (modules.length === 0) { return pure(undefined) }
         return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))

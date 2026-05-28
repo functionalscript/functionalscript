@@ -86,6 +86,8 @@ export const io: Io = {
         return { result, duration: after - before }
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    test: (ctx, name, options, fn) =>
+        ctx.test(name, options, fn),
 }
 
 export type NodeRun = (p: NodeProgram) => Promise<number>
