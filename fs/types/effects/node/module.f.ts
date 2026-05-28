@@ -243,6 +243,23 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
  */
 export const sandbox: Func<Sandbox> = do_('sandbox')
 
+// Test registration
+
+export type TestFn = (
+    name: string,
+    options: { readonly expectFailure: boolean },
+    fn: (t: TestContext) => void | Promise<void>
+) => void
+
+export type TestContext = {
+    readonly test: TestFn
+}
+
+export type Test =
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
+
+export const test: Func<Test> = do_('test')
+
 // Node
 
 export type NodeOp =

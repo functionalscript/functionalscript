@@ -7,12 +7,15 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.t
 import {
     all,
     sandbox,
+    test,
     type All,
     type NodeProgram,
     type NodeProgramOptions,
     type Program,
     type Sandbox,
     type SandboxResult,
+    type Test,
+    type TestContext,
     type Write,
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
@@ -44,10 +47,10 @@ const timeFormat = (a: number) => {
     return `${b}.${e} ms`
 }
 
-export type Test = () => unknown
+export type TestFn = () => unknown
 
 export type TestEntry = {
-    readonly fn: Test
+    readonly fn: TestFn
     readonly throws: boolean
 }
 
@@ -57,7 +60,7 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
-                const fn = x as Test
+                const fn = x as TestFn
                 return { fn, throws: throws || fn.name === 'throw' }
             }
             break
@@ -108,25 +111,10 @@ export type Reporter<O extends Operation> = {
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
-export type TestFn = (
-    name: string,
-    options: { readonly expectFailure: boolean },
-    fn: (t: TestContext) => void | Promise<void>
-) => void
-
-export type TestContext = {
-    readonly test: TestFn
-}
-
-export type RegisterTest =
-    readonly['registerTest', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<RegisterTest | All, void>) => void]
-
-export const registerTest: Func<RegisterTest> = do_('registerTest')
-
 export const registerModule =
-    (ctx: TestContext, k: string, v: unknown): Effect<RegisterTest | All, void> => {
-        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath): Effect<RegisterTest, void> =>
-            registerTest(ctx, fmtImport(k, path), throws, (t): Effect<RegisterTest | All, void> => {
+    (ctx: TestContext, k: string, v: unknown): Effect<Test | All, void> => {
+        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
+            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All, void> => {
                 if (throws) { fn(); return pure(undefined) }
                 const r = fn()
                 const sub = collectTests([...path, null], false, r)
@@ -186,11 +174,11 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
     .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
-export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
+export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 export const registerModuleMap =
-    (ctx: TestContext, moduleMap: ModuleMap): Effect<RegisterTest | All, void> => {
+    (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All, void> => {
         const modules = entries(moduleMap).filter(([k]) => isTest(k))
         if (modules.length === 0) { return pure(undefined) }
         return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
@@ -300,4 +288,4 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
 }
 
 export const main: NodeProgram =
-    options => test(defaultReporter(options))(options)
+    options => testAll(defaultReporter(options))(options)
