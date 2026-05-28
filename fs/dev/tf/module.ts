@@ -125,46 +125,23 @@ export const run = async(): Promise<void> => {
     }
 }
 
-type RegisterTestFunc<C> =
-    (name: string, test: (c: C) => Promise<void>) => void
+type RegisterTestEffect =
+    (name: string, expectFailure: boolean, test: () => Effect<RegisterTest, void>) => void
 
-type RegisterSubTestFunc<C> =
-    (c: C, name: string, test: () => Promise<void>) => void
+type RegisterTest =
+    readonly['registerTest', RegisterTestEffect]
 
-type RegisterTestEffect<C> =
-    (name: string, test: (c: C) => Effect<RegisterSubTest<C>, void>) => void
+const registerTest: Func<RegisterTest> = do_('registerTest')
 
-type RegisterSubTestEffect<C> =
-    (c: C, name: string, test: (c: C) => Effect<RegisterSubTest<C>, void>) => void
-
-type RegisterTest<C> =
-    readonly['registerTest', RegisterTestEffect<C>]
-
-const registerTest:
-    <C>(..._: Param<RegisterTest<C>>) => Effect<RegisterTest<C>, Return<RegisterTest<C>>> =
-    do_('registerTest')
-
-type RegisterSubTest<C> =
-    readonly['registerSubTest', RegisterSubTestEffect<C>]
-
-const registerSubTest:
-    <C>(..._: Param<RegisterSubTest<C>>) => Effect<RegisterSubTest<C>, Return<RegisterSubTest<C>>> =
-    do_('registerSubTest')
-
-
-type NodeRegisterTest = RegisterTest<nodeTest.TestContext>
-
-type NodeRegisterSubTest = RegisterSubTest<nodeTest.TestContext>
-
-type NodeTestFramework = NodeRegisterTest | NodeRegisterSubTest
+type NodeTestFramework = RegisterTest
 
 const map2: ToAsyncOperationMap<NodeTestFramework> = {
-    registerTest: async (name, test) => {
-        nodeTest.test(name, t => run2(test(t)))
-    },
-    registerSubTest: async (c, name, test) => {
-        c.test(name, t => run2(test(t)))
-    },
+    registerTest: (name, expectFailure, test) =>
+        nodeTest.test(name, {  expectFailure }, () => run2(test())),
 }
 
 const run2 = asyncRun(map2)
+
+type RegisterTestFunc<O extends Operation> =
+    (name: string, expectFailure: boolean, test: () => Effect<O, void>)
+    => Effect<Operation, void>
