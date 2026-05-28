@@ -4,7 +4,7 @@ import { fmtImport, isTest, parseTestSet, runModuleMap, type Reporter } from './
 import * as nodeTest from 'node:test'
 import { asyncImport } from '../../io/module.ts'
 import { fromIo } from '../../io/module.f.ts'
-import { pure, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
+import { pure, type Effect, type Operation, type ToAsyncOperationMap } from '../../types/effects/module.f.ts'
 import { asyncRun } from '../../types/effects/module.ts'
 import { type All } from '../../types/effects/node/module.f.ts'
 
@@ -123,3 +123,16 @@ export const run = async(): Promise<void> => {
         }
     }
 }
+
+type RegisterTestFunc<C> = (name: string, test: (c: C) => Promise<void>) => void
+
+type RegisterSubTestFunc<C> = (c: C, name: string, test: () => Promise<void>) => void
+
+/*
+type TestName = string
+
+// Register the test for external test-frameworks (Node, Deno).
+type RunTest<H, O extends Operation> = (name: TestName, test: (h: H) => Effect<O, void>) => void
+// Register the test for Node, Deno and run the test for Bun and Playwright
+type RunSubTest<H> = (h: H, name: TestName, test: () => void) => void
+*/
