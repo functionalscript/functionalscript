@@ -72,6 +72,8 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     return []
 }
 
+type TestAndPath =readonly [Path, TestEntry]
+
 /**
  * Recursively collects all leaf tests reachable from `v` as `[path, entry]`
  * pairs, without running anything. Return-value sub-trees are not walked
@@ -82,7 +84,7 @@ export const collectTests = (
     path: Path,
     throws: boolean,
     v: unknown,
-): readonly (readonly [Path, TestEntry])[] => {
+): readonly TestAndPath[] => {
     const set = parseTestSet(throws, v)
     if (set instanceof Array) {
         return set.flatMap(([ck, cv]) =>
@@ -120,26 +122,24 @@ const runModule =
     (k: string, v: unknown) =>
     (ts: TestState): Effect<O | All, TestState> =>
 {
+    const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
+        test(k, testPath, set)
+        .step(sr => {
+            const { result: [s, r], duration } = sr
+            return result(k, testPath, sr)
+            .step((): Effect<O | All, TestState> => {
+                if (s === 'ok') {
+                    if (set.throws) { return pure(addPass(duration)(zero)) }
+                    // Walk return-value sub-tree; null marks the call boundary so
+                    // paths render as e.g. `outer().inner`. throws resets to false.
+                    return walk([...testPath, null], false, r)
+                    .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
+                }
+                return pure(addFail(duration)(zero))
+            })
+        })
     const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
-        const effects = collectTests(path, throws, v)
-        .map(
-            ([testPath, set]): Effect<O | All, TestState> =>
-                test(k, testPath, set)
-                .step(sr => {
-                    const { result: [s, r], duration } = sr
-                    return result(k, testPath, sr)
-                    .step((): Effect<O | All, TestState> => {
-                        if (s === 'ok') {
-                            if (set.throws) { return pure(addPass(duration)(zero)) }
-                            // Walk return-value sub-tree; null marks the call boundary so
-                            // paths render as e.g. `outer().inner`. throws resets to false.
-                            return walk([...testPath, null], false, r)
-                            .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
-                        }
-                        return pure(addFail(duration)(zero))
-                    })
-                })
-        )
+        const effects = collectTests(path, throws, v).map(one)
         return all(...effects)
         .step(states => pure(states.reduce(mergeState, zero)))
     }
