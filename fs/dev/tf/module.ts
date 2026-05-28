@@ -141,7 +141,3 @@ const map2: ToAsyncOperationMap<NodeTestFramework> = {
 }
 
 const run2 = asyncRun(map2)
-
-type RegisterTestFunc<O extends Operation> =
-    (name: string, expectFailure: boolean, test: () => Effect<O, void>)
-    => Effect<Operation, void>
