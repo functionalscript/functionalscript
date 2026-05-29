@@ -4,7 +4,6 @@
  * @module
  */
 import type { Io } from '../io/module.f.ts'
-import type { Sign } from '../types/function/compare/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
     access,
@@ -21,6 +20,7 @@ import {
     type NodeProgram,
     type Readdir
 } from '../types/effects/node/module.f.ts'
+import { cmp as strCmp } from '../types/string/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Effect } from '../types/effects/module.f.ts'
@@ -42,11 +42,6 @@ export type Module = {
     readonly default?: unknown
     readonly [k: string]: unknown
 }
-
-type Entry<T> = readonly[string, T]
-
-const cmp = ([a]: Entry<unknown>, [b]: Entry<unknown>): Sign =>
-    a < b ? -1 : a > b ? 1 : 0
 
 export type ModuleMap = {
    readonly[k in string]: Module
@@ -113,7 +108,7 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
             entries
                 .flat()
                 .map(([k, v]) => [relativize(prefix, k), v] as const)
-                .toSorted(cmp)
+                .toSorted(([a], [b]) => strCmp(a)(b))
         )))
 }
 
