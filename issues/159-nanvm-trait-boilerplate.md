@@ -1,5 +1,8 @@
 # 159. nanvm-lib: collapse per-type wrapper trait boilerplate
 
+**Priority:** P3
+**Status:** open
+
 The VM wrapper newtypes (`String<A>`, `Array<A>`, `Object<A>`, `BigInt<A>`,
 `Function<A>`) each carry a directory of one-impl-per-file trait
 implementations that are identical modulo the wrapper type and one associated

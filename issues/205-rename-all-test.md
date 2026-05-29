@@ -1,5 +1,8 @@
 # 205. Rename `all.test.ts` entry point
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 The `fs/dev/tf/scenarios/all.ts` file (renamed to `all.test.ts` by `run.sh` at test

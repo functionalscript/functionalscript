@@ -1,5 +1,8 @@
 # 209. `effects`: a state-threading `foldStep` combinator for sequential effects
 
+**Priority:** P3
+**Status:** open
+
 Three call sites in the repo build the same shape: take an array (or list) of
 items, thread a state value through each one by stepping an effect, and end
 with a single `Effect<O, S>`. Two of them spell it as

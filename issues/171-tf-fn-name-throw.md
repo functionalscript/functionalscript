@@ -1,5 +1,8 @@
 # 171. `tf`: stop relying on JS function names to detect throw tests
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 `parseTestSet` in `fs/dev/tf/module.f.ts` checks `fn.name === 'throw'` to mark

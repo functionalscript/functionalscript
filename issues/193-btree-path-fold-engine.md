@@ -1,5 +1,8 @@
 # 193. `btree`: a shared `Path` fold engine for `set` and `remove` (investigate)
 
+**Priority:** P3
+**Status:** open
+
 `btree/set` and `btree/remove` both finish the same way: walk the `find` result's
 `tail` (a `Path<T>`) with `fold`, rebuilding each parent branch bottom-up by
 dispatching on the child-slot index `i ∈ {0, 2, 4}`, then collapse a single-child

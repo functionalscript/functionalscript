@@ -1,5 +1,8 @@
 # `.d.js` extension conflict (resolved)
 
+**Priority:** P3
+**Status:** open
+
 We previously considered the `.d.js` extension for data modules. This conflicted
 with TypeScript declaration files (`.d.ts`). We decided to rely solely on the
 `.f.js` extension for data and code modules. Data files must end with

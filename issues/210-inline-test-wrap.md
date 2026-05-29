@@ -1,5 +1,8 @@
 # 210. `io`: factor the `inlineTest` wrap for `bunTestContext` / `playwrightTestContext`
 
+**Priority:** P3
+**Status:** open
+
 `fs/io/module.ts` defines two test-context bridges that are line-for-line
 identical except for which framework's `test` function they delegate to:
 

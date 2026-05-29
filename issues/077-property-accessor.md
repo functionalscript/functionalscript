@@ -1,5 +1,8 @@
 # 77. Support for property accessor.
 
+**Priority:** P3
+**Status:** open
+
 Support for [./lang/2330-property-accessor.md](./lang/2330-property-accessor.md).
 ```js
 const a = { b: 45, c: [3] }

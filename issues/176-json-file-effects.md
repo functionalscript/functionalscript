@@ -1,5 +1,9 @@
 # 176. `read`/`write` JSON file effect helpers
 
+**Priority:** P3
+**Status:** open
+**Blocked by:** [i198](./198-utf8-file-effects.md)
+
 Three modules independently open-code "read a file, UTF-8 decode it, JSON-parse
 it" and "JSON-stringify a value (pretty, 2-space), UTF-8 encode it, write the
 file". This is a single concern — JSON file I/O over the `ReadFile`/`WriteFile`

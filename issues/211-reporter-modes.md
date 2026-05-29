@@ -1,5 +1,8 @@
 # 211. Reporter modes for the test framework
 
+**Priority:** P3
+**Status:** open
+
 The `Reporter<O>` interface (`moduleStart` / `enter` / `pass` / `fail` / `summary`,
 each an `Effect<NodeOp, void>`) makes the walker reporter-agnostic. Several concrete
 reporter implementations follow naturally.

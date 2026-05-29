@@ -1,5 +1,8 @@
 # 204. A new suffix for plain TS/JS files using FunctionalScript conventions
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 FunctionalScript's test conventions (zero-argument exported functions, `throw` key,

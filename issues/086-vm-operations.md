@@ -1,5 +1,8 @@
 # 86. Operations for new VM implementation.
 
+**Priority:** P3
+**Status:** open
+
 ```rust
 // not all types require to implement these traits.
 trait StringCoercion {

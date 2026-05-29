@@ -1,5 +1,8 @@
 # 87. Optimization: Reduce number of `Rc::clone()`.
 
+**Priority:** P3
+**Status:** open
+
 - Now:
   ```rust
   type Any = Rc<AnyImpl>;

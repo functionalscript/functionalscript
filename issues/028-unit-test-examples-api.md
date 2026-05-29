@@ -1,5 +1,8 @@
 # 28. Make a distinction between unit tests, examples, and API tests.
 
+**Priority:** P3
+**Status:** open
+
 - Unit tests are completely deterministic. They run every time the module is loaded, so they must be very, very simple and check basic hypotheses. They are not available as a public interface.
   ```ts
   import { assert } from 'dev/module.f.ts'

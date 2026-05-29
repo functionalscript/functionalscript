@@ -1,5 +1,8 @@
 # 89. Rust Unpack dispatch.
 
+**Priority:** P3
+**Status:** open
+
 ```rust
 trait Unary<Tag> {
     type Result;

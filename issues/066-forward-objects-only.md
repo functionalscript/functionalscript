@@ -1,5 +1,8 @@
 # 66. Only forward objects are visible.
 
+**Priority:** P3
+**Status:** open
+
 Example:
 ```ts
 const a = () => 5

@@ -1,5 +1,8 @@
 # 207. BNF semantic actions: attaching transform functions to grammar rules
 
+**Priority:** P3
+**Status:** open
+
 > **Status — to be split.** This issue has grown to cover several independently
 > implementable pieces (transparent `mapRule` + the grammar-directed fold §3.1–§3.2;
 > the parser-neutral reduction algebra §3.3; the metadata monoid §3.4; list

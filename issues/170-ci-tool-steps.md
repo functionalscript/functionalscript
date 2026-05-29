@@ -1,5 +1,8 @@
 # 170. `fs/ci`: a shared tool step builder for bun/deno/node
 
+**Priority:** P3
+**Status:** open
+
 The three runtime-specific CI modules each build the same job shape — "install
 the tool, run its install command, run its test command, then append extra
 steps, all wrapped in `clean(...)`":

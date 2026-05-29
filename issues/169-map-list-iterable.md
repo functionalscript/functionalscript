@@ -1,5 +1,8 @@
 # 169. `types/map`: reuse `list`'s combinators instead of hand-rolled generators
 
+**Priority:** P3
+**Status:** open
+
 `fs/types/map/module.f.ts` defines two private generator helpers solely to feed
 `new Map(...)`:
 

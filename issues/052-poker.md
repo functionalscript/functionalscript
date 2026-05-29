@@ -1,5 +1,8 @@
 # Mental Poker
 
+**Priority:** P3
+**Status:** open
+
 Notes:
 
 Users should NOT know a multiplier (see [discrete logarithm problem](https://en.wikipedia.org/wiki/Discrete_logarithm)) between different cards. For example, if a user knows that a card # `0` multiplied by a number `N` becomes a card # `1` then they can find a card # `1`.

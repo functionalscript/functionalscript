@@ -1,5 +1,8 @@
 # 175. `fs/ci`: a `setupTool` factory for pinned-version install steps
 
+**Priority:** P3
+**Status:** open
+
 Five CI modules construct a GitHub Actions "setup" step with the identical
 shape `install({ uses: '<action>', with: { '<x>-version': <pinnedVersion> } })`,
 differing only in the action string and the version key/value:

@@ -1,5 +1,9 @@
 # 130. RTTI: `or` Optimization and Normalization
 
+**Priority:** P3
+**Status:** open
+**Blocked by:** [i143](./143-rtti-data.md)
+
 > **Superseded by [143-rtti-data](./143-rtti-data.md).**
 
 With the two-form architecture in 143 (thunk form for construction, data form for algebra), "optimize `or`" is no longer a separate project. The canonical-form properties this issue was tracking — flatten nested `or`, drop subset variants, coverage collapse, structural dedup, canonical ordering of variants — are properties of the data form *by construction*, not transformations applied to thunks.

@@ -1,5 +1,8 @@
 # 186. `sul/id`: reuse `sha2`'s `fromV8` to pack a hash into a bigint
 
+**Priority:** P3
+**Status:** open
+
 `sul/id` packs the eight 32-bit words of a SHA-2 `V8` result back into a single
 256-bit `bigint` by re-deriving the MSB concatenation by hand:
 

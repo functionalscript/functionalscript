@@ -1,5 +1,8 @@
 # Tokens with Extra Information
 
+**Priority:** P3
+**Status:** open
+
 Each input token is an integer number and may have additional information such as
 
 - Position.

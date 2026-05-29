@@ -1,5 +1,8 @@
 # 33. Rust: VM: implement `Any` and other types as wrappers.
 
+**Priority:** P3
+**Status:** open
+
 ```rust
 struct Any<A: AnyPolicy>(A);
 ```
