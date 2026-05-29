@@ -17,3 +17,12 @@ export const invertTest = () => {
     const [k1, v1] = invert(error('oops'))
     if (k1 !== 'ok' || v1 !== 'oops') { throw [k1, v1] }
 }
+
+export const unwrapError = () => {
+    let caught = false
+    try { unwrap(error('oops')) } catch (e) {
+        if (e !== 'oops') { throw e }
+        caught = true
+    }
+    if (!caught) { throw 'expected throw' }
+}
