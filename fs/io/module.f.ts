@@ -22,6 +22,7 @@ import {
     type NodeProgram,
     type WriteConsoles,
     type TestContext,
+    type Engine,
 } from '../types/effects/node/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
@@ -160,6 +161,7 @@ export type Io = {
     readonly sandbox: Sandbox
     readonly write: (stream: WriteConsoles, data: Vec) => Promise<void>
     readonly testContext: TestContext
+    readonly engine: Engine
 }
 
 export type App = (io: Io) => Promise<number>
@@ -272,11 +274,11 @@ export const fromIo = ({
 }
 
 export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
-    const { process: { env, stdout, stderr }, testContext } = io
+    const { process: { env, stdout, stderr }, testContext, engine } = io
     const std = { stdout, stderr }
     const f = fromIo(io)
     return args => {
-        const options = { args, env, std, testContext }
+        const options = { args, env, std, testContext, engine }
         return program => f(program(options))
     }
 }

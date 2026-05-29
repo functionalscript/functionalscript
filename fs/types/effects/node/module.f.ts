@@ -285,11 +285,14 @@ export type Env = {
     readonly [k: string]: string|undefined
 }
 
+export type Engine = 'node' | 'bun' // | 'playwright' | ...
+
 export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
     readonly testContext: TestContext
+    readonly engine: Engine
 }
 
 export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>

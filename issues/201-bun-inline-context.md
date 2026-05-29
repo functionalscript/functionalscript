@@ -95,23 +95,29 @@ external framework involvement below the top level.
 
 Since `inlineContext` will be expressed as Effects (in `module.f.ts`), the
 decision of whether to use it cannot be made inside `module.ts`. Instead,
-`module.ts` performs the runtime detection and signals it via
-`NodeProgramOptions`:
+`module.ts` performs the runtime detection and signals it via an `engine` field
+in `NodeProgramOptions`:
 
 ```ts
 // NodeProgramOptions gains:
-readonly inlineSubTests: boolean
+export type Engine = 'node' | 'bun' // | 'playwright' | ...
+
+// NodeProgramOptions gains:
+readonly engine: Engine
 ```
+
+`"node"` is the default and covers both Node.js and Deno. `"bun"` is set only
+when running under Bun:
 
 ```ts
 // fs/io/module.ts — detection only:
-const isBun = typeof Bun !== 'undefined'
-// in io / runProgram:
-inlineSubTests: isBun,
+const engine: Engine = typeof Bun !== 'undefined' ? 'bun' : 'node'
+// in runProgram options:
+engine,
 ```
 
-The `register` program in `fs/dev/tf/module.f.ts` reads `options.inlineSubTests`
-and passes `inlineContext` instead of `t` to thunks when it is `true`. All logic
+The `register` program in `fs/dev/tf/module.f.ts` reads `options.engine` and
+passes `inlineContext` instead of `t` to thunks when it is `'bun'`. All logic
 stays in `module.f.ts`.
 
 ## Required change: `TestFn` return type
@@ -133,9 +139,9 @@ This is a narrowing of the current signature (callers that already return
 ## Scope
 
 - `fs/types/effects/node/module.f.ts`: add `inlineContext`, update `TestFn`
-- `fs/types/effects/node/module.f.ts`: add `inlineSubTests` to `NodeProgramOptions`
-- `fs/io/module.ts`: detect Bun, set `inlineSubTests`
-- `fs/dev/tf/module.f.ts`: read `inlineSubTests` in `register`, pass `inlineContext` when true
+- `fs/types/effects/node/module.f.ts`: add `Engine` type and `engine` field to `NodeProgramOptions`
+- `fs/io/module.ts`: detect Bun, set `engine`
+- `fs/dev/tf/module.f.ts`: read `options.engine` in `register`, pass `inlineContext` when `'bun'`
 
 ## Related
 
