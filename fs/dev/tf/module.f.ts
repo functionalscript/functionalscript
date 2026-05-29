@@ -1,6 +1,13 @@
 /**
  * Test-framework helpers for running and reporting FunctionalScript tests.
  *
+ * Two parallel execution paths:
+ * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
+ *   sandboxes each leaf call individually and accumulates `TestState`.
+ * - `registerModule` / `TestContext` — registers tests with an external
+ *   framework (Node `--test`, Bun, Playwright) at import time; the framework
+ *   owns scheduling and pass/fail counting.
+ *
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
@@ -19,7 +26,7 @@ import {
     type Write,
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
-import { pure, do_, type Effect, type Func, type Operation } from '../../types/effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
