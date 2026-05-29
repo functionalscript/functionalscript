@@ -182,10 +182,17 @@ export const import_: Func<Import> = do_('import')
 
 // write
 
+/** Named output streams accepted by the `Write` effect. */
 export type WriteConsoles = 'stdout' | 'stderr'
 
+/**
+ * Raw byte write to a named output stream. Encoding-agnostic — callers supply
+ * a `Vec`. The Node runner maps each stream name to the appropriate fd and
+ * delegates to the OS via `stream.write()` with backpressure handling.
+ */
 export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void]
 
+/** Emits a `Write` effect to the given named stream. */
 export const write: Func<Write> = do_('write')
 
 /**
@@ -211,12 +218,19 @@ export const now: Func<Now> = do_('now')
 
 // sandbox
 
+/**
+ * The outcome of a `Sandbox` operation.
+ *
+ * `result` carries either `['ok', value]` or `['error', thrown]`. `duration`
+ * is a floating-point millisecond count with up to microsecond precision,
+ * matching `performance.now()` directly. Additional fields (allocated memory,
+ * max stack depth, coverage) may be added in future without breaking consumers.
+ */
 export type SandboxResult<T> = {
     readonly result: Result<T, unknown>
     /**
-     * Measured milliseconds but it's not limited to that.
-     * Instead, they represent times as floating-point numbers
-     * with up to microsecond precision.
+     * Elapsed time in milliseconds (microsecond precision via `performance.now()`).
+     * The virtual runner returns `0` for deterministic tests.
      */
     readonly duration: number
 }
@@ -245,16 +259,28 @@ export const sandbox: Func<Sandbox> = do_('sandbox')
 
 // Test registration
 
+/**
+ * Signature of a framework test-registration function (e.g. `nodeTest.test`,
+ * `bunTest.test`, `pwTest`). Returns `Promise<void>` so async sub-tests can
+ * be awaited.
+ */
 export type TestFn = (
     name: string,
     options: { readonly expectFailure: boolean },
     fn: (t: TestContext) => Promise<void>
 ) => Promise<void>
 
+/**
+ * A thin wrapper around a framework's `test` function. Passed through
+ * `registerModule` so nested test registration uses the appropriate context
+ * (e.g. `inlineContext` on Bun and Playwright, which do not support nested
+ * `test()` calls inside a callback).
+ */
 export type TestContext = {
     readonly test: TestFn
 }
 
+/** Effect operation that registers a named test with the active `TestContext`. */
 export type Test =
     readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
 
@@ -285,8 +311,22 @@ export type Env = {
     readonly [k: string]: string|undefined
 }
 
+/** Identifies the JavaScript runtime detected at startup. */
 export type Engine = 'node' | 'bun' | 'playwright'
 
+/**
+ * Runtime options passed to every `NodeProgram`.
+ *
+ * - `args`: command-line arguments (equivalent to `process.argv.slice(2)`).
+ * - `env`: process environment variables.
+ * - `std`: TTY flags for `stdout` and `stderr`, known at startup and used by
+ *   `csiWrite` to decide whether to strip ANSI SGR sequences.
+ * - `testContext`: Node `--test` context; used by `register` on Node.
+ * - `bunTestContext`: Bun-compatible context that flattens nested tests inline,
+ *   working around Bun's lack of nested `test()` support.
+ * - `playwrightTestContext`: Playwright context using the same inline strategy.
+ * - `engine`: runtime detected at startup; controls which context `register` selects.
+ */
 export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env

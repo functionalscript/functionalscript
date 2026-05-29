@@ -1,5 +1,8 @@
 # Investigate Mutability Inference
 
+**Priority:** P3
+**Status:** open
+
 ```ts
 const s = [] // mutable
 const f = () => { // the function can be called only if s is mutable.

@@ -1,5 +1,8 @@
 # 190. `fs/text`: own the single code-unit/code-point ↔ string boundary
 
+**Priority:** P3
+**Status:** open
+
 Converting between a single character-code number and a one-character JS `string`
 is a `fs/text` concern, but four modules reach into the `String` built-in
 directly and three of them re-bind the same function under a local name:

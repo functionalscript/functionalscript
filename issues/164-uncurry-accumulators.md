@@ -1,6 +1,7 @@
 # 164. Uncurry state-threading accumulator types (`Fold`/`Reduce`, `ReduceOp`/`TailReduce`)
 
-**Priority: low**
+**Priority:** P5
+**Status:** open
 
 ## Problem
 

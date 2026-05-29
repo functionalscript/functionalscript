@@ -16,12 +16,20 @@ import { type Effect, pure } from '../../types/effects/module.f.ts'
 import { readFile, type ReadFile } from '../../types/effects/node/module.f.ts'
 import { utf8ToString } from '../../text/module.f.ts'
 
+/**
+ * State threaded through the recursive transpilation of a DJS module graph.
+ *
+ * - `complete`: modules that have been fully parsed and evaluated, keyed by path.
+ * - `stack`: import chain currently being resolved (used to detect circular dependencies).
+ * - `error`: the first parse error encountered, or `null` while everything is clean.
+ */
 export type ParseContext = {
     readonly complete: OrderedMap<djsResult>
     readonly stack: List<string>
     readonly error: ParseError | null
 }
 
+/** The evaluated DJS value produced for one successfully transpiled module. */
 export type djsResult = {
     djs: Unknown
 }
@@ -94,6 +102,13 @@ const foldNextModuleOp
         )
     }
 
+/**
+ * Transpiles a DJS module graph rooted at `path` into a single `Unknown` value.
+ *
+ * Reads each file via the `ReadFile` effect, resolves imports recursively, and
+ * evaluates the AST. Returns `['ok', value]` on success, or `['error', ParseError]`
+ * on a parse failure or circular dependency.
+ */
 export const transpile
     : (path: string) => Effect<ReadFile, Result<Unknown, ParseError>>
     = path =>

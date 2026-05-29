@@ -1,5 +1,8 @@
 # 174. `fsc` and `js/tokenizer`: a shared range-map lexer state machine
 
+**Priority:** P3
+**Status:** open
+
 `fs/fsc/module.f.ts` and `fs/js/tokenizer/module.f.ts` are the only two
 code-point scanners in the tree, and both hand-roll the *same* Mealy machine
 over `range_map`: a state is a continuation `(codePoint) => [output, nextState]`,

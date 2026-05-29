@@ -1,5 +1,9 @@
 # 197. `djs`: extract the `Unknown`-shape walker (5 consumers)
 
+**Priority:** P3
+**Status:** open
+**Blocked by:** [i157](./157-json-djs-shared-core.md)
+
 ## Problem
 
 The DJS `Unknown` value shape

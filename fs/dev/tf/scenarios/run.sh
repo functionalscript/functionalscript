@@ -7,14 +7,15 @@ set -e
 runner=$1
 scenario=$(realpath "$2")
 
+scendir=$(cd "$(dirname "$0")" && pwd)
+
 case "$scenario" in
-    *.pass.f.ts) expected=0 ;;
-    *.fail.f.ts) expected=1 ;;
+    *.pass.f.ts) expected=0; scenfile="$scendir/scenario.proof.f.ts" ;;
+    *.fail.f.ts) expected=1; scenfile="$scendir/scenario.proof.f.ts" ;;
+    *.pass.ts)   expected=0; scenfile="$scendir/scenario.proof.ts" ;;
+    *.fail.ts)   expected=1; scenfile="$scendir/scenario.proof.ts" ;;
     *) echo "unknown suffix: $scenario" >&2; exit 2 ;;
 esac
-
-scendir=$(cd "$(dirname "$0")" && pwd)
-scenfile="$scendir/scenario.test.f.ts"
 allfile="$scendir/all.test.ts"
 
 ln "$scenario" "$scenfile"

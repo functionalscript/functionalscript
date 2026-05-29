@@ -1,5 +1,8 @@
 # 178. `cbase32`: move bit-vector padding/trailing-zero logic into `bit_vec`
 
+**Priority:** P3
+**Status:** open
+
 `fs/cbase32/module.f.ts` hand-rolls two pieces of pure bit-vector arithmetic
 that are conceptually `bit_vec` operations, not Base32 semantics: padding a
 vector up to a 5-bit boundary with a "1-then-zeros" terminator, and recovering

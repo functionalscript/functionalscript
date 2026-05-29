@@ -1,5 +1,8 @@
 # 198. `effects/node`: `readUtf8File` / `writeUtf8File` helpers
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 Five effect-using modules each open-code the same UTF-8 ↔ file

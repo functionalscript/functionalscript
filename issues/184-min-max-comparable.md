@@ -1,5 +1,8 @@
 # 184. `function`: a generic comparable `min`/`max`, retiring the per-type copies
 
+**Priority:** P3
+**Status:** open
+
 The exact same two-line "pick the smaller / larger of two values" algorithm is
 written out in two modules, differing only in the element type.
 

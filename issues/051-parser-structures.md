@@ -1,5 +1,8 @@
 # Parser Structure
 
+**Priority:** P3
+**Status:** open
+
 1. AST, the structure can contain function structures.
    - 1. w/o imports.
      ```ts
