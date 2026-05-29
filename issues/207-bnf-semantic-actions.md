@@ -302,6 +302,12 @@ The value channel is what RTTI schemas (§5) describe and check; the metadata
 channel is orthogonal — user-defined type, user-defined monoid — and is never
 dropped.
 
+Because metadata is **automatically** attached to every input symbol and to
+every produced (transformed) symbol — and merged without any per-action work —
+the rest of this document (diagrams, schemas, `fn` signatures) shows only the
+value channel for simplicity. Assume `M` rides alongside every value implicitly;
+an action only mentions it when it actually reads it (§7).
+
 ## 4. Type checking in TypeScript — what actually works
 
 The hope is that `mapRule(rule, action)` could *infer* `action`'s parameter
@@ -523,6 +529,16 @@ object.fn = m => Object.fromEntries(collectMembers(m))
 `[key, value]` pairs, because each child rule's *effective* output is what flows
 up. Each `fn` is statically typed via `Ts<…>`; the evaluator guards the
 boundaries with the RTTI schemas.
+
+> **Note — metadata is implicit here.** The schemas and `fn` signatures above
+> show only the **value channel**. Metadata (§3.4) is *automatically* attached
+> to every input symbol and to every produced (transformed) symbol, and merged
+> by the user's monoid as reductions combine — it rides alongside each value
+> without appearing in the action's type or body. We omit it from these
+> examples (and from the diagrams/symbols elsewhere) purely for readability; an
+> action that needs it (e.g. to attach a source span, or to read a lexeme
+> carried from a lower parser layer) receives it via the optional second
+> argument from §7.
 
 ## 7. Open questions
 
