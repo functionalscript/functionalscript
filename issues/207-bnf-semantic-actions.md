@@ -225,11 +225,11 @@ This splits the problem cleanly:
   `Ts<InSchema> → Ts<OutSchema>`. The author writes ordinary typed code. No
   `Rule`-erasure problem, because the type comes from the schema, not the
   grammar.
-- **At the grammar↔action boundary**, where TS can't help (§4), the evaluator
-  validates at runtime. Before invoking `fn`, it `validate`s (or `parse`s) the
-  assembled raw input against `InSchema`; on success the value is safely the
-  declared `Ts<InSchema>`. Optionally it validates `fn`'s result against
-  `OutSchema` so a parent that consumes this rule gets what it was promised.
+- **At the grammar↔action boundary**, where TS can't help (§4), the contract is
+  checked dynamically. The naive form (§5.2) `validate`s/`parse`s the assembled
+  raw input against `InSchema` before each `fn` call; on success the value is
+  safely `Ts<InSchema>`. But most of this check can be lifted to a **one-time
+  check at grammar instantiation** (§5.3) instead of running per parsed node.
 
 `fs/types/rtti/validate` (`validate(schema)(value) → Result`) and
 `fs/types/rtti/parse` (`parse(schema)(value)` — builds a fresh, closed value)
@@ -255,18 +255,85 @@ So an action's `in` schema should equal `rawSchema(rule)` computed with
 children's *effective* schemas — which is precisely "the object rule's key slot
 is `string`'s decoded output". This gives two payoffs:
 
-1. The evaluator (or a build-time check) can verify `action.in` is compatible
-   with the derived raw schema, catching a mis-wired action *structurally*.
+1. `action.in` can be verified compatible with the derived raw schema, catching
+   a mis-wired action *structurally* — either per node at parse time (§5.2) or,
+   better, once at grammar instantiation (§5.3).
 2. The raw schema can be **auto-derived** and offered as the default `in`, so an
    author only writes `in` when narrowing (e.g. asserting a `repeat0Plus`
    produced a non-empty list). This keeps boilerplate down.
 
-### 5.2 Cost
+### 5.2 Naive form: validate per parsed node
 
-Validating every node at parse time is not free. Mitigations: validate only at
-rules that *have* an action (untransformed subtrees pass through structurally);
-allow `in`/`out` to be omitted to skip the check for hot, trusted rules; or run
-full validation in a debug build and trust the schemas in release. The
+The straightforward implementation runs the boundary check during evaluation:
+before invoking each `fn`, `validate`/`parse` the assembled raw input against
+`InSchema` (and optionally the result against `OutSchema`). This is correct and
+needs no new RTTI primitive, but it pays the cost on *every* parsed node and
+only surfaces a mis-wired action when an input happens to reach that branch.
+
+### 5.3 Lifting the check to grammar instantiation
+
+RTTI is doing **two distinct checks** here, and only one is inherently
+per-parse:
+
+1. **Schema-vs-schema compatibility** — does `action.in` match the *raw schema
+   derived from the rule's structure* (§5.1, each child slot filled by that
+   child's effective `out`)? This depends only on **grammar + actions**, never
+   on input, so it can run **once, when the grammar is instantiated**.
+2. **Value-vs-schema validation** — does an actual parsed value conform to
+   `in`? This is the §5.2 per-node check.
+
+The key fact: **if (1) holds, (2) is redundant.** If `rawSchema(rule)` is
+provably a subtype of `action.in` for every actioned rule, then every value the
+grammar can produce at that node is already a valid `Ts<in>` by construction, so
+the per-node validation can be dropped (kept only as optional debug
+assertions). This is the compile-once-vs-cast-everywhere distinction: prove the
+pipeline sound once instead of re-checking each value.
+
+**What it requires that RTTI doesn't have yet.** A schema-vs-schema
+`subset`/`assignable(rawSchema, in): boolean` predicate. Today RTTI exposes only
+`validate`/`parse` (value-vs-schema); there is no subtyping relation. This is
+exactly the `equal`/`subset` algebra planned on the function-free data form in
+[i143](./143-rtti-data.md), so instantiation-time grammar checking is a natural
+*consumer* of i143 and should be gated on it.
+
+Two wrinkles for the predicate:
+
+- **Recursion.** Grammars are cyclic, so `rawSchema` is a recursive schema and a
+  structural `subset` must be coinductive (assume-equal on cycle) or it loops.
+  *But* a declared `out` cuts the recursion: when deriving a parent's raw
+  schema, an actioned child contributes its author-declared `out`
+  (self-contained), not its expansion. As long as every grammar cycle passes
+  through at least one actioned rule, the derivation terminates by plain
+  induction — `out` schemas play the cycle-cutting role that `: Rule`
+  annotations play for TS inference (§4), but *without losing information*,
+  since the author supplied the type. (A cycle with no actioned rule transforms
+  nothing, so its raw schema is just the generic AST shape — fine.)
+- **Shared traversal.** Deriving `rawSchema` walks the grammar the same way
+  `toData` does; share that walk rather than duplicating it.
+
+**What stays at parse time regardless.** Anything the raw schema can't express:
+
+- **Author-declared narrowing** — if `in` is *stricter* than the derivable raw
+  schema (e.g. "a number that fits in u32" where the grammar only guarantees
+  "non-empty digit list"), that delta is unprovable at instantiation and remains
+  a runtime assertion (or is rejected as unprovable).
+- **Precision gaps** — RTTI can't say "non-empty array", so a `repeat1Plus`
+  action assuming non-emptiness keeps a runtime check.
+- **Data-dependent action logic** (overflow, semantic checks) — always runtime,
+  but that is the action body's own concern, not the RTTI boundary.
+
+**Net effect.** Cost moves from O(parsed nodes) to O(actioned rules), once, and
+a mis-wired action surfaces at grammar construction instead of on the first
+input that reaches its branch. Recommended target once i143 lands; until then,
+ship the §5.2 per-node form.
+
+### 5.4 Cost
+
+Validating every node at parse time (§5.2) is not free. Mitigations: validate
+only at rules that *have* an action (untransformed subtrees pass through
+structurally); allow `in`/`out` to be omitted to skip the check for hot, trusted
+rules; or run full validation in a debug build and trust the schemas in release.
+§5.3 removes the per-node cost outright once the `subset` predicate exists. The
 allocation/short-circuit trade-offs of `validate` vs `parse` are already
 discussed in [i172](./172-rtti-validate-parse-skeleton.md).
 
@@ -334,9 +401,13 @@ boundaries with the RTTI schemas.
 Pursue **(B) transparent `mapRule` + grammar-directed fold (§3)** with the
 **RTTI contract (§5)** as the type-safety mechanism; do **not** attempt to type
 the grammar↔action boundary in TypeScript (§4 shows it cannot survive cyclic
-grammars). Start with the positional elision model and explicit `out` schemas;
-defer `unit`/silent rules, schema auto-derivation, and parser-inlined actions to
-follow-ups once the fold + a JSON action set exist as the first real consumer.
+grammars). Start with the positional elision model and explicit `out` schemas,
+and the per-node boundary check (§5.2). Once the RTTI `subset` predicate from
+[i143](./143-rtti-data.md) exists, lift the boundary check to grammar
+instantiation (§5.3) so it costs O(actioned rules) once and fails at
+construction. Defer `unit`/silent rules, schema auto-derivation, and
+parser-inlined actions to follow-ups once the fold + a JSON action set exist as
+the first real consumer.
 
 ## Related
 
@@ -344,6 +415,8 @@ follow-ups once the fold + a JSON action set exist as the first real consumer.
   "how does meta info propagate up a reduction" question.
 - [i172](./172-rtti-validate-parse-skeleton.md) — `validate`/`parse` skeleton
   and `ValidationError`; the runtime checker this design leans on.
-- [i143](./143-rtti-data.md) — serializable RTTI data form; relevant if schemas
-  are auto-derived from the BNF data form.
+- [i143](./143-rtti-data.md) — serializable RTTI data form and its planned
+  `equal`/`subset` algebra; the predicate the instantiation-time boundary check
+  (§5.3) depends on, and relevant if schemas are auto-derived from the BNF data
+  form.
 - `fs/fsc/json.f.ts`, `fs/bnf/testlib.f.ts` — the grammars used in §6.
