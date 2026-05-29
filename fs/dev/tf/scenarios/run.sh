@@ -17,14 +17,11 @@ scendir=$(cd "$(dirname "$0")" && pwd)
 scenfile="$scendir/scenario.test.f.ts"
 allfile="$scendir/all.test.ts"
 
-cleanup() {
-    rm -f "$scenfile"
-    mv "$allfile" "$scendir/all.ts"
-}
-trap cleanup EXIT
-
 ln "$scenario" "$scenfile"
-mv "$scendir/all.ts" "$allfile"
+ln "$scendir/all.ts" "$allfile"
+
+cleanup() { rm -f "$scenfile" "$allfile"; }
+trap cleanup EXIT
 
 case "$runner" in
     bun)        cmd="bun test" ;;
