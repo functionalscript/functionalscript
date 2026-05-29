@@ -95,6 +95,72 @@ Most sequence elements an action does not care about are fixed literals (`"`,
 
 The JSON worked example (§6) uses the positional model.
 
+### 2.1 List rules: flattening right-recursion
+
+"Repeat" is **not** a BNF primitive — the four shapes are only
+`Variant | Sequence | TerminalRange | string`. Only the fixed-count `repeat(n)`
+is flat (it expands to a `Sequence` of `n` copies). Every *unbounded*
+repetition is encoded as **right-recursion**, whether built by a combinator or
+written by hand:
+
+```ts
+repeat0Plus(x)  // r = () => option([x, r])  ⇒  Variant { some: [x, r], none: [] }
+// hand-written, no helper:
+characters = () => ({ none, characters: [character, characters] })   // 0-or-more
+members    = () => ({ member, members: [member, ',', members] })     // 1-or-more
+digits     = () => [digit, digits0]                                  // 1-or-more
+```
+
+By §2 these produce a right-nested cons list — `{tag:'some', value:[x0,
+{tag:'some', value:[x1, {tag:'none', value:[]}]}]}` — i.e. nested `{tag, value}`
+objects wrapping 2-tuples, not the flat `[x0, x1, …]` an action wants.
+
+**Chosen approach: recognize the right-recursion structurally**, rather than
+relying on a marker emitted by a helper combinator. This way a list written
+directly as a recursive `Variant`/`Sequence` (the classic-JSON style above) is
+flattened identically to one built with `repeat0Plus` — the combinators get no
+special treatment, because there is nothing to special-case.
+
+**Detection.** Analyze tail-position recursion over the rule-reference graph: a
+rule `L` is *list-like* when every recursive reference within its
+strongly-connected component occurs in **tail position** (the last element of a
+`Sequence`, possibly through a thunk). For each branch:
+
+- split the branch's sequence into a **prefix** and an optional **tail** that
+  references back into `L`'s recursion group;
+- the prefix, after noise elision (§2 — fixed literals / silent rules drop out),
+  is *one item*; the tail recurses.
+
+Base branches (no tail) contribute their prefix item and stop; recursive
+branches contribute one item and continue. This covers all three shapes above:
+`characters` (empty base + `[character, ·]` tail), `members` (single-item base +
+`[member, ',', ·]` tail — the `,` elides), and the two-rule `digits`/`digits0`
+split (the tail reference points into the *other* rule of the same list group).
+A self-reference in **non-tail** position (e.g. `value` inside `object`/`array`)
+means the rule is a *tree*, not a list, and is left un-flattened.
+
+**Flattening** is then an unfold performed during the §3.2 fold: walk the
+matched branch, emit its prefix item, follow the tail, stop at a base branch —
+producing a flat `array` whose element is the (homogeneous) item's effective
+output. The parser and generic AST are untouched; this is purely how the *raw
+output* of a list-like rule is assembled (a fifth raw-output kind, "list",
+layered onto §2's table).
+
+**The fundamental limitation — and the opt-in that resolves it.** A flat list
+and a *right-associative tree* share the **same grammar**: `a = [x, '+', a] | x`
+is structurally indistinguishable from a separated list `x ('+' x)*`, yet an
+operator grammar wants the nested tree, not `[x, x, x]`. Structural detection
+alone therefore cannot decide whether to flatten. The resolution is to make
+flattening **opt-in via the action's RTTI schema (§5)**: detection establishes
+that a rule *can* be presented as a list, and declaring its `in`/`out` as
+`array(itemSchema)` requests it; absent that, the nested raw output is preserved
+(right-associative trees keep working). The §5.3 instantiation-time check
+verifies the unfolded item schema actually matches the declared `array`
+element — so a mis-detected or mis-shaped list fails at construction. This also
+subsumes the rejected "combinator marker" option: a combinator can simply
+declare the `array` schema on the author's behalf, which is the same opt-in done
+for you.
+
 ## 3. Where actions attach and how they run
 
 ### 3.1 Attachment
@@ -405,9 +471,12 @@ grammars). Start with the positional elision model and explicit `out` schemas,
 and the per-node boundary check (§5.2). Once the RTTI `subset` predicate from
 [i143](./143-rtti-data.md) exists, lift the boundary check to grammar
 instantiation (§5.3) so it costs O(actioned rules) once and fails at
-construction. Defer `unit`/silent rules, schema auto-derivation, and
-parser-inlined actions to follow-ups once the fold + a JSON action set exist as
-the first real consumer.
+construction. Recognize repetition by **structural right-recursion analysis**
+(§2.1) rather than a helper combinator, so hand-written and combinator-built
+list rules flatten identically; gate the flattening on an `array(item)` schema
+opt-in so right-associative trees are preserved. Defer `unit`/silent rules,
+schema auto-derivation, and parser-inlined actions to follow-ups once the fold +
+a JSON action set exist as the first real consumer.
 
 ## Related
 
