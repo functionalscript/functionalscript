@@ -1,5 +1,15 @@
 # 207. BNF semantic actions: attaching transform functions to grammar rules
 
+> **Status — to be split.** This issue has grown to cover several independently
+> implementable pieces (transparent `mapRule` + the grammar-directed fold §3.1–§3.2;
+> the parser-neutral reduction algebra §3.3; the metadata monoid §3.4; list
+> flattening via right-recursion detection §2.1; the RTTI value/output contract
+> §5.2; and the instantiation-time `subset` check §5.3, gated on i143). Before
+> implementation it should be split into multiple smaller tasks (one tracking
+> issue plus per-piece sub-issues) with an explicit dependency order. **Do not
+> split it yet** — this remains a single design document until the split is
+> agreed.
+
 ## Goal
 
 Let a grammar author attach a **transform function** (a *semantic action*) to a
