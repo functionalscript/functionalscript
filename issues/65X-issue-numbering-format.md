@@ -1,7 +1,7 @@
-# 212. Issue file numbering format
+# 65X-issue-numbering-format. Issue file numbering format
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -58,4 +58,4 @@ The prefix alone is not unique within a day; the slug disambiguates.
 
 ## Related
 
-- [i65X](./65X-issue-numbering-format.md) — this issue will self-referentially demonstrate the format once adopted
+- [i65X-issue-numbering-format](./65X-issue-numbering-format.md) — this file, self-referentially demonstrating the format
