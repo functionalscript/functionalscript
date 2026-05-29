@@ -1,7 +1,13 @@
 # Issues
 
 One file per open issue, named `NNN-kebab-slug.md` (sequential number, short kebab-case slug).
-Done issues are deleted. The `issues/` directory is the index — browse it directly.
+Done issues are deleted — but before deleting, ensure design and design decisions are
+captured in the codebase: architectural choices and the *why this / why not that* rationale
+belong in the relevant `README.md` files; API shape, invariants, and non-obvious constraints
+belong in JSDoc on the affected `module.f.ts` exports. The issue file is a scratchpad;
+the code and its docs are the permanent record.
+
+The `issues/` directory is the index — browse it directly.
 
 ## Template
 
