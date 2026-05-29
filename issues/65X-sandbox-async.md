@@ -1,8 +1,7 @@
 # 65X-sandbox-async. `sandbox` does not await async test functions
 
 **Priority:** P3
-**Status:** open
-**Blocked by:** [i206](./206-worker-sandbox.md)
+**Status:** done
 
 ## Problem
 

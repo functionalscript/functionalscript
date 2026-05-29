@@ -99,12 +99,12 @@ export const io: Io = {
     http,
     childProcess,
     now,
-    sandbox: <T>(f: () => T) => {
+    sandbox: async <T>(f: () => T) => {
         let result: Result<T, unknown>
         let after: number
         const before = performance.now()
         try {
-            const value = f()
+            const value = await f()
             after = performance.now()
             result = ok(value)
         } catch (e) {
