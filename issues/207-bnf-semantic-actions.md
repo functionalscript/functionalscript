@@ -218,6 +218,90 @@ Two integration strategies:
   it reduces, never materializing the generic AST. Faster, but couples parsing
   and evaluation and duplicates the walk. Defer unless profiling demands it.
 
+### 3.3 Parser-agnostic evaluation: a reduction algebra
+
+A core design principle of this repository is a clean three-way split:
+
+- **one grammar definition** — the functional `Rule` form (`fs/bnf/module.f.ts`);
+- **one serializable form** — the function-free data form (`fs/bnf/data`);
+- **many parsers** — LL(1) (`parserRuleSet`), recursive descent
+  (`descentParser`), and potentially LR(1), LR(k), GLR, … each a separate
+  consumer of the same grammar/data.
+
+Semantic actions and metadata must respect that split: they belong to **neither**
+the grammar definition nor any single parser. So the design does **not** bake
+evaluation into the LL(1) walk. Instead, evaluation is an **algebra** over
+parser-neutral reduction events:
+
+```
+type Semantics<R> = {
+    leaf:   (token) => R                       // a shifted terminal / token
+    reduce: (rule, tag, children: R[]) => R    // a completed rule
+}
+```
+
+Every parser kind, however it works internally, ultimately *shifts* terminals
+and *reduces* rules — top-down (LL/recursive descent) or bottom-up
+(LR/shift-reduce). Driving a `Semantics<R>` from those events decouples actions
+and metadata from the parser entirely:
+
+- The materialized `AstRuleMeta<T>` tree is just the **free / identity** algebra
+  (`reduce` builds a node, `leaf` keeps the token). §3.2's fold-over-AST is
+  "build the free algebra, then interpret it".
+- The value+metadata evaluation (§3.4) is another `Semantics<R>` with
+  `R = (value, meta)`. An **LR** parser drives the same algebra directly on each
+  reduce — no intermediate AST — which is exactly the "inlined" strategy above,
+  obtained for free rather than by duplicating a walk.
+
+So `Semantics<R>` is the parser↔semantics contract; swapping LL(1) for LR(k)
+changes which engine emits the shift/reduce events, not the actions, the
+metadata merge, or the RTTI schemas. (The grammar-directed nature noted in §3.2
+still holds: `reduce` receives the `rule` and `tag`, supplying the rule identity
+the bare AST lacks.)
+
+### 3.4 Metadata: always carried, user-merged
+
+Parsing must **always** carry a metadata channel alongside the value channel —
+this is not optional and not the same as a semantic action. `descentParser`
+already threads it at the leaves (`CodePointMeta<T> = readonly[CodePoint, T]`);
+the missing piece is **merging** it as reductions combine children. The author
+supplies that merge as part of the semantics:
+
+```
+type Meta<M> = {
+    leaf:  (token) => M          // e.g. a source position → a one-point Range
+    merge: (a: M, b: M) => M     // associative; e.g. Range union
+    empty: M                     // identity for empty / `none` branches
+}
+```
+
+`(leaf, merge, empty)` form a **monoid**: `merge` is associative with `empty` as
+identity, so empty matches (`none`, optional, the base of a list) contribute
+`empty` and vanish under `merge`. The canonical instance maps each input
+position to a `Range` (`[start, end]`) and `merge` takes the union (`min start`,
+`max end`), so every node automatically acquires the source span covering all
+its leaves. Metadata flows up **whether or not a rule has a value action** — it
+is the `reduce` step folding children's `M` via `merge`, independent of the
+value channel.
+
+**Metadata carries information forward across parser layers.** This is the
+mechanism behind the layered parser ([i165](./165-layered-parser.md)): a
+tokenizer reduces code points into tokens whose *value channel* is a single
+grammar-relevant **symbol** (`i` for identifier, `s` for string, `n` for number)
+while the *actual lexeme* (the identifier text, the decoded string) and its span
+ride in `M`. The next layer's grammar (e.g. parsing a function) matches only on
+the symbols — it neither sees nor cares about the lexeme — yet an action at that
+layer can still read the carried value out of `M` when it needs it (e.g. to put
+the identifier's name into the AST node). Each layer supplies its own
+`Meta<M>`; the mechanism is uniform across layers.
+
+So a full evaluation is a `Semantics<R>` with `R = readonly[value, M]`:
+`reduce` computes `value` via the rule's action (§3.1, over children's values)
+and `meta` via `merge` over children's metas; `leaf` seeds both from the token.
+The value channel is what RTTI schemas (§5) describe and check; the metadata
+channel is orthogonal — user-defined type, user-defined monoid — and is never
+dropped.
+
 ## 4. Type checking in TypeScript — what actually works
 
 The hope is that `mapRule(rule, action)` could *infer* `action`'s parameter
@@ -448,10 +532,11 @@ boundaries with the RTTI schemas.
 - **Variant encoding.** `{ tag, value }` discriminated union vs. a bare value
   plus a separately-passed tag. The discriminated union types best under
   `Ts<or(...)>` and matches RTTI's `or`.
-- **Metadata / source spans.** `descentParser` carries `CodePointMeta<T>`.
-  Should actions receive spans (for error reporting / the layered parser,
-  [i165](./165-layered-parser.md))? Probably via a second, optional argument so
-  the common case stays clean.
+- **Metadata API surface (designed in §3.4, details open).** How does a value
+  action *read* the merged `M` of its node (for the layered-parser lexeme
+  carry)? Likely a second, optional argument so the common value-only action
+  stays clean. Also: does `Meta<M>` need a per-rule hook, or is the single
+  `(leaf, merge, empty)` monoid plus the carried token value enough?
 - **Auto-derived vs. explicit `in` schema.** How much to auto-derive (§5.1)
   before an author must write `in`. Deriving the raw schema needs the same
   grammar walk as `toData`; worth sharing that traversal.
@@ -474,14 +559,22 @@ instantiation (§5.3) so it costs O(actioned rules) once and fails at
 construction. Recognize repetition by **structural right-recursion analysis**
 (§2.1) rather than a helper combinator, so hand-written and combinator-built
 list rules flatten identically; gate the flattening on an `array(item)` schema
-opt-in so right-associative trees are preserved. Defer `unit`/silent rules,
+opt-in so right-associative trees are preserved. Define evaluation as a
+parser-neutral **reduction algebra** `Semantics<R>` (§3.3) so the same actions,
+metadata, and schemas run under any parser kind (LL(1), LR(1)/LR(k), GLR) —
+never baked into one parser. Always carry a **metadata channel** merged by a
+user-supplied monoid `(leaf, merge, empty)` (§3.4) — independent of the value
+channel and never dropped — which doubles as the cross-layer value carrier for
+the layered parser ([i165](./165-layered-parser.md)). Defer `unit`/silent rules,
 schema auto-derivation, and parser-inlined actions to follow-ups once the fold +
 a JSON action set exist as the first real consumer.
 
 ## Related
 
-- [i165](./165-layered-parser.md) — layered parser; shares the AST and the
-  "how does meta info propagate up a reduction" question.
+- [i165](./165-layered-parser.md) — layered parser. The metadata monoid (§3.4)
+  is the mechanism for both its "how does meta propagate up a reduction" and
+  "lower-layer values (lexemes) carried past the upper grammar" questions; the
+  reduction algebra (§3.3) is the shared evaluation contract across layers.
 - [i172](./172-rtti-validate-parse-skeleton.md) — `validate`/`parse` skeleton
   and `ValidationError`; the runtime checker this design leans on.
 - [i143](./143-rtti-data.md) — serializable RTTI data form and its planned
