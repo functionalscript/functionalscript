@@ -30,22 +30,28 @@ both exit 0 with the `fjs` runner when exit 1 is expected.
 
 ## Proposal
 
-### Short-term: async sandbox variant
-
-Add `asyncSandbox` that awaits the result before returning:
+Make the existing `sandbox` handler async — no new operation type needed. The handler
+in `fromIo` awaits the result if it is a `Promise`:
 
 ```ts
-export type AsyncSandbox = readonly['asyncSandbox', <T>(f: () => Promise<T>) => SandboxResult<T>]
+sandbox: async f => {
+    const start = now()
+    try {
+        const value = await f()
+        return { result: ok(value), duration: now() - start }
+    } catch(e) {
+        return { result: error(e), duration: now() - start }
+    }
+}
 ```
 
-The handler in `fromIo` would `await f()` inside a try/catch and measure time with
-`performance.now()` around the await. `defaultTest` would detect async functions
-(via `instanceof Promise` on the result of `fn()`) and route to `asyncSandbox`.
+`asyncRun` already does `await operation(...)`, so returning a `Promise<SandboxResult<T>>`
+from the handler is handled automatically. No changes needed in `module.f.ts` or the
+`Sandbox` type — `f: () => T` already covers `() => Promise<T>` since `Promise<T>` is
+assignable to `T = unknown`.
 
-### Long-term: worker-based sandbox
-
-See [i206](./206-worker-sandbox.md). A worker-based sandbox naturally handles async
-functions and adds hard timeout/memory limits.
+The long-term worker-based sandbox ([i206](./206-worker-sandbox.md)) would also handle
+async naturally.
 
 ## Related
 
