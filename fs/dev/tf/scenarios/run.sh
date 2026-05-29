@@ -1,7 +1,7 @@
 #!/bin/sh
 # Usage: run.sh <runner> <scenario>
-# runner: bun | node | deno | playwright
-# scenario: path to a *.pass.f.ts or *.fail.f.ts file
+# runner: fjs | bun | node | deno | playwright
+# scenario: path to a *.pass.f.ts, *.fail.f.ts, *.pass.ts or *.fail.ts file
 set -e
 
 runner=$1
@@ -25,6 +25,7 @@ cleanup() { rm -f "$scenfile" "$allfile"; }
 trap cleanup EXIT
 
 case "$runner" in
+    fjs)        cmd="npm run fst" ;;
     bun)        cmd="bun test" ;;
     node)       cmd="node --test" ;;
     deno)       cmd="deno test --allow-read --allow-env" ;;
