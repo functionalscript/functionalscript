@@ -1,8 +1,12 @@
 # 65X-async-test-functions. Async test functions are not awaited
 
 **Priority:** P3
-**Status:** open
-**Blocked by:** [i206](./206-worker-sandbox.md) (for the sandbox path)
+**Status:** done
+
+The `registerModule` path (external frameworks) is fixed — `Await` effect added,
+`registerModule` now awaits async results, `loadFile` imports `proof.ts` files.
+The `sandbox` path (self-hosted `fjs t` runner) is tracked separately in
+[i65X-sandbox-async](./65X-sandbox-async.md).
 
 ## Problem
 

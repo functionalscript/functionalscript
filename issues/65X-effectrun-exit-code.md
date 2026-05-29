@@ -1,7 +1,7 @@
 # 65X-effectrun-exit-code. `effectRun` discards exit code
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ## Problem
 
