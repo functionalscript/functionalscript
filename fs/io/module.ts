@@ -9,6 +9,18 @@ import type { Module, NodeProgram, WriteConsoles } from '../types/effects/node/m
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
 import * as testContext from 'node:test'
+import type { TestContext } from '../types/effects/node/module.f.ts'
+
+const inlineContext: TestContext = {
+    test: async (_name, { expectFailure }, fn) => {
+        if (expectFailure) {
+            try { await fn(inlineContext) } catch { return }
+            throw new Error('expected to throw')
+        } else {
+            await fn(inlineContext)
+        }
+    }
+}
 
 const prefix = 'file:///'
 
@@ -88,6 +100,7 @@ export const io: Io = {
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
     testContext,
+    inlineContext,
     engine: 'Bun' in globalThis ? 'bun' : 'node',
 }
 export type NodeRun = (p: NodeProgram) => Promise<number>

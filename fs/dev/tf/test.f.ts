@@ -32,6 +32,7 @@ const options = (initCwd: string, github = false): NodeProgramOptions => ({
     env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTION: 'true' } : {}) },
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext: noopTestContext,
+    inlineContext: noopTestContext,
     engine: 'node',
 })
 

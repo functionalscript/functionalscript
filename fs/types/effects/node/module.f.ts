@@ -292,6 +292,7 @@ export type NodeProgramOptions = {
     readonly env: Env
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
     readonly testContext: TestContext
+    readonly inlineContext: TestContext
     readonly engine: Engine
 }
 
