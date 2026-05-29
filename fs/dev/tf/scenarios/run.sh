@@ -14,7 +14,7 @@ case "$scenario" in
 esac
 
 scendir=$(cd "$(dirname "$0")" && pwd)
-scenfile="$scendir/scenario.test.f.ts"
+scenfile="$scendir/scenario.proof.f.ts"
 allfile="$scendir/all.test.ts"
 
 ln "$scenario" "$scenfile"

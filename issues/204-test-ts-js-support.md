@@ -1,7 +1,13 @@
 # 204. A new suffix for plain TS/JS files using FunctionalScript conventions
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
+
+## Tasks
+
+- [x] `isTest` recognises exact basenames `proof.f.ts`, `proof.f.js`, `proof.ts`, `proof.js`
+- [ ] Rename all existing `*.test.f.ts` files to `*.proof.f.ts`
+- [ ] (optional) Remove `endsWith('test.f.ts')` / `endsWith('test.f.js')` from `isTest` — breaking change
 
 ## Problem
 
