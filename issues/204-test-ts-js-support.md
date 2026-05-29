@@ -38,12 +38,47 @@ test conventions but are not FunctionalScript modules (no `.f.`):
 
 ### Candidate suffixes (safe)
 
-- `.ftest.ts` / `.ftest.js` — compact, no framework uses this pattern
-- `.test.r.ts` / `.test.r.js` — mirrors `.test.f.ts`; `r` for "regular" (not pure functional)
-- `.test.m.ts` — avoid: `.mts` is a valid Node ESM extension and may cause confusion
+Any suffix that does not end in `.test.ts`, `.spec.ts`, `_test.ts` (and `.js` variants)
+is safe. The `.f.` infix trick works because frameworks match the *ending*, not a
+substring.
+
+| Suffix | Notes |
+|--------|-------|
+| `.ftest.ts` / `.ftest.js` | compact; `f` for FunctionalScript convention |
+| `.fstest.ts` / `.fstest.js` | more explicit `fs` prefix |
+| `.test.f.ts` | already used — FunctionalScript pure-functional modules only |
+| `.test.r.ts` / `.test.r.js` | mirrors `.test.f.ts`; `r` for "regular" (non-pure-functional) |
+| `.test.p.ts` / `.test.p.js` | `p` for "plain" |
+| `.t.ts` / `.t.js` | minimal; mirrors `.f.ts`; risk of collision with hand-written abbreviations |
+| `.check.ts` / `.check.js` | avoids the word "test" entirely; no framework claims it |
+| `.exam.ts` / `.exam.js` | short for "examination"; no framework claims it |
+| `.proof.ts` / `.proof.js` | fits FunctionalScript's functional philosophy — proving correctness rather than "testing" imperatively; mirrors the formal-proof connotation of type theory; no framework claims it |
+| `.law.ts` / `.law.js` | very FP-idiomatic — algebraic structures satisfy "laws" (functor laws, monad laws); a zero-argument function that doesn't throw is literally a law holding; no framework claims it |
+| `.prop.ts` / `.prop.js` | "property" as in property-based testing; properties that must hold; no framework claims it |
+| `.theorem.ts` / `.theorem.js` | a proven mathematical statement; heavier than `.proof.ts` but precise; no framework claims it |
+| `.lemma.ts` / `.lemma.js` | a supporting proven result; fits test files that are building blocks for larger proofs; no framework claims it |
+
+**Avoid:**
+- `.test.m.ts` — `.mts` is a Node ESM extension; confusing even if technically safe
 
 Note: `.test.f.ts` is already safe because frameworks match `*.test.ts` (ends in `.test.ts`),
 and `foo.test.f.ts` ends in `.f.ts`, not `.test.ts`.
+
+### Recommended candidate
+
+**`.proof.f.ts` / `.proof.f.js`** for FunctionalScript modules and **`.proof.ts` / `.proof.js`** for plain TS/JS files.
+
+This creates a clean parallel naming scheme:
+
+| Kind | Suffix |
+|------|--------|
+| FunctionalScript module (existing) | `.test.f.ts` / `.test.f.js` |
+| FunctionalScript proof | `.proof.f.ts` / `.proof.f.js` |
+| Plain TS/JS proof | `.proof.ts` / `.proof.js` |
+
+The `.f.` infix carries its standard meaning (FunctionalScript module); "proof" replaces
+"test" throughout. Neither suffix is auto-discovered by any framework. `isTest` would be
+extended to match all four suffixes.
 
 The chosen suffix is added to `isTest` alongside `.test.f.ts` / `.test.f.js`.
 
