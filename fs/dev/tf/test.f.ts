@@ -2,7 +2,7 @@ import { pure } from '../../types/effects/module.f.ts'
 import type { NodeProgramOptions, Sandbox, SandboxResult } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
-import { assert, assertEq } from '../module.f.ts'
+import { assert, assertEq, todo } from '../module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     type Reporter, type Path,
@@ -25,13 +25,14 @@ const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     return [reporter, () => events]
 }
 
-const noopTestContext = { test: () => {} }
+const noopTestContext = { test: todo }
 
 const options = (initCwd: string, github = false): NodeProgramOptions => ({
     args: [],
     env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTION: 'true' } : {}) },
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext: noopTestContext,
+    engine: 'node',
 })
 
 const ok0 = (): unknown => ({ result: ['ok', undefined] as const, duration: 0 })

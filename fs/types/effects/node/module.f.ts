@@ -248,8 +248,8 @@ export const sandbox: Func<Sandbox> = do_('sandbox')
 export type TestFn = (
     name: string,
     options: { readonly expectFailure: boolean },
-    fn: (t: TestContext) => void | Promise<void>
-) => void
+    fn: (t: TestContext) => Promise<void>
+) => Promise<void>
 
 export type TestContext = {
     readonly test: TestFn
