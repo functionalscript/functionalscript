@@ -273,15 +273,10 @@ export const fromIo = ({
 
 export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
     const { process: { env, stdout, stderr }, testContext } = io
+    const std = { stdout, stderr }
     const f = fromIo(io)
-    return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
-        f(program({
-            args,
-            env,
-            std: {
-                stdout: { isTTY: stdout.isTTY },
-                stderr: { isTTY: stderr.isTTY },
-            },
-            testContext,
-        }))
+    return args => {
+        const options = { args, env, std, testContext }
+        return program => f(program(options))
+    }
 }
