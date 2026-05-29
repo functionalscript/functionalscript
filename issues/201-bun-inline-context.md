@@ -1,4 +1,4 @@
-# 201. Bun sub-test fix: `inlineContext`
+# 201. Bun sub-test fix: `bunTestContext`
 
 ## Problem
 
@@ -65,71 +65,79 @@ describe blocks. However, this cannot replace `inlineContext` for two reasons:
    at the `describe` level produces the wrong outcome type and loses the test
    result entirely.
 
-## Proposed solution: `inlineContext`
+## Proposed solution: `bunTestContext`
 
-Add `inlineContext: TestContext` to `fs/types/effects/node/module.f.ts`.
-`inlineContext` runs sub-tests **inline** (directly awaiting them in sequence)
-rather than delegating to an external framework for scheduling:
+Three private helpers live in `fs/io/module.ts`:
+
+`inlineTest` is the shared core — it handles `expectFailure` manually and calls
+`fn(inlineContext)` so all nesting executes inline:
 
 ```ts
-// fs/io/module.ts
-const inlineContext: TestContext = {
-    test: async (_name, { expectFailure }, fn) => {
-        if (expectFailure) {
-            try { await fn(inlineContext) } catch { return }
-            throw new Error('expected to throw')
-        } else {
-            await fn(inlineContext)
-        }
+// fs/io/module.ts (private)
+const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
+    if (expectFailure) {
+        try { await fn(inlineContext) } catch { return }
+        throw new Error(`expected to throw: ${name}`)
+    } else {
+        await fn(inlineContext)
     }
 }
 ```
 
-`inlineContext` is just a `TestContext` — `module.f.ts` does not need to know
-how it is implemented. The async/await lives entirely inside `module.ts`, where
-it is already allowed. No conversion to Effects is needed.
+`inlineContext` is now a one-liner since `inlineTest` already matches `TestFn`:
 
-Because every registered thunk receives `inlineContext` when called, any
-sub-tests it tries to register are also run inline — recursively, with no
-external framework involvement below the top level.
+```ts
+const inlineContext: TestContext = { test: inlineTest }
+```
+
+`bunTestContext` registers with Bun's native `nodeTest.test` (options omitted —
+the two-argument overload `test(name, fn)` is valid) then delegates to
+`inlineTest`:
+
+```ts
+// fs/io/module.ts (exported via Io)
+const bunTestContext: TestContext = {
+    test: (name, opts, fn) => nodeTest.test(name, () => inlineTest(name, opts, fn))
+}
+```
+
+Because `bunTestContext` always passes `inlineContext` to thunks, the child
+context `t` in `registerOne` is `inlineContext` on Bun. Any further `Test`
+effects emitted with that context call `inlineContext.test`, which runs inline.
+No `subCtx` mapping function or extra parameter in `registerModule` is needed —
+the context itself carries the policy.
 
 ### Wiring
 
-`inlineContext` is added to `Io` and passed through `NodeProgramOptions`:
+`bunTestContext` is added to `Io` and `NodeProgramOptions`:
 
 ```ts
 // Io gains:
-readonly inlineContext: TestContext
+readonly bunTestContext: TestContext
 
 // NodeProgramOptions gains:
-readonly inlineContext: TestContext
+readonly bunTestContext: TestContext
 ```
 
-The `test` effect handler in `fromIo` stays engine-agnostic — it is a low-level
-primitive and should not contain routing logic:
+`register` in `fs/dev/tf/module.f.ts` selects the root context based on
+`engine`:
 
 ```ts
-test: async (ctx, name, expectFailure, test) =>
-    ctx.test(name, { expectFailure }, async t => result(test(t))),
+export const register: NodeProgram = o =>
+    loadModuleMap(o.env)
+    .step(m => registerModuleMap(o.engine === 'bun' ? o.bunTestContext : o.testContext, m))
+    .step(() => pure(0))
 ```
 
-The engine decision lives in `registerModule` in `fs/dev/tf/module.f.ts`. When
-building sub-test registrations, it uses `options.inlineContext` instead of the
-framework-provided `t` when `options.engine === 'bun'`:
-
-```ts
-// inside registerOne thunk:
-const subCtx = options.engine === 'bun' ? options.inlineContext : t
-return all(...sub.map(e => registerOne(subCtx, e))).step(() => pure(undefined))
-```
-
-This means: if Bun eventually supports sub-tests natively, only `registerModule`
-changes — the `test` effect and `fromIo` are untouched.
+`registerModule` and `registerModuleMap` remain unchanged — they take a plain
+`TestContext` and use `t` directly. The `test` effect handler in `fromIo` also
+stays engine-agnostic. If Bun eventually supports sub-tests natively, only
+`register` (and `bunTestContext`) need to change.
 
 ## Required change: `TestFn` return type
 
-`inlineContext.test` is `async`, so `TestFn` must declare `Promise<void>` as
-its return type rather than `void`:
+`bunTestContext.test` and `inlineContext.test` are `async`, so `TestFn` must
+declare `Promise<void>` as its return type rather than `void`:
 
 ```ts
 export type TestFn = (
@@ -139,15 +147,12 @@ export type TestFn = (
 ) => Promise<void>
 ```
 
-This is a narrowing of the current signature (callers that already return
-`Promise<void>` are unaffected).
-
 ## Scope
 
-- `fs/types/effects/node/module.f.ts`: update `TestFn` return type; add `Engine`, `engine`, and `inlineContext` to `NodeProgramOptions`
-- `fs/io/module.f.ts`: add `inlineContext` to `Io`; `fromIo`'s `test` handler stays engine-agnostic
-- `fs/io/module.ts`: define `inlineContext`, detect Bun for `engine`
-- `fs/dev/tf/module.f.ts`: `registerModule` reads `options.engine` and `options.inlineContext` to select the sub-test context
+- `fs/types/effects/node/module.f.ts`: update `TestFn` return type; add `Engine`, `engine`, and `bunTestContext` to `NodeProgramOptions`
+- `fs/io/module.f.ts`: add `bunTestContext` to `Io`; `fromIo`'s `test` handler stays engine-agnostic
+- `fs/io/module.ts`: define `inlineContext` and `bunTestContext`; detect Bun for `engine`
+- `fs/dev/tf/module.f.ts`: `register` selects root context based on `engine`; `registerModule` unchanged
 
 ## Related
 
