@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.0
+
+- `tf`: drop Node 22 — remove `--experimental-strip-types`, bump `engines.node` to `>=24`, add `.node-version` for Cloudflare Pages, remove `node22` CI job ([i203](./issues/203-node22-expectfailure.md)) [872](https://github.com/functionalscript/functionalscript/pull/872)
+- `tf`: `playwrightTestContext` — restore Playwright bridge removed in `iteration2`; detect via `PLAYWRIGHT_TEST` (set automatically by Playwright workers); `pwTest` resolved once via top-level `await`; same `inlineTest` pattern as Bun ([i202](./issues/202-playwright-context.md)) [872](https://github.com/functionalscript/functionalscript/pull/872)
+- `tf`: `Engine` type (`'node' | 'bun' | 'playwright'`), `bunTestContext`, `inlineTest`, `inlineContext` — fix Bun's `ERR_NOT_IMPLEMENTED` on nested `t.test()` by registering with native `nodeTest.test` and running sub-tests inline; `expectFailure` handled manually ([i201](./issues/201-bun-inline-context.md)) [872](https://github.com/functionalscript/functionalscript/pull/872)
+- `tf`: scenario tests — `fs/dev/tf/scenarios/` with `run.sh` (node/bun/deno/playwright), `all.ts` entry point, and three scenario files (`return-value.pass.f.ts`, `throw.pass.f.ts`, `fail.fail.f.ts`); runner uses hard links + `cd` so no `INIT_CWD` env var is needed ([i183](./issues/183-tf-framework-scenario-tests.md)) [872](https://github.com/functionalscript/functionalscript/pull/872)
+- `tf`: `registerModule`, `registerModuleMap`, `register` — pure Effects layer for registering tests with external frameworks (Node `--test`, Bun, Playwright); `TestFn` return type changed to `Promise<void>`; `module.ts` reduced to a thin async shell ([i200](./issues/200-register-module.md)) [872](https://github.com/functionalscript/functionalscript/pull/872)
 - `bit_vec`: DRY ([i167](./issues/167-bit-vec-msb-concat.md)) — make list concatenation a `BitOrder` member (`order.listToVec`); drop the free `listToVec` factory and replace the per-module `listToVec(msb)` re-binds in `crypto/sign`, `asn.1`, `sul/id`, `sul/level/literal` (and the `asn.1` test) with `msb.listToVec` [865](https://github.com/functionalscript/functionalscript/pull/865)
 
 ## 0.18.0

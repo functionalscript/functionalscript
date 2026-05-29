@@ -2,9 +2,9 @@ import { pure } from '../../types/effects/module.f.ts'
 import type { NodeProgramOptions, Sandbox, SandboxResult } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
-import { assert, assertEq } from '../module.f.ts'
+import { assert, assertEq, todo } from '../module.f.ts'
 import {
-    test, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
@@ -25,10 +25,16 @@ const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
     return [reporter, () => events]
 }
 
+const noopTestContext = { test: todo }
+
 const options = (initCwd: string, github = false): NodeProgramOptions => ({
     args: [],
     env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTION: 'true' } : {}) },
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
+    testContext: noopTestContext,
+    bunTestContext: noopTestContext,
+    playwrightTestContext: noopTestContext,
+    engine: 'node',
 })
 
 const ok0 = (): unknown => ({ result: ['ok', undefined] as const, duration: 0 })
@@ -38,7 +44,7 @@ const ok1 = (): unknown => ({ result: ['ok', undefined] as const, duration: 1 })
 const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly[readonly Event[], number] => {
     const [reporter, getEvents] = makeReporter()
     const state = { ...emptyState, root: dir }
-    const [, exitCode] = virtual(state)(test(reporter)(options(initCwd)))
+    const [, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
     return [getEvents(), exitCode]
 }
 
@@ -47,7 +53,7 @@ const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly[readonly Ev
 const runMain = (dir: Record<string, JsModule>, github = false): readonly[string, string, number] => {
     const state = { ...emptyState, root: dir }
     const opts = options('.', github)
-    const [finalState, exitCode] = virtual(state)(test(defaultReporter(opts))(opts))
+    const [finalState, exitCode] = virtual(state)(testAll(defaultReporter(opts))(opts))
     return [finalState.stdout, finalState.stderr, exitCode]
 }
 

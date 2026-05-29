@@ -1024,26 +1024,6 @@
         }
       ]
     },
-    "node22": {
-      "runs-on": "ubuntu-24.04",
-      "steps": [
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "22.22.3"
-          }
-        },
-        {
-          "uses": "actions/checkout@v5"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npm t"
-        }
-      ]
-    },
     "node24": {
       "runs-on": "ubuntu-24.04",
       "steps": [
