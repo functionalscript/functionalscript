@@ -28,13 +28,14 @@ const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
 
 const inlineContext: TestContext = { test: inlineTest }
 
-const bunTestContext: TestContext = {
-    test: (name, opts, fn) => testContext.test(name, () => inlineTest(name, opts, fn))
-}
+type FrameworkRegister = (name: string, fn: () => Promise<void>) => Promise<void>
 
-const playwrightTestContext: TestContext = {
-    test: (name, opts, fn) => pwTest!(name, () => inlineTest(name, opts, fn))
-}
+const wrapInlineTest = (register: FrameworkRegister): TestContext => ({
+    test: (name, opts, fn) => register(name, () => inlineTest(name, opts, fn))
+})
+
+const bunTestContext        = wrapInlineTest(testContext.test)
+const playwrightTestContext = wrapInlineTest(pwTest!)
 
 const prefix = 'file:///'
 
