@@ -82,6 +82,11 @@ extended to match all four suffixes.
 
 The chosen suffix is added to `isTest` alongside `.test.f.ts` / `.test.f.js`.
 
+In addition, files whose **exact basename** is `proof.ts`, `proof.js`, `proof.f.ts`, or
+`proof.f.js` are also recognized by `isTest` (name match, not suffix match). This
+mirrors Node `--test`'s behaviour of treating a file literally named `test.ts` or
+`test.js` as a test entry point regardless of its directory position.
+
 ## Related
 
 - [i205](./205-rename-all-test.md) — `all.test.ts` naming; must keep `.test.ts` for
