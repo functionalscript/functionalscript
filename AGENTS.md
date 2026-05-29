@@ -4,7 +4,7 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 
 ## Requirements
 
-- Use **Node.js 22 or later**.
+- Use **Node.js 24 or later**.
 - Install Node dependencies with `npm ci`.
 - Install Rust dependencies with `cargo fetch`.
 
@@ -36,6 +36,12 @@ Use JSDoc for documenting TypeScript files. Every module should start with this 
 ```
 
 where `<...Module documentation...>` should be documentation for the module.
+
+## Design and Implementation
+
+- Before implementing a non-trivial feature, ensure the corresponding issue document in `./issues/` contains a concrete design. If the issue exists but the design is absent, vague, or contradicts the codebase or runtime behaviour, update the issue first and wait for review — do not write code against an incomplete or incorrect design.
+- When a discrepancy is found between an issue's design and reality (a missing API, a wrong environment variable, an incompatible type), correct the design document and surface the problem rather than silently working around it.
+- Before relying on an undocumented or assumed runtime behaviour (environment variable names, API shape, framework detection), verify it with a small test or source check rather than assuming.
 
 ## Pull Requests
 

@@ -5,9 +5,36 @@ import process from 'node:process'
 import { concat } from '../path/module.f.ts'
 import { once } from 'node:events'
 import { fromIo, type Io, runProgram } from './module.f.ts'
-import type { Module, NodeProgram, NodeProgramOptions, WriteConsoles } from '../types/effects/node/module.f.ts'
+import type { Module, NodeProgram, WriteConsoles } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
+import * as testContext from 'node:test'
+import type { TestContext, TestFn } from '../types/effects/node/module.f.ts'
+
+const isPlaywright = 'PLAYWRIGHT_TEST' in (process?.env ?? {})
+
+const pwTest = isPlaywright
+    ? (await import('@playwright/test') as any).test
+    : undefined
+
+const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
+    if (expectFailure) {
+        try { await fn(inlineContext) } catch { return }
+        throw new Error(`expected to throw: ${name}`)
+    } else {
+        await fn(inlineContext)
+    }
+}
+
+const inlineContext: TestContext = { test: inlineTest }
+
+const bunTestContext: TestContext = {
+    test: (name, opts, fn) => testContext.test(name, () => inlineTest(name, opts, fn))
+}
+
+const playwrightTestContext: TestContext = {
+    test: (name, opts, fn) => pwTest!(name, () => inlineTest(name, opts, fn))
+}
 
 const prefix = 'file:///'
 
@@ -86,8 +113,11 @@ export const io: Io = {
         return { result, duration: after - before }
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    testContext,
+    bunTestContext,
+    playwrightTestContext,
+    engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
 }
-
 export type NodeRun = (p: NodeProgram) => Promise<number>
 
 const effectRun: NodeRun =

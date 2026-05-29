@@ -10,17 +10,19 @@
 import { normalize } from '../path/module.f.ts'
 import { type Effect } from '../types/effects/module.f.ts'
 import { asyncRun } from '../types/effects/module.ts'
-import type {
-    Server as EffectServer,
-    Headers,
-    IoResult,
-    Module,
-    NodeOp,
-    RequestListener as Erl,
-    Env,
-    SandboxResult,
-    NodeProgram,
-    WriteConsoles,
+import {
+    type Server as EffectServer,
+    type Headers,
+    type IoResult,
+    type Module,
+    type NodeOp,
+    type RequestListener as Erl,
+    type Env,
+    type SandboxResult,
+    type NodeProgram,
+    type WriteConsoles,
+    type TestContext,
+    type Engine,
 } from '../types/effects/node/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
@@ -158,6 +160,10 @@ export type Io = {
     readonly now: () => number
     readonly sandbox: Sandbox
     readonly write: (stream: WriteConsoles, data: Vec) => Promise<void>
+    readonly testContext: TestContext
+    readonly bunTestContext: TestContext
+    readonly playwrightTestContext: TestContext
+    readonly engine: Engine
 }
 
 export type App = (io: Io) => Promise<number>
@@ -263,20 +269,18 @@ export const fromIo = ({
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
         write: ioWrite,
+        test: async (ctx, name, expectFailure, test) =>
+            ctx.test(name, { expectFailure }, async t => result(test(t))),
     })
     return result
 }
 
 export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
-    const { process: { env, stdout, stderr } } = io
+    const { process: { env, stdout, stderr }, testContext, bunTestContext, playwrightTestContext, engine } = io
+    const std = { stdout, stderr }
     const f = fromIo(io)
-    return (args: readonly string[]) => (program: NodeProgram): Promise<number> =>
-        f(program({
-            args,
-            env,
-            std: {
-                stdout: { isTTY: stdout.isTTY },
-                stderr: { isTTY: stderr.isTTY },
-            },
-        }))
+    return args => {
+        const options = { args, env, std, testContext, bunTestContext, playwrightTestContext, engine }
+        return program => f(program(options))
+    }
 }
