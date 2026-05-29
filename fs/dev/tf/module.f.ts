@@ -7,16 +7,19 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.t
 import {
     all,
     sandbox,
+    test,
     type All,
     type NodeProgram,
     type NodeProgramOptions,
     type Program,
     type Sandbox,
     type SandboxResult,
+    type Test,
+    type TestContext,
     type Write,
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
-import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
+import { pure, do_, type Effect, type Func, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
@@ -44,10 +47,10 @@ const timeFormat = (a: number) => {
     return `${b}.${e} ms`
 }
 
-export type Test = () => unknown
+export type TestFn = () => unknown
 
 export type TestEntry = {
-    readonly fn: Test
+    readonly fn: TestFn
     readonly throws: boolean
 }
 
@@ -57,7 +60,7 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
             if (x.length === 0) {
-                const fn = x as Test
+                const fn = x as TestFn
                 return { fn, throws: throws || fn.name === 'throw' }
             }
             break
@@ -72,6 +75,8 @@ export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     return []
 }
 
+type TestAndPath =readonly [Path, TestEntry]
+
 /**
  * Recursively collects all leaf tests reachable from `v` as `[path, entry]`
  * pairs, without running anything. Return-value sub-trees are not walked
@@ -82,7 +87,7 @@ export const collectTests = (
     path: Path,
     throws: boolean,
     v: unknown,
-): readonly (readonly [Path, TestEntry])[] => {
+): readonly TestAndPath[] => {
     const set = parseTestSet(throws, v)
     if (set instanceof Array) {
         return set.flatMap(([ck, cv]) =>
@@ -106,6 +111,21 @@ export type Reporter<O extends Operation> = {
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
+export const registerModule =
+    (ctx: TestContext, k: string, v: unknown): Effect<Test | All, void> => {
+        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
+            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All, void> => {
+                if (throws) { fn(); return pure(undefined) }
+                const r = fn()
+                const sub = collectTests([...path, null], false, r)
+                if (sub.length === 0) { return pure(undefined) }
+                return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
+            })
+        const tests = collectTests([], false, v)
+        if (tests.length === 0) { return pure(undefined) }
+        return all(...tests.map(e => registerOne(ctx, e))).step(() => pure(undefined))
+    }
+
 const mergeState = (a: TestState, b: TestState): TestState =>
     ({ time: a.time + b.time, pass: a.pass + b.pass, fail: a.fail + b.fail })
 
@@ -116,26 +136,24 @@ const runModule =
     (k: string, v: unknown) =>
     (ts: TestState): Effect<O | All, TestState> =>
 {
+    const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
+        test(k, testPath, set)
+        .step(sr => {
+            const { result: [s, r], duration } = sr
+            return result(k, testPath, sr)
+            .step((): Effect<O | All, TestState> => {
+                if (s === 'ok') {
+                    if (set.throws) { return pure(addPass(duration)(zero)) }
+                    // Walk return-value sub-tree; null marks the call boundary so
+                    // paths render as e.g. `outer().inner`. throws resets to false.
+                    return walk([...testPath, null], false, r)
+                    .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
+                }
+                return pure(addFail(duration)(zero))
+            })
+        })
     const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
-        const effects = collectTests(path, throws, v)
-        .map(
-            ([testPath, set]): Effect<O | All, TestState> =>
-                test(k, testPath, set)
-                .step(sr => {
-                    const { result: [s, r], duration } = sr
-                    return result(k, testPath, sr)
-                    .step((): Effect<O | All, TestState> => {
-                        if (s === 'ok') {
-                            if (set.throws) { return pure(addPass(duration)(zero)) }
-                            // Walk return-value sub-tree; null marks the call boundary so
-                            // paths render as e.g. `outer().inner`. throws resets to false.
-                            return walk([...testPath, null], false, r)
-                            .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
-                        }
-                        return pure(addFail(duration)(zero))
-                    })
-                })
-        )
+        const effects = collectTests(path, throws, v).map(one)
         return all(...effects)
         .step(states => pure(states.reduce(mergeState, zero)))
     }
@@ -156,8 +174,15 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
     .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
-export const test = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
+export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
+
+export const registerModuleMap =
+    (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All, void> => {
+        const modules = entries(moduleMap).filter(([k]) => isTest(k))
+        if (modules.length === 0) { return pure(undefined) }
+        return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
+    }
 
 export type Path = readonly (string | null)[]
 
@@ -263,4 +288,12 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
 }
 
 export const main: NodeProgram =
-    options => test(defaultReporter(options))(options)
+    options => testAll(defaultReporter(options))(options)
+
+export const register: NodeProgram = o =>
+    loadModuleMap(o.env)
+    .step(m => registerModuleMap(
+        o.engine === 'bun' ? o.bunTestContext :
+        o.engine === 'playwright' ? o.playwrightTestContext :
+        o.testContext, m))
+    .step(() => pure(0))
