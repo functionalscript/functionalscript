@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `io`: extract `wrapInlineTest(register)` factory — collapses the identical `(name, opts, fn) => register(name, () => inlineTest(name, opts, fn))` shape shared by `bunTestContext` and `playwrightTestContext` into one helper; behaviour-preserving [880](https://github.com/functionalscript/functionalscript/pull/880)
+
 ## 0.19.0
 
 - `tf`: drop Node 22 — remove `--experimental-strip-types`, bump `engines.node` to `>=24`, add `.node-version` for Cloudflare Pages, remove `node22` CI job ([i203](./issues/203-node22-expectfailure.md)) [872](https://github.com/functionalscript/functionalscript/pull/872)
