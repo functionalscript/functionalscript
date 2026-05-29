@@ -2,11 +2,10 @@
 
 ## Problem
 
-Bun provides `node:test` but does not support `t.test()` (sub-tests registered
-inside a test callback). When `register` ([i200](./200-register-module.md)) runs
-under Bun, any `Test` effect that tries to register a sub-test via the `t`
-context passed to its thunk throws:
+Bun does not support sub-tests (calling `test()` inside a test callback) in
+either of its two test APIs:
 
+**`node:test` via Bun** — `t.test()` inside a callback throws:
 ```
 NotImplementedError: test() inside another test() is not yet implemented in Bun.
 Track the status & thumbs up the issue: https://github.com/oven-sh/bun/issues/5090.
@@ -14,7 +13,19 @@ Use `bun:test` in the interim.
 code: "ERR_NOT_IMPLEMENTED"
 ```
 
-## Why eager flat registration doesn't work
+**`bun:test`** — `test()` inside a test callback throws a different error and
+counts as a *fail* on the parent test (not an unhandled error):
+```
+error: Cannot call test() inside a test. Call it inside describe() instead.
+(fail) parent [6.08ms]
+```
+
+When `register` ([i200](./200-register-module.md)) runs under Bun, any `Test`
+effect that passes the child `t` context to its thunk hits one of these errors.
+
+## Why alternatives don't work
+
+### Eager flat registration
 
 The obvious workaround — scan all tests statically and register them flat at the
 top level — fails because **leaves can only be identified by executing the test
@@ -24,6 +35,36 @@ Static traversal via `collectTests` can walk the module's static object/array
 structure, but any depth that comes from a function's return value is opaque
 until execution.
 
+### Nested `describe()`
+
+`bun:test` supports `describe()` nested inside `describe()` callbacks, so the
+static object/array structure could in principle be represented as nested
+describe blocks. However, this cannot replace `inlineContext` for two reasons:
+
+1. **Dynamic sub-trees**: `describe()` callbacks run synchronously during the
+   registration phase, before any test executes. Return-value sub-trees are only
+   discoverable after `fn()` runs inside a test callback — too late for
+   `describe()`.
+
+2. **Throw semantics**: If a `describe()` callback throws, Bun reports it as an
+   *unhandled error between tests* — a third outcome category separate from pass
+   and fail — and any tests after the throw in that block are silently dropped.
+   Example output:
+
+   ```
+   # Unhandled error between tests
+   -------------------------------
+   error: oops
+   -------------------------------
+    4 pass
+    0 fail
+    1 error
+   ```
+
+   FunctionalScript's "throw" tests expect a throw to be a *pass*. Catching that
+   at the `describe` level produces the wrong outcome type and loses the test
+   result entirely.
+
 ## Proposed solution: `inlineContext`
 
 Add `inlineContext: TestContext` to `fs/types/effects/node/module.f.ts`.
@@ -31,6 +72,9 @@ Add `inlineContext: TestContext` to `fs/types/effects/node/module.f.ts`.
 rather than delegating to an external framework for scheduling:
 
 ```ts
+// NOTE: this uses async/await directly; the actual implementation
+// should be converted to Effects (Effect<..., void>) to stay consistent
+// with the rest of the codebase.
 export const inlineContext: TestContext = {
     test: async (_name, { expectFailure }, fn) => {
         if (expectFailure) {
