@@ -33,7 +33,7 @@ Example — 2026-05-29: **`65X-slug.md`**
   `base256emoji` encoding, so the industry has already been there:
   [CID conversion](https://docs.ipfs.tech/concepts/content-addressing/#cid-conversion).)*
 - **Sortable** — Crockford base32 is ordered, so lexicographic sort = chronological sort
-- **Clean transition** — existing `NNN` files (digits `0`–`2`) sort before `6YMD` files since `2` < `6`
+- **Clean transition** — existing `NNN` files (digits `0`–`2`) sort before `65X` files since `2` < `6`
 - **Repo coherence** — FunctionalScript already has `cbase32` in the codebase
 
 ### Day encoding (D)
