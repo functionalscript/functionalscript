@@ -257,6 +257,16 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
  */
 export const sandbox: Func<Sandbox> = do_('sandbox')
 
+/**
+ * Awaits a `Promise` inside the effect runner. If the Promise rejects, the
+ * error propagates as a throw, which the framework catches via `expectFailure`.
+ * Required to support async test functions whose returned Promise is not
+ * otherwise observed.
+ */
+export type Await = readonly['await', (p: Promise<unknown>) => unknown]
+
+export const awaitPromise: Func<Await> = do_('await')
+
 // Test registration
 
 /**
@@ -282,7 +292,7 @@ export type TestContext = {
 
 /** Effect operation that registers a named test with the active `TestContext`. */
 export type Test =
-    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All | Await, void>) => void]
 
 export const test: Func<Test> = do_('test')
 
@@ -290,6 +300,7 @@ export const test: Func<Test> = do_('test')
 
 export type NodeOp =
     | All
+    | Await
     | Fetch
     | Fs
     | Http

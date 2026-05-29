@@ -268,6 +268,7 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox: async f => ioSandbox(f),
+        await: (p: Promise<unknown>) => p,
         write: ioWrite,
         test: async (ctx, name, expectFailure, test) =>
             ctx.test(name, { expectFailure }, async t => result(test(t))),

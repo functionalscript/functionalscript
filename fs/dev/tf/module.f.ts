@@ -13,9 +13,11 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
 import {
     all,
+    awaitPromise,
     sandbox,
     test,
     type All,
+    type Await,
     type NodeProgram,
     type NodeProgramOptions,
     type Program,
@@ -27,14 +29,9 @@ import {
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
+import { isTest, loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
-/** Returns `true` if the file path looks like a FunctionalScript test module. */
-export const isTest = (s: string): boolean =>
-    s.endsWith('test.f.js') || s.endsWith('test.f.ts') ||
-    s.endsWith('proof.f.ts') || s.endsWith('proof.f.js') ||
-    s.endsWith('proof.ts')   || s.endsWith('proof.js')
 
 type TestState = {
     readonly time: number,
@@ -154,14 +151,17 @@ export type Reporter<O extends Operation> = {
  * must be declared upfront and the framework drives execution.
  */
 export const registerModule =
-    (ctx: TestContext, k: string, v: unknown): Effect<Test | All, void> => {
+    (ctx: TestContext, k: string, v: unknown): Effect<Test | All | Await, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
-            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All, void> => {
-                if (throws) { fn(); return pure(undefined) }
+            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> => {
                 const r = fn()
-                const sub = collectTests([...path, null], false, r)
-                if (sub.length === 0) { return pure(undefined) }
-                return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
+                const er = r instanceof Promise ? awaitPromise(r) : pure(r)
+                return er.step(resolved => {
+                    if (throws) { return pure(undefined) }
+                    const sub = collectTests([...path, null], false, resolved)
+                    if (sub.length === 0) { return pure(undefined) }
+                    return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
+                })
             })
         const tests = collectTests([], false, v)
         if (tests.length === 0) { return pure(undefined) }
@@ -234,7 +234,7 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
  * `ctx`. Delegates to `registerModule` for each matching entry.
  */
 export const registerModuleMap =
-    (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All, void> => {
+    (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All | Await, void> => {
         const modules = entries(moduleMap).filter(([k]) => isTest(k))
         if (modules.length === 0) { return pure(undefined) }
         return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
