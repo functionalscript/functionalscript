@@ -9,17 +9,21 @@ import type { Module, NodeProgram, WriteConsoles } from '../types/effects/node/m
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
 import * as testContext from 'node:test'
-import type { TestContext } from '../types/effects/node/module.f.ts'
+import type { TestContext, TestFn } from '../types/effects/node/module.f.ts'
 
-const inlineContext: TestContext = {
-    test: async (_name, { expectFailure }, fn) => {
-        if (expectFailure) {
-            try { await fn(inlineContext) } catch { return }
-            throw new Error('expected to throw')
-        } else {
-            await fn(inlineContext)
-        }
+const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
+    if (expectFailure) {
+        try { await fn(inlineContext) } catch { return }
+        throw new Error(`expected to throw: ${name}`)
+    } else {
+        await fn(inlineContext)
     }
+}
+
+const inlineContext: TestContext = { test: inlineTest }
+
+const bunTestContext: TestContext = {
+    test: (name, opts, fn) => testContext.test(name, () => inlineTest(name, opts, fn))
 }
 
 const prefix = 'file:///'
@@ -100,7 +104,7 @@ export const io: Io = {
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
     testContext,
-    inlineContext,
+    bunTestContext,
     engine: 'Bun' in globalThis ? 'bun' : 'node',
 }
 export type NodeRun = (p: NodeProgram) => Promise<number>

@@ -161,7 +161,7 @@ export type Io = {
     readonly sandbox: Sandbox
     readonly write: (stream: WriteConsoles, data: Vec) => Promise<void>
     readonly testContext: TestContext
-    readonly inlineContext: TestContext
+    readonly bunTestContext: TestContext
     readonly engine: Engine
 }
 
@@ -275,11 +275,11 @@ export const fromIo = ({
 }
 
 export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
-    const { process: { env, stdout, stderr }, testContext, inlineContext, engine } = io
+    const { process: { env, stdout, stderr }, testContext, bunTestContext, engine } = io
     const std = { stdout, stderr }
     const f = fromIo(io)
     return args => {
-        const options = { args, env, std, testContext, inlineContext, engine }
+        const options = { args, env, std, testContext, bunTestContext, engine }
         return program => f(program(options))
     }
 }
