@@ -90,10 +90,18 @@ const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string,
     return pure([])
 }
 
+/** The effect operations required to discover and load a module map. */
 export type LoadModuleOperations = Access | Import | All | Readdir
 
 const { fromEntries } = Object
 
+/**
+ * Discovers all `.f.js` / `.f.ts` modules under `INIT_CWD` (or `.` if unset)
+ * and imports them, returning a map from relative path to module exports.
+ *
+ * The result is sorted by path key using `string.cmp` so the order is
+ * deterministic regardless of filesystem traversal order.
+ */
 export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
