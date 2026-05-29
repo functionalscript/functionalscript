@@ -91,22 +91,28 @@ Because every registered thunk receives `inlineContext` when called, any
 sub-tests it tries to register are also run inline — recursively, with no
 external framework involvement below the top level.
 
-Bun detection and the corresponding root `TestContext` live in
-`fs/io/module.ts` (the only `module.ts` file that is allowed to contain
-runtime-specific detection):
+### Bun detection
+
+Since `inlineContext` will be expressed as Effects (in `module.f.ts`), the
+decision of whether to use it cannot be made inside `module.ts`. Instead,
+`module.ts` performs the runtime detection and signals it via
+`NodeProgramOptions`:
 
 ```ts
-const isBun = typeof Bun !== 'undefined'
-const bunTestContext: TestContext = {
-    test: (name, opts, fn) => nodeTest.test(name, opts, _t => fn(inlineContext))
-}
-// in io object:
-testContext: isBun ? bunTestContext : nodeTest,
+// NodeProgramOptions gains:
+readonly inlineSubTests: boolean
 ```
 
-`bunTestContext` registers each top-level test with Bun's native `nodeTest.test`
-(so Bun sees and schedules the test), but passes `inlineContext` — not `t` — to
-the thunk. Sub-tests inside the thunk then execute inline.
+```ts
+// fs/io/module.ts — detection only:
+const isBun = typeof Bun !== 'undefined'
+// in io / runProgram:
+inlineSubTests: isBun,
+```
+
+The `register` program in `fs/dev/tf/module.f.ts` reads `options.inlineSubTests`
+and passes `inlineContext` instead of `t` to thunks when it is `true`. All logic
+stays in `module.f.ts`.
 
 ## Required change: `TestFn` return type
 
@@ -127,8 +133,9 @@ This is a narrowing of the current signature (callers that already return
 ## Scope
 
 - `fs/types/effects/node/module.f.ts`: add `inlineContext`, update `TestFn`
-- `fs/io/module.ts`: add Bun detection, provide `bunTestContext`
-- No changes to `NodeProgramOptions`, `Io`, `fromIo`, or `fs/dev/tf/module.f.ts`
+- `fs/types/effects/node/module.f.ts`: add `inlineSubTests` to `NodeProgramOptions`
+- `fs/io/module.ts`: detect Bun, set `inlineSubTests`
+- `fs/dev/tf/module.f.ts`: read `inlineSubTests` in `register`, pass `inlineContext` when true
 
 ## Related
 
