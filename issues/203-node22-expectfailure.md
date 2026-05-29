@@ -24,12 +24,24 @@ Node 24 and Node 26 are the only supported targets; no code changes to the test 
 are needed.
 
 Cloudflare Pages runs the build command (`npm run website` → `node ./fs/fjs/module.ts …`)
-in its own Node.js environment. Dropping Node 22 requires pinning that environment to
-Node 24+ via a `.node-version` file in the repo root.
+in its own Node.js environment. Dropping Node 22 requires the Cloudflare build environment
+to be on Node 24+. Options:
+
+- Add a `.node-version` file with `24` — read by Cloudflare Pages automatically, but pins
+  to Node 24 even if Cloudflare upgrades to Node 26.
+- Set `NODE_VERSION=24` in the Cloudflare Pages dashboard environment variables — same
+  effect, managed outside the repo.
+
+Note: `.node-version` has **no effect on CI** — GitHub Actions uses explicit
+`node-version` values in `actions/setup-node` and ignores the file entirely.
+
+CI currently has a `node22` job (`.github/workflows/ci.yml`) that should be removed when
+Node 22 is dropped. The CI file is generated via `npm run ci-update`, so the source
+module needs updating rather than editing `ci.yml` directly.
 
 **Pros:** no additional complexity; `--experimental-strip-types` disappears entirely.  
 **Cons:** users still on Node 22 get a hard engine mismatch on install; Cloudflare build
-environment must be explicitly pinned.
+environment must be explicitly pinned; CI generation source must drop the `node22` job.
 
 ### Option B — Fix `expectFailure` for Node 22
 
