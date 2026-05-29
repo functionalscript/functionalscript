@@ -23,8 +23,13 @@ Bump `engines.node` to `>=24` and remove `--experimental-strip-types` from all s
 Node 24 and Node 26 are the only supported targets; no code changes to the test framework
 are needed.
 
+Cloudflare Pages runs the build command (`npm run website` → `node ./fs/fjs/module.ts …`)
+in its own Node.js environment. Dropping Node 22 requires pinning that environment to
+Node 24+ via a `.node-version` file in the repo root.
+
 **Pros:** no additional complexity; `--experimental-strip-types` disappears entirely.  
-**Cons:** users still on Node 22 get a hard engine mismatch on install.
+**Cons:** users still on Node 22 get a hard engine mismatch on install; Cloudflare build
+environment must be explicitly pinned.
 
 ### Option B — Fix `expectFailure` for Node 22
 
