@@ -1,0 +1,349 @@
+# 207. BNF semantic actions: attaching transform functions to grammar rules
+
+## Goal
+
+Let a grammar author attach a **transform function** (a *semantic action*) to a
+BNF rule so that parsing a `Rule` yields a domain value instead of a generic
+AST. The classic example is a JSON `string` rule that returns the decoded
+JavaScript string (escapes resolved, surrounding `"` dropped), and an `object`
+rule that receives its members' keys **already decoded as strings** by the
+`string` rule's action.
+
+Two properties are required:
+
+1. **Compositional input.** A rule's action receives the *outputs of the
+   actions of its child rules*, not raw code points. `object`'s action sees
+   parsed key strings and parsed values, never the `"`…`"` framing or the
+   escape machinery.
+2. **Type safety.** The action's input must match what the children actually
+   produce, and its output must match what the parent expects. Doing this in
+   plain TypeScript turns out to be impractical for real (cyclic) grammars
+   (§4); the fallback is to declare each action's input/output with an RTTI
+   schema (`fs/types/rtti`) and check the boundary at runtime (§5).
+
+This document is a design only. No implementation is proposed here beyond the
+hypotheses actually tested in §4.
+
+## 1. Background: rule kinds and the AST
+
+A functional grammar rule (`fs/bnf/module.f.ts`) is one of four shapes, behind
+an optional lazy thunk:
+
+```ts
+type DataRule = Variant | Sequence | TerminalRange | string
+type Rule     = DataRule | (() => DataRule)
+```
+
+- `TerminalRange` — a packed `[lo, hi]` code-point range; matches one symbol.
+- `string` — sugar that expands into a `Sequence` of single-symbol terminals.
+- `Sequence` (`readonly Rule[]`) — match children in order.
+- `Variant` (`{ [tag]: Rule }`) — ordered alternation; the matched branch's key
+  is the `tag`.
+
+The combinators (`option`, `repeat0Plus`, `repeat1Plus`, `join0Plus`, …) are
+just helpers that build `Variant`/`Sequence` trees, e.g. `option(x) = { some:
+x, none: [] }` and `repeat0Plus(x) = () => option([x, self])`.
+
+`parser`/`descentParser` (`fs/bnf/data/module.f.ts`) produce a generic AST:
+
+```ts
+type AstRule = { readonly tag: AstTag, readonly sequence: AstSequence }
+type AstSequence = readonly (AstRule | CodePoint)[]
+type AstTag = string | true | undefined   // variant key | sequence | empty
+```
+
+So the AST is a tree of `{ tag, sequence }` nodes whose leaves are code points.
+
+**Key observation.** An `AstRule` node records the *variant tag* that matched,
+but **not the name of the rule that produced it**. A `Sequence` rule yields
+`{ tag: undefined, sequence: [...] }` with no back-link to, say, `member`.
+Therefore actions cannot be applied by a post-hoc walk that only sees the AST —
+the evaluator must walk **in lockstep with the grammar**, carrying the rule
+definition alongside the AST node. This shapes the whole design (§3).
+
+## 2. The raw output of a rule
+
+Define the *raw output* of a rule as the structural value it would produce with
+**no** action attached. This is the natural shape an action transforms *from*:
+
+| Rule kind        | Raw output                                              |
+|------------------|---------------------------------------------------------|
+| `TerminalRange`  | the matched code point (`number`) — or its 1-char string |
+| `string` literal | the literal string                                      |
+| `Sequence`       | a tuple of the children's *effective* outputs           |
+| `Variant`        | a tagged value `{ tag, value }` (a discriminated union) |
+
+The *effective output* of a child is its action's output if it has one, else
+its raw output. Effective outputs compose bottom-up: the parent's raw tuple
+slot for a child is exactly that child's effective-output type. This recursion
+is what makes "the object rule receives decoded key strings" fall out
+automatically — `member`'s `string` slot is `string`'s *effective* output
+(decoded), not its raw `["\"", chars, "\""]`.
+
+### Eliding noise (literals and whitespace)
+
+Most sequence elements an action does not care about are fixed literals (`"`,
+`{`, `:`) and whitespace rules. Two complementary mechanisms:
+
+- **Positional, author elides.** The action receives the full raw tuple and
+  destructures what it wants: `([, chars]) => decode(chars)`. Simple, explicit,
+  no new concept. This is the default.
+- **`unit` output.** A rule whose action returns a designated `unit` value (or
+  a rule marked *silent*) contributes nothing to the parent tuple, so
+  `[ws, string, ws, ':', ws, json]` collapses to `[key, value]`. This is sugar
+  over the positional model and can be deferred to a v2.
+
+The JSON worked example (§6) uses the positional model.
+
+## 3. Where actions attach and how they run
+
+### 3.1 Attachment
+
+Two options were considered.
+
+- **(A) Name-keyed action map.** A side table `{ [ruleName]: Action }` keyed by
+  the same names `toData` derives from `fr.name`. Pro: leaves the grammar
+  untouched, mirrors the serializable data form (rules referenced by name).
+  Con: relies on every actioned rule being a *named* thunk; anonymous inline
+  rules can't be targeted; name collisions are resolved by `newName` (the data
+  builder appends `0`, `1`, …), so the key the author writes may not survive.
+- **(B) `mapRule(rule, action)` combinator.** Wrap a rule in a node that
+  carries its action, colocating grammar and semantics and giving TS a place to
+  attach (or try to attach, §4) types. Con: introduces a new `Rule` variant
+  that every existing consumer (`toData`, `dispatchMap`, both parsers) must
+  learn to skip; the action must be *transparent* to parsing.
+
+**Recommendation: (B), made transparent.** A `mapRule` wrapper keeps the action
+next to the rule it transforms (matching the codebase's separation-of-concerns
+ethos) and avoids the fragile name-key contract. The wrapper is erased before
+parsing: `toData` (and `descentParser`) unwrap `mapRule(r, _) → r` exactly as
+they already unwrap a lazy thunk, recording the action in a parallel
+`name → Action` map for the evaluator. So parsing is unchanged; only a new
+**evaluator** consumes the actions.
+
+### 3.2 Evaluation: a grammar-directed fold
+
+Because AST nodes don't carry rule identity (§1), the transform is **not** a
+plain AST catamorphism. It is a fold that threads *both* the rule definition and
+the AST node:
+
+```
+eval(rule, astNode) -> value
+  TerminalRange : value = codePoint(astNode)          ; apply action if any
+  string        : value = literal                     ; apply action if any
+  Sequence      : value = rule.map((r,i) => eval(r, astNode.sequence[i]))
+                                                        ; apply action to tuple
+  Variant       : branch = rule[astNode.tag]
+                  value  = { tag, value: eval(branch, matchedChild) }
+                                                        ; apply action
+```
+
+This is essentially the existing `descentParser`/`parserRuleSet` walk with a
+result accumulator — the grammar shape and the AST shape are isomorphic by
+construction, so the walk can't desync.
+
+Two integration strategies:
+
+- **Fold over the AST (recommended).** Keep `parser` pure (code points → AST),
+  add a separate `evaluate(grammar, actions)(ast)` pass. Separation of concerns;
+  the same AST stays reusable (e.g. for the layered tokenizer in
+  [i165](./165-layered-parser.md)); the fold is testable in isolation.
+- **Semantic actions inlined into the parser.** The parser applies actions as
+  it reduces, never materializing the generic AST. Faster, but couples parsing
+  and evaluation and duplicates the walk. Defer unless profiling demands it.
+
+## 4. Type checking in TypeScript — what actually works
+
+The hope is that `mapRule(rule, action)` could *infer* `action`'s parameter
+type from `rule`'s structure, so the action is statically checked. I tested how
+far the existing combinators carry precise types.
+
+**Hypothesis 1 — acyclic, unannotated fragments keep precise types. ✅**
+`repeat0Plus`, `option`, `range`, etc. are generic (`<T extends Rule>`), so for
+an acyclic fragment the inferred types are exact:
+
+```ts
+const digit  = range('09')          // number
+const digits = repeat0Plus(digit)   // Repeat0Plus<number>
+const optD   = option(digit)        // Option<number>
+// Repeat0Plus<number>, Option<number> assignability all type-check.
+// A `@ts-expect-error` on an extra struct key in a small recursive
+// `const value = () => ({...})` / `const arr = [...] as const` pair fires,
+// proving structure is retained.
+```
+
+**Hypothesis 2 — real cyclic grammars cannot stay unannotated. ❌**
+Reproducing the JSON shape from `fs/fsc/json.f.ts` *without* the `: Rule`
+annotations fails to compile:
+
+```ts
+const string    = ['"', repeat0Plus(character), '"'] as const
+const character = () => ({ c: range('  '), esc: ['\\', escape] })
+//                                  ^ string (line above) eagerly calls
+//                                    repeat0Plus(character) before character
+//                                    is declared:
+// TS2448 Block-scoped variable 'character' used before its declaration.
+// TS2454 Variable 'character' is used before being assigned.
+```
+
+A `() =>` thunk defers *runtime* evaluation, but an **eager** combinator call on
+a forward reference (`repeat0Plus(character)`) is a value-position use that TS
+flags in the temporal dead zone. Real grammars are mutually recursive
+(`json → object → member → json`), so such forward references are unavoidable.
+
+**Consequence.** The codebase's actual workaround — annotate every rule
+`const string: Rule = …` — breaks the inference cycle but **erases all
+structure to `Rule`**. Once a rule is `Rule`, `mapRule` has nothing precise to
+infer an action signature from. The two escape hatches both fail in practice:
+
+- Wrap *every* cross-reference in a thunk and never call a combinator eagerly on
+  a forward ref — viral, unergonomic, and the inferred types balloon to
+  unreadable recursive tuples that blow up `tsc`.
+- Keep `: Rule` annotations — structure is gone.
+
+**Verdict: do not rely on TypeScript to type the grammar↔action boundary.**
+Precise static typing is feasible only for small acyclic helper rules; it
+collapses for any realistic cyclic grammar. We need a runtime contract instead.
+
+## 5. RTTI as the type-checking contract
+
+RTTI (`fs/types/rtti`) already gives us exactly the missing piece: a runtime
+schema (`Type`) that **also** projects to a static TypeScript type via
+`Ts<schema>`. The design uses it on both sides of every action:
+
+```ts
+mapRule(rule, {
+    in:  InSchema,                 // RTTI Type describing the raw input
+    out: OutSchema,                // RTTI Type describing the action's output
+    fn:  (x: Ts<typeof InSchema>): Ts<typeof OutSchema> => …,
+})
+```
+
+This splits the problem cleanly:
+
+- **Inside an action**, the body is *fully statically typed*: `fn` is checked as
+  `Ts<InSchema> → Ts<OutSchema>`. The author writes ordinary typed code. No
+  `Rule`-erasure problem, because the type comes from the schema, not the
+  grammar.
+- **At the grammar↔action boundary**, where TS can't help (§4), the evaluator
+  validates at runtime. Before invoking `fn`, it `validate`s (or `parse`s) the
+  assembled raw input against `InSchema`; on success the value is safely the
+  declared `Ts<InSchema>`. Optionally it validates `fn`'s result against
+  `OutSchema` so a parent that consumes this rule gets what it was promised.
+
+`fs/types/rtti/validate` (`validate(schema)(value) → Result`) and
+`fs/types/rtti/parse` (`parse(schema)(value)` — builds a fresh, closed value)
+are both directly usable; `parse` is the better fit because it already
+normalizes containers and drops undeclared slots.
+
+### 5.1 Schemas compose the same way outputs compose
+
+The raw-input schema of a rule is *derivable from its kind* (§2), with child
+slots filled by each child's **effective output schema**:
+
+```
+effectiveSchema(rule) = action.out          if rule has an action
+                      = rawSchema(rule)      otherwise
+
+rawSchema(TerminalRange) = string            // or number, see §2
+rawSchema(string)        = that string literal (a Const schema)
+rawSchema(Sequence rs)   = readonly[ effectiveSchema(r) for r in rs ]   // Tuple
+rawSchema(Variant v)     = or( ...{ tag, value: effectiveSchema(branch) } )
+```
+
+So an action's `in` schema should equal `rawSchema(rule)` computed with
+children's *effective* schemas — which is precisely "the object rule's key slot
+is `string`'s decoded output". This gives two payoffs:
+
+1. The evaluator (or a build-time check) can verify `action.in` is compatible
+   with the derived raw schema, catching a mis-wired action *structurally*.
+2. The raw schema can be **auto-derived** and offered as the default `in`, so an
+   author only writes `in` when narrowing (e.g. asserting a `repeat0Plus`
+   produced a non-empty list). This keeps boilerplate down.
+
+### 5.2 Cost
+
+Validating every node at parse time is not free. Mitigations: validate only at
+rules that *have* an action (untransformed subtrees pass through structurally);
+allow `in`/`out` to be omitted to skip the check for hot, trusted rules; or run
+full validation in a debug build and trust the schemas in release. The
+allocation/short-circuit trade-offs of `validate` vs `parse` are already
+discussed in [i172](./172-rtti-validate-parse-skeleton.md).
+
+## 6. Worked example: JSON
+
+Using the grammar from `fs/fsc/json.f.ts` (`character`, `escape`, `string`,
+`member`, `object`, …) and the positional elision model:
+
+```ts
+// escape: { '"' | '\\' | '/' | 'b'|'f'|'n'|'r'|'t' | u: ['u',h,h,h,h] }
+//   raw input  = or('"','\\','/','b','f','n','r','t',
+//                    { tag:'u', value: readonly[hex,hex,hex,hex] })
+//   out        = string   (the single decoded character)
+escape.fn = e =>
+    e.tag === 'u' ? String.fromCodePoint(hex4(e.value)) : escMap[e]
+
+// character: { ...nonEscape ranges, '\\': ['\\', escape] }
+//   out = string (one decoded char). The '\\' branch's value is escape.out.
+character.fn = c => c.tag === '\\' ? c.value[1] : codePointToString(c.value)
+
+// string: ['"', repeat0Plus(character), '"']
+//   raw input = readonly['"', readonly string[], '"']   (chars already decoded)
+//   out       = string
+string.fn = ([, chars]) => chars.join('')
+
+// member: [string, ws0, ':', ws0, json, ws0]
+//   raw input = readonly[string, Ws, ':', Ws, JsonValue, Ws]
+//   out       = readonly[string, JsonValue]
+member.fn = ([key, , , , value]) => [key, value] as const
+
+// object: ['{', ws0, join0Plus(member, separator), '}']
+//   out = { readonly [k: string]: JsonValue }
+object.fn = m => Object.fromEntries(collectMembers(m))
+```
+
+`object` never sees a quote, an escape, or whitespace — only decoded
+`[key, value]` pairs, because each child rule's *effective* output is what flows
+up. Each `fn` is statically typed via `Ts<…>`; the evaluator guards the
+boundaries with the RTTI schemas.
+
+## 7. Open questions
+
+- **Terminal output: `number` or 1-char `string`?** Code points are numbers
+  internally; most actions want strings. Pick one default (lean: string) and a
+  helper for the other.
+- **Variant encoding.** `{ tag, value }` discriminated union vs. a bare value
+  plus a separately-passed tag. The discriminated union types best under
+  `Ts<or(...)>` and matches RTTI's `or`.
+- **Metadata / source spans.** `descentParser` carries `CodePointMeta<T>`.
+  Should actions receive spans (for error reporting / the layered parser,
+  [i165](./165-layered-parser.md))? Probably via a second, optional argument so
+  the common case stays clean.
+- **Auto-derived vs. explicit `in` schema.** How much to auto-derive (§5.1)
+  before an author must write `in`. Deriving the raw schema needs the same
+  grammar walk as `toData`; worth sharing that traversal.
+- **Failure semantics.** An action can reject input the grammar accepted (e.g.
+  a number that overflows). Does a rejected `out`-validation surface as a parse
+  error with a path, reusing `ValidationError` from
+  [i172](./172-rtti-validate-parse-skeleton.md)?
+- **Where the evaluator lives.** A new `fs/bnf/eval` (or `fs/bnf/action`)
+  module, registered in `deno.json` per AGENTS.md.
+
+## 8. Decision
+
+Pursue **(B) transparent `mapRule` + grammar-directed fold (§3)** with the
+**RTTI contract (§5)** as the type-safety mechanism; do **not** attempt to type
+the grammar↔action boundary in TypeScript (§4 shows it cannot survive cyclic
+grammars). Start with the positional elision model and explicit `out` schemas;
+defer `unit`/silent rules, schema auto-derivation, and parser-inlined actions to
+follow-ups once the fold + a JSON action set exist as the first real consumer.
+
+## Related
+
+- [i165](./165-layered-parser.md) — layered parser; shares the AST and the
+  "how does meta info propagate up a reduction" question.
+- [i172](./172-rtti-validate-parse-skeleton.md) — `validate`/`parse` skeleton
+  and `ValidationError`; the runtime checker this design leans on.
+- [i143](./143-rtti-data.md) — serializable RTTI data form; relevant if schemas
+  are auto-derived from the BNF data form.
+- `fs/fsc/json.f.ts`, `fs/bnf/testlib.f.ts` — the grammars used in §6.
