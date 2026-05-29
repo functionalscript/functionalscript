@@ -41,6 +41,7 @@ imported dynamically (it requires `@playwright/test` to be installed, which is
 not always the case). Detection via `process.env.PLAYWRIGHT_TEST`:
 
 ```ts
+// PLAYWRIGHT_TEST is set automatically by Playwright in every worker process.
 const isPlaywright = 'PLAYWRIGHT_TEST' in (process?.env ?? {})
 
 const pwTest = isPlaywright

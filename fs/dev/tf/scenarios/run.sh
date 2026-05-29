@@ -13,29 +13,29 @@ case "$scenario" in
     *) echo "unknown suffix: $scenario" >&2; exit 2 ;;
 esac
 
-repo=$(cd "$(dirname "$0")/../../../.." && pwd)
+scendir=$(cd "$(dirname "$0")" && pwd)
+scenfile="$scendir/scenario.test.f.ts"
+allfile="$scendir/all.test.ts"
 
-# Playwright's TypeScript transformer only applies to files under the project
-# root, so the temp dir must live inside the repo.
-tmpdir=$(mktemp -d "$repo/fs/dev/tf/scenarios/.tmp.XXXXXX")
-trap 'rm -rf "$tmpdir"' EXIT
+cleanup() {
+    rm -f "$scenfile"
+    mv "$allfile" "$scendir/all.ts"
+}
+trap cleanup EXIT
 
-cat > "$tmpdir/scenario.test.f.ts" <<EOF
-import * as __all from '$scenario'
-export * from '$scenario'
-export default (__all as any)['default']
-EOF
+ln "$scenario" "$scenfile"
+mv "$scendir/all.ts" "$allfile"
 
 case "$runner" in
-    bun)        cmd="bun test $repo/fs/dev/tf/all.test.ts" ;;
-    node)       cmd="node --test $repo/fs/dev/tf/all.test.ts" ;;
-    deno)       cmd="deno test --allow-read --allow-env $repo/fs/dev/tf/all.test.ts" ;;
-    playwright) cmd="env PLAYWRIGHT_TEST=1 $repo/node_modules/.bin/playwright test $repo/fs/dev/tf/all.test.ts" ;;
+    bun)        cmd="bun test" ;;
+    node)       cmd="node --test" ;;
+    deno)       cmd="deno test --allow-read --allow-env" ;;
+    playwright) cmd="npx playwright test" ;;
     *) echo "unknown runner: $runner" >&2; exit 2 ;;
 esac
 
 actual=0
-INIT_CWD="$tmpdir" $cmd > /dev/null 2>&1 || actual=$?
+(cd "$scendir" && $cmd) > /dev/null 2>&1 || actual=$?
 
 if [ "$actual" -eq "$expected" ]; then
     echo "pass: $(basename "$scenario") [exit $actual]"
