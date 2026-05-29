@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: run.sh <runner> <scenario>
-# runner: bun | node
+# runner: bun | node | deno | playwright
 # scenario: path to a *.pass.f.ts or *.fail.f.ts file
 set -e
 
@@ -13,20 +13,24 @@ case "$scenario" in
     *) echo "unknown suffix: $scenario" >&2; exit 2 ;;
 esac
 
-tmpdir=$(mktemp -d)
+repo=$(cd "$(dirname "$0")/../../../.." && pwd)
+
+# Playwright's TypeScript transformer only applies to files under the project
+# root, so the temp dir must live inside the repo.
+tmpdir=$(mktemp -d "$repo/fs/dev/tf/scenarios/.tmp.XXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT
 
 cat > "$tmpdir/scenario.test.f.ts" <<EOF
+import * as __all from '$scenario'
 export * from '$scenario'
+export default (__all as any)['default']
 EOF
-
-repo=$(cd "$(dirname "$0")/../../../.." && pwd)
 
 case "$runner" in
     bun)        cmd="bun test $repo/fs/dev/tf/all.test.ts" ;;
     node)       cmd="node --test $repo/fs/dev/tf/all.test.ts" ;;
     deno)       cmd="deno test --allow-read --allow-env $repo/fs/dev/tf/all.test.ts" ;;
-    playwright) cmd="PLAYWRIGHT_TEST=1 npx playwright test $repo/fs/dev/tf/all.test.ts" ;;
+    playwright) cmd="env PLAYWRIGHT_TEST=1 $repo/node_modules/.bin/playwright test $repo/fs/dev/tf/all.test.ts" ;;
     *) echo "unknown runner: $runner" >&2; exit 2 ;;
 esac
 
