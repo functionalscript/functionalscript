@@ -28,7 +28,10 @@ Example — 2026-05-29: **`65X-slug.md`**
 
 - **3 chars** — same length as the old `NNN`, encodes a full date
 - **Zero coordination** — derive from current date; no "find next number" step
-- **32 years of coverage** — Y exhausts in 2051; M and D cover all valid calendar values
+- **32 years of coverage** — Y exhausts in 2051; M and D cover all valid calendar values.
+  After 2051 we switch to emoji 🎃. *(Half a joke — IPFS CIDs already support
+  `base256emoji` encoding, so the industry has already been there:
+  [CID conversion](https://docs.ipfs.tech/concepts/content-addressing/#cid-conversion).)*
 - **Sortable** — Crockford base32 is ordered, so lexicographic sort = chronological sort
 - **Clean transition** — existing `NNN` files (digits `0`–`2`) sort before `6YMD` files since `2` < `6`
 - **Repo coherence** — FunctionalScript already has `cbase32` in the codebase
