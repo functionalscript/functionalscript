@@ -1,5 +1,8 @@
 # 196. `djs/parser`: collapse the trivia + eof/default handler boilerplate
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 `fs/djs/parser/module.f.ts` defines 17 token-kind handlers

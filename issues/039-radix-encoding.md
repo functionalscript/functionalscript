@@ -1,5 +1,8 @@
 # Various BaseN Encodings
 
+**Priority:** P3
+**Status:** open
+
 > **Note (YAGNI):** Do not implement any of the encodings below until at least
 > one module in the codebase needs it. The only existing `Vec → string`
 > consumer is `cas/` (which uses `cbase32`); every other hex/numeric formatting

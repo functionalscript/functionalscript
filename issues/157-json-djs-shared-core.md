@@ -1,5 +1,8 @@
 # 157. JSON/DJS: extract the shared value-machine core
 
+**Priority:** P3
+**Status:** open
+
 DJS is a superset of JSON: every JSON value is a DJS value, plus DJS adds
 `bigint`, `undefined`, identifier keys, const references, and module
 (`import`/`const`/`export default`) framing. Because of that relationship the

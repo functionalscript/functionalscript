@@ -1,5 +1,8 @@
 # 173. CSI eDSL
 
+**Priority:** P3
+**Status:** open
+
 Introduce a structured eDSL for composing ANSI CSI/SGR sequences in
 `fs/text/sgr/module.f.ts`, analogous to the HTML eDSL in `fs/html/module.f.ts`.
 

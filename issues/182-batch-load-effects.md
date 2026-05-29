@@ -1,5 +1,8 @@
 # 182. Computational collections in effects
 
+**Priority:** P3
+**Status:** open
+
 ## Current situation
 
 `fs/dev/module.f.ts` — `loadModuleMap` — issues two sequential `all` effects:

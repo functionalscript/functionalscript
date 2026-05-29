@@ -1,5 +1,8 @@
 # 172. RTTI: investigate one container skeleton for both `validate` and `parse`
 
+**Priority:** P3
+**Status:** open
+
 `fs/types/rtti/validate` and `fs/types/rtti/parse` each expose a factory pair
 that walks the same container shapes:
 

@@ -1,5 +1,8 @@
 # 187. byte-rounding: a shift-based `divUpE2`/`roundUpE2`, reused by `asn.1` and `sign`
 
+**Priority:** P3
+**Status:** open
+
 `bigint` exports general round-up arithmetic that divides/multiplies:
 
 ```ts

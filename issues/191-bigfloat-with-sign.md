@@ -1,5 +1,8 @@
 # 191. `bigfloat`: a `withSign` helper for "operate on the magnitude, restore the sign"
 
+**Priority:** P3
+**Status:** open
+
 Two private `bigfloat` functions strip the sign off a mantissa, do unsigned work,
 then re-apply the sign with `multiply(...)(s)`:
 

@@ -5,6 +5,7 @@ import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    isTest,
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
@@ -266,6 +267,22 @@ export const helpers = {
         assert(!isIdentifier(''))
         assert(!isIdentifier('1a'))
         assert(!isIdentifier('a-b'))
+    },
+    isTest: () => {
+        assert(isTest('a.test.f.ts'))
+        assert(isTest('a.test.f.js'))
+        assert(isTest('dir/a.test.f.ts'))
+        assert(isTest('proof.f.ts'))
+        assert(isTest('proof.f.js'))
+        assert(isTest('proof.ts'))
+        assert(isTest('proof.js'))
+        assert(isTest('math.proof.f.ts'))
+        assert(isTest('math.proof.f.js'))
+        assert(isTest('math.proof.ts'))
+        assert(isTest('math.proof.js'))
+        assert(isTest('dir/math.proof.ts'))
+        assert(!isTest('proof.tsx'))
+        assert(!isTest('a.test.ts'))
     },
     fmtImport: () => {
         assertEq(fmtImport('./a.test.f.ts', []), 'import("./a.test.f.ts")()')

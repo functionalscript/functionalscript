@@ -1,5 +1,8 @@
 # 168. UTF-8/UTF-16: extract the streaming code-point decoder skeleton
 
+**Priority:** P3
+**Status:** open
+
 `fs/text/utf8/module.f.ts` and `fs/text/utf16/module.f.ts` both decode a stream
 of code units into Unicode code points with the *same* end-of-input plumbing:
 append a `null` EOF sentinel, run a `stateScan` whose step dispatches unit vs.

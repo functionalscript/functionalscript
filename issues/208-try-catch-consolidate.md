@@ -1,5 +1,8 @@
 # 208. `tryCatch`: consolidate three near-identical implementations
 
+**Priority:** P3
+**Status:** open
+
 The same "wrap `f()` in `try/catch`, return `Result<T, unknown>`" helper is
 written out in **three** places, plus an async sibling that is structurally
 identical:

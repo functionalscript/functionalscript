@@ -1,5 +1,8 @@
 # 163. `Reporter.test`: delegate test execution via the reporter
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 The walker in `runModule` (`fs/dev/tf/module.f.ts`) calls `sandbox(set.fn)` directly, hardcoding `Sandbox` as a required effect. This prevents reusing the walker in contexts where test execution is handled differently — in particular, the integrated bridge runner (`fs/dev/tf/module.ts`) which dispatches to Node `--test`, Bun, or Playwright and cannot use `sandbox` (it needs an async framework call instead).

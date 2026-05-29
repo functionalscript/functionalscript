@@ -1,5 +1,8 @@
 # 161. `string_set` and `ordered_map`: a shared keyed B-tree collection
 
+**Priority:** P3
+**Status:** open
+
 `fs/types/string_set/module.f.ts` and `fs/types/ordered_map/module.f.ts` are
 parallel thin wrappers over the same B-tree primitives
 (`btree/find`, `btree/set`, `btree/remove`, `btree/module`) keyed by the same
