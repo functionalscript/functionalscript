@@ -1,5 +1,8 @@
 # 40. Detect unexported types referenced by exported types.
 
+**Priority:** P5
+**Status:** open
+
 TypeScript doesn't show an error if an exported type references a non-exported type. We need to find a way to detect such cases.
 
 ```ts

@@ -1,5 +1,8 @@
 # 206. Investigate workers as a sandbox
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 The current `sandbox` operation runs a synchronous function inside a try/catch with

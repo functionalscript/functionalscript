@@ -1,5 +1,8 @@
 # 128. RTTI: Deserializer (`parse`)
 
+**Priority:** P3
+**Status:** open
+
 Implement a `parse` function (deserializer) that, given a schema `Type` and an unknown input value, constructs a **new** value containing only the fields/elements declared by the schema. This is distinct from `validate` (which checks an existing value in-place) — `parse` always returns a freshly constructed object.
 
 ## Problem: Open/Closed Type Inconsistency

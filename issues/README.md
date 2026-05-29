@@ -1,150 +1,61 @@
 # Issues
 
-- [ ] [005-publish](./005-publish.md)
-- [ ] [009-generating-website](./009-generating-website.md). Generating a Website.
-- [ ] [010-short-url-table](./010-short-url-table.md). Short URL table.
-- [ ] [011-fs-load](./011-fs-load.md)
-- [ ] [013-docs-for-jsr](./013-docs-for-jsr.md). Docs for JSR.
-- [ ] [018-formatter-f-ts](./018-formatter-f-ts.md). Find a formatter for `.f.js` and `.f.ts` files.
-- [ ] P5 [020-run-subset-tests](./020-run-subset-tests.md). The test framework should be able to run a subset of tests.
-- [ ] [021-test-framework-silent-mode](./021-test-framework-silent-mode.md). Silent mode with light progress by default; use `--verbose` for full output. Blocked by 139.
-- [ ] [023-console-program](./023-console-program.md). A console program similar to one that we have in the NaNVM repo.
-- [ ] P5 [024-fsc-ts](./024-fsc-ts.md). Create `./fsc.ts` that supports the same behavior as the current NaNVM Rust implementation.
-- [ ] [028-unit-test-examples-api](./028-unit-test-examples-api.md). Make a distinction between unit tests, examples, and API tests.
-- [ ] [029-test-in-browser](./029-test-in-browser.md). Test in a browser.
-- [ ] [031-formal-grammar](./031-formal-grammar.md).
-- [ ] [032-stupid-parser](./032-stupid-parser.md). Implement a stupid, non-deterministic parser using 031-formal-grammar.
-- [ ] [033-rust-vm-any-wrapper](./033-rust-vm-any-wrapper.md). Rust: VM: implement `Any` and other types as wrappers.
-- [ ] [036-test-framework-browser](./036-test-framework-browser.md). Test framework for a browser.
-- [ ] [037-language-design-map](./037-language-design-map.md). Language Design: references in containers.
-- [ ] [038-rust-bigint-multiply](./038-rust-bigint-multiply.md). Rust: bigint: Optimize multiplication.
-- [ ] [039-radix-encoding.md](./039-radix-encoding.md)
-- [ ] P5 [040-unexported-type-detection](./040-unexported-type-detection.md). Detect unexported types referenced by exported types.
-- [ ] [042-mixing-bnfs](./042-mixing-bnfs.md). Try mixing serializable BNFs.
-- [ ] [043-stateful-parser](./043-stateful-parser.md). Stateful parser.
-- [ ] [044-error-handling-pattern](./044-error-handling-pattern.md). Follow `?` error handling pattern.
-- [ ] [045-nanenum-provenance](./045-nanenum-provenance.md). `nanenum` should use new provenance API.
-- [ ] [046-lr1-parser](./046-lr1-parser.md). Implement an LR(1) parser.
-- [ ] [047-fsc-meta-programming](./047-fsc-meta-programming.md). FSC should be able to load and run modules as meta-programming.
-- [ ] [048-js-extension](./048-js-extension.md). Switch back to `.js` extension.
-- [ ] [051-parser-structures.md](./051-parser-structures.md).
-- [ ] [052-poker.md](./052-poker.md).
-- [ ] [054-token-plus.md](./054-token-plus.md)
-- [ ] [055-carbon-ads](./055-carbon-ads.md). Add Carbon advertisements on a website.
-- [ ] [056-translate-bytecode](./056-translate-bytecode.md). Translate the Byte Code into WebAssembly or other PLs.
-- [ ] [057-eslint-config-jessie](./057-eslint-config-jessie.md). Investigate eslint-config-jessie.
-- [ ] [058-bigint-todo-panic](./058-bigint-todo-panic.md). BigUint issues: clarify todo and replace panic with error code.
-- [ ] [059-hash-table-improvement](./059-hash-table-improvement.md). Hash table improvement.
-- [ ] [065-mutability](./065-mutability.md). Investigate mutability inference.
-- [ ] [066-forward-objects-only](./066-forward-objects-only.md). Only forward objects are visible.
-- [ ] [067-bast-one-parameter](./067-bast-one-parameter.md). BAST: Consider using only one parameter in functions.
-- [ ] [069-incremental.md](069-incremental.md).
-- [ ] [070-fsc-flags](./070-fsc-flags.md). Flags for `fsc`.
-- [ ] [072-property-number](./072-property-number.md). A property could be a number.
-- [x] [./074-bast-tag.md](./074-bast-tag.md)
-- [ ] [075-namespace-import](./075-namespace-import.md). Rewrite namespace import to use `import type`.
-- [ ] [076-serialization-mapping](./076-serialization-mapping.md). Serialization mapping should be done only once.
-- [ ] [077-property-accessor](./077-property-accessor.md). Support for property accessor.
-- [ ] [078-instant-method-call](./078-instant-method-call.md). Instant Method Call.
-- [ ] [079-importmap-package-lock](./079-importmap-package-lock.md). Use `importmap` as `package-lock.json`.
-- [ ] [080-const-ref-serialization](./080-const-ref-serialization.md). Add `CONST_REF` to serialization.
-- [ ] [081-nanvm-concrete-types](./081-nanvm-concrete-types.md). `nanvm_lib` needs concrete wrap types.
-- [ ] [./082-nanvm.md](./082-nanvm.md).
-- [ ] [083-fsc-hash-comments](./083-fsc-hash-comments.md). FSC should support `#` comments.
-- [ ] [085-github-color-modes](./085-github-color-modes.md). GitHub supports colors, so we should have at least three modes.
-- [ ] [086-vm-operations](./086-vm-operations.md). Operations for new VM implementation.
-- [ ] [087-reduce-rc-clone](./087-reduce-rc-clone.md). Optimization: Reduce number of `Rc::clone()`.
-- [ ] [088-python.md](088-python.md).
-- [ ] [089-rust-unpack-dispatch](./089-rust-unpack-dispatch.md). Rust Unpack dispatch.
-- [ ] [092-nominal-bit-vectors](./092-nominal-bit-vectors.md). Create a separate nominal type for MSB and LSB bit vectors.
-- [ ] [095-ci-docker](./095-ci-docker.md). Move some CI tasks to Docker.
-- [ ] [096-ci-caching](./096-ci-caching.md). CI caching.
-- [ ] [097-smart-ca-ci](./097-smart-ca-ci.md). Smart CA CI for FunctionalScript.
-- [ ] [112-cas](./112-cas.md). CAS.
-- [ ] [113-bigint-bitlen-proposal](./113-bigint-bitlen-proposal.md). Create an ECMAScript proposal for `BigInt.bitLen()`.
-- [ ] [114-cli-parser](./114-cli-parser.md). A generic command line parser that can produce help.
-- [ ] [116-tsgo-regression](./116-tsgo-regression.md). Report the TSGO regression (see `btree`).
-- [ ] [118-file-server-example](./118-file-server-example.md). File server example repository.
-- [ ] [122-application-file-type](./122-application-file-type.md). Consider adding a new file type for applications.
-- [ ] [123-tsgo-types-node](./123-tsgo-types-node.md). `tsgo` asks for `"types": ["node"]` in tsconfig.
-- [ ] [124-request-listener-stateful](./124-request-listener-stateful.md). `RequestListener` should not be stateless.
-- [x] 125. `bun test` doesn't handle returned functions as tests. See also [i155](./155-test-runner-integration.md) and [i183](./183-tf-framework-scenario-tests.md), which replace the manual rename approach proposed here with an automated scenario matrix.
-- [ ] [130-or-optimization](./130-or-optimization.md). **Superseded by 143.** Canonical-form properties of `or` are now properties of the data form by construction; nothing to do on the thunk form.
-- [ ] [131-nanvm-allocator](./131-nanvm-allocator.md). An allocator for `nanvm` that doesn't panic.
-- [ ] [132-exec-module-ts](./132-exec-module-ts.md). `exec` improvements.
-- [ ] [134-nominal-types-proposal](./134-nominal-types-proposal.md). A proposal for nominal types in TypeScript.
-- [ ] [136-ci-lock-file](./136-ci-lock-file.md). CI should have all tools and image versions in a specific file.
-- [ ] [138-update-lock-file](./138-update-lock-file.md). Implement a script that will update the lock file.
-- [ ] [139-tf-translate-effects](./139-tf-translate-effects.md). Translate the test framework (`dev/tf/module.f.ts`) to Effects. See [148-test-framework-effects](./148-test-framework-effects.md) for the detailed design.
-- [ ] [140-test-coverage](./140-test-coverage.md). We should have 100% test coverage for all `module.f.ts` files.
-- [ ] [141-universal-type-system](./141-universal-type-system.md). Design for a universal, extensible type system based on custom RTTI.
-- [ ] [143-rtti-data](./143-rtti-data.md). Serializable data representation for RTTI `Type`, modeled after `fs/bnf/data/`. Two forms with one job each — thunks for ergonomic construction, data for all algebra (union, subset, canonical form, dispatch). Supersedes 130.
-- [ ] [144-ts-prototype-functions](./144-ts-prototype-functions.md). TypeScript proposal: distinguish prototype member functions from free functions.
-- [ ] [145-docker-linux-ci](./145-docker-linux-ci.md). Use Docker containers for Linux CI jobs.
-- [ ] [146-rtti-ts-inference](./146-rtti-ts-inference.md). `Ts<T>` walks schema structure on every query, which overflows TS's depth budget for `Ts<any>` and forces `as any` casts in `validate`/`parse`. Compares Zod/Valibot/ArkType approaches and sketches the design space.
-- [ ] [147-deno-slow-types](./147-deno-slow-types.md). Deno slow-types: keep `--allow-slow-types` flag until fully resolved.
-- [x] [148-test-framework-effects](./148-test-framework-effects.md). Redesign the test framework (`dev/tf/module.f.ts`) as an Effect program, replacing the hand-rolled `Input<T>` threading and `Io` dependency. Unblocks browser testing (i29, i36), silent mode (i21), and subset runs (i20).
-- [x] [149-sandbox](./149-sandbox.md). `Sandbox` effect: runs a plain sync function with try/catch and timing in one atomic operation; future fields for memory/stack limits; worker-based implementations enforce hard limits.
-- [x] [150-tty](./150-tty.md). `IsTty` effect: reports whether a file descriptor is connected to a terminal; used by the test framework to gate ANSI color output.
-- [x] [151-transpiler-effects](./151-transpiler-effects.md). Convert DJS transpiler (`fs/djs/transpiler/module.f.ts`) from legacy `Fs`/`readFileSync` to `ReadFile` effect; update tests to use the virtual effect runner instead of `createVirtualIo`. Unblocks deletion of `fs/io/virtual/module.f.ts`.
-- [X] [152-write-effect](./152-write-effect.md). `Write` effect and TTY-aware console: `write(stream, data)` with `WriteConsoles = 'stdout' | 'stderr'`; `csiWrite` wrapper reads `isTTY` from `NodeProgramOptions.std`; supersedes i150.
-- [X] [153-write-queue](./153-write-queue.md). Async write with backpressure: use `stream.write()` + `once(stream, 'drain')` for atomic, backpressure-aware writes to `stdout`/`stderr`.
-- [x] [154-parseset-throws](./154-parseset-throws.md). `parseTestSet`: eliminate double `sandbox` call for throw-tests; return `TestEntry = { fn, throws }` instead of a wrapper function; discriminate from the array branch via `Array.isArray`.
-- [x] [155-test-runner-integration](./155-test-runner-integration.md). Three problems: (1) `module.f.ts` and `module.ts` duplicate the test-tree walk; (2) `isGitHub` branching hardcodes a CI environment inside the walker; (3) Bun silently drops dynamically-registered subtests — fix by running generated sub-trees inline. §1 fixed by i200, §3 fixed by i201, §2 extracted to i208.
-- [x] [156-tf-virtual-tests](./156-tf-virtual-tests.md). Test the `dev/tf` runner itself: virtual test files via an `import`-dictionary lookup, test functions that return `SandboxResult` directly (deterministic, no clock), a capture reporter that records structured events. Covers walker, path formatting, throw semantics, return-value sub-trees, summary counts.
-- [ ] [157-json-djs-shared-core](./157-json-djs-shared-core.md). DRY: DJS is a superset of JSON, yet the parser value-state machine, the recursive serializer walker (3 copies), and the tokenizer minus-rewriter are each forked between `fs/json` and `fs/djs`. Extract a shared value-parser factory, a `serializeValue` factory, and a `negateOnMinus` scan factory.
-- [ ] [159-nanvm-trait-boilerplate](./159-nanvm-trait-boilerplate.md). DRY (Rust): the VM wrapper newtypes repeat near-identical `Serializable`/`SizedIndex`/`Index`/`PartialEq` impls across `string`/`array`/`object`/`bigint`/`function`; collapse them with a `container_traits!` macro. Also: macro the primitive `Serializable`/`Le` impls, and merge `obj`/`arr`/`fn_to_primitive` into one generic helper.
-- [ ] [160-nibble-set-dead-or-factory](./160-nibble-set-dead-or-factory.md). DRY: `nibble_set` duplicates `byte_set`'s bitmask algebra but has zero consumers. Default recommendation: delete the dead module. Alternative (only if a nibble consumer is planned): extract a `bitSet` factory parameterized over the numeric domain.
-- [ ] [161-keyed-btree-collection](./161-keyed-btree-collection.md). DRY/architecture: `string_set` and `ordered_map` are parallel thin wrappers over the same string-keyed B-tree. Propose a shared `keyedCollection(keyOf, keyCmp)` core, making explicit that a set is a map whose key is its value.
-- [x] [162-rtti-parse-container-factories](./162-rtti-parse-container-factories.md). DRY: `rtti/validate` factors its array/record and tuple/struct handlers into two factories, but `rtti/parse` hand-writes all four. Mirror the factory pair in `parse` (with a `rebuild` callback for the transformed output).
-- [ ] [163-reporter-test-method](./163-reporter-test-method.md). Add `test(throws, f)` to `Reporter<O>` so the walker delegates test execution to the reporter; removes the hardcoded `Sandbox` dependency from `runModule` and enables `module.ts` to reuse the Effects walker without its own scan loop.
-- [ ] [164-uncurry-accumulators](./164-uncurry-accumulators.md). P5. Generalize the `StateScan` uncurry refactor (763) to the other state-threading accumulator types: `Fold`/`Reduce` and `sorted_list`'s `ReduceOp`/`TailReduce` still curry their data parameters, inviting per-element/accumulator closures that are meaningless to cache and a state-leak hazard. Uncurry to `(input, acc) => …`; keep `Binary`/`Equal`/`Unary` curried.
-- [ ] [165-layered-parser](./165-layered-parser.md). Layered parser: a BNF-driven tokenizer maps code-points (plus file/position meta) to single-symbol tokens (`s`, `n`, `i`, …) carrying value/position as meta information, feeding a second BNF parser layer. Open questions: keyword disambiguation, meta-info propagation through reductions, unified error representation across layers.
-- [ ] [166-capture-reporter-immutable](./166-capture-reporter-immutable.md). `dev/tf/test.f.ts`: replace the mutable `events.push(...)` array in `makeReporter` with an immutable `Capture` effect accumulated into virtual `State`, consistent with the no-mutation rule.
-- [x] [167-bit-vec-msb-concat](./167-bit-vec-msb-concat.md). DRY: four modules (`crypto/sign`, `asn.1`, `sul/id`, `sul/level/literal`) each re-bind the identical `listToVec(msb)` under a different local name. Export the bound `msbConcat` from `bit_vec` so consumers import it instead of re-deriving.
-- [ ] [168-utf-codepoint-decoder](./168-utf-codepoint-decoder.md). DRY: `utf8` and `utf16` share a byte-for-byte streaming decoder skeleton (`eofList = [null]`, the unit-vs-EOF scan op, and `toCodePointList = flat(stateScan(op)(null)(flat([input, eofList])))`) plus a duplicated `errorMask`. Extract a `decoder(byteOp, eofOp, init)` factory and move `errorMask` to a shared code-point module.
-- [ ] [169-map-list-iterable](./169-map-list-iterable.md). Clarity/reuse: `types/map`'s private `concat`/`filter` generators are the only hand-rolled iterables outside `list`. Either drop them for `new Map([...m, e])` / `new Map([...m].filter(...))`, or share an `Iterable`-level layer once a second consumer exists.
-- [ ] [170-ci-tool-steps](./170-ci-tool-steps.md).
-- [ ] [171-tf-fn-name-throw](./171-tf-fn-name-throw.md). Remove `fn.name === 'throw'` from `parseTestSet`; throw semantics should be determined solely by the property key, not by engine-inferred function names. DRY: `ci/bun`, `ci/deno`, and `ci/node` repeat the same `clean([install(setup), ...test(cmd), ...extra])` shape. Extract a `toolSteps(setup, cmds)` builder in `ci/common`, with the install step passed in to accommodate bun's per-OS variant.
-- [ ] [172-rtti-validate-parse-skeleton](./172-rtti-validate-parse-skeleton.md). Investigate collapsing the parallel `validate`/`parse` container factories into one shared skeleton in `common` with an injected `build` callback (identity for `validate`, `rebuild` for `parse`). Catch: `validate`'s no-allocation/short-circuit contract vs `parse`'s map-all/rebuild. Defer until a third consumer (i143 data form) exists.
-- [ ] [173-csi-edsl](./173-csi-edsl.md). Introduce a structured eDSL for composing ANSI CSI/SGR sequences in `fs/text/sgr/module.f.ts`, analogous to the HTML eDSL in `fs/html/module.f.ts`. A `Block = readonly [Options, readonly (string | Block)[]]` tree replaces hand-rolled template-literal concatenation.
-- [ ] [174-range-map-lexer](./174-range-map-lexer.md). DRY: `fsc` and `js/tokenizer` are the only two code-point scanners and both hand-roll the same range-map Mealy machine — identical `union` conflict rule, `range_map.merge` wrapper, range/range-set cell combinators, and `v => c => x(c)(i)(v)(c)` dispatch — differing only in the continuation payload. Extract a `lexer(def)` factory parameterized over the state continuation.
-- [ ] [175-ci-setup-tool](./175-ci-setup-tool.md). DRY: five CI modules build `install({ uses, with: { '<x>-version': version } })` by hand (node/deno/bun/wasmtime/wasmer). Extract a `setupTool(uses, versionKey)(version)` factory in `ci/common`; complements i170/i171, which take the install step as a pre-built input.
-- [ ] [176-json-file-effects](./176-json-file-effects.md). DRY/separation: `dev`, `dev/version`, and `ci` each open-code "read+utf8-decode+JSON.parse a file" and "JSON.stringify(pretty)+utf8+write a file" over the effect API. Extract `readJsonFile`/`writeJsonFile` helpers (read: 2 consumers, write: 3).
-- [ ] [177-bigfloat-normalize-mantissa](./177-bigfloat-normalize-mantissa.md). DRY: `bigfloat`'s `increaseMantissa`/`decreaseMantissa` are an exact mirror (same zero guard, sign split, shift-and-adjust loop); collapse into one private `normalizeMantissa(shift, de, done)` factory.
-- [ ] [178-cbase32-bit-vec-padding](./178-cbase32-bit-vec-padding.md). Separation: `cbase32` inlines a 1-then-0s bit-padding scheme and a trailing-zero strip loop (the latter already flagged `// TODO`). Move `padToMultiple`/`unpadMultiple` into `bit_vec`; SHA-2's padding is deliberately *not* a match.
-- [x] [179-btree-collapse-root](./179-btree-collapse-root.md). DRY: `btree/set` and `btree/remove` both end with `x.length === 1 ? x[0] : x` to demote a single-child root. Name it `collapseRoot` in `btree/types` (2 consumers).
-- [ ] [180-sorted-set-intersect-symmetry](./180-sorted-set-intersect-symmetry.md). Separation: `sorted_set.union` delegates to `sorted_list.merge`, but `sorted_set` defines the `intersect` engine itself. Move `intersectMerge`/`intersectReduce` into `sorted_list` as an exported `intersect`, restoring symmetry; optionally name the trivial `dropTail` reducer.
-- [ ] [182-batch-load-effects](./182-batch-load-effects.md). Introduce computational collections in effects: a `flatMap` combinator (ALIQ-style) lets a runner batch independent sub-effects instead of sequencing them. Related but separate: make `all` accept a lazy `List` from `fs/types/list`.
-- [~] [183-tf-framework-scenario-tests](./183-tf-framework-scenario-tests.md). Scenario-based conformance tests for the Node/Deno/Bun/Playwright framework bridges: minimal `*.test.f.ts` files in `fs/dev/tf/scenarios/` covering pass, fail, return-value sub-trees, and throw — run per-framework via a script that checks exit code against a manifest of expected outcomes. References i155 (Bun subtest breakage). **Partial**: `run.sh`, scenario files, and `all.ts` entry point implemented for node/bun/deno/playwright; CI matrix integration pending.
-- [ ] [184-min-max-comparable](./184-min-max-comparable.md). DRY: the `a < b ? a : b` / `a < b ? b : a` min/max algorithm is written out in both `function/operator` (for `number`) and `bigint`, each with real consumers (`number`, `bit_vec`/`asn.1`). Define a single generic `min`/`max` in `function/compare` with the same `Cmp1`/`Cmp2`-guarded signature as `cmp` (so `min(1)("a")` is rejected; body likely reuses `cmp`), and retire the per-type copies.
-- [ ] [185-byte-set-bigint-mask](./185-byte-set-bigint-mask.md). DRY/separation: `byte_set.range` re-derives `bigint.mask`'s `(1n << len) - 1n` via `one(k) - 1n`. Import `mask` and write `range = ([b, e]) => mask(BigInt(e - b + 1)) << BigInt(b)`; behavior-preserving.
-- [ ] [186-sul-id-fromv8-reuse](./186-sul-id-fromv8-reuse.md). DRY: `sul/id.hashMerge` hand-rolls `uint(listToVec(msb)(v8.map(vec(0x20n))))` to pack a SHA-2 `V8` into a bigint, but `sha2` already exports `base32.fromV8` for exactly that MSB packing. Reuse it and drop the `vec`/`listToVec`/`uint` imports kept only for that line.
-- [ ] [187-byte-rounding-divup](./187-byte-rounding-divup.md). Perf-aware DRY + type-honesty: `asn.1` rounds bit-lengths to bytes with shifts (`>> 3n`/`<< 3n`); reusing `bigint.divUp(8n)` would swap a shift for a general `/`. Add a shift-based power-of-two `divUpE2(exp)`/`roundUpE2(exp)` (reusing `mask`), consumed by `asn.1` and `crypto/sign` (8 = 2³). Keep the general `divUp`/`roundUp` for `bit_vec`'s non-power-of-two divisor, and retype both from `Reduce` to `(b) => Unary`.
-- [ ] [188-nullable-from-undefined](./188-nullable-from-undefined.md). DRY: `array.at` and `object.at` both normalize `undefined → null` inline. Add `nullable.fromUndefined` (its natural home, alongside `Nullable`/`map`/`toOption`) and consume it in both.
-- [ ] [189-asn1-decode-all-unfold](./189-asn1-decode-all-unfold.md). DRY: `asn.1`'s `decodeObjectIdentifier` and `decodeSequence` both loop `apply step until length === 0n, collecting items`, differing only in the step. Extract a generic `decodeAll(step)` unfold (candidate for a lazy `List` build to shed the `[...result, x]` quadratic spread).
-- [ ] [190-text-char-code-boundary](./190-text-char-code-boundary.md). Separation/DRY: single code-unit/code-point ↔ string conversion is a `fs/text` concern, yet `html`, `fsc`, and `js/tokenizer` each re-bind `String.fromCharCode` (and `bnf` re-binds `fromCodePoint`, `ascii` reaches into `codePointAt`). Expose single-character converters from `fs/text` and import them.
-- [ ] [191-bigfloat-with-sign](./191-bigfloat-with-sign.md). DRY: `bigfloat`'s `round53` and `decToBin` both strip the sign (`abs(m)`/`BigInt(sign(m))`), do unsigned work, and re-apply via `multiply(...)(s)`. Factor a private `withSign(m, e)(f)` magnitude envelope. Distinct from i177 (which pairs the mantissa shift loops).
-- [ ] [192-error-exit-effect](./192-error-exit-effect.md). DRY: `cas` (local `e`) and `fjs` (three inline sites) both encode `error(s).step(() => pure(1))`. Lift an `errorExit(s)` helper into `types/effects/node` next to `error`/`pure`.
-- [ ] [193-btree-path-fold-engine](./193-btree-path-fold-engine.md). Investigate: `btree/set` and `btree/remove` both end with `fold(<rebuild parent at PathItem index 0|2|4>)` over a `Path<T>` plus the i179 root collapse. Extract a shared `foldPath` scaffold parameterized by the three slot handlers — but the accumulator types and `Branch5` splitting differ, so confirm the unified signature needs no `as` cast first.
-- [ ] [194-test-effects](./194-test-effects.md)
-- [ ] [195-listvec-improvement](./195-listvec-improvement.md). Improve `listToVec` from `bit_vec` by changing concatenation order for better performance.
-- [ ] [196-djs-parser-trivia-handler](./196-djs-parser-trivia-handler.md). DRY: `djs/parser` defines 17 token-kind handlers that almost all repeat the same `case 'ws'/'nl'/'//'/'/*' → return state` trivia skip plus the `'eof'`/`default` unexpected-end/unexpected-token error returns (~69 trivia cases, ~33 error returns in one file). Lift a `wrap(core)` decorator that adds the three boilerplate branches around a grammar-relevant core handler. JSON-side parser is unaffected; complements i157 (which extracts the value-state machine itself).
-- [ ] [197-djs-unknown-walker](./197-djs-unknown-walker.md). DRY: the DJS `Unknown` ADT is traversed by five independent `typeof`-dispatch walkers — three in `djs/serializer` (`serializeWithoutConst.f`, `serializeWithConst.f`, plus `countRefsOp`/`getConstantsOp`) and one in `djs/ast` (`toDjs`). Extract a `Visitor<R>`-based `walk` for `Unknown` mirroring `rtti/common/visit`. Extends i157 §2 (which covers only the serializer walker trio) to the ref-bookkeeping ops and the AST evaluator.
-- [ ] [198-utf8-file-effects](./198-utf8-file-effects.md). DRY/separation: 3 read-side consumers and 4 write-side consumers (`dev`, `dev/version`, `ci`, `djs`, `djs/transpiler`) each open-code the `readFile → unwrap → utf8ToString` and `utf8 → writeFile` sandwiches. Lift `readUtf8File`/`writeUtf8File` next to the byte-level effects; sits one layer below i176 and unblocks the non-JSON UTF-8 consumers too.
-- [x] [199-dev-entry-cmp](./199-dev-entry-cmp.md). Separation: `fs/dev/module.f.ts` defines a local `cmp = ([a], [b]) => a < b ? -1 : a > b ? 1 : 0` to sort `Entry<unknown>` by key, duplicating `fs/types/string.cmp`. Replace with the existing comparator and drop the now-unused `Sign` import.
-- [x] [200-register-module](./200-register-module.md). Design and implement `registerModule` + `Register<O>` as a parallel path to `runModule`/`Reporter<O>` for external frameworks (Node, Bun, Playwright). Core difference: `registerModule` sandboxes `fn()` + sub-tree discovery together (the full framework test callback), while `runModule` sandboxes only the leaf call. Resolves the walk duplication in `module.ts` (i155 §1).
-- [x] [201-bun-inline-context](./201-bun-inline-context.md). Bun's `node:test` throws `ERR_NOT_IMPLEMENTED` on `t.test()` inside callbacks; eager flat registration is impossible because leaves are only discoverable after executing `fn`. Fix: add `bunTestContext` to `Io` and `NodeProgramOptions`; it registers with Bun's native `nodeTest.test`, handles `expectFailure` manually, and passes a private `inlineContext` to thunks so all sub-tests execute inline. `registerModule` is unchanged.
-- [x] [202-playwright-context](./202-playwright-context.md). Playwright bridge removed in `iteration2` rewrite; restore `playwrightTestContext` using `PLAYWRIGHT_TEST` detection and `inlineTest` pattern.
-- [x] [203-node22-expectfailure](./203-node22-expectfailure.md). Node 22 ignores `expectFailure` (unknown option) so `throws: true` tests always fail; also requires `--experimental-strip-types`. Options: drop Node 22 (bump engines to `>=24`) or wrap `testContext` with `inlineTest` like `bunTestContext`.
-- [ ] [204-test-ts-js-support](./204-test-ts-js-support.md). Define a new infix suffix (e.g. `.ftest.ts`) for plain TS/JS files using FunctionalScript test conventions; extending `isTest` to `*.test.ts` is ruled out because that suffix is auto-discovered by frameworks and would cause double-loading of `all.test.ts`.
-- [ ] [205-rename-all-test](./205-rename-all-test.md). `all.ts` / `all.test.ts` should be renamed to `register.ts` / `register.test.ts` — better communicates its role as the framework-bridge entry point; `.test.ts` suffix must be kept for auto-discovery by bun/node/playwright.
-- [ ] [206-worker-sandbox](./206-worker-sandbox.md). Investigate Node.js Worker Threads as a stronger `sandbox` — hard timeout via `worker.terminate()`, memory isolation, `process.exit()` safety. Open questions: startup cost, structured-clone constraints, Bun/Deno compatibility.
-- [ ] [207-bnf-semantic-actions](./207-bnf-semantic-actions.md). Design for attaching transform functions (semantic actions) to BNF rules so parsing yields domain values (e.g. a JSON `string` rule returns the decoded string; `object` receives decoded keys). A transparent `mapRule` wrapper + grammar-directed fold applies actions; child *effective* outputs compose into parents. TS inference can't type the grammar↔action boundary for cyclic grammars (tested: `: Rule` annotations erase structure, eager forward refs hit TDZ), so each action declares RTTI `in`/`out` schemas — body typed via `Ts<schema>`, boundary checked dynamically. The check can be lifted from per-parsed-node to a one-time grammar-instantiation `subset` check (gated on i143's `subset` predicate), so it costs O(actioned rules) once and fails at construction. Unbounded repetition (right-recursion, since `repeat` isn't a BNF primitive) is recognized structurally — so hand-written and `repeat0Plus`-built lists flatten identically — and flattening to a flat array is opt-in via an `array(item)` schema so right-associative trees are preserved. Evaluation is a parser-neutral reduction algebra `Semantics<R>` (shift/reduce events), so the same actions/metadata/schemas run under any parser kind (LL(1), LR(k), GLR) per the one-grammar/one-serialization/many-parsers principle. A metadata channel is always carried and merged by a user-supplied monoid `(leaf, merge, empty)` (e.g. positions→ranges, union on merge), which also carries lower-layer values (lexemes) past an upper grammar for the layered parser (i165).
-- [ ] [208-try-catch-consolidate](./208-try-catch-consolidate.md). DRY: `tryCatch` is defined three times (`fs/types/result/module.ts`, `fs/io/module.ts`, and a private `tc` in `fs/io/module.f.ts`) with one more async copy inlined in `fs/io/module.ts`'s `io` literal — four byte-equivalent `try/return ok / catch/return error` bodies. Centralise `tryCatch`/`asyncTryCatch` in `fs/types/result/module.ts` (drop the dead `default` export), import from `fs/io/module.ts`; the private `tc` can route through `io.asyncTryCatch` if the closure capture is acceptable.
-- [ ] [209-effect-fold-step](./209-effect-fold-step.md). DRY: three sites — `fs/dev/tf/module.f.ts` (test-state thread), `fs/djs/transpiler/module.f.ts` (parse-context thread), and `fs/cas/module.f.ts`'s `list` subcommand (hand-rolled with `let i` + `for`, with a `// TODO: make it lazy`) — all express "fold a list of items by stepping an effect through a state". Lift a `foldStep((item, s) => Effect)(init)(items)` combinator next to `all`/`pure` in `fs/types/effects/module.f.ts`, plus a `forEachStep` for the void-accumulator `cas` case. Sequential by design — orthogonal to i182's parallel `flatMap`.
-- [ ] [210-inline-test-wrap](./210-inline-test-wrap.md). DRY: `bunTestContext` and `playwrightTestContext` in `fs/io/module.ts` are line-for-line identical except for which framework register function they delegate to (`(name, opts, fn) => REG(name, () => inlineTest(name, opts, fn))`). Lift `wrapInlineTest(register): TestContext` and instantiate twice. Names the strategy introduced by [i201](./201-bun-inline-context.md)/[i202](./202-playwright-context.md)/[i203](./203-node22-expectfailure.md) and lowers the cost of adding a third framework bridge to one line.
-- [ ] [211-reporter-modes](./211-reporter-modes.md). Concrete reporter implementations unlocked by the `Reporter<O>` abstraction: GitHub Actions (extract `isGitHub` branching from the walker), quiet, TTY progress, and Node/Bun/Playwright bridge. Extracted from i155 §2.
+One file per open issue, named `NNN-kebab-slug.md` (sequential number, short kebab-case slug).
+Done issues are deleted — but before deleting, ensure design and design decisions are
+captured in the codebase: architectural choices and the *why this / why not that* rationale
+belong in the relevant `README.md` files; API shape, invariants, and non-obvious constraints
+belong in JSDoc on the affected `module.f.ts` exports. The issue file is a scratchpad;
+the code and its docs are the permanent record.
+
+The `issues/` directory is the index — browse it directly.
+
+## Template
+
+```md
+# NNN. Title
+
+**Priority:** P1 | P2 | P3 | P4 | P5
+**Status:** open | wip | blocked | on-hold
+**Blocked by:** [iNNN](./NNN-slug.md)
+
+## Problem
+
+Why this needs to be addressed.
+
+## Proposal
+
+What we plan to do. Omit if no design yet.
+
+## Tasks
+
+- [ ] concrete step 1
+- [ ] concrete step 2
+
+## Related
+
+- [iNNN](./NNN-slug.md) — relationship note
+```
+
+### Priority scale
+
+| Level | Meaning |
+|-------|---------|
+| P1 | Blocking — nothing else can proceed |
+| P2 | High — current sprint |
+| P3 | Normal — default |
+| P4 | Low — nice to have |
+| P5 | Minimal — do only if it falls in our lap |
+
+### Status values
+
+| Value | Meaning |
+|-------|---------|
+| `open` | Not yet started |
+| `wip` | Work in progress |
+| `blocked` | Waiting on another issue (pair with **Blocked by**) |
+| `on-hold` | Intentionally deferred |
+
+Done → delete the file. Will-not-fix → delete the file (record the decision in the closing commit message).
 
 ## Language Specification
 

@@ -1,5 +1,8 @@
 # 160. `nibble_set` duplicates `byte_set`: delete it, or extract a `bitSet` factory
 
+**Priority:** P3
+**Status:** open
+
 `fs/types/byte_set/module.f.ts` and `fs/types/nibble_set/module.f.ts` implement
 the same bitmask-as-set algebra. They differ only in the numeric domain
 (`bigint` + `1n` for byte_set, `number` + `1` for nibble_set) and the

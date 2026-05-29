@@ -1,5 +1,8 @@
 # 141. Design for a universal, extensible type system based on custom RTTI.
 
+**Priority:** P3
+**Status:** open
+
 How it should work:
 1. We should define an interface for type validation. For example
    ```ts

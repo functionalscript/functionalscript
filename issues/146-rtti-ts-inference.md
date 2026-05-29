@@ -1,5 +1,8 @@
 # 146. RTTI: TypeScript Inference Depth
 
+**Priority:** P3
+**Status:** open
+
 `Ts<T>` (in [`fs/types/rtti/ts/module.f.ts`](../fs/types/rtti/ts/module.f.ts)) maps a schema `Type` to its TypeScript type by walking the schema's structural shape with conditional types and `infer`. It works for direct uses (`Ts<typeof someSchema>`), but it is fragile: any internal generic that resolves to `Ts<any>`, `Ts<Type>`, or a deeply nested combination distributes across every branch of the conditional and trips TS's depth/cycle limit (`error TS2589: Type instantiation is excessively deep and possibly infinite`).
 
 The current `validate` and `parse` modules work around this with liberal `as any` casts: the public boundary is typed correctly via `Ts<T>`, but the internals deliberately bypass the checker because the structural walk cannot be made non-overflowing while preserving the rest of the design. The shared kernel from [i133](./README.md) takes the same workaround: the `Visitor<R>` is assembled with an `as unknown as Visitor<(v: Unknown) => unknown>` cast so the generic per-variant helpers don't force TS to evaluate `Ts<any>`.

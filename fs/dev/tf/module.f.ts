@@ -1,6 +1,13 @@
 /**
  * Test-framework helpers for running and reporting FunctionalScript tests.
  *
+ * Two parallel execution paths:
+ * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
+ *   sandboxes each leaf call individually and accumulates `TestState`.
+ * - `registerModule` / `TestContext` — registers tests with an external
+ *   framework (Node `--test`, Bun, Playwright) at import time; the framework
+ *   owns scheduling and pass/fail counting.
+ *
  * @module
  */
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
@@ -19,10 +26,11 @@ import {
     type Write,
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
-import { pure, do_, type Effect, type Func, type Operation } from '../../types/effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
+/** Returns `true` if the file path looks like a FunctionalScript test module. */
 export const isTest = (s: string): boolean => s.endsWith('test.f.js') || s.endsWith('test.f.ts')
 
 type TestState = {
@@ -47,15 +55,36 @@ const timeFormat = (a: number) => {
     return `${b}.${e} ms`
 }
 
+/** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
 
+/**
+ * A leaf test bundled with its throw expectation.
+ *
+ * `throws: true` means the test is expected to throw; the runner inverts the
+ * `sandbox` result so a caught error becomes a pass and a clean return becomes
+ * a failure. Using a record instead of a wrapper function avoids a double
+ * `sandbox` call and gives accurate per-test timing.
+ */
 export type TestEntry = {
     readonly fn: TestFn
     readonly throws: boolean
 }
 
+/**
+ * Either a leaf `TestEntry` (function + throw flag) or a named sub-tree of
+ * `[key, value]` pairs to recurse into. Discriminate with `Array.isArray`.
+ */
 export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
 
+/**
+ * Converts an arbitrary JS value into a `TestSet`.
+ *
+ * - Zero-argument functions become a `TestEntry`; the `throws` flag is set if
+ *   `throws` is already `true` or the function's `.name === 'throw'`.
+ * - Non-null objects become an array of `[key, value]` pairs to recurse into.
+ * - All other values (including functions with parameters) produce an empty array.
+ */
 export const parseTestSet = (throws: boolean, x: unknown): TestSet => {
     switch (typeof x) {
         case 'function': {
@@ -111,6 +140,16 @@ export type Reporter<O extends Operation> = {
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
 
+/**
+ * Registers all tests reachable from module export `v` (keyed by `k`) with
+ * the given `TestContext`.
+ *
+ * Unlike `runModule`, which sandboxes only the leaf function, `registerModule`
+ * lets the external framework own scheduling: each registered test callback
+ * calls `fn`, then recursively registers any sub-trees returned by the function.
+ * This is the correct model for Node `--test`, Bun, and Playwright, where tests
+ * must be declared upfront and the framework drives execution.
+ */
 export const registerModule =
     (ctx: TestContext, k: string, v: unknown): Effect<Test | All, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
@@ -163,6 +202,11 @@ const runModule =
 
 const { entries } = Object
 
+/**
+ * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates
+ * pass/fail/time via `reporter`, and returns an exit code (0 = all passed,
+ * 1 = at least one failure).
+ */
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = entries(moduleMap).filter(([k]) => isTest(k))
@@ -174,9 +218,18 @@ export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (mod
     .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
 
+/**
+ * Discovers all test modules via `loadModuleMap`, then runs them through
+ * `runModuleMap`. The composed effect is a `NodeProgram` entry point for the
+ * `fjs t` test runner.
+ */
 export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O | All | LoadModuleOperations> => options =>
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
+/**
+ * Registers all test modules in `moduleMap` whose names pass `isTest` with
+ * `ctx`. Delegates to `registerModule` for each matching entry.
+ */
 export const registerModuleMap =
     (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All, void> => {
         const modules = entries(moduleMap).filter(([k]) => isTest(k))
@@ -184,6 +237,11 @@ export const registerModuleMap =
         return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
     }
 
+/**
+ * A chain of property-access keys leading to a test location. String entries
+ * are object/array keys; `null` marks a function-call boundary (the return
+ * value was walked as a sub-tree).
+ */
 export type Path = readonly (string | null)[]
 
 const isAlpha = (c: string): boolean =>
@@ -191,9 +249,11 @@ const isAlpha = (c: string): boolean =>
 
 const isDigit = (c: string): boolean => c >= '0' && c <= '9'
 
+/** Returns `true` if `s` is a non-negative decimal integer without a leading zero. */
 export const isInteger = (s: string): boolean =>
     s.length > 0 && [...s].every(isDigit) && (s === '0' || s[0] !== '0')
 
+/** Returns `true` if `s` is a valid JS identifier (ASCII subset: `[A-Za-z_$][A-Za-z0-9_$]*`). */
 export const isIdentifier = (s: string): boolean =>
     s.length > 0 && isAlpha(s[0]) && [...s.slice(1)].every(c => isAlpha(c) || isDigit(c))
 
@@ -246,6 +306,10 @@ export const ghEscape = (s: string): string =>
         .replaceAll('\r', '%0D')
         .replaceAll('\n', '%0A')
 
+/**
+ * Default `Reporter.test` implementation: sandboxes `fn` once and inverts the
+ * result when `throws` is `true` (caught error → pass, clean return → fail).
+ */
 export const defaultTest = (file: string, path: Path, { fn, throws }: TestEntry): Effect<Sandbox, SandboxResult<unknown>> =>
     sandbox(fn)
     .step(r => pure(throws ? { ...r, result: invert(r.result) } : r))
@@ -287,9 +351,17 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     }
 }
 
+/** The `fjs t` entry point: runs all tests using `defaultReporter`. */
 export const main: NodeProgram =
     options => testAll(defaultReporter(options))(options)
 
+/**
+ * Entry point for external test frameworks (Node `--test`, Bun, Playwright).
+ *
+ * Discovers test modules via `loadModuleMap`, then registers each with the
+ * framework-appropriate `TestContext` selected from `NodeProgramOptions`
+ * based on the detected `engine`.
+ */
 export const register: NodeProgram = o =>
     loadModuleMap(o.env)
     .step(m => registerModuleMap(

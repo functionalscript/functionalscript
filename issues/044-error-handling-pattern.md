@@ -1,5 +1,8 @@
 # 44. Follow `?` error handling pattern.
 
+**Priority:** P3
+**Status:** open
+
 ```rust
 trait Any {
     type Result<T> = Result<T, Self>;

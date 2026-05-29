@@ -1,5 +1,8 @@
 # 185. `byte_set`: build `range`/`one` from `bigint.mask`
 
+**Priority:** P3
+**Status:** open
+
 `byte_set` hand-rolls contiguous bit masks that already exist as `bigint.mask`.
 
 ```ts

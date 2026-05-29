@@ -1,5 +1,8 @@
 # 177. `bigfloat`: collapse `increaseMantissa`/`decreaseMantissa` mirror
 
+**Priority:** P3
+**Status:** open
+
 `fs/types/bigfloat/module.f.ts:15` and `:30` are mirror images of one another.
 Both guard the zero mantissa, split off the sign, take the absolute value, then
 loop shifting the mantissa one direction while adjusting the exponent, and

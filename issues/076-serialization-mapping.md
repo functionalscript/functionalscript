@@ -1,5 +1,8 @@
 # 76. Serialization mapping should be done only once.
 
+**Priority:** P3
+**Status:** open
+
 For example, instead of
 ```rust
 fn serialize(v: bool) => u8 {

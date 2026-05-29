@@ -1,5 +1,8 @@
 # 183. Test-framework bridge: scenario-based conformance tests
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 `fs/dev/tf/module.ts` bridges the Effects-based runner to Node `--test`, Bun, Deno,

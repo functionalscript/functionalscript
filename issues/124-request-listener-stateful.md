@@ -1,5 +1,8 @@
 # 124. `RequestListener` should not be stateless.
 
+**Priority:** P3
+**Status:** open
+
 Options:
 1. One option is to pass a state.
 2. In-memory KeyValue storage with access using effects.

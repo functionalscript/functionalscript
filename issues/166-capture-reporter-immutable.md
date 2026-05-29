@@ -1,5 +1,8 @@
 # 166. Capture reporter in `dev/tf/test.f.ts` must not use mutable arrays
 
+**Priority:** P3
+**Status:** open
+
 ## Problem
 
 `makeReporter` in `fs/dev/tf/test.f.ts` accumulates events by mutating a local array:

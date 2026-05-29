@@ -1,5 +1,8 @@
 # 9. Generating a Website.
 
+**Priority:** P3
+**Status:** open
+
 - [X] 1. A minimal webpage
 - [X] 2. Generate Deno and Rust docs and publish them.
 - [ ] 3. Convert `README.md` files into HTML and publish them.

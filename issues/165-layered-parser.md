@@ -1,5 +1,8 @@
 # Layered Parser
 
+**Priority:** P3
+**Status:** open
+
 A tokenizer accepts a sequence of code-points as input tokens together with meta information (file name, position). It uses our BNF parser to output new tokens.
 
 Each token type is represented by a single symbol, e.g. `s` for string, `n` for number, `i` for identifier. All other information (actual value, position, etc.) is carried as meta information. This sequence of tokens is then the input into a new parser layer.
