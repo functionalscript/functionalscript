@@ -33,6 +33,7 @@ const options = (initCwd: string, github = false): NodeProgramOptions => ({
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext: noopTestContext,
     bunTestContext: noopTestContext,
+    playwrightTestContext: noopTestContext,
     engine: 'node',
 })
 

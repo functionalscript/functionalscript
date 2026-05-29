@@ -11,6 +11,12 @@ import { fromVec } from '../types/uint8array/module.f.ts'
 import * as testContext from 'node:test'
 import type { TestContext, TestFn } from '../types/effects/node/module.f.ts'
 
+const isPlaywright = 'PLAYWRIGHT_TEST' in (process?.env ?? {})
+
+const pwTest = isPlaywright
+    ? (await import('@playwright/test') as any).test
+    : undefined
+
 const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
     if (expectFailure) {
         try { await fn(inlineContext) } catch { return }
@@ -24,6 +30,10 @@ const inlineContext: TestContext = { test: inlineTest }
 
 const bunTestContext: TestContext = {
     test: (name, opts, fn) => testContext.test(name, () => inlineTest(name, opts, fn))
+}
+
+const playwrightTestContext: TestContext = {
+    test: (name, opts, fn) => pwTest!(name, () => inlineTest(name, opts, fn))
 }
 
 const prefix = 'file:///'
@@ -105,7 +115,8 @@ export const io: Io = {
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
     testContext,
     bunTestContext,
-    engine: 'Bun' in globalThis ? 'bun' : 'node',
+    playwrightTestContext,
+    engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
 }
 export type NodeRun = (p: NodeProgram) => Promise<number>
 

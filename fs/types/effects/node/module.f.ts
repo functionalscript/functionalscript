@@ -285,7 +285,7 @@ export type Env = {
     readonly [k: string]: string|undefined
 }
 
-export type Engine = 'node' | 'bun' // | 'playwright' | ...
+export type Engine = 'node' | 'bun' | 'playwright'
 
 export type NodeProgramOptions = {
     readonly args: readonly string[]
@@ -293,6 +293,7 @@ export type NodeProgramOptions = {
     readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
     readonly testContext: TestContext
     readonly bunTestContext: TestContext
+    readonly playwrightTestContext: TestContext
     readonly engine: Engine
 }
 

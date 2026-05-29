@@ -292,5 +292,8 @@ export const main: NodeProgram =
 
 export const register: NodeProgram = o =>
     loadModuleMap(o.env)
-    .step(m => registerModuleMap(o.engine === 'bun' ? o.bunTestContext : o.testContext, m))
+    .step(m => registerModuleMap(
+        o.engine === 'bun' ? o.bunTestContext :
+        o.engine === 'playwright' ? o.playwrightTestContext :
+        o.testContext, m))
     .step(() => pure(0))

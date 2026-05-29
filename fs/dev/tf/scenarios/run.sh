@@ -23,9 +23,10 @@ EOF
 repo=$(cd "$(dirname "$0")/../../../.." && pwd)
 
 case "$runner" in
-    bun)  cmd="bun test $repo/fs/dev/tf/all.test.ts" ;;
-    node) cmd="node --test $repo/fs/dev/tf/all.test.ts" ;;
-    deno) cmd="deno test --allow-read --allow-env $repo/fs/dev/tf/all.test.ts" ;;
+    bun)        cmd="bun test $repo/fs/dev/tf/all.test.ts" ;;
+    node)       cmd="node --test $repo/fs/dev/tf/all.test.ts" ;;
+    deno)       cmd="deno test --allow-read --allow-env $repo/fs/dev/tf/all.test.ts" ;;
+    playwright) cmd="PLAYWRIGHT_TEST=1 npx playwright test $repo/fs/dev/tf/all.test.ts" ;;
     *) echo "unknown runner: $runner" >&2; exit 2 ;;
 esac
 
