@@ -356,6 +356,9 @@
 - [x] [201-bun-inline-context](./201-bun-inline-context.md). Bun's `node:test` throws `ERR_NOT_IMPLEMENTED` on `t.test()` inside callbacks; eager flat registration is impossible because leaves are only discoverable after executing `fn`. Fix: add `bunTestContext` to `Io` and `NodeProgramOptions`; it registers with Bun's native `nodeTest.test`, handles `expectFailure` manually, and passes a private `inlineContext` to thunks so all sub-tests execute inline. `registerModule` is unchanged.
 - [x] [202-playwright-context](./202-playwright-context.md). Playwright bridge removed in `iteration2` rewrite; restore `playwrightTestContext` using `PLAYWRIGHT_TEST` detection and `inlineTest` pattern.
 - [x] [203-node22-expectfailure](./203-node22-expectfailure.md). Node 22 ignores `expectFailure` (unknown option) so `throws: true` tests always fail; also requires `--experimental-strip-types`. Options: drop Node 22 (bump engines to `>=24`) or wrap `testContext` with `inlineTest` like `bunTestContext`.
+- [ ] [204-test-ts-js-support](./204-test-ts-js-support.md). Define a new infix suffix (e.g. `.ftest.ts`) for plain TS/JS files using FunctionalScript test conventions; extending `isTest` to `*.test.ts` is ruled out because that suffix is auto-discovered by frameworks and would cause double-loading of `all.test.ts`.
+- [ ] [205-rename-all-test](./205-rename-all-test.md). `all.ts` / `all.test.ts` should be renamed to `register.ts` / `register.test.ts` — better communicates its role as the framework-bridge entry point; `.test.ts` suffix must be kept for auto-discovery by bun/node/playwright.
+- [ ] [206-worker-sandbox](./206-worker-sandbox.md). Investigate Node.js Worker Threads as a stronger `sandbox` — hard timeout via `worker.terminate()`, memory isolation, `process.exit()` safety. Open questions: startup cost, structured-clone constraints, Bun/Deno compatibility.
 
 ## Language Specification
 
