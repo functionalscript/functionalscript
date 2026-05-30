@@ -12,7 +12,7 @@ import { stringToList } from '../../text/utf16/module.f.ts'
 import { concat as pathConcat } from '../../path/module.f.ts'
 import { type ParseError, parseFromTokens } from '../parser/module.f.ts'
 import { run, type AstModule } from '../ast/module.f.ts'
-import { type Effect, pure } from '../../types/effects/module.f.ts'
+import { type Effect, foldStep, pure } from '../../types/effects/module.f.ts'
 import { readFile, type ReadFile } from '../../types/effects/node/module.f.ts'
 import { utf8ToString } from '../../text/module.f.ts'
 
@@ -63,10 +63,9 @@ const transpileWithImports
             const pathsCombine = listMap(pathConcat(dir))(parseModuleResult[1][0])
             const pathsArray = toArray(pathsCombine)
             const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
-            return pathsArray.reduce<Effect<ReadFile, ParseContext>>(
-                (acc, p) => acc.step(ctx => foldNextModuleOp(p)(ctx)),
-                pure(contextWithStack),
-            ).step(contextWithImports => {
+            return foldStep<ReadFile, string, ParseContext>(
+                foldNextModuleOp,
+            )(contextWithStack)(pathsArray).step(contextWithImports => {
                 if (contextWithImports.error !== null) {
                     return pure(contextWithImports)
                 }

@@ -56,6 +56,34 @@ export const do_ =
 
 export const begin: Effect<never, void> = pure(undefined)
 
+/**
+ * Sequentially threads a state value through an effect for each item in `items`.
+ *
+ * Given `f: item => state => Effect<O, state>`, `init: S`, and `items: [x₀, x₁, …]`,
+ * builds `f(x₀)(init).step(f(x₁)).step(f(x₂)).…` and yields a single
+ * `Effect<O, S>` that produces the final state.
+ *
+ * Sequential — each step depends on the previous state. Compare to `all`,
+ * which fans out independent effects.
+ */
+export const foldStep =
+    <O extends Operation, T, S>(f: (item: T) => (state: S) => Effect<O, S>) =>
+    (init: S) =>
+    (items: readonly T[]): Effect<O, S> =>
+        items.reduce<Effect<O, S>>(
+            (acc, item) => acc.step(f(item)),
+            pure(init),
+        )
+
+/**
+ * Sequentially runs `f(item)` for each item in `items`, discarding intermediate
+ * results. The `void` accumulator sibling of `foldStep`.
+ */
+export const forEachStep =
+    <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
+    (items: readonly T[]): Effect<O, void> =>
+        foldStep<O, T, void>(item => () => f(item))(undefined)(items)
+
 export type ToAsyncOperationMap<O extends Operation> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
 }
