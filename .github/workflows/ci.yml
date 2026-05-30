@@ -123,7 +123,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -291,7 +291,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -459,7 +459,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -627,7 +627,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -801,7 +801,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -966,7 +966,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -1041,6 +1041,9 @@
         },
         {
           "run": "npm t"
+        },
+        {
+          "run": "npm run fst"
         }
       ]
     },
