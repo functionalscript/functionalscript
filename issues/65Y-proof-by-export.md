@@ -36,7 +36,37 @@ export const proof = { add: () => { ... } }
 
 This is consistent with FunctionalScript's philosophy that a module is just a
 record of values — "is this a proof?" becomes a property of the value, not of
-the path that happens to point at it.
+the path that happens to point at it. Discovery is uniformly "does the module
+export `proof`?" — no reliance on filenames.
+
+## White-box proofs
+
+A proof's *location* determines what scope it can see. A proof co-located in a
+module shares lexical scope with the module's private bindings, so it can prove
+things about internals without exporting them (widening the public API purely
+for testing). A proof in a separate module can only see the public exports.
+
+| Mechanism | Scope | Runs when | Public-API exposure | Use for |
+|-----------|-------|-----------|---------------------|---------|
+| Module-level `assertEq(...)` | public + private | **every module load** | none | light, cheap, deterministic checks only |
+| `export const proof` in module | public + private | under the runner | yes — mitigate via `: unknown` | white-box unit (non-FS adopters) |
+| Separate module exporting `proof` | public only | under the runner | none (not shipped) | black-box / integration |
+
+**Module-level asserts** work in *current* FunctionalScript and plain TS/JS code
+today — e.g. `assertEq(2 + 2, 4)` at module top level. Because they run on
+**every module load** (not under a test runner), they must be restricted to
+*light* proofs: cheap, deterministic checks only. Never use them for stress or
+benchmark tests — that cost would be paid on every import. Adopters need to
+understand this execution model.
+
+**`export const proof`** is a real export, so it leaks into the public API
+surface (visible in an npm package's types and runtime). FunctionalScript keeps
+proofs in separate, non-shipped `proof` modules, so this is a non-issue for FS
+itself. Others adopting the convention in plain TS/JS should know `proof` is
+exposed. At the TypeScript level this can be mitigated by always declaring
+`proof` as `unknown` (keeps it out of meaningful consumer autocomplete/usage);
+note this is a type-surface mitigation only — the runtime value still ships in
+the bundle.
 
 ## Design considerations / open questions
 
@@ -50,12 +80,11 @@ the path that happens to point at it.
   have no side effects) and arguably free; for the recently added plain
   `.proof.ts` / `.proof.js` support, side-effectful imports make
   "import everything" risky.
-- **Co-location vs. separate proof modules.** An exported `proof` could live in
-  the production module itself (maximally self-describing — code + its proof in
-  one CAS record) or in a separate module that exports `proof` (keeps the
-  pattern of `btree/proof.f.ts` importing `btree/module.f.ts`). Co-location is
-  the strongest CAS story but bundles proof code into the production record
-  unless stripped.
+- **Co-location enables white-box testing.** A co-located `export const proof`
+  (or module-level asserts) can prove things about private bindings; a separate
+  module exporting `proof` is black-box / integration. Both are discovered the
+  same way (the `proof` export). See the White-box proofs section for the
+  exposure tradeoff and the `: unknown` mitigation.
 - **Relationship to the filename convention.** Filenames could be kept as a
   cheap discovery *hint* (avoid importing everything) while the exported
   property is the source of truth, or dropped entirely. Keeping both during a
@@ -70,7 +99,8 @@ the path that happens to point at it.
 ## Tasks
 
 - [ ] Decide the marker (name `proof`, namespacing, default-export fallback)
-- [ ] Decide co-location vs. separate proof module
+- [ ] Document the white-box tiers (module-level asserts, co-located `proof`,
+      separate `proof` module) and the public-API exposure tradeoff
 - [ ] Add export-based discovery to `loadModuleMap` / `runModuleMap`
 - [ ] Decide whether to keep filename matching as a hint or remove `isTest`
 - [ ] Update the `register*` framework bridges
