@@ -3,9 +3,10 @@
  *
  * @module
  */
-import { flat, flatMap, type List, stateScan, type Thunk } from '../../types/list/module.f.ts'
+import { flatMap, type List, type Thunk } from '../../types/list/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import type { Array1, Array2, Array3 } from '../../types/array/module.f.ts'
+import { decoder, errorMask } from '../code_point/module.f.ts'
 
 /**
  * An unsigned 8-bit integer, represents a single byte.
@@ -36,11 +37,6 @@ export type Utf8NonEmptyState =
  * or a non-empty state containing one or more bytes.
  */
 export type Utf8State = null | Utf8NonEmptyState
-
-/**
- * Error mask constant used to represent invalid code points or encoding errors in UTF-8.
- */
-const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
@@ -212,32 +208,10 @@ const utf8EofToCodePointOp = (
 ]
 
 /**
- * Combines UTF-8 byte and EOF handling into a single decoding operation.
- *
- * @param state - The current UTF-8 decoding state.
- * @param input - The next byte or EOF indicator.
- * @returns A tuple containing:
- *   - A list of decoded Unicode code points or error codes.
- *   - The updated UTF-8 state.
- */
-const utf8ByteOrEofToCodePointOp: StateScan<ByteOrEof, Utf8State, List<I32>> = (input, state) =>
-    input === null ? utf8EofToCodePointOp(state) : utf8ByteToCodePointOp(input, state)
-
-/**
- * A constant representing the end-of-file (EOF) marker for UTF-8 decoding.
- *
- * @remarks
- * This is used as a sentinel value in decoding operations to signify the
- * termination of input. The list contains a single `null` value, which
- * represents the EOF condition.
- */
-const eofList: readonly ByteOrEof[] = [null]
-
-/**
  * Converts a list of UTF-8 bytes into a list of Unicode code points.
  *
  * @param input - A list of UTF-8 bytes.
  * @returns A list of Unicode code points or error codes.
  */
-export const toCodePointList: (input: List<U8>) => List<I32> = (input) =>
-    flat(stateScan(utf8ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
+export const toCodePointList: (input: List<U8>) => List<I32> =
+    decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
