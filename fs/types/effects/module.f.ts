@@ -82,7 +82,7 @@ export const foldStep =
 export const forEachStep =
     <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
     (items: readonly T[]): Effect<O, void> =>
-        foldStep<O, T, void>(item => () => f(item))(undefined)(items)
+    foldStep((item: T) => () => f(item))(undefined)(items)
 
 export type ToAsyncOperationMap<O extends Operation> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>

@@ -31,6 +31,7 @@ import {
 import { foldStep, pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { isTest, loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
+import type { Entry } from '../../types/object/module.f.ts'
 
 
 type TestState = {
@@ -211,9 +212,10 @@ const { entries } = Object
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = entries(moduleMap).filter(([k]) => isTest(k))
-    return foldStep<O | All, readonly [string, unknown], TestState>(
-        ([k, v]) => runModule(reporter)(k, v),
-    )({ time: 0, pass: 0, fail: 0 })(modules)
+    return foldStep
+        (([k, v]: Entry<unknown>) => runModule(reporter)(k, v))
+        ({ time: 0, pass: 0, fail: 0 })
+        (modules)
     .step(ts => summary(ts.pass, ts.fail, ts.time)
     .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
