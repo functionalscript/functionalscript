@@ -50,6 +50,24 @@ where `<...Module documentation...>` should be documentation for the module.
 - Principles:
   - Reuse code,
   - Don't Repeat Yourself (DRY) — a core principle of FunctionalScript, not just a stylistic preference. When two or more modules share an algorithm and differ only in constants, alphabets, or small helpers, extract a parameterized factory into a shared module rather than copy-pasting. Combined with the previous bullet: only extract once the second real consumer exists.
+    - **Exception: Performance measurement.** Time measurement must capture immediately after an operation completes to avoid measuring the wrapper code itself. This naturally leads to duplication when both success and error paths must measure. Readability is more important than eliminating the duplication — keep each measurement explicit and close to its operation:
+      ```ts
+      sandbox: async <T>(f: () => T) => {
+          let result: Result<T, unknown>
+          let after: number
+          const before = performance.now()
+          try {
+              const value = await f()
+              after = performance.now()
+              result = ok(value)
+          } catch (e) {
+              after = performance.now()
+              result = error(e)
+          }
+          return { result, duration: after - before }
+      }
+      ```
+      The two `after = performance.now()` calls are necessary; extracting them into a helper would measure the helper function's overhead instead of just the operation.
   - Separation of concerns — move logic to its natural module even with a single consumer when the logic is conceptually distinct (e.g. path manipulation belongs in `fs/path`, not inline in a loader). First search for an appropriate existing module; create a new one only if no good fit exists. This is different from DRY extraction: it is always appropriate.
   - Avoid side effects and mutability.
 - When a sibling module already has the type or helper you need, import it — add `export` to the existing declaration if it's not yet exported, rather than duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`, `prependPath`, `primitive0Validate`, `constPrimitiveValidate` from `validate`).
