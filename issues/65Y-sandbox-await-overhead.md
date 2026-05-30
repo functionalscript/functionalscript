@@ -18,14 +18,15 @@ result = ok(value[0] as T)
 
 Measured with `npm run fst` on 1475 tests:
 
-| implementation | time |
+| implementation | reported time |
 |---|---|
 | `await awaitPromise(f())` | ~29 000 – 30 000 ms |
 | `p instanceof Promise ? await p : p` | ~7 000 ms |
 
-**~4× slowdown** for a test suite of this size. Because each test is timed
-individually with `performance.now()`, the spurious microtask scheduling also
-inflates per-test durations, making timing measurements less accurate.
+The ~23 s difference is primarily **measurement error**, not a speed improvement.
+The `awaitPromise` boxing schedules spurious microtasks that land inside the
+`before`/`after` `performance.now()` window, inflating every per-test duration.
+With the direct check, only real test work is measured.
 
 ## Root cause
 
