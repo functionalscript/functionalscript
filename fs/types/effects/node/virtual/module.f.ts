@@ -187,6 +187,7 @@ const map: MemOperationMap<NodeOp, State> = {
     // exception in a fixture propagates loudly as a bug in the fixture.
     // See: issues/156-tf-virtual-tests.md
     sandbox: (state, f) => [state, f() as SandboxResult<unknown>],
+    await: (state, p) => [state, [p]],
     test: todo,
     write: (state, stream, data) => {
         const s = utf8ToString(data)

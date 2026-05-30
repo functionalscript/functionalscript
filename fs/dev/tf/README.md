@@ -82,3 +82,11 @@ export default {
 ```
 
 Only **return values** of non-throw tests are walked as sub-trees, and the `throw` flag always resets to false for the sub-tree. Thrown values are discarded and never traversed, even if they are objects containing zero-parameter functions.
+
+## Convention: only real Promises are awaited
+
+When a test function returns a value, the framework checks `value instanceof Promise` to decide whether to await it. Only genuine `Promise` instances are awaited; plain *thenables* — objects that have a `.then` method but are not `instanceof Promise` — are treated as ordinary return values and walked as sub-trees.
+
+This is intentional. FunctionalScript does not allow direct `Promise` construction; `Promise` objects only arise as the return value of `async` functions (an Effect). A plain `{ then: f }` object in FunctionalScript code is almost certainly a data value, not an async operation, and awaiting it would be surprising.
+
+As a consequence, **exporting a function named `then` from a test module is forbidden**: the module namespace object would become a thenable, corrupting dynamic `import()` resolution. See [issues/lang/3240-export.md](../../issues/lang/3240-export.md).
