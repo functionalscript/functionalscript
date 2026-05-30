@@ -77,6 +77,8 @@ export const tryCatch: <T>(f: () => T) => Result<T, unknown> = f => {
     }
 }
 
+const awaitPromise = async (p: unknown) => p instanceof Promise ? await p : p
+
 export const io: Io = {
     console,
     fs,
@@ -104,8 +106,7 @@ export const io: Io = {
         let after: number
         const before = performance.now()
         try {
-            const raw = f()
-            const value = raw instanceof Promise ? await raw : raw
+            const value = await awaitPromise(f())
             after = performance.now()
             result = ok(value as T)
         } catch (e) {
@@ -115,6 +116,7 @@ export const io: Io = {
         return { result, duration: after - before }
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    await: awaitPromise,
     testContext,
     bunTestContext,
     playwrightTestContext,

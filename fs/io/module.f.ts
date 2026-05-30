@@ -164,6 +164,7 @@ export type Io = {
     readonly bunTestContext: TestContext
     readonly playwrightTestContext: TestContext
     readonly engine: Engine
+    readonly await: (p: unknown) => Promise<unknown>
 }
 
 export type App = (io: Io) => Promise<number>
@@ -213,6 +214,7 @@ export const fromIo = ({
     now: ioNow,
     sandbox,
     write,
+    await: awaitPromise,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -268,7 +270,7 @@ export const fromIo = ({
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
         sandbox,
-        await: async (p: unknown) => p instanceof Promise ? await p : p,
+        await: awaitPromise,
         write,
         test: async (ctx, name, expectFailure, test) =>
             ctx.test(name, { expectFailure }, async t => result(test(t))),

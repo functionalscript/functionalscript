@@ -153,15 +153,14 @@ export type Reporter<O extends Operation> = {
 export const registerModule =
     (ctx: TestContext, k: string, v: unknown): Effect<Test | All | Await, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
-            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> => {
-                const er = awaitPromise(fn())
-                return er.step(resolved => {
+            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> =>
+                awaitPromise(fn())
+                .step(resolved => {
                     if (throws) { return pure(undefined) }
                     const sub = collectTests([...path, null], false, resolved)
                     if (sub.length === 0) { return pure(undefined) }
                     return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
-                })
-            })
+                }))
         const tests = collectTests([], false, v)
         if (tests.length === 0) { return pure(undefined) }
         return all(...tests.map(e => registerOne(ctx, e))).step(() => pure(undefined))
