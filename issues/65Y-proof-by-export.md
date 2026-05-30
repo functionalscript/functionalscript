@@ -39,6 +39,56 @@ record of values — "is this a proof?" becomes a property of the value, not of
 the path that happens to point at it. Discovery is uniformly "does the module
 export `proof`?" — no reliance on filenames.
 
+### Two-tier loading (the load gate differs by language)
+
+Discovery (is-it-a-proof) is identical in both tiers — "does it export
+`proof`?". Only the *load* gate differs, and it differs because the **safety
+guarantee** differs:
+
+| Language | Guard | Load gate |
+|----------|-------|-----------|
+| FunctionalScript | language: `.f.ts`/`.f.js` modules have no import side effects | load **all** `.f.ts` / `.f.js`, then look for exported `proof` |
+| Vanilla TS/JS | filename opt-in (no language guarantee) | load only files **named** `proof.ts` / `proof.js` / `proof.mts` / `proof.mjs`, then look for exported `proof` |
+
+FunctionalScript is safe to bulk-load by construction, so "load everything and
+inspect" carries no risk. Vanilla TS/JS can execute arbitrary code on import, so
+it stays **opt-in by filename**: renaming a file to `proof.*` is the author
+declaring "this is safe to import for discovery." No denylist, no chasing
+framework entry-point patterns. We explicitly do **not** bulk-load vanilla
+modules with an exception list.
+
+`.mts` / `.mjs` are included — they are first-class Node ESM extensions and
+carry the same opt-in-by-name safety. (This is unlike the `.test.m.ts` pitfall
+i204 warns about, which was about `.m` *infixed* in a name being confused with
+`.mts`; a clean `proof.mts` has no such ambiguity.)
+
+## Transition plan
+
+A safe, ordered rollout for the FunctionalScript repo. Steps 1–2 are decided;
+there is no step 3 (see Two-tier loading — vanilla stays opt-in by filename, we
+do not bulk-load it).
+
+**Step 1 — switch the contract from `default` to the `proof` property.**
+Discovery still by filename (`isTest` unchanged); only *what the runner reads
+inside a module* changes. Done in one commit so there is no broken intermediate:
+- update the proof-tree walk in `fs/dev/tf/module.f.ts`,
+- update the `register*` framework bridges (node `--test` / bun / Playwright)
+  that key off the current export shape,
+- convert all ~81 proof files from `export default …` to `export const proof = …`.
+
+Hard cutover — read `proof` only, no `proof ?? default` fallback (a single
+canonical contract is the point). Files that currently expose tests via *named*
+exports must consolidate them into the single `proof` value; grep for those
+before estimating.
+
+**Step 2 — widen the load gate.** `isTest` accepts **all** `.f.ts` / `.f.js`
+(load every FS module) plus vanilla `proof.{ts,js,mts,mjs}`. This is what
+unlocks co-located white-box proofs (an FS module can now carry its own `proof`
+export). The predicate now means "should-load," not "is-a-proof" — the
+is-a-proof decision has fully moved to runtime — so rename it accordingly
+(e.g. `shouldLoad` / `isLoadable`). Measure the cost of importing every FS
+module once (expected negligible; pure FS imports have no side effects).
+
 ## White-box proofs
 
 A proof's *location* determines what scope it can see. A proof co-located in a
@@ -115,37 +165,26 @@ later.
 
 ## Design considerations / open questions
 
-- **Loading cost.** Today `loadFile` (`fs/dev/module.f.ts:88`) skips importing
-  non-test files. Export-based discovery requires importing *every* module to
-  inspect its exports. For pure FunctionalScript modules this is safe (imports
-  have no side effects) and arguably free; for the recently added plain
-  `.proof.ts` / `.proof.js` support, side-effectful imports make
-  "import everything" risky.
-- **Co-location enables white-box testing.** A co-located `export const proof`
-  (or module-level asserts) can prove things about private bindings; a separate
-  module exporting `proof` is black-box / integration. Both are discovered the
-  same way (the `proof` export). See the White-box proofs section for the
-  exposure tradeoff and the `: unknown` mitigation.
-- **Relationship to the filename convention.** Filenames could be kept as a
-  cheap discovery *hint* (avoid importing everything) while the exported
-  property is the source of truth, or dropped entirely. Keeping both during a
-  transition is probably the pragmatic path.
-- **Migration.** ~81 existing proof files export `default`. Switching to a named
-  `proof` export (or recognizing `default` from any module) is mechanical but
-  broad.
-- **Framework bridge.** `register` / `registerModule` for node `--test` / bun /
-  Playwright (`fs/dev/tf/module.f.ts`) also key off `isTest`; they'd need the
-  same discovery change.
+- **Loading cost.** Bulk-loading every FS module to inspect exports is safe and
+  expected-negligible (pure FS imports have no side effects); resolved by the
+  two-tier model — vanilla is not bulk-loaded, so its side-effect risk does not
+  arise. Still worth measuring the FS import cost once (Step 2).
+- **Predicate rename.** Once `isTest` matches every FS module it no longer means
+  "is-a-proof" but "should-load"; rename it (e.g. `shouldLoad`) to avoid
+  confusing the next reader.
+- **Named-export consolidation.** Files currently exposing tests via named
+  exports (not just `default`) must fold them into one `proof` value in Step 1.
 
 ## Tasks
 
 - [x] Decide the marker — `proof` (singular); see Naming decision
-- [ ] Document the white-box tiers (module-level asserts, co-located `proof`,
-      separate `proof` module) and the public-API exposure tradeoff
-- [ ] Add export-based discovery to `loadModuleMap` / `runModuleMap`
-- [ ] Decide whether to keep filename matching as a hint or remove `isTest`
-- [ ] Update the `register*` framework bridges
-- [ ] Migration plan for the ~81 existing `default`-exporting proof files
+- [x] Decide the load model — two-tier; no bulk vanilla loading
+- [ ] **Step 1:** read `proof` (not `default`) in the proof-tree walk + update
+      `register*` bridges + convert all ~81 proof files, in one commit
+- [ ] **Step 1:** find and consolidate any named-export tests into `proof`
+- [ ] **Step 2:** widen `isTest` to all `.f.ts`/`.f.js` + `proof.{ts,js,mts,mjs}`
+- [ ] **Step 2:** rename the predicate (`isTest` → `shouldLoad`)
+- [ ] **Step 2:** measure the cost of importing every FS module
 
 ## Related
 
