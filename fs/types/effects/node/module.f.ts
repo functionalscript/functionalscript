@@ -12,7 +12,8 @@ import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
+    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_,
+    pure
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -257,6 +258,19 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
  */
 export const sandbox: Func<Sandbox> = do_('sandbox')
 
+/**
+ * Resolves the return value of a test function inside the effect runner.
+ * If `p` is a real `Promise`, it is awaited and rejections propagate as
+ * throws. If `p` is any other value it is returned as-is. Plain thenables
+ * (objects with a `.then` method that are not `instanceof Promise`) are
+ * treated as ordinary values — not awaited. See `fs/dev/tf/README.md`.
+ */
+export type Await = readonly['await', (p: unknown) => readonly[unknown]]
+
+const awaitPromise: Func<Await> = do_('await')
+
+export const awaitIfPromise = (p: unknown) => awaitPromise(p).step(([x]) => pure(x))
+
 // Test registration
 
 /**
@@ -282,7 +296,7 @@ export type TestContext = {
 
 /** Effect operation that registers a named test with the active `TestContext`. */
 export type Test =
-    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All, void>) => void]
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All | Await, void>) => void]
 
 export const test: Func<Test> = do_('test')
 
@@ -290,6 +304,7 @@ export const test: Func<Test> = do_('test')
 
 export type NodeOp =
     | All
+    | Await
     | Fetch
     | Fs
     | Http

@@ -5,10 +5,10 @@ import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
-    isTest,
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
+import { isTest } from '../module.f.ts'
 
 type Event =
     | readonly['result', string, Path, SandboxResult<unknown>]

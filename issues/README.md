@@ -12,6 +12,8 @@ The `issues/` directory is the index — browse it directly.
 
 ## Date prefix encoding
 
+Use the current **UTC/GMT** date when creating a new issue file.
+
 Each filename starts with three [Crockford base32](https://www.crockford.com/base32.html) digits:
 
 | Digit | Encodes | Range |
@@ -83,7 +85,7 @@ What we plan to do. Omit if no design yet.
 | `blocked` | Waiting on another issue (pair with **Blocked by**) |
 | `on-hold` | Intentionally deferred |
 
-Done → delete the file. Will-not-fix → delete the file (record the decision in the closing commit message).
+Done → set **Status: done** in the file. Will-not-fix → set **Status: done** and record the decision in the commit message. Done issues are deleted occasionally in a cleanup pass — do not delete them immediately.
 
 ## Language Specification
 

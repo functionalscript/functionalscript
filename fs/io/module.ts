@@ -77,6 +77,9 @@ export const tryCatch: <T>(f: () => T) => Result<T, unknown> = f => {
     }
 }
 
+const awaitPromise = async (p: unknown): Promise<readonly[unknown]> =>
+    [p instanceof Promise ? await p : p]
+
 export const io: Io = {
     console,
     fs,
@@ -99,14 +102,14 @@ export const io: Io = {
     http,
     childProcess,
     now,
-    sandbox: <T>(f: () => T) => {
+    sandbox: async <T>(f: () => T) => {
         let result: Result<T, unknown>
         let after: number
         const before = performance.now()
         try {
-            const value = f()
+            const value = await awaitPromise(f())
             after = performance.now()
-            result = ok(value)
+            result = ok(value[0] as T)
         } catch (e) {
             after = performance.now()
             result = error(e)
@@ -114,14 +117,17 @@ export const io: Io = {
         return { result, duration: after - before }
     },
     write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    await: awaitPromise,
     testContext,
     bunTestContext,
     playwrightTestContext,
     engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
 }
-export type NodeRun = (p: NodeProgram) => Promise<number>
+export type NodeRun = (p: NodeProgram) => Promise<never>
 
-const effectRun: NodeRun =
-    runProgram(io)(io.process.argv.slice(2))
+const effectRun: NodeRun = async p => {
+    const code = await runProgram(io)(io.process.argv.slice(2))(p)
+    return process.exit(code)
+}
 
 export default effectRun
