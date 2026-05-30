@@ -1,7 +1,7 @@
 # 65Y-loadmodulemap-predicate. `loadModuleMap` should accept a file predicate
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
