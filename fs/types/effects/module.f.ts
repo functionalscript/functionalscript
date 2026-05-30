@@ -4,6 +4,8 @@
  * @module
  */
 
+import { fold, type List } from '../list/module.f.ts'
+
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]
 
@@ -69,11 +71,8 @@ export const begin: Effect<never, void> = pure(undefined)
 export const foldStep =
     <O extends Operation, T, S>(f: (item: T) => (state: S) => Effect<O, S>) =>
     (init: S) =>
-    (items: readonly T[]): Effect<O, S> =>
-        items.reduce<Effect<O, S>>(
-            (acc, item) => acc.step(f(item)),
-            pure(init),
-        )
+    (items: List<T>): Effect<O, S> =>
+        fold<T, Effect<O, S>>(item => acc => acc.step(f(item)))(pure(init))(items)
 
 /**
  * Sequentially runs `f(item)` for each item in `items`, discarding intermediate
@@ -81,7 +80,7 @@ export const foldStep =
  */
 export const forEachStep =
     <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
-    (items: readonly T[]): Effect<O, void> =>
+    (items: List<T>): Effect<O, void> =>
     foldStep((item: T) => () => f(item))(undefined)(items)
 
 export type ToAsyncOperationMap<O extends Operation> = {

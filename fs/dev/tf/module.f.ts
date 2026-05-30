@@ -28,10 +28,9 @@ import {
     type Write,
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
-import { foldStep, pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
+import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
 import { isTest, loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
-import type { Entry } from '../../types/object/module.f.ts'
 
 
 type TestState = {
