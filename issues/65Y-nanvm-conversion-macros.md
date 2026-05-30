@@ -3,6 +3,29 @@
 **Priority:** P4
 **Status:** open
 
+## Constraint: avoid Rust macros
+
+Per PR review on this issue: macros are not the preferred dedup tool
+in this repo. They are unfriendly to grep, IDE jump-to-definition,
+and rust-analyzer's hover/expansion; they also encourage a style of
+"hidden code" that runs counter to FunctionalScript's preference for
+explicit, locally-readable values. This issue should therefore be
+solved **without `macro_rules!`**, even though declarative macros are
+the idiomatic Rust answer to coherence-blocked blanket impls.
+
+That preference is worth lifting into a project convention. **Suggested
+AGENTS.md addition** (under the existing "Reuse code / DRY" bullet):
+
+> - In Rust code, avoid `macro_rules!` for collapsing trait
+>   boilerplate. Prefer (in order): a generic helper trait + per-type
+>   one-line impls, a `build.rs` code generator driven from a small
+>   source-of-truth table, or — if no cheaper option exists — accept
+>   the hand-written duplication. Macros obscure types from IDEs and
+>   grep; reach for them only when the alternative is materially worse
+>   for readers.
+
+The remainder of this issue is rewritten with that constraint in mind.
+
 ## Problem
 
 `nanvm-lib/src/vm/impls/from.rs` and `nanvm-lib/src/vm/impls/try_from.rs`
@@ -38,119 +61,211 @@ impl<A: IVm> TryFrom<Any<A>> for Nullish {
 // …repeated for bool, f64, Array<A>, BigInt<A>, Function<A>, Object<A>, String<A>
 ```
 
-Both groups share the same pair of axes — *(wrapper newtype,
-`Unpacked` variant)* — and differ only on those two tokens. Same root
-cause as the i159 cluster: per-wrapper nominal newtypes block a blanket
-impl under coherence, so the dedup tool is a declarative macro.
+Both groups share one axis-of-difference: `(wrapper, variant)`.
 
-## Proposal
+## Options without `macro_rules!`
 
-Two macros in a new `vm/impls/macros.rs` (or inline at the top of each
-file), invoked once per `(wrapper, variant)` pair. Both `from.rs` and
-`try_from.rs` collapse to a list of macro invocations plus a one-line
-table of pairs.
+### A. Status quo — keep the hand-written impls
+
+14 copies, ~120 lines, no churn. Adding a new VM variant (`Symbol<A>`)
+costs four lockstep edits (`Unpacked` enum, `from.rs`, `try_from.rs`,
+`serializable.rs`); the asymmetry between `From` and `TryFrom` for the
+same `(wrapper, variant)` pair is invisible at compile time and
+detected only by tests.
+
+This is the cheapest option *today*; it remains a viable answer if
+none of B/C lands a clean enough improvement.
+
+### B. Generic helper trait + one-line impls
+
+Coherence still blocks `impl<T> From<T> for Unpacked<A>`, but a
+**sealed trait** can carry the variant choice and let each leaf type
+opt in with one line:
 
 ```rust
-// vm/impls/macros.rs
-macro_rules! impl_from_unpacked {
-    ($wrapper:ty, $variant:ident) => {
-        impl<A: IVm> From<$wrapper> for Unpacked<A> {
-            fn from(value: $wrapper) -> Self { Unpacked::$variant(value) }
-        }
-    };
+// vm/impls/conversions.rs
+mod sealed { pub trait Sealed {} }
+
+/// Sealed witness that `Self` is one of the seven `Unpacked` payload
+/// types. The impl chooses its own variant; `From` / `TryFrom` are
+/// derived once for the whole set.
+pub trait UnpackedVariant<A: IVm>: sealed::Sealed + Sized {
+    fn wrap(self) -> Unpacked<A>;
+    fn unwrap(value: Unpacked<A>) -> Result<Self, Unpacked<A>>;
 }
 
-macro_rules! impl_try_from_any {
-    ($wrapper:ty, $variant:ident) => {
-        impl<A: IVm> TryFrom<Any<A>> for $wrapper {
-            type Error = Any<A>;
-            fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
-                let Unpacked::$variant(result) = value.into() else { return error(); };
-                Ok(result)
-            }
-        }
-    };
+impl sealed::Sealed for Nullish {}
+impl<A: IVm> UnpackedVariant<A> for Nullish {
+    fn wrap(self) -> Unpacked<A> { Unpacked::Nullish(self) }
+    fn unwrap(v: Unpacked<A>) -> Result<Self, Unpacked<A>> {
+        if let Unpacked::Nullish(x) = v { Ok(x) } else { Err(v) }
+    }
+}
+// …six more, each ~5 lines
+
+// One blanket impl pair, written once:
+impl<A: IVm, T: UnpackedVariant<A>> From<T> for Unpacked<A> {
+    fn from(value: T) -> Self { value.wrap() }
+}
+impl<A: IVm, T: UnpackedVariant<A>> TryFrom<Any<A>> for T {
+    type Error = Any<A>;
+    fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
+        T::unwrap(value.into()).map_err(|_| "Type Error".into())
+    }
 }
 ```
 
-A combined macro can emit both directions for the pairs that share the
-same `(wrapper, variant)`:
+What this buys:
+
+- The `From` ↔ `TryFrom` symmetry is enforced by the trait shape:
+  every `UnpackedVariant` impl supplies both directions in one place,
+  so they cannot drift.
+- Adding a new variant is still one impl block (the new wrapper type),
+  not three lockstep edits across `from.rs` / `try_from.rs`.
+- No macros, no `build.rs`, no codegen. Plain Rust, fully visible to
+  rust-analyzer.
+
+What it costs:
+
+- The two blanket `impl<T: UnpackedVariant>` blocks risk colliding
+  with the existing `impl<A: IVm> From<Unpacked<A>> for Any<A>` in
+  `from.rs:5–18`. Verify with `cargo check` that the sealed bound
+  keeps coherence happy; if not, fall back to per-type one-line impls
+  that call into `UnpackedVariant::wrap` / `unwrap`. The line count
+  becomes ~7 lines/type instead of ~14, plus the one-time trait
+  scaffolding.
+- Net line count is probably similar to status quo (~120 lines) — the
+  win is structural, not size.
+
+### C. Codegen via `build.rs` from a source-of-truth table
+
+A small `nanvm-lib/build.rs` that reads a table and emits
+`from.rs` / `try_from.rs` (or one combined module) into `$OUT_DIR`,
+which `lib.rs` then `include!`s. The table itself can live in
+`build.rs` as a `&[(&str, &str)]` slice or in a separate data file:
 
 ```rust
-macro_rules! impl_unpacked_conv {
-    ($wrapper:ty, $variant:ident) => {
-        impl_from_unpacked!($wrapper, $variant);
-        impl_try_from_any!($wrapper, $variant);
-    };
-}
+// nanvm-lib/build.rs (sketch)
+const VARIANTS: &[(&str, &str)] = &[
+    ("Nullish",     "Nullish"),
+    ("bool",        "Boolean"),
+    ("f64",         "Number"),
+    ("String<A>",   "String"),
+    ("BigInt<A>",   "BigInt"),
+    ("Object<A>",   "Object"),
+    ("Array<A>",    "Array"),
+    ("Function<A>", "Function"),
+];
 
-impl_unpacked_conv!(Nullish,     Nullish);
-impl_unpacked_conv!(bool,        Boolean);
-impl_unpacked_conv!(f64,         Number);
-impl_unpacked_conv!(String<A>,   String);
-impl_unpacked_conv!(BigInt<A>,   BigInt);
-impl_unpacked_conv!(Object<A>,   Object);
-impl_unpacked_conv!(Array<A>,    Array);
-impl_unpacked_conv!(Function<A>, Function);
+fn main() {
+    let mut out = String::new();
+    for (wrapper, variant) in VARIANTS {
+        // emit From<wrapper> for Unpacked<A> { … Unpacked::variant(v) … }
+        // emit TryFrom<Any<A>> for wrapper { … let Unpacked::variant(r) = … }
+    }
+    std::fs::write(format!("{}/conversions.rs", std::env::var("OUT_DIR").unwrap()), out).unwrap();
+}
 ```
 
-That single table replaces ~140 lines across the two files with ~30 —
-and, more importantly, ensures the two directions stay in lockstep when
-a future ninth variant is added.
+What this buys:
 
-## Why this qualifies
+- Single source of truth for the variant list; adding `Symbol<A>` is
+  one row.
+- Generated code is plain Rust visible to rust-analyzer (after the
+  first build) — no macro expansion mystery at call sites.
+- The same table can drive the `serializable.rs` tag list and the
+  `Unpacked` enum's variant list, which closes the broader drift
+  hazard between `from.rs` / `try_from.rs` / `serializable.rs` /
+  `Unpacked`.
+
+What it costs:
+
+- New `build.rs` infrastructure for a problem that has 14 hand-written
+  lines today. Worth it only if the generator is reused for the i159
+  `Serializable` / `SizedIndex` / `Index` / `PartialEq` / `Le` work
+  too — otherwise the boilerplate moves from `from.rs` to `build.rs`
+  and the win is marginal.
+- IDE story is weaker than B: rust-analyzer sees the generated file
+  but jumping to definition lands on generated code, not on a source
+  table.
+
+### D. FunctionalScript eDSL for Rust (longer-term)
+
+The natural endpoint of C, if it pays off: write a small
+FunctionalScript program that consumes the variant table and emits
+Rust source. `fs/djs/transpiler` already turns DJS into JS; a
+parallel Rust emitter would let the variant table live in
+`fs/nanvm/conversions.f.ts` (or similar) as plain data, with the
+emitter as the only Rust-aware piece. This is large enough that it
+should be filed separately if and when there is appetite — flagging
+it here only because PR feedback asked.
+
+## Recommendation
+
+Land **B (sealed trait)** as the primary attempt. It removes the
+drift hazard between `From` and `TryFrom`, keeps the code grep-able
+and IDE-friendly, and doesn't introduce build-time machinery. If the
+sealed-trait blanket impls trip coherence rules, fall back to per-type
+one-line impls that delegate to the trait — still better than today
+because the variant choice lives in one place per type.
+
+Hold **C (`build.rs`)** in reserve for the broader i159 cleanup. If
+that work also benefits from a single variant table — and it
+plausibly does, since `Serializable`/`SizedIndex`/`Index` follow the
+same axis — `build.rs` becomes the right shared answer.
+
+Treat the `macro_rules!` approach previously outlined in this file as
+rejected.
+
+## Why this still qualifies
 
 - **DRY at the second-consumer bar.** Seven `From` copies and seven
   `TryFrom` copies, each pair structurally identical — well past the
   threshold AGENTS.md sets ("once the second real consumer exists").
-- **Single-axis-of-change collapse.** Adding a new VM value type (e.g.
-  `Symbol<A>`) today requires touching at least four files: the
-  `Unpacked` enum, `from.rs`, `try_from.rs`, plus
-  `vm/impls/serializable.rs` for the tag. The macro reduces the
-  `From`/`TryFrom` part to a single new line.
-- **Drift hazard removed.** The bidirectional shape (`From` push, the
-  `Unpacked::X(value)` shape, the `TryFrom` matching pattern) is
-  enforced by the macro instead of by convention. If someone alters
-  one direction without the other today, only a runtime test would
-  notice; with the macro, the asymmetry is impossible to express.
+- **Drift hazard.** The bidirectional shape (`From` push,
+  `Unpacked::X(value)` pattern, `TryFrom` matching) is enforced today
+  by convention. Option B encodes the symmetry in a trait; option C
+  encodes it in the generator. Either is a real correctness win.
 - **Same family as i159.** Both items live in `nanvm-lib/src/vm/impls/`;
-  picking the same macro patterns and same file conventions keeps the
-  cleanup cohesive. This is the third "wrapper impl boilerplate" file
-  in the same directory and should be folded into the i159 plan rather
-  than landed on its own architectural pattern.
+  the chosen approach should be consistent with whatever i159 picks
+  for the larger boilerplate cluster.
 
 ## Caveats / why this is an idea, not a mechanical edit
 
-- **`Any<A>` is missing on purpose.** `try_from.rs` defines `TryFrom`
-  for the seven non-`Any` types only — `Any<A>` is the source type, and
-  `From<Unpacked<A>> for Any<A>` (in `from.rs:5–18`) is the
-  catch-all match-on-variant. Keep that one hand-written; the macro is
-  only for the seven leaf wrappers.
-- **`Nullish` is special.** It is a plain enum (no `A` parameter), so
-  the macro must accept both `Nullish` and `String<A>`-shaped wrappers.
-  The `$wrapper:ty` token-class above handles both — verify against
-  `rustc` once before finalizing.
-- **Macro placement.** Two options: (a) a new
-  `vm/impls/macros.rs` that both `from.rs` and `try_from.rs` import,
-  or (b) a single combined `vm/impls/conversions.rs` that replaces both
-  files. Option (b) is cleaner once the macros exist — the two
-  separate files only had separate identities because they each held
-  seven manual impls. Pick at implementation time.
-- **Coordinate with i159.** If i159 lands first with a generic
-  `container_traits!` macro in `vm/impls/macros.rs`, prefer to add
-  these arms next to it rather than starting a parallel macro file.
+- **Coherence checks needed for B.** The blanket `From` / `TryFrom`
+  impls might collide with the existing
+  `impl<A: IVm> From<Unpacked<A>> for Any<A>` (`from.rs:5–18`) and
+  with any future blanket impls. Sealed traits typically resolve
+  this, but verify with `cargo check` before committing.
+- **`Nullish` lacks an `A` parameter.** Both options handle this
+  naturally — B because the trait is `UnpackedVariant<A>` (the impl
+  fixes `A`), C because the table is just `(wrapper_str, variant_str)`
+  pairs.
+- **Status-quo escape hatch.** If neither B nor C is cleaner than the
+  current 14 hand-written impls (e.g. B trips coherence rules
+  inelegantly, C requires more `build.rs` plumbing than the savings
+  justify), close this issue as "will not fix" and accept the
+  duplication. That outcome is consistent with the AGENTS.md addition
+  proposed above.
+- **Coordinate with i159.** If i159 lands first with one approach,
+  prefer to extend that approach here rather than fork a second
+  pattern.
 
 ## Related
 
 - [i159](./159-nanvm-trait-boilerplate.md) — the same boilerplate-
   collapse exercise for `Serializable` / `SizedIndex` / `Index` /
-  `PartialEq` / `Le`. This issue extends the same plan to the
-  `From` / `TryFrom` direction and should be implemented in the
-  same PR series.
+  `PartialEq` / `Le`. That issue currently proposes `macro_rules!`;
+  the constraint surfaced here should be applied there too — update
+  i159's "Proposal" sections to follow the same B / C / D / status-quo
+  ladder before any code lands.
 - `nanvm-lib/src/vm/impls/from.rs:42–87` — seven `From<X> for Unpacked<A>` impls.
 - `nanvm-lib/src/vm/impls/try_from.rs:7–85` — seven `TryFrom<Any<A>> for X` impls.
 - `nanvm-lib/src/vm/impls/serializable.rs:37–86` — the parallel
   `Unpacked::serialize` / `deserialize` match that gains a new arm in
-  lockstep with every new variant. After this issue and i159 land,
-  consider whether the tag table + variant list itself should be
-  driven from the same single source of truth.
+  lockstep with every new variant. If option C lands, this becomes
+  the third generated file driven from the same variant table.
+- `AGENTS.md` — should gain the "avoid Rust macros" guidance noted at
+  the top of this file. Land that AGENTS.md edit as a small separate
+  PR before this issue is implemented, so the constraint is documented
+  for parallel Rust work (including i159).
