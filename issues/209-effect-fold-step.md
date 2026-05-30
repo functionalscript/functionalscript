@@ -1,7 +1,19 @@
 # 209. `effects`: a state-threading `foldStep` combinator for sequential effects
 
 **Priority:** P3
-**Status:** open
+**Status:** done
+
+## Resolution
+
+Implemented `foldStep` and `forEachStep` in `fs/types/effects/module.f.ts`
+with a **curried** `f: item => state => Effect<O, S>` signature instead of
+the uncurried `(item, state) => Effect<O, S>` originally proposed. Both
+existing reduce sites — `runModule(reporter)(k, v)` in `fs/dev/tf/module.f.ts`
+and `foldNextModuleOp(p)` in `fs/djs/transpiler/module.f.ts` — are already
+written in curried form, so the curried combinator accepts them directly
+without an extra `(s) => ...(s)` wrapper. All three call sites converted;
+the `let`/`for` loop and `TODO: make it lazy` in `fs/cas/module.f.ts` are
+gone. Proof tests added at `fs/types/effects/proof.f.ts`.
 
 Three call sites in the repo build the same shape: take an array (or list) of
 items, thread a state value through each one by stepping an effect, and end

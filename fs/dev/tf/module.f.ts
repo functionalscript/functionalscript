@@ -211,10 +211,8 @@ const { entries } = Object
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = entries(moduleMap).filter(([k]) => isTest(k))
-    return modules.reduce(
-        (acc: Effect<O | All, TestState>, [k, v]) => acc.step(runModule(reporter)(k, v)),
-        pure({ time: 0, pass: 0, fail: 0 })
-    )
+    return all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero)))
+    .step(m => pure(m.reduce(mergeState, zero)))
     .step(ts => summary(ts.pass, ts.fail, ts.time)
     .step(() => pure(ts.fail !== 0 ? 1 : 0)))
 }
