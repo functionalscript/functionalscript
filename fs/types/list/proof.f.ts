@@ -299,7 +299,7 @@ const stress = () => ({
 
 })
 
-export default {
+export const proof = {
     stringifyTest,
     cycle: cycleTest,
     countdown: countdownTest,

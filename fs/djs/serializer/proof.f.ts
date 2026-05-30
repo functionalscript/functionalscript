@@ -3,7 +3,7 @@ import { sort } from '../../types/object/module.f.ts'
 import { identity } from '../../types/function/module.f.ts'
 import { setProperty } from '../../json/module.f.ts'
 
-export default {
+export const proof = {
     stringify: [
         {
             testPrimitives: () => {

@@ -1,6 +1,6 @@
 const stringCoercion = String
 
-export default {
+export const proof = {
     stringCoercion: {
         number: () => {
             if (stringCoercion(123) !== '123') { throw [123, 'toString', '123'] }

@@ -23,7 +23,7 @@ const checkEmpty = ({ init, end, hashLength }: Sha2) => (x: bigint) => {
 // https://en.wikipedia.org/wiki/SHA-2#Test_vectors
 //
 // https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Secure-Hashing
-export default {
+export const proof = {
     base: {
         b32: () => {
             const { fromV8, compress, chunkLength } = base32

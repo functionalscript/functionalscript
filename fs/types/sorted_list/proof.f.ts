@@ -10,7 +10,7 @@ const str: (a: readonly Unknown[]) => string
 
 const reverseCmp = flip(cmp)
 
-export default {
+export const proof = {
     sortedMergre: [
         () => {
             const result = str(toArray(merge(cmp)([2, 3, 4])([1, 3, 5])))

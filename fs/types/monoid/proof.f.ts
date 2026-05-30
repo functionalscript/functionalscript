@@ -1,6 +1,6 @@
 import { repeat, type Monoid } from "./module.f.ts";
 
-export default {
+export const proof = {
     numberAdd: () => {
         const add: Monoid<number> = {
              identity: 0,

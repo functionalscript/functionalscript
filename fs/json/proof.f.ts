@@ -2,7 +2,7 @@ import { setProperty, stringify } from './module.f.ts'
 import { sort } from '../types/object/module.f.ts'
 import { identity } from '../types/function/module.f.ts'
 
-export default {
+export const proof = {
     setProperty: () => {
         if (setProperty("Hello")([])({}) !== "Hello") { throw 'error' }
     },

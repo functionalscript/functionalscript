@@ -1,6 +1,6 @@
 import { error, ok, unwrap, invert, type Result } from "./module.f.ts"
 
-export const example = () => {
+const example = () => {
     const success: Result<number, string> = ok(42)
     const failure: Result<number, string> = error('Something went wrong')
 
@@ -11,14 +11,14 @@ export const example = () => {
     if (v !== 'Something went wrong') { throw 'error' }
 }
 
-export const invertTest = () => {
+const invertTest = () => {
     const [k0, v0] = invert(ok(42))
     if (k0 !== 'error' || v0 !== 42) { throw [k0, v0] }
     const [k1, v1] = invert(error('oops'))
     if (k1 !== 'ok' || v1 !== 'oops') { throw [k1, v1] }
 }
 
-export const unwrapError = () => {
+const unwrapError = () => {
     let caught = false
     try { unwrap(error('oops')) } catch (e) {
         if (e !== 'oops') { throw e }
@@ -26,3 +26,5 @@ export const unwrapError = () => {
     }
     if (!caught) { throw 'expected throw' }
 }
+
+export const proof = { example, invertTest, unwrapError }

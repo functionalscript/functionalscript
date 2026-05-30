@@ -48,7 +48,7 @@ const ch = (r: SupportedRecord, v: Vec) => {
     ch0(r, v, vec(16n)(0x2345n))
 }
 
-export default {
+export const proof = {
     encodeSmall: () => {
         const v = vec8(0x13n)
         const x = encodeRaw([integer, v])

@@ -12,7 +12,7 @@ const tests: Tests = {
     function: [() => undefined]
 }
 
-export default {
+export const proof = {
     typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, a.map(v => () => {
         if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
     })])),

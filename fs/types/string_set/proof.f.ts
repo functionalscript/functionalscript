@@ -1,6 +1,6 @@
 import { contains, fromValues, remove, set } from './module.f.ts'
 
-export default {
+export const proof = {
     example: () => {
         let mySet = fromValues(['apple', 'banana', 'cherry']);
         if (!contains('banana')(mySet)) { throw '1' }

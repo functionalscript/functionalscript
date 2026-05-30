@@ -1,6 +1,6 @@
 import { classic, deterministic } from './testlib.f.ts'
 
-export default {
+export const proof = {
     test: () => {
         classic()
         deterministic()

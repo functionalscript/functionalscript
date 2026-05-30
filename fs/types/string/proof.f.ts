@@ -1,7 +1,7 @@
 import { join, concat, repeat, cmp, splitAt } from './module.f.ts'
 import { repeat as repeatList } from '../list/module.f.ts'
 
-export default {
+export const proof = {
     example: () => {
         const words = ['hello', 'world']
         if (join(' ')(words) !== 'hello world') { throw 0 }

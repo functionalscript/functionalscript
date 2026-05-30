@@ -1,6 +1,6 @@
 import { prime_field, sqrt } from './module.f.ts'
 
-export default {
+export const proof = {
     prime_field_test: () => {
         const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
         const f = prime_field(p)

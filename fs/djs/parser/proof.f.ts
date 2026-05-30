@@ -12,7 +12,7 @@ const tokenizeString
 
 const stringifyDjsModule = stringifyAsTree(sort)
 
-export default {
+export const proof = {
     valid: [
         () => {
             const tokenList = tokenizeString('export default null')

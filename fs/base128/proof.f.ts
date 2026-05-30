@@ -10,7 +10,7 @@ const test = (a: bigint, b: Vec) => {
     if (rest !== empty) { throw `rest: ${asBase(rest).toString(16)}, expected: ${asBase(empty).toString(16)}` }
 }
 
-export default () => {
+export const proof = () => {
     test(0n, vec8(0n))
     test(1n, vec8(1n))
     test(0x7Fn, vec8(0x7Fn))
