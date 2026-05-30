@@ -5,26 +5,16 @@
 
 ## Constraint: avoid Rust macros
 
-Per PR review on this issue: macros are not the preferred dedup tool
-in this repo. They are unfriendly to grep, IDE jump-to-definition,
-and rust-analyzer's hover/expansion; they also encourage a style of
-"hidden code" that runs counter to FunctionalScript's preference for
-explicit, locally-readable values. This issue should therefore be
-solved **without `macro_rules!`**, even though declarative macros are
-the idiomatic Rust answer to coherence-blocked blanket impls.
+Per the `Avoid macro_rules!` rule in `AGENTS.md` (added in the same PR
+as this issue): macros hide types from rust-analyzer, break grep and
+jump-to-definition, and encourage "invisible code" that contradicts
+FunctionalScript's preference for explicit, locally-readable values.
+This issue is solved **without `macro_rules!`** even though declarative
+macros are the idiomatic Rust answer to coherence-blocked blanket
+impls.
 
-That preference is worth lifting into a project convention. **Suggested
-AGENTS.md addition** (under the existing "Reuse code / DRY" bullet):
-
-> - In Rust code, avoid `macro_rules!` for collapsing trait
->   boilerplate. Prefer (in order): a generic helper trait + per-type
->   one-line impls, a `build.rs` code generator driven from a small
->   source-of-truth table, or — if no cheaper option exists — accept
->   the hand-written duplication. Macros obscure types from IDEs and
->   grep; reach for them only when the alternative is materially worse
->   for readers.
-
-The remainder of this issue is rewritten with that constraint in mind.
+The remainder of this issue follows the AGENTS.md ladder
+(sealed trait → `build.rs` → accept duplication).
 
 ## Problem
 
@@ -265,7 +255,6 @@ rejected.
   `Unpacked::serialize` / `deserialize` match that gains a new arm in
   lockstep with every new variant. If option C lands, this becomes
   the third generated file driven from the same variant table.
-- `AGENTS.md` — should gain the "avoid Rust macros" guidance noted at
-  the top of this file. Land that AGENTS.md edit as a small separate
-  PR before this issue is implemented, so the constraint is documented
-  for parallel Rust work (including i159).
+- `AGENTS.md` — the "avoid Rust macros" guidance referenced at the
+  top of this file. Documents the constraint for parallel Rust work,
+  including i159.
