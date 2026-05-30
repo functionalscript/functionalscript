@@ -107,7 +107,8 @@ today — e.g. `assertEq(2 + 2, 4)` at module top level. Because they run on
 **every module load** (not under a test runner), they must be restricted to
 *light* proofs: cheap, deterministic checks only. Never use them for stress or
 benchmark tests — that cost would be paid on every import. Adopters need to
-understand this execution model.
+understand this execution model. A terse `assertEq` helper makes this tier
+ergonomic — see [i65Y-proof-assertEq-adoption](./65Y-proof-assertEq-adoption.md).
 
 **`export const proof`** is a real export, so it leaks into the public API
 surface (visible in an npm package's types and runtime). FunctionalScript keeps
@@ -191,5 +192,7 @@ later.
 - [i112](./112-cas.md) — CAS / Merkle DAG; names no longer first-class — the
   motivating context
 - [i204](./204-test-ts-js-support.md) — current filename-suffix discovery
+- [i65Y-proof-assertEq-adoption](./65Y-proof-assertEq-adoption.md) — `assertEq`
+  helper for the module-level "light proof" tier described here
 - [i65Y-rename-test-to-proof](./65Y-rename-test-to-proof.md) — the `proof`
   naming this builds on
