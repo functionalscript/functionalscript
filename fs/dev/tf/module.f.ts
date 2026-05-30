@@ -275,7 +275,7 @@ export const fmtPath = (path: Path): string =>
 
 /**
  * Formats a fully-qualified test identifier as a JS-like expression, e.g.
- * `import("./math.test.f.ts").add()` or `import("./a.test.f.ts").users[3].name()`.
+ * `import("./math.proof.f.ts").add()` or `import("./a.proof.f.ts").users[3].name()`.
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
  */
 export const fmtImport = (file: string, path: Path): string =>

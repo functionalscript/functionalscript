@@ -61,7 +61,7 @@ const runMain = (dir: Record<string, JsModule>, github = false): readonly[string
 // flat object: two passing tests
 export const flat = () => {
     const [events, exit] = run({
-        'a.test.f.ts': () => ({ a: ok0, b: ok1 }),
+        'a.proof.f.ts': () => ({ a: ok0, b: ok1 }),
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
@@ -76,7 +76,7 @@ export const flat = () => {
 // nested object: leaf tests carry the full path including the sub-tree key
 export const nested = () => {
     const [events, exit] = run({
-        'n.test.f.ts': () => ({ math: { add: ok0, sub: ok0 } }),
+        'n.proof.f.ts': () => ({ math: { add: ok0, sub: ok0 } }),
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
@@ -91,7 +91,7 @@ export const nested = () => {
 // throw key: tests inside 'throw' pass on error result
 export const throwKey = () => {
     const [events, exit] = run({
-        't.test.f.ts': () => ({ throw: { a: fail0 } }),
+        't.proof.f.ts': () => ({ throw: { a: fail0 } }),
     })
     assertEq(exit, 0)
     const [e0, e1] = events
@@ -105,7 +105,7 @@ export const throwKey = () => {
 // throw key fails when test does not throw (returns ok in throw context)
 export const throwKeyFail = () => {
     const [events, exit] = run({
-        't.test.f.ts': () => ({ throw: { a: ok0 } }),
+        't.proof.f.ts': () => ({ throw: { a: ok0 } }),
     })
     assertEq(exit, 1)
     const [e0, e1] = events
@@ -118,7 +118,7 @@ export const throwKeyFail = () => {
 // mixed pass/fail updates summary counts
 export const mixedPassFail = () => {
     const [events, exit] = run({
-        'm.test.f.ts': () => ({ good: ok0, bad: fail0 }),
+        'm.proof.f.ts': () => ({ good: ok0, bad: fail0 }),
     })
     assertEq(exit, 1)
     const summary = events[events.length - 1]
@@ -132,7 +132,7 @@ export const mixedPassFail = () => {
 export const returnValueSubTree = () => {
     const inner: () => unknown = () => ({ result: ['ok', undefined] as const, duration: 0 })
     const [events, exit] = run({
-        'r.test.f.ts': () => ({
+        'r.proof.f.ts': () => ({
             outer: (): unknown => ({
                 result: ['ok', { inner }] as const,
                 duration: 0,
@@ -151,7 +151,7 @@ export const returnValueSubTree = () => {
 // integer-indexed array keys appear as numeric path segments
 export const arrayKeys = () => {
     const [events, exit] = run({
-        'a.test.f.ts': () => ({ arr: [ok0, ok0] }),
+        'a.proof.f.ts': () => ({ arr: [ok0, ok0] }),
     })
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
@@ -160,23 +160,23 @@ export const arrayKeys = () => {
     assertEq(passEvents[1][2][1], '1')
 }
 
-// non-test files are skipped (only files ending in test.f.ts/js are loaded)
+// non-test files are skipped (only files ending in proof.f.ts/js are loaded)
 export const nonTestFilesSkipped = () => {
     const [events, exit] = run({
         'helper.ts': () => ({ a: ok0 }),
-        'b.test.f.ts': () => ({ x: ok0 }),
+        'b.proof.f.ts': () => ({ x: ok0 }),
     })
     assertEq(exit, 0)
     const results = events.filter(e => e[0] === 'result')
     assertEq(results.length, 1)
-    assertEq(results[0][1], './b.test.f.ts')
+    assertEq(results[0][1], './b.proof.f.ts')
 }
 
 // multiple test files each produce result events
 export const multipleFiles = () => {
     const [events, exit] = run({
-        'a.test.f.ts': () => ({ x: ok0 }),
-        'b.test.f.ts': () => ({ y: ok0 }),
+        'a.proof.f.ts': () => ({ x: ok0 }),
+        'b.proof.f.ts': () => ({ y: ok0 }),
     })
     assertEq(exit, 0)
     const results = events.filter(e => e[0] === 'result')
@@ -192,7 +192,7 @@ export const throwByFunctionName = () => {
     // const named = ({ throw: () => fail0() }).throw
     const x = { throw: () => fail0() }
     const [events, exit] = run({
-        't.test.f.ts': () => ({ here: x.throw }),
+        't.proof.f.ts': () => ({ here: x.throw }),
     })
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
@@ -203,7 +203,7 @@ export const throwByFunctionName = () => {
 // every module export — `default` and named — becomes a top-level path segment
 export const namedExports = () => {
     const [events, exit] = run({
-        'e.test.f.ts': () => ({ default: ok0, helper: ok0 }),
+        'e.proof.f.ts': () => ({ default: ok0, helper: ok0 }),
     })
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
@@ -215,13 +215,13 @@ export const namedExports = () => {
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
 export const defaultReporterOutput = () => {
     const [stdout, stderr, exit] = runMain({
-        'a.test.f.ts': () => ({ x: ok0 }),
+        'a.proof.f.ts': () => ({ x: ok0 }),
     })
     assertEq(exit, 0)
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.test.f.ts").x(): ok, 0.0000 ms\n'
+        'import("./a.proof.f.ts").x(): ok, 0.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 0.0000 ms\n',
     )
@@ -230,22 +230,22 @@ export const defaultReporterOutput = () => {
 // a failure on the non-GitHub reporter writes the error to stderr, not stdout
 export const defaultReporterFailOutput = () => {
     const [, stderr, exit] = runMain({
-        'a.test.f.ts': () => ({ bad: fail0 }),
+        'a.proof.f.ts': () => ({ bad: fail0 }),
     })
     assertEq(exit, 1)
-    assertEq(stderr, 'import("./a.test.f.ts").bad(): error, 0.0000 ms\noops\n')
+    assertEq(stderr, 'import("./a.proof.f.ts").bad(): error, 0.0000 ms\noops\n')
 }
 
 // the GitHub reporter emits an `::error` annotation with a percent-encoded
 // title (the JSON path) and message
 export const githubReporterOutput = () => {
     const [, stderr, exit] = runMain({
-        's.test.f.ts': () => ({ 'a:b,c%d': fail0 }),
+        's.proof.f.ts': () => ({ 'a:b,c%d': fail0 }),
     }, true)
     assertEq(exit, 1)
     assertEq(
         stderr,
-        '::error file=./s.test.f.ts,line=1,title=import("./s.test.f.ts")["a%3Ab%2Cc%25d"]()::oops\n',
+        '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts")["a%3Ab%2Cc%25d"]()::oops\n',
     )
 }
 
@@ -269,9 +269,9 @@ export const helpers = {
         assert(!isIdentifier('a-b'))
     },
     isTest: () => {
-        assert(isTest('a.test.f.ts'))
-        assert(isTest('a.test.f.js'))
-        assert(isTest('dir/a.test.f.ts'))
+        assert(isTest('a.proof.f.ts'))
+        assert(isTest('a.proof.f.js'))
+        assert(isTest('dir/a.proof.f.ts'))
         assert(isTest('proof.f.ts'))
         assert(isTest('proof.f.js'))
         assert(isTest('proof.ts'))
@@ -285,11 +285,11 @@ export const helpers = {
         assert(!isTest('a.test.ts'))
     },
     fmtImport: () => {
-        assertEq(fmtImport('./a.test.f.ts', []), 'import("./a.test.f.ts")()')
-        assertEq(fmtImport('./a.test.f.ts', ['math', 'add']), 'import("./a.test.f.ts").math.add()')
-        assertEq(fmtImport('./a.test.f.ts', ['users', '3']), 'import("./a.test.f.ts").users[3]()')
-        assertEq(fmtImport('./a.test.f.ts', ['x', 'hello world']), 'import("./a.test.f.ts").x["hello world"]()')
-        assertEq(fmtImport('./a.test.f.ts', ['outer', null, 'inner']), 'import("./a.test.f.ts").outer().inner()')
+        assertEq(fmtImport('./a.proof.f.ts', []), 'import("./a.proof.f.ts")()')
+        assertEq(fmtImport('./a.proof.f.ts', ['math', 'add']), 'import("./a.proof.f.ts").math.add()')
+        assertEq(fmtImport('./a.proof.f.ts', ['users', '3']), 'import("./a.proof.f.ts").users[3]()')
+        assertEq(fmtImport('./a.proof.f.ts', ['x', 'hello world']), 'import("./a.proof.f.ts").x["hello world"]()')
+        assertEq(fmtImport('./a.proof.f.ts', ['outer', null, 'inner']), 'import("./a.proof.f.ts").outer().inner()')
     },
     fmtPath: () => {
         assertEq(fmtPath([]), '')

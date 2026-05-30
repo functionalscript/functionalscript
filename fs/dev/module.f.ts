@@ -58,7 +58,6 @@ export const env
 
 /** Returns `true` if the file path looks like a FunctionalScript test module. */
 export const isTest = (s: string): boolean =>
-    s.endsWith('test.f.js') || s.endsWith('test.f.ts') ||
     s.endsWith('proof.f.ts') || s.endsWith('proof.f.js') ||
     s.endsWith('proof.ts')   || s.endsWith('proof.js')
 
