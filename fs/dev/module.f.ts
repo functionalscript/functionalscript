@@ -56,12 +56,29 @@ export const env
                 r.value
     }
 
-/** Returns `true` if the file path looks like a FunctionalScript test module. */
-export const isTest = (s: string): boolean =>
-    s.endsWith('proof.f.ts') || s.endsWith('proof.f.js') ||
-    s.endsWith('proof.ts')   || s.endsWith('proof.js')
+/**
+ * Returns `true` if the file should be loaded for proof discovery.
+ *
+ * All FunctionalScript modules (`.f.ts` / `.f.js`) are safe to bulk-load by
+ * construction — they have no import side effects. For vanilla TS/JS the
+ * load gate stays opt-in by filename: any file ending in `proof.ts`,
+ * `proof.js`, `proof.mts`, or `proof.mjs` is included.
+ *
+ * Whether a loaded module actually _contains_ a proof is determined at
+ * runtime by checking for an exported `proof` property.
+ */
+export const shouldLoad = (s: string): boolean =>
+    s.endsWith('.f.ts')    || s.endsWith('.f.js')    ||
+    s.endsWith('proof.ts') || s.endsWith('proof.js') ||
+    s.endsWith('proof.mts')|| s.endsWith('proof.mjs')
 
-export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> => {
+const isSourceFile = (path: string): boolean =>
+    path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
+
+const allFiles = (
+    s: string,
+    predicate: (path: string) => boolean,
+): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
         .step(() => readdir(p, {}))
         .step(d => {
@@ -75,7 +92,7 @@ export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> =>
                     result = [...result, load(file)]
                     continue
                 }
-                if (name.endsWith('.js') || name.endsWith('.ts')) {
+                if (predicate(file)) {
                     result = [...result, pure([file])]
                 }
             }
@@ -92,7 +109,7 @@ const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string,
         return access(f.substring(0, f.length - 3) + '.js')
             .step(r => r[0] === 'ok' ? pure([]) : doImport)
     }
-    if (isTest(f)) { return doImport }
+    if (shouldLoad(f)) { return doImport }
     return pure([])
 }
 
@@ -102,13 +119,23 @@ export type LoadModuleOperations = Access | Import | All | Readdir
 const { fromEntries } = Object
 
 /**
- * Discovers all `.f.js` / `.f.ts` modules under `INIT_CWD` (or `.` if unset)
- * and imports them, returning a map from relative path to module exports.
+ * Discovers all source files under `INIT_CWD` (or `.` if unset) that match
+ * `predicate`, imports them, and returns a map from relative path to module
+ * exports.
+ *
+ * The `predicate` is propagated into `allFiles` so that non-matching files
+ * are excluded before any `import()` is attempted — no wasted I/O.
+ * The default matches all JS/TS source files (`.js`, `.ts`, `.mts`, `.mjs`).
+ * `loadFile`'s own guards (`.f.js`, `.f.ts`, `shouldLoad`) still apply on
+ * top; the predicate only controls which files are discovered.
  *
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
  */
-export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
+export const loadModuleMap = (
+    env: Env,
+    predicate: (path: string) => boolean = isSourceFile,
+): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     const prefix = s === '.' ? '' : s
@@ -116,7 +143,7 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     //       we should consider optimize them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    return allFiles(s)
+    return allFiles(s, predicate)
         .step(files => all(...files.map(loadFile)))
         .step(entries => pure(fromEntries(
             entries
@@ -136,10 +163,9 @@ const index2 = begin
     .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
 
 const allFiles2aa = begin
-    .step(() => allFiles('.'))
+    .step(() => allFiles('.', v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts')))
     .step(files => {
-        const list = files.filter(v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
-        const exportsA = list.map(v => [v, `./${v.substring(2)}`] as const)
+        const exportsA = files.map(v => [v, `./${v.substring(2)}`] as const)
         return pure(Object.fromEntries(exportsA))
     })
 
