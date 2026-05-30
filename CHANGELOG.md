@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 - `text`: DRY — extract the shared streaming code-point decoder skeleton (EOF sentinel, unit-vs-EOF dispatch, `flat(stateScan(...))` body) and the `errorMask` constant from `utf8`/`utf16` into a new `fs/text/code_point` module (`decoder` factory + `errorMask`) ([i168](./issues/168-utf-codepoint-decoder.md)) [860](https://github.com/functionalscript/functionalscript/pull/860)
+- `tf`: async test function support — `registerModule` and `sandbox` now properly await async test functions; add `Await` effect type and `awaitPromise` Func; in `registerModule`, unify sync/async paths via `awaitPromise(r) | pure(r)`; make `sandbox` handler async to catch post-await errors ([i65X-async-test-functions](./issues/65X-async-test-functions.md)) [882](https://github.com/functionalscript/functionalscript/pull/882)
+- `io`: `effectRun` now calls `process.exit` internally — return type changes from `Promise<number>` to `Promise<never>`; fixes `fjs t` always exiting 0 regardless of test failures ([i65X-effectrun-exit-code](./issues/65X-effectrun-exit-code.md)) [882](https://github.com/functionalscript/functionalscript/pull/882)
+- `tf`: `isTest` moved to `dev/module.f.ts` — consolidates predicate used by both `loadFile` and `runModuleMap`; eliminates duplicated `endsWith` logic; `dev/tf/test.f.ts` imports directly from `../module.f.ts` [882](https://github.com/functionalscript/functionalscript/pull/882)
+- `tf`: scenario tests use underscore prefix for temporary files (`_scenario.proof.f.ts`, `_all.test.ts`) — automatically ignored by git; added `fjs` as a scenario runner alongside node/bun/deno/playwright; `loadFile` now imports `proof.ts` / `proof.js` files [882](https://github.com/functionalscript/functionalscript/pull/882)
 - `io`: extract `wrapInlineTest(register)` factory — collapses the identical `(name, opts, fn) => register(name, () => inlineTest(name, opts, fn))` shape shared by `bunTestContext` and `playwrightTestContext` into one helper; behaviour-preserving [880](https://github.com/functionalscript/functionalscript/pull/880)
 
 ## 0.19.0

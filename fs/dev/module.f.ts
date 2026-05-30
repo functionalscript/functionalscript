@@ -56,6 +56,12 @@ export const env
                 r.value
     }
 
+/** Returns `true` if the file path looks like a FunctionalScript test module. */
+export const isTest = (s: string): boolean =>
+    s.endsWith('test.f.js') || s.endsWith('test.f.ts') ||
+    s.endsWith('proof.f.ts') || s.endsWith('proof.f.js') ||
+    s.endsWith('proof.ts')   || s.endsWith('proof.js')
+
 export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
         .step(() => readdir(p, {}))
@@ -87,6 +93,7 @@ const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string,
         return access(f.substring(0, f.length - 3) + '.js')
             .step(r => r[0] === 'ok' ? pure([]) : doImport)
     }
+    if (isTest(f)) { return doImport }
     return pure([])
 }
 

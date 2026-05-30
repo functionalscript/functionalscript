@@ -109,7 +109,7 @@ export type Process = {
 
 export type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
-export type Sandbox = <T>(f: () => T) => SandboxResult<T>
+export type Sandbox = <T>(f: () => T) => Promise<SandboxResult<T>>
 
 export type Server = {
     readonly listen: (port: number) => void
@@ -164,6 +164,7 @@ export type Io = {
     readonly bunTestContext: TestContext
     readonly playwrightTestContext: TestContext
     readonly engine: Engine
+    readonly await: (p: unknown) => Promise<readonly[unknown]>
 }
 
 export type App = (io: Io) => Promise<number>
@@ -211,8 +212,9 @@ export const fromIo = ({
     childProcess,
     asyncImport,
     now: ioNow,
-    sandbox: ioSandbox,
-    write: ioWrite,
+    sandbox,
+    write,
+    await: awaitPromise,
 }: Io): EffectToPromise => {
     const result: EffectToPromise = asyncRun({
         all: async (...effects) => await Promise.all(effects.map(result)),
@@ -267,8 +269,9 @@ export const fromIo = ({
         },
         forever: () => new Promise(() => {}),
         now: async () => ioNow(),
-        sandbox: async f => ioSandbox(f),
-        write: ioWrite,
+        sandbox,
+        await: awaitPromise,
+        write,
         test: async (ctx, name, expectFailure, test) =>
             ctx.test(name, { expectFailure }, async t => result(test(t))),
     })
