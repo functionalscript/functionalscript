@@ -1,7 +1,7 @@
 # 65Y-rename-test-to-proof. Rename `test.f.ts` / `test.f.js` to `proof.f.ts` / `proof.f.js`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 

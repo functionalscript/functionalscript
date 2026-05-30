@@ -107,9 +107,10 @@ export const io: Io = {
         let after: number
         const before = performance.now()
         try {
-            const value = await awaitPromise(f())
+            const p = f()
+            const value = p instanceof Promise ? await p : p
             after = performance.now()
-            result = ok(value[0] as T)
+            result = ok(value as T)
         } catch (e) {
             after = performance.now()
             result = error(e)
