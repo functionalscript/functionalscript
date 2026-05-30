@@ -31,21 +31,22 @@ conversion is the whole job of the deprecated module — so the duplicate
 shapes are an artifact of the migration boundary, not two
 independently-evolved data types.
 
-The remaining live consumers of `fs/io` are only four files, and three
-of them want only adapter glue, not the duplicated types:
+The remaining live consumers of `fs/io` are four files:
 
 ```
 fs/fjs/module.ts            : default-imports `effectRun` (the Node bootstrap)
 fs/dev/tf/module.ts         : `io`, `runProgram` — same Node bootstrap
-fs/dev/module.f.ts          : `Io` — only used by the unreferenced `env` export (see i65Y-dead-code-cleanup)
+fs/dev/module.f.ts          : `Io` — used by the `env` helper (live: tested in fs/dev/proof.f.ts:59 since PR #886)
 fs/djs/parser/module.f.ts   : `Fs` — only used by the unreferenced `ParseContext` export (see i65Y-dead-code-cleanup)
 ```
 
-The last two are themselves dead and proposed for deletion in
-[i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md), which leaves only
-the two `module.ts` Node bootstrap files (`fs/fjs/module.ts`,
-`fs/dev/tf/module.ts`) as real users. Both call `effectRun` /
-`runProgram` and never name any of the duplicated types directly.
+Of these, only the `djs/parser` edge is dead (it goes away with
+[i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md) item 1). The
+`env`-helper edge in `fs/dev/module.f.ts` and the two `module.ts`
+bootstraps need real migration. Once Step 1 (below) is done, the
+`env` helper can type itself against the canonical effect-shaped
+inputs instead of `Io`, dropping the third live edge with no loss
+of coverage.
 
 ## Proposal
 
@@ -121,10 +122,11 @@ follow-up.
   to `NodeFsDirent` / `NodeIncomingMessage` (or just dropping the export)
   makes accidental re-anchoring impossible — the only entry point
   surviving past Step 1 is `effectRun` / `runProgram` themselves.
-- **Concrete prerequisite for `fs/io` removal.** Step 2 reduces the
+- **Concrete prerequisite for `fs/io` removal.** Step 2, plus
+  retyping the `env` helper against effect-shaped inputs, reduces the
   live consumers of `fs/io` from four files to zero (after
-  [i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md) ships items 1
-  and 2). Deletion then becomes a one-PR follow-up.
+  [i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md) ships item 1).
+  Deletion then becomes a one-PR follow-up.
 
 ## Caveats / why this is an idea, not a mechanical edit
 
@@ -153,9 +155,9 @@ follow-up.
 ## Related
 
 - [i65Y-dead-code-cleanup](./65Y-dead-code-cleanup.md) — removes the
-  two dead `fs/io` consumers (`ParseContext` in djs/parser, `env` in
-  dev) that currently keep the deprecated module on the import graph
-  artificially.
+  dead `ParseContext` in djs/parser, which is one of the four live
+  `fs/io` consumers. (The companion proposal to also delete `env` was
+  withdrawn after PR #886 added test coverage for it.)
 - [i208](./208-try-catch-consolidate.md) — collapses the `tryCatch`
   duplication between `fs/io/module.ts:71` and `fs/io/module.f.ts:189`
   while `fs/io` is still alive; complementary cleanup along the same

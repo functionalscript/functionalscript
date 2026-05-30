@@ -33,27 +33,18 @@ export type ParseContext = {
 - Removing the export also drops the only `fs/io/...` import from
   `fs/djs/parser/module.f.ts`.
 
-### 2. `env` in `fs/dev/module.f.ts:50`
+### 2. ~~`env` in `fs/dev/module.f.ts:50`~~ — **withdrawn**
 
-```ts
-import type { Io } from '../io/module.f.ts'
+The original draft of this issue listed `env` from `fs/dev/module.f.ts`
+as dead because no production module imported it. PR #886 has since
+added test coverage in `fs/dev/proof.f.ts:59–72`, so `env` is now a
+live export with a real consumer; the deletion no longer applies.
 
-export const env
-    : (io: Io) => (v: string) => string|undefined
-    = ({ process: { env } }) => a => {
-        const r = Object.getOwnPropertyDescriptor(env, a)
-        return r === undefined ? undefined :
-            typeof r.get === 'function' ? r.get() :
-                r.value
-    }
-```
-
-- `grep -rn "from '.*dev/module.f.ts'" fs/` finds 7 importers; none of
-  them imports `env`. The `Env` *type* used by `loadModuleMap` comes
-  from `fs/types/effects/node/module.f.ts`, not from this `env`
-  helper.
-- Removing the export drops the `Io` import — the only reference to
-  the deprecated `fs/io/...` from `fs/dev/module.f.ts`.
+The function still depends on `Io` from the deprecated
+`fs/io/module.f.ts`, so it remains a soft anchor for that module —
+but resolving that is the job of
+[i65Y-io-type-duplication](./65Y-io-type-duplication.md), not this
+issue. Skip.
 
 ### 3. Dead types in `fs/json/serializer/module.f.ts:86–90`
 
@@ -100,41 +91,39 @@ const getConstants
 
 ## Proposal
 
-Five independent deletions, each a small PR:
+Four independent deletions, each a small PR (item 2 above was
+withdrawn after PR #886 added test coverage for `env`):
 
 1. Delete `ParseContext` and the `import type { Fs } from '../../io/...'`
    line in `fs/djs/parser/module.f.ts`.
-2. Delete `env` and the `import type { Io } from '../io/...'` line in
-   `fs/dev/module.f.ts`.
-3. Delete `Entry` / `Entries` / `MapEntries` plus the now-unused
+2. Delete `Entry` / `Entries` / `MapEntries` plus the now-unused
    `import { type Entry as ObjectEntry }` and `import { type Reduce }`
    lines in `fs/json/serializer/module.f.ts`.
-4. Delete `Entry` / `Entries` (keep `MapEntries`) in
+3. Delete `Entry` / `Entries` (keep `MapEntries`) in
    `fs/djs/serializer/module.f.ts`.
-5. Replace `getConstants` with a direct call to `getConstantsOp` and
+4. Replace `getConstants` with a direct call to `getConstantsOp` and
    delete the wrapper.
 
-All five satisfy the AGENTS.md rule: *"If you are certain that something
+All four satisfy the AGENTS.md rule: *"If you are certain that something
 is unused, you can delete it completely."*
 
 ## Why this qualifies
 
-- **Separation of concerns / coupling reduction.** Items 1 and 2 are
-  the only remaining `fs/io/...` imports from `fs/djs/parser` and
-  `fs/dev` respectively. Removing them cleanly severs two of the four
-  live edges into the deprecated module without any code migration —
-  it just deletes already-unused glue. Even if a broader `fs/io`
-  removal is not yet planned, narrowing the surface helps that future
-  effort.
-- **Readability.** Items 3–5 are type-noise: future readers have to
+- **Separation of concerns / coupling reduction.** Item 1 is the only
+  remaining `fs/io/...` import from `fs/djs/parser`. Removing it
+  cleanly severs one of the live edges into the deprecated module
+  without any code migration — it just deletes already-unused glue.
+  Even if a broader `fs/io` removal is not yet planned, narrowing the
+  surface helps that future effort.
+- **Readability.** Items 2–4 are type-noise: future readers have to
   decide whether an unreferenced type is "load-bearing" public API or
   scratch work. Deleting answers the question.
-- **No churn for callers.** Nothing imports any of the five items, so
+- **No churn for callers.** Nothing imports any of the four items, so
   there are no downstream edits.
 
 ## Caveats / why this is an idea, not a mechanical edit
 
-- **Public-API question for items 3 and 4.** The `MapEntries`-family
+- **Public-API question for items 2 and 3.** The `MapEntries`-family
   types in both serializers look intended for an external "sort entries
   before serializing" hook. The exported `serialize` / `stringify` /
   `stringifyAsTree` signatures already inline that callback type
@@ -148,19 +137,21 @@ is unused, you can delete it completely."*
   change; if the author prefers the name for readability at the call
   site, alias-bind (`const getConstants = getConstantsOp`) without
   the lambda indirection.
+- **`env` is alive (PR #886).** The original draft listed `env` as
+  the second item. Test coverage in `fs/dev/proof.f.ts` now exercises
+  it, so it stays.
 
 ## Related
 
 - [i157](./157-json-djs-shared-core.md) — the JSON/DJS shared-core
-  extraction. Items 3 and 4 are pure dead code today; if i157 is
+  extraction. Items 2 and 3 are pure dead code today; if i157 is
   picked up later, decide whether to re-introduce the `MapEntries`
   type as an exported alias at the same time.
 - [i208](./208-try-catch-consolidate.md) — another `fs/io` cleanup
-  item; items 1 and 2 here narrow the deprecated module's import
-  surface and make that consolidation easier.
+  item; item 1 here narrows the deprecated module's import surface
+  and makes that consolidation easier.
 
 - `fs/djs/parser/module.f.ts:12,16` — dead `ParseContext`.
-- `fs/dev/module.f.ts:6,50` — dead `env`.
 - `fs/json/serializer/module.f.ts:86–90` — dead `Entry`/`Entries`/`MapEntries`.
 - `fs/djs/serializer/module.f.ts:23–25` — dead `Entry`/`Entries`.
 - `fs/djs/serializer/module.f.ts:69–73` — eta-wrapper `getConstants`.
