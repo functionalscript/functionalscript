@@ -8,7 +8,7 @@ import {
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
-import { isTest } from '../module.f.ts'
+import { shouldLoad } from '../module.f.ts'
 
 type Event =
     | readonly['result', string, Path, SandboxResult<unknown>]
@@ -160,11 +160,13 @@ export const arrayKeys = () => {
     assertEq(passEvents[1][2][1], '1')
 }
 
-// non-test files are skipped (only files ending in proof.f.ts/js are loaded)
+// non-proof files are skipped: plain `.ts` is not loaded; `.f.ts` without
+// a `proof` export is loaded but produces no events
 export const nonTestFilesSkipped = () => {
     const [events, exit] = run({
-        'helper.ts': () => ({ a: ok0 }),
-        'b.proof.f.ts': () => ({ proof: { x: ok0 } }),
+        'helper.ts': () => ({ a: ok0 }),                // not loaded (plain .ts)
+        'module.f.ts': () => ({ someExport: ok0 }),     // loaded, no proof → skipped
+        'b.proof.f.ts': () => ({ proof: { x: ok0 } }), // loaded, has proof → runs
     })
     assertEq(exit, 0)
     const results = events.filter(e => e[0] === 'result')
@@ -268,21 +270,25 @@ export const helpers = {
         assert(!isIdentifier('1a'))
         assert(!isIdentifier('a-b'))
     },
-    isTest: () => {
-        assert(isTest('a.proof.f.ts'))
-        assert(isTest('a.proof.f.js'))
-        assert(isTest('dir/a.proof.f.ts'))
-        assert(isTest('proof.f.ts'))
-        assert(isTest('proof.f.js'))
-        assert(isTest('proof.ts'))
-        assert(isTest('proof.js'))
-        assert(isTest('math.proof.f.ts'))
-        assert(isTest('math.proof.f.js'))
-        assert(isTest('math.proof.ts'))
-        assert(isTest('math.proof.js'))
-        assert(isTest('dir/math.proof.ts'))
-        assert(!isTest('proof.tsx'))
-        assert(!isTest('a.test.ts'))
+    shouldLoad: () => {
+        // all .f.ts / .f.js — FS modules are safe to bulk-load
+        assert(shouldLoad('module.f.ts'))
+        assert(shouldLoad('module.f.js'))
+        assert(shouldLoad('a.proof.f.ts'))
+        assert(shouldLoad('dir/module.f.ts'))
+        // vanilla opt-in by filename
+        assert(shouldLoad('proof.ts'))
+        assert(shouldLoad('proof.js'))
+        assert(shouldLoad('proof.mts'))
+        assert(shouldLoad('proof.mjs'))
+        assert(shouldLoad('math.proof.ts'))
+        assert(shouldLoad('math.proof.js'))
+        assert(shouldLoad('math.proof.mts'))
+        assert(shouldLoad('dir/math.proof.ts'))
+        // non-FS, non-proof vanilla files are not loaded
+        assert(!shouldLoad('helper.ts'))
+        assert(!shouldLoad('module.ts'))
+        assert(!shouldLoad('proof.tsx'))
     },
     fmtImport: () => {
         assertEq(fmtImport('./a.proof.f.ts', []), 'import("./a.proof.f.ts")()')
