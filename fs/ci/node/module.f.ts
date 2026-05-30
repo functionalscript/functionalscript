@@ -12,22 +12,29 @@ export const major = (v: string): string => v.split('.')[0]
 const installNode = (version: string) =>
     ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
 
-export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
-    install(installNode(version)),
+const nodeInstall = (v: string) => [
+    install(installNode(v)),
     test({ run: 'npm ci' }),
+]
+
+export const basicNode = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
+    ...nodeInstall(version),
     ...extra,
 ])
 
-export const nodeTests = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
-    test({ run: 'npm test' }),
+const basicTests = [
+    test({ run: 'npm t' }),
     test({ run: 'npm run fst' }),
+]
+
+export const nodeTests = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
+    ...basicTests,
     ...extra,
 ])
 
 const nodeSteps = (v: string) => [
-    install(installNode(v)),
-    test({ run: 'npm ci' }),
-    test({ run: 'npm t'}),
+    ...nodeInstall(v),
+    ...basicTests,
 ]
 
 export const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
