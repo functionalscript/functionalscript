@@ -1,6 +1,6 @@
 import { mapSet, mapDelete } from './module.f.ts'
 
-export default {
+export const proof = {
     set: () => {
         const map = mapSet(new Map(), 'a', 'b')
         if (map.get('a') !== 'b') { throw 'error' }

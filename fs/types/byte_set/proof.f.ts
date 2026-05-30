@@ -6,7 +6,7 @@ import { sort } from '../object/module.f.ts'
 const stringify: (a: readonly Unknown[]) => string
     = jsonStringify(sort)
 
-export default {
+export const proof = {
     has: [
         () => {
             if (has(0)(empty)) { throw empty }

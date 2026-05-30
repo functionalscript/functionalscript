@@ -18,7 +18,7 @@ const withoutMetada
     : (tokenWithMetada: DjsTokenWithMetadata) => DjsToken
     = tokenWithMetada => { return tokenWithMetada.token }
 
-export default {
+export const proof = {
     djs: [
         () => {
             const result = stringify(tokenizeString(''))

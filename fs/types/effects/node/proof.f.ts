@@ -3,7 +3,7 @@ import { pure } from "../module.f.ts"
 import { fetch, mkdir, now, readdir, readFile, rm, sandbox, writeFile } from "./module.f.ts"
 import { emptyState, virtual } from "./virtual/module.f.ts"
 
-export default {
+export const proof = {
     map: () => {
         let e = readFile('hello').step(([k, v]) => {
             if (k === 'error') { throw v }

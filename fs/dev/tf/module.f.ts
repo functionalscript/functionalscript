@@ -210,7 +210,9 @@ const { entries } = Object
  */
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
-    const modules = entries(moduleMap).filter(([k]) => isTest(k))
+    const modules = entries(moduleMap)
+        .filter(([k]) => isTest(k))
+        .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
     return all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero)))
     .step(m => pure(m.reduce(mergeState, zero)))
     .step(ts => summary(ts.pass, ts.fail, ts.time)
@@ -231,7 +233,9 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
  */
 export const registerModuleMap =
     (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All | Await, void> => {
-        const modules = entries(moduleMap).filter(([k]) => isTest(k))
+        const modules = entries(moduleMap)
+            .filter(([k]) => isTest(k))
+            .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
         if (modules.length === 0) { return pure(undefined) }
         return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
     }

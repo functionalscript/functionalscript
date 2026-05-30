@@ -1,6 +1,6 @@
 import { foldStep, forEachStep, pure } from './module.f.ts'
 
-export default {
+export const proof = {
     foldStep: {
         empty: () => {
             const e = foldStep

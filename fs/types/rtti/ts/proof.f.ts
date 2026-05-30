@@ -12,7 +12,7 @@ const eq = (rtti: Type, expected: string) => {
     if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
 }
 
-export default {
+export const proof = {
     tag0: {
         boolean: () => eq(boolean, 'boolean'),
         number: () => eq(number, 'number'),

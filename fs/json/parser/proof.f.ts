@@ -11,7 +11,7 @@ const tokenizeString
 
 const stringify = jsonStringify(sort)
 
-export default {
+export const proof = {
     valid: [
         () => {
             const tokenList = tokenizeString('null')

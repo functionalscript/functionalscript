@@ -10,7 +10,7 @@ const str: (a: readonly Unknown[]) => string
 
 const reverseCmp = flip(cmp)
 
-export default {
+export const proof = {
     example: () => {
         const cmp = (a: number) => (b: number) => a < b ? -1 : a > b ? 1 : 0
 

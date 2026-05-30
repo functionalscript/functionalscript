@@ -14,7 +14,7 @@ const descentParserCpOnly = (m: DescentMatch<unknown>, name: string, cp: readonl
     return m(name, cpm)
 }
 
-export default {
+export const proof = {
     rangeDecode: () => {
         const decoded1 = stringify(sort)(rangeDecode(0x000079_000087))
         if (decoded1 !== '[121,135]') { throw decoded1 }

@@ -92,3 +92,5 @@ export const printerMutableRecord = () => {
     const r = mut.record('number')
     if (r !== '{[k:string]:number}') { throw r }
 }
+
+export const proof = { primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }

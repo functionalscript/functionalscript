@@ -2,7 +2,7 @@ import { sort } from '../../types/object/module.f.ts'
 import { run } from './module.f.ts'
 import { stringifyAsTree } from '../serializer/module.f.ts'
 
-export default {
+export const proof = {
     test: () => {
         const djs = run([1])([])
         const result = stringifyAsTree(sort)(djs)

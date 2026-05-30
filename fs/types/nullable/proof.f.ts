@@ -1,6 +1,6 @@
 import { map, match, toOption } from './module.f.ts'
 
-export default [
+export const proof = [
     () => {
         const optionSq = map((v: number) => v * v)
         const sq3 = optionSq(3)
