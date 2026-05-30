@@ -59,7 +59,7 @@ const w = (symbol: bigint, expected: Vec) => {
     if (out !== symbol) throw out
 }
 
-export default {
+export const proof = {
     x2: () => {
         const { c, n } = tests(0n)
         c(-1n, 0n)

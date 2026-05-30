@@ -5,7 +5,7 @@ import { toArray } from '../../types/list/module.f.ts'
 
 const stringify = jsonStringify(sort)
 
-export default {
+export const proof = {
     toCodePoint: [
         () => {
             const result = stringify(toArray(toCodePointList([-1, 256])))

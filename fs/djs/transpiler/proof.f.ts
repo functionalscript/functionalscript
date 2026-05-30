@@ -9,7 +9,7 @@ const run = (root: Dir) => (path: string) => {
     return result
 }
 
-export default {
+export const proof = {
     parse: () => {
         const result = run({ a: utf8('export default 1') })('a')
         if (result[0] === 'error') { throw result[1] }

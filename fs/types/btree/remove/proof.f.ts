@@ -485,7 +485,7 @@ const test2 = () => {
     }
 }
 
-export default {
+export const proof = {
     test,
     test2,
 }

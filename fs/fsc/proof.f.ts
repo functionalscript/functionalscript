@@ -18,7 +18,7 @@ const withName = (name: string): () => undefined =>
     // translated into one command: define a `function [name]() { return undefined }`
     (Object.getOwnPropertyDescriptor({[name]: () => undefined}, name) as any).value
 
-export default {
+export const proof = {
     a: () => {
         const x = f('1')
         if (x !== '["1"]') { throw x }

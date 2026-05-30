@@ -13,7 +13,7 @@ import { toArray } from '../../types/list/module.f.ts'
 const stringify = (a: readonly Unknown[]) =>
     jsonStringify(sort)(a)
 
-export default {
+export const proof = {
     toCodePointList: [
         () => {
             const result = stringify(toArray(toCodePointList([-1, 65536])))

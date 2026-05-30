@@ -81,7 +81,7 @@ const e = '{\n' +
     '  }\n' +
     '}'
 
-export default {
+export const proof = {
     new: () => {
         const w = (name: string) => {
             const fn = `${name}.json`

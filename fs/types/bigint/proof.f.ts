@@ -164,7 +164,7 @@ const benchmarkSmall: Benchmark = f => () => {
     } while (c !== 0n)
 }
 
-export default {
+export const proof = {
     example: () => {
         const total = sum([1n, 2n, 3n]) // 6n
         if (total !== 6n) { throw total }

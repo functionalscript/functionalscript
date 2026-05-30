@@ -1,6 +1,6 @@
 import { sum, min, max, cmp, countOnes } from './module.f.ts'
 
-export default {
+export const proof = {
     sum: () => {
         const result = sum([2, 3, 4, 5])
         if (result !== 14) { throw result }

@@ -62,7 +62,7 @@ const concat = (e: BitOrder) => (r: Vec) => () => {
     if (ab !== r) { throw ab }
 }
 
-export default {
+export const proof = {
     examples: {
         vec: () => {
             const vec4 = vec(4n)

@@ -6,7 +6,7 @@ const utf8 = (...x: [readonly string[]]) => x
 
 type TemplateType = `<html>${string}</html>`
 
-export default {
+export const proof = {
     literal: () => {
         const x = utf8`17`
         const m: TemplateType = '<html>Hello</html>'

@@ -17,7 +17,7 @@ const assertErrorPath = (expected: readonly string[]) =>
         }
     }
 
-export default {
+export const proof = {
     boolean: {
         ok: () => {
             type _ = Assert<Equal<Ts<typeof boolean>, boolean>>
