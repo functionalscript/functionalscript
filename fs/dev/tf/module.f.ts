@@ -13,7 +13,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
 import {
     all,
-    awaitPromise,
+    awaitIfPromise,
     sandbox,
     test,
     type All,
@@ -154,7 +154,7 @@ export const registerModule =
     (ctx: TestContext, k: string, v: unknown): Effect<Test | All | Await, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
             test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> =>
-                awaitPromise(fn())
+                awaitIfPromise(fn())
                 .step(resolved => {
                     if (throws) { return pure(undefined) }
                     const sub = collectTests([...path, null], false, resolved)

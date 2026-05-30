@@ -164,7 +164,7 @@ export type Io = {
     readonly bunTestContext: TestContext
     readonly playwrightTestContext: TestContext
     readonly engine: Engine
-    readonly await: (p: unknown) => Promise<unknown>
+    readonly await: (p: unknown) => Promise<readonly[unknown]>
 }
 
 export type App = (io: Io) => Promise<number>

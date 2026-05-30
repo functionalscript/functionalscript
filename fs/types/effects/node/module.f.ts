@@ -12,7 +12,8 @@ import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_
+    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_,
+    pure
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -264,9 +265,11 @@ export const sandbox: Func<Sandbox> = do_('sandbox')
  * (objects with a `.then` method that are not `instanceof Promise`) are
  * treated as ordinary values — not awaited. See `fs/dev/tf/README.md`.
  */
-export type Await = readonly['await', (p: unknown) => unknown]
+export type Await = readonly['await', (p: unknown) => readonly[unknown]]
 
-export const awaitPromise: Func<Await> = do_('await')
+const awaitPromise: Func<Await> = do_('await')
+
+export const awaitIfPromise = (p: unknown) => awaitPromise(p).step(([x]) => pure(x))
 
 // Test registration
 

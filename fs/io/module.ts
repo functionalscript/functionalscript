@@ -77,7 +77,8 @@ export const tryCatch: <T>(f: () => T) => Result<T, unknown> = f => {
     }
 }
 
-const awaitPromise = async (p: unknown) => p instanceof Promise ? await p : p
+const awaitPromise = async (p: unknown): Promise<readonly[unknown]> =>
+    [p instanceof Promise ? await p : p]
 
 export const io: Io = {
     console,
@@ -108,7 +109,7 @@ export const io: Io = {
         try {
             const value = await awaitPromise(f())
             after = performance.now()
-            result = ok(value as T)
+            result = ok(value[0] as T)
         } catch (e) {
             after = performance.now()
             result = error(e)

@@ -1,5 +1,9 @@
 import { todo } from './module.f.ts'
 
+export const shouldPass = () => ({
+    then: () => undefined
+})
+
 export default {
     ctor: () => {
         const c = (() => { })['constructor']
