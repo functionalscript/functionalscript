@@ -7,7 +7,7 @@ import { computeSync, sha256, type Sha2 } from '../crypto/sha2/module.f.ts'
 import { parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
-import { begin, pure, type Effect, type Operation } from '../types/effects/module.f.ts'
+import { begin, forEachStep, pure, type Effect, type Operation } from '../types/effects/module.f.ts'
 import { error, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp } from '../types/effects/node/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
@@ -144,17 +144,7 @@ export const main = (args: readonly string[]): Effect<NodeOp, number> => {
         case 'list': {
             return begin
                 .step(() => c.list())
-                .step(v => {
-                    // TODO: make it lazy.
-                    let i: Effect<NodeOp, void> = begin
-                    for (const j of v) {
-                        const prev: Effect<NodeOp, void> = i
-                        i = begin
-                            .step(() => prev)
-                            .step(() => log(vecToCBase32(j)))
-                    }
-                    return i
-                })
+                .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
                 .step(() => pure(0))
         }
         case undefined: {
