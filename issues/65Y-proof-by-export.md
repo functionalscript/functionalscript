@@ -180,11 +180,11 @@ later.
 
 - [x] Decide the marker — `proof` (singular); see Naming decision
 - [x] Decide the load model — two-tier; no bulk vanilla loading
-- [ ] **Step 1:** read `proof` (not `default`) in the proof-tree walk + update
+- [x] **Step 1:** read `proof` (not `default`) in the proof-tree walk + update
       `register*` bridges + convert all ~81 proof files, in one commit
-- [ ] **Step 1:** find and consolidate any named-export tests into `proof`
-- [ ] **Step 2:** widen `isTest` to all `.f.ts`/`.f.js` + `proof.{ts,js,mts,mjs}`
-- [ ] **Step 2:** rename the predicate (`isTest` → `shouldLoad`)
+- [x] **Step 1:** find and consolidate any named-export tests into `proof`
+- [x] **Step 2:** widen `isTest` to all `.f.ts`/`.f.js` + `proof.{ts,js,mts,mjs}`
+- [x] **Step 2:** rename the predicate (`isTest` → `shouldLoad`)
 - [ ] **Step 2:** measure the cost of importing every FS module
 
 ## Related

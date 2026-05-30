@@ -29,7 +29,7 @@ import {
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { isTest, loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
+import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
 
@@ -211,7 +211,6 @@ const { entries } = Object
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
     const modules = entries(moduleMap)
-        .filter(([k]) => isTest(k))
         .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
     return all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero)))
     .step(m => pure(m.reduce(mergeState, zero)))
@@ -228,13 +227,12 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
     loadModuleMap(options.env).step(runModuleMap(reporter))
 
 /**
- * Registers all test modules in `moduleMap` whose names pass `isTest` with
+ * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
  */
 export const registerModuleMap =
     (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All | Await, void> => {
         const modules = entries(moduleMap)
-            .filter(([k]) => isTest(k))
             .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
         if (modules.length === 0) { return pure(undefined) }
         return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))

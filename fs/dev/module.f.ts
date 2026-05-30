@@ -56,10 +56,21 @@ export const env
                 r.value
     }
 
-/** Returns `true` if the file path looks like a FunctionalScript test module. */
-export const isTest = (s: string): boolean =>
-    s.endsWith('proof.f.ts') || s.endsWith('proof.f.js') ||
-    s.endsWith('proof.ts')   || s.endsWith('proof.js')
+/**
+ * Returns `true` if the file should be loaded for proof discovery.
+ *
+ * All FunctionalScript modules (`.f.ts` / `.f.js`) are safe to bulk-load by
+ * construction — they have no import side effects. For vanilla TS/JS the
+ * load gate stays opt-in by filename: any file ending in `proof.ts`,
+ * `proof.js`, `proof.mts`, or `proof.mjs` is included.
+ *
+ * Whether a loaded module actually _contains_ a proof is determined at
+ * runtime by checking for an exported `proof` property.
+ */
+export const shouldLoad = (s: string): boolean =>
+    s.endsWith('.f.ts')    || s.endsWith('.f.js')    ||
+    s.endsWith('proof.ts') || s.endsWith('proof.js') ||
+    s.endsWith('proof.mts')|| s.endsWith('proof.mjs')
 
 export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> => {
     const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
@@ -75,7 +86,7 @@ export const allFiles = (s: string): Effect<Readdir | All, readonly string[]> =>
                     result = [...result, load(file)]
                     continue
                 }
-                if (name.endsWith('.js') || name.endsWith('.ts')) {
+                if (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.mts') || name.endsWith('.mjs')) {
                     result = [...result, pure([file])]
                 }
             }
@@ -92,7 +103,7 @@ const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string,
         return access(f.substring(0, f.length - 3) + '.js')
             .step(r => r[0] === 'ok' ? pure([]) : doImport)
     }
-    if (isTest(f)) { return doImport }
+    if (shouldLoad(f)) { return doImport }
     return pure([])
 }
 
