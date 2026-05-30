@@ -80,10 +80,28 @@ thing." Among neutral options:
 
 | Candidate | Why not chosen |
 |-----------|----------------|
-| `test` | Maximum familiarity, but collides with the `*.test.ts` framework ecosystem (i204) and reverses the deliberate proof-not-test stance. |
-| `spec` | Widely understood but overloaded and adjacent to `*.spec.ts` discovery. |
+| `test` | Carries **false familiarity** — see below. Also collides with the `*.test.ts` framework ecosystem (i204) and reverses the deliberate proof-not-test stance. |
+| `spec` | Same false-familiarity problem (BDD `describe`/`it`/`expect` lineage); overloaded and adjacent to `*.spec.ts` discovery. |
 | `check` / `checks` | Plain and low-collision but less evocative of "this code proves itself." |
-| **`proof`** | Neutral (no FS branding), unclaimed by existing test frameworks, reads naturally to a newcomer, and is distinctive enough to be a googleable term-of-art. **Chosen.** |
+| **`proof`** | No pre-loaded JS meaning, so it signals "this is something new" rather than misleading. Neutral (no FS branding), unclaimed by existing test frameworks, reads naturally, and is a googleable term-of-art. **Chosen.** |
+
+**Why not reuse `test` / `spec` — false familiarity.** These words already
+carry concrete, learned meanings in JS, and our mechanism is *different*, so
+reusing them would actively mislead, not just clash on a namespace:
+
+- `test(name, fn)` / `it(...)` / `describe(...)` are **imperative registration
+  calls** — you call a function that hands a callback to a runner. Our `proof`
+  is a **plain exported value**: a data tree of zero-arg functions / nested
+  objects / arrays, discovered *because it is exported*, with pass = "did not
+  throw" plus the `throw` and return-value-sub-tree semantics. Nobody calls a
+  `proof()`.
+- `spec` carries the BDD `describe`/`it` + `expect` lineage; we have no
+  assertion DSL and no nesting keywords.
+
+A reader seeing `export const test = …` would expect the Mocha/Jest API and be
+confused that it is a value, not a callback registry. A fresh word avoids that —
+it tells the reader to go learn what it means, which is correct for a novel
+mechanism.
 
 If real-world collisions prove problematic, the fallback is to namespace the
 *same word* (`$proof`, `__proof__`) rather than switch to a synonym — keep the
