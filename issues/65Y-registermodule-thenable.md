@@ -31,6 +31,28 @@ so the two execution paths disagree:
 
 Demonstrated by `fs/dev/tf/scenarios/thenable.fail.ts`.
 
+## Research
+
+How other frameworks handle thenable return values from test functions:
+
+| Framework | Mechanism | Awaits thenables? |
+|-----------|-----------|-------------------|
+| Node.js `node:test` | [`Promise.resolve(ret)`](https://github.com/nodejs/node/blob/main/lib/internal/test_runner/test.js) on the sync/async path; `util.types.isPromise()` only guards the callback-style error | **Yes** |
+| Bun `bun:test` (native) | [`dynamicDowncast<JSC::JSPromise>`](https://github.com/oven-sh/bun/blob/main/src/bun.js/bindings/bindings.cpp) — strict JSC type check | **No** |
+| Bun `node:test` polyfill | [`instanceof Promise`](https://github.com/oven-sh/bun/blob/main/src/js/node/test.ts) | **No** |
+| Deno native | [plain `await fn()`](https://github.com/denoland/deno/blob/main/runtime/js/40_test.js) | **Yes** |
+| Deno `node:test` polyfill | [explicit `typeof value.then === 'function'`](https://github.com/denoland/deno/blob/main/ext/node/polyfills/testing.ts) | **Yes** |
+| Playwright | [plain `await fn()`](https://github.com/microsoft/playwright/blob/main/packages/playwright/src/worker/workerMain.ts) | **Yes** |
+| Jest (jest-circus) | [`typeof candidate.then === 'function'`](https://github.com/jestjs/jest/blob/main/packages/jest-util/src/isPromise.ts) | **Yes** |
+| Vitest | [plain `await fn()`](https://github.com/vitest-dev/vitest/blob/main/packages/runner/src/run.ts); typed as `Awaitable<T> = T \| PromiseLike<T>` | **Yes** |
+
+**Conclusions:**
+
+- The consensus is to support thenables. Most frameworks either use plain `await` (which the JS spec requires to call `.then` on any thenable) or an explicit duck-type check on `.then`.
+- Bun is the outlier — both its native runner and its `node:test` polyfill perform strict native-Promise checks. A failing thenable will be missed on Bun regardless of our fix.
+- The Deno `node:test` polyfill has the most explicit and portable version: `typeof value.then === 'function'`.
+- Jest's `isPromise` also checks `typeof r === 'object' || typeof r === 'function'` to match the `PromiseLike<T>` TypeScript interface exactly.
+
 ## Proposal
 
 Replace the `instanceof Promise` guard with a thenable check:
