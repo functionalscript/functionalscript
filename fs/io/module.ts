@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import process from 'node:process'
 import { concat } from '../path/module.f.ts'
 import { once } from 'node:events'
-import { fromIo, type Io, runProgram } from './module.f.ts'
+import { type Io, runProgram } from './module.f.ts'
 import type { Module, NodeProgram, WriteConsoles } from '../types/effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
@@ -107,9 +107,13 @@ export const io: Io = {
         let after: number
         const before = performance.now()
         try {
-            const value = await awaitPromise(f())
+            let p = f()
             after = performance.now()
-            result = ok(value[0] as T)
+            if (p instanceof Promise) {
+                p = await p
+                after = performance.now()
+            }
+            result = ok(p as T)
         } catch (e) {
             after = performance.now()
             result = error(e)
