@@ -113,13 +113,23 @@ export type LoadModuleOperations = Access | Import | All | Readdir
 const { fromEntries } = Object
 
 /**
- * Discovers all `.f.js` / `.f.ts` modules under `INIT_CWD` (or `.` if unset)
- * and imports them, returning a map from relative path to module exports.
+ * Discovers all `.f.js` / `.f.ts` / proof modules under `INIT_CWD` (or `.`
+ * if unset) and imports them, returning a map from relative path to module
+ * exports.
+ *
+ * The optional `predicate` is applied to each discovered file path before
+ * attempting to `import()` it. Files that don't match are skipped entirely
+ * (no I/O). The predicate is an additional filter on top of `loadFile`'s
+ * own guards (`.f.js`, `.f.ts`, `shouldLoad`); the default `() => true`
+ * preserves existing behaviour.
  *
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
  */
-export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
+export const loadModuleMap = (
+    env: Env,
+    predicate: (path: string) => boolean = () => true,
+): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     const prefix = s === '.' ? '' : s
@@ -128,7 +138,7 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
     return allFiles(s)
-        .step(files => all(...files.map(loadFile)))
+        .step(files => all(...files.filter(predicate).map(loadFile)))
         .step(entries => pure(fromEntries(
             entries
                 .flat()
