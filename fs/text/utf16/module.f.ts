@@ -7,8 +7,6 @@
  */
 import {
     map,
-    flat,
-    stateScan,
     reduce,
     flatMap,
     empty,
@@ -19,11 +17,7 @@ import {
 import { concat, type StateScan } from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
 import { fn } from '../../types/function/module.f.ts'
-
-/**
- * Optional UTF16 type - represent an unsigned UTF16 integer or null.
- */
-type WordOrEof = U16 | null
+import { decoder, errorMask } from '../code_point/module.f.ts'
 
 /**
  * Optional Utf16State - represents the state of utf16 decoding operation or null.
@@ -72,11 +66,6 @@ const isHighSurrogate = contains([0xd800, 0xdbff])
  * Range: 0xDC00 – 0xDFFF.
  */
 const isLowSurrogate = contains([0xdc00, 0xdfff])
-
-/**
- * Mask of mistakes. Used to indicate invalid code points or coding errors
- */
-const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /**
  * Checks whether the code point belongs to the additional (Supplementary) plane of Unicode.
@@ -269,58 +258,6 @@ const utf16EofToCodePointOp = (state: Utf16State): readonly[List<CodePoint>, Utf
 
 
 /**
- * A stateful scan operation that processes UTF-16 input (word or EOF).
- * This function determines whether to handle a UTF-16 word or an end-of-file (EOF)
- * signal during decoding:
- * 1. If the input is `null` (EOF), it calls `utf16EofToCodePointOp` to process
- *    any remaining state.
- * 2. If the input is a valid UTF-16 word, it calls `utf16ByteToCodePointOp` to
- *    process the word and update the state accordingly.
- * @param state - The current state in the UTF-16 decoding process:
- *   - `null`: No pending surrogate.
- *   - A high surrogate waiting for a low surrogate.
- * @param input - The current UTF-16 word to process, or `null` to signal EOF.
- * @returns A tuple:
- *   - A list of decoded code points (if any).
- *   - The updated decoding state.
- *
- * @example
- *
- * ```ts
- * // Example 1: Process a valid UTF-16 word
- * const input1 = 0x0041 // 'A' (BMP code point)
- * const result1 = utf16ByteOrEofToCodePointOp(input1, null)
- * console.log(result1) // [[0x0041], null]
- * // Example 2: Process a high surrogate, followed by EOF
- * const input2 = 0xD83D // High surrogate
- * const result2 = utf16ByteOrEofToCodePointOp(input2, null)
- * console.log(result2) // [[], 0xD83D] (waiting for a low surrogate)
- * const eofResult = utf16ByteOrEofToCodePointOp(null, 0xD83D)
- * console.log(eofResult) // [[0xD83D | errorMask], null] (unpaired high surrogate)
- * // Example 3: Handle EOF with no pending state
- * const eofResult2 = utf16ByteOrEofToCodePointOp(null, null)
- * ```
- */
-const utf16ByteOrEofToCodePointOp: StateScan<WordOrEof, Utf16State, List<CodePoint>>
-    = (input, state) => input === null ? utf16EofToCodePointOp(state) : utf16ByteToCodePointOp(input, state)
-
-
-/**
- * Represents an end-of-file (EOF) indicator in a list of UTF-16 code units.
- *
- * This list contains a single element, `null`, which is used to signal the end
- * of input during UTF-16 decoding operations.
- * @example
- *
- * ```ts
- * const input = [...utf16Data, ...eofList]
- * // Ensures the EOF is handled during processing.
- * ```
- */
-const eofList: List<WordOrEof> = [null]
-
-
-/**
  * Converts a list of UTF-16 code units to a list of Unicode code points (CodePoint).
  * This function processes each UTF-16 code unit, decoding them into their corresponding Unicode code points.
  * The input list of `U16` values may represent characters in the Basic Multilingual Plane (BMP) or supplementary planes,
@@ -335,8 +272,8 @@ const eofList: List<WordOrEof> = [null]
  * const codePoints = toCodePointList(utf16List)
  * ```
  */
-export const toCodePointList = (input: List<U16>): List<CodePoint> =>
-    flat(stateScan(utf16ByteOrEofToCodePointOp)(null)(flat([input, eofList])))
+export const toCodePointList: (input: List<U16>) => List<CodePoint> =
+    decoder(utf16ByteToCodePointOp, utf16EofToCodePointOp)
 
 /**
  * Converts a string to a list of UTF-16 code units (U16).

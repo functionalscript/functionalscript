@@ -7,7 +7,7 @@ const arrayOfTests = [
   }
 ]
 
-export default {
+export const proof = {
   arrayOfTests,
   generatingTests: () => arrayOfTests,
 }

@@ -1,6 +1,6 @@
 import { htmlToString, type Element } from "./module.f.ts"
 
-export default {
+export const proof = {
     empty: () => {
         const r = htmlToString(['html'])
         if (r !== '<!DOCTYPE html><html></html>') { throw `empty: ${r}` }

@@ -27,7 +27,7 @@ const verifyStorage = (storage: NodeList) => {
 const s0 = level3Id(0n)
 const s1 = level3Id(1n)
 
-export default {
+export const proof = {
     // Minimum word [s0, t] with t == s0
     min_equal: () => {
         const [out, storage] = runWord([s0, s0])

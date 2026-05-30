@@ -51,6 +51,7 @@
     "./fs/sul/level/literal/module.f.ts": "./fs/sul/level/literal/module.f.ts",
     "./fs/sul/module.f.ts": "./fs/sul/module.f.ts",
     "./fs/text/ascii/module.f.ts": "./fs/text/ascii/module.f.ts",
+    "./fs/text/code_point/module.f.ts": "./fs/text/code_point/module.f.ts",
     "./fs/text/module.f.ts": "./fs/text/module.f.ts",
     "./fs/text/sgr/module.f.ts": "./fs/text/sgr/module.f.ts",
     "./fs/text/utf16/module.f.ts": "./fs/text/utf16/module.f.ts",

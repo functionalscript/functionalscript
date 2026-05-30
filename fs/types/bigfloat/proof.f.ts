@@ -1,6 +1,6 @@
 import { decToBin } from './module.f.ts'
 
-export default {
+export const proof = {
     decToBin: [
         () => {
             const result = decToBin([0n, 0])

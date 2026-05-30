@@ -1,6 +1,6 @@
 import { contains } from './module.f.ts'
 
-export default () => {
+export const proof = () => {
     if (!contains([0, 5])(1)) { throw 1 }
     if (!contains([0, 5])(0)) { throw 0 }
     if (!contains([0, 5])(5)) { throw 5 }

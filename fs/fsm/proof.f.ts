@@ -34,7 +34,7 @@ const buildDfa = () => {
     return dfa(grammar)
 }
 
-export default {
+export const proof = {
     dfa: () => {
         const dfa = buildDfa()
         const entries = Object.entries(dfa)

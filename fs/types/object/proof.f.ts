@@ -2,7 +2,7 @@ import { at } from './module.f.ts'
 
 type E<A, B> = A extends B ? B extends A ? true : false : false
 
-export default {
+export const proof = {
     ctor: () => {
         const a = {}
         const value = at('constructor')(a)

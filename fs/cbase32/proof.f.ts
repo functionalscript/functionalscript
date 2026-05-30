@@ -17,7 +17,7 @@ const check = (s: string, v: Vec) => {
     if (vr !== v) { throw [vr, v] }
 }
 
-export default {
+export const proof = {
     roundtrip5x: () => {
         check5x("", empty)
         check5x("0", vec(5n)(0b00000n))

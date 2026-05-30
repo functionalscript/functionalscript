@@ -3,7 +3,7 @@ import * as list from '../../types/list/module.f.ts'
 
 const { toArray } = list
 
-export default {
+export const proof = {
     arrayWrap: [
         () => {
             const result = JSON.stringify(toArray(arrayWrap(null)))

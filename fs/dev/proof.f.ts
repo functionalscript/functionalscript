@@ -1,10 +1,9 @@
 import { todo, env } from './module.f.ts'
 
-export const shouldPass = () => ({
-    then: () => undefined
-})
-
-export default {
+export const proof = {
+    shouldPass: () => ({
+        then: () => undefined
+    }),
     ctor: () => {
         const c = (() => { })['constructor']
         const f = c('return 5')

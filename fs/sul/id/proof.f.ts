@@ -20,7 +20,7 @@ assertEq(asBase(level3Id(0n)), 0n)
 assertEq(asBase(hashId(0n)), 1n << 0xFFn)
 assertEq(asBase(hFF), mask(0x100n))
 
-export default {
+export const proof = {
     // Two level-3 literals whose combined bit vectors fit inline (≤ 253 bits)
     inline_00_00: () => assertEq(compress(level3Id(0x00n), level3Id(0x00n)), rawId(vec(16n)(0x0000n))),
     inline_00_01: () => assertEq(compress(level3Id(0x00n), level3Id(0x01n)), rawId(vec(16n)(0x0001n))),

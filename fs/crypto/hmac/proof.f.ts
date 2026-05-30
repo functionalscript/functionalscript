@@ -3,7 +3,7 @@ import { uint, vec } from '../../types/bit_vec/module.f.ts'
 import { sha256, sha384, sha512 } from '../sha2/module.f.ts'
 import { hmac } from './module.f.ts'
 
-export default {
+export const proof = {
     example: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
         if (r !== vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n)) { throw r }

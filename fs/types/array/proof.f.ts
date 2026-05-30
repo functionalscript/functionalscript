@@ -4,7 +4,7 @@ import { sort } from '../object/module.f.ts'
 
 const stringify = jsonStringify(sort)
 
-export default {
+export const proof = {
     stringify: () => {
         const result = stringify([1, 20, 300])
         if (result !== '[1,20,300]') { throw result }
