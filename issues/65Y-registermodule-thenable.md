@@ -46,11 +46,15 @@ As a corollary, exporting a function named `then` from a module is forbidden —
 
 ## Fix
 
-- **`fs/types/effects/node/module.f.ts`**: widened `Await` from `(p: Promise<unknown>)` to `(p: unknown)`.
-- **`fs/io/module.f.ts`**: `await` handler changed to `async (p: unknown) => p instanceof Promise ? await p : p` — `instanceof Promise` check lives here, not in caller code.
-- **`fs/dev/tf/module.f.ts`**: `registerModule` simplified from `r instanceof Promise ? awaitPromise(r) : pure(r)` to `awaitPromise(fn())`.
-- **`fs/io/module.ts`**: sandbox changed from `await f()` to `const raw = f(); raw instanceof Promise ? await raw : raw`.
+The key insight: `async (p) => p` where `p` is a thenable still follows it, because the `async` wrapper returns `Promise.resolve(p)` which calls `.then()`. To avoid this, the handler boxes the return value in an array — arrays have no `.then`, so `Promise.resolve([p])` resolves immediately without following `p`.
+
+- **`fs/types/effects/node/module.f.ts`**: `Await` changed to `(p: unknown) => readonly [unknown]` (boxed return); private `awaitPromise` creates the low-level effect; public `awaitIfPromise` unboxes via `.step(([x]) => pure(x))`.
+- **`fs/io/module.ts`**: handler `async (p: unknown): Promise<readonly [unknown]> => [p instanceof Promise ? await p : p]` — boxes the result so `async` machinery never sees a bare thenable.
+- **`fs/io/module.f.ts`**: `await` on `Io` interface typed as `(p: unknown) => Promise<readonly [unknown]>`; used directly as the asyncRun handler.
+- **`fs/dev/tf/module.f.ts`**: `registerModule` uses `awaitIfPromise(fn())` — no `instanceof Promise` in FunctionalScript code.
+- **`fs/types/effects/node/virtual/module.f.ts`**: `await: (state, p) => [state, [p]]` — boxes in the virtual runner too.
 - **`fs/dev/tf/README.md`**: convention documented.
+- **`fs/dev/tf/scenarios/thenable2.pass.f.ts`**: scenario verifying `{ then: () => 'ok' }` is treated as a plain sub-tree, not followed.
 
 ## Related
 
