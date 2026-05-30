@@ -12,6 +12,8 @@ The `issues/` directory is the index — browse it directly.
 
 ## Date prefix encoding
 
+Use the current **UTC/GMT** date when creating a new issue file.
+
 Each filename starts with three [Crockford base32](https://www.crockford.com/base32.html) digits:
 
 | Digit | Encodes | Range |
