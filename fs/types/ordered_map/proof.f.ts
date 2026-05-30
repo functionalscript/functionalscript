@@ -1,7 +1,7 @@
 import { at, setReplace, setReduce, empty, entries, remove, type OrderedMap } from './module.f.ts'
 import { toArray } from '../list/module.f.ts'
 
-export default {
+export const proof = {
     main: [
         () => {
             let m = setReplace('a')(1)(null)

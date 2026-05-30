@@ -4,7 +4,7 @@ declare const noCompareBrand: unique symbol
 
 declare const brand: unique symbol
 
-export default {
+export const proof = {
     pre: () => {
         type Str = Nominal<'utf8', 'v0', bigint>
         const strA: Str = asNominal(0b1_11000010_10100010_11000010_10100011n) // "¢£"

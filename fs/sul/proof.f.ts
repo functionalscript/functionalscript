@@ -18,7 +18,7 @@ const id = (bits: readonly bigint[]): Id => run(bits)[0]
 
 const zeros = (n: number): readonly bigint[] => new Array(n).fill(0n)
 
-export default {
+export const proof = {
     deterministic: () => {
         assertEq(id(zeros(16)), id(zeros(16)))
     },

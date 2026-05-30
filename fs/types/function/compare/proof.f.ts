@@ -1,6 +1,6 @@
 import { cmp } from './module.f.ts'
 
-export default () => {
+export const proof = () => {
     {
         const result = cmp(true)(false)
         if (result !== 1) { throw result }

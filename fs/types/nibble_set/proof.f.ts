@@ -1,7 +1,7 @@
 import { every, map, countdown } from '../list/module.f.ts'
 import { empty, has, set, setRange, unset, universe, complement } from './module.f.ts'
 
-export default {
+export const proof = {
     has: () => {
         if (has(0)(empty)) { throw empty }
         if (has(1)(empty)) { throw empty }

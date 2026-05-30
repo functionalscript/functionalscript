@@ -1,6 +1,6 @@
 import { fn } from './module.f.ts'
 
-export default () => {
+export const proof = () => {
     const f: (x: string) => readonly[string]
         = x => [x]
     const g: (x: readonly[string]) => readonly[number]

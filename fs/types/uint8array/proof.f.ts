@@ -13,7 +13,7 @@ const assertArrayEq = (a: Uint8Array, b: Uint8Array) => {
     }
 }
 
-export default {
+export const proof = {
     empty: () => {
         const input = new Uint8Array()
         const vec = toVec(input)

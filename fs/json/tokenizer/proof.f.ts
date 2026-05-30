@@ -10,7 +10,7 @@ const tokenizeString
 
 const stringify = stringifyAsTree(sort)
 
-export default {
+export const proof = {
     json: [
         () => {
             const result = stringify(tokenizeString(''))

@@ -146,7 +146,7 @@ const getTokensFromAstRule
     }
 
 
-export default {
+export const proof = {
     isValid: [() => {
             const m = descentParser(jsGrammar())
 

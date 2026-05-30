@@ -1,6 +1,6 @@
 import { fgRed, createConsoleText, backspace } from './module.f.ts'
 
-export default [
+export const proof = [
     () => {
         if (fgRed !== '\x1b[31m') {
             throw new Error('Test failed: sgr(0)')

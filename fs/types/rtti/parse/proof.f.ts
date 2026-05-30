@@ -42,7 +42,7 @@ const assertDeepEqual = (a: unknown, b: unknown): void => {
     throw `not deep-equal: ${String(a)} vs ${String(b)}`
 }
 
-export default {
+export const proof = {
     boolean: {
         ok: () => {
             type _ = Assert<Equal<Ts<typeof boolean>, boolean>>

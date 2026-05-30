@@ -1,6 +1,6 @@
 import { concat, normalize, relativize } from "./module.f.ts"
 
-export const normalizeTest = [
+const normalizeTest = [
     () => {
         const norm = normalize("dir/file.json")
         if (norm !== "dir/file.json") { throw norm }
@@ -19,7 +19,7 @@ export const normalizeTest = [
     },
 ]
 
-export const concatTest = [
+const concatTest = [
     () => {
         const c = concat("a")("b")
         if (c !== "a/b") { throw c }
@@ -34,7 +34,7 @@ export const concatTest = [
     },
 ]
 
-export const relativizeTest = [
+const relativizeTest = [
     () => {
         const r = relativize('/repo', '/repo/fs/a.ts')
         if (r !== './fs/a.ts') { throw r }
@@ -48,3 +48,4 @@ export const relativizeTest = [
         if (r !== './fs/a.ts') { throw r }
     },
 ]
+export const proof = { normalizeTest, concatTest, relativizeTest }

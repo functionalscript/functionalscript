@@ -17,7 +17,7 @@ const op: Properties<SortedSet<string>>
         def: []
     }
 
-export default {
+export const proof = {
     example: () => {
         const rmOps = rangeMap({
             union: a => b => a | b,

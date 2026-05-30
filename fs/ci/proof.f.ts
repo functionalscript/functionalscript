@@ -30,7 +30,7 @@ const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []
     return unwrap(parseGitHubAction(jsonParse(utf8ToString(file))))
 }
 
-export default {
+export const proof = {
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')
     },

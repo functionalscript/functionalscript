@@ -53,7 +53,7 @@ const poker = (param: Curve) => () => {
     }
 }
 
-export default {
+export const proof = {
     example: () => {
         const curveParams: Init = {
             p: 23n,

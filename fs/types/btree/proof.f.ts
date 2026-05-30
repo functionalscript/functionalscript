@@ -68,7 +68,7 @@ const test = () => {
     }
 }
 
-export default {
+export const proof = {
     valueTest1,
     valuesTest2,
     findTrue,

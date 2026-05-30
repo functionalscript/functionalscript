@@ -351,4 +351,4 @@ const test = [
     }
 ]
 
-export default test
+export const proof = test

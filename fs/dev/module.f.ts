@@ -39,7 +39,7 @@ export const assertEq = <T>(a: T, b: T): void =>
     assert(a === b, [a, b])
 
 export type Module = {
-    readonly default?: unknown
+    readonly proof?: unknown
     readonly [k: string]: unknown
 }
 

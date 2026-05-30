@@ -9,7 +9,7 @@ const readOutput = (root: typeof emptyState.root, path: string): string => {
     return utf8ToString(file)
 }
 
-export default {
+export const proof = {
     tooFewArgs: {
         noArgs: () => {
             const [state, code] = virtual(emptyState)(compile([]))

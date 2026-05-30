@@ -13,7 +13,7 @@ const nanRes = (op: (n: unknown) => unknown) => (n: unknown): void => {
     }
 }
 
-export default {
+export const proof = {
     eq: () => {
         const e = (a: unknown) => (b: unknown): void => {
             if (a === b) { } else { throw [a, '===', b] }

@@ -61,7 +61,7 @@ const runMain = (dir: Record<string, JsModule>, github = false): readonly[string
 // flat object: two passing tests
 export const flat = () => {
     const [events, exit] = run({
-        'a.proof.f.ts': () => ({ a: ok0, b: ok1 }),
+        'a.proof.f.ts': () => ({ proof: { a: ok0, b: ok1 } }),
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
@@ -76,7 +76,7 @@ export const flat = () => {
 // nested object: leaf tests carry the full path including the sub-tree key
 export const nested = () => {
     const [events, exit] = run({
-        'n.proof.f.ts': () => ({ math: { add: ok0, sub: ok0 } }),
+        'n.proof.f.ts': () => ({ proof: { math: { add: ok0, sub: ok0 } } }),
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
@@ -91,7 +91,7 @@ export const nested = () => {
 // throw key: tests inside 'throw' pass on error result
 export const throwKey = () => {
     const [events, exit] = run({
-        't.proof.f.ts': () => ({ throw: { a: fail0 } }),
+        't.proof.f.ts': () => ({ proof: { throw: { a: fail0 } } }),
     })
     assertEq(exit, 0)
     const [e0, e1] = events
@@ -105,7 +105,7 @@ export const throwKey = () => {
 // throw key fails when test does not throw (returns ok in throw context)
 export const throwKeyFail = () => {
     const [events, exit] = run({
-        't.proof.f.ts': () => ({ throw: { a: ok0 } }),
+        't.proof.f.ts': () => ({ proof: { throw: { a: ok0 } } }),
     })
     assertEq(exit, 1)
     const [e0, e1] = events
@@ -118,7 +118,7 @@ export const throwKeyFail = () => {
 // mixed pass/fail updates summary counts
 export const mixedPassFail = () => {
     const [events, exit] = run({
-        'm.proof.f.ts': () => ({ good: ok0, bad: fail0 }),
+        'm.proof.f.ts': () => ({ proof: { good: ok0, bad: fail0 } }),
     })
     assertEq(exit, 1)
     const summary = events[events.length - 1]
@@ -132,12 +132,12 @@ export const mixedPassFail = () => {
 export const returnValueSubTree = () => {
     const inner: () => unknown = () => ({ result: ['ok', undefined] as const, duration: 0 })
     const [events, exit] = run({
-        'r.proof.f.ts': () => ({
+        'r.proof.f.ts': () => ({ proof: {
             outer: (): unknown => ({
                 result: ['ok', { inner }] as const,
                 duration: 0,
             }),
-        }),
+        } }),
     })
     // outer passes, then inner (from return value) also passes
     assertEq(exit, 0)
@@ -151,7 +151,7 @@ export const returnValueSubTree = () => {
 // integer-indexed array keys appear as numeric path segments
 export const arrayKeys = () => {
     const [events, exit] = run({
-        'a.proof.f.ts': () => ({ arr: [ok0, ok0] }),
+        'a.proof.f.ts': () => ({ proof: { arr: [ok0, ok0] } }),
     })
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
@@ -164,7 +164,7 @@ export const arrayKeys = () => {
 export const nonTestFilesSkipped = () => {
     const [events, exit] = run({
         'helper.ts': () => ({ a: ok0 }),
-        'b.proof.f.ts': () => ({ x: ok0 }),
+        'b.proof.f.ts': () => ({ proof: { x: ok0 } }),
     })
     assertEq(exit, 0)
     const results = events.filter(e => e[0] === 'result')
@@ -175,8 +175,8 @@ export const nonTestFilesSkipped = () => {
 // multiple test files each produce result events
 export const multipleFiles = () => {
     const [events, exit] = run({
-        'a.proof.f.ts': () => ({ x: ok0 }),
-        'b.proof.f.ts': () => ({ y: ok0 }),
+        'a.proof.f.ts': () => ({ proof: { x: ok0 } }),
+        'b.proof.f.ts': () => ({ proof: { y: ok0 } }),
     })
     assertEq(exit, 0)
     const results = events.filter(e => e[0] === 'result')
@@ -192,7 +192,7 @@ export const throwByFunctionName = () => {
     // const named = ({ throw: () => fail0() }).throw
     const x = { throw: () => fail0() }
     const [events, exit] = run({
-        't.proof.f.ts': () => ({ here: x.throw }),
+        't.proof.f.ts': () => ({ proof: { here: x.throw } }),
     })
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
@@ -200,22 +200,22 @@ export const throwByFunctionName = () => {
     assertEq(passEvents[0][2][0], 'here')
 }
 
-// every module export — `default` and named — becomes a top-level path segment
+// only the `proof` export is used; other module properties are ignored
 export const namedExports = () => {
     const [events, exit] = run({
-        'e.proof.f.ts': () => ({ default: ok0, helper: ok0 }),
+        'e.proof.f.ts': () => ({ proof: { a: ok0, b: ok0 }, other: ok0 }),
     })
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
-    assertEq(passEvents.length, 2)
-    assertEq(passEvents[0][2][0], 'default')
-    assertEq(passEvents[1][2][0], 'helper')
+    assertEq(passEvents.length, 2) // `other` is ignored
+    assertEq(passEvents[0][2][0], 'a')
+    assertEq(passEvents[1][2][0], 'b')
 }
 
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
 export const defaultReporterOutput = () => {
     const [stdout, stderr, exit] = runMain({
-        'a.proof.f.ts': () => ({ x: ok0 }),
+        'a.proof.f.ts': () => ({ proof: { x: ok0 } }),
     })
     assertEq(exit, 0)
     assertEq(stderr, '')
@@ -230,7 +230,7 @@ export const defaultReporterOutput = () => {
 // a failure on the non-GitHub reporter writes the error to stderr, not stdout
 export const defaultReporterFailOutput = () => {
     const [, stderr, exit] = runMain({
-        'a.proof.f.ts': () => ({ bad: fail0 }),
+        'a.proof.f.ts': () => ({ proof: { bad: fail0 } }),
     })
     assertEq(exit, 1)
     assertEq(stderr, 'import("./a.proof.f.ts").bad(): error, 0.0000 ms\noops\n')
@@ -240,7 +240,7 @@ export const defaultReporterFailOutput = () => {
 // title (the JSON path) and message
 export const githubReporterOutput = () => {
     const [, stderr, exit] = runMain({
-        's.proof.f.ts': () => ({ 'a:b,c%d': fail0 }),
+        's.proof.f.ts': () => ({ proof: { 'a:b,c%d': fail0 } }),
     }, true)
     assertEq(exit, 1)
     assertEq(
@@ -312,3 +312,5 @@ export const helpers = {
         assertEq(ghEscape('a%b:c,d'), 'a%25b%3Ac%2Cd')
     },
 }
+
+export const proof = { flat,nested,throwKey,throwKeyFail,mixedPassFail,returnValueSubTree,arrayKeys,nonTestFilesSkipped,multipleFiles,throwByFunctionName,namedExports,defaultReporterOutput,defaultReporterFailOutput,githubReporterOutput,helpers }
