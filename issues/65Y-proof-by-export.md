@@ -68,12 +68,35 @@ exposed. At the TypeScript level this can be mitigated by always declaring
 note this is a type-surface mitigation only — the runtime value still ships in
 the bundle.
 
+## Naming decision
+
+The marker is **`proof`** (singular).
+
+This is intended as a **public, ecosystem-neutral convention** aiming for
+broad community adoption — not an FS-internal detail. The name was chosen
+against that goal, so FS-branded options (`fsProof`, an `fs` prefix) were
+rejected: a stranger should not feel they are importing "FunctionalScript's
+thing." Among neutral options:
+
+| Candidate | Why not chosen |
+|-----------|----------------|
+| `test` | Maximum familiarity, but collides with the `*.test.ts` framework ecosystem (i204) and reverses the deliberate proof-not-test stance. |
+| `spec` | Widely understood but overloaded and adjacent to `*.spec.ts` discovery. |
+| `check` / `checks` | Plain and low-collision but less evocative of "this code proves itself." |
+| **`proof`** | Neutral (no FS branding), unclaimed by existing test frameworks, reads naturally to a newcomer, and is distinctive enough to be a googleable term-of-art. **Chosen.** |
+
+If real-world collisions prove problematic, the fallback is to namespace the
+*same word* (`$proof`, `__proof__`) rather than switch to a synonym — keep the
+term, add a "reserved" signal. Not adopted now.
+
+Note: a property name is the smallest part of making this a de-facto standard.
+A normative spec (marker + proof-tree contract) and a zero-dependency reference
+runner installable on any plain TS/JS project are what communities actually
+adopt. Those are deliberately **out of scope** for this issue and left for
+later.
+
 ## Design considerations / open questions
 
-- **Marker name & collisions.** `proof` is a fairly generic export name; a
-  module could export `proof` for unrelated reasons. Options: reserve the name
-  by convention, namespace it, or accept the small risk. (Symbols aren't a good
-  fit — they aren't representable as plain FunctionalScript/JSON records.)
 - **Loading cost.** Today `loadFile` (`fs/dev/module.f.ts:88`) skips importing
   non-test files. Export-based discovery requires importing *every* module to
   inspect its exports. For pure FunctionalScript modules this is safe (imports
@@ -98,7 +121,7 @@ the bundle.
 
 ## Tasks
 
-- [ ] Decide the marker (name `proof`, namespacing, default-export fallback)
+- [x] Decide the marker — `proof` (singular); see Naming decision
 - [ ] Document the white-box tiers (module-level asserts, co-located `proof`,
       separate `proof` module) and the public-API exposure tradeoff
 - [ ] Add export-based discovery to `loadModuleMap` / `runModuleMap`
