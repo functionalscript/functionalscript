@@ -39,9 +39,20 @@ so timeout and termination can be surfaced as `error` values without API changes
    objects/arrays/primitives, so this should hold in practice.
 3. **Bun/Deno compatibility** — both support `node:worker_threads`; verify that the
    same implementation works across all three runtimes.
-4. **Effect compatibility** — the sandbox currently accepts a plain `() => T`; if
-   worker startup becomes an async operation, the `Sandbox` operation type may need
-   to become async (or a new `AsyncSandbox` operation added).
+
+## Additional motivation: infinite waits and loops
+
+The current sandbox has no way to detect or recover from tests that never terminate:
+
+- **Infinite loops** — `while (true) {}` in a `proof.js` test locks the sandbox
+  thread permanently; no other tests run, the runner hangs, and the process must be
+  killed externally.
+- **Non-resolvable Promises** — `await new Promise(() => {})` in a `proof.js` test
+  produces a Promise whose executor never calls `resolve` or `reject`; the async
+  sandbox waits forever and the suite never completes.
+
+A worker with a hard timeout terminates the worker thread after the deadline and
+reports a failure (timeout exceeded), keeping the rest of the test suite running.
 
 ## Related
 
