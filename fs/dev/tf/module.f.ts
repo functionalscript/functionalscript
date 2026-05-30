@@ -154,8 +154,7 @@ export const registerModule =
     (ctx: TestContext, k: string, v: unknown): Effect<Test | All | Await, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
             test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> => {
-                const r = fn()
-                const er = r instanceof Promise ? awaitPromise(r) : pure(r)
+                const er = awaitPromise(fn())
                 return er.step(resolved => {
                     if (throws) { return pure(undefined) }
                     const sub = collectTests([...path, null], false, resolved)

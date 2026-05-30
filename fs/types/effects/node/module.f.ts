@@ -258,12 +258,13 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
 export const sandbox: Func<Sandbox> = do_('sandbox')
 
 /**
- * Awaits a `Promise` inside the effect runner. If the Promise rejects, the
- * error propagates as a throw, which the framework catches via `expectFailure`.
- * Required to support async test functions whose returned Promise is not
- * otherwise observed.
+ * Resolves the return value of a test function inside the effect runner.
+ * If `p` is a real `Promise`, it is awaited and rejections propagate as
+ * throws. If `p` is any other value it is returned as-is. Plain thenables
+ * (objects with a `.then` method that are not `instanceof Promise`) are
+ * treated as ordinary values — not awaited. See `fs/dev/tf/README.md`.
  */
-export type Await = readonly['await', (p: Promise<unknown>) => unknown]
+export type Await = readonly['await', (p: unknown) => unknown]
 
 export const awaitPromise: Func<Await> = do_('await')
 
