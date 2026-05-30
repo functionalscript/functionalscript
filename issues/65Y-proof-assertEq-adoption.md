@@ -132,6 +132,10 @@ it's by far the most common and the lowest-judgement case.
 
 ## Related
 
+- [i65Y-proof-by-export](./65Y-proof-by-export.md) — discovery by exported
+  `proof`; defines module-level asserts as the "light proof" tier (runs on every
+  load → light, cheap checks only). `assertEq` is the helper that makes that
+  tier ergonomic.
 - `fs/dev/module.f.ts:36–39` — definitions of `assert` / `assertEq`.
 - `fs/sul/id/module.f.ts:19`, `fs/sul/id/proof.f.ts:1`,
   `fs/sul/proof.f.ts:1`, `fs/sul/level/hash/proof.f.ts:1` — the four
