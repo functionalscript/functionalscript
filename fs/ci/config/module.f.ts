@@ -66,4 +66,5 @@ export const actions = {
     'bytecodealliance/actions/wasmtime/setup': 'v1',
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
+    'dtolnay/rust-toolchain': rust,
 } as const
