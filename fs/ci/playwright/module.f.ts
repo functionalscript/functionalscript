@@ -5,7 +5,7 @@
  * @module
  */
 import { images, node, playwright } from '../config/module.f.ts'
-import { type Job, install, test, toSteps } from '../common/module.f.ts'
+import { type Job, install, test, toSteps, uses } from '../common/module.f.ts'
 import { basicNode } from '../node/module.f.ts'
 
 const playwrightImage = images.ubuntu.intel
@@ -13,13 +13,10 @@ const playwrightImage = images.ubuntu.intel
 export const playwrightJob: Job = {
     'runs-on': playwrightImage,
     steps: toSteps(basicNode(node.default)([
-        install({
-            uses: 'actions/cache@v4',
-            with: {
-                path: '~/.cache/ms-playwright',
-                key: `${playwrightImage}-playwright-${playwright}`,
-            },
-        }),
+        install(uses('actions/cache', {
+            path: '~/.cache/ms-playwright',
+            key: `${playwrightImage}-playwright-${playwright}`,
+        })),
         install({ run: `npm install -g playwright@${playwright}` }),
         install({ run: 'playwright install-deps' }),
         install({ run: 'playwright install' }),

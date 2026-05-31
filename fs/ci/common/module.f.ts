@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { images, rust } from '../config/module.f.ts'
+import { actions, images, rust } from '../config/module.f.ts'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
@@ -60,6 +60,11 @@ export type MetaStep = {
     readonly package: string
 }
 
+export const uses = (name: keyof typeof actions, w?: Record<string, string>): Step => ({
+    uses: `${name}@${actions[name]}`,
+    ...(w === undefined ? {} : { with: w })
+})
+
 export const install = (step: Step): MetaStep => ({ type: 'install', step })
 
 export const test = (step: Step): MetaStep => ({ type: 'test', step })
@@ -85,7 +90,7 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
             }
         }] : []),
         ...filter('install'),
-        { uses: 'actions/checkout@v5' },
+        uses('actions/checkout'),
         ...filter('test'),
     ]
 }
