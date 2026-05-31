@@ -5,11 +5,10 @@
  *
  * @module
  */
-import { actions, images, rust } from '../config/module.f.ts'
+import { actions, images } from '../config/module.f.ts'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
-import type { Unknown } from '../../json/module.f.ts'
 
 export const os = ['ubuntu', 'macos', 'windows'] as const
 
@@ -82,13 +81,7 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
         ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
-        ...(needRust ? [{
-            uses: `dtolnay/rust-toolchain@${rust}`,
-            with: {
-                components: 'rustfmt,clippy',
-                targets
-            }
-        }] : []),
+        ...(needRust ? [uses('dtolnay/rust-toolchain', { components: 'rustfmt,clippy', targets })] : []),
         ...filter('install'),
         uses('actions/checkout'),
         ...filter('test'),
