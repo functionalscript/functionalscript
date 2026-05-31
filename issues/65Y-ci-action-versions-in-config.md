@@ -1,7 +1,7 @@
 # 65Y-ci-action-versions-in-config. Centralise CI action versions in `config/module.f.ts`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 

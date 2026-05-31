@@ -4,12 +4,12 @@
  *
  * @module
  */
-import { deno } from '../config/module.f.ts'
+import { actions, deno } from '../config/module.f.ts'
 import { type MetaStep, clean, install, test } from '../common/module.f.ts'
 
 export const denoSteps = (extra: readonly MetaStep[]): readonly MetaStep[] => clean([
     install({
-        uses: 'denoland/setup-deno@v2',
+        uses: `denoland/setup-deno@${actions['denoland/setup-deno']}`,
         with: { 'deno-version': deno },
     }),
     test({ run: 'deno install' }),
