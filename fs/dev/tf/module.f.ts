@@ -18,6 +18,7 @@ import {
     test,
     type All,
     type Await,
+    type Env,
     type NodeProgram,
     type NodeProgramOptions,
     type Program,
@@ -29,7 +30,7 @@ import {
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
+import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
 

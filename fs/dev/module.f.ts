@@ -103,14 +103,16 @@ const allFiles = (
 }
 
 const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> => {
-    const doImport = import_(f).step(r => pure([[f, unwrap(r)] as const]))
-    if (f.endsWith('.f.js')) { return doImport }
-    if (f.endsWith('.f.ts')) {
+    return import_(f).step(r => pure([[f, unwrap(r)] as const]))
+    /*
+    if (f.endsWith('.js')) { return doImport }
+    if (f.endsWith('.ts')) {
         return access(f.substring(0, f.length - 3) + '.js')
             .step(r => r[0] === 'ok' ? pure([]) : doImport)
     }
     if (shouldLoad(f)) { return doImport }
     return pure([])
+    */
 }
 
 /** The effect operations required to discover and load a module map. */
@@ -132,10 +134,7 @@ const { fromEntries } = Object
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
  */
-export const loadModuleMap = (
-    env: Env,
-    predicate: (path: string) => boolean = isSourceFile,
-): Effect<LoadModuleOperations, ModuleMap> => {
+export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
     const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
     const prefix = s === '.' ? '' : s
@@ -143,22 +142,22 @@ export const loadModuleMap = (
     //       we should consider optimize them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    return allFiles(s, predicate)
-        .step(files => all(...files.map(loadFile)))
-        .step(entries => pure(fromEntries(
-            entries
-                .flat()
-                .map(([k, v]) => [relativize(prefix, k), v] as const)
-                .toSorted(([a], [b]) => strCmp(a)(b))
-        )))
+    return allFiles(s, shouldLoad)
+    .step(files => all(...files.map(loadFile)))
+    .step(entries => pure(fromEntries(
+        entries
+            .flat()
+            .map(([k, v]) => [relativize(prefix, k), v] as const)
+            .toSorted(([a], [b]) => strCmp(a)(b))
+    )))
 }
 
 const denoJson = './deno.json'
 
 const parseDenoJson = rttiParse(record(rttiUnknown))
 
-const index2 = begin
-    .step(() => updateVersion)
+const index2 =
+    updateVersion
     .step(() => readFile(denoJson))
     .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
 
