@@ -4,8 +4,8 @@
  *
  * @module
  */
-import { actions, bun } from '../config/module.f.ts'
-import { type Architecture, type MetaStep, type Os, type Step, clean, install, test } from '../common/module.f.ts'
+import { bun } from '../config/module.f.ts'
+import { type Architecture, type MetaStep, type Os, type Step, clean, install, test, uses } from '../common/module.f.ts'
 
 type Tool = {
     readonly def: Step
@@ -19,12 +19,7 @@ const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Archit
         : def)
 
 const installBun = installOnWindowsArm({
-    def: {
-        uses: `oven-sh/setup-bun@${actions['oven-sh/setup-bun']}`,
-        with: {
-            'bun-version': bun
-        },
-    },
+    def: uses('oven-sh/setup-bun', { 'bun-version': bun }),
     name: 'bun',
     path: 'bun.sh',
 })

@@ -60,6 +60,11 @@ export type MetaStep = {
     readonly package: string
 }
 
+export const uses = (name: keyof typeof actions, w?: Record<string, string>): Step =>
+    w === undefined
+        ? { uses: `${name}@${actions[name]}` }
+        : { uses: `${name}@${actions[name]}`, with: w }
+
 export const install = (step: Step): MetaStep => ({ type: 'install', step })
 
 export const test = (step: Step): MetaStep => ({ type: 'test', step })
@@ -85,7 +90,7 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
             }
         }] : []),
         ...filter('install'),
-        { uses: `actions/checkout@${actions['actions/checkout']}` },
+        uses('actions/checkout'),
         ...filter('test'),
     ]
 }

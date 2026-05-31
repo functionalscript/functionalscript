@@ -4,13 +4,13 @@
  *
  * @module
  */
-import { actions, node, tsgo } from '../config/module.f.ts'
-import { type Jobs, type MetaStep, type Os, clean, findTgz, install, test, ubuntu } from '../common/module.f.ts'
+import { node, tsgo } from '../config/module.f.ts'
+import { type Jobs, type MetaStep, type Os, clean, findTgz, install, test, ubuntu, uses } from '../common/module.f.ts'
 
 export const major = (v: string): string => v.split('.')[0]
 
 const installNode = (version: string) =>
-    ({ uses: `actions/setup-node@${actions['actions/setup-node']}`, with: { 'node-version': version } })
+    uses('actions/setup-node', { 'node-version': version })
 
 const nodeInstall = (v: string) => [
     install(installNode(v)),
