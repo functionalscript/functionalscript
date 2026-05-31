@@ -8,10 +8,10 @@ Install from npm:
 npm install functionalscript
 ```
 
-or from JSR:
+or from JSR (Deno):
 
 ```sh
-npx jsr add @functionalscript/functionalscript
+deno add jsr:@functionalscript/functionalscript
 ```
 
 ## Running tests
@@ -68,7 +68,7 @@ This design is intentional: keeping "does the module have a proof?" as a propert
 
 ### The `proof` export
 
-The named export `proof` is the test tree. A zero-argument function (`f.length === 0`) is a test node; functions with parameters are ignored and not called. A test node passes if it returns normally, and fails if it throws. Its return value may itself contain further test nodes (see [Return value as sub-tree](#return-value-as-sub-tree)).
+The named export `proof` is the test tree. No framework imports are needed — `proof` is a plain value. A zero-argument function (`f.length === 0`) is a test node; functions with parameters are ignored and not called. A test node passes if it returns normally, and fails if it throws. Its return value may itself contain further test nodes (see [Return value as sub-tree](#return-value-as-sub-tree)).
 
 ```ts
 export const proof = {
@@ -87,6 +87,10 @@ export const proof = {
         add: () => 1 + 1,
         mul: () => 2 * 2,
     },
+    suite: [
+        () => 'first',    // path: suite[0]
+        () => 'second',   // path: suite[1]
+    ],
 }
 ```
 
@@ -132,7 +136,7 @@ export const proof = {
 }
 ```
 
-Only **return values** of non-throw tests are walked as sub-trees, and the `throw` flag always resets to false for the sub-tree. Thrown values are discarded and never traversed, even if they are objects containing zero-parameter functions.
+Only **return values** of non-throw tests are walked as sub-trees. Thrown values are discarded and never traversed, even if they are objects containing zero-parameter functions.
 
 ## Convention: only real Promises are awaited
 
