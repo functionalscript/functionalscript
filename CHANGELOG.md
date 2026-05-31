@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `ci`: centralise GitHub Action refs in a single `ghActions` record in `fs/ci/config/module.f.ts` — full `owner/name@version` refs as values so call sites are `uses: ghActions.checkout`; version bumps for `checkout`, `setup-node`, `cache`, `setup-deno`, `setup-bun`, `wasmtime/setup`, `setup-wasmer` now touch one file ([i65Y-ci-action-versions-in-config](./issues/65Y-ci-action-versions-in-config.md)) [897](https://github.com/functionalscript/functionalscript/pull/897)
+
 ## 0.20.0
 
 - `tf`: step 2 — widen load gate to all `.f.ts`/`.f.js` + vanilla `proof.{ts,js,mts,mjs}`; rename `isTest` → `shouldLoad`; drop filename filter from `runModuleMap`/`registerModuleMap` — `v.proof !== undefined` is the sole gate; enables co-located white-box proofs ([i65Y-proof-by-export](./issues/65Y-proof-by-export.md)) [893](https://github.com/functionalscript/functionalscript/pull/893)
