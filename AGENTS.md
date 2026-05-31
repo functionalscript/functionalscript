@@ -70,7 +70,7 @@ where `<...Module documentation...>` should be documentation for the module.
       Why this pattern is good:
       - The two `after = performance.now()` calls are necessary on the critical path — extracting them into a helper would measure the helper function's overhead instead of just the operation.
       - TypeScript tracks uninitialized values: declaring `let after: number` without initialization lets the type checker verify that `after` is assigned in all code paths before the final `return` statement.
-      - We still avoid duplication of non-critical computations: the `result` object is formed once, not duplicated. Only the timing capture (which must be immediate) appears twice.
+      - We still avoid duplication of non-critical computations: the return value of the function (`{ result, duration: after - before }`) is formed once, not duplicated. Only the timing capture (which must be immediate) appears twice.
   - Separation of concerns — move logic to its natural module even with a single consumer when the logic is conceptually distinct (e.g. path manipulation belongs in `fs/path`, not inline in a loader). First search for an appropriate existing module; create a new one only if no good fit exists. This is different from DRY extraction: it is always appropriate.
   - Avoid side effects and mutability.
 - When a sibling module already has the type or helper you need, import it — add `export` to the existing declaration if it's not yet exported, rather than duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`, `prependPath`, `primitive0Validate`, `constPrimitiveValidate` from `validate`).
