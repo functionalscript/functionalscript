@@ -1,78 +1,76 @@
-# 65Z-ci-scenario-docker. Run scenario tests in CI via a cached Docker image
+# 65Z-ci-scenario-docker. Replace Ubuntu CI jobs with cached Docker images
 
 **Priority:** P3
 **Status:** open
 
 ## Problem
 
-The scenario tests (`fs/dev/tf/scenarios/run.sh`) require several tools to be
-installed simultaneously — Node, Deno, Bun, and Playwright — which no single
-existing CI job provides. Today the scenario runner is not executed in CI at
-all, so regressions in scenario behaviour go undetected until a developer runs
-`run.sh` locally.
+Ubuntu CI jobs currently install every tool (Node, Bun, Deno, Rust, Wasmtime,
+Wasmer, etc.) from scratch on every run. This is slow and duplicates effort
+already paid on the previous run. Additionally:
 
-Installing all four tools inline on every CI run would be slow. Playwright is
-already kept in a dedicated job specifically because its installation (browsers
-+ browser deps) is expensive.
+- Playwright is kept in a **separate** job on Ubuntu solely because its
+  installation is expensive, fragmenting the matrix.
+- The scenario tests (`fs/dev/tf/scenarios/run.sh`) are not run in CI at all
+  because no single job has all required runners (Node, Bun, Deno, Playwright)
+  at once.
 
 ## Proposal
 
-Build and cache a Docker image that has every required tool pre-installed and
-run the scenario suite inside it. The image is rebuilt only when a tool version
-changes; between rebuilds it is pulled from the GitHub Actions cache.
+Replace the Ubuntu jobs with Docker-container jobs that pull a pre-built,
+cached image. The image is rebuilt only when a tool version changes; between
+rebuilds it is pulled from the GitHub Actions cache in seconds.
+
+### What changes
+
+| | Today | After |
+|---|---|---|
+| Ubuntu (Intel + ARM) | installs tools inline each run | pulls cached Docker image |
+| Playwright | separate Ubuntu job | merged into Docker Ubuntu job |
+| Scenario tests | not run in CI | run inside Docker Ubuntu job |
+| macOS / Windows | unchanged | unchanged (no Playwright) |
 
 ### Image contents
 
-The Docker image should be generated from `fs/ci/` so that tool versions stay
-in sync with the rest of the CI matrix. It should include:
+The Dockerfile should be **generated from `fs/ci/`** so that tool versions are
+single-sourced in `fs/ci/config/module.f.ts`. The image must include everything
+needed for Ubuntu CI, matching what macOS and Windows jobs install inline:
 
 | Tool | Version source |
 |------|----------------|
-| Node | `config.node.default` |
+| Node (default) | `config.node.default` |
 | Deno | `config.deno` |
 | Bun | `config.bun` |
 | Playwright + browsers | `config.playwright` |
+| Rust toolchain | `config.actions['dtolnay/rust-toolchain']` |
+| Wasmtime | `config.wasmtime` |
+| Wasmer | `config.wasmer` |
 
-Rust, Wasmtime, Wasmer and other build tools are **not** needed for the
-scenario job and should be omitted to keep the image small and the cache warm.
+`docker/Dockerfile` will be replaced by the generated one. The existing file
+can serve as a reference during implementation.
 
 ### Cache key
 
 ```
-linux-<arch>-scenario-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>
+linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<WT>-wasmer<WM>
 ```
 
-The key is derived from the version constants in `fs/ci/config/module.f.ts` so
-it is updated automatically whenever any version is bumped.
+Derived entirely from version constants so it self-updates on any version bump.
 
 ### Architectures
 
-Run on both `ubuntu-24.04` (Intel x86-64) and `ubuntu-24.04-arm` (ARM64) — the
-same pair used for other Linux jobs — to catch architecture-specific issues.
-macOS and Windows are out of scope: the scenario tests are primarily exercising
-the framework's JavaScript behaviour, not OS-specific I/O.
+Both `ubuntu-24.04` (Intel x86-64) and `ubuntu-24.04-arm` (ARM64) run Docker
+jobs — the same pair as the current Ubuntu jobs.
 
-### Dockerfile
+### What runs inside the Docker job
 
-Reuse and clean up the existing `docker/Dockerfile`, or generate a purpose-built
-one from `fs/ci/`. A generated Dockerfile is preferred so that version pins are
-single-sourced in `fs/ci/config/module.f.ts`.
-
-### What to run
-
-```sh
-for scenario in fs/dev/tf/scenarios/*.pass.ts fs/dev/tf/scenarios/*.fail.ts; do
-    for runner in fjs node bun deno playwright; do
-        sh fs/dev/tf/scenarios/run.sh $runner $scenario
-    done
-done
-```
-
-(Or an equivalent driven from the CI generator.)
+All tests that currently run on Ubuntu, plus:
+- Playwright tests (currently a separate job)
+- Scenario tests across all runners: `fjs`, `node`, `bun`, `deno`, `playwright`
 
 ## Related
 
 - [i095](./095-ci-docker.md) — original Docker CI idea
 - [i145](./145-docker-linux-ci.md) — Docker containers for Linux CI jobs (broader scope)
 - [i183](./183-tf-framework-scenario-tests.md) — scenario test infrastructure
-- [i65Y-scenarios-proof](./65Y-scenarios-proof.md) — scenario files converted to `export const proof`; prerequisite for running them in CI
+- [i65Y-scenarios-proof](./65Y-scenarios-proof.md) — scenario files converted to `export const proof`; prerequisite
