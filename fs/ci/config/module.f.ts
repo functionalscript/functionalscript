@@ -46,4 +46,4 @@ export const wasmtime = '45.0.0'
 export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
-export const tsgo = '7.0.0-dev.20260527.1'
+export const tsgo = '7.0.0-dev.20260527.2'
