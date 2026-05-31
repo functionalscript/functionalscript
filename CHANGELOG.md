@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.20.0
+
 - `tf`: step 2 — widen load gate to all `.f.ts`/`.f.js` + vanilla `proof.{ts,js,mts,mjs}`; rename `isTest` → `shouldLoad`; drop filename filter from `runModuleMap`/`registerModuleMap` — `v.proof !== undefined` is the sole gate; enables co-located white-box proofs ([i65Y-proof-by-export](./issues/65Y-proof-by-export.md)) [893](https://github.com/functionalscript/functionalscript/pull/893)
 - `tf`: step 1 — discover proofs by exported `proof` property; `Module.default` → `Module.proof`; convert all 81 proof files from `export default` to `export const proof`; runner ignores all other module properties ([i65Y-proof-by-export](./issues/65Y-proof-by-export.md)) [889](https://github.com/functionalscript/functionalscript/pull/889)
 - `text`: DRY — extract the shared streaming code-point decoder skeleton (EOF sentinel, unit-vs-EOF dispatch, `flat(stateScan(...))` body) and the `errorMask` constant from `utf8`/`utf16` into a new `fs/text/code_point` module (`decoder` factory + `errorMask`) ([i168](./issues/168-utf-codepoint-decoder.md)) [860](https://github.com/functionalscript/functionalscript/pull/860)

@@ -18,6 +18,7 @@ import {
     test,
     type All,
     type Await,
+    type Env,
     type NodeProgram,
     type NodeProgramOptions,
     type Program,
@@ -29,7 +30,7 @@ import {
     type WriteConsoles
 } from '../../types/effects/node/module.f.ts'
 import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { loadModuleMap, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
+import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
 import { invert } from '../../types/result/module.f.ts'
 
 
@@ -230,13 +231,14 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
  * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
  */
-export const registerModuleMap =
-    (ctx: TestContext, moduleMap: ModuleMap): Effect<Test | All | Await, void> => {
-        const modules = entries(moduleMap)
-            .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
-        if (modules.length === 0) { return pure(undefined) }
-        return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
-    }
+const registerModuleMap =
+    (ctx: TestContext) =>(moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
+{
+    const modules = entries(moduleMap)
+        .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
+    if (modules.length === 0) { return pure(undefined) }
+    return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
+}
 
 /**
  * A chain of property-access keys leading to a test location. String entries
@@ -279,7 +281,7 @@ export const fmtPath = (path: Path): string =>
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
  */
 export const fmtImport = (file: string, path: Path): string =>
-    `import(${JSON.stringify(file)})${fmtPath(path)}()`
+    `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
 
 /**
  * Renders a key chain for terminal output: `| ` per level of depth, followed
@@ -363,10 +365,12 @@ export const main: NodeProgram =
  * framework-appropriate `TestContext` selected from `NodeProgramOptions`
  * based on the detected `engine`.
  */
-export const register: NodeProgram = o =>
-    loadModuleMap(o.env)
-    .step(m => registerModuleMap(
+export const register: NodeProgram = o => {
+    const r = registerModuleMap(
         o.engine === 'bun' ? o.bunTestContext :
         o.engine === 'playwright' ? o.playwrightTestContext :
-        o.testContext, m))
+        o.testContext)
+    return loadModuleMap(o.env)
+    .step(r)
     .step(() => pure(0))
+}

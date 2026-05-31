@@ -11,12 +11,12 @@ import {
 import { shouldLoad } from '../module.f.ts'
 
 type Event =
-    | readonly['result', string, Path, SandboxResult<unknown>]
-    | readonly['summary', number, number, number]
+    | readonly ['result', string, Path, SandboxResult<unknown>]
+    | readonly ['summary', number, number, number]
 
 type TestReporter = Reporter<Sandbox>
 
-const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {
+const makeReporter = (): readonly [TestReporter, () => readonly Event[]] => {
     const events: Event[] = []
     const reporter: TestReporter = {
         result: (file, path, r) => { events.push(['result', file, [...path], r]); return pure(undefined) },
@@ -42,7 +42,7 @@ const ok0 = (): unknown => ({ result: ['ok', undefined] as const, duration: 0 })
 const fail0 = (): unknown => ({ result: ['error', 'oops'] as const, duration: 0 })
 const ok1 = (): unknown => ({ result: ['ok', undefined] as const, duration: 1 })
 
-const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly[readonly Event[], number] => {
+const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly [readonly Event[], number] => {
     const [reporter, getEvents] = makeReporter()
     const state = { ...emptyState, root: dir }
     const [, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
@@ -51,7 +51,7 @@ const run = (dir: Record<string, JsModule>, initCwd = '.'): readonly[readonly Ev
 
 // Runs the real `defaultReporter` and returns its captured stdout/stderr so the
 // terminal and GitHub output formats can be asserted directly.
-const runMain = (dir: Record<string, JsModule>, github = false): readonly[string, string, number] => {
+const runMain = (dir: Record<string, JsModule>, github = false): readonly [string, string, number] => {
     const state = { ...emptyState, root: dir }
     const opts = options('.', github)
     const [finalState, exitCode] = virtual(state)(testAll(defaultReporter(opts))(opts))
@@ -132,12 +132,14 @@ export const mixedPassFail = () => {
 export const returnValueSubTree = () => {
     const inner: () => unknown = () => ({ result: ['ok', undefined] as const, duration: 0 })
     const [events, exit] = run({
-        'r.proof.f.ts': () => ({ proof: {
-            outer: (): unknown => ({
-                result: ['ok', { inner }] as const,
-                duration: 0,
-            }),
-        } }),
+        'r.proof.f.ts': () => ({
+            proof: {
+                outer: (): unknown => ({
+                    result: ['ok', { inner }] as const,
+                    duration: 0,
+                }),
+            }
+        }),
     })
     // outer passes, then inner (from return value) also passes
     assertEq(exit, 0)
@@ -223,7 +225,7 @@ export const defaultReporterOutput = () => {
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").x(): ok, 0.0000 ms\n'
+        'import("./a.proof.f.ts").proof.x(): ok, 0.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 0.0000 ms\n',
     )
@@ -235,7 +237,7 @@ export const defaultReporterFailOutput = () => {
         'a.proof.f.ts': () => ({ proof: { bad: fail0 } }),
     })
     assertEq(exit, 1)
-    assertEq(stderr, 'import("./a.proof.f.ts").bad(): error, 0.0000 ms\noops\n')
+    assertEq(stderr, 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\noops\n')
 }
 
 // the GitHub reporter emits an `::error` annotation with a percent-encoded
@@ -247,7 +249,7 @@ export const githubReporterOutput = () => {
     assertEq(exit, 1)
     assertEq(
         stderr,
-        '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts")["a%3Ab%2Cc%25d"]()::oops\n',
+        '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n',
     )
 }
 
@@ -291,11 +293,11 @@ export const helpers = {
         assert(!shouldLoad('proof.tsx'))
     },
     fmtImport: () => {
-        assertEq(fmtImport('./a.proof.f.ts', []), 'import("./a.proof.f.ts")()')
-        assertEq(fmtImport('./a.proof.f.ts', ['math', 'add']), 'import("./a.proof.f.ts").math.add()')
-        assertEq(fmtImport('./a.proof.f.ts', ['users', '3']), 'import("./a.proof.f.ts").users[3]()')
-        assertEq(fmtImport('./a.proof.f.ts', ['x', 'hello world']), 'import("./a.proof.f.ts").x["hello world"]()')
-        assertEq(fmtImport('./a.proof.f.ts', ['outer', null, 'inner']), 'import("./a.proof.f.ts").outer().inner()')
+        assertEq(fmtImport('./a.proof.f.ts', []), 'import("./a.proof.f.ts").proof()')
+        assertEq(fmtImport('./a.proof.f.ts', ['math', 'add']), 'import("./a.proof.f.ts").proof.math.add()')
+        assertEq(fmtImport('./a.proof.f.ts', ['users', '3']), 'import("./a.proof.f.ts").proof.users[3]()')
+        assertEq(fmtImport('./a.proof.f.ts', ['x', 'hello world']), 'import("./a.proof.f.ts").proof.x["hello world"]()')
+        assertEq(fmtImport('./a.proof.f.ts', ['outer', null, 'inner']), 'import("./a.proof.f.ts").proof.outer().inner()')
     },
     fmtPath: () => {
         assertEq(fmtPath([]), '')
@@ -319,4 +321,20 @@ export const helpers = {
     },
 }
 
-export const proof = { flat,nested,throwKey,throwKeyFail,mixedPassFail,returnValueSubTree,arrayKeys,nonTestFilesSkipped,multipleFiles,throwByFunctionName,namedExports,defaultReporterOutput,defaultReporterFailOutput,githubReporterOutput,helpers }
+export const proof = {
+    flat,
+    nested,
+    throwKey,
+    throwKeyFail,
+    mixedPassFail,
+    returnValueSubTree,
+    arrayKeys,
+    nonTestFilesSkipped,
+    multipleFiles,
+    throwByFunctionName,
+    namedExports,
+    defaultReporterOutput,
+    defaultReporterFailOutput,
+    githubReporterOutput,
+    helpers
+}
