@@ -1,18 +1,20 @@
 # Test Framework
 
-To enable testing in your project, you can add a simple test runner file `all.tets.ts` like this:
+To enable testing in your project, add a test runner file `all.test.ts` like this:
 
 ```ts
-import { run } from 'functionalscript/fs/dev/tf/all.test.js'
+import { run } from 'functionalscript/fs/dev/tf/module.js'
 
 await run()
 ```
 
-And then run it as
+And then run it with any supported runner:
 
-- `deno test --allow-env --allow-read`,
+- `fjs t` (FunctionalScript's own runner),
 - `node --test`,
-- `bun test`.
+- `bun test`,
+- `deno test --allow-read --allow-env`,
+- `npx playwright test`.
 
 ## Design: Dependency-Free Tests
 
@@ -23,14 +25,21 @@ Unlike most test frameworks (Jest, Mocha, Vitest, …), test files do **not** im
 
 ## Writing Tests
 
-A test file must be named `*.test.f.ts` (or `*.test.f.js`). Its `default` export is the test tree.
+### File naming
 
-### Functions
+A test file must export a `proof` property (see below). The framework loads:
 
-A zero-parameter function is a test case. It passes if it returns without throwing:
+- **Any** `.f.ts` / `.f.js` file (FunctionalScript modules are side-effect-free by construction).
+- Vanilla TypeScript/JavaScript files whose name ends in `proof.ts`, `proof.js`, `proof.mts`, or `proof.mjs` — e.g. `math.proof.ts` or `proof.ts`.
+
+A loaded file is only executed as a test if it exports a `proof` property; all other files are silently skipped.
+
+### The `proof` export
+
+The named export `proof` is the test tree:
 
 ```ts
-export default {
+export const proof = {
     myTest: () => 42,         // passes — returns normally
     failing: () => { throw 'oops' },  // fails — throws unexpectedly
 }
@@ -41,7 +50,7 @@ export default {
 Objects are traversed recursively. Each key becomes a path segment in the output:
 
 ```ts
-export default {
+export const proof = {
     math: {
         add: () => 1 + 1,
         mul: () => 2 * 2,
@@ -54,7 +63,7 @@ export default {
 A node named `throw` (or nested inside one) marks tests that are **expected to throw**. The test passes if the function throws, and fails if it returns normally:
 
 ```ts
-export default {
+export const proof = {
     throw: {
         divByZero: () => { throw new Error('division by zero') },  // passes
         noThrow: () => 42,                                          // fails
@@ -62,11 +71,11 @@ export default {
 }
 ```
 
-A function named `throw` is also recognised as a throw-test regardless of its position in the tree:
+A function whose `.name` property is `'throw'` is also recognised as a throw-test regardless of its position in the tree. Because `throw` is a reserved word it cannot be used as a variable name directly; the typical way to obtain such a function is via object property access:
 
 ```ts
-const throw = () => { throw 'expected' }
-export default { b: throw }   // passes — function name triggers throw semantics
+const t = { throw: () => { throw 'expected' } }.throw
+export const proof = { b: t }   // passes — function name triggers throw semantics
 ```
 
 ### Return value as sub-tree
@@ -74,7 +83,7 @@ export default { b: throw }   // passes — function name triggers throw semanti
 When a non-throw test function returns an object or another function, the return value is walked as a fresh sub-tree. This allows lazy or computed test trees:
 
 ```ts
-export default {
+export const proof = {
     computed: () => ({
         nested: () => 99,   // discovered and run after `computed()` returns
     }),
