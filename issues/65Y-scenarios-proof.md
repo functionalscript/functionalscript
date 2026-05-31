@@ -1,7 +1,7 @@
 # 65Y-scenarios-proof. Scenario files were not converted to `export const proof`
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -119,16 +119,16 @@ export const proof = {
 
 ## Tasks
 
-- [ ] Convert `throw.pass.f.ts` — replace `export default` with `export const proof =`
-- [ ] Convert `fail.fail.f.ts` — wrap `failing` in `proof`
-- [ ] Convert `return-value.pass.f.ts` — wrap `outer` in `proof`
-- [ ] Convert `thenable2.pass.f.ts` — wrap `shouldPass` in `proof`
-- [ ] Convert `async.pass.ts` — wrap `sleep` in `proof`
-- [ ] Convert `async.fail.ts` — wrap `sleep_fail` in `proof`
-- [ ] Convert `async-subtests.pass.ts` — wrap `withSubtests` in `proof`
-- [ ] Convert `async-subtests.fail.ts` — wrap `withSubtests` in `proof`
-- [ ] Convert `thenable.pass.ts` — wrap `thenableResolves` in `proof`
-- [ ] Verify `run.sh` with each runner: `fjs`, `node`, `bun`, `deno`
+- [x] Convert `throw.pass.f.ts` — replace `export default` with `export const proof =`
+- [x] Convert `fail.fail.f.ts` — wrap `failing` in `proof`
+- [x] Convert `return-value.pass.f.ts` — wrap `outer` in `proof`
+- [x] Convert `thenable2.pass.f.ts` — wrap `shouldPass` in `proof`
+- [x] Convert `async.pass.ts` — wrap `sleep` in `proof`
+- [x] Convert `async.fail.ts` — wrap `sleep_fail` in `proof`
+- [x] Convert `async-subtests.pass.ts` — wrap `withSubtests` in `proof`
+- [x] Convert `async-subtests.fail.ts` — wrap `withSubtests` in `proof`
+- [x] Convert `thenable.pass.ts` — wrap `thenableResolves` in `proof`
+- [x] Verify `run.sh` with each runner: `fjs`, `node`, `bun`, `deno`
 
 ## Related
 

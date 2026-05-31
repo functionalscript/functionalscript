@@ -10,10 +10,8 @@ scenario=$(realpath "$2")
 scendir=$(cd "$(dirname "$0")" && pwd)
 
 case "$scenario" in
-    *.pass.f.ts) expected=0; scenfile="$scendir/_scenario.proof.f.ts" ;;
-    *.fail.f.ts) expected=1; scenfile="$scendir/_scenario.proof.f.ts" ;;
-    *.pass.ts)   expected=0; scenfile="$scendir/_scenario.proof.ts" ;;
-    *.fail.ts)   expected=1; scenfile="$scendir/_scenario.proof.ts" ;;
+    *.pass.ts) expected=0; scenfile="$scendir/_scenario.proof.ts" ;;
+    *.fail.ts) expected=1; scenfile="$scendir/_scenario.proof.ts" ;;
     *) echo "unknown suffix: $scenario" >&2; exit 2 ;;
 esac
 allfile="$scendir/_all.test.ts"
