@@ -30,9 +30,6 @@ export const deno = '2.8.1'
 // https://www.npmjs.com/package/playwright
 export const playwright = '1.60.0'
 
-// https://rust-lang.org/
-export const rust = '1.95.0'
-
 // https://nodejs.org/en/download
 export const node = {
     default: '26.2.0',
@@ -66,5 +63,6 @@ export const actions = {
     'bytecodealliance/actions/wasmtime/setup': 'v1',
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
-    'dtolnay/rust-toolchain': rust,
+    // https://rust-lang.org/
+    'dtolnay/rust-toolchain': '1.95.0',
 } as const
