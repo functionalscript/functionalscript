@@ -47,3 +47,23 @@ export const wasmer = '7.1.0'
 
 // https://www.npmjs.com/package/@typescript/native-preview?activeTab=versions
 export const tsgo = '7.0.0-dev.20260527.1'
+
+// GitHub Action references used by CI step builders. Each value is a full
+// `owner/name@version` ref so call sites can drop it into a step's `uses`
+// field without any string composition.
+export const ghActions = {
+    // https://github.com/marketplace/actions/checkout
+    checkout: 'actions/checkout@v5',
+    // https://github.com/marketplace/actions/setup-node-js-environment
+    setupNode: 'actions/setup-node@v6',
+    // https://github.com/marketplace/actions/cache
+    cache: 'actions/cache@v4',
+    // https://github.com/marketplace/actions/setup-deno
+    setupDeno: 'denoland/setup-deno@v2',
+    // https://github.com/marketplace/actions/setup-bun
+    setupBun: 'oven-sh/setup-bun@v2',
+    // https://github.com/bytecodealliance/actions
+    wasmtime: 'bytecodealliance/actions/wasmtime/setup@v1',
+    // https://github.com/wasmerio/setup-wasmer
+    wasmer: 'wasmerio/setup-wasmer@v3.1',
+} as const

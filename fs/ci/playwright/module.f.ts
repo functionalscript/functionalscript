@@ -4,7 +4,7 @@
  *
  * @module
  */
-import { images, node, playwright } from '../config/module.f.ts'
+import { ghActions, images, node, playwright } from '../config/module.f.ts'
 import { type Job, install, test, toSteps } from '../common/module.f.ts'
 import { basicNode } from '../node/module.f.ts'
 
@@ -14,7 +14,7 @@ export const playwrightJob: Job = {
     'runs-on': playwrightImage,
     steps: toSteps(basicNode(node.default)([
         install({
-            uses: 'actions/cache@v4',
+            uses: ghActions.cache,
             with: {
                 path: '~/.cache/ms-playwright',
                 key: `${playwrightImage}-playwright-${playwright}`,

@@ -1,7 +1,7 @@
 # 65Y-ci-action-versions-in-config. Centralise CI action versions in `config/module.f.ts`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -22,22 +22,43 @@ across several modules:
 Bumping any action version requires hunting across multiple files instead of
 changing one line in `config/module.f.ts`.
 
-## Proposal
+## Resolution
 
-Add an `actions` (or `ghActions`) record to `fs/ci/config/module.f.ts`:
+Added a `ghActions` record to `fs/ci/config/module.f.ts`. The design
+diverges from the original draft (which stored bare versions keyed by
+`owner/name`) and stores **full `owner/name@version` refs** instead, so
+call sites drop them straight into a step's `uses` field with no string
+composition:
 
 ```ts
-export const actions = {
-    'actions/checkout':                          'v5',
-    'actions/setup-node':                        'v6',
-    'actions/cache':                             'v4',
-    'denoland/setup-deno':                       'v2',
-    'oven-sh/setup-bun':                         'v2',
-    'bytecodealliance/actions/wasmtime/setup':   'v1',
-    'wasmerio/setup-wasmer':                     'v3.1',
+export const ghActions = {
+    checkout:  'actions/checkout@v5',
+    setupNode: 'actions/setup-node@v6',
+    cache:     'actions/cache@v4',
+    setupDeno: 'denoland/setup-deno@v2',
+    setupBun:  'oven-sh/setup-bun@v2',
+    wasmtime:  'bytecodealliance/actions/wasmtime/setup@v1',
+    wasmer:    'wasmerio/setup-wasmer@v3.1',
 } as const
 ```
 
-The key is the action name; call sites compose the full reference as
-`` `${name}@${actions[name]}` ``. Replace every inline string with such a
-reference.
+Why the full-ref shape was chosen over the original `name → version`
+shape:
+
+- **Call sites are trivial.** `uses: ghActions.checkout` reads cleanly;
+  the alternative `uses: \`actions/checkout@${actions['actions/checkout']}\``
+  forces every site to repeat the action name twice.
+- **Matches the existing config style.** Sibling pins (`bun`, `deno`,
+  `playwright`, `rust`, `wasmtime`, `wasmer`, `tsgo`) are bare strings
+  pinned for use at the call site, not key/value pairs. `ghActions`
+  inherits that shape.
+- **`dtolnay/rust-toolchain` is intentionally excluded.** Its tag *is*
+  the rust toolchain version (already pinned via `rust` in this file),
+  not an action version, so it stays as `dtolnay/rust-toolchain@${rust}`
+  in `fs/ci/common/module.f.ts`.
+
+Each entry carries a marketplace URL comment so version bumps follow the
+same review trail as `bun` / `deno` / `node` etc. Call sites updated in
+`fs/ci/{common,node,playwright,deno,bun,rust}/module.f.ts`. Regenerating
+`.github/workflows/ci.yml` via `npm run ci-update` produces no diff,
+confirming the change is purely structural.

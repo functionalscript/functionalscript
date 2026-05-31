@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { wasmer, wasmtime } from '../config/module.f.ts'
+import { ghActions, wasmer, wasmtime } from '../config/module.f.ts'
 import { type Architecture, type MetaStep, type Os, install, test } from '../common/module.f.ts'
 
 const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
@@ -46,11 +46,11 @@ export const rustSteps = (v: Os, a: Architecture): readonly MetaStep[] => [
     test({ run: 'cargo clippy -- -D warnings' }),
     ...cargoTest(),
     install({
-        uses: 'bytecodealliance/actions/wasmtime/setup@v1',
+        uses: ghActions.wasmtime,
         with: { version: wasmtime }
     }),
     install({
-        uses: 'wasmerio/setup-wasmer@v3.1',
+        uses: ghActions.wasmer,
         with: { version: `v${wasmer}` },
     }),
     ...wasmTarget('wasm32-wasip1'),

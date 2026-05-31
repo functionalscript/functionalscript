@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { images, rust } from '../config/module.f.ts'
+import { ghActions, images, rust } from '../config/module.f.ts'
 import { option, array, record, string } from '../../types/rtti/module.f.ts'
 import { type Ts } from '../../types/rtti/ts/module.f.ts'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.ts'
@@ -85,7 +85,7 @@ export const toSteps = (m: readonly MetaStep[]): readonly Step[] => {
             }
         }] : []),
         ...filter('install'),
-        { uses: 'actions/checkout@v5' },
+        { uses: ghActions.checkout },
         ...filter('test'),
     ]
 }
