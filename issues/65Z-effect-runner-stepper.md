@@ -1,7 +1,23 @@
 # 65Z-effect-runner-stepper. `effects`: share the runner loop between `asyncRun` and the mock `run`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
+
+## Decision: will not fix
+
+The sync/async split is structural, not cosmetic. Of the two options the
+proposal landed on:
+
+- **Option A** (extract just the pure-tuple classifier) is too small to be
+  worth a shared module — `if (value.length === 1)` is one line and reads
+  fine in place.
+- **Option B** (share an async-only `driveAsync`) cannot help the mock,
+  which is intentionally synchronous for testing. It would share a loop
+  between async runners only, and today there is just one of those, so
+  there is nothing to dedupe.
+
+Net: no code deduplication is available without breaking the mock's
+synchronous contract. Closing.
 
 ## Problem
 
