@@ -223,7 +223,7 @@ export const defaultReporterOutput = () => {
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").x(): ok, 0.0000 ms\n'
+        'import("./a.proof.f.ts").proof.x(): ok, 0.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 0.0000 ms\n',
     )
@@ -235,7 +235,7 @@ export const defaultReporterFailOutput = () => {
         'a.proof.f.ts': () => ({ proof: { bad: fail0 } }),
     })
     assertEq(exit, 1)
-    assertEq(stderr, 'import("./a.proof.f.ts").bad(): error, 0.0000 ms\noops\n')
+    assertEq(stderr, 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\noops\n')
 }
 
 // the GitHub reporter emits an `::error` annotation with a percent-encoded
@@ -247,7 +247,7 @@ export const githubReporterOutput = () => {
     assertEq(exit, 1)
     assertEq(
         stderr,
-        '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts")["a%3Ab%2Cc%25d"]()::oops\n',
+        '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n',
     )
 }
 
@@ -291,11 +291,11 @@ export const helpers = {
         assert(!shouldLoad('proof.tsx'))
     },
     fmtImport: () => {
-        assertEq(fmtImport('./a.proof.f.ts', []), 'import("./a.proof.f.ts")()')
-        assertEq(fmtImport('./a.proof.f.ts', ['math', 'add']), 'import("./a.proof.f.ts").math.add()')
-        assertEq(fmtImport('./a.proof.f.ts', ['users', '3']), 'import("./a.proof.f.ts").users[3]()')
-        assertEq(fmtImport('./a.proof.f.ts', ['x', 'hello world']), 'import("./a.proof.f.ts").x["hello world"]()')
-        assertEq(fmtImport('./a.proof.f.ts', ['outer', null, 'inner']), 'import("./a.proof.f.ts").outer().inner()')
+        assertEq(fmtImport('./a.proof.f.ts', []), 'import("./a.proof.f.ts").proof()')
+        assertEq(fmtImport('./a.proof.f.ts', ['math', 'add']), 'import("./a.proof.f.ts").proof.math.add()')
+        assertEq(fmtImport('./a.proof.f.ts', ['users', '3']), 'import("./a.proof.f.ts").proof.users[3]()')
+        assertEq(fmtImport('./a.proof.f.ts', ['x', 'hello world']), 'import("./a.proof.f.ts").proof.x["hello world"]()')
+        assertEq(fmtImport('./a.proof.f.ts', ['outer', null, 'inner']), 'import("./a.proof.f.ts").proof.outer().inner()')
     },
     fmtPath: () => {
         assertEq(fmtPath([]), '')

@@ -102,18 +102,8 @@ const allFiles = (
     return load(s)
 }
 
-const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> => {
-    return import_(f).step(r => pure([[f, unwrap(r)] as const]))
-    /*
-    if (f.endsWith('.js')) { return doImport }
-    if (f.endsWith('.ts')) {
-        return access(f.substring(0, f.length - 3) + '.js')
-            .step(r => r[0] === 'ok' ? pure([]) : doImport)
-    }
-    if (shouldLoad(f)) { return doImport }
-    return pure([])
-    */
-}
+const loadFile = (f: string): Effect<Access | Import, readonly (readonly[string, Module])[]> =>
+    import_(f).step(r => pure([[f, unwrap(r)] as const]))
 
 /** The effect operations required to discover and load a module map. */
 export type LoadModuleOperations = Access | Import | All | Readdir
