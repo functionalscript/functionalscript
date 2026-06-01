@@ -1,4 +1,4 @@
-# 663-test-name-suffix-no-subtest-runners. Test name suffixes required for runners without sub-test support
+# 661-test-name-suffix-no-subtest-runners. Test name suffixes required for runners without sub-test support
 
 **Priority:** P3
 **Status:** open
@@ -41,5 +41,5 @@ expected-failure wrapper is involved.
 
 ## Related
 
-- [i662](./662-sandbox-isolated-test-execution.md) — fjs t sandbox isolation vs. in-test sub-test execution
+- [i661-sandbox-isolated-test-execution](./661-sandbox-isolated-test-execution.md) — fjs t sandbox isolation vs. in-test sub-test execution
 - [i661](./661-test-runner-behavior.md) — broader behavioural differences across supported test runners
