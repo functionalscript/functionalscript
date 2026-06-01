@@ -1,29 +1,35 @@
-# 212. Document behavior of supported test runners
+# 661-test-runner-behavior. Document behavior of supported test runners
 
 **Priority:** P3
 **Status:** open
 
-Each supported test runner handles generated tests and expected failures differently.
-This should be documented clearly for contributors and users.
+## Problem
 
-## Sub-test handling
+Each supported test runner handles generated tests and expected failures differently.
+This is not documented anywhere, leaving contributors uncertain about why the framework
+behaves differently across Node, Deno, Bun, and Playwright.
+
+## Proposal
+
+Document the following differences in the relevant README or doc page:
+
+**Sub-test handling**
 
 - **Node** and **Deno**: run generated tests as native sub-tests.
 - **Deno** caveat: sub-tests are not counted toward the total test count.
 - **Bun** and **Playwright**: do not support sub-tests natively; generated tests are
   run inside a parent test using a special wrapper.
 
-## Expected-to-fail tests
+**Expected-to-fail tests**
 
 - **Node** and **Deno**: natively understand tests that are expected to fail.
 - **Bun** and **Playwright**: have no awareness of expected-to-fail semantics, so
   such tests are wrapped to emulate the behavior.
 
-## Task
+## Tasks
 
-Add documentation (e.g. in a doc page or README section) describing these differences
-so contributors and users understand how test generation and failure expectations are
-handled for each runner.
+- [ ] Identify the right location for this documentation
+- [ ] Write the documentation describing the differences above
 
 ## Related
 
