@@ -152,14 +152,14 @@ export type Reporter<O extends Operation> = {
  * must be declared upfront and the framework drives execution.
  */
 export const registerModule =
-    (ctx: TestContext, k: string, v: unknown, suffixStar = false): Effect<Test | All | Await, void> => {
+    (ctx: TestContext, k: string, v: unknown, star: string): Effect<Test | All | Await, void> => {
         const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) => {
             // ' throw' for runners without native expectFailure semantics (Bun, Playwright).
             // ' *' for inline runners (Bun, Playwright) that bundle all sub-tests inside a
             // single registration instead of nesting them — signals that the reported test
             // covers multiple logical tests. throw and * are mutually exclusive.
             const base = fmtImport(k, path)
-            const name = throws ? `${base} throw` : suffixStar ? `${base} *` : base
+            const name = throws ? `${base} throw` : `${base}${star}`
             return test(ctx, name, throws, (t): Effect<Test | All | Await, void> =>
                 awaitIfPromise(fn())
                 .step(resolved => {
@@ -239,12 +239,12 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
  * `ctx`. Delegates to `registerModule` for each matching entry.
  */
 const registerModuleMap =
-    (ctx: TestContext, suffixStar = false) => (moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
+    (ctx: TestContext, star: string) => (moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
 {
     const modules = entries(moduleMap)
         .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
     if (modules.length === 0) { return pure(undefined) }
-    return all(...modules.map(([k, v]) => registerModule(ctx, k, v, suffixStar))).step(() => pure(undefined))
+    return all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))).step(() => pure(undefined))
 }
 
 /**
@@ -373,11 +373,11 @@ export const main: NodeProgram =
  * based on the detected `engine`.
  */
 export const register: NodeProgram = o => {
-    const isInline = o.engine === 'bun' || o.engine === 'playwright'
+    const star = o.engine === 'bun' || o.engine === 'playwright' ? ' *' : ''
     const ctx = o.engine === 'bun' ? o.bunTestContext :
         o.engine === 'playwright' ? o.playwrightTestContext :
         o.testContext
-    const r = registerModuleMap(ctx, isInline)
+    const r = registerModuleMap(ctx, star)
     return loadModuleMap(o.env)
     .step(r)
     .step(() => pure(0))
