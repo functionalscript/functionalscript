@@ -22,7 +22,7 @@ type TestReporter = Reporter<Sandbox>
 const makeReporter = (): readonly [TestReporter, () => readonly Event[]] => {
     const events: Event[] = []
     const reporter: TestReporter = {
-        result: (file, path, r) => { events.push(['result', file, [...path], r]); return pure(undefined) },
+        result: (file, path, r, _throws) => { events.push(['result', file, [...path], r]); return pure(undefined) },
         summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
         test: defaultTest,
     }
@@ -287,17 +287,17 @@ export const registerSuffixes = () => {
         throw: { a: () => { throw 'expected' } },
     }
 
-    // Node: no suffixes — expectFailure is native, sub-tests are native
-    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, '', ''))
+    // Node (star = ''): no suffixes
+    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ''))
     assertEq(nodeNames.length, 2)
     assertEq(nodeNames[0], 'import("./a.f.ts").proof.ok()')
     assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
 
-    // Bun/Playwright: * on normal tests, throw on throw-tests
-    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' *', ' throw'))
+    // Bun/Playwright (star = ' *'): * on normal tests, path shows throw for throw-tests
+    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' *'))
     assertEq(inlineNames.length, 2)
     assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() *')
-    assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a() throw')
+    assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
 }
 
 // direct unit tests for the pure path-format helpers
