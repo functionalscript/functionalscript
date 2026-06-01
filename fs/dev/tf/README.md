@@ -44,7 +44,7 @@ Developers can also implement their own runners as long as they follow the proof
 
 ## Design: Dependency-Free Tests
 
-Unlike most test frameworks (Jest, Mocha, Vitest, …), test files do **not** import anything from the test framework. A test is just a plain function or object — no `describe`, `it`, `expect`, or assertion library required. This means:
+Unlike most test frameworks (Jest, Mocha, Vitest, …), proof files do not need to import anything from the test framework (though they may import the module under test or other helpers). A test is just a plain function or object — no `describe`, `it`, `expect`, or assertion library required. This means:
 
 - Tests are **runner-agnostic**: the same test file can be run by any compatible runner without modification.
 - Tests have **no framework dependency**: they remain pure FunctionalScript modules and can be imported, composed, or inspected like any other module.
@@ -68,7 +68,7 @@ This design is intentional: keeping "does the module have a proof?" as a propert
 
 ### The `proof` export
 
-The named export `proof` is the test tree. No framework imports are needed — `proof` is a plain value. A zero-argument function (`f.length === 0`) is a test node; functions with parameters are ignored and not called. A test node passes if it returns normally, and fails if it throws. Its return value may itself contain further test nodes (see [Return value as sub-tree](#return-value-as-sub-tree)).
+The named export `proof` is the test tree. It is a plain value — no test-framework import required. A zero-argument function (`f.length === 0`) is a test node; functions with parameters are ignored and not called. A test node passes if it returns normally, and fails if it throws. Its return value may itself contain further test nodes (see [Return value as sub-tree](#return-value-as-sub-tree)).
 
 ```ts
 export const proof = {
@@ -84,12 +84,12 @@ Objects (and arrays) are traversed recursively. Each key becomes a path segment 
 ```ts
 export const proof = {
     math: {
-        add: () => 1 + 1,
-        mul: () => 2 * 2,
+        add: () => { if (1 + 1 !== 2) throw '1 + 1 !== 2' },
+        mul: () => { if (2 * 2 !== 4) throw '2 * 2 !== 4' },
     },
     suite: [
-        () => 'first',    // path: suite[0]
-        () => 'second',   // path: suite[1]
+        () => { if (typeof '' !== 'string') throw 'expected string' },  // path: suite[0]
+        () => { if (typeof 0  !== 'number') throw 'expected number' },  // path: suite[1]
     ],
 }
 ```
