@@ -62,6 +62,38 @@ The key should be stable across hard links and copies — a logical name
 (e.g. the module's canonical import path relative to the repo root), not
 `import.meta.url`, which would differ per copy.
 
+### Alternative: module-level `Set` in a shared registry module
+
+ES modules are **singletons per resolved URL**: a module is evaluated exactly
+once and its exports are shared by all importers that resolve to the same URL.
+A dedicated registry module can exploit this:
+
+```ts
+// fs/dev/tf/registry.f.ts
+export const seen = new Set<string>()
+```
+
+Any entry-point module imports `seen` from the canonical registry URL. Because
+the registry module is loaded once, `seen` is shared across all importers —
+even if the entry-point itself is loaded under multiple paths (hard links,
+copies). No `globalThis` pollution needed.
+
+```ts
+// all.ts
+import { seen } from './registry.f.ts'
+import { run } from './module.ts'
+
+if (!seen.has('all')) {
+    seen.add('all')
+    await run()
+}
+```
+
+This is the simplest approach and requires no new effect type. The trade-off
+is that it only works when all copies share the same `registry.f.ts` URL —
+which holds for hard links in the same directory tree, but not for copies in
+entirely separate trees.
+
 ### Alternative: inode-based deduplication
 
 The effect runner could detect hard-linked files by comparing inodes before
