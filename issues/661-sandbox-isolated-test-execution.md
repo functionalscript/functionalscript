@@ -14,9 +14,11 @@ executes generated and sub-tests:
   or with the parent test. Because generated tests are fully independent, they
   are only scheduled **after the parent test succeeds**, and the runner has
   full control over when (and whether) to execute them.
-- **Most other runners**: sub-tests and generated tests are executed **inside**
-  the parent test, in the same process/context. The parent's scope is directly
-  accessible to child tests, and sub-test execution is driven by the parent.
+- **Most other runners**: if the framework supports sub-tests, generated tests
+  are **registered** inside the parent test (same process/context, parent's
+  scope directly accessible). If the framework has no sub-test support, the
+  generated test is simply **run inline** inside the parent. Either way,
+  execution is driven by the parent, not the runner.
 
 This architectural difference has practical consequences that contributors and
 users need to be aware of when comparing behaviour or porting tests between
@@ -44,7 +46,7 @@ ordering guarantees, and runner-controlled scheduling are no longer in effect.
 | Side-effects from one test leaking to another | Prevented | Must be managed manually |
 | Test isolation overhead | Higher (sandbox setup per test) | Lower |
 | Parallelism safety | Inherent | Requires explicit care |
-| Generated tests are independent top-level tests | Yes — scheduled after parent succeeds | No — always nested inside the parent |
+| Generated tests are independent top-level tests | Yes — scheduled after parent succeeds | No — registered as sub-tests (if supported) or run inline inside the parent |
 | Runner controls when generated tests run | Yes — runner decides scheduling | No — execution is dictated by the parent test |
 
 ## Proposal
