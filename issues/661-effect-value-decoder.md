@@ -109,11 +109,11 @@ places**, none of which is the module that owns the type.
 ## Proposed decoder
 
 Add one accessor to the core module that turns the positional tuple into a
-named, discriminated node. It is the only place that knows the layout:
+named, discriminated form. It is the only place that knows the layout:
 
 ```ts
 // fs/types/effects/module.f.ts
-export type Node<O extends Operation, T> =
+export type Decoded<O extends Operation, T> =
     | { readonly done: true, readonly result: T }
     | {
         readonly done: false,
@@ -122,8 +122,8 @@ export type Node<O extends Operation, T> =
         readonly continuation: Do<O, T>[2],
     }
 
-/** Decodes an effect's next node: a pure result, or a command to perform. */
-export const node = <O extends Operation, T>({ value }: Effect<O, T>): Node<O, T> =>
+/** Decodes an effect's next step: a pure result, or a command to perform. */
+export const decode = <O extends Operation, T>({ value }: Effect<O, T>): Decoded<O, T> =>
     value.length === 1
         ? { done: true, result: value[0] }
         : { done: false, command: value[0], payload: value[1], continuation: value[2] }
@@ -135,20 +135,20 @@ vs. state-thread) differs, which is exactly the part that *should* differ:
 ```ts
 // async runner
 while (true) {
-    const n = node(effect)
-    if (n.done) { return n.result }
-    effect = n.continuation(await map[n.command](...n.payload))
+    const d = decode(effect)
+    if (d.done) { return d.result }
+    effect = d.continuation(await map[d.command](...d.payload))
 }
 ```
 
 ```ts
 // mock runner
 while (true) {
-    const n = node(e)
-    if (n.done) { return [s, n.result] }
-    const [ns, m] = o[n.command](s, ...n.payload)
+    const d = decode(e)
+    if (d.done) { return [s, d.result] }
+    const [ns, m] = o[d.command](s, ...d.payload)
     s = ns
-    e = n.continuation(m)
+    e = d.continuation(m)
 }
 ```
 
@@ -156,17 +156,17 @@ And the proofs stop poking at internals:
 
 ```ts
 // effects/proof.f.ts
-const n = node(e)
-if (!n.done) { throw e.value }
-if (n.result !== 10) { throw n.result }
+const d = decode(e)
+if (!d.done) { throw e.value }
+if (d.result !== 10) { throw d.result }
 ```
 
 ## Why this is feasible (typing)
 
 Both runners *already* write `const [command, payload, continuation] = value`
 and then call `operation(...payload)`; that compiles today against the
-decorrelated union types of `Do<O, T>`. `node` returns exactly those same three
-bindings under names, so the type situation is unchanged — it only names the
+decorrelated union types of `Do<O, T>`. `decode` returns exactly those same
+three bindings under names, so the type situation is unchanged — it only names the
 discriminant. No `as` casts are introduced; the length check narrows the tuple
 union structurally (no type predicate needed), in line with `AGENTS.md`.
 
@@ -186,8 +186,8 @@ reasoning `AGENTS.md` applies to the `sandbox` timing pattern.
   are the unambiguous DRY reductions.
 - The two production runners (`module.ts`, `mock/module.f.ts`) live in
   different files (`.ts` side-effecting vs. `.f.ts` pure-runner), but both can
-  import `node` from the `.f.ts` core — no layering violation.
-- Land it as one small PR: add `node` + `Node`, then rewrite call sites. No
+  import `decode` from the `.f.ts` core — no layering violation.
+- Land it as one small PR: add `decode` + `Decoded`, then rewrite call sites. No
   behaviour change, so the existing effect proofs are the regression test.
 
 ## Related
