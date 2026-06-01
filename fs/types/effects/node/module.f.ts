@@ -12,8 +12,8 @@ import type { Vec } from '../../bit_vec/module.f.ts'
 import type { Nominal } from '../../nominal/module.f.ts'
 import type { Result } from '../../result/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type ToAsyncOperationMap, do_,
-    pure
+    type Effect, type Func, type Operation, type ToAsyncOperationMap, begin,
+    do_, pure
 } from '../module.f.ts'
 
 export type IoResult<T> = Result<T, unknown>
@@ -316,6 +316,16 @@ export type NodeOp =
     | Test
 
 export type NodeEffect<T> = Effect<NodeOp, T>
+
+/**
+ * Writes an error line to `stderr` and yields exit code `1`. The canonical
+ * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
+ * compose `error(s).step(() => pure(n))` directly.
+ */
+export const errorExit = (s: string): Effect<NodeOp, number> =>
+    begin
+        .step(() => error(s))
+        .step(() => pure(1))
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 

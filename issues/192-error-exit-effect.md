@@ -1,7 +1,7 @@
 # 192. `effects/node`: an `errorExit` helper for "print an error, exit 1"
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 Both CLI entry points encode "write an error line, then yield exit code 1" by
 hand:
