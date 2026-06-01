@@ -256,7 +256,7 @@ export const githubReporterOutput = () => {
     )
 }
 
-// registerModule appends ' throw' / ' ...' suffix for inline runners.
+// registerModule appends ' ...' for inline runners (Bun/Playwright).
 // Uses a minimal synchronous mock for the Test/All/Await effect operations.
 export const registerSuffixes = () => {
     type S = readonly string[]

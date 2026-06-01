@@ -57,7 +57,7 @@ in `fjs t` output covers the visibility need for that runner.
 
 ## Tasks
 
-- [x] `*` suffix on Bun/Playwright registrations (`registerModule`, `registerModuleMap`, `register`)
+- [x] `...` suffix on Bun/Playwright registrations (`registerModule`, `registerModuleMap`, `register`)
 - [x] `# EXPECTED TO THROW` in `fjs t` output (`Reporter.result` gains `throws` param, `defaultReporter` uses it)
 - [x] Test coverage: `registerSuffixes` in `fs/dev/tf/proof.f.ts`
 
