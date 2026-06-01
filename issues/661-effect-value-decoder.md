@@ -106,7 +106,7 @@ places**, none of which is the module that owns the type.
   job of `effects/module.f.ts`. An interpreter's job is *what to do* with a
   pure value vs. a command — not *how to tell them apart*.
 
-## Proposed decoder
+## Proposed: `decode` + `match`
 
 Add one accessor to the core module that turns the positional tuple into a
 named, discriminated form. It is the only place that knows the layout:
@@ -129,30 +129,67 @@ export const decode = <O extends Operation, T>({ value }: Effect<O, T>): Decoded
         : { done: false, command: value[0], payload: value[1], continuation: value[2] }
 ```
 
-The three runners collapse to a uniform shape; only the *perform* step (await
-vs. state-thread) differs, which is exactly the part that *should* differ:
+`decode` alone removes the discriminant duplication, but each runner would still
+re-do the `map[command](...payload)` dispatch. Per @sergey-shandar's review, we
+can share that too with a `match` combinator that decodes *and* dispatches,
+returning the operation's output while deferring the one world-specific step —
+`await` (async) or state-threading (sync) — to the caller:
 
 ```ts
-// async runner
+// fs/types/effects/module.f.ts
+export const match =
+    <O extends Operation, R>(map: { readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R }) =>
+    <T>(effect: Effect<O, T>): readonly['done', T] | readonly['cont', R, Do<O, T>[2]] => {
+        const d = decode(effect)
+        return d.done
+            ? ['done', d.result]
+            : ['cont', map[d.command](...d.payload), d.continuation]
+    }
+```
+
+What unifies async and sync is the *shape* `R` of the operation's output: if both
+operation maps return a value the loop finishes with a single world-specific
+eliminator, the two loops become the same skeleton plus one line.
+
+```ts
+// async runner — map: (...payload) => Promise<result>, so R = Promise<...>
+const ma = match(map)
 while (true) {
-    const d = decode(effect)
-    if (d.done) { return d.result }
-    effect = d.continuation(await map[d.command](...d.payload))
+    const r = ma(effect)
+    if (r[0] === 'done') { return r[1] }
+    effect = r[2](await r[1])          // eliminator: await
 }
 ```
 
 ```ts
-// mock runner
+// mock runner — map: (...payload) => (state) => [state, result], so R = (s) => [s, ...]
+const ma = match(o)
 while (true) {
-    const d = decode(e)
-    if (d.done) { return [s, d.result] }
-    const [ns, m] = o[d.command](s, ...d.payload)
+    const r = ma(e)
+    if (r[0] === 'done') { return [s, r[1]] }
+    const [ns, m] = r[1](s)            // eliminator: thread state
     s = ns
-    e = d.continuation(m)
+    e = r[2](m)
 }
 ```
 
-And the proofs stop poking at internals:
+This requires currying the mock operation map's state parameter — moving `state`
+from the front of the argument list to a trailing curried position:
+
+```ts
+// fs/types/effects/mock/module.f.ts
+export type MemOperationMap<O extends Operation, S> = {
+    // was: (state: S, ...payload: Pr<O, K>[0]) => readonly[S, Pr<O, K>[1]]
+    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => (state: S) => readonly[S, Pr<O, K>[1]]
+}
+```
+
+That re-ordering is a worthwhile separation in its own right: an operation's
+*arguments* (fixed when the command is issued) are now distinct from the *state*
+it threads (data the runner supplies) — the same currying discipline
+[i164-uncurry-accumulators](./164-uncurry-accumulators.md) discusses.
+
+The proofs need no dispatch, so they use `decode` directly:
 
 ```ts
 // effects/proof.f.ts
@@ -163,22 +200,13 @@ if (d.result !== 10) { throw d.result }
 
 ## Why this is feasible (typing)
 
-Both runners *already* write `const [command, payload, continuation] = value`
-and then call `operation(...payload)`; that compiles today against the
-decorrelated union types of `Do<O, T>`. `decode` returns exactly those same
-three bindings under names, so the type situation is unchanged — it only names the
-discriminant. No `as` casts are introduced; the length check narrows the tuple
-union structurally (no type predicate needed), in line with `AGENTS.md`.
-
-## Why not a `match`/`fold` combinator
-
-A `match(onPure, onDo)` higher-order form reads well for pure expression code
-but fights the interpreters: the async runner must `await` *between* decoding
-the node and resuming the continuation, so a callback that returns a value
-synchronously can't express it without wrapping every step in a promise. A
-plain accessor that returns the node and lets each loop drive itself keeps the
-async/sync/state differences explicit and on the critical path — the same
-reasoning `AGENTS.md` applies to the `sandbox` timing pattern.
+Both production runners *already* write `const [command, payload, continuation] =
+value` and then call `operation(...payload)`; that compiles today against the
+decorrelated union types of `Do<O, T>`. `decode` returns those same three bindings
+under names, and `match` invokes the operation exactly as the runners do now — so
+the type situation is unchanged. No `as` casts are introduced; the length check
+narrows the tuple union structurally (no type predicate needed), in line with
+`AGENTS.md`.
 
 ## Scope / caveats
 
@@ -186,9 +214,15 @@ reasoning `AGENTS.md` applies to the `sandbox` timing pattern.
   are the unambiguous DRY reductions.
 - The two production runners (`module.ts`, `mock/module.f.ts`) live in
   different files (`.ts` side-effecting vs. `.f.ts` pure-runner), but both can
-  import `decode` from the `.f.ts` core — no layering violation.
-- Land it as one small PR: add `decode` + `Decoded`, then rewrite call sites. No
-  behaviour change, so the existing effect proofs are the regression test.
+  import `decode`/`match` from the `.f.ts` core — no layering violation.
+- The `MemOperationMap` currying is a breaking change to every sync operation
+  map. The known consumer is the virtual filesystem
+  (`fs/types/effects/node/virtual/module.f.ts`), whose `operation`/`readOperation`
+  helpers build `(state, path) => …` operations; they must move to
+  `(...payload) => (state) => …`. That migration is mechanical but touches every
+  op, so it should be audited before committing — or `match` can be introduced
+  with `decode` first and the currying landed as a follow-up.
+- No behaviour change, so the existing effect proofs are the regression test.
 
 ## Related
 
