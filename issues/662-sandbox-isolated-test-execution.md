@@ -22,6 +22,19 @@ This architectural difference has practical consequences that contributors and
 users need to be aware of when comparing behaviour or porting tests between
 runners.
 
+## Convention vs. runner
+
+These properties — isolation, independence, deferred scheduling — are not
+accidents of implementation. The FunctionalScript **test conventions** are
+deliberately designed so that generated tests carry all of them. `fjs t` is
+built to honour those conventions and therefore exposes all the benefits.
+
+When the same test suite is run through an older or conventional runner
+(Node `node:test`, Deno, Bun, etc.), that runner has no knowledge of the
+conventions: it executes generated tests inline, inside the parent, and the
+properties are silently lost. The tests still pass or fail, but isolation,
+ordering guarantees, and runner-controlled scheduling are no longer in effect.
+
 ## Key differences
 
 | Aspect | fjs `t` | Typical runners (Node, Deno, Bun, Vitest…) |
