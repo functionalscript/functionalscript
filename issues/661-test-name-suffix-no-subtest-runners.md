@@ -1,7 +1,7 @@
 # 661-test-name-suffix-no-subtest-runners. Test name suffixes required for runners without sub-test support
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -35,9 +35,13 @@ expected-failure wrapper is involved.
 
 ## Tasks
 
-- [ ] Document the suffix convention in the relevant README or AGENTS.md
-- [ ] Verify the bridge code applies `*` and `throw` correctly for both Bun and Playwright
-- [ ] Add test coverage for suffix assignment in the bridge
+- [x] Document the suffix convention in the relevant README or AGENTS.md
+- [x] Verify the bridge code applies `throw` correctly for Bun and Playwright — added
+      ` throw` suffix in `registerModule` (`fs/dev/tf/module.f.ts`)
+- [x] Add test coverage for suffix assignment — `registerThrowSuffix` in `proof.f.ts`
+- [ ] `*` suffix (test bundles sub-tests inline) — requires knowing at registration time
+      whether the test function will return sub-trees; not statically determinable.
+      Deferred as a separate issue.
 
 ## Related
 

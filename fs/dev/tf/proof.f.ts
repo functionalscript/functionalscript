@@ -1,13 +1,16 @@
-import { pure } from '../../types/effects/module.f.ts'
+import { pure, type Effect } from '../../types/effects/module.f.ts'
 import type { NodeProgramOptions, Sandbox, SandboxResult } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    registerModule,
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
+import { run as mockRun } from '../../types/effects/mock/module.f.ts'
+import type { All, Await, Test, TestContext } from '../../types/effects/node/module.f.ts'
 import { shouldLoad } from '../module.f.ts'
 
 type Event =
@@ -253,6 +256,40 @@ export const githubReporterOutput = () => {
     )
 }
 
+// registerModule appends ' throw' to the test name for throw-expected tests.
+// Uses a minimal synchronous mock for the Test/All/Await effect operations.
+export const registerThrowSuffix = () => {
+    type S = readonly string[]
+    type Ops = Test | All | Await
+
+    let runner!: (s: S) => <T>(e: Effect<Ops, T>) => readonly [S, T]
+    const noopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
+
+    runner = mockRun<Ops, S>({
+        test: (s, _ctx, name, _xf, _fn) => [[...s, name], undefined],
+        all: (s, ...effects: readonly Effect<Ops, unknown>[]) => {
+            let st = s
+            const rs: unknown[] = []
+            for (const e of effects) {
+                const [ns, r] = runner(st)(e)
+                st = ns
+                rs.push(r)
+            }
+            return [st, rs]
+        },
+        await: (s, p) => [s, [p]],
+    } as Parameters<typeof mockRun<Ops, S>>[0])
+
+    const [names] = runner([])(registerModule(noopCtx, './a.f.ts', {
+        ok: () => {},
+        throw: { a: () => { throw 'expected' } },
+    }))
+
+    assertEq(names.length, 2)
+    assertEq(names[0], 'import("./a.f.ts").proof.ok()')
+    assertEq(names[1], 'import("./a.f.ts").proof.throw.a() throw')
+}
+
 // direct unit tests for the pure path-format helpers
 export const helpers = {
     isInteger: () => {
@@ -336,5 +373,6 @@ export const proof = {
     defaultReporterOutput,
     defaultReporterFailOutput,
     githubReporterOutput,
+    registerThrowSuffix,
     helpers
 }
