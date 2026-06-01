@@ -137,9 +137,21 @@ returning the operation's output while deferring the one world-specific step —
 
 ```ts
 // fs/types/effects/module.f.ts
+
+// An operation map whose entries take a command's payload and return some
+// output R. Generalizes both `ToAsyncOperationMap` (R = Promise<…>) and the
+// curried `MemOperationMap` (R = (state) => [state, …]).
+export type OperationMap<O extends Operation, R> = {
+    readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
+}
+
+export type MatchResult<O extends Operation, T, R> =
+    | readonly['done', T]
+    | readonly['cont', R, Do<O, T>[2]]
+
 export const match =
-    <O extends Operation, R>(map: { readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R }) =>
-    <T>(effect: Effect<O, T>): readonly['done', T] | readonly['cont', R, Do<O, T>[2]] => {
+    <O extends Operation, R>(map: OperationMap<O, R>) =>
+    <T>(effect: Effect<O, T>): MatchResult<O, T, R> => {
         const d = decode(effect)
         return d.done
             ? ['done', d.result]
