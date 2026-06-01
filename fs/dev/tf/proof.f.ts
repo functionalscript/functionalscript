@@ -256,16 +256,16 @@ export const githubReporterOutput = () => {
     )
 }
 
-// registerModule appends ' throw' to the test name for throw-expected tests.
+// registerModule appends ' throw' / ' *' suffixes for inline runners.
 // Uses a minimal synchronous mock for the Test/All/Await effect operations.
-export const registerThrowSuffix = () => {
+export const registerSuffixes = () => {
     type S = readonly string[]
     type Ops = Test | All | Await
 
     let runner!: (s: S) => <T>(e: Effect<Ops, T>) => readonly [S, T]
     const noopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
 
-    runner = mockRun<Ops, S>({
+    const makeRunner = () => mockRun<Ops, S>({
         test: (s, _ctx, name, _xf, _fn) => [[...s, name], undefined],
         all: (s, ...effects: readonly Effect<Ops, unknown>[]) => {
             let st = s
@@ -280,14 +280,24 @@ export const registerThrowSuffix = () => {
         await: (s, p) => [s, [p]],
     } as Parameters<typeof mockRun<Ops, S>>[0])
 
-    const [names] = runner([])(registerModule(noopCtx, './a.f.ts', {
+    runner = makeRunner()
+
+    const proof = {
         ok: () => {},
         throw: { a: () => { throw 'expected' } },
-    }))
+    }
 
-    assertEq(names.length, 2)
-    assertEq(names[0], 'import("./a.f.ts").proof.ok()')
-    assertEq(names[1], 'import("./a.f.ts").proof.throw.a() throw')
+    // Node (suffixStar = false): no * suffix, throw suffix only
+    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, false))
+    assertEq(nodeNames.length, 2)
+    assertEq(nodeNames[0], 'import("./a.f.ts").proof.ok()')
+    assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a() throw')
+
+    // Bun/Playwright (suffixStar = true): * on normal tests, throw on throw-tests
+    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, true))
+    assertEq(inlineNames.length, 2)
+    assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() *')
+    assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a() throw')
 }
 
 // direct unit tests for the pure path-format helpers
@@ -373,6 +383,6 @@ export const proof = {
     defaultReporterOutput,
     defaultReporterFailOutput,
     githubReporterOutput,
-    registerThrowSuffix,
+    registerSuffixes,
     helpers
 }
