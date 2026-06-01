@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `effects/node`: add `errorExit(s)` — the canonical "write an error line to stderr, yield exit code 1" `NodeOp` program; replaces a private `e` helper in `fs/cas/module.f.ts` (5 sites) and two inline `error(...).step(() => pure(1))` copies in `fs/fjs/module.f.ts` ([i192](./issues/192-error-exit-effect.md)) [917](https://github.com/functionalscript/functionalscript/pull/917)
+
 ## 0.20.0
 
 - `tf`: step 2 — widen load gate to all `.f.ts`/`.f.js` + vanilla `proof.{ts,js,mts,mjs}`; rename `isTest` → `shouldLoad`; drop filename filter from `runModuleMap`/`registerModuleMap` — `v.proof !== undefined` is the sole gate; enables co-located white-box proofs ([i65Y-proof-by-export](./issues/65Y-proof-by-export.md)) [893](https://github.com/functionalscript/functionalscript/pull/893)
