@@ -1,13 +1,16 @@
-import { pure } from '../../types/effects/module.f.ts'
+import { pure, type Effect } from '../../types/effects/module.f.ts'
 import type { NodeProgramOptions, Sandbox, SandboxResult } from '../../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../../types/effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    registerModule,
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
+import { run as mockRun } from '../../types/effects/mock/module.f.ts'
+import type { All, Await, Test, TestContext } from '../../types/effects/node/module.f.ts'
 import { shouldLoad } from '../module.f.ts'
 
 type Event =
@@ -19,7 +22,7 @@ type TestReporter = Reporter<Sandbox>
 const makeReporter = (): readonly [TestReporter, () => readonly Event[]] => {
     const events: Event[] = []
     const reporter: TestReporter = {
-        result: (file, path, r) => { events.push(['result', file, [...path], r]); return pure(undefined) },
+        result: (file, path, r, _throws) => { events.push(['result', file, [...path], r]); return pure(undefined) },
         summary: (pass, fail, time) => { events.push(['summary', pass, fail, time]); return pure(undefined) },
         test: defaultTest,
     }
@@ -253,6 +256,50 @@ export const githubReporterOutput = () => {
     )
 }
 
+// registerModule appends ' ...' for inline runners (Bun/Playwright).
+// Uses a minimal synchronous mock for the Test/All/Await effect operations.
+export const registerSuffixes = () => {
+    type S = readonly string[]
+    type Ops = Test | All | Await
+
+    let runner!: (s: S) => <T>(e: Effect<Ops, T>) => readonly [S, T]
+    const noopCtx: TestContext = { test: (_n, _o, _f) => Promise.resolve() }
+
+    const makeRunner = () => mockRun<Ops, S>({
+        test: (s, _ctx, name, _xf, _fn) => [[...s, name], undefined],
+        all: (s, ...effects: readonly Effect<Ops, unknown>[]) => {
+            let st = s
+            const rs: unknown[] = []
+            for (const e of effects) {
+                const [ns, r] = runner(st)(e)
+                st = ns
+                rs.push(r)
+            }
+            return [st, rs]
+        },
+        await: (s, p) => [s, [p]],
+    } as Parameters<typeof mockRun<Ops, S>>[0])
+
+    runner = makeRunner()
+
+    const proof = {
+        ok: () => {},
+        throw: { a: () => { throw 'expected' } },
+    }
+
+    // Node (star = ''): no suffixes
+    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ''))
+    assertEq(nodeNames.length, 2)
+    assertEq(nodeNames[0], 'import("./a.f.ts").proof.ok()')
+    assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
+
+    // Bun/Playwright (star = ' ...'): ... on normal tests, path shows throw for throw-tests
+    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' ...'))
+    assertEq(inlineNames.length, 2)
+    assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() ...')
+    assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
+}
+
 // direct unit tests for the pure path-format helpers
 export const helpers = {
     isInteger: () => {
@@ -336,5 +383,6 @@ export const proof = {
     defaultReporterOutput,
     defaultReporterFailOutput,
     githubReporterOutput,
+    registerSuffixes,
     helpers
 }

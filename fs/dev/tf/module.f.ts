@@ -136,7 +136,7 @@ export const collectTests = (
  * contained `inner`.
  */
 export type Reporter<O extends Operation> = {
-    readonly result: (file: string, path: Path, r: SandboxResult<unknown>) => Effect<O, void>
+    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void>
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
 }
@@ -152,9 +152,15 @@ export type Reporter<O extends Operation> = {
  * must be declared upfront and the framework drives execution.
  */
 export const registerModule =
-    (ctx: TestContext, k: string, v: unknown): Effect<Test | All | Await, void> => {
-        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
-            test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> =>
+    (ctx: TestContext, k: string, v: unknown, star: string): Effect<Test | All | Await, void> => {
+        const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) => {
+            // ' *' (non-empty only for Bun/Playwright) signals that all sub-tests run
+            // inline inside this single registration. Not appended to throw-tests since
+            // those never produce sub-tests. The path already contains '.throw' when a
+            // test is expected to throw, so no extra suffix is needed.
+            const base = fmtImport(k, path)
+            const name = throws ? base : `${base}${star}`
+            return test(ctx, name, throws, (t): Effect<Test | All | Await, void> =>
                 awaitIfPromise(fn())
                 .step(resolved => {
                     if (throws) { return pure(undefined) }
@@ -162,6 +168,7 @@ export const registerModule =
                     if (sub.length === 0) { return pure(undefined) }
                     return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
                 }))
+        }
         const tests = collectTests([], false, v)
         if (tests.length === 0) { return pure(undefined) }
         return all(...tests.map(e => registerOne(ctx, e))).step(() => pure(undefined))
@@ -181,7 +188,7 @@ const runModule =
         test(k, testPath, set)
         .step(sr => {
             const { result: [s, r], duration } = sr
-            return result(k, testPath, sr)
+            return result(k, testPath, sr, set.throws)
             .step((): Effect<O | All, TestState> => {
                 if (s === 'ok') {
                     if (set.throws) { return pure(addPass(duration)(zero)) }
@@ -232,12 +239,12 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
  * `ctx`. Delegates to `registerModule` for each matching entry.
  */
 const registerModuleMap =
-    (ctx: TestContext) =>(moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
+    (ctx: TestContext, star: string) => (moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
 {
     const modules = entries(moduleMap)
         .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
     if (modules.length === 0) { return pure(undefined) }
-    return all(...modules.map(([k, v]) => registerModule(ctx, k, v))).step(() => pure(undefined))
+    return all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))).step(() => pure(undefined))
 }
 
 /**
@@ -338,9 +345,9 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     const isGitHub = options.env['GITHUB_ACTION'] !== undefined
     return {
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-        result: (file, path, { result: [s, v], duration }) =>
+        result: (file, path, { result: [s, v], duration }, throws) =>
             s === 'ok'
-                ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration))
+                ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration) + (throws ? ' # EXPECTED TO THROW' : ''))
                 : isGitHub
                     ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
                     : csiError(fmtResultLine(file, path, fgRed, 'error', duration))
@@ -366,10 +373,11 @@ export const main: NodeProgram =
  * based on the detected `engine`.
  */
 export const register: NodeProgram = o => {
-    const r = registerModuleMap(
-        o.engine === 'bun' ? o.bunTestContext :
+    const star = o.engine === 'bun' || o.engine === 'playwright' ? ' ...' : ''
+    const ctx = o.engine === 'bun' ? o.bunTestContext :
         o.engine === 'playwright' ? o.playwrightTestContext :
-        o.testContext)
+        o.testContext
+    const r = registerModuleMap(ctx, star)
     return loadModuleMap(o.env)
     .step(r)
     .step(() => pure(0))

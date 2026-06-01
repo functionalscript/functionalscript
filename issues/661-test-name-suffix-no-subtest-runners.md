@@ -1,43 +1,65 @@
-# 661-test-name-suffix-no-subtest-runners. Test name suffixes required for runners without sub-test support
+# 661-test-name-suffix-no-subtest-runners. Test name suffixes for runners without sub-test support
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
 Runners that do not support sub-tests natively (Bun, Playwright) must run all
-generated tests inline inside the parent test. To make this visible in the
-output and avoid name collisions, the registered test name must carry a suffix
-that signals non-standard execution:
+generated tests inline inside the parent test, without registering them
+individually. Without any signal in the test name, their output looks identical
+to a normal passing test, hiding the fact that multiple logical tests ran inside
+a single registration.
 
-1. **`*`** — appended when a test generates sub-tests. The runner will execute
-   all generated tests inside this single registration without registering them
-   individually. The suffix warns that the reported test covers multiple logical
-   tests bundled together.
+Additionally, `fjs t` did not indicate when a passing test was expected to
+throw — it showed `ok` with no distinction, unlike Node `--test` which appends
+`# EXPECTED FAILURE`.
 
-2. **`throw`** — appended when a test is expected to throw. The runner has no
-   native expected-to-fail semantics, so the wrapper catches the throw and
-   reports a pass. The `throw` suffix makes the intent explicit in the output.
-   (No `*` suffix is needed here because throw-tests do not generate sub-tests.)
+## Implementation
 
-Without these suffixes the output of Bun/Playwright runs looks identical to a
-normal passing test, hiding the fact that multiple sub-tests or an
-expected-failure wrapper is involved.
+### `*` suffix — Bun and Playwright registrations
 
-## Proposal
+`register` (`fs/dev/tf/module.f.ts`) detects `engine === 'bun' || engine === 'playwright'`
+and passes `star = ' ...'` down through `registerModuleMap` → `registerModule`.
+For Node, `star = ''`. Inside `registerOne`, the registered name becomes:
 
-- Formalise the `*` and `throw` suffix rules in the test-runner integration
-  documentation.
-- Ensure the bridge code that registers tests with Bun and Playwright always
-  applies the correct suffix.
-- Add a note explaining why `*` and `throw` are mutually exclusive (throw-tests
-  do not produce sub-tests).
+```
+import("./f.ts").proof.path() ...  // Bun/Playwright
+import("./f.ts").proof.path()      // Node --test
+```
+
+Throw-tests do not get `...` — they never produce sub-tests, and their path
+already contains `.throw` which makes the intent visible:
+
+```
+import("./f.ts").proof.throw.a()   // no * suffix, path shows .throw
+```
+
+### `# EXPECTED TO THROW` — `fjs t` output
+
+`Reporter.result` receives a `throws: boolean` parameter (passed from
+`runModule`). `defaultReporter` appends `# EXPECTED TO THROW` to the output
+line when `throws` is true:
+
+```
+import("./fs/dev/proof.f.ts").proof.throw(): ok, 0.18 ms # EXPECTED TO THROW
+```
+
+This matches the spirit of Node's `# EXPECTED FAILURE` while being specific to
+the FunctionalScript throw convention.
+
+## Why no ` throw` suffix on Bun/Playwright registrations
+
+An earlier iteration appended ` throw` to the registered name for Bun/Playwright.
+This was removed: the path already contains `.throw` (by the key or function-name
+convention), so the suffix was redundant. The `# EXPECTED TO THROW` annotation
+in `fjs t` output covers the visibility need for that runner.
 
 ## Tasks
 
-- [ ] Document the suffix convention in the relevant README or AGENTS.md
-- [ ] Verify the bridge code applies `*` and `throw` correctly for both Bun and Playwright
-- [ ] Add test coverage for suffix assignment in the bridge
+- [x] `...` suffix on Bun/Playwright registrations (`registerModule`, `registerModuleMap`, `register`)
+- [x] `# EXPECTED TO THROW` in `fjs t` output (`Reporter.result` gains `throws` param, `defaultReporter` uses it)
+- [x] Test coverage: `registerSuffixes` in `fs/dev/tf/proof.f.ts`
 
 ## Related
 
