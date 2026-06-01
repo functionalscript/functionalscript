@@ -5,49 +5,39 @@
 
 ## Problem
 
-fjs `t` (the FunctionalScript test runner) differs fundamentally from most
-popular test runners (Node `node:test`, Deno, Bun, Vitest, Jest) in how it
-executes generated and sub-tests:
+fjs `t` (the FunctionalScript test runner) differs fundamentally from other
+supported runners (Node `node:test`, Deno, Bun, Playwright) in how it executes
+generated tests:
 
-- **fjs `t`**: each generated test is run in its own **separate sandbox** — an
-  isolated execution context. Tests cannot share mutable state with each other
-  or with the parent test. Because generated tests are fully independent, they
-  are only scheduled **after the parent test succeeds**, and the runner has
-  full control over when (and whether) to execute them.
-- **Most other runners**: if the framework supports sub-tests, generated tests
-  are **registered** inside the parent test (same process/context, parent's
-  scope directly accessible). If the framework has no sub-test support, the
-  generated test is simply **run inline** inside the parent. Either way,
-  execution is driven by the parent, not the runner.
-
-This architectural difference has practical consequences that contributors and
-users need to be aware of when comparing behaviour or porting tests between
-runners.
+- **fjs `t`**: each generated test runs in its own **isolated sandbox** —
+  a separate execution context with no shared mutable state. Generated tests are
+  scheduled by the runner **after the parent test succeeds**.
+- **Node / Deno** (sub-test support): generated tests are **registered as
+  native sub-tests** inside the parent test. They run in the same process,
+  the parent's scope is accessible, and execution is driven by the parent.
+- **Bun / Playwright** (no sub-test support): generated tests are **run
+  inline** inside the parent test using a compatibility wrapper. The parent's
+  scope is accessible and execution is driven by the parent.
 
 ## Convention vs. runner
 
-These properties — isolation, independence, deferred scheduling — are not
-accidents of implementation. The FunctionalScript **test conventions** are
-deliberately designed so that generated tests carry all of them. `fjs t` is
-built to honour those conventions and therefore exposes all the benefits.
+Isolation, independence, and deferred scheduling are deliberate properties of
+the FunctionalScript test conventions. `fjs t` is built to honour them.
 
-When the same test suite is run through an older or conventional runner
-(Node `node:test`, Deno, Bun, etc.), that runner has no knowledge of the
-conventions: it executes generated tests inline, inside the parent, and the
-properties are silently lost. The tests still pass or fail, but isolation,
-ordering guarantees, and runner-controlled scheduling are no longer in effect.
+When the same test suite runs through Node, Deno, Bun, or Playwright, those
+runners have no knowledge of the conventions. Generated tests execute inside
+the parent, and the isolation and scheduling guarantees are silently lost. Tests
+still pass or fail correctly, but the sandbox properties no longer apply.
 
 ## Key differences
 
-| Aspect | fjs `t` | Typical runners (Node, Deno, Bun, Vitest…) |
-|---|---|---|
-| Generated test execution context | Isolated sandbox per test | Inside the parent test |
-| Shared mutable state between tests | Not possible by design | Possible (and common) |
-| Side-effects from one test leaking to another | Prevented | Must be managed manually |
-| Test isolation overhead | Higher (sandbox setup per test) | Lower |
-| Parallelism safety | Inherent | Requires explicit care |
-| Generated tests are independent top-level tests | Yes — scheduled after parent succeeds | No — registered as sub-tests (if supported) or run inline inside the parent |
-| Runner controls when generated tests run | Yes — runner decides scheduling | No — execution is dictated by the parent test |
+| Aspect | fjs `t` | Node / Deno | Bun / Playwright |
+|---|---|---|---|
+| Generated test execution context | Isolated sandbox | Native sub-test inside parent | Inline inside parent (wrapper) |
+| Shared mutable state between tests | Not possible by design | Possible | Possible |
+| Side-effects leaking between tests | Prevented | Must be managed manually | Must be managed manually |
+| Generated tests scheduled by runner | Yes — after parent succeeds | No — parent drives execution | No — parent drives execution |
+| Sub-test support | N/A (sandbox model) | Yes | No |
 
 ## Proposal
 
@@ -64,7 +54,7 @@ that:
 ## Tasks
 
 - [ ] Identify the right location for this documentation (README, AGENTS.md, or a dedicated doc page)
-- [ ] Write a short explanation of the sandbox model and how it contrasts with in-test sub-test execution
+- [ ] Write a short explanation of the sandbox model and how it contrasts with sub-test and inline execution
 - [ ] Add a note in the test-runner comparison table (see [i661](./661-test-runner-behavior.md))
 
 ## Related
