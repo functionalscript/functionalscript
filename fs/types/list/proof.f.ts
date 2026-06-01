@@ -349,5 +349,15 @@ export const proof = {
         if (length(null) !== 0) { throw 0 }
         if (length(flat([[1, 3], null, () => [3], concat([12])([4, 89])])) !== 6) { throw 6 }
     },
+    filterMap: [
+        () => {
+            const result = str(filterMap((x: number) => x % 2 === 0 ? x * 10 : null)([1, 2, 3, 4, 5]))
+            if (result !== '[20,40]') { throw result }
+        },
+        () => {
+            const result = str(filterMap((x: number) => x > 3 ? x : null)([1, 2, 3]))
+            if (result !== '[]') { throw result }
+        },
+    ],
     // stress
 }
