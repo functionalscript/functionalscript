@@ -11,10 +11,12 @@ executes generated and sub-tests:
 
 - **fjs `t`**: each generated test is run in its own **separate sandbox** — an
   isolated execution context. Tests cannot share mutable state with each other
-  or with the parent test.
+  or with the parent test. Because generated tests are fully independent, they
+  are only scheduled **after the parent test succeeds**, and the runner has
+  full control over when (and whether) to execute them.
 - **Most other runners**: sub-tests and generated tests are executed **inside**
   the parent test, in the same process/context. The parent's scope is directly
-  accessible to child tests.
+  accessible to child tests, and sub-test execution is driven by the parent.
 
 This architectural difference has practical consequences that contributors and
 users need to be aware of when comparing behaviour or porting tests between
@@ -29,6 +31,8 @@ runners.
 | Side-effects from one test leaking to another | Prevented | Must be managed manually |
 | Test isolation overhead | Higher (sandbox setup per test) | Lower |
 | Parallelism safety | Inherent | Requires explicit care |
+| Generated tests are independent top-level tests | Yes — scheduled after parent succeeds | No — always nested inside the parent |
+| Runner controls when generated tests run | Yes — runner decides scheduling | No — execution is dictated by the parent test |
 
 ## Proposal
 
