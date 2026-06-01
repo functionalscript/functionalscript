@@ -1,0 +1,198 @@
+# 661. `effects`: a single decoder for the `Pure | Do` value representation
+
+**Priority:** P3
+**Status:** open
+
+The `Effect` ADT encodes a node as a tuple: a **pure** value is a length-1
+tuple `readonly[T]`, a **do** node is a length-3 tuple
+`readonly[command, payload, continuation]`. The discriminant is the tuple
+*length*:
+
+```ts
+// fs/types/effects/module.f.ts:17
+export type Value<O extends Operation, T> =
+    Pure<T> | Do<O, T>
+
+// fs/types/effects/module.f.ts:20
+export type Pure<T> =
+    readonly[T]
+
+// fs/types/effects/module.f.ts:23
+export type DoKPR<O extends Operation, T, K extends string, PR extends readonly[unknown, unknown]> =
+    readonly[K, PR[0], (_: PR[1]) => Effect<O, T>]
+```
+
+That representation is **private knowledge of the ADT**, but every interpreter
+and every test re-derives it by hand. The core module that *defines* the tuple
+shape exports **no accessor** for it, so the `value.length === 1` discriminant
+and the `[command, payload, continuation]` layout are copy-pasted across the
+whole subtree.
+
+## The duplicated decoding
+
+Three hand-rolled interpreter loops, byte-identical except for async/await and
+state threading:
+
+```ts
+// fs/types/effects/module.ts:7 — async runner
+while (true) {
+    const {value} = effect
+    if (value.length === 1) {
+        return value[0]
+    }
+    const [command, payload, continuation] = value
+    const operation = map[command]
+    const result = await operation(...payload)
+    effect = continuation(result)
+}
+```
+
+```ts
+// fs/types/effects/mock/module.f.ts:24 — sync, state-threaded runner
+while (true) {
+    const { value } = e
+    if (value.length === 1) {
+        const [v] = value
+        return [s, v]
+    }
+    const [cmd, payload, cont] = value
+    const operation = o[cmd]
+    const [ns, m] = operation(s, ...payload)
+    s = ns
+    e = cont(m)
+}
+```
+
+```ts
+// fs/types/effects/node/proof.f.ts:13 — a third runner, inline in a proof
+while (true) {
+    const { value } = e
+    if (value.length === 1) {
+        const [result] = value
+        if (result !== 0x2An) { throw result }
+        return
+    }
+    const [cmd, p, cont] = value
+    if (cmd !== 'readFile') { throw cmd }
+    if (p[0] !== 'hello') { throw p }
+    e = cont(['ok', vec8(0x15n)])
+}
+```
+
+Plus **five** assertion sites that reach into the same representation just to
+pull the pure result out of an effect that should already be done:
+
+```ts
+// fs/types/effects/proof.f.ts:10 (and :19, :28, :36, :42)
+const { value } = e
+if (value.length !== 1) { throw value }
+if (value[0] !== 10) { throw value[0] }
+```
+
+So the `length === 1` discriminant and the tuple index layout appear in **8+
+places**, none of which is the module that owns the type.
+
+## Why this is a problem
+
+- **Encapsulation leak.** `Pure<T> = readonly[T]` and the 3-tuple `Do` layout
+  are an implementation choice. Today, changing it — e.g. to a tagged
+  `{ pure: T } | { command, payload, continuation }` for readability, or adding
+  a third node kind — means editing every loop and every proof. The
+  representation has no single owner.
+- **DRY.** The same decode is written for the async runner, the mock runner,
+  and a per-proof runner. That is three real consumers of one algorithm, well
+  past the second-consumer bar in `AGENTS.md`.
+- **Separation of concerns.** Knowing how an effect node is laid out is the
+  job of `effects/module.f.ts`. An interpreter's job is *what to do* with a
+  pure value vs. a command — not *how to tell them apart*.
+
+## Proposed decoder
+
+Add one accessor to the core module that turns the positional tuple into a
+named, discriminated node. It is the only place that knows the layout:
+
+```ts
+// fs/types/effects/module.f.ts
+export type Node<O extends Operation, T> =
+    | { readonly done: true, readonly result: T }
+    | {
+        readonly done: false,
+        readonly command: O[0],
+        readonly payload: Do<O, T>[1],
+        readonly continuation: Do<O, T>[2],
+    }
+
+/** Decodes an effect's next node: a pure result, or a command to perform. */
+export const node = <O extends Operation, T>({ value }: Effect<O, T>): Node<O, T> =>
+    value.length === 1
+        ? { done: true, result: value[0] }
+        : { done: false, command: value[0], payload: value[1], continuation: value[2] }
+```
+
+The three runners collapse to a uniform shape; only the *perform* step (await
+vs. state-thread) differs, which is exactly the part that *should* differ:
+
+```ts
+// async runner
+while (true) {
+    const n = node(effect)
+    if (n.done) { return n.result }
+    effect = n.continuation(await map[n.command](...n.payload))
+}
+```
+
+```ts
+// mock runner
+while (true) {
+    const n = node(e)
+    if (n.done) { return [s, n.result] }
+    const [ns, m] = o[n.command](s, ...n.payload)
+    s = ns
+    e = n.continuation(m)
+}
+```
+
+And the proofs stop poking at internals:
+
+```ts
+// effects/proof.f.ts
+const n = node(e)
+if (!n.done) { throw e.value }
+if (n.result !== 10) { throw n.result }
+```
+
+## Why this is feasible (typing)
+
+Both runners *already* write `const [command, payload, continuation] = value`
+and then call `operation(...payload)`; that compiles today against the
+decorrelated union types of `Do<O, T>`. `node` returns exactly those same three
+bindings under names, so the type situation is unchanged — it only names the
+discriminant. No `as` casts are introduced; the length check narrows the tuple
+union structurally (no type predicate needed), in line with `AGENTS.md`.
+
+## Why not a `match`/`fold` combinator
+
+A `match(onPure, onDo)` higher-order form reads well for pure expression code
+but fights the interpreters: the async runner must `await` *between* decoding
+the node and resuming the continuation, so a callback that returns a value
+synchronously can't express it without wrapping every step in a promise. A
+plain accessor that returns the node and lets each loop drive itself keeps the
+async/sync/state differences explicit and on the critical path — the same
+reasoning `AGENTS.md` applies to the `sandbox` timing pattern.
+
+## Scope / caveats
+
+- Pure win: the five `proof.f.ts` assertions and the `node/proof.f.ts` runner
+  are the unambiguous DRY reductions.
+- The two production runners (`module.ts`, `mock/module.f.ts`) live in
+  different files (`.ts` side-effecting vs. `.f.ts` pure-runner), but both can
+  import `node` from the `.f.ts` core — no layering violation.
+- Land it as one small PR: add `node` + `Node`, then rewrite call sites. No
+  behaviour change, so the existing effect proofs are the regression test.
+
+## Related
+
+- [i164-uncurry-accumulators](./164-uncurry-accumulators.md) — same spirit of
+  giving the effect/state machinery a single, well-shaped representation.
+- [i208-try-catch-consolidate](./208-try-catch-consolidate.md) — lifting an
+  open-coded helper (`tryCatch`) into the module that should own it.
