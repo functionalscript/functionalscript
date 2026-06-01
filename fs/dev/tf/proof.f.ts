@@ -287,14 +287,14 @@ export const registerSuffixes = () => {
         throw: { a: () => { throw 'expected' } },
     }
 
-    // Node (star = ''): no * suffix, throw suffix only
-    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ''))
+    // Node: no suffixes — expectFailure is native, sub-tests are native
+    const [nodeNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, '', ''))
     assertEq(nodeNames.length, 2)
     assertEq(nodeNames[0], 'import("./a.f.ts").proof.ok()')
-    assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a() throw')
+    assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
 
-    // Bun/Playwright (star = ' *'): * on normal tests, throw on throw-tests
-    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' *'))
+    // Bun/Playwright: * on normal tests, throw on throw-tests
+    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' *', ' throw'))
     assertEq(inlineNames.length, 2)
     assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() *')
     assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a() throw')
