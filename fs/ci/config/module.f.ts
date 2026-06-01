@@ -48,6 +48,7 @@ export const tsgo = '7.0.0-dev.20260527.2'
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
 // `` `${name}@${actions[name]}` ``.
+// Note: dtolnay/rust-toolchain value is a Rust version, not an action version.
 export const actions = {
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v6',
@@ -63,6 +64,6 @@ export const actions = {
     'bytecodealliance/actions/wasmtime/setup': 'v1',
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
-    // https://rust-lang.org/
-    'dtolnay/rust-toolchain': 'v1',
+    // https://rust-lang.org/ - value is Rust version, not action version
+    'dtolnay/rust-toolchain': '1.95.0',
 } as const
