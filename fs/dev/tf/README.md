@@ -1,5 +1,24 @@
 # Test Framework
 
+This framework discovers and runs **proofs**: plain FunctionalScript values that
+verify behaviour. There is no `describe`/`it`/`expect` API — a proof is just a
+function or an object tree, so it can be imported, composed, and inspected like
+any other value.
+
+## Concepts
+
+Three terms are used precisely throughout this document:
+
+- **Proof** — the value a module exports under the name **`proof`**. It is a
+  tree whose leaves are test cases: either a single zero-argument function, or
+  an object/array containing more such trees.
+- **Test case** (or just *test*) — a single zero-argument function (`f.length === 0`)
+  inside a proof. It is the unit that passes or fails: it **passes** if it
+  returns normally and **fails** if it throws (inverted for [throw tests](#throw-tests)).
+- **Proof module** — a module that exports `proof`. This is the unit of
+  *discovery*: the framework decides what to run by asking "does this module
+  export a `proof`?", never by filename alone.
+
 ## Installation
 
 Install from npm:
@@ -14,11 +33,12 @@ or from JSR (Deno):
 deno add jsr:@functionalscript/functionalscript
 ```
 
-## Running tests
+## Running proofs
 
 ### `fjs t` (built-in runner)
 
-FunctionalScript's own runner discovers all proof modules automatically — no entry file required:
+FunctionalScript's own runner discovers all proof modules automatically — no
+entry file required:
 
 ```sh
 fjs t
@@ -26,12 +46,17 @@ fjs t
 
 ### External runners (Node, Bun, Deno, Playwright)
 
-For external runners, create an entry file that matches the runner's discovery pattern (many runners pick up files matching `*.test.ts` or `*.test.js` by default):
+External runners need an entry file that simply calls `run`, which discovers
+every proof module and registers each test case with the active runner:
 
 ```ts
+// all.test.ts
 import { run } from 'functionalscript/fs/dev/tf/module.js'
 await run()
 ```
+
+`all.test.ts` is the recommended name, but any name works as long as the runner
+loads it — most pick up `*.test.ts` / `*.test.js` by default.
 
 Then invoke the runner:
 
@@ -40,46 +65,63 @@ Then invoke the runner:
 - `deno test --allow-read --allow-env`
 - `npx playwright test`
 
-Developers can also implement their own runners as long as they follow the proof-tree conventions described below.
+You can also implement your own runner, as long as it follows the proof-tree
+conventions described below.
 
-## Design: Dependency-Free Tests
+## Design: dependency-free proofs
 
-Unlike most test frameworks (Jest, Mocha, Vitest, …), proof files do not need to import anything from the test framework (though they may import the module under test or other helpers). A test is just a plain function or object — no `describe`, `it`, `expect`, or assertion library required. This means:
+Unlike most test frameworks (Jest, Mocha, Vitest, …), a proof does **not** import
+anything from the test framework (though it may import the module under test or
+other helpers). Because a proof is an ordinary value, it is:
 
-- Tests are **runner-agnostic**: the same test file can be run by any compatible runner without modification.
-- Tests have **no framework dependency**: they remain pure FunctionalScript modules and can be imported, composed, or inspected like any other module.
+- **runner-agnostic** — the same proof runs under any compatible runner without
+  modification;
+- **dependency-free** — it stays a pure FunctionalScript module with no
+  test-framework imports.
 
-## Writing Tests
+## Discovery: the `proof` export
 
-### Discovery: the `proof` export
+A module is a proof module **if and only if it exports `proof`**. Discovery is by
+*value* — the framework asks "does this module export a `proof`?" — so a filename
+alone never causes a module to be executed as a proof.
 
-A module is treated as a test module if and only if it exports a property named **`proof`**. Discovery is by value — "does the module have a proof?" — not by filename alone.
-
-The framework loads modules in two tiers:
+To answer that question the framework must first load the module. It does so in
+two tiers:
 
 | Language | Load gate |
 |----------|-----------|
 | FunctionalScript (`.f.ts` / `.f.js`) | **all** files are loaded — FS modules have no import side effects by construction |
-| Vanilla TypeScript / JavaScript | opt-in by filename: files whose name ends in `proof.ts`, `proof.js`, `proof.mts`, or `proof.mjs` (e.g. `math.proof.ts`, `proof.js`) |
+| Vanilla TypeScript / JavaScript | opt-in by filename: names ending in `proof.ts`, `proof.js`, `proof.mts`, or `proof.mjs` (e.g. `math.proof.ts`) |
 
-A loaded file that does not export `proof` is silently skipped; filename alone never causes a file to be executed as a test suite.
+A loaded module that does not export `proof` is silently skipped.
 
-This design is intentional: keeping "does the module have a proof?" as a property of the *module's value* rather than its path means proofs remain self-describing even when files are stored by content hash (no stable filename) in a Merkle DAG, or when source code is published and copied as text.
+This split is intentional: keeping "is this a proof module?" a property of the
+module's *value* rather than its *path* means proofs stay self-describing even
+when files are stored by content hash (no stable filename) in a Merkle DAG, or
+when source is published and copied as text. The filename gate exists only for
+vanilla JS/TS, which — unlike FunctionalScript — may run side effects at import
+time and so cannot be loaded indiscriminately.
 
-### The `proof` export
+## Writing proofs
 
-The named export `proof` is the test tree. It is a plain value — no test-framework import required. A zero-argument function (`f.length === 0`) is a test node; functions with parameters are ignored and not called. A test node passes if it returns normally, and fails if it throws. Its return value may itself contain further test nodes (see [Return value as sub-tree](#return-value-as-sub-tree)).
+The `proof` export is the proof tree. It is a plain value — no framework import
+required. The simplest proof is a single test case:
 
 ```ts
 export const proof = {
-    myTest: () => 42,                      // passes — returns normally
-    failing: () => { throw 'oops' },       // fails — throws
+    myTest: () => 42,                  // passes — returns normally
+    failing: () => { throw 'oops' },   // fails — throws
 }
 ```
 
+A zero-argument function is a test case. Functions that declare parameters are
+ignored and never called.
+
 ### Nested objects
 
-Objects (and arrays) are traversed recursively. Each key becomes a path segment in the output. Only **own enumerable keys** are visited (as returned by `Object.entries`); prototype properties are excluded.
+Objects and arrays are traversed recursively. Each key becomes a path segment in
+the output. Only **own enumerable keys** are visited (as returned by
+`Object.entries`); prototype properties are excluded.
 
 ```ts
 export const proof = {
@@ -96,7 +138,9 @@ export const proof = {
 
 ### Throw tests
 
-A node named `throw` (or nested inside one) marks tests that are **expected to throw**. The test passes if the function throws, and fails if it returns normally:
+A node named `throw` (or nested inside one) marks test cases that are **expected
+to throw**: such a case passes if the function throws and fails if it returns
+normally.
 
 ```ts
 export const proof = {
@@ -107,11 +151,17 @@ export const proof = {
 }
 ```
 
-The `throw` key can appear at any depth; all tests reachable through it inherit the throw expectation. For example, `import('proof.ts').proof[5].throw.my()` is considered a throw-test because `throw` appears in its path.
+The `throw` key can appear at any depth; every test case reachable through it
+inherits the throw expectation. For example,
+`import('proof.ts').proof[5].throw.my()` is a throw test because `throw` appears
+in its path. Because the expectation is encoded in the path, no separate marker
+is needed in the output — `fjs t` appends `# EXPECTED TO THROW` to such a case
+when it passes.
 
-### Return value as sub-tree
+### Return value as a sub-tree
 
-When a non-throw test function returns an object or another function, the return value is walked as a fresh sub-tree. This allows lazy or computed test trees:
+When a non-throw test case returns an object or another function, the return
+value is walked as a fresh proof sub-tree. This allows lazy or computed trees:
 
 ```ts
 export const proof = {
@@ -121,7 +171,7 @@ export const proof = {
 }
 ```
 
-This is useful for generating tests dynamically. The following example produces one named sub-test per input case:
+This is how tests are generated dynamically — one named case per input:
 
 ```ts
 const cases: readonly [number, number, number][] = [[1, 1, 2], [0, 0, 0], [2, 3, 5]]
@@ -136,15 +186,44 @@ export const proof = {
 }
 ```
 
-Only **return values** of non-throw tests are walked as sub-trees. Thrown values are discarded and never traversed, even if they are objects containing zero-parameter functions.
+Only **return values** of non-throw test cases are walked. Thrown values are
+discarded and never traversed, even if they are objects containing zero-parameter
+functions.
+
+### Async tests
+
+A test case may be `async`. The framework awaits the returned `Promise`: the case
+passes if it resolves and fails if it rejects. The resolved value is then walked
+as a sub-tree, exactly like a synchronous return value:
+
+```ts
+import { readFile } from 'node:fs/promises'
+
+export const proof = {
+    readSelf: async () => {
+        const text = await readFile('package.json', 'utf8')
+        if (!text.includes('"name"')) throw text
+    },
+}
+```
 
 ## Convention: only real Promises are awaited
 
-When a test function returns a value, the framework checks `value instanceof Promise` to decide whether to await it. Only genuine `Promise` instances are awaited; plain *thenables* — objects that have a `.then` method but are not `instanceof Promise` — are treated as ordinary return values and walked as sub-trees.
+When a test case returns a value, the framework checks `value instanceof Promise`
+to decide whether to await it. Only genuine `Promise` instances are awaited;
+plain *thenables* — objects with a `.then` method that are not `instanceof Promise`
+— are treated as ordinary return values and walked as sub-trees.
 
-This is intentional. FunctionalScript does not allow direct `Promise` construction; `Promise` objects only arise as the return value of `async` functions (an Effect). A plain `{ then: f }` object in FunctionalScript code is almost certainly a data value, not an async operation, and awaiting it would be surprising.
+This is intentional. FunctionalScript does not allow direct `Promise`
+construction; `Promise` objects only arise as the return value of `async`
+functions (an Effect). A plain `{ then: f }` object in FunctionalScript is almost
+certainly a data value, not an async operation, and awaiting it would be
+surprising.
 
-As a consequence, **exporting a function named `then` from a test module is forbidden**: the module namespace object would become a thenable, corrupting dynamic `import()` resolution. See [issues/lang/3240-export.md](../../issues/lang/3240-export.md).
+As a consequence, **exporting a function named `then` from a proof module is
+forbidden**: the module namespace object would become a thenable, corrupting
+dynamic `import()` resolution. See
+[issues/lang/3240-export.md](../../issues/lang/3240-export.md).
 
 ## Proof location and scope
 
@@ -153,11 +232,21 @@ A proof's *location* determines what it can see. Three tiers exist:
 | Mechanism | Scope | Runs when | Use for |
 |-----------|-------|-----------|---------|
 | Module-level `assertEq(...)` | public + private | **every module load** | light, cheap, deterministic checks only |
-| `export const proof` co-located in module | public + private | under the runner | [white-box](https://en.wikipedia.org/wiki/White-box_testing) unit proofs |
+| `export const proof` co-located in a module | public + private | under the runner | [white-box](https://en.wikipedia.org/wiki/White-box_testing) unit proofs |
 | Separate module exporting `proof` | public API only | under the runner | [black-box](https://en.wikipedia.org/wiki/Black-box_testing) / integration |
 
-**Module-level asserts** (e.g. `assertEq(2 + 2, 4)` at the top level of a module) run on *every import*, not just during a test run. They must be restricted to light, cheap, deterministic checks — never stress tests or benchmarks, as that cost is paid on every module load.
+**Module-level asserts** (e.g. `assertEq(2 + 2, 4)` at the top level of a module)
+run on *every import*, not just during a proof run. Restrict them to light, cheap,
+deterministic checks — never stress tests or benchmarks, since that cost is paid
+on every module load.
 
-**Co-located `export const proof`** shares the module's lexical scope, including unexported bindings, enabling white-box unit proofs without widening the public API. Note that `proof` itself is a real export and therefore visible in the module's public types and runtime bundle; declaring it as `unknown` (`export const proof: unknown = { … }`) mitigates the type-surface exposure while keeping the runtime value in place.
+**Co-located `export const proof`** shares the module's lexical scope, including
+unexported bindings, enabling white-box unit proofs without widening the public
+API. Note that `proof` is itself a real export and therefore visible in the
+module's public types and runtime bundle; declaring it `unknown`
+(`export const proof: unknown = …`) hides the type surface while keeping the
+runtime value in place.
 
-**A separate `*.proof.f.ts` module** (or any other separately loaded proof file) can only reach the subject module's public exports, making it suitable for black-box and integration proofs that should not depend on internal structure.
+**A separate proof module** can reach only the subject module's public exports,
+making it suitable for black-box and integration proofs that should not depend on
+internal structure.
