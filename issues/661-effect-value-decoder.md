@@ -165,9 +165,9 @@ eliminator, the two loops become the same skeleton plus one line.
 
 ```ts
 // async runner — map: (...payload) => Promise<result>, so R = Promise<...>
-const ma = match(map)
+const next = match(map)
 while (true) {
-    const r = ma(effect)
+    const r = next(effect)
     if (r[0] === 'done') { return r[1] }
     effect = r[2](await r[1])          // eliminator: await
 }
@@ -175,9 +175,9 @@ while (true) {
 
 ```ts
 // mock runner — map: (...payload) => (state) => [state, result], so R = (s) => [s, ...]
-const ma = match(o)
+const next = match(o)
 while (true) {
-    const r = ma(e)
+    const r = next(e)
     if (r[0] === 'done') { return [s, r[1]] }
     const [ns, m] = r[1](s)            // eliminator: thread state
     s = ns
