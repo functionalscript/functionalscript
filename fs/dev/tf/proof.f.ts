@@ -256,7 +256,7 @@ export const githubReporterOutput = () => {
     )
 }
 
-// registerModule appends ' throw' / ' *' suffixes for inline runners.
+// registerModule appends ' throw' / ' ...' suffix for inline runners.
 // Uses a minimal synchronous mock for the Test/All/Await effect operations.
 export const registerSuffixes = () => {
     type S = readonly string[]
@@ -293,10 +293,10 @@ export const registerSuffixes = () => {
     assertEq(nodeNames[0], 'import("./a.f.ts").proof.ok()')
     assertEq(nodeNames[1], 'import("./a.f.ts").proof.throw.a()')
 
-    // Bun/Playwright (star = ' *'): * on normal tests, path shows throw for throw-tests
-    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' *'))
+    // Bun/Playwright (star = ' ...'): ... on normal tests, path shows throw for throw-tests
+    const [inlineNames] = runner([])(registerModule(noopCtx, './a.f.ts', proof, ' ...'))
     assertEq(inlineNames.length, 2)
-    assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() *')
+    assertEq(inlineNames[0], 'import("./a.f.ts").proof.ok() ...')
     assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
 }
 

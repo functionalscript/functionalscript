@@ -20,15 +20,15 @@ throw — it showed `ok` with no distinction, unlike Node `--test` which appends
 ### `*` suffix — Bun and Playwright registrations
 
 `register` (`fs/dev/tf/module.f.ts`) detects `engine === 'bun' || engine === 'playwright'`
-and passes `star = ' *'` down through `registerModuleMap` → `registerModule`.
+and passes `star = ' ...'` down through `registerModuleMap` → `registerModule`.
 For Node, `star = ''`. Inside `registerOne`, the registered name becomes:
 
 ```
-import("./f.ts").proof.path() *    // Bun/Playwright
+import("./f.ts").proof.path() ...  // Bun/Playwright
 import("./f.ts").proof.path()      // Node --test
 ```
 
-Throw-tests do not get `*` — they never produce sub-tests, and their path
+Throw-tests do not get `...` — they never produce sub-tests, and their path
 already contains `.throw` which makes the intent visible:
 
 ```

@@ -373,7 +373,7 @@ export const main: NodeProgram =
  * based on the detected `engine`.
  */
 export const register: NodeProgram = o => {
-    const star = o.engine === 'bun' || o.engine === 'playwright' ? ' *' : ''
+    const star = o.engine === 'bun' || o.engine === 'playwright' ? ' ...' : ''
     const ctx = o.engine === 'bun' ? o.bunTestContext :
         o.engine === 'playwright' ? o.playwrightTestContext :
         o.testContext
