@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0
+
+- **breaking** `emergent_testing`: rename `fs/emergent-testing` → `fs/emergent_testing` (snake_case, matching the `bit_vec` / `prime_field` module-naming convention); public exports and the external-runner entry import change from `…/fs/emergent-testing/module.{f.ts,ts,js}` to `…/fs/emergent_testing/module.{f.ts,ts,js}` [924](https://github.com/functionalscript/functionalscript/pull/924)
+- `asserts`: add the missing `./fs/asserts/module.f.ts` entry to `deno.json` exports (the module was extracted in 0.21.0 but not published via JSR) [924](https://github.com/functionalscript/functionalscript/pull/924)
+
 ## 0.21.0
 
 - **breaking** `tf`: rename `fs/dev/tf` → `fs/emergent-testing`; public exports `./fs/dev/tf/module.f.ts` and `./fs/dev/tf/module.ts` become `./fs/emergent-testing/module.f.ts` and `./fs/emergent-testing/module.ts`; external-runner entry import changes from `functionalscript/fs/dev/tf/module.js` to `functionalscript/fs/emergent-testing/module.js` [923](https://github.com/functionalscript/functionalscript/pull/923)
