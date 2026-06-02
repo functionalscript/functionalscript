@@ -1,7 +1,7 @@
 # 188. `nullable.fromUndefined`: one place for "`undefined` → `null`" normalization
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 Two modules independently normalize a JavaScript lookup that may yield
 `undefined` into the codebase's `Nullable` (`null`) convention:

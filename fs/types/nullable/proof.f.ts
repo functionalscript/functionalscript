@@ -1,4 +1,4 @@
-import { map, match, toOption } from './module.f.ts'
+import { fromUndefined, map, match, toOption } from './module.f.ts'
 
 export const proof = [
     () => {
@@ -18,5 +18,12 @@ export const proof = [
         const double = match((v: number) => v * 2)(() => -1)
         if (double(3) !== 6) { throw double(3) }
         if (double(null) !== -1) { throw double(null) }
-    }
+    },
+    () => {
+        if (fromUndefined(undefined) !== null) { throw 0 }
+        if (fromUndefined(5) !== 5) { throw 1 }
+        if (fromUndefined(0) !== 0) { throw 2 }
+        if (fromUndefined(null) !== null) { throw 3 }
+        if (fromUndefined('') !== '') { throw 4 }
+    },
 ]
