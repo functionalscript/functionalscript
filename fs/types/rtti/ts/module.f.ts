@@ -7,10 +7,11 @@
  * The runtime `toTs` function mirrors `Ts<T>` at value level, returning a TypeScript
  * type expression string for a given RTTI schema.
  */
-import { type Equal, type Assert, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
+import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
 import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
+import type { Assert } from '../../../asserts/module.f.ts'
 
 /** Maps a `Tag0` to its TypeScript type. */
 export type Info0Ts<T extends Tag0> =

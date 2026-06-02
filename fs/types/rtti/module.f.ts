@@ -36,9 +36,10 @@
  *
  * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
  */
+import type { Assert } from '../../asserts/module.f.ts'
 import type { Primitive } from '../../djs/module.f.ts'
 import { includes, type Includes } from '../array/module.f.ts'
-import type { Assert, Equal } from '../ts/module.f.ts'
+import type { Equal } from '../ts/module.f.ts'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const =

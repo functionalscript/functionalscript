@@ -10,8 +10,6 @@ export type Equal<A, B> =
         ? true
         : false
 
-export type Assert<T extends true> = T
-
 const complex = (open: string, close: string) => (i: readonly string[]) =>
     `${open}${i.join(',')}${close}`
 

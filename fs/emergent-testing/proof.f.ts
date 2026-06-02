@@ -2,7 +2,7 @@ import { pure, type Effect } from '../types/effects/module.f.ts'
 import type { NodeProgramOptions, Sandbox, SandboxResult } from '../types/effects/node/module.f.ts'
 import { emptyState, type JsModule } from '../types/effects/node/virtual/module.f.ts'
 import { virtual } from '../types/effects/node/virtual/module.f.ts'
-import { assert, assertEq, todo } from '../dev/module.f.ts'
+import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule,
