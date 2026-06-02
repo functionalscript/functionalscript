@@ -11,7 +11,7 @@ already paid on the previous run. Additionally:
 
 - Playwright is kept in a **separate** job on Ubuntu solely because its
   installation is expensive, fragmenting the matrix.
-- The scenario tests (`fs/dev/tf/scenarios/run.sh`) are not run in CI at all
+- The scenario tests (`./fs/emergent-testing/scenarios/run.sh`) are not run in CI at all
   because no single job has all required runners (Node, Bun, Deno, Playwright)
   at once.
 

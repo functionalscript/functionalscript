@@ -1,11 +1,11 @@
-# 166. Capture reporter in `dev/tf/test.f.ts` must not use mutable arrays
+# 166. Capture reporter in `./fs/emergent-testing/test.f.ts` must not use mutable arrays
 
 **Priority:** P3
 **Status:** open
 
 ## Problem
 
-`makeReporter` in `fs/dev/tf/test.f.ts` accumulates events by mutating a local array:
+`makeReporter` in `./fs/emergent-testing/test.f.ts` accumulates events by mutating a local array:
 
 ```ts
 const makeReporter = (): readonly[TestReporter, () => readonly Event[]] => {

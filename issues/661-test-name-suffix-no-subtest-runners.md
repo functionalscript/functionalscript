@@ -19,7 +19,7 @@ throw — it showed `ok` with no distinction, unlike Node `--test` which appends
 
 ### `*` suffix — Bun and Playwright registrations
 
-`register` (`fs/dev/tf/module.f.ts`) detects `engine === 'bun' || engine === 'playwright'`
+`register` (`fs/emergetn-testing/module.f.ts`) detects `engine === 'bun' || engine === 'playwright'`
 and passes `star = ' ...'` down through `registerModuleMap` → `registerModule`.
 For Node, `star = ''`. Inside `registerOne`, the registered name becomes:
 
@@ -59,7 +59,7 @@ in `fjs t` output covers the visibility need for that runner.
 
 - [x] `...` suffix on Bun/Playwright registrations (`registerModule`, `registerModuleMap`, `register`)
 - [x] `# EXPECTED TO THROW` in `fjs t` output (`Reporter.result` gains `throws` param, `defaultReporter` uses it)
-- [x] Test coverage: `registerSuffixes` in `fs/dev/tf/proof.f.ts`
+- [x] Test coverage: `registerSuffixes` in `fs/emergetn-testing/proof.f.ts`
 
 ## Related
 

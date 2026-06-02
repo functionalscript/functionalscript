@@ -23,7 +23,7 @@ proofs) if it exports a well-known marker property, e.g. `proof`. The runner
 loads modules and inspects exports for that property instead of (or in addition
 to) matching filenames. The exported value reuses the existing proof-tree shape
 (zero-arg functions, nested objects/arrays, `throw` semantics, return-value
-sub-trees), so the execution engine in `fs/dev/tf/module.f.ts` is unchanged —
+sub-trees), so the execution engine in `fs/emergent-testing/module.f.ts` is unchanged —
 only *discovery* changes.
 
 ```ts
@@ -71,7 +71,7 @@ do not bulk-load it).
 **Step 1 — switch the contract from `default` to the `proof` property.**
 Discovery still by filename (`isTest` unchanged); only *what the runner reads
 inside a module* changes. Done in one commit so there is no broken intermediate:
-- update the proof-tree walk in `fs/dev/tf/module.f.ts`,
+- update the proof-tree walk in `./fs/emergent-testing/module.f.ts`,
 - update the `register*` framework bridges (node `--test` / bun / Playwright)
   that key off the current export shape,
 - convert all ~81 proof files from `export default …` to `export const proof = …`.
