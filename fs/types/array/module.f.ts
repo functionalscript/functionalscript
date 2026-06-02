@@ -4,7 +4,7 @@
  * @module
  */
 
-import { map } from '../nullable/module.f.ts'
+import { fromUndefined, map } from '../nullable/module.f.ts'
 
 export const isArray = (value: unknown): value is readonly unknown[] =>
     value instanceof Array
@@ -62,10 +62,8 @@ const uncheckTail = <T>(a: readonly T[]): readonly T[] =>
 const uncheckHead = <T>(a: readonly T[]): readonly T[] =>
     a.slice(0, -1)
 
-export const at = (i: number) => <T>(a: readonly T[]): T | null => {
-    const r = a[i]
-    return r === undefined ? null : r
-}
+export const at = (i: number) => <T>(a: readonly T[]): T | null =>
+    fromUndefined(a[i])
 
 export const first: <T>(_: readonly T[]) => T | null
     = at(0)
