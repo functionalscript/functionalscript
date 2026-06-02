@@ -14,3 +14,12 @@ export const match: <T, R>(f: (_: T) => R) => (none: () => R) => (_: Nullable<T>
     = f => none => value => value === null ? none() : f(value)
 
 export const toOption = <T>(value: Nullable<T>): Option<T> => value === null ? [] : [value]
+
+/**
+ * Normalizes a possibly-`undefined` value into the codebase's `null` convention.
+ *
+ * The boundary rule between JavaScript hosts (which return `undefined` from
+ * property/index lookups) and FunctionalScript (which uses `null` for absence).
+ */
+export const fromUndefined = <T>(value: T | undefined): Nullable<T> =>
+    value === undefined ? null : value

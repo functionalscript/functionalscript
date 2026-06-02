@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `types/nullable`: add `fromUndefined(v)` — names the JS-host ↔ FunctionalScript `undefined`→`null` boundary in one helper; `array.at` collapses to `fromUndefined(a[i])` and `object.at` composes `map(d => d.value)` over `fromUndefined(getOwnPropertyDescriptor(...))` ([i188](./issues/188-nullable-from-undefined.md)) [919](https://github.com/functionalscript/functionalscript/pull/919)
 - `effects/node`: add `errorExit(s)` — the canonical "write an error line to stderr, yield exit code 1" `NodeOp` program; replaces a private `e` helper in `fs/cas/module.f.ts` (5 sites) and two inline `error(...).step(() => pure(1))` copies in `fs/fjs/module.f.ts` ([i192](./issues/192-error-exit-effect.md)) [917](https://github.com/functionalscript/functionalscript/pull/917)
 
 ## 0.20.0
