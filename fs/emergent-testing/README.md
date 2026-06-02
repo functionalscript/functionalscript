@@ -1,4 +1,4 @@
-# Test Framework
+# Emergent Testing Framework
 
 This framework discovers and runs **proofs**: plain FunctionalScript values that
 verify behaviour. There is no `describe`/`it`/`expect` API — a proof is just a
