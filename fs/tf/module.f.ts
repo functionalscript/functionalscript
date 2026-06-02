@@ -10,7 +10,7 @@
  *
  * @module
  */
-import { reset, fgGreen, fgRed, bold, csiWrite } from '../../text/sgr/module.f.ts'
+import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.ts'
 import {
     all,
     awaitIfPromise,
@@ -28,10 +28,10 @@ import {
     type TestContext,
     type Write,
     type WriteConsoles
-} from '../../types/effects/node/module.f.ts'
-import { pure, type Effect, type Operation } from '../../types/effects/module.f.ts'
-import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../module.f.ts'
-import { invert } from '../../types/result/module.f.ts'
+} from '../types/effects/node/module.f.ts'
+import { pure, type Effect, type Operation } from '../types/effects/module.f.ts'
+import { loadModuleMap, shouldLoad, type LoadModuleOperations, type ModuleMap } from '../dev/module.f.ts'
+import { invert } from '../types/result/module.f.ts'
 
 
 type TestState = {
