@@ -5,7 +5,7 @@
 
 ## Problem
 
-The `fs/dev/tf/scenarios/all.ts` file (renamed to `all.test.ts` by `run.sh` at test
+The `fs/emergetn-testing/scenarios/all.ts` file (renamed to `all.test.ts` by `run.sh` at test
 time) is named `all`, which suggests "run all tests" rather than "register tests with
 an external framework".
 

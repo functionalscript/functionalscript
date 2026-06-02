@@ -29,15 +29,6 @@ import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import { relativize } from '../path/module.f.ts'
 
-export const todo = (): never => { throw 'not implemented' }
-
-export const assert: (v: boolean, msg?: unknown) => asserts v = (v, msg = 'assertion failed') => {
-    if (!v) throw msg
-}
-
-export const assertEq = <T>(a: T, b: T): void =>
-    assert(a === b, [a, b])
-
 export type Module = {
     readonly proof?: unknown
     readonly [k: string]: unknown

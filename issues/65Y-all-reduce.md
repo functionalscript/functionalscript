@@ -17,7 +17,7 @@ When ordering doesn't matter, sequential threading is the wrong default:
 - It forces the threaded state to model "what has been seen so far" even
   when the final aggregation only needs the multiset of per-item results.
 
-Concrete example: `runModuleMap` in `fs/dev/tf/module.f.ts` originally used
+Concrete example: `runModuleMap` in `./fs/emergent-testing/module.f.ts` originally used
 `foldStep` to thread a `TestState` through every module, but the per-module
 runs are independent — each module produces its own `TestState`, and the
 final answer is the monoid sum. It was changed (#885) to:
@@ -92,7 +92,7 @@ Signature notes:
 After:
 
 ```ts
-// fs/dev/tf/module.f.ts
+// fs/emergent-testing/module.f.ts
 return allReduce
     (([k, v]: Entry<unknown>) => runModule(reporter)(k, v)(zero))
     (mergeState)

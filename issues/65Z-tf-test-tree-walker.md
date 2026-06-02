@@ -1,18 +1,18 @@
-# 65Z-tf-test-tree-walker. `dev/tf`: share the test-tree walker between `runModule` and `registerModule`
+# 65Z-tf-test-tree-walker. `fs/emergent-testing`: share the test-tree walker between `runModule` and `registerModule`
 
 **Priority:** P4
 **Status:** open
 
 ## Problem
 
-`fs/dev/tf/module.f.ts` already factors out the static collection step into
+`fs/emergent-testing/module.f.ts` already factors out the static collection step into
 `collectTests` (lines 116-128), which walks the export tree and returns a flat
 list of `[path, TestEntry]` pairs. Both downstream consumers — `runModule` and
 `registerModule` — then independently re-implement the *dynamic* walk of each
 test's return value:
 
 ```ts
-// registerModule (fs/dev/tf/module.f.ts:154)
+// registerModule (./fs/emergent-testing/module.f.ts:154)
 const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
     test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> =>
         awaitIfPromise(fn())
@@ -23,7 +23,7 @@ const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
             return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
         }))
 
-// runModule (fs/dev/tf/module.f.ts:175)
+// runModule (./fs/emergent-testing/module.f.ts:175)
 const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
     test(k, testPath, set)
     .step(sr => {
@@ -70,7 +70,7 @@ Lift the traversal into a single `walkTests` combinator parameterized over the
 per-leaf action and the accumulator merge:
 
 ```ts
-// fs/dev/tf/module.f.ts (sketch)
+// ./fs/emergent-testing/module.f.ts (sketch)
 
 type Walker<O extends Operation, S> = {
     /** What to do at a single leaf. May return a sub-tree value to recurse into. */

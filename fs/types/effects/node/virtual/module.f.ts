@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { assert, todo } from '../../../../dev/module.f.ts'
+import { assert, todo } from '../../../../asserts/module.f.ts'
 import { parse } from '../../../../path/module.f.ts'
 import { utf8ToString } from '../../../../text/module.f.ts'
 import { isVec, type Vec } from '../../../bit_vec/module.f.ts'

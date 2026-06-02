@@ -5,7 +5,7 @@
 
 ## Problem
 
-`fs/dev/tf/module.ts` bridges the Effects-based runner to Node `--test`, Bun, Deno,
+`./fs/emergent-testing/module.ts` bridges the Effects-based runner to Node `--test`, Bun, Deno,
 and Playwright. There is no automated check that each framework bridge correctly
 handles non-trivial test shapes such as return-value sub-trees (`.a().b()`).
 The Bun issue ([i155 §3](./155-test-runner-integration.md)) was found by
@@ -15,7 +15,7 @@ inspection, not by a failing test.
 
 ### Scenario files
 
-Create a directory `fs/dev/tf/scenarios/` containing minimal FunctionalScript
+Create a directory `./fs/emergent-testing/scenarios/` containing minimal FunctionalScript
 modules. Files are named `*.f.ts` (not `*.test.f.ts`) so the normal test
 discovery mechanism does not pick them up when running from the repository root.
 
@@ -36,7 +36,7 @@ More scenarios can be added as new edge cases are identified.
 
 ### Runner script
 
-A shell script `fs/dev/tf/scenarios/run.sh <framework> <scenario-file>`:
+A shell script `fs/emergetn-testing/scenarios/run.sh <framework> <scenario-file>`:
 
 1. Reads the expected exit code from the file name suffix (`.pass.f.ts` → 0,
    `.fail.f.ts` → 1).

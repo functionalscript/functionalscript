@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.0
+
+- **breaking** `tf`: rename `fs/dev/tf` → `fs/emergent-testing`; public exports `./fs/dev/tf/module.f.ts` and `./fs/dev/tf/module.ts` become `./fs/emergent-testing/module.f.ts` and `./fs/emergent-testing/module.ts`; external-runner entry import changes from `functionalscript/fs/dev/tf/module.js` to `functionalscript/fs/emergent-testing/module.js` [923](https://github.com/functionalscript/functionalscript/pull/923)
+- `asserts`: extract `assert`, `assertEq`, `todo`, and the `Assert<T>` type from `fs/dev/module.f.ts` into a new standalone `fs/asserts/module.f.ts`; ~13 modules and proofs now import asserts directly instead of through `dev` [923](https://github.com/functionalscript/functionalscript/pull/923)
 - `types/nullable`: add `fromUndefined(v)` — names the JS-host ↔ FunctionalScript `undefined`→`null` boundary in one helper; `array.at` collapses to `fromUndefined(a[i])` and `object.at` composes `map(d => d.value)` over `fromUndefined(getOwnPropertyDescriptor(...))` ([i188](./issues/188-nullable-from-undefined.md)) [919](https://github.com/functionalscript/functionalscript/pull/919)
 - `effects/node`: add `errorExit(s)` — the canonical "write an error line to stderr, yield exit code 1" `NodeOp` program; replaces a private `e` helper in `fs/cas/module.f.ts` (5 sites) and two inline `error(...).step(() => pure(1))` copies in `fs/fjs/module.f.ts` ([i192](./issues/192-error-exit-effect.md)) [917](https://github.com/functionalscript/functionalscript/pull/917)
 

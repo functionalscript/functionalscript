@@ -35,7 +35,7 @@ The remaining live consumers of `fs/io` are four files:
 
 ```
 fs/fjs/module.ts            : default-imports `effectRun` (the Node bootstrap)
-fs/dev/tf/module.ts         : `io`, `runProgram` — same Node bootstrap
+fs/emergent-testing/module.ts         : `io`, `runProgram` — same Node bootstrap
 fs/dev/module.f.ts          : `Io` — used by the `env` helper (live: tested in fs/dev/proof.f.ts:59 since PR #886)
 fs/djs/parser/module.f.ts   : `Fs` — only used by the unreferenced `ParseContext` export (see i65Y-dead-code-cleanup)
 ```
@@ -90,7 +90,7 @@ import { main } from './module.f.ts'
 import effectRun from '../io/module.ts'
 effectRun(main)
 
-// fs/dev/tf/module.ts
+// fs/emergent-testing/module.ts
 import { io } from '../../io/module.ts'
 import { register } from './module.f.ts'
 import { runProgram } from '../../io/module.f.ts'
@@ -171,5 +171,5 @@ follow-up.
 - `fs/io/module.f.ts:36,48,120,126,131` — duplicated type definitions.
 - `fs/types/effects/node/module.f.ts:72,52,135,142,148` — canonical
   effect-shaped definitions.
-- `fs/fjs/module.ts`, `fs/dev/tf/module.ts` — the two live bootstraps
+- `fs/fjs/module.ts`, `fs/emergent-testing/module.ts` — the two live bootstraps
   that still need a home.

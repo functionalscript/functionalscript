@@ -1,4 +1,5 @@
-import { todo, env } from './module.f.ts'
+import { todo } from '../asserts/module.f.ts'
+import { env } from './module.f.ts'
 
 export const proof = {
     shouldPass: () => ({
