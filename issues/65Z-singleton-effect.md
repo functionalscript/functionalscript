@@ -31,7 +31,7 @@ in the current process and, if so, returns without doing anything.
 
 ```ts
 // usage in all.ts or any entry-point module
-export const run = singleton('./fs/emergent-testing/all')(realRun)
+export const run = singleton('./fs/emergent_testing/all')(realRun)
 ```
 
 ### Semantics
@@ -69,7 +69,7 @@ once and its exports are shared by all importers that resolve to the same URL.
 A dedicated registry module can exploit this:
 
 ```ts
-// ./fs/emergent-testing/registry.f.ts
+// ./fs/emergent_testing/registry.f.ts
 export const seen = new Set<string>()
 ```
 

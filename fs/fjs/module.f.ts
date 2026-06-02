@@ -4,7 +4,7 @@
  * @module
  */
 import { compile } from '../djs/module.f.ts'
-import { main as testMain } from '../emergent-testing/module.f.ts'
+import { main as testMain } from '../emergent_testing/module.f.ts'
 import { main as casMain } from '../cas/module.f.ts'
 import { import_, errorExit, type NodeProgram } from '../types/effects/node/module.f.ts'
 

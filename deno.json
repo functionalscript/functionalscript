@@ -1,9 +1,10 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "license": "MIT",
   "exports": {
     "./fs/asn.1/module.f.ts": "./fs/asn.1/module.f.ts",
+    "./fs/asserts/module.f.ts": "./fs/asserts/module.f.ts",
     "./fs/base128/module.f.ts": "./fs/base128/module.f.ts",
     "./fs/bnf/data/module.f.ts": "./fs/bnf/data/module.f.ts",
     "./fs/bnf/module.f.ts": "./fs/bnf/module.f.ts",
@@ -31,8 +32,8 @@
     "./fs/djs/tokenizer/module.f.ts": "./fs/djs/tokenizer/module.f.ts",
     "./fs/djs/tokenizer-new/module.f.ts": "./fs/djs/tokenizer-new/module.f.ts",
     "./fs/djs/transpiler/module.f.ts": "./fs/djs/transpiler/module.f.ts",
-    "./fs/emergent-testing/module.f.ts": "./fs/emergent-testing/module.f.ts",
-    "./fs/emergent-testing/module.ts": "./fs/emergent-testing/module.ts",
+    "./fs/emergent_testing/module.f.ts": "./fs/emergent_testing/module.f.ts",
+    "./fs/emergent_testing/module.ts": "./fs/emergent_testing/module.ts",
     "./fs/fjs/module.f.ts": "./fs/fjs/module.f.ts",
     "./fs/fjs/module.ts": "./fs/fjs/module.ts",
     "./fs/fsc/module.f.ts": "./fs/fsc/module.f.ts",

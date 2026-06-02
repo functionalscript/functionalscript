@@ -5,7 +5,7 @@
 
 ## Problem
 
-`parseTestSet` in `./fs/emergent-testing/module.f.ts` checks `fn.name === 'throw'` to mark
+`parseTestSet` in `./fs/emergent_testing/module.f.ts` checks `fn.name === 'throw'` to mark
 a test as expecting a throw:
 
 ```ts
@@ -15,7 +15,7 @@ return { fn, throws: throws || fn.name === 'throw' }
 This relies on JS engines inferring the name `'throw'` for a function defined
 under a `throw` key in an object literal. V8 does this reliably, but Bun does
 not — it may report a different inferred name depending on how the function is
-bound or optimised. The `throwByFunctionName` test in `./fs/emergent-testing/test.f.ts` was
+bound or optimised. The `throwByFunctionName` test in `./fs/emergent_testing/test.f.ts` was
 added as a workaround to document and guard this behaviour.
 
 ## Why `fn.name` is redundant

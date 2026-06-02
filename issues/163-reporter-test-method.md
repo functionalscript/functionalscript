@@ -5,7 +5,7 @@
 
 ## Problem
 
-The walker in `runModule` (`./fs/emergent-testing/module.f.ts`) calls `sandbox(set.fn)` directly, hardcoding `Sandbox` as a required effect. This prevents reusing the walker in contexts where test execution is handled differently — in particular, the integrated bridge runner (`./fs/emergent-testing/module.ts`) which dispatches to Node `--test`, Bun, or Playwright and cannot use `sandbox` (it needs an async framework call instead).
+The walker in `runModule` (`./fs/emergent_testing/module.f.ts`) calls `sandbox(set.fn)` directly, hardcoding `Sandbox` as a required effect. This prevents reusing the walker in contexts where test execution is handled differently — in particular, the integrated bridge runner (`./fs/emergent_testing/module.ts`) which dispatches to Node `--test`, Bun, or Playwright and cannot use `sandbox` (it needs an async framework call instead).
 
 Three alternatives were considered:
 
