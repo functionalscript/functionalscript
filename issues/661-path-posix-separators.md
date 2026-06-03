@@ -1,7 +1,7 @@
 # 661. `dev` re-implements path normalization that belongs in `fs/path`
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 `AGENTS.md` gives "path manipulation belongs in `fs/path`, not inline in a
 loader" as the canonical separation-of-concerns example. There is a live
