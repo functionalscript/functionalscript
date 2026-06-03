@@ -1,4 +1,4 @@
-import { concat, normalize, relativize } from "./module.f.ts"
+import { concat, normalize, relativize, toPosix } from "./module.f.ts"
 
 const normalizeTest = [
     () => {
@@ -48,4 +48,23 @@ const relativizeTest = [
         if (r !== './fs/a.ts') { throw r }
     },
 ]
-export const proof = { normalizeTest, concatTest, relativizeTest }
+const toPosixTest = [
+    () => {
+        const p = toPosix('a\\b\\c')
+        if (p !== 'a/b/c') { throw p }
+    },
+    () => {
+        const p = toPosix('a/b/c')
+        if (p !== 'a/b/c') { throw p }
+    },
+    () => {
+        const p = toPosix('C:\\Users\\x')
+        if (p !== 'C:/Users/x') { throw p }
+    },
+    () => {
+        const p = toPosix('')
+        if (p !== '') { throw p }
+    },
+]
+
+export const proof = { normalizeTest, concatTest, relativizeTest, toPosixTest }
