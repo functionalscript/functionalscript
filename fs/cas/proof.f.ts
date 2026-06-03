@@ -1,11 +1,24 @@
-import { cas } from './module.f.ts'
+import { cas, main } from './module.f.ts'
 import { sha256 } from '../crypto/sha2/module.f.ts'
-import { empty, length } from '../types/bit_vec/module.f.ts'
+import { empty, length, vec8 } from '../types/bit_vec/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { pure } from '../types/effects/module.f.ts'
 import { run } from '../types/effects/mock/module.f.ts'
+import { emptyState, virtual } from '../types/effects/node/virtual/module.f.ts'
 
 export const proof = {
+    mainAdd: () => {
+        const content = vec8(0x2An)
+        const state = { ...emptyState, root: { myfile: content } }
+        const [finalState, exitCode] = virtual(state)(main(['add', 'myfile']))
+        if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
+        if (finalState.stdout.length === 0) { throw 'expected hash in stdout' }
+    },
+    mainAddWrongArgs: () => {
+        const [finalState, exitCode] = virtual(emptyState)(main(['add']))
+        if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
+        if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
+    },
     casWrite: () => {
         const store = {
             read: (_key: Vec) => pure(undefined as Vec | undefined),
