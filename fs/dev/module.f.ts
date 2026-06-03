@@ -27,7 +27,7 @@ import { begin, pure, type Effect } from '../types/effects/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
-import { relativize } from '../path/module.f.ts'
+import { relativize, toPosix } from '../path/module.f.ts'
 
 export type Module = {
     readonly proof?: unknown
@@ -117,7 +117,7 @@ const { fromEntries } = Object
  */
 export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap> => {
     const initCwd = env['INIT_CWD']
-    const s = initCwd === undefined ? '.' : `${initCwd.replaceAll('\\', '/')}`
+    const s = initCwd === undefined ? '.' : toPosix(initCwd)
     const prefix = s === '.' ? '' : s
     // TODO: there are multiple `all` effects here,
     //       we should consider optimize them by ALIQ technique or something similar.

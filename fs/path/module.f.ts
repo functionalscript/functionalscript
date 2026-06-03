@@ -24,6 +24,11 @@ const foldNormalizeOp: Fold<string, List<string>>
 }
 
 /**
+ * Converts Windows separators (`\`) to POSIX separators (`/`).
+ */
+export const toPosix = (path: string): string => path.replaceAll('\\', '/')
+
+/**
  * Splits a path into normalized segments.
  *
  * Empty (`""`) and current-directory (`"."`) segments are removed, parent-directory
@@ -31,7 +36,7 @@ const foldNormalizeOp: Fold<string, List<string>>
  * separators are converted to POSIX separators.
  */
 export const parse = (path: string): readonly string[] => {
-    const split = path.replaceAll('\\', '/').split('/')
+    const split = toPosix(path).split('/')
     return toArray(fold(foldNormalizeOp)([])(split))
 }
 
