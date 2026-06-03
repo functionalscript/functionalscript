@@ -69,43 +69,54 @@ Two further observations sharpen the case:
 ## Proposal
 
 Define the recursive container **once**, parameterized over the leaf type, and
-make `json` and `djs` two instantiations. Natural home: a small shared module
-(e.g. `fs/json/tree/module.f.ts`, or alongside the existing value types), since
-both `json` and `djs` already sit on the json leaf set.
+make `json` and `djs` two instantiations. Home: a small shared module
+`fs/json/common/module.f.ts`, since both `json` and `djs` already sit on the
+json leaf set.
+
+**Naming (per review on PR #928).** Keep the names the modules already use —
+`Unknown<P>`, `Object<P>`, `Array<P>` — in the common module, and let consumers
+pull them in under a namespace alias so the call sites read `Tree.Unknown<P>`,
+`Tree.Object<P>`, `Tree.Array<P>`. This keeps each name consistent with its
+existing role and avoids minting new bespoke identifiers:
 
 ```ts
-// shared module
+// fs/json/common/module.f.ts
 /** A recursive JSON-shaped tree over a leaf/primitive type `P`. */
-export type Tree<P> = P | TreeObject<P> | TreeArray<P>
-export type TreeObject<P> = { readonly [k in string]: Tree<P> }
-export type TreeArray<P> = readonly Tree<P>[]
+export type Unknown<P> = P | Object<P> | Array<P>
+export type Object<P> = { readonly [k in string]: Unknown<P> }
+export type Array<P> = readonly Unknown<P>[]
 ```
 
 ```ts
 // fs/json/module.f.ts
-import type { Tree, TreeObject, TreeArray } from '...'
+import type * as Tree from './common/module.f.ts'
 export type Primitive = boolean | string | number | null
-export type Unknown = Tree<Primitive>
-export type Object = TreeObject<Primitive>   // keep named alias for current importers
-export type Array = TreeArray<Primitive>
+export type Unknown = Tree.Unknown<Primitive>
+export type Object = Tree.Object<Primitive>   // keep named alias for current importers
+export type Array = Tree.Array<Primitive>
 ```
 
 ```ts
 // fs/djs/module.f.ts
-import type { Tree, TreeObject, TreeArray } from '...'
+import type * as Tree from '../json/common/module.f.ts'
 import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 export type Primitive = JsonPrimitive | bigint | undefined
-export type Unknown = Tree<Primitive>
-export type Object = TreeObject<Primitive>
-export type Array = TreeArray<Primitive>
+export type Unknown = Tree.Unknown<Primitive>
+export type Object = Tree.Object<Primitive>
+export type Array = Tree.Array<Primitive>
 ```
 
 ```ts
 // fs/json/serializer/module.f.ts
-// delete the local Obj<T>/Arr<T>/Primitive/Unknown<T> block; import Tree instead.
-import type { Tree } from '...'
-// every `Unknown<T>` site becomes `Tree<T>` (T already excludes/includes null per caller)
+// delete the local Obj<T>/Arr<T>/Primitive/Unknown<T> block; use the namespace instead.
+import type * as Tree from '../common/module.f.ts'
+// every `Unknown<T>` site becomes `Tree.Unknown<T>` (T includes/excludes null per caller)
 ```
+
+> **Alternative naming.** If a namespace import is undesirable at some call
+> site, the flat form `TreeUnknown<P>` / `TreeObject<P>` / `TreeArray<P>`
+> (a single `Tree`-prefixed trio) is equivalent and keeps the union name
+> consistent with its `TreeObject`/`TreeArray` siblings.
 
 This is a **type-only** change — zero runtime impact, no `.f.ts` value exports
 move — yet it collapses three hand-written copies of the same recursive shape
@@ -136,11 +147,11 @@ relationship explicit at the container level instead of only the leaf level.
   `Object` from `djs`, and the rtti family imports `Unknown`/`Primitive` from
   `djs` (`types/rtti/{validate,parse,ts,common}/module.f.ts`,
   `types/rtti/module.f.ts:40`). The generic must therefore ship with
-  `TreeObject<P>`/`TreeArray<P>` so each module can re-expose `Object`/`Array`
-  under their current names. A bare `Tree<P>` alias alone would break those
-  imports.
+  `Tree.Object<P>`/`Tree.Array<P>` so each module can re-expose `Object`/`Array`
+  under their current names. Re-exposing only the `Unknown` union would break
+  those imports.
 - **Recursive generic type aliases.** TypeScript supports recursive generic
-  aliases like `Tree<P>` fine, but confirm `tsc` (and `deno`'s slow-types check,
+  aliases like `Tree.Unknown<P>` fine, but confirm `tsc` (and `deno`'s slow-types check,
   [i147](./147-deno-slow-types.md)) accept the three-alias form without an
   explicit annotation cycle error before landing. The current non-generic
   `Unknown` is itself recursive, so this is expected to be a non-issue — verify
@@ -148,11 +159,11 @@ relationship explicit at the container level instead of only the leaf level.
 - **`null` placement in the serializer's `T`.** The serializer writes
   `Unknown<T> = Arr<T> | Obj<T> | null | T` — `null` is outside `T`. For
   `json`/`djs` the leaf set already contains `null`, so instantiating
-  `Tree<Primitive>` (where `Primitive ∋ null`) is correct; just make sure the
-  serializer's call sites pass a leaf type that already includes `null` (or that
-  `Tree`'s definition folds `null` in consistently) so the migration doesn't
-  quietly add/drop `null` from any position.
-- **Decide the home, don't over-engineer it.** A new `fs/json/tree/` module is
+  `Tree.Unknown<Primitive>` (where `Primitive ∋ null`) is correct; just make
+  sure the serializer's call sites pass a leaf type that already includes `null`
+  (or that the common definition folds `null` in consistently) so the migration
+  doesn't quietly add/drop `null` from any position.
+- **Decide the home, don't over-engineer it.** A new `fs/json/common/` module is
   the obvious fit (json owns the base leaf set; djs already imports from json).
   Don't promote this to `fs/types/` "just in case" — there is no consumer
   outside the json/djs family.
