@@ -4,8 +4,6 @@ import {
     logicalNot,
     strictEqual,
     addition,
-    min,
-    max,
     increment,
     foldToScan,
     reduceToScan,
@@ -36,16 +34,6 @@ const additionTest = () => {
     if (result !== 7) { throw result }
 }
 
-const minTest = () => {
-    if (min(3)(5) !== 3) { throw 'min(3)(5)' }
-    if (min(7)(2) !== 2) { throw 'min(7)(2)' }
-}
-
-const maxTest = () => {
-    if (max(3)(5) !== 5) { throw 'max(3)(5)' }
-    if (max(7)(2) !== 7) { throw 'max(7)(2)' }
-}
-
 const incrementTest = () => {
     if (increment(4) !== 5) { throw 'increment(4)' }
     if (increment(0) !== 1) { throw 'increment(0)' }
@@ -67,4 +55,4 @@ const reduceToScanTest = () => {
     if (v1 !== 15) { throw v1 }
 }
 
-export const proof = { joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, minTest, maxTest, incrementTest, foldToScanTest, reduceToScanTest }
+export const proof = { joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, foldToScanTest, reduceToScanTest }

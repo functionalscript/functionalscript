@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **breaking** `function/compare`: add generic `min`/`max` next to `cmp`, reusing the `Cmp1`/`Cmp2<A, B>` guard so mixed-type calls like `min(1)("a")` fail to compile; retire the duplicated `Reduce<number>`-typed `min`/`max` from `function/operator` and the bigint-typed `min`/`max` from `types/bigint`; consumers (`types/number`, `types/bit_vec`, `asn.1`) now import the single generic pair from `function/compare` [940](https://github.com/functionalscript/functionalscript/pull/940)
+
 ## 0.22.0
 
 - **breaking** `emergent_testing`: rename `fs/emergent-testing` → `fs/emergent_testing` (snake_case, matching the `bit_vec` / `prime_field` module-naming convention); public exports and the external-runner entry import change from `…/fs/emergent-testing/module.{f.ts,ts,js}` to `…/fs/emergent_testing/module.{f.ts,ts,js}` [924](https://github.com/functionalscript/functionalscript/pull/924)

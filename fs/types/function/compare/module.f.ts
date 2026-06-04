@@ -34,6 +34,22 @@ export const cmp = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): Sign 
     a as any < b ? -1 : a as any > b ? 1 : 0
 
 /**
+ * Returns the smaller of two comparable values. The `Cmp2<A, B>` constraint
+ * is the same one `cmp` uses: it rejects calls that mix incompatible primitive
+ * types (e.g. `min(1)("a")`) at compile time.
+ */
+export const min = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): A | B =>
+    cmp(a)(b) < 0 ? a : b
+
+/**
+ * Returns the larger of two comparable values. The `Cmp2<A, B>` constraint
+ * is the same one `cmp` uses: it rejects calls that mix incompatible primitive
+ * types (e.g. `max(1)("a")`) at compile time.
+ */
+export const max = <A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B): A | B =>
+    cmp(a)(b) > 0 ? a : b
+
+/**
  * Binary search over `[0, len)`. `probe(mid)` returns the sign of the search
  * key relative to the element at `mid` (`-1` before, `0` at, `1` after). On a
  * hit it returns the matching index; on a miss it returns the converged lower
