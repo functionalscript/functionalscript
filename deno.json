@@ -19,6 +19,7 @@
     "./fs/ci/playwright/module.f.ts": "./fs/ci/playwright/module.f.ts",
     "./fs/ci/rust/module.f.ts": "./fs/ci/rust/module.f.ts",
     "./fs/crypto/hmac/module.f.ts": "./fs/crypto/hmac/module.f.ts",
+    "./fs/crypto/pow/module.f.ts": "./fs/crypto/pow/module.f.ts",
     "./fs/crypto/secp/module.f.ts": "./fs/crypto/secp/module.f.ts",
     "./fs/crypto/sha2/module.f.ts": "./fs/crypto/sha2/module.f.ts",
     "./fs/crypto/sign/module.f.ts": "./fs/crypto/sign/module.f.ts",
