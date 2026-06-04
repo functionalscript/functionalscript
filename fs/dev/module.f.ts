@@ -3,7 +3,6 @@
  *
  * @module
  */
-import type { Io } from '../io/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
     access,
@@ -38,6 +37,7 @@ export type ModuleMap = {
    readonly[k in string]: Module
 }
 
+/*
 export const env
     : (io: Io) => (v: string) => string|undefined
     = ({ process: { env } }) => a => {
@@ -46,6 +46,7 @@ export const env
             typeof r.get === 'function' ? r.get() :
                 r.value
     }
+*/
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.
