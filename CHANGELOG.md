@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `crypto/vdf`: add a Sloth verifiable delay function (`sloth` / `sloth_vdf`) over a fixed 3072-bit safe prime; `eval` runs the sequential modular-square-root permutation and `verify` checks it via repeated squaring. Extends `types/prime_field` with `reduce` / `quadRes` field members and a standalone `modSqrt` helper (`p ≡ 3 (mod 4)`) ([i663-crypto-vdf](./issues/663-crypto-vdf.md)) [937](https://github.com/functionalscript/functionalscript/pull/937)
+
 ## 0.24.0
 
 - **breaking** `effects`: hoist `fs/types/effects` → `fs/effects` (effects are a foundational layer, not a `type`); fold `fs/io` into `fs/effects/node/module.ts` and remove the `fs/io` module — the `Io` interface is now a private type internal to the node runner rather than a public export. Callers use the runner's exported `run(p)` (wraps `process.exit`) / `runEffect(p)` (resolves the exit code) entry points. JSR/`deno.json` exports `./fs/io/**` and `./fs/types/effects/**` become `./fs/effects/**` [943](https://github.com/functionalscript/functionalscript/pull/943)
