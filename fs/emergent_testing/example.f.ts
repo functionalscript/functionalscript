@@ -15,10 +15,10 @@ export const proof = {
     if (add(2, 2) !== 4) { throw "something wrong with the math" }
   },
   mulTest: [
-    () => checkMul(2, 3, 5),
-    () => checkMul(22, 34, 56),
-    () => checkMul(-2, 3, -5),
-    () => checkMul(-2, -3, 5),
+    () => checkMul(2, 3, 6),
+    () => checkMul(22, 34, 748),
+    () => checkMul(-2, 3, -6),
+    () => checkMul(-2, -3, 6),
   ],
   throw: {
      todo,
