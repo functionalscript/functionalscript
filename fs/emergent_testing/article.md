@@ -8,7 +8,7 @@ While I was working on FunctionalScript (a purely functional subset of JavaScrip
 
 *Note: the following conventions and test runner implementations are applied for any JavaScript modules (ECMAScript definition of a module), including TypeScript and FunctionalScript code.*
 
-Most modern test frameworks force you to use their API to write tests, with functions such `describe`, `test`, etc. I took a different approach: what if a test runner finds tests by name conventions?
+Most modern test frameworks force you to use their API to write tests, with functions such as `describe`, `test`, etc. I took a different approach: what if a test runner finds tests by name conventions?
 
 My initial approach was to use a special file naming convention, but this opens another issue: If we copy the content of such a file (source code), then it's hard to distinguish whether the code is test code that we need to run or if it's just the source code of some module. Especially now, when we use AI agents to write code and copy/paste code between conversations. And limiting context can save tokens and money. The test runner no longer asks whether a file is a test. Instead, it asks whether a module contains a proof. This allows any JavaScript code to be self-descriptive and to answer the question of whether it has tests.
 
