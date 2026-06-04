@@ -46,13 +46,13 @@ fjs t
 
 ### External runners (Node, Bun, Deno, Playwright)
 
-External runners need an entry file that simply calls `run`, which discovers
-every proof module and registers each test case with the active runner:
+External runners need an entry file that, when loaded, discovers every proof
+module and registers each test case with the active runner. The package ships a
+ready-made one — re-export it with a bare side-effect import:
 
 ```ts
 // all.test.ts
-import { run } from 'functionalscript/fs/dev/tf/module.js'
-await run()
+import 'functionalscript/fs/emergent_testing/all.test.js'
 ```
 
 `all.test.ts` is the recommended name, but any name works as long as the runner

@@ -1,4 +1,4 @@
-import { cmp } from './module.f.ts'
+import { cmp, min, max } from './module.f.ts'
 
 export const proof = () => {
     {
@@ -29,5 +29,19 @@ export const proof = () => {
         const _ = cmp(a)("hello") // ??? TypeScript changes a type definition of `a`.
         // const f = (a: string|number, b: string|number) => cmp(a)(b) // compilation error
         // const f = (a: number, b: string|number) => cmp(a)(b) // compilation error
+    }
+    {
+        if (min(3)(5) !== 3) { throw 'min(3)(5)' }
+        if (min(7)(2) !== 2) { throw 'min(7)(2)' }
+        if (min(3n)(13n) !== 3n) { throw 'min(3n)(13n)' }
+        if (min("a")("b") !== "a") { throw 'min("a")("b")' }
+        // const _ = min(1)("a") // compilation error
+    }
+    {
+        if (max(3)(5) !== 5) { throw 'max(3)(5)' }
+        if (max(7)(2) !== 7) { throw 'max(7)(2)' }
+        if (max(3n)(13n) !== 13n) { throw 'max(3n)(13n)' }
+        if (max("a")("b") !== "b") { throw 'max("a")("b")' }
+        // const _ = max(1)("a") // compilation error
     }
 }

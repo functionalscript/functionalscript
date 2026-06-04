@@ -1,5 +1,4 @@
 import { todo } from '../asserts/module.f.ts'
-import { env } from './module.f.ts'
 
 export const proof = {
     shouldPass: () => ({
@@ -56,18 +55,4 @@ export const proof = {
     throw: () => {
         todo()
     },
-    env: () => {
-        const mockIo = { process: { env: { MY_VAR: 'hello' } } } as any
-        // missing key → undefined
-        const r1 = env(mockIo)('MISSING')
-        if (r1 !== undefined) { throw r1 }
-        // regular value property → returns value
-        const r2 = env(mockIo)('MY_VAR')
-        if (r2 !== 'hello') { throw r2 }
-        // getter property → calls get()
-        const envWithGetter = Object.defineProperty({}, 'GETTER_VAR', { get: () => 'from-getter', enumerable: true, configurable: true })
-        const mockIo2 = { process: { env: envWithGetter } } as any
-        const r3 = env(mockIo2)('GETTER_VAR')
-        if (r3 !== 'from-getter') { throw r3 }
-    }
 }

@@ -1,7 +1,7 @@
 import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { isVec } from '../../types/bit_vec/module.f.ts'
-import { all, writeFile } from '../../types/effects/node/module.f.ts'
-import { emptyState, virtual } from '../../types/effects/node/virtual/module.f.ts'
+import { all, writeFile } from '../../effects/node/module.f.ts'
+import { emptyState, virtual } from '../../effects/node/virtual/module.f.ts'
 import { updateVersion } from './module.f.ts'
 
 const version = '0.3.0'

@@ -1,15 +1,14 @@
-/**
- * Legacy `Io` interface and adapter (`fromIo`) bridging the old IO API to the
- * effect runner.
- *
- * @deprecated Use `fs/types/effects/node` (see issue
- * [i139](../../issues/README.md)).
- *
- * @module
- */
-import { normalize } from '../path/module.f.ts'
-import { type Effect } from '../types/effects/module.f.ts'
-import { asyncRun } from '../types/effects/module.ts'
+import http from 'node:http'
+import childProcess from 'node:child_process'
+import fs from 'node:fs'
+import process from 'node:process'
+import { once } from 'node:events'
+import * as testContext from 'node:test'
+
+import { concat } from '../../path/module.f.ts'
+import { normalize } from '../../path/module.f.ts'
+import { type Effect } from '../module.f.ts'
+import { asyncRun } from '../module.ts'
 import {
     type Server as EffectServer,
     type Headers,
@@ -23,33 +22,34 @@ import {
     type WriteConsoles,
     type TestContext,
     type Engine,
-} from '../types/effects/node/module.f.ts'
-import type { Vec } from '../types/bit_vec/module.f.ts'
-import { asBase, asNominal } from '../types/nominal/module.f.ts'
-import { error, ok, type Result } from '../types/result/module.f.ts'
-import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
+    type TestFn,
+} from './module.f.ts'
+import type { Vec } from '../../types/bit_vec/module.f.ts'
+import { asBase, asNominal } from '../../types/nominal/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.ts'
+import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
  * @see https://nodejs.org/api/fs.html#class-fsdirent
  */
-export type Dirent = {
+type Dirent = {
     readonly name: string
     readonly parentPath: string
     readonly isDirectory: () => boolean
     readonly isFile: () => boolean
 }
 
-export type RmOptions = {
+type RmOptions = {
     readonly force?: boolean
     readonly recursive?: boolean
 }
 
-export type MakeDirectoryOptions = {
+type MakeDirectoryOptions = {
     readonly recursive?: boolean
 }
 
-export type ReadDir =
+type ReadDir =
     & ((path: string, options: { withFileTypes: true }) => Promise<Dirent[]>)
     & ((path: string, options: { recursive?: true }) => Promise<readonly string[]>)
 
@@ -57,7 +57,7 @@ export type ReadDir =
  * File system operations interface
  * @see https://nodejs.org/api/fs.html
  */
-export type Fs = {
+type Fs = {
     readonly writeSync: (fd: number, s: string) => void
     readonly writeFileSync: (file: string, data: Uint8Array) => void
     readonly readFileSync: (path: string) => Uint8Array | null
@@ -76,7 +76,7 @@ export type Fs = {
  * Console operations interface
  * @see https://nodejs.org/api/console.html
  */
-export type Console = {
+type Console = {
     readonly log: (...d: unknown[]) => void,
     readonly error: (...d: unknown[]) => void
 }
@@ -85,11 +85,11 @@ export type Console = {
  * High-resolution time measurement interface
  * @see https://nodejs.org/api/perf_hooks.html#performance-now
  */
-export type Performance = {
+type Performance = {
     readonly now: () => number
 }
 
-export type Writable = {
+type Writable = {
     readonly fd: number
     readonly isTTY: boolean
 }
@@ -98,7 +98,7 @@ export type Writable = {
  * Node.js Process interface
  * @see https://nodejs.org/api/process.html
  */
-export type Process = {
+type Process = {
     readonly argv: string[]
     readonly env: Env
     readonly exit: (code: number) => never
@@ -107,34 +107,34 @@ export type Process = {
     readonly stderr: Writable
 }
 
-export type TryCatch = <T>(f: () => T) => Result<T, unknown>
+type TryCatch = <T>(f: () => T) => Result<T, unknown>
 
-export type Sandbox = <T>(f: () => T) => Promise<SandboxResult<T>>
+type Sandbox = <T>(f: () => T) => Promise<SandboxResult<T>>
 
-export type Server = {
+type Server = {
     readonly listen: (port: number) => void
 }
 
-export type Readable = AsyncIterable<Uint8Array>
+type Readable = AsyncIterable<Uint8Array>
 
-export type IncomingMessage = Readable & {
+type IncomingMessage = Readable & {
     readonly method: string
     readonly url: string
     readonly headers: Headers
 }
 
-export type ServerResponse = {
+type ServerResponse = {
     readonly writeHead: (status: number, headers: Record<string, string>) => ServerResponse
     readonly end: (body: Uint8Array) => void
 }
 
-export type RequestListener = (req: IncomingMessage, res: ServerResponse) => Promise<void>
+type RequestListener = (req: IncomingMessage, res: ServerResponse) => Promise<void>
 
-export type Http = {
+type Http = {
     readonly createServer: (_: RequestListener) => Server
 }
 
-export type ChildProcess = {
+type ChildProcess = {
     readonly exec: (
         command: string,
         callback: (error: unknown, stdout: string, stderr: string) => void,
@@ -146,7 +146,7 @@ export type ChildProcess = {
 /**
  * Core IO operations interface providing access to system resources
  */
-export type Io = {
+type Io = {
     readonly console: Console,
     readonly fs: Fs,
     readonly process: Process
@@ -167,25 +167,9 @@ export type Io = {
     readonly await: (p: unknown) => Promise<readonly[unknown]>
 }
 
-export type App = (io: Io) => Promise<number>
+type App = (io: Io) => Promise<number>
 
-export type Run = (f: App) => Promise<never>
-
-/**
- * Runs a function and exits the process with the returned code
- * Handles errors by exiting with code 1
- */
-export const run = (io: Io): Run => {
-    const exitCode = ([x, b]: Result<number, unknown>) => {
-        if (x === 'error') {
-            io.console.error(b)
-            return 1
-        } else {
-            return b
-        }
-    }
-    return async f => io.process.exit(exitCode(await io.asyncTryCatch(() => f(io))))
-}
+type Run = (f: App) => Promise<never>
 
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
@@ -195,7 +179,7 @@ const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     }
 }
 
-export type EffectToPromise = <T>(effect: Effect<NodeOp, T>) => Promise<T>
+type EffectToPromise = <T>(effect: Effect<NodeOp, T>) => Promise<T>
 
 const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     let result: readonly T[] = []
@@ -205,7 +189,7 @@ const collect = async <T>(v: AsyncIterable<T>): Promise<readonly T[]> => {
     return result
 }
 
-export const fromIo = ({
+const fromIo = ({
     fs: { promises: { mkdir, readFile, readdir, writeFile, rm, access } },
     fetch,
     http: { createServer },
@@ -278,7 +262,7 @@ export const fromIo = ({
     return result
 }
 
-export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
+const runProgram = (io: Io): (args: readonly string[]) => (program: NodeProgram) => Promise<number> => {
     const { process: { env, stdout, stderr }, testContext, bunTestContext, playwrightTestContext, engine } = io
     const std = { stdout, stderr }
     const f = fromIo(io)
@@ -287,3 +271,143 @@ export const runProgram = (io: Io): (args: readonly string[]) => (program: NodeP
         return program => f(program(options))
     }
 }
+
+const isPlaywright = 'PLAYWRIGHT_TEST' in (process?.env ?? {})
+
+const pwTest = isPlaywright
+    ? (await import('@playwright/test') as any).test
+    : undefined
+
+const inlineTest: TestFn = async (name, { expectFailure }, fn) => {
+    if (expectFailure) {
+        try { await fn(inlineContext) } catch { return }
+        throw new Error(`expected to throw: ${name}`)
+    } else {
+        await fn(inlineContext)
+    }
+}
+
+const inlineContext: TestContext = { test: inlineTest }
+
+type FrameworkRegister = (name: string, fn: () => Promise<void>) => Promise<void>
+
+const wrapInlineTest = (register: FrameworkRegister): TestContext => ({
+    test: (name, opts, fn) => register(name, () => inlineTest(name, opts, fn))
+})
+
+const bunTestContext        = wrapInlineTest(testContext.test)
+const playwrightTestContext = wrapInlineTest(pwTest!)
+
+const prefix = 'file:///'
+
+const { now } = Date
+
+/** Maps `WriteConsoles` names to the corresponding Node.js writable streams. */
+const streams: { readonly [k in WriteConsoles]: NodeJS.WritableStream } = {
+    stdout: process.stdout,
+    stderr: process.stderr,
+}
+
+/**
+ * Writes `data` to `stream` respecting Node.js backpressure.
+ *
+ * `stream.write()` returns `false` when the internal buffer is full; the data
+ * is already buffered at that point (no retry needed) but the caller must not
+ * issue more writes until the `'drain'` event fires. Waiting here throttles the
+ * producer to the speed of the OS consumer, preventing unbounded memory growth
+ * when many large messages arrive faster than they can be flushed.
+ *
+ * When the buffer is not full `write()` returns `true` and we return
+ * immediately, so large computations with occasional prints never stall.
+ *
+ * @see {@link https://nodejs.org/api/stream.html#writablewritechunk}
+ */
+const writeAll = async (stream: NodeJS.WritableStream, data: Uint8Array): Promise<void> => {
+    if (!stream.write(data)) {
+        await once(stream, 'drain')
+    }
+}
+
+const asyncImport = (v: string): Promise<Module> => import(v)
+
+const tryCatch: <T>(f: () => T) => Result<T, unknown> = f => {
+    try {
+        return ok(f())
+    } catch (e) {
+        return error(e)
+    }
+}
+
+const awaitPromise = async (p: unknown): Promise<readonly[unknown]> =>
+    [p instanceof Promise ? await p : p]
+
+const io: Io = {
+    console,
+    fs,
+    process,
+    asyncImport: (v: string): Promise<Module> => {
+        const s0 = v.includes(':') || v.startsWith('/') ? v : concat(process.cwd())(v)
+        const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
+        return asyncImport(s1)
+    },
+    performance,
+    fetch,
+    tryCatch,
+    asyncTryCatch: async f => {
+        try {
+            return ok(await f())
+        } catch (e) {
+            return error(e)
+        }
+    },
+    http,
+    childProcess,
+    now,
+    sandbox: async <T>(f: () => T) => {
+        let result: Result<T, unknown>
+        let after: number
+        const before = performance.now()
+        try {
+            let p = f()
+            after = performance.now()
+            if (p instanceof Promise) {
+                p = await p
+                after = performance.now()
+            }
+            result = ok(p as T)
+        } catch (e) {
+            after = performance.now()
+            result = error(e)
+        }
+        return { result, duration: after - before }
+    },
+    write: (stream, data) => writeAll(streams[stream], fromVec(data)),
+    await: awaitPromise,
+    testContext,
+    bunTestContext,
+    playwrightTestContext,
+    engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
+}
+
+/**
+ * Runs a `NodeProgram` against the real Node `io` and process arguments,
+ * resolving to its exit code **without** terminating the process.
+ *
+ * Use this when the caller must stay alive afterwards — e.g. when proofs are
+ * registered under an external test runner (Node `--test`, Bun, Playwright)
+ * that owns the process lifecycle. For a standalone CLI entry point that should
+ * exit with the program's code, use {@link run} instead.
+ */
+export const runEffect: (p: NodeProgram) => Promise<number> =
+    runProgram(io)(io.process.argv.slice(2))
+
+/**
+ * CLI entry point: runs a `NodeProgram` via {@link runEffect}, then calls
+ * `process.exit` with its exit code. The `Promise<never>` return type reflects
+ * that control never returns to the caller — the process terminates.
+ *
+ * A `bin` script can simply
+ * `import { run } from '.../fs/effects/node/module.js'; await run(main)`.
+ */
+export const run: (p: NodeProgram) => Promise<never> = async p =>
+    process.exit(await runEffect(p))

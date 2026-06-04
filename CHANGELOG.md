@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.24.0
+
+- **breaking** `effects`: hoist `fs/types/effects` → `fs/effects` (effects are a foundational layer, not a `type`); fold `fs/io` into `fs/effects/node/module.ts` and remove the `fs/io` module — the `Io` interface is now a private type internal to the node runner rather than a public export. Callers use the runner's exported `run(p)` (wraps `process.exit`) / `runEffect(p)` (resolves the exit code) entry points. JSR/`deno.json` exports `./fs/io/**` and `./fs/types/effects/**` become `./fs/effects/**` [943](https://github.com/functionalscript/functionalscript/pull/943)
+- **breaking** `emergent_testing`: remove `fs/emergent_testing/module.ts`; the external-runner entry is now the self-contained, published `fs/emergent_testing/all.test.ts` (does `await runEffect(register)`). Consumers re-export it with a bare `import 'functionalscript/fs/emergent_testing/all.test.js'` instead of `…/module.js` [943](https://github.com/functionalscript/functionalscript/pull/943)
+
+## 0.23.0
+
+- **breaking** `io`: encapsulate `io` behind the entry points — rename the default export `effectRun` → `run`; add `runEffect(p)` (the effect runner with `io` and `argv` pre-applied, resolving to the exit code without calling `process.exit`); `run` now wraps `runEffect` with `process.exit`. `fs/emergent_testing/module.ts` drops its `io` / `runProgram` imports and self-executes via top-level `await runEffect(register)` — it no longer exports `run()`, so the external-runner entry becomes a bare side-effect `import 'functionalscript/fs/emergent_testing/module.js'` [942](https://github.com/functionalscript/functionalscript/pull/942)
+- **breaking** `function/compare`: add generic `min`/`max` next to `cmp`, reusing the `Cmp1`/`Cmp2<A, B>` guard so mixed-type calls like `min(1)("a")` fail to compile; retire the duplicated `Reduce<number>`-typed `min`/`max` from `function/operator` and the bigint-typed `min`/`max` from `types/bigint`; consumers (`types/number`, `types/bit_vec`, `asn.1`) now import the single generic pair from `function/compare` [940](https://github.com/functionalscript/functionalscript/pull/940)
+
 ## 0.22.0
 
 - **breaking** `emergent_testing`: rename `fs/emergent-testing` → `fs/emergent_testing` (snake_case, matching the `bit_vec` / `prime_field` module-naming convention); public exports and the external-runner entry import change from `…/fs/emergent-testing/module.{f.ts,ts,js}` to `…/fs/emergent_testing/module.{f.ts,ts,js}` [924](https://github.com/functionalscript/functionalscript/pull/924)

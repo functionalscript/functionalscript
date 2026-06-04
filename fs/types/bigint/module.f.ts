@@ -13,7 +13,6 @@
  * const logValue = log2(8n) // 3n
  * const bitCount = bitLength(255n) // 8n
  * const bitmask = mask(5n) // 31n
- * const m = min(3n)(13n) // 3n
  * const c = combination([3n, 2n, 1n]) // 60n
  * ```
  */
@@ -205,24 +204,6 @@ export const bitLength = (v: bigint): bigint => log2(abs(v)) + 1n
  */
 export const mask = (len: bigint): bigint =>
     (1n << len) - 1n
-
-/**
- * Returns the smaller of two `bigint` values.
- *
- * @param a - The first bigint.
- * @returns A function that takes the second bigint and returns the smaller value.
- */
-export const min = (a:bigint) => (b: bigint): bigint =>
-    a < b ? a : b
-
-/**
- * Returns the larger of two `bigint` values.
- *
- * @param a - The first bigint.
- * @returns A function that takes the second bigint and returns the larger value.
- */
-export const max = (a: bigint) => (b: bigint): bigint =>
-    a < b ? b : a
 
 /**
  * Calculates the partial factorial `b!/a!`.

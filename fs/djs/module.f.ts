@@ -7,13 +7,13 @@ import type { Primitive as JsonPrimitive } from '../json/module.f.ts'
 import { transpile } from './transpiler/module.f.ts'
 import { stringify, stringifyAsTree } from './serializer/module.f.ts'
 import { sort } from '../types/object/module.f.ts'
-import { type Effect, pure } from '../types/effects/module.f.ts'
+import { type Effect, pure } from '../effects/module.f.ts'
 import {
     writeFile,
     type WriteFile, type ReadFile,
     type Write,
     error,
-} from '../types/effects/node/module.f.ts'
+} from '../effects/node/module.f.ts'
 import { utf8 } from '../text/module.f.ts'
 
 export type Object = {

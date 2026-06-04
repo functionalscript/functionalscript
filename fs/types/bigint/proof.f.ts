@@ -5,12 +5,12 @@ import {
     log2,
     bitLength,
     mask,
-    min,
     combination,
     factorial,
     divUp,
     roundUp
 } from './module.f.ts'
+import { min } from '../function/compare/module.f.ts'
 
 const oldLog2 = (v: bigint): bigint => {
     if (v <= 0n) { return -1n }
