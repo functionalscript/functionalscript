@@ -13,9 +13,9 @@ Block header **nBits** (32-bit) encodes the **target**:
 Valid PoW: SHA-256 hash of the pre-image, interpreted as big-endian uint256, is
 `≤ target`.
 
-`targetFromNBits` rejects malformed compact encodings (negative sign bit,
-overflow, target wider than 256 bits) using the same rules as Bitcoin
-`SetCompact`.
+`targetFromNBits` returns `null` for malformed compact encodings (negative sign
+bit, overflow, target wider than 256 bits) using the same rules as Bitcoin
+`SetCompact`. Invalid **nBits** makes `meets` return `false`.
 
 ## API
 

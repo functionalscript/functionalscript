@@ -22,14 +22,8 @@ const sha256EmptyHash =
 const block0Hash =
     0x000000000019d6689c085ae165831e934ff763ae46a2a6cffb388491c27dc990n
 
-const expectThrow = (message: string) => (f: () => unknown) => {
-    try {
-        f()
-        throw `expected ${message}`
-    } catch (e) {
-        if (e === `expected ${message}`) { throw e }
-        if (e !== message) { throw e }
-    }
+const expectNull = (nBits: bigint) => {
+    if (targetFromNBits(nBits) !== null) { throw nBits }
 }
 
 export const proof = {
@@ -53,16 +47,16 @@ export const proof = {
             if (targetFromNBits(0n) !== 0n) { throw 'zero nBits' }
         },
         negative: () => {
-            expectThrow('negative nBits')(() => targetFromNBits(0x01800001n))
+            expectNull(0x01800001n)
         },
         negativeHighMantissa: () => {
-            expectThrow('negative nBits')(() => targetFromNBits(0x22ffffffn))
+            expectNull(0x22ffffffn)
         },
         overflowExponent: () => {
-            expectThrow('overflow nBits')(() => targetFromNBits(0x23000001n))
+            expectNull(0x23000001n)
         },
         exceeds256: () => {
-            expectThrow('target exceeds 256 bits')(() => targetFromNBits(0x227fffffn))
+            expectNull(0x227fffffn)
         },
     },
     meets: {
@@ -78,9 +72,13 @@ export const proof = {
         zeroTargetRejectsSample: () => {
             if (p256.meets(0n)(sample)) { throw 'non-zero hash vs zero target' }
         },
+        invalidNBits: () => {
+            if (p256.meets(0x01800001n)(sample)) { throw 'invalid nBits should not pass' }
+        },
         hashLeqTarget: () => {
             const h = p256.hashInt(sample)
             const target = targetFromNBits(easyNBits)
+            if (target === null) { throw 'easy nBits decode' }
             if (h > target) { throw 'hash above easy target' }
             if (!(h <= target)) { throw 'hash <= target' }
         },

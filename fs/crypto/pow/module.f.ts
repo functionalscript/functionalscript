@@ -6,6 +6,7 @@
  */
 import { mask } from '../../types/bigint/module.f.ts'
 import { type Vec, uint } from '../../types/bit_vec/module.f.ts'
+import type { Nullable } from '../../types/nullable/module.f.ts'
 import { computeSync, sha256, type Sha2 } from '../sha2/module.f.ts'
 
 const nBitsMantissa = mask(24n)
@@ -42,26 +43,26 @@ const overflowNBits = (exponent: bigint) => (mantissa: bigint) => (target: bigin
  * - `mantissa = nBits & 0xffffff`
  * - `target = mantissa × 2^(8 × (exponent − 3))`
  *
- * Rejects malformed encodings per Bitcoin `SetCompact` rules (negative sign bit,
- * overflow, target wider than 256 bits).
+ * Returns `null` for malformed encodings per Bitcoin `SetCompact` rules (negative
+ * sign bit, overflow, target wider than 256 bits).
  *
  * @param nBits - Compact target encoding.
- * @returns Decoded target as a big-endian unsigned integer.
+ * @returns Decoded target, or `null` when **nBits** is invalid.
  */
-export const targetFromNBits = (nBits: bigint): bigint => {
+export const targetFromNBits = (nBits: bigint): Nullable<bigint> => {
     const exponent = nBits >> exponentShift
     const mantissa = nBits & nBitsMantissa
-    if (negativeNBits(mantissa)) { throw 'negative nBits' }
+    if (negativeNBits(mantissa)) { return null }
     const target = compactTarget(exponent)(mantissa)
-    if (overflowNBits(exponent)(mantissa)(target)) { throw 'overflow nBits' }
-    if (target > uint256Mask) { throw 'target exceeds 256 bits' }
+    if (overflowNBits(exponent)(mantissa)(target)) { return null }
+    if (target > uint256Mask) { return null }
     return target
 }
 
 export type Pow = {
     /** Hash `data` with the configured `Sha2`; digest as big-endian uint256. */
     readonly hashInt: (data: Vec) => bigint
-    /** Whether `hashInt(data) <= targetFromNBits(nBits)`. */
+    /** Whether `hashInt(data) <= targetFromNBits(nBits)`; `false` when **nBits** is invalid. */
     readonly meets: (nBits: bigint) => (data: Vec) => boolean
 }
 
@@ -73,8 +74,10 @@ export type Pow = {
 export const pow = (hash: Sha2): Pow => {
     const c = computeSync(hash)
     const hashInt = (data: Vec): bigint => uint(c([data]))
-    const meets = (nBits: bigint) => (data: Vec): boolean =>
-        hashInt(data) <= targetFromNBits(nBits)
+    const meets = (nBits: bigint) => (data: Vec): boolean => {
+        const target = targetFromNBits(nBits)
+        return target !== null && hashInt(data) <= target
+    }
     return { hashInt, meets }
 }
 
