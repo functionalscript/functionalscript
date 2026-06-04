@@ -51,8 +51,7 @@ every proof module and registers each test case with the active runner:
 
 ```ts
 // all.test.ts
-import { run } from 'functionalscript/fs/dev/tf/module.js'
-await run()
+import 'functionalscript/fs/emergent_testing/module.js'
 ```
 
 `all.test.ts` is the recommended name, but any name works as long as the runner
