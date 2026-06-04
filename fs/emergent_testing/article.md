@@ -84,7 +84,7 @@ flowchart LR
     end
 ```
 
-In case of emergent testing, each test case can return a new proof or a set of proofs. These new proofs are executed outside of the parent test sandbox. So we can generate new test cases dynamically, return them from the test case function, and a test runner will execute them in new, isolated sandboxes. Tests do not execute other tests. They only reveal them. 
+In case of emergent testing, each test case can return a new proof or a set of proofs. These new proofs are executed outside of the parent test sandbox. So we can dynamically generate new test cases, return them from the test case function, and have a test runner execute them in new, isolated sandboxes. Tests do not execute other tests. They only reveal them. 
 
 ```ts
 export const proof = {
@@ -127,7 +127,7 @@ For technical details and the precise execution rules, see: https://github.com/f
 
 ## Why do I need to care if I can vibe-code the tests for any test framework?
 
-That's right, you can. However, we should understand that any rewrite (no matter how good the rewritter) is always a risk. Tests that do not depend on a particular testing framework tend to survive longer and require less maintenance than tests that must be rewritten whenever tooling changes.
+That's right, you can. However, we should understand that any rewrite is always a risk, no matter how good the rewritter is. Tests that do not depend on a particular testing framework tend to survive longer and require less maintenance than tests that must be rewritten whenever tooling changes.
 
 The second point is that it is still expensive, you need to burn more tokens, and increase the complexity of your prompts, and any additional complexity always increases the risk of an incorrect, low-quality solution.
 
