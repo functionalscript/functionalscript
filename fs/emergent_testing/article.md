@@ -55,7 +55,7 @@ export const proof = {
 
 In traditional testing models, tests are orchestrated: a developer explicitly structures execution by calling a `test` function inside another test to define subtests and control the execution flow.
 
-Some frameworks don’t even support nested test execution. This makes orchestration harder, because the runner must be capable of creating and managing new test sandboxes from within an already running test sandbox.
+The runner must be capable of creating and managing new test sandboxes from within an already running test sandbox. Some test frameworks don’t support nested test execution. This makes orchestration even harder.
 
 ```ts
 import test from 'node:test'
