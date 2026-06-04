@@ -5,10 +5,10 @@ import process from 'node:process'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
-import { concat } from '../path/module.f.ts'
-import { normalize } from '../path/module.f.ts'
-import { type Effect } from '../effects/module.f.ts'
-import { asyncRun } from '../effects/module.ts'
+import { concat } from '../../path/module.f.ts'
+import { normalize } from '../../path/module.f.ts'
+import { type Effect } from '../module.f.ts'
+import { asyncRun } from '../module.ts'
 import {
     type Server as EffectServer,
     type Headers,
@@ -23,11 +23,11 @@ import {
     type TestContext,
     type Engine,
     type TestFn,
-} from '../effects/node/module.f.ts'
-import type { Vec } from '../types/bit_vec/module.f.ts'
-import { asBase, asNominal } from '../types/nominal/module.f.ts'
-import { error, ok, type Result } from '../types/result/module.f.ts'
-import { fromVec, listToVec, toVec } from '../types/uint8array/module.f.ts'
+} from './module.f.ts'
+import type { Vec } from '../../types/bit_vec/module.f.ts'
+import { asBase, asNominal } from '../../types/nominal/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.ts'
+import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.ts'
 
 /**
  * Represents a directory entry (file or directory) in the filesystem
