@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **breaking** `effects`: hoist `fs/types/effects` → `fs/effects` (effects are a foundational layer, not a `type`); fold `fs/io` into `fs/effects/node/module.ts` and remove the `fs/io` module — the `Io` interface is now a private type internal to the node runner rather than a public export. Callers use the runner's exported `run(p)` (wraps `process.exit`) / `runEffect(p)` (resolves the exit code) entry points. JSR/`deno.json` exports `./fs/io/**` and `./fs/types/effects/**` become `./fs/effects/**` [943](https://github.com/functionalscript/functionalscript/pull/943)
+
 ## 0.23.0
 
 - **breaking** `io`: encapsulate `io` behind the entry points — rename the default export `effectRun` → `run`; add `runEffect(p)` (the effect runner with `io` and `argv` pre-applied, resolving to the exit code without calling `process.exit`); `run` now wraps `runEffect` with `process.exit`. `fs/emergent_testing/module.ts` drops its `io` / `runProgram` imports and self-executes via top-level `await runEffect(register)` — it no longer exports `run()`, so the external-runner entry becomes a bare side-effect `import 'functionalscript/fs/emergent_testing/module.js'` [942](https://github.com/functionalscript/functionalscript/pull/942)

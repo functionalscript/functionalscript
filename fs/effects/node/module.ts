@@ -396,7 +396,7 @@ const io: Io = {
  * Use this when the caller must stay alive afterwards — e.g. when proofs are
  * registered under an external test runner (Node `--test`, Bun, Playwright)
  * that owns the process lifecycle. For a standalone CLI entry point that should
- * exit with the program's code, use the default {@link run} export instead.
+ * exit with the program's code, use {@link run} instead.
  */
 export const runEffect: (p: NodeProgram) => Promise<number> =
     runProgram(io)(io.process.argv.slice(2))
@@ -406,8 +406,8 @@ export const runEffect: (p: NodeProgram) => Promise<number> =
  * `process.exit` with its exit code. The `Promise<never>` return type reflects
  * that control never returns to the caller — the process terminates.
  *
- * This is the default export so a `bin` script can simply
- * `import { run } from '.../io/module.js'; await run(main)`.
+ * A `bin` script can simply
+ * `import { run } from '.../fs/effects/node/module.js'; await run(main)`.
  */
 export const run: (p: NodeProgram) => Promise<never> = async p =>
     process.exit(await runEffect(p))
