@@ -48,5 +48,5 @@ to `Reporter<O>` that enables this.
 ## Related
 
 - [i21](./021-test-framework-silent-mode.md) — silent/verbose mode and progress bar
-- [i155](./155-test-runner-integration.md) — original issue; reporter modes extracted here
+- i155 — original issue; reporter modes extracted here
 - [i163](./163-reporter-test-method.md) — `test(throws, f)` on `Reporter<O>` enabling the bridge reporter

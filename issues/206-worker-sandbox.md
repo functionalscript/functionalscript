@@ -56,6 +56,6 @@ reports a failure (timeout exceeded), keeping the rest of the test suite running
 
 ## Related
 
-- [i149](./149-sandbox.md) — original `sandbox` design
+- i149 — original `sandbox` design
 - [i183](./183-tf-framework-scenario-tests.md) — scenario tests that would exercise
   timeout/OOM behaviour

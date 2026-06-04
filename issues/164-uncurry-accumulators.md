@@ -44,4 +44,4 @@ This removes the partial-application footgun and drops one closure allocation pe
 ## Related
 
 - [763](https://github.com/functionalscript/functionalscript/pull/763) — the `StateScan` uncurry refactor this generalizes.
-- [158-sorted-binary-search](./158-sorted-binary-search.md) — also touches the `sorted_list` / comparator vocabulary.
+- 158-sorted-binary-search — also touches the `sorted_list` / comparator vocabulary.

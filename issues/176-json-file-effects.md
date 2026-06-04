@@ -34,7 +34,7 @@ The read half (`readFile` → `unwrap` → `utf8ToString` → `JSON.parse`) appe
 
 ## Proposed abstraction
 
-A small shared module (e.g. `fs/io/json/module.f.ts`, or exported from
+A small shared module (e.g. `fs/effects/node/json/module.f.ts`, or exported from
 `fs/dev` if kept dev-only) over the existing effects:
 
 ```ts
@@ -66,7 +66,7 @@ export const writeJsonFile = (path: string) => (value: unknown): Effect<WriteFil
 
 - **Where it lives.** All three consumers are build/dev tooling, not the public
   `fs` data libraries. `fs/io` is `@deprecated`, so prefer a fresh
-  `fs/io/json` (effect-based) or keep it adjacent to `dev`. It must depend only
+  `fs/effects/node/json` (effect-based) or keep it adjacent to `dev`. It must depend only
   on `effects`, `text`, and `result` — not on Node built-ins — to stay a
   FunctionalScript module.
 - **Parsed type.** `readJsonFile` returns `unknown`; `dev` then runs RTTI
@@ -78,5 +78,5 @@ export const writeJsonFile = (path: string) => (value: unknown): Effect<WriteFil
 
 ## Related
 
-- `fs/types/effects/node/module.f.ts` — `readFile`/`writeFile` effects.
+- `fs/effects/node/module.f.ts` — `readFile`/`writeFile` effects.
 - `fs/text/module.f.ts` — `utf8`/`utf8ToString`.

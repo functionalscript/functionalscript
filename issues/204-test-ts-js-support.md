@@ -1,13 +1,20 @@
 # 204. A new suffix for plain TS/JS files using FunctionalScript conventions
 
 **Priority:** P3
-**Status:** wip
+**Status:** done
+
+> **Resolution (i65Y-proof-by-export):** The plain-TS/JS adoption question this
+> issue raised was settled by the proof-by-export work, not by a new infix
+> suffix. Vanilla files opt in by being named `proof.{ts,js,mts,mjs}` and are
+> discovered at runtime by their exported `proof` (see `fs/dev/module.f.ts`
+> `shouldLoad`). The original `isTest` predicate was renamed `shouldLoad`. All
+> tasks below shipped in 0.20.0.
 
 ## Tasks
 
-- [x] `isTest` recognises exact basenames `proof.f.ts`, `proof.f.js`, `proof.ts`, `proof.js`
-- [ ] Rename all existing `*.test.f.ts` files to `*.proof.f.ts`
-- [ ] (optional) Remove `endsWith('test.f.ts')` / `endsWith('test.f.js')` from `isTest` — breaking change
+- [x] `shouldLoad` (formerly `isTest`) recognises `proof.f.ts`, `proof.f.js`, `proof.ts`, `proof.js`, `proof.mts`, `proof.mjs`
+- [x] Rename all existing `*.test.f.ts` files to `*.proof.f.ts`
+- [x] Remove `endsWith('test.f.ts')` / `endsWith('test.f.js')` from the predicate
 
 ## Problem
 

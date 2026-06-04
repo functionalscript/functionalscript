@@ -3,13 +3,20 @@
 **Priority:** P4
 **Status:** open
 
+> **Update (post-#943):** `fs/io` no longer exists — it was folded into
+> `fs/effects/node/module.ts` and deleted. Item 1's premise (the `Fs` import
+> from `../../io/module.f.ts` in `fs/djs/parser`) is already resolved: that
+> import is gone. Re-verify the remaining items against the current tree before
+> acting; references to `fs/io/module.f.ts` below now mean
+> `fs/effects/node/module.ts`. The `Io`-type cleanup is tracked separately in
+> [i664-drop-io-interface](./664-drop-io-interface.md).
+
 ## Problem
 
 Five small pockets of dead or near-dead code in `fs/` carry forward stale
-shapes — some of which still pull dependencies on the deprecated
-`fs/io/module.f.ts`. The remediation is mechanical (delete, plus a couple
-of imports), but the cleanup is worth filing because two of the dead
-items keep the deprecated module artificially alive at the type level.
+shapes — some of which still pulled dependencies on the (now-removed)
+`fs/io` module. The remediation is mechanical (delete, plus a couple
+of imports).
 
 ### 1. `ParseContext` in `fs/djs/parser/module.f.ts:16`
 
@@ -43,7 +50,7 @@ live export with a real consumer; the deletion no longer applies.
 The function still depends on `Io` from the deprecated
 `fs/io/module.f.ts`, so it remains a soft anchor for that module —
 but resolving that is the job of
-[i65Y-io-type-duplication](./65Y-io-type-duplication.md), not this
+i65Y-io-type-duplication, not this
 issue. Skip.
 
 ### 3. Dead types in `fs/json/serializer/module.f.ts:86–90`
