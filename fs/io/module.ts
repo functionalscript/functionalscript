@@ -129,9 +129,9 @@ export const io: Io = {
 }
 export type NodeRun = (p: NodeProgram) => Promise<never>
 
-const effectRun: NodeRun = async p => {
+const run: NodeRun = async p => {
     const code = await runProgram(io)(io.process.argv.slice(2))(p)
     return process.exit(code)
 }
 
-export default effectRun
+export default run
