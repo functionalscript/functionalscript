@@ -1,1 +1,1 @@
-import '../module.ts'
+import '../all.test.ts'

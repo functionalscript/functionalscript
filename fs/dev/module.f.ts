@@ -132,7 +132,10 @@ const index2 =
     .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
 
 const allFiles2aa =
-    allFiles('.', v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
+    allFiles('.', v =>
+        v.endsWith('/module.f.ts') ||
+        v.endsWith('/module.ts') ||
+        v.endsWith('/all.test.ts'))
     .step(files => {
         const exportsA = files.map(v => [v, `./${v.substring(2)}`] as const)
         return pure(Object.fromEntries(exportsA))
