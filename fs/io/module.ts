@@ -127,11 +127,13 @@ export const io: Io = {
     playwrightTestContext,
     engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
 }
+
 export type NodeRun = (p: NodeProgram) => Promise<never>
 
-const run: NodeRun = async p => {
-    const code = await runProgram(io)(io.process.argv.slice(2))(p)
-    return process.exit(code)
-}
+export const runEffect: (p: NodeProgram) => Promise<number> =
+    runProgram(io)(io.process.argv.slice(2))
+
+const run: NodeRun = async p =>
+    process.exit(await runEffect(p))
 
 export default run
