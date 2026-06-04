@@ -36,12 +36,12 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260603.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260604.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.8.1"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -210,12 +210,12 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260603.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260604.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.8.1"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -378,12 +378,12 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260603.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260604.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.8.1"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -546,12 +546,12 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260603.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260604.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.8.1"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -714,12 +714,12 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260603.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260604.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.8.1"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -888,12 +888,12 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260603.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260604.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.8.1"
+            "deno-version": "2.8.2"
           }
         },
         {
