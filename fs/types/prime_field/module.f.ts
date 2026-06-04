@@ -26,6 +26,10 @@ export type PrimeField = {
     readonly pow: Reduce
     readonly pow2: Unary
     readonly pow3: Unary
+    /** Reduces an arbitrary `bigint` into `[0, p)`. */
+    readonly reduce: Unary
+    /** Euler criterion: `true` when `x` is a quadratic residue mod `p`. */
+    readonly quadRes: (x: bigint) => boolean
 }
 
 /**
@@ -60,23 +64,32 @@ export const prime_field = (p: bigint): PrimeField => {
     const middle = p >> 1n
     const pow2: Unary = a => mul(a)(a)
     const pow: Reduce = repeat({ identity: 1n, operation: mul })
+    const add: Reduce = a => b => {
+        const r = a + b
+        return r < p ? r : r - p
+    }
+    const red: Unary = x => {
+        const r = x % p
+        return r < 0n ? add(p)(r) : r
+    }
+    const half = (p - 1n) / 2n
+    const qr = (x: bigint): boolean => pow(half)(red(x)) === 1n
     return {
         p,
         middle,
         max: p - 1n,
         neg: a => a === 0n ? 0n : p - a,
         sub,
-        add: a => b => {
-            const r = a + b
-            return r < p ? r : r - p
-        },
+        add,
         abs: a => middle < a ? p - a : a,
         mul,
         reciprocal,
         div: a => b => mul(a)(reciprocal(b)),
         pow,
         pow2,
-        pow3: a => mul(a)(pow2(a))
+        pow3: a => mul(a)(pow2(a)),
+        reduce: red,
+        quadRes: qr,
     }
 }
 
@@ -104,32 +117,13 @@ export const sqrt = ({p, pow, pow2 }: PrimeField): (a: bigint) => bigint|null =>
 }
 
 /**
- * Reduces an arbitrary `bigint` into `[0, p)`.
- */
-export const reduce = ({ p, add }: PrimeField): Unary => x => {
-    const r = x % p
-    return r < 0n ? add(p)(r) : r
-}
-
-/**
- * Euler criterion: `true` when `x` is a quadratic residue mod `p`.
- */
-export const quadRes = (field: PrimeField): (x: bigint) => boolean => {
-    const { p, pow } = field
-    const red = reduce(field)
-    const half = (p - 1n) / 2n
-    return x => pow(half)(red(x)) === 1n
-}
-
-/**
- * Modular square root mod `p` (`p ≡ 3 (mod 4)`); uses {@link neg} when `x` is not a residue.
+ * Modular square root mod `p` (`p ≡ 3 (mod 4)`); uses {@link PrimeField.neg} when `x` is not a residue.
  */
 export const modSqrt = (field: PrimeField): Unary => {
-    const { neg } = field
-    const red = reduce(field)
+    const { neg, reduce } = field
     const sqrt_p = sqrt(field)
     return x => {
-        const v = red(x)
+        const v = reduce(x)
         const r = sqrt_p(v)
         if (r !== null) {
             return r

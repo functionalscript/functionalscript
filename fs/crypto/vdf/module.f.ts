@@ -14,37 +14,13 @@
  * if (y === null || !sloth.verify(steps)(x)(y)) { throw y }
  * ```
  */
-import {
-    modSqrt,
-    prime_field,
-    quadRes,
-    reduce,
-    type PrimeField,
-} from '../../types/prime_field/module.f.ts'
+import { modSqrt, prime_field, type PrimeField } from '../../types/prime_field/module.f.ts'
 import type { Nullable } from '../../types/nullable/module.f.ts'
 import type { Unary } from '../../types/bigint/module.f.ts'
 
-const pLimbs = [
-    0xf2346eae06a23388n,
-    0x2814ff16f6a076d3n,
-    0xb8f2161c5c92171cn,
-    0x0b7b84eed4e9475bn,
-    0xcce0c13bde34512an,
-    0xfdf90f41ab9b86dcn,
-    0xf834f85e04b27fadn,
-    0xee712eed23a1d4e5n,
-    0x8cd1b09d9bfb1069n,
-    0x6d614f119179a40cn,
-    0x49dc8762edc29e81n,
-    0x15263913237e1471n,
-    0x8cbcd4dc6b35bacen,
-    0x13f8cdb1b5156c50n,
-    0xc47b4aaee0820c87n,
-    0x4e2864cb854367c3n,
-] as const
-
 /** Sloth VDF modulus (3072-bit safe prime, same as reference implementations). */
-export const p = pLimbs.reduce((v, limb) => (v << 64n) | limb, 0n)
+export const p =
+    0xf2346eae06a23388_2814ff16f6a076d3_b8f2161c5c92171c_0b7b84eed4e9475b_cce0c13bde34512a_fdf90f41ab9b86dc_f834f85e04b27fad_ee712eed23a1d4e5_8cd1b09d9bfb1069_6d614f119179a40c_49dc8762edc29e81_15263913237e1471_8cbcd4dc6b35bace_13f8cdb1b5156c50_c47b4aaee0820c87_4e2864cb854367c3n
 
 /**
  * Sloth VDF over prime `modulus` (`p ≡ 3 (mod 4)`).
@@ -74,16 +50,14 @@ const repeatSeq = (steps: bigint) => (f: Unary) => (value: bigint): bigint => {
  */
 export const sloth_vdf = (modulus: bigint): Sloth => {
     const field: PrimeField = prime_field(modulus)
-    const { neg, pow2 } = field
-    const red = reduce(field)
-    const qr = quadRes(field)
+    const { neg, pow2, reduce, quadRes } = field
     const root = modSqrt(field)
 
     const squareLoop = (steps: bigint) => (value: bigint): bigint =>
-        repeatSeq(steps)(pow2)(red(value))
+        repeatSeq(steps)(pow2)(reduce(value))
 
     const modSqrtLoop = (steps: bigint) => (value: bigint): bigint =>
-        repeatSeq(steps)(root)(red(value))
+        repeatSeq(steps)(root)(reduce(value))
 
     const evalSteps = (steps: bigint) => (x: bigint): Nullable<bigint> =>
         steps < 0n ? null : modSqrtLoop(steps)(x)
@@ -92,15 +66,15 @@ export const sloth_vdf = (modulus: bigint): Sloth => {
         if (steps < 0n) {
             return false
         }
-        const input = red(x)
+        const input = reduce(x)
         const squared = squareLoop(steps)(y)
-        const value = qr(squared) ? squared : neg(squared)
+        const value = quadRes(squared) ? squared : neg(squared)
         return input === value || neg(input) === value
     }
 
     return {
         p: modulus,
-        quadRes: qr,
+        quadRes,
         modSqrt: root,
         eval: evalSteps,
         verify: verifySteps,

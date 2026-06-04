@@ -2,6 +2,10 @@ import { sloth, p } from './module.f.ts'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth
 
+// `eval(steps)(x)` expected values for {@link p}; same Sloth algorithm as
+// https://github.com/hyperhyperspace/pulsar/blob/main/src/model/SlothVDF.ts and
+// https://github.com/jose-compu/dignity.js/blob/main/src/security/sloth-vdf.js
+
 const sampleX = 123456789n
 const largeX = 12345678901234567890n
 const smallX = 42n

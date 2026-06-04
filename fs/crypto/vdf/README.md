@@ -19,6 +19,12 @@ All values are `bigint` mod `p`. Invalid `steps < 0` yields `null` from `eval` a
 - `p` — Sloth modulus.
 - `sloth_vdf(modulus)` — builds `{ quadRes, modSqrt, eval, verify }` over a prime.
 - `sloth` — `sloth_vdf(p)`.
-- Uses `prime_field` (`reduce`, `quadRes`, `modSqrt`, `pow2`, `neg`).
+- Uses `prime_field` (`reduce`, `quadRes` on the field; `modSqrt`, `pow2`, `neg` for Sloth).
 
 Hex string wrappers belong in caller code, not this module.
+
+## Test vectors
+
+Proofs in `proof.f.ts` pin `sloth.eval(steps)(x)` for several `(x, steps)` pairs on
+{@link p}. Values match the reference Sloth implementations linked above (pulsar and
+dignity.js use the same modulus and algorithm).
