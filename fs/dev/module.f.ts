@@ -19,11 +19,11 @@ import {
     type Import,
     type NodeProgram,
     type Readdir
-} from '../types/effects/node/module.f.ts'
+} from '../effects/node/module.f.ts'
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { begin, pure, type Effect } from '../types/effects/module.f.ts'
+import { begin, pure, type Effect } from '../effects/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'

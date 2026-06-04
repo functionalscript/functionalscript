@@ -4,7 +4,7 @@
  * @module
  */
 
-import { fold, type List } from '../list/module.f.ts'
+import { fold, type List } from '../types/list/module.f.ts'
 
 export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]

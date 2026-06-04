@@ -8,8 +8,8 @@
  * @module
  */
 import { normalize } from '../path/module.f.ts'
-import { type Effect } from '../types/effects/module.f.ts'
-import { asyncRun } from '../types/effects/module.ts'
+import { type Effect } from '../effects/module.f.ts'
+import { asyncRun } from '../effects/module.ts'
 import {
     type Server as EffectServer,
     type Headers,
@@ -23,7 +23,7 @@ import {
     type WriteConsoles,
     type TestContext,
     type Engine,
-} from '../types/effects/node/module.f.ts'
+} from '../effects/node/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { asBase, asNominal } from '../types/nominal/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'

@@ -5,11 +5,11 @@ import process from 'node:process'
 import { concat } from '../path/module.f.ts'
 import { once } from 'node:events'
 import { type Io, runProgram } from './module.f.ts'
-import type { Module, NodeProgram, WriteConsoles } from '../types/effects/node/module.f.ts'
+import type { Module, NodeProgram, WriteConsoles } from '../effects/node/module.f.ts'
 import { error, ok, type Result } from '../types/result/module.f.ts'
 import { fromVec } from '../types/uint8array/module.f.ts'
 import * as testContext from 'node:test'
-import type { TestContext, TestFn } from '../types/effects/node/module.f.ts'
+import type { TestContext, TestFn } from '../effects/node/module.f.ts'
 
 const isPlaywright = 'PLAYWRIGHT_TEST' in (process?.env ?? {})
 

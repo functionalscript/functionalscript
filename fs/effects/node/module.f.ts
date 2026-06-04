@@ -7,10 +7,10 @@
  *
  * @module
  */
-import { utf8 } from '../../../text/module.f.ts'
-import type { Vec } from '../../bit_vec/module.f.ts'
-import type { Nominal } from '../../nominal/module.f.ts'
-import type { Result } from '../../result/module.f.ts'
+import { utf8 } from '../../text/module.f.ts'
+import type { Vec } from '../../types/bit_vec/module.f.ts'
+import type { Nominal } from '../../types/nominal/module.f.ts'
+import type { Result } from '../../types/result/module.f.ts'
 import {
     type Effect, type Func, type Operation, type ToAsyncOperationMap, begin,
     do_, pure

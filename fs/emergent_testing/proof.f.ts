@@ -1,7 +1,7 @@
-import { pure, type Effect } from '../types/effects/module.f.ts'
-import type { NodeProgramOptions, Sandbox, SandboxResult } from '../types/effects/node/module.f.ts'
-import { emptyState, type JsModule } from '../types/effects/node/virtual/module.f.ts'
-import { virtual } from '../types/effects/node/virtual/module.f.ts'
+import { pure, type Effect } from '../effects/module.f.ts'
+import type { NodeProgramOptions, Sandbox, SandboxResult } from '../effects/node/module.f.ts'
+import { emptyState, type JsModule } from '../effects/node/virtual/module.f.ts'
+import { virtual } from '../effects/node/virtual/module.f.ts'
 import { assert, assertEq, todo } from '../asserts/module.f.ts'
 import {
     testAll, defaultReporter, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
@@ -9,8 +9,8 @@ import {
     type Reporter, type Path,
     defaultTest,
 } from './module.f.ts'
-import { run as mockRun } from '../types/effects/mock/module.f.ts'
-import type { All, Await, Test, TestContext } from '../types/effects/node/module.f.ts'
+import { run as mockRun } from '../effects/mock/module.f.ts'
+import type { All, Await, Test, TestContext } from '../effects/node/module.f.ts'
 import { shouldLoad } from '../dev/module.f.ts'
 
 type Event =
