@@ -3,6 +3,14 @@
 **Priority:** P3
 **Status:** open
 
+> **Update (post-#943):** `fs/io/module.ts` and `fs/io/module.f.ts` were merged
+> into `fs/effects/node/module.ts` (the `fs/io` module is gone), so the copies
+> this issue tracks now live in that single file (`tc`, `tryCatch`,
+> `asyncTryCatch`) plus `fs/types/result`. Removing the unused `tryCatch` /
+> `asyncTryCatch` members is also covered by
+> [i664-drop-io-interface](./664-drop-io-interface.md); re-scope against the
+> merged file. Paths below referencing `fs/io/...` now mean `fs/effects/node/module.ts`.
+
 The same "wrap `f()` in `try/catch`, return `Result<T, unknown>`" helper is
 written out in **three** places, plus an async sibling that is structurally
 identical:
@@ -151,13 +159,13 @@ Then:
   collapsing them to direct imports of the shared helpers means `Io`
   loses two fields. Callers that destructure them off `io` still work;
   callers that *replace* them for testing (mock IO) lose an injection
-  point. Audit `fs/types/effects/mock/` and `fs/types/effects/node/virtual/`
+  point. Audit `fs/effects/mock/` and `fs/effects/node/virtual/`
   before removing the fields — if no test replaces them, drop them.
 
 ## Related
 
-- [i192](./192-error-exit-effect.md) — same spirit of lifting open-coded
+- i192 — same spirit of lifting open-coded
   helpers into shared modules.
-- [i149](./149-sandbox.md) — `Sandbox` replaces a `tryCatch + measure`
+- i149 — `Sandbox` replaces a `tryCatch + measure`
   combination; the consolidation here is for the remaining standalone
   `tryCatch` sites.

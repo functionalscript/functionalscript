@@ -5,7 +5,7 @@
 
 ## Problem
 
-`foldStep` (added in [i209](./209-effect-fold-step.md)) threads state through
+`foldStep` (added in i209) threads state through
 items **sequentially** — each step depends on the previous state. But many
 call sites don't actually need ordering between items; they only need to
 **aggregate** the per-item results at the end.
@@ -63,7 +63,7 @@ public `allReduce` signature — only the runner/implementation changes.
 ## Proposal
 
 Add a combinator next to `foldStep` / `forEachStep` /  `all` in
-`fs/types/effects/module.f.ts`. Working name: `allReduce`. Other candidates:
+`fs/effects/module.f.ts`. Working name: `allReduce`. Other candidates:
 `allFold`, `forkFold`, `gather`, `mapAll` — discuss.
 
 ```ts
@@ -119,11 +119,11 @@ combinator vocabulary already in `effects/module.f.ts` (`all`, `begin`,
 - Separation of concerns: lifts a recurring effect idiom into the shared
   combinator module rather than open-coding it at each call site.
 - Aligns with the project's direction of growing `Effect`-based combinators
-  in `fs/types/effects/module.f.ts` to replace ad-hoc IO patterns.
+  in `fs/effects/module.f.ts` to replace ad-hoc IO patterns.
 
 ## Related
 
-- [i209](./209-effect-fold-step.md) — `foldStep` / `forEachStep` (the
+- i209 — `foldStep` / `forEachStep` (the
   **sequential** combinator); this is its order-insensitive sibling.
 - [i182](./182-batch-load-effects.md) — `flatMap` for independent sub-effects
   (batched) and `all` accepting a lazy `List<Effect<O, T>>` (the

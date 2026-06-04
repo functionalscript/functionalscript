@@ -132,7 +132,7 @@ it's by far the most common and the lowest-judgement case.
 
 ## Related
 
-- [i65Y-proof-by-export](./65Y-proof-by-export.md) — discovery by exported
+- i65Y-proof-by-export — discovery by exported
   `proof`; defines module-level asserts as the "light proof" tier (runs on every
   load → light, cheap checks only). `assertEq` is the helper that makes that
   tier ergonomic.

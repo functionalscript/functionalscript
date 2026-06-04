@@ -46,11 +46,11 @@ The walker replaces `sandbox(set.fn)` with `reporter.test(set.throws, set.fn)`.
 
 ### Async bridging in `module.ts`
 
-The bridge reporter's `test` method is the single integration point for async framework calls. The walker itself stays synchronous and Effect-based; all async bridging is contained in `reporter.test`. This directly resolves problem 1 from [i155](./155-test-runner-integration.md).
+The bridge reporter's `test` method is the single integration point for async framework calls. The walker itself stays synchronous and Effect-based; all async bridging is contained in `reporter.test`. This directly resolves problem 1 from i155.
 
 ## Related
 
-- [i155](./155-test-runner-integration.md) — identifies code duplication between `module.f.ts` and `module.ts` as a problem; this issue provides the mechanism to fix it.
-- [i149](./149-sandbox.md) — `Sandbox` effect; `reporter.test` wraps it for the default case.
-- [i156](./156-tf-virtual-tests.md) — virtual tests; the capture reporter's `test` method replaces the current pass-through `sandbox` convention.
+- i155 — identifies code duplication between `module.f.ts` and `module.ts` as a problem; this issue provides the mechanism to fix it.
+- i149 — `Sandbox` effect; `reporter.test` wraps it for the default case.
+- i156 — virtual tests; the capture reporter's `test` method replaces the current pass-through `sandbox` convention.
 - [i21](./021-test-framework-silent-mode.md) — reporter modes; `test` fits alongside the existing reporter methods.

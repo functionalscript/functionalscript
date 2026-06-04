@@ -9,15 +9,15 @@ tuple `readonly[T]`, a **do** node is a length-3 tuple
 *length*:
 
 ```ts
-// fs/types/effects/module.f.ts:17
+// fs/effects/module.f.ts:17
 export type Value<O extends Operation, T> =
     Pure<T> | Do<O, T>
 
-// fs/types/effects/module.f.ts:20
+// fs/effects/module.f.ts:20
 export type Pure<T> =
     readonly[T]
 
-// fs/types/effects/module.f.ts:23
+// fs/effects/module.f.ts:23
 export type DoKPR<O extends Operation, T, K extends string, PR extends readonly[unknown, unknown]> =
     readonly[K, PR[0], (_: PR[1]) => Effect<O, T>]
 ```
@@ -34,7 +34,7 @@ Three hand-rolled interpreter loops, byte-identical except for async/await and
 state threading:
 
 ```ts
-// fs/types/effects/module.ts:7 — async runner
+// fs/effects/module.ts:7 — async runner
 while (true) {
     const {value} = effect
     if (value.length === 1) {
@@ -48,7 +48,7 @@ while (true) {
 ```
 
 ```ts
-// fs/types/effects/mock/module.f.ts:24 — sync, state-threaded runner
+// fs/effects/mock/module.f.ts:24 — sync, state-threaded runner
 while (true) {
     const { value } = e
     if (value.length === 1) {
@@ -64,7 +64,7 @@ while (true) {
 ```
 
 ```ts
-// fs/types/effects/node/proof.f.ts:13 — a third runner, inline in a proof
+// fs/effects/node/proof.f.ts:13 — a third runner, inline in a proof
 while (true) {
     const { value } = e
     if (value.length === 1) {
@@ -83,7 +83,7 @@ Plus **five** assertion sites that reach into the same representation just to
 pull the pure result out of an effect that should already be done:
 
 ```ts
-// fs/types/effects/proof.f.ts:10 (and :19, :28, :36, :42)
+// fs/effects/proof.f.ts:10 (and :19, :28, :36, :42)
 const { value } = e
 if (value.length !== 1) { throw value }
 if (value[0] !== 10) { throw value[0] }
@@ -112,7 +112,7 @@ Add one accessor to the core module that turns the positional tuple into a
 named, discriminated form. It is the only place that knows the layout:
 
 ```ts
-// fs/types/effects/module.f.ts
+// fs/effects/module.f.ts
 export type Decoded<O extends Operation, T> =
     | { readonly done: true, readonly result: T }
     | {
@@ -136,7 +136,7 @@ returning the operation's output while deferring the one world-specific step —
 `await` (async) or state-threading (sync) — to the caller:
 
 ```ts
-// fs/types/effects/module.f.ts
+// fs/effects/module.f.ts
 
 // An operation map whose entries take a command's payload and return some
 // output R. Generalizes both `ToAsyncOperationMap` (R = Promise<…>) and the
@@ -189,7 +189,7 @@ This requires currying the mock operation map's state parameter — moving `stat
 from the front of the argument list to a trailing curried position:
 
 ```ts
-// fs/types/effects/mock/module.f.ts
+// fs/effects/mock/module.f.ts
 export type MemOperationMap<O extends Operation, S> = {
     // was: (state: S, ...payload: Pr<O, K>[0]) => readonly[S, Pr<O, K>[1]]
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => (state: S) => readonly[S, Pr<O, K>[1]]
@@ -229,7 +229,7 @@ narrows the tuple union structurally (no type predicate needed), in line with
   import `decode`/`match` from the `.f.ts` core — no layering violation.
 - The `MemOperationMap` currying is a breaking change to every sync operation
   map. The known consumer is the virtual filesystem
-  (`fs/types/effects/node/virtual/module.f.ts`), whose `operation`/`readOperation`
+  (`fs/effects/node/virtual/module.f.ts`), whose `operation`/`readOperation`
   helpers build `(state, path) => …` operations; they must move to
   `(...payload) => (state) => …`. That migration is mechanical but touches every
   op, so it should be audited before committing — or `match` can be introduced

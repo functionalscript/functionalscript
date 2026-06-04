@@ -67,5 +67,5 @@ executed effect), the file keeps the `.f.` infix.
 
 ## Related
 
-- [i65Y-proof-by-export](./65Y-proof-by-export.md) — proof discovery by exported `proof` property
+- i65Y-proof-by-export — proof discovery by exported `proof` property
 - [`fs/emergent_testing/README.md`](../fs/emergent_testing/README.md) — proof / proof-module definitions
