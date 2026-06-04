@@ -6,7 +6,7 @@
  */
 import { mask } from '../../types/bigint/module.f.ts'
 import { type Vec, uint } from '../../types/bit_vec/module.f.ts'
-import { computeSync, type Sha2 } from '../sha2/module.f.ts'
+import { computeSync, sha256, type Sha2 } from '../sha2/module.f.ts'
 
 const nBitsMantissa = mask(24n)
 const mantissaSign = 0x00800000n
@@ -77,3 +77,9 @@ export const pow = (hash: Sha2): Pow => {
         hashInt(data) <= targetFromNBits(nBits)
     return { hashInt, meets }
 }
+
+/** SHA-256 proof-of-work (`pow(sha256)`). */
+export const sha256Pow: Pow = pow(sha256)
+
+/** Bitcoin block-header PoW; same as {@link sha256Pow}. */
+export const bitcoinPow: Pow = sha256Pow

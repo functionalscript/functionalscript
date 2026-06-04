@@ -1,9 +1,9 @@
 import { utf8 } from '../../text/module.f.ts'
 import { empty, uint } from '../../types/bit_vec/module.f.ts'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.ts'
-import { genesisNBits, genesisTarget, pow, targetFromNBits } from './module.f.ts'
+import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBits } from './module.f.ts'
 
-const p256 = pow(sha256)
+const p256 = sha256Pow
 const p224 = pow(sha224)
 const sample = utf8('functionalscript pow proof')
 const emptyData = empty
@@ -104,6 +104,14 @@ export const proof = {
         },
     },
     pow: {
+        sha256Pow: () => {
+            const built = pow(sha256)
+            if (sha256Pow.hashInt(sample) !== built.hashInt(sample)) { throw 'hashInt' }
+            if (sha256Pow.meets(easyNBits)(sample) !== built.meets(easyNBits)(sample)) { throw 'meets' }
+        },
+        bitcoinPow: () => {
+            if (bitcoinPow.hashInt(sample) !== sha256Pow.hashInt(sample)) { throw 'bitcoinPow' }
+        },
         independentInstances: () => {
             const a = pow(sha256)
             const b = pow(sha256)

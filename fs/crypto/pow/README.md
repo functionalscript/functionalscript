@@ -21,6 +21,7 @@ overflow, target wider than 256 bits) using the same rules as Bitcoin
 
 - `targetFromNBits(nBits)` — decode compact target.
 - `pow(sha256)` — `{ hashInt, meets }` for an injected `Sha2`.
+- `sha256Pow` / `bitcoinPow` — pre-built SHA-256 PoW (Bitcoin block headers).
 
 Mining/search loops stay outside the module; callers iterate nonces and call
 `meets`.
