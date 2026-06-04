@@ -20,7 +20,7 @@ overflow, target wider than 256 bits) using the same rules as Bitcoin
 ## API
 
 - `targetFromNBits(nBits)` — decode compact target.
-- `pow(sha256)` — `{ hashInt, meets, verify }` for an injected `Sha2`.
+- `pow(sha256)` — `{ hashInt, meets }` for an injected `Sha2`.
 
 Mining/search loops stay outside the module; callers iterate nonces and call
 `meets`.

@@ -63,8 +63,6 @@ export type Pow = {
     readonly hashInt: (data: Vec) => bigint
     /** Whether `hashInt(data) <= targetFromNBits(nBits)`. */
     readonly meets: (nBits: bigint) => (data: Vec) => boolean
-    /** Same as {@link Pow.meets}. */
-    readonly verify: (nBits: bigint) => (data: Vec) => boolean
 }
 
 /**
@@ -77,5 +75,5 @@ export const pow = (hash: Sha2): Pow => {
     const hashInt = (data: Vec): bigint => uint(c([data]))
     const meets = (nBits: bigint) => (data: Vec): boolean =>
         hashInt(data) <= targetFromNBits(nBits)
-    return { hashInt, meets, verify: meets }
+    return { hashInt, meets }
 }

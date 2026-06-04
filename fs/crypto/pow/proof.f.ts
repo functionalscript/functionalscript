@@ -1,5 +1,5 @@
 import { utf8 } from '../../text/module.f.ts'
-import { empty, uint, type Vec } from '../../types/bit_vec/module.f.ts'
+import { empty, uint } from '../../types/bit_vec/module.f.ts'
 import { computeSync, sha224, sha256 } from '../sha2/module.f.ts'
 import { genesisNBits, genesisTarget, pow, targetFromNBits } from './module.f.ts'
 
@@ -83,18 +83,6 @@ export const proof = {
             const target = targetFromNBits(easyNBits)
             if (h > target) { throw 'hash above easy target' }
             if (!(h <= target)) { throw 'hash <= target' }
-        },
-    },
-    verify: {
-        matchesMeets: () => {
-            const cases: readonly (readonly [bigint, Vec])[] = [
-                [easyNBits, sample],
-                [hardNBits, sample],
-                [genesisNBits, sample],
-            ]
-            for (const [nBits, data] of cases) {
-                if (p256.verify(nBits)(data) !== p256.meets(nBits)(data)) { throw [nBits, data] }
-            }
         },
     },
     hashInt: {
