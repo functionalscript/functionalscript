@@ -45,7 +45,7 @@ export const proof = {
      todo,
      divByZero: () => 5n / 0n,
   },
-  generateSqrTests: () => [1, 2, 3, 5].map(a => () => {
+  emergentSqrTests: () => [1, 2, 3, 5].map(a => () => {
     if (sqr(a) !== a * a) { throw `sqr(${a})` }
   })
 } 
