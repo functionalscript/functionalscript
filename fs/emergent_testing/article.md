@@ -117,7 +117,7 @@ flowchart TB
     T2 --> T3
 ```
 
-Similar execution, but limited by functionality concept, is property-based testing. However, property-based testing is complicated and usually requires a complex eDSL that is hard to learn.
+Property-based testing is a related approach; it also generates cases dynamically but typically requires a dedicated eDSL. Emergence gets you dynamic generation with nothing but functions returning functions.
 
 ## Implementation
 
