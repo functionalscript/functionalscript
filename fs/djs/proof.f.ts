@@ -1,5 +1,5 @@
 import { compile } from './module.f.ts'
-import { virtual, emptyState } from '../types/effects/node/virtual/module.f.ts'
+import { virtual, emptyState } from '../effects/node/virtual/module.f.ts'
 import { isVec } from '../types/bit_vec/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 
