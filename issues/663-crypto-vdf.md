@@ -1,7 +1,7 @@
 # 663-crypto-vdf. Sloth VDF module under `fs/crypto/vdf`
 
 **Priority:** P3
-**Status:** wip
+**Status:** done
 
 ## Problem
 
