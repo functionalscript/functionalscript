@@ -128,7 +128,7 @@ export const io: Io = {
     engine: isPlaywright ? 'playwright' : 'Bun' in globalThis ? 'bun' : 'node',
 }
 
-export type NodeRun = (p: NodeProgram) => Promise<never>
+// export type NodeRun = (p: NodeProgram) => Promise<never>
 
 /**
  * Runs a `NodeProgram` against the real Node `io` and process arguments,
@@ -148,9 +148,7 @@ export const runEffect: (p: NodeProgram) => Promise<number> =
  * that control never returns to the caller — the process terminates.
  *
  * This is the default export so a `bin` script can simply
- * `import run from '.../io/module.js'; run(main)`.
+ * `import { run } from '.../io/module.js'; await run(main)`.
  */
-const run: NodeRun = async p =>
+export const run: (p: NodeProgram) => Promise<never> = async p =>
     process.exit(await runEffect(p))
-
-export default run
