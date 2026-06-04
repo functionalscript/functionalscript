@@ -10,7 +10,7 @@ that walks the same container shapes:
 - `constContainerValidate` / `constContainerParse` — schema-driven walk of
   `tuple`/`struct`.
 
-After [i162](./162-rtti-parse-container-factories.md) the two modules are
+After i162 the two modules are
 structurally parallel: same container guards (`isArray`/`isObject` from
 `common`), same `Object.entries` traversal, same error-path bookkeeping
 (`prependPath`, first-error). The only real difference is the success result:
@@ -93,7 +93,7 @@ works for both arrays and records **without** an `as` cast or the
 - Drive the tuple walk from numeric indices instead of `Object.entries` (so the
   key is already a `number` for arrays), and reconcile that with the record
   walk's string keys — at the cost of reintroducing the index/key split that
-  [i162](./162-rtti-parse-container-factories.md) removed.
+  i162 removed.
 
 Whichever shared-skeleton design wins, it must settle this so a single
 container accessor type-checks for arrays and records alike.
@@ -111,7 +111,7 @@ allocation.
 
 ## Related
 
-- [i162](./162-rtti-parse-container-factories.md) — made `parse` mirror
+- i162 — made `parse` mirror
   `validate`'s factory pair (the precondition for this investigation).
 - [i143](./143-rtti-data.md) — RTTI data form; the likely third consumer.
 - [i146](./146-rtti-ts-inference.md) — the `Ts<T>` inference / `as any` problem

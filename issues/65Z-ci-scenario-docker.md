@@ -73,4 +73,4 @@ All tests that currently run on Ubuntu, plus:
 - [i095](./095-ci-docker.md) — original Docker CI idea
 - [i145](./145-docker-linux-ci.md) — Docker containers for Linux CI jobs (broader scope)
 - [i183](./183-tf-framework-scenario-tests.md) — scenario test infrastructure
-- [i65Y-scenarios-proof](./65Y-scenarios-proof.md) — scenario files converted to `export const proof`; prerequisite
+- i65Y-scenarios-proof — scenario files converted to `export const proof`; prerequisite

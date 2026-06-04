@@ -68,4 +68,4 @@ that:
 ## Related
 
 - [i661](./661-test-runner-behavior.md) — documents other behavioural differences across supported test runners
-- [i65Y-sandbox-await-overhead](./65Y-sandbox-await-overhead.md) — performance work inside the sandbox
+- i65Y-sandbox-await-overhead — performance work inside the sandbox
