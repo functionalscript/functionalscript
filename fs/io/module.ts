@@ -171,22 +171,6 @@ type App = (io: Io) => Promise<number>
 
 type Run = (f: App) => Promise<never>
 
-/**
- * Runs a function and exits the process with the returned code
- * Handles errors by exiting with code 1
- */
-const runIo = (io: Io): Run => {
-    const exitCode = ([x, b]: Result<number, unknown>) => {
-        if (x === 'error') {
-            io.console.error(b)
-            return 1
-        } else {
-            return b
-        }
-    }
-    return async f => io.process.exit(exitCode(await io.asyncTryCatch(() => f(io))))
-}
-
 const tc = async<T>(f: () => Promise<T>): Promise<IoResult<T>> => {
     try {
         return ok(await f())
