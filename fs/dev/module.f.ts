@@ -3,10 +3,8 @@
  *
  * @module
  */
-import type { Io } from '../io/module.f.ts'
 import { updateVersion } from './version/module.f.ts'
 import {
-    access,
     all,
     both,
     import_,
@@ -19,11 +17,11 @@ import {
     type Import,
     type NodeProgram,
     type Readdir
-} from '../types/effects/node/module.f.ts'
+} from '../effects/node/module.f.ts'
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { begin, pure, type Effect } from '../types/effects/module.f.ts'
+import { begin, pure, type Effect } from '../effects/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
@@ -37,15 +35,6 @@ export type Module = {
 export type ModuleMap = {
    readonly[k in string]: Module
 }
-
-export const env
-    : (io: Io) => (v: string) => string|undefined
-    = ({ process: { env } }) => a => {
-        const r = Object.getOwnPropertyDescriptor(env, a)
-        return r === undefined ? undefined :
-            typeof r.get === 'function' ? r.get() :
-                r.value
-    }
 
 /**
  * Returns `true` if the file should be loaded for proof discovery.
@@ -143,7 +132,10 @@ const index2 =
     .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
 
 const allFiles2aa =
-    allFiles('.', v => v.endsWith('/module.f.ts') || v.endsWith('/module.ts'))
+    allFiles('.', v =>
+        v.endsWith('/module.f.ts') ||
+        v.endsWith('/module.ts') ||
+        v.endsWith('/all.test.ts'))
     .step(files => {
         const exportsA = files.map(v => [v, `./${v.substring(2)}`] as const)
         return pure(Object.fromEntries(exportsA))

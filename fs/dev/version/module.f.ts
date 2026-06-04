@@ -4,8 +4,8 @@
  * @module
  */
 import { utf8, utf8ToString } from '../../text/module.f.ts'
-import { begin, pure, type Effect } from '../../types/effects/module.f.ts'
-import { all, readFile, writeFile, type All, type ReadFile, type WriteFile } from '../../types/effects/node/module.f.ts'
+import { begin, pure, type Effect } from '../../effects/module.f.ts'
+import { all, readFile, writeFile, type All, type ReadFile, type WriteFile } from '../../effects/node/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
 
 const { stringify, parse } = JSON

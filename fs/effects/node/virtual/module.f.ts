@@ -3,11 +3,11 @@
  *
  * @module
  */
-import { assert, todo } from '../../../../asserts/module.f.ts'
-import { parse } from '../../../../path/module.f.ts'
-import { utf8ToString } from '../../../../text/module.f.ts'
-import { isVec, type Vec } from '../../../bit_vec/module.f.ts'
-import { error, ok } from '../../../result/module.f.ts'
+import { todo } from '../../../asserts/module.f.ts'
+import { parse } from '../../../path/module.f.ts'
+import { utf8ToString } from '../../../text/module.f.ts'
+import { isVec, type Vec } from '../../../types/bit_vec/module.f.ts'
+import { error, ok } from '../../../types/result/module.f.ts'
 import { run, type MemOperationMap, type RunInstance } from '../../mock/module.f.ts'
 import type { Dirent, IoResult, Module, NodeOp, SandboxResult } from '../module.f.ts'
 
