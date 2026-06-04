@@ -22,6 +22,7 @@
     "./fs/crypto/secp/module.f.ts": "./fs/crypto/secp/module.f.ts",
     "./fs/crypto/sha2/module.f.ts": "./fs/crypto/sha2/module.f.ts",
     "./fs/crypto/sign/module.f.ts": "./fs/crypto/sign/module.f.ts",
+    "./fs/crypto/vdf/module.f.ts": "./fs/crypto/vdf/module.f.ts",
     "./fs/dev/index/module.f.ts": "./fs/dev/index/module.f.ts",
     "./fs/dev/module.f.ts": "./fs/dev/module.f.ts",
     "./fs/dev/version/module.f.ts": "./fs/dev/version/module.f.ts",

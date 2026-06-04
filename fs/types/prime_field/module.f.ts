@@ -102,3 +102,42 @@ export const sqrt = ({p, pow, pow2 }: PrimeField): (a: bigint) => bigint|null =>
         return pow2(result) === a ? result : null
     }
 }
+
+/**
+ * Reduces an arbitrary `bigint` into `[0, p)`.
+ */
+export const reduce = ({ p, add }: PrimeField): Unary => x => {
+    const r = x % p
+    return r < 0n ? add(p)(r) : r
+}
+
+/**
+ * Euler criterion: `true` when `x` is a quadratic residue mod `p`.
+ */
+export const quadRes = (field: PrimeField): (x: bigint) => boolean => {
+    const { p, pow } = field
+    const red = reduce(field)
+    const half = (p - 1n) / 2n
+    return x => pow(half)(red(x)) === 1n
+}
+
+/**
+ * Modular square root mod `p` (`p ≡ 3 (mod 4)`); uses {@link neg} when `x` is not a residue.
+ */
+export const modSqrt = (field: PrimeField): Unary => {
+    const { neg } = field
+    const red = reduce(field)
+    const sqrt_p = sqrt(field)
+    return x => {
+        const v = red(x)
+        const r = sqrt_p(v)
+        if (r !== null) {
+            return r
+        }
+        const s = sqrt_p(neg(v))
+        if (s === null) {
+            throw 'modSqrt'
+        }
+        return s
+    }
+}

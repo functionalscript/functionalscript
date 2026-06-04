@@ -1,4 +1,4 @@
-import { prime_field, sqrt } from './module.f.ts'
+import { modSqrt, prime_field, quadRes, reduce, sqrt } from './module.f.ts'
 
 export const proof = {
     prime_field_test: () => {
@@ -88,7 +88,22 @@ export const proof = {
                 }
                 test(f.middle);
                 test(f.max);
-            }
+            },
+            reduce: () => {
+                const red = reduce(f)
+                if (red(13n) !== 13n) { throw red(13n) }
+                if (red(-1n) !== p - 1n) { throw [red(-1n), p - 1n] }
+            },
+            quadRes: () => {
+                const qr = quadRes(f)
+                if (!qr(1n)) { throw 1n }
+                if (qr(3n)) { throw 3n }
+            },
+            modSqrt: () => {
+                const root = modSqrt(f)
+                if (root(4n) !== 2n) { throw root(4n) }
+                if (f.pow2(root(2n)) !== 2n) { throw root(2n) }
+            },
         }
     }
 }
