@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.23.0
+
+- **breaking** `io`: encapsulate `io` behind the entry points — rename the default export `effectRun` → `run`; add `runEffect(p)` (the effect runner with `io` and `argv` pre-applied, resolving to the exit code without calling `process.exit`); `run` now wraps `runEffect` with `process.exit`. `fs/emergent_testing/module.ts` drops its `io` / `runProgram` imports and self-executes via top-level `await runEffect(register)` — it no longer exports `run()`, so the external-runner entry becomes a bare side-effect `import 'functionalscript/fs/emergent_testing/module.js'` [942](https://github.com/functionalscript/functionalscript/pull/942)
 - **breaking** `function/compare`: add generic `min`/`max` next to `cmp`, reusing the `Cmp1`/`Cmp2<A, B>` guard so mixed-type calls like `min(1)("a")` fail to compile; retire the duplicated `Reduce<number>`-typed `min`/`max` from `function/operator` and the bigint-typed `min`/`max` from `types/bigint`; consumers (`types/number`, `types/bit_vec`, `asn.1`) now import the single generic pair from `function/compare` [940](https://github.com/functionalscript/functionalscript/pull/940)
 
 ## 0.22.0

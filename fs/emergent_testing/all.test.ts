@@ -1,4 +1,4 @@
-import { run } from './module.ts'
+import './module.ts'
 
 // we need `await` for Playwright.
-await run()
+// await run()
