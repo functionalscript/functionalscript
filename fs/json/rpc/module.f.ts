@@ -18,8 +18,6 @@ import { validate } from '../../types/rtti/validate/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
 import { unknown } from '../rtti/module.f.ts'
 import type { Unknown } from '../module.f.ts'
-import type { Equal } from '../../types/ts/module.f.ts'
-import type { Assert } from '../../asserts/module.f.ts'
 
 const jsonrpc = '2.0' as const
 
@@ -50,23 +48,16 @@ export type RpcError = Ts<typeof error>
 
 export const successResponse = { jsonrpc, result: unknown, id } as const
 export const errorResponse = { jsonrpc, error, id } as const
-export const response = or(successResponse, errorResponse)
-
-type SuccessResponse = { readonly jsonrpc: '2.0', readonly result: Unknown, readonly id: Id }
-type ErrorResponse = { readonly jsonrpc: '2.0', readonly error: RpcError, readonly id: Id }
 
 /**
- * A response envelope: exactly one of `result` (success) or `error` (failure).
- *
- * This is a TypeScript type rather than an rtti schema: the server only
- * *constructs* responses, and rtti structs are open (extra keys allowed) and
- * treat an `unknown`-typed field as optional, so neither "result XOR error" nor
- * "result present" is expressible as a schema. Runtime decoding of responses (a
- * client concern) is a follow-up.
+ * A response envelope: either a success (`result`) or an error (`error`).
+ * Derived from the rtti schema via `Ts<>` — the same declaration is the
+ * runtime decoder and the static type, with no drift. rtti structs are open
+ * (extra keys allowed), so "result XOR error" is not enforced at runtime; in
+ * practice the dispatcher only ever constructs one or the other.
  */
-export type Response = SuccessResponse | ErrorResponse
-
-type _AssertRequest = Assert<Equal<Response, Ts<typeof response>>>
+export const response = or(successResponse, errorResponse)
+export type Response = Ts<typeof response>
 
 /** Decodes an untrusted value as a JSON-RPC request / notification. */
 export const decodeRequest = validate(request)
