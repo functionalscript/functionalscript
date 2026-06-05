@@ -1,7 +1,7 @@
 # 665-json-rpc. JSON-RPC 2.0 layer (rtti-validated)
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Motivation
 
@@ -124,16 +124,19 @@ constructors, proofs covering valid/invalid envelopes and each error code.
 - the MCP method set (`initialize`, `tools/*`, `resources/*`, `prompts/*`) and
   capability negotiation, built on this dispatcher
 
-## Open questions
+## Decisions (resolved on implementation)
 
-- **`id` representation.** JSON-RPC ids may be string, number, or null; large
-  integer ids exceed JS `number` precision. Do we keep `number` (JSON's native
-  number) or also accept a `bigint`-carrying form? JSON parsing in `fs/json`
-  already decides number handling — align with it.
-- **Module location.** `fs/json/rpc/` vs a top-level `fs/rpc/`. MCP would be
-  `fs/mcp/` either way.
-- **Batch support.** MCP does not require JSON-RPC batches — include them now for
-  spec completeness, or defer until needed?
+- **`id` representation.** Kept JSON's native `number` — `id = or(string, number, null)`.
+  No `bigint` form; that would diverge from `fs/json`'s number handling and MCP
+  ids are small.
+- **Module location.** `fs/json/rpc/module.f.ts` (JSON-RPC is a JSON dialect).
+- **Batch support.** Deferred — MCP doesn't need it, and rtti's open structs make
+  it cheap to add later.
+- **Response schema.** `Response` is a **TypeScript type**, not a runtime rtti
+  schema: the server only *constructs* responses, and rtti can express neither
+  "result XOR error" (open structs allow both) nor "result present" (an
+  `unknown`-typed field is optional). Runtime response decoding (a client
+  concern) is a follow-up. See the `Response` JSDoc in the module.
 
 ## Related
 

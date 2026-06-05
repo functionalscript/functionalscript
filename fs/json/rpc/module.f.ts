@@ -21,7 +21,7 @@ import type { Unknown } from '../../djs/module.f.ts'
 const jsonrpc = '2.0' as const
 
 /** Request/response identifier: a string, a number, or `null`. */
-const idSchema = or(string, number, null)
+const id = or(string, number, null)
 
 /**
  * A request or notification envelope. `id` present → request (a response is
@@ -31,7 +31,7 @@ export const request = {
     jsonrpc,
     method: string,
     params: option(unknown),
-    id: option(idSchema),
+    id: option(id),
 } as const
 
 /** The JSON-RPC error object. */
@@ -41,16 +41,23 @@ export const error = {
     data: option(unknown),
 } as const
 
-const successResponse = { jsonrpc, result: unknown, id: idSchema } as const
-const errorResponse = { jsonrpc, error, id: idSchema } as const
-
-/** A response envelope: exactly one of `result` (success) or `error` (failure). */
-export const response = or(successResponse, errorResponse)
-
-export type Id = Ts<typeof idSchema>
+export type Id = Ts<typeof id>
 export type Request = Ts<typeof request>
 export type RpcError = Ts<typeof error>
-export type Response = Ts<typeof response>
+
+type SuccessResponse = { readonly jsonrpc: '2.0', readonly result: Unknown, readonly id: Id }
+type ErrorResponse = { readonly jsonrpc: '2.0', readonly error: RpcError, readonly id: Id }
+
+/**
+ * A response envelope: exactly one of `result` (success) or `error` (failure).
+ *
+ * This is a TypeScript type rather than an rtti schema: the server only
+ * *constructs* responses, and rtti structs are open (extra keys allowed) and
+ * treat an `unknown`-typed field as optional, so neither "result XOR error" nor
+ * "result present" is expressible as a schema. Runtime decoding of responses (a
+ * client concern) is a follow-up.
+ */
+export type Response = SuccessResponse | ErrorResponse
 
 /** Decodes an untrusted value as a JSON-RPC request / notification. */
 export const decodeRequest = validate(request)
