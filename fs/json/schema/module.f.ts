@@ -7,19 +7,13 @@
  * @module
  */
 import { type Const, type Type, array, option, or, string } from '../../types/rtti/module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Ts, WithOut } from '../../types/rtti/ts/module.f.ts'
 import { type Unknown as JsonValue, unknown as jsonUnknown } from '../module.f.ts'
 
 type JsonType = 'boolean' | 'number' | 'string' | 'integer' | 'array' | 'object'
 
-/**
- * A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits.
- *
- * Defined as a hand-written interface rather than `Ts<typeof unknown>` because TypeScript
- * hits TS2589 (type instantiation excessively deep) when unfolding recursive struct schemas
- * through `StructTs` mapped types. `or`/`array` recursion works; struct recursion does not.
- */
-export interface Unknown_ {
+/** Hand-written base type used as the `$out` annotation on `unknown`. */
+interface Unknown_ {
     readonly type?: JsonType
     readonly const?: JsonValue
     readonly not?: Unknown_
@@ -39,7 +33,7 @@ const unknownArray = () => ['array', unknown] as const
 
 const recordUnknown = () => ['record', unknown] as const
 
-export const unknown = {
+const _unknown = () => ['const', {
     type: option(type),
     const: option(jsonUnknown),
     not: optionUnknown,
@@ -49,8 +43,12 @@ export const unknown = {
     properties: option(recordUnknown),
     required: option(array(string)),
     additionalProperties: optionUnknown,
-} as const
+} as const] as const
 
+/** rtti schema for a JSON Schema (draft 2020-12) document. */
+export const unknown: WithOut<typeof _unknown, Unknown_> = _unknown as any
+
+/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
 export type Unknown = Ts<typeof unknown>
 
 /** Returns true if the rtti schema admits the value `undefined`. */
