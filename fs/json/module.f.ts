@@ -1,7 +1,10 @@
 /**
- * JSON tree types and utilities: `Primitive`/`Unknown` value shapes,
- * `setProperty` for immutable nested updates, and a `stringify` built from the
- * serializer wraps.
+ * JSON value types, rtti schemas, and utilities: `serialize`, `stringify`,
+ * `parse`, and `setProperty` for immutable nested updates.
+ *
+ * The JSON value types (`Unknown`, `Primitive`) are derived from the rtti
+ * schemas defined here, so the schema is the single source of truth — no
+ * hand-written types to keep in sync.
  *
  * @module
  */
@@ -10,18 +13,41 @@ import { concat } from '../types/string/module.f.ts'
 import { at, type Entry as ObjectEntry } from '../types/object/module.f.ts'
 import { compose, fn } from '../types/function/module.f.ts'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.ts'
+import { boolean as rttiBoolean, number as rttiNumber, string as rttiString, or, record, array as rttiArray } from '../types/rtti/module.f.ts'
+import type { Ts } from '../types/rtti/ts/module.f.ts'
+
+// ── rtti schemas ──────────────────────────────────────────────────────────────
+
+/** rtti schema matching any JSON primitive: `null`, `boolean`, `number`, or `string`. */
+export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)
+
+/**
+ * rtti schema matching any JSON value: a primitive, an array of JSON values,
+ * or an object whose values are JSON values. Self-referential via a thunk;
+ * rtti instantiates array/record item validators lazily so recursion terminates
+ * on acyclic input.
+ *
+ * A struct field typed `unknown` is **required when present** — unlike rtti
+ * core's `unknown`, the JSON `unknown` excludes `undefined`.
+ */
+export const unknown = () => ['or', primitive, object, array] as const
+
+/** rtti schema matching a JSON object: `{ readonly [k: string]: Unknown }`. */
+export const object = record(unknown)
+
+/** rtti schema matching a JSON array: `readonly Unknown[]`. */
+export const array = rttiArray(unknown)
+
+// ── TypeScript types (derived from schemas — single source of truth) ──────────
+
+export type Primitive = Ts<typeof primitive>
+export type Unknown = Ts<typeof unknown>
+
+// ── JSON utilities ────────────────────────────────────────────────────────────
 
 const { entries } = Object
 
-type Object = {
-   readonly [k in string]: Unknown
-}
-
-type Array = readonly Unknown[]
-
-export type Primitive = boolean | string | number | null
-
-export type Unknown = Primitive | Object | Array
+type Object = Ts<typeof object>
 
 export const setProperty
     : (value: Unknown) => (path: List<string>) => (src: Unknown) => Unknown

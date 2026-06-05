@@ -8,7 +8,7 @@
 `./fs/emergent_testing/module.ts` bridges the Effects-based runner to Node `--test`, Bun, Deno,
 and Playwright. There is no automated check that each framework bridge correctly
 handles non-trivial test shapes such as return-value sub-trees (`.a().b()`).
-The Bun issue ([i155 §3](./155-test-runner-integration.md)) was found by
+The Bun issue (i155 §3) was found by
 inspection, not by a failing test.
 
 ## Proposed design
@@ -60,7 +60,7 @@ bridge's behaviour diverged from the documented expectation encoded in the file
 name, not that a test inside the scenario failed. This separates "the test logic
 is wrong" from "the framework bridge is wrong".
 
-The known Bun failure on `return-value.pass.f.ts` ([i155](./155-test-runner-integration.md))
+The known Bun failure on `return-value.pass.f.ts` (i155)
 will appear as an expected CI failure for that cell until i155 is fixed.
 
 ## Design notes
@@ -73,5 +73,5 @@ will appear as an expected CI failure for that cell until i155 is fixed.
 ## Related
 
 - i125 — original report: "`bun test` doesn't handle returned functions as tests"; proposed a manual rename of `integration/test.f.ts` to `integration/uncomment-test.f.ts` as the test vehicle. This issue replaces that manual approach with an automated script and suffix-convention files.
-- [i155](./155-test-runner-integration.md) — Bun subtest / generated-test breakage; the `return-value.pass.f.ts` scenario here is the automated form of the test described in i125.
+- i155 — Bun subtest / generated-test breakage; the `return-value.pass.f.ts` scenario here is the automated form of the test described in i125.
 - [i170](./170-ci-tool-steps.md), [i175](./175-ci-setup-tool.md) — CI setup tooling that would run this matrix

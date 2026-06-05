@@ -58,7 +58,7 @@ output) want the UTF-8 helpers too.
 ## Proposed abstraction
 
 Two thin helpers next to `readFile`/`writeFile` in
-`fs/types/effects/node/module.f.ts`:
+`fs/effects/node/module.f.ts`:
 
 ```ts
 import { utf8, utf8ToString } from '../../../text/module.f.ts'
@@ -117,7 +117,7 @@ export const writeJsonFile = (path: string) => (value: unknown): Effect<WriteFil
   decision. Today every consumer re-makes that decision by reaching for
   `utf8`/`utf8ToString` next to `readFile`/`writeFile`. The natural
   home is alongside the byte-level effects in
-  `fs/types/effects/node`.
+  `fs/effects/node`.
 - Strict prerequisite for [i176](./176-json-file-effects.md): JSON
   reading/writing is "UTF-8 file + JSON parse/stringify". Lift the
   bytes layer first, then JSON becomes a one-line composition rather
@@ -136,13 +136,13 @@ export const writeJsonFile = (path: string) => (value: unknown): Effect<WriteFil
   with `IoResult<string>` keeps both call patterns intact; the
   `unwrap` variant can be a second helper if it turns out to be
   common.
-- **Where it lives.** `fs/types/effects/node/module.f.ts` is the
+- **Where it lives.** `fs/effects/node/module.f.ts` is the
   natural home (it's where `readFile`/`writeFile` live), but importing
   `utf8`/`utf8ToString` from `fs/text` creates a new dependency edge
   from `effects` to `text`. Verify there's no cycle (today `text` does
   not import `effects`; the edge should be clean). If a cycle exists,
   fall back to a new module like `fs/text/file/module.f.ts` or
-  `fs/io/utf8/module.f.ts`.
+  `fs/effects/node/utf8/module.f.ts`.
 - **Land before i176.** If i176 is implemented first by inlining the
   UTF-8 sandwich into `readJsonFile`/`writeJsonFile`, the non-JSON
   consumers (`djs/transpiler`, `djs` compile, `dev/module`'s allFiles
@@ -154,8 +154,8 @@ export const writeJsonFile = (path: string) => (value: unknown): Effect<WriteFil
 - [i176](./176-json-file-effects.md) — the same shape one layer up,
   for JSON-specific I/O. Becomes a one-line composition over the
   helpers proposed here.
-- [i192](./192-error-exit-effect.md) — same spirit: lift recurring
+- i192 — same spirit: lift recurring
   effect sandwiches into named helpers next to the primitive effects.
-- `fs/types/effects/node/module.f.ts:62` — `readFile` effect.
-- `fs/types/effects/node/module.f.ts:90` — `writeFile` effect.
+- `fs/effects/node/module.f.ts:62` — `readFile` effect.
+- `fs/effects/node/module.f.ts:90` — `writeFile` effect.
 - `fs/text/module.f.ts:40` — `utf8`/`utf8ToString`.

@@ -45,12 +45,6 @@ export const reduceToScan = <T>(op: Reduce<T>): Scan<T, T> => init =>
 export const addition: Reduce<number>
     = a => b => a + b
 
-export const min: Reduce<number>
-    = a => b => a < b ? a : b
-
-export const max: Reduce<number>
-    = a => b => a > b ? a : b
-
 export const increment: (b: number) => number
     = addition(1)
 

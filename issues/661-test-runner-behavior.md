@@ -33,5 +33,5 @@ Document the following differences in the relevant README or doc page:
 
 ## Related
 
-- [i155](./155-test-runner-integration.md) — original test runner integration issue
+- i155 — original test runner integration issue
 - [i211](./211-reporter-modes.md) — reporter modes, including the Node/Bun/Playwright bridge reporter

@@ -3,7 +3,7 @@ import { utf8ToString } from '../text/module.f.ts'
 import { isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
-import { emptyState, virtual } from '../types/effects/node/virtual/module.f.ts'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { parse as jsonParse } from '../json/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 
