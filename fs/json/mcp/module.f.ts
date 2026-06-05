@@ -14,8 +14,10 @@
  * @module
  */
 import { boolean, string, option, array, record } from '../../types/rtti/module.f.ts'
-import { unknown } from '../module.f.ts'
+import { unknown, type Unknown } from '../module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Operation, Effect } from '../../effects/module.f.ts'
+import type { Response } from '../rpc/module.f.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
@@ -92,3 +94,14 @@ export const toolsCallResult = {
     isError: option(boolean),
 } as const
 export type ToolsCallResult = Ts<typeof toolsCallResult>
+
+// ── Dispatch ───────────────────────────────────────────────────────────────────
+
+/** Per-method handlers for a hello-world MCP tool server. */
+export type McpHandlers<O extends Operation> = {
+    readonly toolsList: () => Effect<O, ToolsListResult>
+    readonly toolsCall: (params: ToolsCallParams) => Effect<O, ToolsCallResult>
+}
+
+/** Top-level handler: maps a raw JSON value to a JSON-RPC response (or `null` for notifications). */
+export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
