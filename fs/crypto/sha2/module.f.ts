@@ -4,7 +4,7 @@
  * @module
  */
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
-import { mask } from "../../types/bigint/module.f.ts"
+import { mask, type Reduce } from "../../types/bigint/module.f.ts"
 import {
     vec,
     length,
@@ -75,7 +75,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     }
 
     const sigma =
-        (third: (c: bigint) => (x: bigint) => bigint) =>
+        (third: Reduce) =>
         ([a, b, c]: V3) => {
             const ra = rotr(a)
             const rb = rotr(b)
@@ -101,26 +101,26 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const m = mask(bitLength)
 
-    const wi = ([a0, a1, a2, a3]: V4) =>
+    const wi = (a0: bigint, a1: bigint, a2: bigint, a3: bigint) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 
     const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]: V16): V16 => {
-        w0 = wi([wE, w9, w1, w0])
-        w1 = wi([wF, wA, w2, w1])
-        w2 = wi([w0, wB, w3, w2])
-        w3 = wi([w1, wC, w4, w3])
-        w4 = wi([w2, wD, w5, w4])
-        w5 = wi([w3, wE, w6, w5])
-        w6 = wi([w4, wF, w7, w6])
-        w7 = wi([w5, w0, w8, w7])
-        w8 = wi([w6, w1, w9, w8])
-        w9 = wi([w7, w2, wA, w9])
-        wA = wi([w8, w3, wB, wA])
-        wB = wi([w9, w4, wC, wB])
-        wC = wi([wA, w5, wD, wC])
-        wD = wi([wB, w6, wE, wD])
-        wE = wi([wC, w7, wF, wE])
-        wF = wi([wD, w8, w0, wF])
+        w0 = wi(wE, w9, w1, w0)
+        w1 = wi(wF, wA, w2, w1)
+        w2 = wi(w0, wB, w3, w2)
+        w3 = wi(w1, wC, w4, w3)
+        w4 = wi(w2, wD, w5, w4)
+        w5 = wi(w3, wE, w6, w5)
+        w6 = wi(w4, wF, w7, w6)
+        w7 = wi(w5, w0, w8, w7)
+        w8 = wi(w6, w1, w9, w8)
+        w9 = wi(w7, w2, wA, w9)
+        wA = wi(w8, w3, wB, wA)
+        wB = wi(w9, w4, wC, wB)
+        wC = wi(wA, w5, wD, wC)
+        wD = wi(wB, w6, wE, wD)
+        wE = wi(wC, w7, wF, wE)
+        wF = wi(wD, w8, w0, wF)
         return [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]
     }
 
