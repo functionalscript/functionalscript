@@ -99,6 +99,49 @@ The internals of `validate` and `parse` use `as any` and the public boundary car
 
 Document this choice and move on.
 
+## Progress
+
+### Option 1 — done
+
+Added `unknown extends T ? Unknown :` as the first branch of `Ts<T>` in
+`fs/types/rtti/ts/module.f.ts`. When `T` is `any`, `unknown extends any` is
+`true`, so the conditional short-circuits to `Unknown` without distributing across
+all branches. A type-level assert confirms: `type _any = Assert<Equal<Ts<any>, Unknown>>`.
+
+### Option 3 — design
+
+The phantom approach: attach a `$out?: Out` field to thunks and check it first in `Ts<T>`:
+
+```ts
+export type WithOut<S, Out> = S & { readonly $out?: Out }
+
+export type Ts<T extends Type> =
+    unknown extends T ? Unknown :               // option 1
+    T extends { readonly $out?: infer O } ? Exclude<O, undefined> :  // option 3
+    T extends () => infer I ? (...) :
+    ConstTs<T>
+```
+
+Builders (or their return values) carry the precomputed output type at construction time.
+For example `fs/json/rtti/module.f.ts` would annotate its recursive schemas:
+
+```ts
+export const unknown: WithOut<typeof _unknown, json.Unknown> = _unknown as any
+export const object: WithOut<Type1<'record', typeof unknown>, { readonly [k: string]: json.Unknown }> = record(unknown) as any
+export const array: WithOut<Type1<'array', typeof unknown>, readonly json.Unknown[]> = rttiArray(unknown) as any
+```
+
+Then `Ts<typeof json.unknown>` → reads `$out` → returns `json.Unknown` directly
+(one indexed-access, no structural walk).
+
+**Constraint:** `rtti/module.f.ts` cannot import `Ts<>` (circular with `ts/module.f.ts`),
+so `WithOut` lives in `ts/module.f.ts` and is used at call-site via explicit type annotations.
+
+**Remaining work:** implement `WithOut` in `ts/module.f.ts`, add the `$out` branch to
+`Ts<T>`, annotate recursive schemas in `fs/json/rtti/` and any other recursive
+schema definitions. The `as any` casts in `validate`/`parse` internals require separate
+analysis.
+
 ## Recommendation
 
 Start with option 1 (constrain `Ts<T>` to short-circuit on `any`) — cheapest and fixes the largest class of accidental overflow. Then consider option 3 (phantom output on thunks) if internal inference quality matters for follow-on work like [i143](./143-rtti-data.md) or a future data-driven parser. Option 4 is the honest fallback if the cost-benefit doesn't justify the work.

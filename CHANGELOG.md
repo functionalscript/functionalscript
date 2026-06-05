@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `json/rpc`: add pure JSON-RPC 2.0 layer — rtti schemas for `request` / `error` / `response` envelopes; `decodeRequest` decoder; `dispatch(handlers)(value)` pure dispatcher with the five standard error constructors; `Response` type derived from `Ts<typeof response>` ([i665-json-rpc](./issues/665-json-rpc.md)) [950](https://github.com/functionalscript/functionalscript/pull/950)
+- `json`: add rtti schemas (`primitive`, `unknown`, `object`, `array`) to `fs/json/module.f.ts`; derive `Primitive` and `Unknown` from them via `Ts<>` — schema is now the single source of truth, no hand-written types ([i665-rtti-json-value](./issues/665-rtti-json-value.md)) [950](https://github.com/functionalscript/functionalscript/pull/950)
+- `types/rtti`: decouple rtti from djs — `Primitive` now defined locally in `rtti/module.f.ts`; `Unknown`, `Array`, `Object` now defined locally in `rtti/ts/module.f.ts`; `rtti/parse` imports `Unknown` from `rtti/ts` instead of `djs` ([i665-rtti-defines-types](./issues/665-rtti-defines-types.md)) [950](https://github.com/functionalscript/functionalscript/pull/950)
+- `types/rtti/ts`: `Ts<T>` option 1 fast-path — `unknown extends T ? Unknown` short-circuits when `T` is `any`, preventing TS2589 distribution across all branches ([i146](./issues/146-rtti-ts-inference.md)) [950](https://github.com/functionalscript/functionalscript/pull/950)
 - `crypto/vdf`: add a Sloth verifiable delay function (`sloth` / `sloth_vdf`) over a fixed 3072-bit safe prime; `eval` runs the sequential modular-square-root permutation and `verify` checks it via repeated squaring. Extends `types/prime_field` with `reduce` / `quadRes` field members and a standalone `modSqrt` helper (`p ≡ 3 (mod 4)`) ([i663-crypto-vdf](./issues/663-crypto-vdf.md)) [937](https://github.com/functionalscript/functionalscript/pull/937)
 
 ## 0.24.0
