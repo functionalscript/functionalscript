@@ -65,5 +65,5 @@ export const actions = {
     // https://github.com/wasmerio/setup-wasmer
     'wasmerio/setup-wasmer': 'v3.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.95.0',
+    'dtolnay/rust-toolchain': '1.96.0',
 } as const
