@@ -67,6 +67,7 @@ Each parameter slot takes a fixed-width slice of the hash output. This is:
 
 - **Deterministic** — same seed + same test name → same parameters, always.
 - **Parallel-safe** — no shared mutable state; any test can compute its inputs independently.
+- **Stable under suite changes** — adding, removing, or reordering other tests does not change the parameters any given test receives, because each test's inputs are tied to its full path, not its position in a list.
 - **Reproducible** — the full test name is already part of the failure output, so the exact inputs are recoverable from seed + name alone.
 
 The hash function needs to be deterministic across runs and platforms
