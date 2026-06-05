@@ -16,8 +16,7 @@ import { number, string, or, option } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { validate } from '../../types/rtti/validate/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
-import { unknown } from '../rtti/module.f.ts'
-import type { Unknown } from '../module.f.ts'
+import { unknown, type Unknown } from '../module.f.ts'
 
 const jsonrpc = '2.0' as const
 
