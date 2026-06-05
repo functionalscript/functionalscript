@@ -170,10 +170,10 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         ]
     }
 
-    const at = (u: bigint) => (i: bigint) =>
+    const at: Reduce = u => i =>
         (u >> (i << logBitLen)) & m
 
-    const compress = (i: V8) => (u: bigint) => {
+    const compress: (i: V8) => (u: bigint) => V8 = i => u => {
         const a = at(u)
         return compressV16(...i)([
             a(15n),
