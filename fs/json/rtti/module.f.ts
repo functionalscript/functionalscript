@@ -12,8 +12,11 @@
  *
  * @module
  */
+import type { Assert } from '../../asserts/module.f.ts'
 import { boolean, number, or, string, record, array as rttiArray } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import type { Equal } from '../../types/ts/module.f.ts'
+import type { Unknown } from '../module.f.ts'
 
 /** Matches any JSON primitive: `null`, `boolean`, `number`, or `string`. */
 export const primitive = or(null, boolean, number, string)
@@ -30,3 +33,5 @@ export const object = record(unknown)
 
 /** Matches a JSON array: `readonly Unknown[]`. */
 export const array = rttiArray(unknown)
+
+type _AssertUnknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
