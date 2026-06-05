@@ -30,7 +30,16 @@ const unknownConst = {
     additionalProperties: option(unknown),
 } as const
 
-/** Hand-written base type used as the `$out` annotation on `unknown`. */
+/**
+ * Hand-written base type used as the `$out` annotation on `unknown`.
+ *
+ * The `?` markers are required even though `Ts<>` already includes `undefined`
+ * in each field type. Without `?`, `Unknown = UnknownConst` would require all
+ * 9 fields to be present in every object literal returned by `toJsonSchema`,
+ * because TypeScript distinguishes "field absent" (`?`) from "field present but
+ * undefined" (`T | undefined`). JSON Schema objects only include the fields
+ * they need, so all fields must be optional.
+ */
 type UnknownConst = {
     readonly type?: Ts<typeof unknownConst.type>
     readonly const?: Ts<typeof unknownConst.const>
