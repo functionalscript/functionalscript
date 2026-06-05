@@ -22,6 +22,7 @@ It's recommended to run `npm run update` after changing the source code.
 - Run `cargo clippy` to lint the Rust crate.
 - Run `cargo fmt -- --check` to verify formatting.
 - To run only the tests under a specific directory, `cd` into it and run `npm run fst`. This scans for `test.f.ts` files in that subtree and reports per-test results.
+- New FunctionalScript (`.f.ts`) modules and functions must have **100% proof coverage** across every dimension: every exported function called, every line executed, and every branch (both sides of each conditional) taken. A new `module.f.ts` ships with a co-located `proof.f.ts` (its `proof` export) that exercises all of its exports along all code paths — partial coverage of new code is not acceptable. If a line or branch genuinely cannot be reached, restructure the code so it isn't there rather than leaving it uncovered.
 
 ## Documentation
 
