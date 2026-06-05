@@ -69,7 +69,7 @@ const constToJsonSchema = (rtti: Const): Unknown => {
         type: 'object',
         properties,
         ...(required.length > 0 ? { required } : {}),
-    } as Unknown
+    }
 }
 
 /**
@@ -94,15 +94,15 @@ export const toJsonSchema = (rtti: Type): Unknown => {
     const [tag, ...rest] = rtti()
     switch (tag) {
         case 'const': return constToJsonSchema(rest[0] as Const)
-        case 'boolean': return { type: 'boolean' } as Unknown
-        case 'number': return { type: 'number' } as Unknown
-        case 'string': return { type: 'string' } as Unknown
+        case 'boolean': return { type: 'boolean' }
+        case 'number': return { type: 'number' }
+        case 'string': return { type: 'string' }
         // bigint is not representable in JSON Schema; 'integer' is the closest approximation
-        case 'bigint': return { type: 'integer' } as Unknown
-        case 'unknown': return {} as Unknown
-        case 'array': return { type: 'array', items: toJsonSchema(rest[0] as Type) } as Unknown
-        case 'record': return { type: 'object', additionalProperties: toJsonSchema(rest[0] as Type) } as Unknown
-        case 'or': return { anyOf: (rest as Type[]).map(toJsonSchema) } as Unknown
-        default: return {} as Unknown
+        case 'bigint': return { type: 'integer' }
+        case 'unknown': return {}
+        case 'array': return { type: 'array', items: toJsonSchema(rest[0]) }
+        case 'record': return { type: 'object', additionalProperties: toJsonSchema(rest[0]) }
+        case 'or': return { anyOf: rest.map(toJsonSchema) }
+        default: return {}
     }
 }
