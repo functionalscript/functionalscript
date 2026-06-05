@@ -77,7 +77,6 @@ a function's parameters expect, only **how many** parameters there are (`f.lengt
 Each parameter receives a signed 32-bit integer from the formula above. A function
 needing more than 32 bits simply declares more parameters.
 
-
 ### One set of parameters per run
 
 Since property functions can return sub-trees — which may themselves contain
@@ -113,7 +112,8 @@ const manyValues = (seed: number) =>
 ```
 
 The runner receives `seed`, the helper builds the sub-tree, and the framework
-walks it — no test-runner knowledge required in any of these layers.
+walks it — strong separation of concerns: the runner provides inputs, helper
+libraries transform them, the proof tree is plain data.
 
 ### Failure output
 
