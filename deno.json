@@ -94,6 +94,7 @@
     "./fs/types/result/module.f.ts": "./fs/types/result/module.f.ts",
     "./fs/types/result/module.ts": "./fs/types/result/module.ts",
     "./fs/types/rtti/common/module.f.ts": "./fs/types/rtti/common/module.f.ts",
+    "./fs/types/rtti/json/module.f.ts": "./fs/types/rtti/json/module.f.ts",
     "./fs/types/rtti/module.f.ts": "./fs/types/rtti/module.f.ts",
     "./fs/types/rtti/parse/module.f.ts": "./fs/types/rtti/parse/module.f.ts",
     "./fs/types/rtti/ts/module.f.ts": "./fs/types/rtti/ts/module.f.ts",
