@@ -86,21 +86,21 @@ export type StructTs<T extends Struct> =
 // Private unique symbol used as the phantom key in WithOut.
 // A symbol key is excluded from string index signatures ({ readonly [K in string]: Type }),
 // so WithOut<Struct, Out> is valid for any Out regardless of whether Out extends Type.
-declare const _$out: unique symbol
+declare const withOutKey: unique symbol
 
 /**
  * Attaches a phantom output type `Out` to a schema `S`.
  *
- * `Ts<WithOut<S, Out>>` short-circuits to `Out` via the `_$out` branch without
+ * `Ts<WithOut<S, Out>>` short-circuits to `Out` via the `withOutKey` branch without
  * recursing through the schema body — solving TS2589 for recursive struct schemas
  * where `StructTs` would otherwise expand infinitely.
  *
- * The `_$out` field is phantom: it is `undefined` at runtime and only exists in the
+ * The `withOutKey` field is phantom: it is `undefined` at runtime and only exists in the
  * type system. Using a unique symbol as the key means it cannot conflict with struct
  * schemas' string index signature (`{ readonly [K in string]: Type }`), so `WithOut`
  * is valid for any schema `S`, not just thunks.
  */
-export type WithOut<S, Out> = S & { readonly [_$out]?: Out }
+export type WithOut<S, Out> = S & { readonly [withOutKey]?: Out }
 
 /**
  * Converts a schema `Type` to its corresponding TypeScript type.
@@ -121,9 +121,9 @@ export type Ts<T extends Type> =
     // to prevent distributive conditional types from expanding across all branches
     // and hitting TS2589 (type instantiation excessively deep).
     unknown extends T ? Unknown :
-    // Phantom output: if the schema carries a `_$out` annotation (via WithOut), return
+    // Phantom output: if the schema carries a `withOutKey` annotation (via WithOut), return
     // it directly — one indexed-access, no structural walk, no TS2589 for recursive schemas.
-    T extends { readonly [_$out]?: infer O } ? Exclude<O, undefined> :
+    T extends { readonly [withOutKey]?: infer O } ? Exclude<O, undefined> :
     T extends () => infer I ? (
         I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0
