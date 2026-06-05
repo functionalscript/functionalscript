@@ -6,26 +6,26 @@
  *
  * @module
  */
-import { type Const, type Type, array, option, or, record, string } from '../../types/rtti/module.f.ts'
+import { type Const, type Type as RttiType, array, option, or, record, string } from '../../types/rtti/module.f.ts'
 import type { Ts, WithOut } from '../../types/rtti/ts/module.f.ts'
-import { type Unknown as JsonValue, unknown as jsonUnknown } from '../module.f.ts'
-
-type JsonType = 'boolean' | 'number' | 'string' | 'integer' | 'array' | 'object'
-
-/** Hand-written base type used as the `$out` annotation on `unknown`. */
-interface Unknown_ {
-    readonly type?: JsonType
-    readonly const?: JsonValue
-    readonly not?: Unknown_
-    readonly anyOf?: readonly Unknown_[]
-    readonly items?: Unknown_ | false
-    readonly prefixItems?: readonly Unknown_[]
-    readonly properties?: { readonly [k: string]: Unknown_ }
-    readonly required?: readonly string[]
-    readonly additionalProperties?: Unknown_
-}
+import { type Unknown as JsonUnknown, unknown as jsonUnknown } from '../module.f.ts'
 
 export const type = or('boolean', 'number', 'string', 'integer', 'array', 'object')
+
+type Type = Ts<typeof type>
+
+/** Hand-written base type used as the `$out` annotation on `unknown`. */
+interface _Unknown {
+    readonly type?: Type
+    readonly const?: JsonUnknown
+    readonly not?: Unknown
+    readonly anyOf?: readonly Unknown[]
+    readonly items?: Unknown | false
+    readonly prefixItems?: readonly Unknown[]
+    readonly properties?: { readonly [k: string]: Unknown }
+    readonly required?: readonly string[]
+    readonly additionalProperties?: Unknown
+}
 
 const _unknown = () => ['const', {
     type: option(type),
@@ -40,13 +40,13 @@ const _unknown = () => ['const', {
 } as const] as const
 
 /** rtti schema for a JSON Schema (draft 2020-12) document. */
-export const unknown: WithOut<typeof _unknown, Unknown_> = _unknown as any
+export const unknown: WithOut<typeof _unknown, _Unknown> = _unknown
 
 /** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
 export type Unknown = Ts<typeof unknown>
 
 /** Returns true if the rtti schema admits the value `undefined`. */
-const admitsUndefined = (rtti: Type): boolean => {
+const admitsUndefined = (rtti: RttiType): boolean => {
     if (rtti === undefined) { return true }
     if (typeof rtti !== 'function') { return false }
     const [t, ...r] = rtti()
@@ -54,7 +54,7 @@ const admitsUndefined = (rtti: Type): boolean => {
 }
 
 /** Returns the schema with `undefined` removed from any top-level `or`. */
-const stripUndefined = (rtti: Type): Type => {
+const stripUndefined = (rtti: RttiType): RttiType => {
     if (typeof rtti !== 'function') { return rtti }
     const [t, ...r] = rtti()
     if (t !== 'or') { return rtti }
@@ -109,7 +109,7 @@ const constToJsonSchema = (rtti: Const): Unknown => {
  * | `record(T)`                                   | `{ "type": "object", "additionalProperties": …T… }`                                 |
  * | `or(...types)`                                | `{ "anyOf": […each…] }`                                                             |
  */
-export const toJsonSchema = (rtti: Type): Unknown => {
+export const toJsonSchema = (rtti: RttiType): Unknown => {
     if (typeof rtti !== 'function') { return constToJsonSchema(rtti) }
     const [tag, ...rest] = rtti()
     switch (tag) {
