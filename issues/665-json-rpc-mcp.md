@@ -36,18 +36,15 @@ Transport framing (stdio newline-delimited, HTTP, LSP `Content-Length`) is
 ### rtti schemas (sketch)
 
 Using the existing rtti API — a struct is a plain object literal, a const is the
-literal value itself, and `or` / `option` / `array` are combinators:
+literal value itself, and `or` / `option` / `array` are combinators. Literal and
+struct schemas carry `as const` (see the const-literal rule in [AGENTS.md](../AGENTS.md)):
 
 ```ts
 import { number, string, unknown, or, option, array } from '../../types/rtti/module.f.ts'
 
-// Every literal / struct / tuple schema ends in `as const` so `Ts<>` infers the
-// precise readonly + literal shape; without it literals widen (`'2.0'` → `string`,
-// `42` → `number`) and structs lose `readonly`, even though runtime validation
-// still works. Combinator results (`or` / `option` / `array` / `string` / …) are
-// already precisely typed and don't need it.
-
 const jsonrpc = '2.0' as const   // must equal "2.0"
+
+const method = string
 
 // id: string | number | null  (absent for notifications)
 // `null` is a valid rtti const (see rtti `Const`), so it composes directly:
@@ -58,25 +55,27 @@ const params = option(unknown)   // refine to or(record(unknown), array(unknown)
 
 const request = {
     jsonrpc,
-    method: string,
+    method,
     params,
     id,
 } as const
 
 const notification = {
     jsonrpc,
-    method: string,
+    method,
     params,
 } as const                        // a request with no `id`
 
-const errorObject = {
+// the JSON-RPC "Error object" — named `error` for wire fidelity; if this module
+// also needs Result's constructor, import it aliased: `import { error as resultError }`
+const error = {
     code: number,                 // integer
     message: string,
     data: option(unknown),
 } as const
 
 const successResponse = { jsonrpc, result: unknown, id } as const
-const errorResponse   = { jsonrpc, error: errorObject, id } as const
+const errorResponse   = { jsonrpc, error, id } as const
 const response = or(successResponse, errorResponse)  // result XOR error
 
 // batch: a non-empty array of requests / responses

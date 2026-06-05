@@ -147,6 +147,7 @@ type _undefined = Assert<Equal<Ts<undefined>, undefined>>
 
 type _true = Assert<Equal<Ts<true>, true>>
 type _32 = Assert<Equal<Ts<32>, 32>>
+type _42n = Assert<Equal<Ts<42n>, 42n>>
 type _hello = Assert<Equal<Ts<'hello'>, 'hello'>>
 
 type _tuple = Assert<Equal<Ts<readonly[12, true]>, readonly[12, true]>>
