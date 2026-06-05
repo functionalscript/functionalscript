@@ -1,16 +1,17 @@
-# 665-json-rpc-mcp. JSON-RPC 2.0 layer (rtti-validated) as the base for an MCP server
+# 665-json-rpc. JSON-RPC 2.0 layer (rtti-validated)
 
 **Priority:** P3
 **Status:** open
 
 ## Motivation
 
-We want to implement an [MCP](https://modelcontextprotocol.io/) server in
-FunctionalScript. MCP is a thin protocol **on top of JSON-RPC 2.0** — every MCP
-message (`initialize`, `tools/list`, `tools/call`, `resources/list`, …) is a
-JSON-RPC request, notification, or response. So the first building block is a
-self-contained, runtime-validated **JSON-RPC 2.0** layer; the MCP method set
-rides on it later.
+We want a pure, runtime-validated **JSON-RPC 2.0** layer — a reusable building
+block for any JSON-RPC service. [MCP](https://modelcontextprotocol.io/) is one
+motivating example: every MCP message (`initialize`, `tools/list`, `tools/call`,
+`resources/list`, …) is a JSON-RPC request, notification, or response, so an MCP
+server is just a method set layered on top of this. Other consumers (LSP-style
+tooling, generic RPC endpoints) reuse the same envelopes — none of those method
+sets belong in this module.
 
 Because every message comes from an untrusted peer, the wire shapes must be
 **validated at runtime**, not just typed. `fs/types/rtti` already gives us
