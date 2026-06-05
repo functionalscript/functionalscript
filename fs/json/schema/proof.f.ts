@@ -1,19 +1,13 @@
-import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.ts'
+import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../types/rtti/module.f.ts'
+import { stringify, type Unknown } from '../module.f.ts'
 import { toJsonSchema } from './module.f.ts'
 
-const deepEqual = (a: unknown, b: unknown): boolean => {
-    if (a === b) { return true }
-    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) { return false }
-    if (Array.isArray(a) !== Array.isArray(b)) { return false }
-    const aKeys = Object.keys(a)
-    const bKeys = Object.keys(b)
-    if (aKeys.length !== bKeys.length) { return false }
-    return aKeys.every(k => deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]))
-}
+const serialize = stringify(e => e)
 
-const eq = (rtti: Parameters<typeof toJsonSchema>[0], expected: unknown) => () => {
-    const result = toJsonSchema(rtti)
-    if (!deepEqual(result, expected)) { throw [result, expected] }
+const eq = (rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => {
+    const result = serialize(toJsonSchema(rtti))
+    const exp = serialize(expected)
+    if (result !== exp) { throw [result, exp] }
 }
 
 export const proof = {

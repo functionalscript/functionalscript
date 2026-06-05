@@ -17,7 +17,7 @@ needs the shape we already describe in rtti.
 
 ## Proposal
 
-Add a sibling module `fs/types/rtti/json_schema/module.f.ts` with:
+Add a module `fs/json/schema/module.f.ts` with:
 
 ```ts
 export const toJsonSchema: (rtti: Type) => JsonSchema
@@ -58,7 +58,7 @@ can be the untyped `json.Unknown`.
 
 ## Tasks
 
-- [x] `fs/types/rtti/json_schema/module.f.ts` — `toJsonSchema(rtti)` over the same
+- [x] `fs/json/schema/module.f.ts` — `toJsonSchema(rtti)` over the same
       visitor shape as `ts/`
 - [x] struct printer computes `required` from which keys admit `undefined`
 - [x] decide `bigint` handling and document it
@@ -92,4 +92,5 @@ can be the untyped `json.Unknown`.
 - [i665-json-rpc](./665-json-rpc.md) — sibling layer
 - `fs/types/rtti/ts/module.f.ts` — the precedent printer (`toTs` / `Ts<>`)
 - `fs/types/rtti/module.f.ts` — schema combinators · `fs/json/module.f.ts` — output value type
+- `fs/json/schema/module.f.ts` — implementation · `fs/json/schema/proof.f.ts` — proofs
 - [JSON Schema 2020-12](https://json-schema.org/draft/2020-12)
