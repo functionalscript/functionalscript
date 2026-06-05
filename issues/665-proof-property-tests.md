@@ -109,20 +109,23 @@ Coverage over time comes from exploratory runs (different seeds), not from
 multiple calls within a single run.
 
 A user who wants to exercise many values in a single run can generate sub-tests
-from the received parameter, using it as a seed to derive further inputs:
+from the received parameter, using it as a seed to derive further inputs.
+Because proof functions are plain values independent of the test runner, any
+helper library works inside property tests exactly as it does in regular zero-arg
+tests — including helpers that generate sub-trees from a seed:
 
 ```ts
-const manyValues = (seed: number) => Object.fromEntries(
-    Array.from({ length: 100 }, (_, i) => {
-        const a = (seed + i) | 0
-        const b = (seed - i) | 0
-        return [`${i}`, () => { if (a + b !== b + a) throw [a, b] }]
-    })
-)
+import { assertEq } from 'functionalscript/fs/asserts/module.js'
+import { fromSeed } from 'some/helper/module.js'
+
+// fromSeed(n)(seed)(f) → sub-tree of n zero-arg tests, each calling f with a
+// value derived from seed
+const manyValues = (seed: number) =>
+    fromSeed(100)(seed)(a => assertEq(a + 0, a))
 ```
 
-The runner receives `seed` from the test runner, returns a sub-tree of 100 named
-zero-arg test cases, and walks it — no framework change needed.
+The runner receives `seed`, the helper builds the sub-tree, and the framework
+walks it — no test-runner knowledge required in any of these layers.
 
 ### Failure output
 
