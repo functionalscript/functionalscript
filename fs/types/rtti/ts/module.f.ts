@@ -84,6 +84,18 @@ export type StructTs<T extends Struct> =
     (keyof RequiredFields<T> extends never ? unknown : RequiredFields<T>)
 
 /**
+ * Attaches a phantom output type `Out` to a schema `S`.
+ *
+ * `Ts<WithOut<S, Out>>` short-circuits to `Out` via the `$out` branch without
+ * recursing through the schema body — solving TS2589 for recursive struct schemas
+ * where `StructTs` would otherwise expand infinitely.
+ *
+ * The `$out` field is phantom: it is `undefined` at runtime and only exists in the
+ * type system. Use `as any` at the annotation site (the one unavoidable cast).
+ */
+export type WithOut<S, Out> = S & { readonly $out?: Out }
+
+/**
  * Converts a schema `Type` to its corresponding TypeScript type.
  *
  * - `Thunk` → evaluates the returned `Info` via `InfoTs`
@@ -97,18 +109,6 @@ export type StructTs<T extends Struct> =
  * type D = Ts<{ x: typeof boolean }>  // { readonly x: boolean }
  * ```
  */
-/**
- * Attaches a phantom output type `Out` to a schema `S`.
- *
- * `Ts<WithOut<S, Out>>` short-circuits to `Out` via the `$out` branch without
- * recursing through the schema body — solving TS2589 for recursive struct schemas
- * where `StructTs` would otherwise expand infinitely.
- *
- * The `$out` field is phantom: it is `undefined` at runtime and only exists in the
- * type system. Use `as any` at the annotation site (the one unavoidable cast).
- */
-export type WithOut<S, Out> = S & { readonly $out?: Out }
-
 export type Ts<T extends Type> =
     // Fast-path: when T is `any` (unknown extends any), short-circuit to Unknown
     // to prevent distributive conditional types from expanding across all branches
