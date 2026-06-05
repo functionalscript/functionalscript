@@ -6,7 +6,7 @@
  *
  * @module
  */
-import { type Const, type Type, array, option, or, string } from '../../types/rtti/module.f.ts'
+import { type Const, type Type, array, option, or, record, string } from '../../types/rtti/module.f.ts'
 import type { Ts, WithOut } from '../../types/rtti/ts/module.f.ts'
 import { type Unknown as JsonValue, unknown as jsonUnknown } from '../module.f.ts'
 
@@ -27,22 +27,16 @@ interface Unknown_ {
 
 export const type = or('boolean', 'number', 'string', 'integer', 'array', 'object')
 
-const optionUnknown = () => ['or', unknown, undefined] as const
-
-const unknownArray = () => ['array', unknown] as const
-
-const recordUnknown = () => ['record', unknown] as const
-
 const _unknown = () => ['const', {
     type: option(type),
     const: option(jsonUnknown),
-    not: optionUnknown,
-    anyOf: option(unknownArray),
-    items: or(optionUnknown, false),
-    prefixItems: option(unknownArray),
-    properties: option(recordUnknown),
+    not: option(unknown),
+    anyOf: option(array(unknown)),
+    items: or(unknown, false, undefined),
+    prefixItems: option(array(unknown)),
+    properties: option(record(unknown)),
     required: option(array(string)),
-    additionalProperties: optionUnknown,
+    additionalProperties: option(unknown),
 } as const] as const
 
 /** rtti schema for a JSON Schema (draft 2020-12) document. */
