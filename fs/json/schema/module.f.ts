@@ -6,24 +6,52 @@
  *
  * @module
  */
-import type { Const, Type } from '../../types/rtti/module.f.ts'
-import { or } from '../../types/rtti/module.f.ts'
-import type { Unknown as JsonValue } from '../module.f.ts'
+import { type Const, type Type, array, option, or, string } from '../../types/rtti/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import { type Unknown as JsonValue, unknown as jsonUnknown } from '../module.f.ts'
 
 type JsonType = 'boolean' | 'number' | 'string' | 'integer' | 'array' | 'object'
 
-/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
-export type Unknown = {
+/**
+ * A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits.
+ *
+ * Defined as a hand-written interface rather than `Ts<typeof unknown>` because TypeScript
+ * hits TS2589 (type instantiation excessively deep) when unfolding recursive struct schemas
+ * through `StructTs` mapped types. `or`/`array` recursion works; struct recursion does not.
+ */
+export interface Unknown_ {
     readonly type?: JsonType
     readonly const?: JsonValue
-    readonly not?: Unknown
-    readonly anyOf?: readonly Unknown[]
-    readonly items?: Unknown | false
-    readonly prefixItems?: readonly Unknown[]
-    readonly properties?: { readonly [k: string]: Unknown }
+    readonly not?: Unknown_
+    readonly anyOf?: readonly Unknown_[]
+    readonly items?: Unknown_ | false
+    readonly prefixItems?: readonly Unknown_[]
+    readonly properties?: { readonly [k: string]: Unknown_ }
     readonly required?: readonly string[]
-    readonly additionalProperties?: Unknown
+    readonly additionalProperties?: Unknown_
 }
+
+export const type = or('boolean', 'number', 'string', 'integer', 'array', 'object')
+
+const optionUnknown = () => ['or', unknown, undefined] as const
+
+const unknownArray = () => ['array', unknown] as const
+
+const recordUnknown = () => ['record', unknown] as const
+
+export const unknown = {
+    type: option(type),
+    const: option(jsonUnknown),
+    not: optionUnknown,
+    anyOf: option(unknownArray),
+    items: or(optionUnknown, false),
+    prefixItems: option(unknownArray),
+    properties: option(recordUnknown),
+    required: option(array(string)),
+    additionalProperties: optionUnknown,
+} as const
+
+export type Unknown = Ts<typeof unknown>
 
 /** Returns true if the rtti schema admits the value `undefined`. */
 const admitsUndefined = (rtti: Type): boolean => {
