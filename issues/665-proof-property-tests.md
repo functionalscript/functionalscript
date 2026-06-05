@@ -16,23 +16,24 @@ today.
 ## Proposal
 
 Treat non-zero-argument proof functions as **property tests**: the test runner
-generates random inputs, calls the function with them, and expects it to
-succeed — for any inputs it receives, on any number of invocations.
+calls the function with a signed 32-bit integer (`a | 0`) for each parameter,
+derived from the seed and the test's full name. The function must succeed for the
+value it receives.
 
 ```ts
 export const proof = {
     // zero-arg: regular test case (current behaviour)
     add: () => { if (1 + 1 !== 2) throw '1 + 1 !== 2' },
 
-    // one-arg: property test — called with random inputs, must always pass
-    commutativity: (a: number) => (b: number) => {
+    // non-zero-arg: property test — called with a signed 32-bit integer per parameter
+    commutativity: (a: number, b: number) => {
         if (a + b !== b + a) throw [a, b]
     },
 }
 ```
 
-The function **must succeed no matter what parameters are passed**. A failure
-(throw) is always a bug, regardless of the input.
+A failure (throw) is always a bug. The property is quantified over the signed
+32-bit integer domain — the runner only generates values of that kind.
 
 ### Seed-based reproducibility
 
