@@ -1,4 +1,4 @@
-import { boolean, number, or, string, record, array as rttiArray } from '../module.f.ts'
+import { boolean, number, or, string, record, array as rttiArray } from '../../types/rtti/module.f.ts'
 
 export const primitive = or(null, boolean, number, string)
 

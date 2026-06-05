@@ -12,11 +12,12 @@
  *
  * @module
  */
-import { number, string, unknown, or, option } from '../../types/rtti/module.f.ts'
+import { number, string, or, option } from '../../types/rtti/module.f.ts'
 import type { Ts } from '../../types/rtti/ts/module.f.ts'
 import { validate } from '../../types/rtti/validate/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
-import type { Unknown } from '../../djs/module.f.ts'
+import { unknown } from '../rtti/module.f.ts'
+import type { Unknown } from '../module.f.ts'
 
 const jsonrpc = '2.0' as const
 
@@ -30,7 +31,7 @@ const id = or(string, number, null)
 export const request = {
     jsonrpc,
     method: string,
-    params: unknown,
+    params: option(unknown),
     id: option(id),
 } as const
 
@@ -38,7 +39,7 @@ export const request = {
 export const error = {
     code: number,
     message: string,
-    data: unknown,
+    data: option(unknown),
 } as const
 
 export type Id = Ts<typeof id>
