@@ -8,7 +8,22 @@
  */
 import type { Const, Type } from '../../types/rtti/module.f.ts'
 import { or } from '../../types/rtti/module.f.ts'
-import type { Unknown } from '../module.f.ts'
+import type { Unknown as JsonValue } from '../module.f.ts'
+
+type JsonType = 'boolean' | 'number' | 'string' | 'integer' | 'array' | 'object'
+
+/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
+export type Unknown = {
+    readonly type?: JsonType
+    readonly const?: JsonValue
+    readonly not?: Unknown
+    readonly anyOf?: readonly Unknown[]
+    readonly items?: Unknown | false
+    readonly prefixItems?: readonly Unknown[]
+    readonly properties?: { readonly [k: string]: Unknown }
+    readonly required?: readonly string[]
+    readonly additionalProperties?: Unknown
+}
 
 /** Returns true if the rtti schema admits the value `undefined`. */
 const admitsUndefined = (rtti: Type): boolean => {
@@ -28,27 +43,27 @@ const stripUndefined = (rtti: Type): Type => {
 }
 
 const constToJsonSchema = (rtti: Const): Unknown => {
-    if (typeof rtti === 'undefined') { return { not: {} } as Unknown }
+    if (typeof rtti === 'undefined') { return { not: {} } }
     if (typeof rtti !== 'object' || rtti === null) {
         // bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER)
-        return { const: typeof rtti === 'bigint' ? Number(rtti) : rtti } as Unknown
+        return { const: typeof rtti === 'bigint' ? Number(rtti) : rtti }
     }
     if (rtti instanceof Array) {
         return {
             type: 'array',
             prefixItems: rtti.map(toJsonSchema),
             items: false,
-        } as Unknown
+        }
     }
     // Struct: keys not admitting undefined go into `required`; optional keys have
     // undefined stripped from their property schema. additionalProperties is omitted
     // (lenient), matching rtti's open-struct validation semantics.
     const ents = Object.entries(rtti)
     const properties = Object.fromEntries(
-        ents.map(([k, v]) => [k, toJsonSchema(stripUndefined(v as Type))])
+        ents.map(([k, v]) => [k, toJsonSchema(stripUndefined(v))])
     )
     const required = ents
-        .filter(([, v]) => !admitsUndefined(v as Type))
+        .filter(([, v]) => !admitsUndefined(v))
         .map(([k]) => k)
     return {
         type: 'object',

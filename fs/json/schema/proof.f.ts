@@ -1,8 +1,8 @@
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../../types/rtti/module.f.ts'
-import { stringify, type Unknown } from '../module.f.ts'
-import { toJsonSchema } from './module.f.ts'
+import { stringify, type Unknown as JsonValue } from '../module.f.ts'
+import { toJsonSchema, type Unknown } from './module.f.ts'
 
-const serialize = stringify(e => e)
+const serialize = (v: Unknown) => stringify(e => e)(v as unknown as JsonValue)
 
 const eq = (rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => {
     const result = serialize(toJsonSchema(rtti))
