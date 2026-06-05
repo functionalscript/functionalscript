@@ -62,7 +62,7 @@ export const prependPath = (key: string, r: Error<ValidationError>): Error<Valid
 
 /** Validates a `Tag0` primitive schema using `typeof`. */
 export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag: K): Validate<T> =>
-    value => typeof value === tag ? ok(value) as any : verror('unexpected value') as any
+    value => typeof value === tag ? ok(value) as any : verror('unexpected value')
 
 /**
  * Validates a primitive `Const` schema using `Object.is` (SameValue).
@@ -74,7 +74,7 @@ export const primitive0Validate = <K extends Primitive0, T extends Info0<K>>(tag
 export const constPrimitiveValidate = <T extends Primitive>(rtti: T): Validate<T> =>
     value => Object.is(rtti, value)
         ? ok(value) as any
-        : verror('unexpected value') as any
+        : verror('unexpected value')
 
 /**
  * One handler per `Type` variant. Both `validate` and `parse` provide a
