@@ -83,9 +83,11 @@ export type StructTs<T extends Struct> =
     (keyof OptionalFields<T> extends never ? unknown : OptionalFields<T>) &
     (keyof RequiredFields<T> extends never ? unknown : RequiredFields<T>)
 
-// Private unique symbol used as the phantom key in WithOut.
-// A symbol key is excluded from string index signatures ({ readonly [K in string]: Type }),
-// so WithOut<Struct, Out> is valid for any Out regardless of whether Out extends Type.
+/**
+ * Private unique symbol used as the phantom key in WithOut.
+ * A symbol key is excluded from string index signatures ({ readonly [K in string]: Type }),
+ * so WithOut<Struct, Out> is valid for any Out regardless of whether Out extends Type.
+ */
 declare const withOutKey: unique symbol
 
 /**

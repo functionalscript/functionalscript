@@ -1,7 +1,9 @@
 # 146. RTTI: TypeScript Inference Depth
 
 **Priority:** P3
-**Status:** partially done (options 1 and 3 implemented; validate/parse visitor erasure open)
+**Status:** closed
+
+**Why it's closed:** Options 1 and 3 implemented; remaining validate/parse casts documented in `fs/types/rtti/ts/README.md` as open problems requiring TypeScript rank-2 or dependent types.
 
 `Ts<T>` (in [`fs/types/rtti/ts/module.f.ts`](../fs/types/rtti/ts/module.f.ts)) maps a schema `Type` to its TypeScript type by walking the schema's structural shape with conditional types and `infer`. It works for direct uses (`Ts<typeof someSchema>`), but it is fragile: any internal generic that resolves to `Ts<any>`, `Ts<Type>`, or a deeply nested combination distributes across every branch of the conditional and trips TS's depth/cycle limit (`error TS2589: Type instantiation is excessively deep and possibly infinite`).
 
@@ -71,6 +73,8 @@ ArkType's main trick. Each named type alias is a memoization point for the compi
 - `ConstTs`, `Info1Ts`, etc. are already split. Push further: cache `Ts<readonly ...>`, `Ts<{ [k: string]: ... }>`, and the `or` variant union as their own aliases.
 - No design impact, just type-level refactoring.
 - Modest improvement; not a complete fix.
+
+**Attempted and reverted.** Extracted `InfoTs<I>` (the thunk-body dispatch) and `OrTs<A>` (the union case) as named aliases and wired `Ts<T>` to delegate to them. `npx tsc` reported new TS2589 errors in `fs/json/module.f.ts` and the validate/parse proofs. The extra indirection (`Ts` → `InfoTs` → `Info1Ts` → `ArrayTs` → `Ts`) adds levels to the recursive chain and makes TypeScript hit its depth limit sooner. The inline form stays flatter and the compiler can short-circuit earlier. Option 2 does not apply to our recursive schema design.
 
 ### 3. Phantom output on thunks only
 
