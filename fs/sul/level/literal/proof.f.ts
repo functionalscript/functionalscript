@@ -756,6 +756,10 @@ export const proof = {
                 vec(0x008n)(0b1111_1111n))
         }
     },
+    wordToString: () => {
+        const result = wordToString([0n, 1n, 0xABn])
+        if (result !== '0,1,ab') { throw result }
+    },
     pipeline: () => {
         // 4 L1 [0,0] words → 2 L2 [0,0] words → L3 [0,0] word → symbol 0
         // First 7 zero bits accumulate without emitting
