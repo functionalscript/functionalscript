@@ -37,7 +37,7 @@ Each filename starts with three [Crockford base32](https://www.crockford.com/bas
 | 8   | `8`  | 18    | `J`  | 28    | `W`  |       |      |
 | 9   | `9`  | 19    | `K`  | 29    | `X`  |       |      |
 
-Example: 2026-05-29 → `65X`. New issue created today: `65X-my-slug.md`.
+Example: 2026-05-29 → `65X`. New issue created today: `65X-kebab-slug.md`.
 
 ## Template
 
@@ -46,7 +46,7 @@ Example: 2026-05-29 → `65X`. New issue created today: `65X-my-slug.md`.
 
 **Priority:** P1 | P2 | P3 | P4 | P5
 **Status:** open | wip | blocked | on-hold
-**Blocked by:** [iYMD-slug](./YMD-slug.md)
+**Blocked by:** [iYMD-kebab-slug](./YMD-kebab-slug.md)
 
 ## Problem
 
