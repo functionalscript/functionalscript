@@ -101,7 +101,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const m = mask(bitLength)
 
-    const wi = (a0: bigint, a1: bigint, a2: bigint, a3: bigint) =>
+    const wi: (..._: V4) => bigint = (a0, a1, a2, a3) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 
     const nextW: (...w: V16) => V16
