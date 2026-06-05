@@ -55,12 +55,6 @@ export type Const =
     // Tuple
     | readonly Type[]
 
-export type Primitive = null | boolean | number | string | undefined | bigint
-
-// export type Unknown = Primitive | Object | Array
-
-type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
-
 export type ConstObject = Struct | Tuple
 
 /** A struct schema: plain object whose values are nested `Type`s. */

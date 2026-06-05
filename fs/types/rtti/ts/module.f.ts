@@ -8,18 +8,33 @@
  * type expression string for a given RTTI schema.
  */
 import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
-import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, Primitive } from '../module.f.ts'
+import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
 
 /**
- * Currently, it matches the `Unknown` type from `./fs/djs/module.f.ts`,
- * but we may extended to functions or other non-primitive types in the future.
+ * The set of primitive literal types representable as rtti `Const` values.
+ * Defined here rather than imported from `djs` to keep rtti free of djs dependencies
+ * (djs depends on rtti, not the other way around — see [i665-rtti-defines-types]).
+ */
+export type Primitive = null | boolean | number | string | undefined | bigint
+
+type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
+
+/**
+ * The TypeScript type that rtti's `unknown` schema validates — any value that
+ * an rtti schema can represent: a primitive, an array, or an object.
+ *
+ * Currently equivalent to `djs.Unknown`, but defined here to keep `rtti` free
+ * of `djs` dependencies. May be extended to include functions or other
+ * non-JSON-primitives in the future.
  */
 export type Unknown = Primitive | Array | Object
 
+/** A read-only array of {@link Unknown} values. */
 export type Array = readonly Unknown[]
 
+/** A read-only record of {@link Unknown} values. */
 export type Object = {
     readonly [k in string]: Unknown
 }
