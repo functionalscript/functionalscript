@@ -41,11 +41,13 @@ literal value itself, and `or` / `option` / `array` are combinators:
 ```ts
 import { number, string, unknown, or, option, array } from '../../types/rtti/module.f.ts'
 
-// const literal — every envelope's `jsonrpc` must equal "2.0". The `as const` is
-// required: without it the value widens to `string` inside the object-literal
-// schemas, so `Ts<>` would infer `string` even though runtime validation still
-// enforces the literal.
-const jsonrpc = '2.0' as const
+// Every literal / struct / tuple schema ends in `as const` so `Ts<>` infers the
+// precise readonly + literal shape; without it literals widen (`'2.0'` → `string`,
+// `42` → `number`) and structs lose `readonly`, even though runtime validation
+// still works. Combinator results (`or` / `option` / `array` / `string` / …) are
+// already precisely typed and don't need it.
+
+const jsonrpc = '2.0' as const   // must equal "2.0"
 
 // id: string | number | null  (absent for notifications)
 // `null` is a valid rtti const (see rtti `Const`), so it composes directly:
@@ -59,22 +61,22 @@ const request = {
     method: string,
     params,
     id,
-}
+} as const
 
 const notification = {
     jsonrpc,
     method: string,
     params,
-}                                 // a request with no `id`
+} as const                        // a request with no `id`
 
 const errorObject = {
     code: number,                 // integer
     message: string,
     data: option(unknown),
-}
+} as const
 
-const successResponse = { jsonrpc, result: unknown, id }
-const errorResponse   = { jsonrpc, error: errorObject, id }
+const successResponse = { jsonrpc, result: unknown, id } as const
+const errorResponse   = { jsonrpc, error: errorObject, id } as const
 const response = or(successResponse, errorResponse)  // result XOR error
 
 // batch: a non-empty array of requests / responses
