@@ -13,6 +13,7 @@
  * @module
  */
 import { boolean, number, or, string, record, array as rttiArray } from '../../types/rtti/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/module.f.ts'
 
 /** Matches any JSON primitive: `null`, `boolean`, `number`, or `string`. */
 export const primitive = or(null, boolean, number, string)
