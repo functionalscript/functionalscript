@@ -57,10 +57,10 @@ shared sequential RNG state. Instead, each property test derives its parameters
 by **hashing `seed + full test name`**:
 
 ```
-params(test) = hash(seed || "import(\"./fs/math/proof.f.ts\").proof.commutativity")
+param[i] = hash(seed || fullTestPath || i) | 0
 ```
 
-Each parameter slot takes a fixed-width slice of the hash output. This is:
+`i` is the zero-based parameter position. This is:
 
 - **Deterministic** — same seed + same test name → same parameters, always.
 - **Parallel-safe** — no shared mutable state; any test can compute its inputs independently.
@@ -75,18 +75,8 @@ The hash function needs to be deterministic across runs and platforms
 
 TypeScript types are erased at runtime — the test runner cannot know what types
 a function's parameters expect, only **how many** parameters there are (`f.length`).
-
-Each parameter receives a **signed 32-bit integer `number`**, computed as:
-
-```
-param[i] = hash(seed || fullTestPath || i) | 0
-```
-
-`i` is the zero-based parameter position. Each slot is hashed independently, so:
-- All parameters are independent of one another.
-- Tests run in parallel safely — no shared state.
-- A function needing more than 32 bits simply declares more parameters; each gets
-  its own independent 32-bit value from the same hash scheme.
+Each parameter receives a signed 32-bit integer from the formula above. A function
+needing more than 32 bits simply declares more parameters.
 
 
 ### One set of parameters per run
