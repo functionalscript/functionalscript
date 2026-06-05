@@ -10,23 +10,13 @@ import { type Const, type Type as RttiType, array, option, or, record, string } 
 import type { Ts, WithOut } from '../../types/rtti/ts/module.f.ts'
 import { unknown as jsonUnknown } from '../module.f.ts'
 
-/** Hand-written base type used as the `$out` annotation on `unknown`. */
-type _Unknown = {
-    readonly type?: Ts<typeof unknownConst.type>
-    readonly const?: Ts<typeof unknownConst.const>
-    readonly not?: Ts<typeof unknownConst.not>
-    readonly anyOf?: Ts<typeof unknownConst.anyOf>
-    readonly items?: Ts<typeof unknownConst.items>
-    readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
-    readonly properties?: Ts<typeof unknownConst.properties>
-    readonly required?: Ts<typeof unknownConst.required>
-    readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
-}
-
 const unknownThunk = () => ['const', unknownConst] as const
 
 /** rtti schema for a JSON Schema (draft 2020-12) document. */
-export const unknown: WithOut<typeof unknownThunk, _Unknown> = unknownThunk
+export const unknown: WithOut<typeof unknownThunk, UnknownConst> = unknownThunk
+
+/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
+export type Unknown = Ts<typeof unknown>
 
 const unknownConst = {
     type: or('boolean', 'number', 'string', 'integer', 'array', 'object', undefined),
@@ -40,8 +30,18 @@ const unknownConst = {
     additionalProperties: option(unknown),
 } as const
 
-/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
-export type Unknown = Ts<typeof unknown>
+/** Hand-written base type used as the `$out` annotation on `unknown`. */
+type UnknownConst = {
+    readonly type?: Ts<typeof unknownConst.type>
+    readonly const?: Ts<typeof unknownConst.const>
+    readonly not?: Ts<typeof unknownConst.not>
+    readonly anyOf?: Ts<typeof unknownConst.anyOf>
+    readonly items?: Ts<typeof unknownConst.items>
+    readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
+    readonly properties?: Ts<typeof unknownConst.properties>
+    readonly required?: Ts<typeof unknownConst.required>
+    readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
+}
 
 /** Returns true if the rtti schema admits the value `undefined`. */
 const admitsUndefined = (rtti: RttiType): boolean => {
