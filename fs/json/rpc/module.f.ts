@@ -18,6 +18,8 @@ import { validate } from '../../types/rtti/validate/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
 import { unknown } from '../rtti/module.f.ts'
 import type { Unknown } from '../module.f.ts'
+import type { Equal } from '../../types/ts/module.f.ts'
+import type { Assert } from '../../asserts/module.f.ts'
 
 const jsonrpc = '2.0' as const
 
@@ -46,6 +48,10 @@ export type Id = Ts<typeof id>
 export type Request = Ts<typeof request>
 export type RpcError = Ts<typeof error>
 
+export const successResponse = { jsonrpc, result: unknown, id } as const
+export const errorResponse = { jsonrpc, error, id } as const
+export const response = or(successResponse, errorResponse)
+
 type SuccessResponse = { readonly jsonrpc: '2.0', readonly result: Unknown, readonly id: Id }
 type ErrorResponse = { readonly jsonrpc: '2.0', readonly error: RpcError, readonly id: Id }
 
@@ -59,6 +65,8 @@ type ErrorResponse = { readonly jsonrpc: '2.0', readonly error: RpcError, readon
  * client concern) is a follow-up.
  */
 export type Response = SuccessResponse | ErrorResponse
+
+type _AssertRequest = Assert<Equal<Response, Ts<typeof response>>>
 
 /** Decodes an untrusted value as a JSON-RPC request / notification. */
 export const decodeRequest = validate(request)
