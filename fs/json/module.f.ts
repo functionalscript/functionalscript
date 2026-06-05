@@ -47,7 +47,7 @@ export type Unknown = Ts<typeof unknown>
 
 const { entries } = Object
 
-type JsonObject = Ts<typeof object>
+type Object = Ts<typeof object>
 
 export const setProperty
     : (value: Unknown) => (path: List<string>) => (src: Unknown) => Unknown
@@ -84,7 +84,7 @@ export const serialize
         ])
         const mapPropertySerialize = map(propertySerialize)
         const objectSerialize
-            : (object: JsonObject) => List<string>
+            : (object: Object) => List<string>
             = fn(entries)
             .map(sort)
             .map(mapPropertySerialize)
