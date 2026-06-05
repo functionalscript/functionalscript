@@ -37,7 +37,6 @@
  * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
  */
 import type { Assert } from '../../asserts/module.f.ts'
-import type { Primitive } from '../../djs/module.f.ts'
 import { includes, type Includes } from '../array/module.f.ts'
 import type { Equal } from '../ts/module.f.ts'
 
@@ -55,6 +54,10 @@ export type Const =
     | { readonly[K in string]: Type }
     // Tuple
     | readonly Type[]
+
+export type Primitive = null | boolean | number | string | undefined | bigint
+
+// export type Unknown = Primitive | Object | Array
 
 type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
 

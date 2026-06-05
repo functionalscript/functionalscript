@@ -8,10 +8,21 @@
  * type expression string for a given RTTI schema.
  */
 import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
-import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
-import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type } from '../module.f.ts'
+import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, Primitive } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
+
+/**
+ * Currently, it matches the `Unknown` type from `./fs/djs/module.f.ts`,
+ * but we may extended to functions or other non-primitive types in the future.
+ */
+export type Unknown = Primitive | Array | Object
+
+export type Array = readonly Unknown[]
+
+export type Object = {
+    readonly [k in string]: Unknown
+}
 
 /** Maps a `Tag0` to its TypeScript type. */
 export type Info0Ts<T extends Tag0> =
@@ -19,7 +30,7 @@ export type Info0Ts<T extends Tag0> =
     T extends 'number' ? number :
     T extends 'string' ? string :
     T extends 'bigint' ? bigint :
-    T extends 'unknown' ? DjsUnknown :
+    T extends 'unknown' ? Unknown :
     never
 
 /** Maps a `Const` schema to its TypeScript type. */
@@ -79,7 +90,7 @@ export type Ts<T extends Type> =
         I extends readonly['number'] ? number :
         I extends readonly['string'] ? string :
         I extends readonly['bigint'] ? bigint :
-        I extends readonly['unknown'] ? DjsUnknown :
+        I extends readonly['unknown'] ? Unknown :
         // Info1
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
         I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
@@ -167,7 +178,7 @@ type _number = Assert<Equal<Ts<() => readonly['number']>, number>>
 type _string = Assert<Equal<Ts<() => readonly['string']>, string>>
 type _bigint = Assert<Equal<Ts<() => readonly['bigint']>, bigint>>
 
-type _unknown = Assert<Equal<Ts<() => readonly['unknown']>, DjsUnknown>>
+type _unknown = Assert<Equal<Ts<() => readonly['unknown']>, Unknown>>
 
 type _array = Assert<Equal<Ts<
     () => readonly['array', 12]>,
