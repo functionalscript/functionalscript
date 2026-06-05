@@ -1,7 +1,7 @@
 # 665-rtti-json-schema. `toJsonSchema`: print an rtti schema as JSON Schema
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -17,7 +17,7 @@ needs the shape we already describe in rtti.
 
 ## Proposal
 
-Add a sibling module `fs/types/rtti/json_schema/module.f.ts` with:
+Add a module `fs/json/schema/module.f.ts` with:
 
 ```ts
 export const toJsonSchema: (rtti: Type) => JsonSchema
@@ -58,12 +58,24 @@ can be the untyped `json.Unknown`.
 
 ## Tasks
 
-- [ ] `fs/types/rtti/json_schema/module.f.ts` — `toJsonSchema(rtti)` over the same
+- [x] `fs/json/schema/module.f.ts` — `toJsonSchema(rtti)` over the same
       visitor shape as `ts/`
-- [ ] struct printer computes `required` from which keys admit `undefined`
-- [ ] decide `bigint` handling and document it
-- [ ] `proof.f.ts` covering each rtti construct + optional keys + nested schemas
-- [ ] register the new `module.f.ts` in `deno.json` exports
+- [x] struct printer computes `required` from which keys admit `undefined`
+- [x] decide `bigint` handling and document it
+- [x] `proof.f.ts` covering each rtti construct + optional keys + nested schemas
+- [x] register the new `module.f.ts` in `deno.json` exports
+
+## Decisions (resolved on implementation)
+
+- **`anyOf` vs `oneOf`.** Used `anyOf` — rtti unions are not required to be disjoint.
+- **`additionalProperties`.** Omitted (lenient), matching rtti's open-struct validation
+  semantics (extra keys are allowed through unchanged).
+- **`bigint` handling.** `bigint` tag → `{ "type": "integer" }`. `bigint` const literals
+  → `{ "const": Number(value) }`. Both are documented as lossy; JSON integers are IEEE-754
+  doubles, so large bigints lose precision. Rare in MCP tool inputs.
+- **`undefined` const.** Emitted as `{ "not": {} }` (rejects every JSON value, since
+  `undefined` is not representable in JSON). In practice only appears as an `option`
+  component; `stripUndefined` removes it from property schemas before conversion.
 
 ## Open questions
 
@@ -80,4 +92,5 @@ can be the untyped `json.Unknown`.
 - [i665-json-rpc](./665-json-rpc.md) — sibling layer
 - `fs/types/rtti/ts/module.f.ts` — the precedent printer (`toTs` / `Ts<>`)
 - `fs/types/rtti/module.f.ts` — schema combinators · `fs/json/module.f.ts` — output value type
+- `fs/json/schema/module.f.ts` — implementation · `fs/json/schema/proof.f.ts` — proofs
 - [JSON Schema 2020-12](https://json-schema.org/draft/2020-12)
