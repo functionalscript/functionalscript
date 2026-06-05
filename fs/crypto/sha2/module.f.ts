@@ -4,7 +4,7 @@
  * @module
  */
 import type { Array16, Array3, Array4, Array8 } from '../../types/array/module.f.ts'
-import { mask } from "../../types/bigint/module.f.ts"
+import { mask, type Reduce } from "../../types/bigint/module.f.ts"
 import {
     vec,
     length,
@@ -74,26 +74,25 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         return (n: bigint) => n >> d | n << r
     }
 
-    const bigSigma = ([a, b, c]: V3) => {
-        const ra = rotr(a)
-        const rb = rotr(b)
-        const rc = rotr(c)
-        return (x: bigint) => ra(x) ^ rb(x) ^ rc(x)
-    }
+    const sigma: (third: Reduce) => (..._: V3) => (x: bigint) => bigint =
+        third => (a, b, c) => {
+            const ra = rotr(a)
+            const rb = rotr(b)
+            const rc = third(c)
+            return x => ra(x) ^ rb(x) ^ rc(x)
+        }
 
-    const bigSigma0 = bigSigma(bs0)
+    const bigSigma = sigma(rotr)
 
-    const bigSigma1 = bigSigma(bs1)
+    const smallSigma = sigma(c => x => x >> c)
 
-    const smallSigma = ([a, b, c]: V3) => {
-        const ra = rotr(a)
-        const rb = rotr(b)
-        return (x: bigint) => ra(x) ^ rb(x) ^ (x >> c)
-    }
+    const bigSigma0 = bigSigma(...bs0)
 
-    const smallSigma0 = smallSigma(ss0)
+    const bigSigma1 = bigSigma(...bs1)
 
-    const smallSigma1 = smallSigma(ss1)
+    const smallSigma0 = smallSigma(...ss0)
+
+    const smallSigma1 = smallSigma(...ss1)
 
     const ch = (x: bigint, y: bigint, z: bigint) => x & y ^ ~x & z
 
@@ -101,34 +100,34 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const m = mask(bitLength)
 
-    const wi = ([a0, a1, a2, a3]: V4) =>
+    const wi: (..._: V4) => bigint = (a0, a1, a2, a3) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 
-    const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]: V16): V16 => {
-        w0 = wi([wE, w9, w1, w0])
-        w1 = wi([wF, wA, w2, w1])
-        w2 = wi([w0, wB, w3, w2])
-        w3 = wi([w1, wC, w4, w3])
-        w4 = wi([w2, wD, w5, w4])
-        w5 = wi([w3, wE, w6, w5])
-        w6 = wi([w4, wF, w7, w6])
-        w7 = wi([w5, w0, w8, w7])
-        w8 = wi([w6, w1, w9, w8])
-        w9 = wi([w7, w2, wA, w9])
-        wA = wi([w8, w3, wB, wA])
-        wB = wi([w9, w4, wC, wB])
-        wC = wi([wA, w5, wD, wC])
-        wD = wi([wB, w6, wE, wD])
-        wE = wi([wC, w7, wF, wE])
-        wF = wi([wD, w8, w0, wF])
+    const nextW: (...w: V16) => V16
+    = (w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF) => {
+        w0 = wi(wE, w9, w1, w0)
+        w1 = wi(wF, wA, w2, w1)
+        w2 = wi(w0, wB, w3, w2)
+        w3 = wi(w1, wC, w4, w3)
+        w4 = wi(w2, wD, w5, w4)
+        w5 = wi(w3, wE, w6, w5)
+        w6 = wi(w4, wF, w7, w6)
+        w7 = wi(w5, w0, w8, w7)
+        w8 = wi(w6, w1, w9, w8)
+        w9 = wi(w7, w2, wA, w9)
+        wA = wi(w8, w3, wB, wA)
+        wB = wi(w9, w4, wC, wB)
+        wC = wi(wA, w5, wD, wC)
+        wD = wi(wB, w6, wE, wD)
+        wE = wi(wC, w7, wF, wE)
+        wF = wi(wD, w8, w0, wF)
         return [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]
     }
 
     const kLength = k.length
 
-    const compressV16 = ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
-        let w = data
-
+    const compressV16: (..._: V8) => (_: V16) => V8 =
+    (a0, b0, c0, d0, e0, f0, g0, h0) => w => {
         let a = a0
         let b = b0
         let c = c0
@@ -155,7 +154,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
             }
             ++i
             if (i === kLength) { break }
-            w = nextW(w)
+            w = nextW(...w)
         }
 
         return [
@@ -170,12 +169,12 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         ]
     }
 
-    const at = (u: bigint) => (i: bigint) =>
+    const at: Reduce = u => i =>
         (u >> (i << logBitLen)) & m
 
-    const compress = (i: V8) => (u: bigint) => {
+    const compress: (i: V8) => (u: bigint) => V8 = i => u => {
         const a = at(u)
-        return compressV16(i)([
+        return compressV16(...i)([
             a(15n),
             a(14n),
             a(13n),
