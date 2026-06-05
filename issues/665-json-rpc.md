@@ -42,7 +42,7 @@ struct schemas carry `as const` (see the const-literal rule in [AGENTS.md](../AG
 
 ```ts
 import { number, string, or, option, array } from '../../types/rtti/module.f.ts'
-import { jsonValue } from '../rtti/module.f.ts'   // any JSON value — see i665-rtti-json-value
+import { unknown } from '../../types/rtti/json/module.f.ts'   // the JSON `unknown` — see i665-rtti-json-value
 
 const jsonrpc = '2.0' as const   // must equal "2.0"
 
@@ -52,9 +52,9 @@ const method = string
 // `null` is a valid rtti const (see rtti `Const`), so it composes directly:
 const id = or(string, number, null)
 
-// params: any JSON value, optional. Use `jsonValue` (not rtti `unknown`) so
-// non-JSON bigint/undefined are rejected — see i665-rtti-json-value.
-const params = option(jsonValue)
+// params: any JSON value, optional. `unknown` here is rtti/json's JSON `unknown`
+// (no bigint/undefined), so `option` is needed to make it optional.
+const params = option(unknown)
 
 const request = {
     jsonrpc,
@@ -74,12 +74,12 @@ const notification = {
 const error = {
     code: number,                 // integer
     message: string,
-    data: option(jsonValue),
+    data: option(unknown),
 } as const
 
-// `result: jsonValue` is required-when-present (jsonValue excludes undefined), so
-// unlike `result: unknown` the success response actually requires a result.
-const successResponse = { jsonrpc, result: jsonValue, id } as const
+// `result: unknown` (the JSON `unknown`) is required-when-present — it excludes
+// `undefined` — so unlike rtti core's `unknown` the success response requires a result.
+const successResponse = { jsonrpc, result: unknown, id } as const
 const errorResponse   = { jsonrpc, error, id } as const
 const response = or(successResponse, errorResponse)
 
@@ -136,22 +136,26 @@ constructors, proofs covering valid/invalid envelopes and each error code.
 - **Module location.** `fs/json/rpc/module.f.ts` (JSON-RPC is a JSON dialect).
 - **Batch support.** Deferred — MCP doesn't need it, and rtti's open structs make
   it cheap to add later.
-- **JSON value type.** The shipped module uses rtti `unknown` for `params` /
-  `result` / `data` as an **interim**. The correct type is `jsonValue`
-  ([i665-rtti-json-value](./665-rtti-json-value.md)), which rejects non-JSON
-  `bigint`/`undefined` and — because it excludes `undefined` — makes a field
-  required-when-present. Switch to it once that issue lands.
+- **JSON value type.** The shipped module uses rtti core's `unknown` for `params` /
+  `result` / `data` as an **interim**. The correct type is the JSON `unknown` from
+  `fs/json/rtti` ([i665-rtti-json-value](./665-rtti-json-value.md)) — mirroring
+  `fs/json`'s `Unknown` — which rejects non-JSON `bigint`/`undefined`. Note the
+  switch is not a pure rename: rtti core's `unknown` admits `undefined` (so the
+  field was implicitly optional), whereas the JSON `unknown` does not, so
+  optionality becomes explicit — `option(unknown)` for `params`/`data`,
+  bare `unknown` for the required `result`.
 - **Response schema.** `Response` ships as a **TypeScript type**, not a runtime
-  rtti schema, because with `result: unknown` the field is optional (so "result
-  present" is unenforceable) and rtti structs are open (so "result XOR error" is
-  not enforceable either). Adopting `jsonValue` removes the first limitation —
-  `result: jsonValue` is required — which makes a runtime `response` schema
-  feasible (the open-struct "never both" caveat remains, acceptable in practice).
-  Runtime response decoding is a client-side follow-up. See the `Response` JSDoc.
+  rtti schema, because with rtti core's `result: unknown` the field is optional
+  (so "result present" is unenforceable) and rtti structs are open (so "result
+  XOR error" is not enforceable either). The JSON `unknown` removes the first
+  limitation — `result: unknown` is required — which makes a runtime `response`
+  schema feasible (the open-struct "never both" caveat remains, acceptable in
+  practice). Runtime response decoding is a client-side follow-up. See the
+  `Response` JSDoc.
 
 ## Related
 
-- [i665-rtti-json-value](./665-rtti-json-value.md) — `jsonValue`, the JSON `unknown` that should replace rtti `unknown` for `params`/`result`/`data`
+- [i665-rtti-json-value](./665-rtti-json-value.md) — the JSON `unknown` (mirroring `fs/json` `Unknown`) that should replace rtti core's `unknown` for `params`/`result`/`data`
 - `fs/types/rtti/module.f.ts` — schema combinators; `validate` / `parse` decoders
 - `fs/json/module.f.ts` — JSON `parse` / `stringify` for the wire bodies
 - `fs/effects/node/module.f.ts` — `createServer` / `listen` (HTTP transport), stdin / `write` (stdio transport) for the follow-up

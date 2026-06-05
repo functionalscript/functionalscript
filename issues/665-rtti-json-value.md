@@ -29,59 +29,77 @@ ability.
 
 ## Proposal
 
-Define a small set of rtti schemas for JSON values — the JSON analog of rtti's
-`unknown` — proposed home `fs/json/rtti/module.f.ts`:
+`fs/json` already names the JSON value type `Unknown`
+(`Primitive | Object | Array`, where `Primitive = boolean | string | number | null`
+— no `bigint`/`undefined`). Provide the **rtti schema** that mirrors it, reusing
+that name: a JSON `unknown`, exactly parallel to how rtti core's `unknown` schema
+corresponds to djs `Unknown`.
+
+Home: a new **`fs/types/rtti/json/module.f.ts`** — a `json` sub-module of rtti.
+Keep these JSON-specific schemas out of rtti core (`fs/types/rtti/module.f.ts`),
+which stays value-system-agnostic:
 
 ```ts
-import { boolean, number, string, or, array, record } from '../../types/rtti/module.f.ts'
+import { boolean, number, string, or, array, record } from '../module.f.ts'
 
-const jsonPrimitive = or(boolean, number, string, null)   // no bigint / undefined
+const primitive = or(boolean, number, string, null)   // mirrors fs/json `Primitive`
 
-// recursive: a JSON value is a primitive, array of values, or object of values
-const jsonValue = () =>
-    ['or', boolean, number, string, null, array(jsonValue), record(jsonValue)] as const
-
-const jsonArray  = array(jsonValue)
-const jsonObject = record(jsonValue)
+// recursive: a JSON value is a primitive, an array of values, or an object of values
+export const unknown = () =>
+    ['or', boolean, number, string, null, array(unknown), record(unknown)] as const
 ```
 
 (rtti already supports recursive schemas via self-referencing thunks — see the
 `_SelfArrayType` precedent in `fs/types/rtti/ts/`.)
 
-The key invariant, to be asserted with a type test:
+The key invariant, to be asserted with a type test — the rtti `unknown` recovers
+the `fs/json` `Unknown` type exactly:
 
 ```ts
-type _ = Assert<Equal<Ts<typeof jsonValue>, json.Unknown>>   // fs/json Unknown, no bigint/undefined
+type _ = Assert<Equal<Ts<typeof unknown>, Unknown>>   // fs/json Unknown, no bigint/undefined
 ```
 
-So `jsonValue` is "any JSON value," and — unlike `unknown` — a struct field typed
-`jsonValue` is **required when present** (it does not silently admit `undefined`).
+So `fs/types/rtti/json`'s `unknown` is "any JSON value," and — unlike rtti core's
+`unknown` — a struct field typed with it is **required when present** (it does
+not silently admit `undefined`).
+
+The `Ts<>` invariant pulls the `Unknown` type from `fs/json`
+(`import type { Unknown } from '../../../json/module.f.ts'`).
 
 ## Consumers / why now
 
-- **i665-json-rpc** — replace `unknown` with `jsonValue` for `params`, `result`,
-  `data`. Stops accepting non-JSON `bigint`/`undefined`, and lets the `response`
-  envelope become a real rtti schema again (`result: jsonValue` is required), so
-  runtime response decoding (deferred there) becomes feasible.
-- **i665-mcp** — MCP payloads are JSON; tool arguments and results should be
-  `jsonValue`, not djs `unknown`.
-- **i665-rtti-json-schema** — `toJsonSchema` over `jsonValue` is the natural
+- **i665-json-rpc** — import `unknown` from `fs/types/rtti/json` instead of rtti
+  core for `params`, `result`, `data`. Stops accepting non-JSON `bigint`/`undefined`,
+  and lets the `response` envelope become a real rtti schema again (`result: unknown`
+  is now required), so runtime response decoding (deferred there) becomes feasible.
+  Note: with the JSON `unknown`, optionality must be made explicit again —
+  `params: option(unknown)` for an optional field vs `result: unknown` for a
+  required one (the djs-`unknown` shortcut where the field was implicitly optional
+  no longer applies).
+- **i665-mcp** — MCP payloads are JSON; tool arguments and results use the JSON
+  `unknown`, not djs `unknown`.
+- **i665-rtti-json-schema** — `toJsonSchema` over the JSON `unknown` is the natural
   "any JSON" schema (`{}`), and the JSON-only domain simplifies the printer's
   `bigint` question.
 
+## Decisions
+
+- **Module location.** `fs/types/rtti/json/module.f.ts` — a `json` sub-module of
+  rtti. JSON-specific schemas stay **out** of rtti core (`fs/types/rtti/module.f.ts`),
+  which remains value-system-agnostic; rtti gains a JSON tier as a sibling module,
+  not by mixing JSON types into core.
+- **Naming.** Reuse `unknown` (matching `fs/json`'s `Unknown` type and rtti core's
+  `unknown` schema) rather than inventing `jsonValue`. Because it lives in its own
+  module, a consumer picks the JSON one via `import { unknown } from
+  '.../rtti/json/module.f.ts'`; a module needing both tiers aliases one. Add
+  `primitive` if a bare-primitive schema is useful.
+
 ## Open questions
 
-- **Module location.** `fs/json/rtti/` (JSON-flavored rtti, under `json`) vs
-  `fs/types/rtti/json/` (under `rtti`). These schemas depend on rtti combinators
-  but describe `fs/json` values — leaning `fs/json/rtti/`.
-- **Naming.** `jsonValue` for the union (the "JSON `unknown`"), plus
-  `jsonPrimitive` / `jsonArray` / `jsonObject`. Avoid shadowing rtti's `unknown`.
-- **Recursion cost.** Confirm `Ts<typeof jsonValue>` resolves (no infinite
-  instantiation) and that `validate(jsonValue)` terminates on cyclic-free input —
+- **Recursion cost.** Confirm `Ts<typeof unknown>` resolves (no infinite
+  instantiation) and that `validate(unknown)` terminates on cyclic-free input —
   rtti instantiates container item validators lazily, so this should hold; verify
   with proofs.
-- **Should rtti itself ship a JSON tier?** Keep JSON-specific schemas in
-  `fs/json` (they describe JSON), with rtti staying value-system-agnostic.
 
 ## Related
 
