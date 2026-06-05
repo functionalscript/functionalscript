@@ -1,4 +1,4 @@
-# 665-proof-property-tests. Property tests: non-zero-arg proof functions receive random inputs
+# 665-proof-property-tests. Seed-derived inputs for non-zero-arg proof functions
 
 **Priority:** P3
 **Status:** open
@@ -9,31 +9,28 @@ The proof framework currently treats a function with parameters (`f.length > 0`)
 as **not a test case** — it is silently skipped. Functions that declare parameters
 are ignored and never called (see `fs/emergent_testing/README.md`).
 
-This leaves an obvious capability gap: universally-quantified assertions ("this
-function should succeed for any valid input") have no place in the proof tree
-today.
-
 ## Proposal
 
-Treat non-zero-argument proof functions as **property tests**: the test runner
-calls the function with a signed 32-bit integer (`a | 0`) for each parameter,
-derived from the seed and the test's full name. The function must succeed for the
-value it receives.
+The test runner calls non-zero-argument proof functions with a **signed 32-bit
+integer (`a | 0`) per parameter**, derived deterministically from the seed and
+the test's full name. That is the runner's entire contribution — it provides
+inputs, nothing more.
 
 ```ts
 export const proof = {
-    // zero-arg: regular test case (current behaviour)
+    // zero-arg: regular test case (unchanged)
     add: () => { if (1 + 1 !== 2) throw '1 + 1 !== 2' },
 
-    // non-zero-arg: property test — called with a signed 32-bit integer per parameter
+    // non-zero-arg: called with one signed int32 per parameter
     commutativity: (a: number, b: number) => {
         if (a + b !== b + a) throw [a, b]
     },
 }
 ```
 
-A failure (throw) is always a bug. The property is quantified over the signed
-32-bit integer domain — the runner only generates values of that kind.
+Property-based testing (universally-quantified assertions, shrinking, structured
+generators) is not a runner concern — users build that on top using plain helper
+libraries, the same way they use `assertEq` today.
 
 ### Seed-based reproducibility
 
@@ -167,14 +164,13 @@ the process. The seed test always passes (its body is a no-op).
 ## Integration with the existing proof tree
 
 - The sub-tree walk and `throw`-key semantics apply as today.
-- A property test under a `throw` key is expected to throw for **all** inputs —
-  the same inversion applies. This is unusual in practice but consistent.
-- Return-value sub-trees: if the property function returns an object or function
-  after being called with all its arguments, the return value is walked as a
-  sub-tree (same as zero-arg tests today). This allows data-driven property tests
-  that also generate further sub-tests.
-- For Bun/Playwright inline runners, each property test still registers as a
-  single named entry (with `...` suffix) and runs all `N` samples inline.
+- A non-zero-arg function under a `throw` key is expected to throw for the input
+  it receives — the same inversion applies. Unusual in practice but consistent.
+- Return-value sub-trees: if the function returns an object or function after
+  being called, the return value is walked as a sub-tree (same as zero-arg tests
+  today). This is how users build multi-value or data-driven tests from a seed.
+- For Bun/Playwright inline runners, each non-zero-arg function registers as a
+  single named entry and is called once with its derived inputs.
 
 ## Open questions
 
