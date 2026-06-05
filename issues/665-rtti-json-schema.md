@@ -20,12 +20,14 @@ needs the shape we already describe in rtti.
 Add a sibling module `fs/types/rtti/json_schema/module.f.ts` with:
 
 ```ts
-export const toJsonSchema: (rtti: Type) => json.Unknown
+export const toJsonSchema: (rtti: Type) => JsonSchema
 ```
 
 It mirrors the visitor structure of `fs/types/rtti/ts/` (`const` / `array` /
-`record` / `or` / tag0), but emits a JSON object (`fs/json` `Unknown`) instead of
-a string. Target **JSON Schema draft 2020-12** (MCP's dialect).
+`record` / `or` / tag0), but emits a JSON Schema object instead of a string.
+Target **JSON Schema draft 2020-12** (MCP's dialect). The return type `JsonSchema`
+comes from [i665-json-schema-type](./665-json-schema-type.md); until that lands it
+can be the untyped `json.Unknown`.
 
 ### Mapping (rtti → JSON Schema)
 
@@ -74,6 +76,7 @@ a string. Target **JSON Schema draft 2020-12** (MCP's dialect).
 ## Related
 
 - [i665-mcp](./665-mcp.md) — the consumer (tool `inputSchema`)
+- [i665-json-schema-type](./665-json-schema-type.md) — the `JsonSchema` type this printer returns
 - [i665-json-rpc](./665-json-rpc.md) — sibling layer
 - `fs/types/rtti/ts/module.f.ts` — the precedent printer (`toTs` / `Ts<>`)
 - `fs/types/rtti/module.f.ts` — schema combinators · `fs/json/module.f.ts` — output value type

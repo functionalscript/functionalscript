@@ -50,6 +50,7 @@
     "./fs/js/tokenizer/module.f.ts": "./fs/js/tokenizer/module.f.ts",
     "./fs/json/module.f.ts": "./fs/json/module.f.ts",
     "./fs/json/parser/module.f.ts": "./fs/json/parser/module.f.ts",
+    "./fs/json/rpc/module.f.ts": "./fs/json/rpc/module.f.ts",
     "./fs/json/serializer/module.f.ts": "./fs/json/serializer/module.f.ts",
     "./fs/json/tokenizer/module.f.ts": "./fs/json/tokenizer/module.f.ts",
     "./fs/path/module.f.ts": "./fs/path/module.f.ts",

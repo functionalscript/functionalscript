@@ -8,10 +8,36 @@
  * type expression string for a given RTTI schema.
  */
 import { type Equal, primitive, union, printer as tsPrinter } from '../../ts/module.f.ts'
-import type { Unknown as DjsUnknown } from '../../../djs/module.f.ts'
-import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type } from '../module.f.ts'
+import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../module.f.ts'
 import type { ReadonlyRecord } from '../../object/module.f.ts'
 import type { Assert } from '../../../asserts/module.f.ts'
+
+/**
+ * The set of primitive literal types representable as rtti `Const` values.
+ * Defined here rather than imported from `djs` to keep rtti free of djs dependencies
+ * (djs depends on rtti, not the other way around — see [i665-rtti-defines-types]).
+ */
+export type Primitive = null | boolean | number | string | undefined | bigint
+
+type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
+
+/**
+ * The TypeScript type that rtti's `unknown` schema validates — any value that
+ * an rtti schema can represent: a primitive, an array, or an object.
+ *
+ * Currently equivalent to `djs.Unknown`, but defined here to keep `rtti` free
+ * of `djs` dependencies. May be extended to include functions or other
+ * non-JSON-primitives in the future.
+ */
+export type Unknown = Primitive | Array | Object
+
+/** A read-only array of {@link Unknown} values. */
+export type Array = readonly Unknown[]
+
+/** A read-only record of {@link Unknown} values. */
+export type Object = {
+    readonly [k in string]: Unknown
+}
 
 /** Maps a `Tag0` to its TypeScript type. */
 export type Info0Ts<T extends Tag0> =
@@ -19,7 +45,7 @@ export type Info0Ts<T extends Tag0> =
     T extends 'number' ? number :
     T extends 'string' ? string :
     T extends 'bigint' ? bigint :
-    T extends 'unknown' ? DjsUnknown :
+    T extends 'unknown' ? Unknown :
     never
 
 /** Maps a `Const` schema to its TypeScript type. */
@@ -72,6 +98,10 @@ export type StructTs<T extends Struct> =
  * ```
  */
 export type Ts<T extends Type> =
+    // Fast-path: when T is `any` (unknown extends any), short-circuit to Unknown
+    // to prevent distributive conditional types from expanding across all branches
+    // and hitting TS2589 (type instantiation excessively deep).
+    unknown extends T ? Unknown :
     T extends () => infer I ? (
         I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0
@@ -79,7 +109,7 @@ export type Ts<T extends Type> =
         I extends readonly['number'] ? number :
         I extends readonly['string'] ? string :
         I extends readonly['bigint'] ? bigint :
-        I extends readonly['unknown'] ? DjsUnknown :
+        I extends readonly['unknown'] ? Unknown :
         // Info1
         I extends readonly['array', infer E extends Type] ? readonly Ts<E>[] :
         I extends readonly['record', infer E extends Type] ? { readonly[K in string]: Ts<E> } :
@@ -142,6 +172,9 @@ export const printer = (mut?: true): (rtti: Type) => string => {
     return toTs
 }
 
+// Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
+type _any = Assert<Equal<Ts<any>, Unknown>>
+
 type _null = Assert<Equal<Ts<null>, null>>
 type _undefined = Assert<Equal<Ts<undefined>, undefined>>
 
@@ -167,7 +200,7 @@ type _number = Assert<Equal<Ts<() => readonly['number']>, number>>
 type _string = Assert<Equal<Ts<() => readonly['string']>, string>>
 type _bigint = Assert<Equal<Ts<() => readonly['bigint']>, bigint>>
 
-type _unknown = Assert<Equal<Ts<() => readonly['unknown']>, DjsUnknown>>
+type _unknown = Assert<Equal<Ts<() => readonly['unknown']>, Unknown>>
 
 type _array = Assert<Equal<Ts<
     () => readonly['array', 12]>,

@@ -1,7 +1,7 @@
 # 664-sha2-sigma-factory. `crypto/sha2`: collapse the `bigSigma`/`smallSigma` rotation mirror
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 

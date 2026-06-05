@@ -1,7 +1,7 @@
 # 665-json-rpc. JSON-RPC 2.0 layer (rtti-validated)
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Motivation
 
@@ -41,47 +41,26 @@ literal value itself, and `or` / `option` / `array` are combinators. Literal and
 struct schemas carry `as const` (see the const-literal rule in [AGENTS.md](../AGENTS.md)):
 
 ```ts
-import { number, string, unknown, or, option, array } from '../../types/rtti/module.f.ts'
+import { number, string, or, option } from '../../types/rtti/module.f.ts'
+import { unknown } from '../rtti/module.f.ts'    // fs/json/rtti — see i665-rtti-json-value
+import type { Unknown } from '../module.f.ts'    // fs/json Unknown type
 
-const jsonrpc = '2.0' as const   // must equal "2.0"
+const jsonrpc = '2.0' as const
 
-const method = string
-
-// id: string | number | null  (absent for notifications)
-// `null` is a valid rtti const (see rtti `Const`), so it composes directly:
 const id = or(string, number, null)
 
-// params: structured value, optional
-const params = option(unknown)   // refine to or(record(unknown), array(unknown)) if desired
-
-const request = {
+export const request = {
     jsonrpc,
-    method,
-    params,
-    id,
+    method: string,
+    params: option(unknown),   // optional JSON value
+    id: option(id),
 } as const
 
-const notification = {
-    jsonrpc,
-    method,
-    params,
-} as const                        // a request with no `id`
-
-// the JSON-RPC "Error object" — named `error` for wire fidelity; if this module
-// also needs Result's constructor, import it aliased: `import { error as resultError }`
-const error = {
-    code: number,                 // integer
+export const error = {
+    code: number,
     message: string,
     data: option(unknown),
 } as const
-
-const successResponse = { jsonrpc, result: unknown, id } as const
-const errorResponse   = { jsonrpc, error, id } as const
-const response = or(successResponse, errorResponse)  // result XOR error
-
-// batch: a non-empty array of requests / responses
-const requestBatch  = array(or(request, notification))
-const responseBatch = array(response)
 ```
 
 `validate(request)(value)` / `parse(request)(value)` then decode untrusted input;
@@ -101,11 +80,11 @@ const responseBatch = array(response)
 ### Dispatcher (sketch)
 
 ```ts
-type Handler = (params: unknown) => Result<unknown, RpcError>
+type Handler = (params: Unknown | undefined) => Result<Unknown, RpcError>
 type Handlers = { readonly [method: string]: Handler }
 
-// pure: request value -> response value (or null for a notification)
-const dispatch = (handlers: Handlers) => (req: Request): Response | null => { ... }
+// pure: value -> response (or null for a notification)
+export const dispatch = (handlers: Handlers) => (value: Unknown): Response | null => { ... }
 ```
 
 - A notification (no `id`) never produces a response (return `null`).
@@ -124,19 +103,27 @@ constructors, proofs covering valid/invalid envelopes and each error code.
 - the MCP method set (`initialize`, `tools/*`, `resources/*`, `prompts/*`) and
   capability negotiation, built on this dispatcher
 
-## Open questions
+## Decisions (resolved on implementation)
 
-- **`id` representation.** JSON-RPC ids may be string, number, or null; large
-  integer ids exceed JS `number` precision. Do we keep `number` (JSON's native
-  number) or also accept a `bigint`-carrying form? JSON parsing in `fs/json`
-  already decides number handling — align with it.
-- **Module location.** `fs/json/rpc/` vs a top-level `fs/rpc/`. MCP would be
-  `fs/mcp/` either way.
-- **Batch support.** MCP does not require JSON-RPC batches — include them now for
-  spec completeness, or defer until needed?
+- **`id` representation.** Kept JSON's native `number` — `id = or(string, number, null)`.
+  No `bigint` form; that would diverge from `fs/json`'s number handling and MCP
+  ids are small.
+- **Module location.** `fs/json/rpc/module.f.ts` (JSON-RPC is a JSON dialect).
+- **Batch support.** Deferred — MCP doesn't need it, and rtti's open structs make
+  it cheap to add later.
+- **JSON value type.** `params`, `result`, and `data` use `unknown` from
+  `fs/json/rtti` ([i665-rtti-json-value](./665-rtti-json-value.md)) — the JSON
+  `unknown` mirroring `fs/json`'s `Unknown` (no `bigint`/`undefined`). Optionality
+  is explicit: `option(unknown)` for `params`/`data`; `result: unknown` is required
+  (the JSON `unknown` excludes `undefined`, so a field typed with it is required).
+- **Response schema.** `Response` is a **TypeScript type**, not a runtime rtti
+  schema: rtti structs are open (extra keys allowed), so "result XOR error" is not
+  enforceable. Runtime response decoding is a client-side follow-up. See the
+  `Response` JSDoc.
 
 ## Related
 
+- [i665-rtti-json-value](./665-rtti-json-value.md) — `fs/json/rtti/module.f.ts`, the JSON rtti tier providing the `unknown` schema used here
 - `fs/types/rtti/module.f.ts` — schema combinators; `validate` / `parse` decoders
 - `fs/json/module.f.ts` — JSON `parse` / `stringify` for the wire bodies
 - `fs/effects/node/module.f.ts` — `createServer` / `listen` (HTTP transport), stdin / `write` (stdio transport) for the follow-up
