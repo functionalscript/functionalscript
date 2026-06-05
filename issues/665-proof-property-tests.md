@@ -127,6 +127,29 @@ import("./fs/math/proof.f.ts").proof.commutativity(3879392, 39002): error, 0.12 
 
 Running with `--seed 42` reproduces the exact failure.
 
+### Reproducing a specific failed test
+
+Running with `--seed 42` re-runs **the entire suite** with the same inputs. When
+only one test failed, re-running everything is wasteful. A lighter option: pass
+the **complete path including parameter values** as they appear in the failure
+output, and let the runner call that function with those exact values directly —
+bypassing the hash formula entirely.
+
+For `fjs t` this could be a positional argument or a `--filter` flag accepting
+the full test path string (parameters included).
+
+For framework adapters (Node `--test`, Bun, Playwright), where the runner
+controls test registration, an environment variable provides the same escape
+hatch:
+
+```
+FJS_TEST_ARGS='import("./fs/math/proof.f.ts").proof.commutativity(3879392, 39002)'
+```
+
+The adapter parses the path and arguments from the string and calls the
+function directly with those literal values, skipping seed-derived generation.
+This is one option; the exact interface is an open question.
+
 ### Shrinking (future)
 
 Shrinking (finding the minimal failing input) is explicitly out of scope for the
@@ -139,7 +162,7 @@ For `fjs t`, the seed is printed to stdout as a plain line before any test outpu
 
 For external runners (Node `--test`, Bun, Playwright), we have no control over
 what is printed before the runner starts. Instead, **register a synthetic
-always-passing test named `seed: 42`** as the very first test:
+always-passing test named `seed: ${seed}`** as the very first test:
 
 ```
 ✔ seed: 42 (0.00ms)
@@ -176,9 +199,10 @@ the process. The seed test always passes (its body is a no-op).
   visible before any test output needs care.
 - **`f.length > 0` detection.** Today `f.length === 0` is the gate for "is a
   test case." Changing to "is a property test" for `f.length > 0` is backward-
-  compatible (skipped → now runs). But curried functions report `f.length === 1`
-  regardless of how many layers there are; the runner must unwrap layers
-  dynamically.
+  compatible (skipped → now runs). Curried functions (`f.length === 1` regardless
+  of depth) need no special handling: the runner calls `f` with one int32, and if
+  the return value is another function it is walked as a sub-tree — the existing
+  return-value mechanism covers it naturally.
 
 ## Related
 
