@@ -98,6 +98,10 @@ export type StructTs<T extends Struct> =
  * ```
  */
 export type Ts<T extends Type> =
+    // Fast-path: when T is `any` (unknown extends any), short-circuit to Unknown
+    // to prevent distributive conditional types from expanding across all branches
+    // and hitting TS2589 (type instantiation excessively deep).
+    unknown extends T ? Unknown :
     T extends () => infer I ? (
         I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0
@@ -167,6 +171,9 @@ export const printer = (mut?: true): (rtti: Type) => string => {
 
     return toTs
 }
+
+// Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
+type _any = Assert<Equal<Ts<any>, Unknown>>
 
 type _null = Assert<Equal<Ts<null>, null>>
 type _undefined = Assert<Equal<Ts<undefined>, undefined>>
