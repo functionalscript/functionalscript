@@ -30,7 +30,7 @@ const id = or(string, number, null)
 export const request = {
     jsonrpc,
     method: string,
-    params: option(unknown),
+    params: unknown,
     id: option(id),
 } as const
 
@@ -38,7 +38,7 @@ export const request = {
 export const error = {
     code: number,
     message: string,
-    data: option(unknown),
+    data: unknown,
 } as const
 
 export type Id = Ts<typeof id>

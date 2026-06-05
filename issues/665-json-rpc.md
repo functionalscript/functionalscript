@@ -41,7 +41,8 @@ literal value itself, and `or` / `option` / `array` are combinators. Literal and
 struct schemas carry `as const` (see the const-literal rule in [AGENTS.md](../AGENTS.md)):
 
 ```ts
-import { number, string, unknown, or, option, array } from '../../types/rtti/module.f.ts'
+import { number, string, or, option, array } from '../../types/rtti/module.f.ts'
+import { jsonValue } from '../rtti/module.f.ts'   // any JSON value — see i665-rtti-json-value
 
 const jsonrpc = '2.0' as const   // must equal "2.0"
 
@@ -51,8 +52,9 @@ const method = string
 // `null` is a valid rtti const (see rtti `Const`), so it composes directly:
 const id = or(string, number, null)
 
-// params: structured value, optional
-const params = option(unknown)   // refine to or(record(unknown), array(unknown)) if desired
+// params: any JSON value, optional. Use `jsonValue` (not rtti `unknown`) so
+// non-JSON bigint/undefined are rejected — see i665-rtti-json-value.
+const params = option(jsonValue)
 
 const request = {
     jsonrpc,
@@ -72,12 +74,14 @@ const notification = {
 const error = {
     code: number,                 // integer
     message: string,
-    data: option(unknown),
+    data: option(jsonValue),
 } as const
 
-const successResponse = { jsonrpc, result: unknown, id } as const
+// `result: jsonValue` is required-when-present (jsonValue excludes undefined), so
+// unlike `result: unknown` the success response actually requires a result.
+const successResponse = { jsonrpc, result: jsonValue, id } as const
 const errorResponse   = { jsonrpc, error, id } as const
-const response = or(successResponse, errorResponse)  // result XOR error
+const response = or(successResponse, errorResponse)
 
 // batch: a non-empty array of requests / responses
 const requestBatch  = array(or(request, notification))
@@ -132,14 +136,22 @@ constructors, proofs covering valid/invalid envelopes and each error code.
 - **Module location.** `fs/json/rpc/module.f.ts` (JSON-RPC is a JSON dialect).
 - **Batch support.** Deferred — MCP doesn't need it, and rtti's open structs make
   it cheap to add later.
-- **Response schema.** `Response` is a **TypeScript type**, not a runtime rtti
-  schema: the server only *constructs* responses, and rtti can express neither
-  "result XOR error" (open structs allow both) nor "result present" (an
-  `unknown`-typed field is optional). Runtime response decoding (a client
-  concern) is a follow-up. See the `Response` JSDoc in the module.
+- **JSON value type.** The shipped module uses rtti `unknown` for `params` /
+  `result` / `data` as an **interim**. The correct type is `jsonValue`
+  ([i665-rtti-json-value](./665-rtti-json-value.md)), which rejects non-JSON
+  `bigint`/`undefined` and — because it excludes `undefined` — makes a field
+  required-when-present. Switch to it once that issue lands.
+- **Response schema.** `Response` ships as a **TypeScript type**, not a runtime
+  rtti schema, because with `result: unknown` the field is optional (so "result
+  present" is unenforceable) and rtti structs are open (so "result XOR error" is
+  not enforceable either). Adopting `jsonValue` removes the first limitation —
+  `result: jsonValue` is required — which makes a runtime `response` schema
+  feasible (the open-struct "never both" caveat remains, acceptable in practice).
+  Runtime response decoding is a client-side follow-up. See the `Response` JSDoc.
 
 ## Related
 
+- [i665-rtti-json-value](./665-rtti-json-value.md) — `jsonValue`, the JSON `unknown` that should replace rtti `unknown` for `params`/`result`/`data`
 - `fs/types/rtti/module.f.ts` — schema combinators; `validate` / `parse` decoders
 - `fs/json/module.f.ts` — JSON `parse` / `stringify` for the wire bodies
 - `fs/effects/node/module.f.ts` — `createServer` / `listen` (HTTP transport), stdin / `write` (stdio transport) for the follow-up
