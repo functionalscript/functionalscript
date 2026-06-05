@@ -8,27 +8,28 @@
  */
 import { type Const, type Type as RttiType, array, option, or, record, string } from '../../types/rtti/module.f.ts'
 import type { Ts, WithOut } from '../../types/rtti/ts/module.f.ts'
-import { type Unknown as JsonUnknown, unknown as jsonUnknown } from '../module.f.ts'
-
-export const type = or('boolean', 'number', 'string', 'integer', 'array', 'object')
-
-type Type = Ts<typeof type>
+import { unknown as jsonUnknown } from '../module.f.ts'
 
 /** Hand-written base type used as the `$out` annotation on `unknown`. */
-interface _Unknown {
-    readonly type?: Type
-    readonly const?: JsonUnknown
-    readonly not?: Unknown
-    readonly anyOf?: readonly Unknown[]
-    readonly items?: Unknown | false
-    readonly prefixItems?: readonly Unknown[]
-    readonly properties?: { readonly [k: string]: Unknown }
-    readonly required?: readonly string[]
-    readonly additionalProperties?: Unknown
+type _Unknown = {
+    readonly type?: Ts<typeof unknownConst.type>
+    readonly const?: Ts<typeof unknownConst.const>
+    readonly not?: Ts<typeof unknownConst.not>
+    readonly anyOf?: Ts<typeof unknownConst.anyOf>
+    readonly items?: Ts<typeof unknownConst.items>
+    readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
+    readonly properties?: Ts<typeof unknownConst.properties>
+    readonly required?: Ts<typeof unknownConst.required>
+    readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
 }
 
-const _unknown = () => ['const', {
-    type: option(type),
+const unknownThunk = () => ['const', unknownConst] as const
+
+/** rtti schema for a JSON Schema (draft 2020-12) document. */
+export const unknown: WithOut<typeof unknownThunk, _Unknown> = unknownThunk
+
+const unknownConst = {
+    type: or('boolean', 'number', 'string', 'integer', 'array', 'object', undefined),
     const: option(jsonUnknown),
     not: option(unknown),
     anyOf: option(array(unknown)),
@@ -37,10 +38,7 @@ const _unknown = () => ['const', {
     properties: option(record(unknown)),
     required: option(array(string)),
     additionalProperties: option(unknown),
-} as const] as const
-
-/** rtti schema for a JSON Schema (draft 2020-12) document. */
-export const unknown: WithOut<typeof _unknown, _Unknown> = _unknown
+} as const
 
 /** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
 export type Unknown = Ts<typeof unknown>
