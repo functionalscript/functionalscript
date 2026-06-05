@@ -74,7 +74,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         return (n: bigint) => n >> d | n << r
     }
 
-    const sigma: (third: Reduce) => ([a, b, c]: V3) => (x: bigint) => bigint =
+    const sigma: (third: Reduce) => (_: V3) => (x: bigint) => bigint =
         third => ([a, b, c]: V3) => {
             const ra = rotr(a)
             const rb = rotr(b)
