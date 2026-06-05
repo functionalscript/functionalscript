@@ -104,7 +104,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
     const wi = (a0: bigint, a1: bigint, a2: bigint, a3: bigint) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 
-    const nextW = ([w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]: V16): V16 => {
+    const nextW: (...w: V16) => V16
+    = (w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF) => {
         w0 = wi(wE, w9, w1, w0)
         w1 = wi(wF, wA, w2, w1)
         w2 = wi(w0, wB, w3, w2)
@@ -126,9 +127,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const kLength = k.length
 
-    const compressV16 = ([a0, b0, c0, d0, e0, f0, g0, h0]: V8) => (data: V16): V8 => {
-        let w = data
-
+    const compressV16: (..._: V8) => (_: V16) => V8 =
+    (a0, b0, c0, d0, e0, f0, g0, h0) => w => {
         let a = a0
         let b = b0
         let c = c0
@@ -155,7 +155,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
             }
             ++i
             if (i === kLength) { break }
-            w = nextW(w)
+            w = nextW(...w)
         }
 
         return [
@@ -175,7 +175,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
 
     const compress = (i: V8) => (u: bigint) => {
         const a = at(u)
-        return compressV16(i)([
+        return compressV16(...i)([
             a(15n),
             a(14n),
             a(13n),
