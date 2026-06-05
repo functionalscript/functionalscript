@@ -74,22 +74,22 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }: BaseInit): Base => {
         return (n: bigint) => n >> d | n << r
     }
 
-    const bigSigma = ([a, b, c]: V3) => {
-        const ra = rotr(a)
-        const rb = rotr(b)
-        const rc = rotr(c)
-        return (x: bigint) => ra(x) ^ rb(x) ^ rc(x)
-    }
+    const sigma =
+        (third: (c: bigint) => (x: bigint) => bigint) =>
+        ([a, b, c]: V3) => {
+            const ra = rotr(a)
+            const rb = rotr(b)
+            const rc = third(c)
+            return (x: bigint) => ra(x) ^ rb(x) ^ rc(x)
+        }
+
+    const bigSigma = sigma(rotr)
+
+    const smallSigma = sigma(c => x => x >> c)
 
     const bigSigma0 = bigSigma(bs0)
 
     const bigSigma1 = bigSigma(bs1)
-
-    const smallSigma = ([a, b, c]: V3) => {
-        const ra = rotr(a)
-        const rb = rotr(b)
-        return (x: bigint) => ra(x) ^ rb(x) ^ (x >> c)
-    }
 
     const smallSigma0 = smallSigma(ss0)
 
