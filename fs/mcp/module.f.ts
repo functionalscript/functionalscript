@@ -13,11 +13,11 @@
  *
  * @module
  */
-import { boolean, string, option, array, record } from '../../types/rtti/module.f.ts'
-import { unknown, type Unknown } from '../module.f.ts'
-import type { Ts } from '../../types/rtti/ts/module.f.ts'
-import type { Operation, Effect } from '../../effects/module.f.ts'
-import type { Response } from '../rpc/module.f.ts'
+import { boolean, string, option, array, record } from '../types/rtti/module.f.ts'
+import { unknown, type Unknown } from '../json/module.f.ts'
+import type { Ts } from '../types/rtti/ts/module.f.ts'
+import type { Operation, Effect } from '../effects/module.f.ts'
+import type { Response } from '../json/rpc/module.f.ts'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
