@@ -1,5 +1,13 @@
+/**
+ * Plain-object helpers and types: `Map<T>`/`Entry<T>` shapes, safe property
+ * lookup via `at`, conversions between entries and `OrderedMap`, and the
+ * `OneKey`/`SingleProperty`/`NotUnion` utility types.
+ *
+ * @module
+ */
 import { isArray } from '../array/module.f.ts'
 import { iterable, type List } from '../list/module.f.ts'
+import { fromUndefined, map } from '../nullable/module.f.ts'
 import { entries as mapEntries, fromEntries as mapFromEntries, type OrderedMap } from '../ordered_map/module.f.ts'
 
 const { getOwnPropertyDescriptor, fromEntries: objectFromEntries } = Object
@@ -11,10 +19,8 @@ export type Map<T> = {
 export type Entry<T> = readonly[string, T]
 
 export const at: (name: string) => <T>(object: Map<T>) => T|null
-    = name => object => {
-        const r = getOwnPropertyDescriptor(object, name)
-        return r === undefined ? null : r.value
-    }
+    = name => object =>
+        map(<T>(d: TypedPropertyDescriptor<T>) => d.value)(fromUndefined(getOwnPropertyDescriptor(object, name)))
 
 export const sort: <T>(e: List<Entry<T>>) => List<Entry<T>>
     = e => mapEntries(mapFromEntries(e))

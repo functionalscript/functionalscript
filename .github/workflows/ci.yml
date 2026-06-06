@@ -11,7 +11,7 @@
           "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
         },
         {
-          "uses": "dtolnay/rust-toolchain@1.95.0",
+          "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-unknown-linux-gnu"
@@ -20,7 +20,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -32,16 +32,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -51,7 +51,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "cargo fmt -- --check"
@@ -123,7 +123,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -162,7 +162,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -185,7 +185,7 @@
       "runs-on": "ubuntu-24.04-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.95.0",
+          "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -194,7 +194,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -206,16 +206,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -225,7 +225,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "cargo fmt -- --check"
@@ -291,7 +291,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -330,7 +330,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -353,7 +353,7 @@
       "runs-on": "macos-26-intel",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.95.0",
+          "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -362,7 +362,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -374,16 +374,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -393,7 +393,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "cargo fmt -- --check"
@@ -459,7 +459,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -498,7 +498,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -521,7 +521,7 @@
       "runs-on": "macos-26",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.95.0",
+          "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -530,7 +530,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -542,16 +542,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -561,7 +561,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "cargo fmt -- --check"
@@ -627,7 +627,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -666,7 +666,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -689,7 +689,7 @@
       "runs-on": "windows-2025",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.95.0",
+          "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads,i686-pc-windows-msvc"
@@ -698,7 +698,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -710,16 +710,16 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.2"
           }
         },
         {
@@ -729,7 +729,7 @@
           }
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "cargo fmt -- --check"
@@ -801,7 +801,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -840,7 +840,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -863,7 +863,7 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.95.0",
+          "uses": "dtolnay/rust-toolchain@1.96.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown,wasm32-wasip1-threads"
@@ -872,7 +872,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1",
           "with": {
-            "version": "44.0.1"
+            "version": "45.0.0"
           }
         },
         {
@@ -884,23 +884,23 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "26.1.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260515.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
           "with": {
-            "deno-version": "2.7.14"
+            "deno-version": "2.8.2"
           }
         },
         {
           "run": "irm bun.sh/install.ps1 | iex; \"$env:USERPROFILE\\.bun\\bin\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append"
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "cargo fmt -- --check"
@@ -966,7 +966,7 @@
           "run": "npm ci"
         },
         {
-          "run": "npm test"
+          "run": "npm t"
         },
         {
           "run": "npm run fst"
@@ -1005,7 +1005,7 @@
           "run": "deno task fjs t"
         },
         {
-          "run": "deno publish --dry-run"
+          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1024,43 +1024,26 @@
         }
       ]
     },
-    "node22": {
-      "runs-on": "ubuntu-24.04",
-      "steps": [
-        {
-          "uses": "actions/setup-node@v6",
-          "with": {
-            "node-version": "22.22.3"
-          }
-        },
-        {
-          "uses": "actions/checkout@v5"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npm t"
-        }
-      ]
-    },
     "node24": {
       "runs-on": "ubuntu-24.04",
       "steps": [
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0"
+            "node-version": "24.16.0"
           }
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "npm ci"
         },
         {
           "run": "npm t"
+        },
+        {
+          "run": "npm run fst"
         }
       ]
     },
@@ -1070,11 +1053,11 @@
         {
           "uses": "actions/setup-node@v6",
           "with": {
-            "node-version": "24.15.0"
+            "node-version": "26.3.0"
           }
         },
         {
-          "uses": "actions/cache@v4",
+          "uses": "actions/cache@v5",
           "with": {
             "path": "~/.cache/ms-playwright",
             "key": "ubuntu-24.04-playwright-1.60.0"
@@ -1090,7 +1073,7 @@
           "run": "playwright install"
         },
         {
-          "uses": "actions/checkout@v5"
+          "uses": "actions/checkout@v6"
         },
         {
           "run": "npm ci"

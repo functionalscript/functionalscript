@@ -9,7 +9,6 @@
 import { toArray } from '../../types/list/module.f.ts'
 import {
     length,
-    listToVec,
     msb,
     uint,
     uintChunkList,
@@ -17,7 +16,7 @@ import {
     vec,
     type Vec
 } from '../../types/bit_vec/module.f.ts'
-import { assertEq } from '../../dev/module.f.ts'
+import { assertEq } from '../../asserts/module.f.ts'
 import { utf8 } from '../../text/module.f.ts'
 import { secp256r1, type Point2D } from '../../crypto/secp/module.f.ts'
 import { base32, type V8 } from '../../crypto/sha2/module.f.ts'
@@ -126,12 +125,10 @@ const hash2 = base32.compress(iv)
 
 const vecX20 = vec(0x20n)
 
-const ltv = listToVec(msb)
+const { concat, listToVec } = msb
 
 const hashMerge = (a: Id, b: Id): Id =>
-    hashId(uint(ltv(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
-
-const { concat } = msb
+    hashId(uint(listToVec(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
 
 export const compress = (a: Id, b: Id): Id => {
     if (isHash(a) || isHash(b)) {

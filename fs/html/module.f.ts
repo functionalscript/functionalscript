@@ -1,3 +1,9 @@
+/**
+ * HTML serialization helpers: `Element`/`Attributes` builders, void-tag
+ * handling, attribute/text escaping, and a UTF-8 emitter for full documents.
+ *
+ * @module
+ */
 import { map, flatMap, flat, concat as listConcat, type List } from '../types/list/module.f.ts'
 import { concat, concat as stringConcat } from '../types/string/module.f.ts'
 import type { Entry } from '../types/object/module.f.ts'

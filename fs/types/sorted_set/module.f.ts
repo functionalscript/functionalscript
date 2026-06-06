@@ -26,13 +26,11 @@
  * has(cmp)(2)(setA) // false
  * ```
  */
-import type { Sign } from '../function/compare/module.f.ts'
+import type { Cmp } from '../function/compare/module.f.ts'
 import { toArray } from "../list/module.f.ts"
 import { merge, genericMerge, find, type SortedList, type ReduceOp } from '../sorted_list/module.f.ts'
 
 export type SortedSet<T> = readonly T[]
-
-type Cmp<T> = (a: T) => (b: T) => Sign
 
 type Byte = number
 

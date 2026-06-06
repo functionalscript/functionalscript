@@ -1,5 +1,8 @@
 # FS VM load/save
 
+**Priority:** P3
+**Status:** open
+
 sketch / mention future documentation on errors / exceptions and execution scheme in general, for example:
 
 The host environment has well defined operations like 'Load' (takes a "root" module path, optional extra parameters), 'Execute' (takes the successful result of 'Load', optional extra parameters), 'Save' (takes the successful result of 'Load', optional extra parameters).

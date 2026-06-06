@@ -3,7 +3,7 @@
  *
  * @module
  */
-import type { Sign } from '../function/compare/module.f.ts'
+import { type Sign, type Cmp, bsearch } from '../function/compare/module.f.ts'
 import { type List, next } from '../list/module.f.ts'
 import type { Nullable } from '../nullable/module.f.ts'
 import { identity } from '../function/module.f.ts'
@@ -11,8 +11,6 @@ import { identity } from '../function/module.f.ts'
 export type SortedList<T> = List<T>
 
 type SortedArray<T> = readonly T[]
-
-type Cmp<T> = (a: T) => (b: T) => Sign
 
 export type ReduceOp<T, S> = (state: S) => (a: T) => (b: T) => readonly[Nullable<T>, Sign, S]
 
@@ -56,22 +54,6 @@ const mergeTail = (): <T>(tail: List<T>) => List<T> => identity
 
 export const find = <T>(cmp: Cmp<T>) => (value: T) => (array: SortedArray<T>): T|null => {
     const cmpValue = cmp(value)
-    let b = 0
-    let e = array.length - 1
-    while (true) {
-        const d = e - b
-        if (d < 0) return null
-        const mid = b + (d >> 1)
-        switch(cmpValue(array[mid])) {
-            case -1: {
-                e = mid - 1
-                break
-            }
-            case 0: { return value }
-            case 1: {
-                b = mid + 1
-                break
-            }
-        }
-    }
+    const pos = bsearch(array.length)(mid => cmpValue(array[mid]))
+    return pos < array.length && cmpValue(array[pos]) === 0 ? value : null
 }

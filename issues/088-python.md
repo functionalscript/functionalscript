@@ -1,5 +1,8 @@
 # Functional Python 
 
+**Priority:** P3
+**Status:** open
+
 |JS     |Python|
 |-------|------|
 |bigint |int   |

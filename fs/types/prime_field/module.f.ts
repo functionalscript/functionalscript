@@ -1,5 +1,14 @@
+/**
+ * Prime field arithmetic over `bigint`: `prime_field(p)` builds a `PrimeField`
+ * with negation, addition, subtraction, multiplication, division via modular
+ * inverse, and exponentiation; `sqrt` returns a square-root function when
+ * `p % 4 === 3`.
+ *
+ * @module
+ */
 import type { Unary, Reduce } from '../bigint/module.f.ts'
 import { repeat } from '../monoid/module.f.ts'
+import { assert } from '../../asserts/module.f.ts'
 
 /**
  * A type representing a prime field and its associated operations.
@@ -18,6 +27,10 @@ export type PrimeField = {
     readonly pow: Reduce
     readonly pow2: Unary
     readonly pow3: Unary
+    /** Reduces an arbitrary `bigint` into `[0, p)`. */
+    readonly reduce: Unary
+    /** Euler criterion: `true` when `x` is a quadratic residue mod `p`. */
+    readonly quadRes: (x: bigint) => boolean
 }
 
 /**
@@ -52,23 +65,32 @@ export const prime_field = (p: bigint): PrimeField => {
     const middle = p >> 1n
     const pow2: Unary = a => mul(a)(a)
     const pow: Reduce = repeat({ identity: 1n, operation: mul })
+    const add: Reduce = a => b => {
+        const r = a + b
+        return r < p ? r : r - p
+    }
+    const reduce: Unary = x => {
+        const r = x % p
+        return r < 0n ? add(p)(r) : r
+    }
+    const half = (p - 1n) / 2n
+    const quadRes = (x: bigint): boolean => pow(half)(reduce(x)) === 1n
     return {
         p,
         middle,
         max: p - 1n,
         neg: a => a === 0n ? 0n : p - a,
         sub,
-        add: a => b => {
-            const r = a + b
-            return r < p ? r : r - p
-        },
+        add,
         abs: a => middle < a ? p - a : a,
         mul,
         reciprocal,
         div: a => b => mul(a)(reciprocal(b)),
         pow,
         pow2,
-        pow3: a => mul(a)(pow2(a))
+        pow3: a => mul(a)(pow2(a)),
+        reduce,
+        quadRes,
     }
 }
 
@@ -92,5 +114,28 @@ export const sqrt = ({p, pow, pow2 }: PrimeField): (a: bigint) => bigint|null =>
     return a => {
         const result = psk(a)
         return pow2(result) === a ? result : null
+    }
+}
+
+/**
+ * Modular square root mod `p` (`p ≡ 3 (mod 4)`); uses {@link PrimeField.neg} when `x` is not a residue.
+ */
+export const modSqrt = (field: PrimeField): Unary => {
+    const { neg, reduce } = field
+    const sqrt_p = sqrt(field)
+    return x => {
+        const v = reduce(x)
+        const r = sqrt_p(v)
+        if (r !== null) {
+            return r
+        }
+        // For a prime `p ≡ 3 (mod 4)`, `−1` is a non-residue, so exactly one of
+        // `±v` is a quadratic residue: if `v` has no root, `neg(v)` must — hence
+        // `s` is non-null. `sqrt` already enforces `p ≡ 3 (mod 4)`, but primality
+        // is never checked, so the only way to reach `s === null` is a *composite*
+        // modulus (where the residue argument breaks).
+        const s = sqrt_p(neg(v))
+        assert(s !== null, 'modSqrt')
+        return s
     }
 }

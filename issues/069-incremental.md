@@ -1,5 +1,8 @@
 # Incremental
 
+**Priority:** P3
+**Status:** open
+
 ## 1. JSON
 
 ```json

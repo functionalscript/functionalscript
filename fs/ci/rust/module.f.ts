@@ -1,5 +1,12 @@
+/**
+ * CI step builder for the Rust crate: `cargo fmt`, `cargo clippy`, native and
+ * `--release` test runs, plus matrix entries for WASM targets (Wasmtime,
+ * Wasmer) and the 32-bit `i686` targets.
+ *
+ * @module
+ */
 import { wasmer, wasmtime } from '../config/module.f.ts'
-import { type Architecture, type MetaStep, type Os, install, test } from '../common/module.f.ts'
+import { type Architecture, type MetaStep, type Os, install, test, uses } from '../common/module.f.ts'
 
 const cargoTest = (target?: string, config?: string): readonly MetaStep[] => {
     const to = target ? ` --target ${target}` : ''
@@ -38,14 +45,8 @@ export const rustSteps = (v: Os, a: Architecture): readonly MetaStep[] => [
     test({ run: 'cargo fmt -- --check' }),
     test({ run: 'cargo clippy -- -D warnings' }),
     ...cargoTest(),
-    install({
-        uses: 'bytecodealliance/actions/wasmtime/setup@v1',
-        with: { version: wasmtime }
-    }),
-    install({
-        uses: 'wasmerio/setup-wasmer@v3.1',
-        with: { version: `v${wasmer}` },
-    }),
+    install(uses('bytecodealliance/actions/wasmtime/setup', { version: wasmtime })),
+    install(uses('wasmerio/setup-wasmer', { version: `v${wasmer}` })),
     ...wasmTarget('wasm32-wasip1'),
     ...wasmTarget('wasm32-wasip2'),
     ...wasmTarget('wasm32-unknown-unknown'),

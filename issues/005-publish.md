@@ -1,5 +1,8 @@
 # Publishing Packages
 
+**Priority:** P3
+**Status:** open
+
 We are targeting the following systems:
 
 - JS:

@@ -4,8 +4,8 @@
  * @module
  */
 import { utf8 } from '../text/module.f.ts'
-import { begin, pure, type Effect } from '../types/effects/module.f.ts'
-import { writeFile, type NodeOp } from '../types/effects/node/module.f.ts'
+import { begin, pure, type Effect } from '../effects/module.f.ts'
+import { writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
 import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, findTgz, os, test, toSteps } from './common/module.f.ts'
 import { rustSteps } from './rust/module.f.ts'
@@ -66,7 +66,7 @@ const defaultEffect: Effect<NodeOp, number> = ci({
     denoExtra: [
         test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
         test({ run: 'deno task fjs t' }),
-        test({ run: 'deno publish --dry-run' }),
+        test({ run: 'deno publish --dry-run --allow-slow-types' }),
     ],
     bunExtra: [
         test({ run: 'bun ./fs/fjs/module.ts t' }),

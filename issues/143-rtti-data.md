@@ -1,5 +1,8 @@
 # 143. RTTI: Serializable Data Representation
 
+**Priority:** P3
+**Status:** open
+
 A function-free, serializable representation of `Type` in [../fs/types/rtti/module.f.ts](../fs/types/rtti/module.f.ts), modeled after [../fs/bnf/data/](../fs/bnf/data/). The motivation is to give RTTI a clear two-form architecture and to move *all* schema algebra (union, subset, normalization, dispatch) off the thunk graph and onto a representation built for it.
 
 ## Principle

@@ -8,7 +8,9 @@
 // C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
-import type { Io, Writable } from "../../io/module.f.ts"
+import { write, type Write, type WriteConsoles, type NodeProgramOptions } from '../../effects/node/module.f.ts'
+import { type Effect } from '../../effects/module.f.ts'
+import { utf8 } from "../module.f.ts"
 
 export const backspace: string = '\x08'
 
@@ -77,24 +79,20 @@ export const createConsoleText = (stdout: Stdout): WriteText => {
 
 export type CsiConsole = (s: string) => void
 
+const str = (isTTY: boolean) => (s: string) =>
+    isTTY ? s : s.replace(/\x1b\[[0-9;]*m/g, '')
+
 /**
- * Creates a TTY-aware console function.
- *
- * For TTY destinations, ANSI SGR sequences are preserved.
- * For non-TTY destinations, ANSI SGR sequences are stripped.
- *
- * @param io - Runtime IO bindings.
- * @returns A function that targets a writable stream.
+ * Effect-based TTY-aware write. Strips ANSI SGR sequences when the target
+ * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
+ * Does NOT append `\n` — callers are responsible for line termination.
  */
-export const console = ({ fs: { writeSync } }: Io) => (w: Writable): CsiConsole => {
-    const { isTTY } = w
-    return isTTY
-        ? (s: string) => writeSync(w.fd, s + '\n')
-        : (s: string) => writeSync(w.fd, s.replace(/\x1b\[[0-9;]*m/g, '') + '\n')
+export const csiWrite =
+    ({ std }: NodeProgramOptions) =>
+    (stream: WriteConsoles):
+    (s: string) => Effect<Write, void> =>
+{
+    const toStr = str(std[stream].isTTY)
+    return (s: string): Effect<Write, void> =>
+        write(stream, utf8(toStr(s)))
 }
-
-/** Writes to process stdout using a TTY-aware CSI console. */
-export const stdio = (io: Io): CsiConsole => console(io)(io.process.stdout)
-
-/** Writes to process stderr using a TTY-aware CSI console. */
-export const stderr = (io: Io): CsiConsole => console(io)(io.process.stderr)

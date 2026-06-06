@@ -20,134 +20,148 @@
  * a schema-based parser keeps working when newer versions of the format add
  * extra fields or tuple elements.
  *
- * Error path semantics, error type, and primitive/const-primitive checks are
- * shared with `validate`; only container construction differs.
+ * The error shape, path bookkeeping, primitive checks, and schema
+ * recognition (`visit`) are shared with `validate` through
+ * `../common/module.f.ts`; only container construction differs.
  *
  * @module
  */
-import type { Unknown } from '../../../djs/module.f.ts'
 import {
-    type Const,
-    type ConstObject,
     type Info1,
     type Struct,
+    type Tag1,
     type Tuple,
     type Type,
 } from '../module.f.ts'
 import { ok, type Error, type Result as CommonResult } from '../../result/module.f.ts'
+import { type ReadonlyRecord } from '../../object/module.f.ts'
+import { find, map as listMap } from '../../list/module.f.ts'
 import {
     constPrimitiveValidate,
+    isArray,
+    isObject,
     prependPath,
     primitive0Validate,
     verror,
-    type Result as ValidateResult,
+    visit,
+    type Container,
+    type IsContainer,
+    type Result as CommonValidateResult,
     type Validate,
     type ValidationError,
-} from '../validate/module.f.ts'
-import { isArray as commonIsArray } from '../../array/module.f.ts'
-import { isObject as commonIsObject } from '../../object/module.f.ts'
-import { find, map as listMap } from '../../list/module.f.ts'
+    type Visitor,
+} from '../common/module.f.ts'
+import type { Unknown } from '../ts/module.f.ts'
 
-export type { Path, ValidationError } from '../validate/module.f.ts'
+export { type Path, type ValidationError } from '../common/module.f.ts'
+
+const { entries } = Object
 
 /** Parse result: either the freshly constructed typed value or a `ValidationError`. */
-export type Result<T extends Type> = ValidateResult<T>
+export type Result<T extends Type> = CommonValidateResult<T>
 
 /** A function that parses an unknown value into the schema `T`. */
 export type Parse<T extends Type> = Validate<T>
 
 type ItemResult = CommonResult<Unknown, ValidationError>
 
-const indexedFirstError = (results: readonly ItemResult[]): readonly[number, Error<ValidationError>] | null => {
-    // TODO: findIndex breaks type inference,
-    //       we should replace it with something else.
-    const i = results.findIndex(r => r[0] === 'error')
-    return i < 0 ? null : [i, results[i] as Error<ValidationError>]
-}
+type KeyedResult = readonly[string, ItemResult]
 
 const keyedFirstError = (
-    results: readonly (readonly[string, ItemResult])[],
+    results: readonly KeyedResult[],
 ): readonly[string, Error<ValidationError>] | null => {
     const e = results.find(([, r]) => r[0] === 'error')
     return e === undefined ? null : [e[0], e[1] as Error<ValidationError>]
 }
 
-const arrayParse =
-    <I extends Type>(item: I): Parse<Info1<'array', I>> => value =>
-{
-    if (!commonIsArray(value)) {
-        return verror('unexpected value')
-    }
-    if (value.length === 0) {
-        return ok([] as any)
-    }
-    // Note: we shouldn't instantiate `itemParse` until we know the array is non-empty.
-    //       Otherwise, we can get infinite recursion on empty arrays for recursive schemas.
-    const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const results = value.map(itemParse)
-    const err = indexedFirstError(results)
-    return (err === null
-        ? ok(results.map(r => r[1]))
-        : prependPath(String(err[0]), err[1])) as any
-}
+/** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
+type Rebuild = (entries: ReadonlyArray<readonly[string, Unknown]>) => Unknown
 
-const recordParse =
-    <I extends Type>(item: I): Parse<Info1<'record', I>> => value =>
+const arrayRebuild: Rebuild = entries => entries.map(([, v]) => v)
+
+const recordRebuild: Rebuild = entries => Object.fromEntries(entries)
+
+/** Drops the `'ok'` tag from each result, yielding the rebuild's `[key, value]` entries. */
+const okEntries = (results: readonly KeyedResult[]): ReadonlyArray<readonly[string, Unknown]> =>
+    results.map(([k, r]) => [k, r[1]] as const)
+
+/**
+ * Builds a parser for `array` or `record` schemas. Mirrors `validate`'s
+ * `containerValidate`, but rebuilds a fresh container from each item's parsed
+ * result instead of returning the value unchanged. The inner item parser is
+ * instantiated lazily (only when the container is non-empty) so recursive
+ * schemas don't recurse forever on empty containers.
+ */
+const containerParse =
+    <K extends Tag1>(
+        isContainer: IsContainer<Container<K>>,
+        rebuild: Rebuild,
+    ) =>
+    <I extends Type>(item: I): Parse<Info1<K, I>> => value =>
 {
-    if (!commonIsObject(value)) {
+    if (!isContainer(value)) {
         return verror('unexpected value')
     }
-    const entries = Object.entries(value)
-    if (entries.length === 0) {
-        return ok({} as any)
+    const e = entries(value)
+    if (e.length === 0) {
+        return ok(rebuild([])) as any
     }
     const itemParse = parse(item) as (v: Unknown) => ItemResult
-    const results = entries.map(([k, v]) => [k, itemParse(v)] as const)
+    const results = e.map(([k, v]) => [k, itemParse(v)] as const)
     const err = keyedFirstError(results)
-    return (err === null
-        ? ok(Object.fromEntries(results.map(([k, r]) => [k, r[1]])))
-        : prependPath(err[0], err[1])) as any
+    return err === null
+        ? ok(rebuild(okEntries(results))) as any
+        : prependPath(err[0], err[1])
 }
 
-const tupleParse = <T extends Tuple>(rtti: T): Parse<T> => value => {
-    if (!commonIsArray(value)) {
-        return verror('unexpected value')
-    }
-    const results = rtti.map((t, i) => (parse(t) as any)(value[i]) as ItemResult)
-    const err = indexedFirstError(results)
-    return (err === null
-        ? ok(results.map(r => r[1]))
-        : prependPath(String(err[0]), err[1])) as any
-}
+const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
 
-const structParse = <T extends Struct>(rtti: T): Parse<T> => value => {
-    if (!commonIsObject(value)) {
+const recordParse = containerParse<'record'>(isObject, recordRebuild)
+
+/**
+ * Builds a parser for `Tuple` or `Struct` const schemas. Mirrors `validate`'s
+ * `constContainerValidate`: it iterates the schema's entries (so extra tuple
+ * elements and undeclared struct keys are dropped) and rebuilds the result
+ * from each parsed item.
+ */
+const constContainerParse =
+    <C extends Unknown>(
+        isContainer: IsContainer<C>,
+        getItem: (value: C, k: string) => Unknown,
+        rebuild: Rebuild,
+    ) =>
+    <T extends Tuple|Struct>(rtti: T): Parse<T> => value =>
+{
+    if (!isContainer(value)) {
         return verror('unexpected value')
     }
-    const results = Object.entries(rtti).map(
-        ([k, t]) => [k, (parse(t) as any)(value[k]) as ItemResult] as const,
+    const results = entries(rtti).map(
+        ([k, t]) => [k, (parse(t) as any)(getItem(value, k)) as ItemResult] as const,
     )
     const err = keyedFirstError(results)
-    return (err === null
-        ? ok(Object.fromEntries(results.map(([k, r]) => [k, r[1]])))
-        : prependPath(err[0], err[1])) as any
+    return err === null
+        ? ok(rebuild(okEntries(results))) as any
+        : prependPath(err[0], err[1])
 }
 
-const constObjectParse = <T extends ConstObject>(rtti: T): Parse<T> =>
-    commonIsArray(rtti)
-        ? tupleParse(rtti) as any
-        : structParse(rtti) as any
+const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
+    isArray,
+    (value, k) => value[Number(k)],
+    arrayRebuild,
+)
 
-const constParse = <T extends Const>(rtti: T): Parse<T> =>
-    typeof rtti === 'object' && rtti !== null
-        ? constObjectParse(rtti) as any
-        : constPrimitiveValidate(rtti) as any
+const structParse = constContainerParse<ReadonlyRecord<string, Unknown>>(
+    isObject,
+    (value, k) => value[k],
+    recordRebuild,
+)
 
 const findFirst = find
     (verror('no match'))
     ((k: any) => k[0] === 'ok')
 
 const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
+    // `parse(t)` where t: Type forces Ts<Type> evaluation → TS2589; cast keeps result as any.
     value => findFirst(listMap(t => (parse as any)(t)(value))(rtti))
 
 /**
@@ -174,17 +188,16 @@ const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or',
  * parse({ a: number } as const)({ a: 1, b: 2 }) // ['ok', { a: 1 }]
  * ```
  */
-export const parse = <T extends Type>(rtti: T): Parse<T> => {
-    if (typeof rtti === 'function') {
-        const [tag, ...value] = rtti()
-        switch (tag) {
-            case 'const': return constParse(value[0] as Const) as any
-            case 'array': return arrayParse(value[0]) as any
-            case 'record': return recordParse(value[0]) as any
-            case 'unknown': return ok as any
-            case 'or': return orParse(value) as any
-        }
-        return primitive0Validate(tag) as any
-    }
-    return constParse(rtti) as any
-}
+const parseVisitor = {
+    tuple: tupleParse,
+    struct: structParse,
+    array: arrayParse,
+    record: recordParse,
+    or: orParse,
+    constPrimitive: constPrimitiveValidate,
+    primitive0: primitive0Validate,
+    unknown: () => ok,
+} as unknown as Visitor<(value: Unknown) => unknown>
+
+export const parse = <T extends Type>(rtti: T): Parse<T> =>
+    visit(parseVisitor)(rtti) as any

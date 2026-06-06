@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
 import { main } from './module.f.ts'
-import { legacyRun } from '../io/module.ts'
+import { run } from '../effects/node/module.ts'
 
-legacyRun(main)
+await run(main)

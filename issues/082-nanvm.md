@@ -1,5 +1,8 @@
 # Optimal NaNVM
 
+**Priority:** P3
+**Status:** open
+
 https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 https://anniecherkaev.com/the-secret-life-of-nan
 https://brionv.com/log/2018/05/17/javascript-engine-internals-nan-boxing/

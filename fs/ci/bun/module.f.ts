@@ -1,5 +1,11 @@
+/**
+ * CI step builder for Bun: installs the pinned Bun version (with a PowerShell
+ * fallback for Windows ARM) and runs `bun install` and `bun test`.
+ *
+ * @module
+ */
 import { bun } from '../config/module.f.ts'
-import { type Architecture, type MetaStep, type Os, type Step, clean, install, test } from '../common/module.f.ts'
+import { type Architecture, type MetaStep, type Os, type Step, clean, install, test, uses } from '../common/module.f.ts'
 
 type Tool = {
     readonly def: Step
@@ -13,12 +19,7 @@ const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Archit
         : def)
 
 const installBun = installOnWindowsArm({
-    def: {
-        uses: 'oven-sh/setup-bun@v2',
-        with: {
-            'bun-version': bun
-        },
-    },
+    def: uses('oven-sh/setup-bun', { 'bun-version': bun }),
     name: 'bun',
     path: 'bun.sh',
 })
