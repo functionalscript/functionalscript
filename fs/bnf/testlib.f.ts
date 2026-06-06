@@ -1,5 +1,5 @@
 import {
-    join0Plus,
+    commaJoin0Plus,
     max,
     none,
     option,
@@ -168,16 +168,11 @@ export const deterministic = (): Rule => {
 
     const ws = repeat0Plus(set(' \n\r\t'))
 
-    const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-        open,
-        ws,
-        join0Plus([a, ws], [',', ws]),
-        close,
-    ]
+    const cj = commaJoin0Plus(ws)
 
-    const value = () => ({        
-        array: commaJoin0Plus('[]', value),
-        object: commaJoin0Plus('{}', [string, ws, ':', ws, value]),
+    const value = () => ({
+        array: cj('[]', value),
+        object: cj('{}', [string, ws, ':', ws, value]),
         string,
         number,
         true: 'true',
