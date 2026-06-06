@@ -256,6 +256,19 @@ export type Join0Plus<T, S> = Option<readonly[T, Repeat0Plus<readonly[S, T]>]>
 export const join0Plus = <T extends Rule, S extends Rule>(some: T, separator: S): Rule =>
     option(join1Plus(some, separator))
 
+/**
+ * A delimited, comma-separated list with whitespace between tokens:
+ * `open ws (item ws (',' ws item ws)*)? close`.
+ *
+ * `ws` is the per-grammar whitespace rule and is curried so callers can
+ * partially apply it once (`const cj = commaJoin0Plus(ws)`) before reusing
+ * the same combinator at multiple bracket pairs. The two-character string
+ * supplies the bracket pair via destructuring (e.g. `'[]'`, `'{}'`).
+ */
+export const commaJoin0Plus = (ws: Rule) =>
+    ([open, close]: string, item: Rule): Sequence =>
+        [open, ws, join0Plus([item, ws], [',', ws]), close]
+
 export type Repeat<T> = readonly T[]
 
 /**

@@ -1,7 +1,7 @@
 # 665-bnf-comma-join-combinator. `bnf`: hoist the `commaJoin0Plus` delimited-list combinator
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
