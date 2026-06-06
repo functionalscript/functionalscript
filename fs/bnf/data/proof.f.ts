@@ -3,7 +3,7 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import { identity } from '../../types/function/module.f.ts'
 import { map, toArray } from '../../types/list/module.f.ts'
 import { sort } from '../../types/object/module.f.ts'
-import { join0Plus, oneEncode, option, range, rangeDecode, repeat0Plus, type Rule, set } from '../module.f.ts'
+import { commaJoin0Plus, oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.ts'
 import { classic, deterministic } from '../testlib.f.ts'
 import { dispatchMap, type MatchResult, parser, parserRuleSet, type RuleSet, toData, createEmptyTagMap, descentParser, type DescentMatch, type CodePointMeta, type DescentMatchResult } from './module.f.ts'
 
@@ -355,16 +355,11 @@ export const proof = {
         () => {
             const ws = repeat0Plus(set(' \n\r\t'))
 
-            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-                open,
-                ws,
-                join0Plus([a, ws], [',', ws]),
-                close,
-            ]
+            const cj = commaJoin0Plus(ws)
 
             const value = () => ({
-                object: commaJoin0Plus('{}', 'a'),
-                array: commaJoin0Plus('[]', 'a')
+                object: cj('{}', 'a'),
+                array: cj('[]', 'a')
             })
 
             value.name //bun will fail if no usage of name found
@@ -544,16 +539,11 @@ export const proof = {
         () => {
             const ws = repeat0Plus(set(' \n\r\t'))
 
-            const commaJoin0Plus = ([open, close]: string, a: Rule) => [
-                open,
-                ws,
-                join0Plus([a, ws], [',', ws]),
-                close,
-            ]
+            const cj = commaJoin0Plus(ws)
 
             const value = () => ({
-                object: commaJoin0Plus('{}', 'a'),
-                array: commaJoin0Plus('[]', 'a')
+                object: cj('{}', 'a'),
+                array: cj('[]', 'a')
             })
 
             value.name //bun will fail if no usage of name found
