@@ -1,7 +1,9 @@
 # 146. RTTI: TypeScript Inference Depth
 
 **Priority:** P3
-**Status:** open
+**Status:** closed
+
+**Why it's closed:** Options 1 and 3 implemented; remaining validate/parse casts documented in `fs/types/rtti/ts/README.md` as open problems requiring TypeScript rank-2 or dependent types.
 
 `Ts<T>` (in [`fs/types/rtti/ts/module.f.ts`](../fs/types/rtti/ts/module.f.ts)) maps a schema `Type` to its TypeScript type by walking the schema's structural shape with conditional types and `infer`. It works for direct uses (`Ts<typeof someSchema>`), but it is fragile: any internal generic that resolves to `Ts<any>`, `Ts<Type>`, or a deeply nested combination distributes across every branch of the conditional and trips TS's depth/cycle limit (`error TS2589: Type instantiation is excessively deep and possibly infinite`).
 
@@ -72,6 +74,8 @@ ArkType's main trick. Each named type alias is a memoization point for the compi
 - No design impact, just type-level refactoring.
 - Modest improvement; not a complete fix.
 
+**Attempted and reverted.** Extracted `InfoTs<I>` (the thunk-body dispatch) and `OrTs<A>` (the union case) as named aliases and wired `Ts<T>` to delegate to them. `npx tsc` reported new TS2589 errors in `fs/json/module.f.ts` and the validate/parse proofs. The extra indirection (`Ts` → `InfoTs` → `Info1Ts` → `ArrayTs` → `Ts`) adds levels to the recursive chain and makes TypeScript hit its depth limit sooner. The inline form stays flatter and the compiler can short-circuit earlier. Option 2 does not apply to our recursive schema design.
+
 ### 3. Phantom output on thunks only
 
 Schemas-as-data still works for `Const` schemas — those are already concrete TS values and their TS type is their own type. The overflow happens almost entirely in the *thunk* branch, where `Ts<T>` has to `infer` through `() => readonly['array', T]` and recurse.
@@ -108,7 +112,10 @@ Added `unknown extends T ? Unknown :` as the first branch of `Ts<T>` in
 `true`, so the conditional short-circuits to `Unknown` without distributing across
 all branches. A type-level assert confirms: `type _any = Assert<Equal<Ts<any>, Unknown>>`.
 
-### Option 3 — design
+### Option 3 — done
+
+Implemented `WithOut<S, Out>` in `fs/types/rtti/ts/module.f.ts` and the `$out` branch in `Ts<T>`.
+First use: `fs/json/schema/module.f.ts` annotates its recursive `unknown` schema with `WithOut<typeof unknownThunk, UnknownConst>`, so `Ts<typeof unknown>` short-circuits to `UnknownConst` without walking the struct body.
 
 The phantom approach: attach a `$out?: Out` field to thunks and check it first in `Ts<T>`:
 
@@ -137,10 +144,34 @@ Then `Ts<typeof json.unknown>` → reads `$out` → returns `json.Unknown` direc
 **Constraint:** `rtti/module.f.ts` cannot import `Ts<>` (circular with `ts/module.f.ts`),
 so `WithOut` lives in `ts/module.f.ts` and is used at call-site via explicit type annotations.
 
-**Remaining work:** implement `WithOut` in `ts/module.f.ts`, add the `$out` branch to
-`Ts<T>`, annotate recursive schemas in `fs/json/rtti/` and any other recursive
-schema definitions. The `as any` casts in `validate`/`parse` internals require separate
-analysis.
+### Remaining casts in validate/parse
+
+After options 1 and 3, many `as any` casts were eliminated (all `verror`/`prependPath`
+returns no longer need them — `Error<ValidationError>` is directly in the `Result<T>`
+union). The remaining casts fall into two distinct problems:
+
+**Problem A — visitor rank-2 erasure** (`as unknown as Visitor<...>` and the top-level
+`visit(...) as any`). `Visitor<R>` requires a uniform `R` across all handlers, but each
+handler has a precise generic type (e.g. `<I extends Type>(item: I): Validate<Info1<K,I>>`).
+TypeScript has no rank-2 polymorphism, so the visitor record must be assembled with
+type-erasure. Could be fixed by inlining the dispatch (replacing `visit` with a direct
+`switch` inside `validate`/`parse`, as `toJsonSchema` does) — but this removes the
+shared kernel benefit.
+
+**Problem B — container validation** (`ok(value) as any` after a loop).
+After verifying every element of a container, we return `ok(value)` where `value` is
+still typed as `Container<K>` or `C extends Unknown`. TypeScript cannot narrow the
+container's element types through a validation loop; it has no dependent types or
+type-refinement for mutable iteration. Likely unfixable without `as any` unless we
+construct a fresh typed copy (at the cost of an extra allocation in `validate`, which
+is supposed to return the original value unchanged).
+
+**Problem C — `Ts<Type>` in or/record dispatch** (`(i as any)(value)` in `orValidate`,
+`(parse(t) as any)` in `constContainerParse`). When a call to `validate(r)` or `parse(t)`
+is made with `r`/`t` widened to `Type`, TypeScript instantiates `Validate<Type>` and
+tries to evaluate `Ts<Type>`, which distributes across all branches and triggers TS2589.
+Could be fixed if the `or` and `record` paths kept the element type as a concrete generic
+parameter rather than widening to `Type` — the visitor architecture currently prevents this.
 
 ## Recommendation
 

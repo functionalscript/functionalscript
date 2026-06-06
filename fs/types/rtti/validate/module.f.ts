@@ -74,7 +74,7 @@ const containerValidate =
     <I extends Type>(item: I): Validate<Info1<K, I>> => value =>
 {
     if (!isContainer(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const e = entries(value)
     if (e.length === 0) {
@@ -86,10 +86,12 @@ const containerValidate =
     for (const [k, v] of e) {
         const r = itemValidate(v)
         if (r[0] === 'error') {
-            return prependPath(k, r) as any
+            return prependPath(k, r)
         }
     }
-    return ok(value)
+    // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
+    // TypeScript can't narrow the container's element types through the validation loop.
+    return ok(value) as any
 }
 
 const arrayValidate = containerValidate<'array'>(isArray)
@@ -106,16 +108,18 @@ const constContainerValidate =
     <T extends Tuple|Struct>(rtti: T): Validate<T> => value =>
 {
     if (!isContainer(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     for (const [k, v] of Object.entries(rtti)) {
         const item = getItem(value, k)
         const r = (validate(v) as any)(item) as ReturnType<Validate<T>>
         if (r[0] === 'error') {
-            return prependPath(k, r) as any
+            return prependPath(k, r)
         }
     }
-    return ok(value)
+    // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
+    // structurally equivalent to C — TypeScript can't narrow element types through the loop.
+    return ok(value) as any
 }
 
 const tupleValidate = constContainerValidate<ReadonlyArray<Unknown>>(
@@ -132,12 +136,13 @@ const orValidate = <T extends readonly Type[]>(rtti: T): Validate<() => readonly
     const all = rtti.map(r => validate(r))
     return value => {
         for (const i of all) {
+            // `i` is Validate<Type>; calling without cast forces Ts<Type> evaluation → TS2589.
             const r = (i as any)(value)
             if (r[0] === 'ok') {
                 return r
             }
         }
-        return verror('no match') as any
+        return verror('no match')
     }
 }
 

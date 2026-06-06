@@ -100,7 +100,7 @@ const containerParse =
     <I extends Type>(item: I): Parse<Info1<K, I>> => value =>
 {
     if (!isContainer(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const e = entries(value)
     if (e.length === 0) {
@@ -109,9 +109,9 @@ const containerParse =
     const itemParse = parse(item) as (v: Unknown) => ItemResult
     const results = e.map(([k, v]) => [k, itemParse(v)] as const)
     const err = keyedFirstError(results)
-    return (err === null
-        ? ok(rebuild(okEntries(results)))
-        : prependPath(err[0], err[1])) as any
+    return err === null
+        ? ok(rebuild(okEntries(results))) as any
+        : prependPath(err[0], err[1])
 }
 
 const arrayParse = containerParse<'array'>(isArray, arrayRebuild)
@@ -133,15 +133,15 @@ const constContainerParse =
     <T extends Tuple|Struct>(rtti: T): Parse<T> => value =>
 {
     if (!isContainer(value)) {
-        return verror('unexpected value') as any
+        return verror('unexpected value')
     }
     const results = entries(rtti).map(
         ([k, t]) => [k, (parse(t) as any)(getItem(value, k)) as ItemResult] as const,
     )
     const err = keyedFirstError(results)
-    return (err === null
-        ? ok(rebuild(okEntries(results)))
-        : prependPath(err[0], err[1])) as any
+    return err === null
+        ? ok(rebuild(okEntries(results))) as any
+        : prependPath(err[0], err[1])
 }
 
 const tupleParse = constContainerParse<ReadonlyArray<Unknown>>(
@@ -161,6 +161,7 @@ const findFirst = find
     ((k: any) => k[0] === 'ok')
 
 const orParse = <T extends readonly Type[]>(rtti: T): Parse<() => readonly['or', ...T]> =>
+    // `parse(t)` where t: Type forces Ts<Type> evaluation → TS2589; cast keeps result as any.
     value => findFirst(listMap(t => (parse as any)(t)(value))(rtti))
 
 /**
