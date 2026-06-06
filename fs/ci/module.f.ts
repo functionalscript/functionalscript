@@ -46,7 +46,10 @@ export const ci = ({ rust, nodeExtra, denoExtra, bunExtra }: Setup): Effect<Node
     }
     const gha: GitHubAction = {
         name: 'CI',
-        on: { pull_request: {} },
+        on: {
+            pull_request: {},
+            merge_group: {},
+        },
         jobs,
     }
     return begin

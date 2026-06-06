@@ -35,7 +35,10 @@ export const jobsSchema = record(jobSchema) satisfies unknown
 
 export const gitHubActionSchema = {
     name: string,
-    on: { pull_request: option({}) },
+    on: {
+        pull_request: option({}),
+        merge_group: option({})
+    },
     jobs: jobsSchema
 } as const satisfies unknown
 
