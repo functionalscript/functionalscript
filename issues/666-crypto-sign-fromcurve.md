@@ -47,27 +47,56 @@ Two distinct duplications here:
 
 ## Proposal
 
-1. In `sign`, replace `const a = all(q)` with `const a = fromCurve(c)` and read
-   `q` (and `bits2int`) from `a`; keep destructuring only `div` and `g` from `c`,
-   which `fromCurve` does not provide:
+1. **Make `fromCurve` the complete "curve → signing context" factory** so `sign`
+   reads everything it needs from one place and never re-reaches into `c`.
+
+   This is the fuller version of an option raised in review: rather than just
+   swapping `all(q)` for `fromCurve(c)` and *still* hand-pulling `div`/`g` off the
+   curve, extend `fromCurve`'s result to bundle the curve-derived inputs `sign`
+   uses. Note `sign` reaches into the curve for **three** things — `div`
+   (`:186`), `g` and `mul` (`:172`, `c.mul(k)(g)`) — so a half-measure that adds
+   only `div`/`g` would still leave `sign` touching `c` for `mul`. Bundle all three:
+
+   ```ts
+   export type Signer = All & {
+       readonly div: Curve['nf']['div']
+       readonly mul: Curve['mul']
+       readonly g: Curve['g']
+   }
+   export const fromCurve = (c: Curve): Signer =>
+       ({ ...all(c.nf.p), div: c.nf.div, mul: c.mul, g: c.g })
+   ```
+
+   Then `sign` destructures solely from `fromCurve(c)`:
 
    ```ts
    const a = fromCurve(c)
-   const { q, bits2int } = a
-   const { nf: { div }, g } = c
+   const { q, bits2int, div, mul, g } = a
+   ...
+   const k = computeK(a)(hf)(x)(m)   // Signer extends All, so this still type-checks
+   const rxy = mul(k)(g)
    ```
+
+   Crucially, **`all(q)` stays the pure, `q`-only RFC6979 factory** (`All`) that
+   `computeK` consumes — `computeK` needs none of `div`/`mul`/`g`, so the focused
+   `All` abstraction is preserved and `fromCurve` becomes the single curve-aware
+   layer on top of it. This answers the review question affirmatively: `fromCurve`
+   *should* provide the curve pieces (`div`, `g`, and `mul`), not just `div`/`g`.
 
 2. Add a named `bits2intModQ: (b: Vec) => bigint` to the `All` record
    (`= b => bits2int(b) % q`), define `bits2octets = b => int2octets(bits2intModQ(b))`
    in terms of it, and use `a.bits2intModQ(hm)` in `sign`. The single comment about
    the conditional-subtraction reduction then has one home.
 
-Part 1 is a near-trivial separation-of-concerns fix where the abstraction already
-exists but is bypassed; part 2 is a small DRY win co-locating the RFC rationale.
+Part 1 is the separation-of-concerns fix: `fromCurve` already exists but is both
+bypassed by `sign` and too thin to fully serve it; part 2 is a small DRY win
+co-locating the RFC rationale.
 
 ## Tasks
 
-- [ ] `sign` uses `fromCurve(c)` instead of `all(c.nf.p)`
+- [ ] extend `fromCurve` to return a `Signer` (`All` + `div`/`mul`/`g`); keep `all`
+      as the pure `q`-only `All` factory `computeK` uses
+- [ ] `sign` destructures only from `fromCurve(c)` — no direct `c.nf`/`c.mul`/`c.g` access
 - [ ] add `bits2intModQ` to `All`; express `bits2octets` and `sign`'s `h` through it
 - [ ] confirm `proof.f.ts` still covers all of `all`/`fromCurve`/`sign`
 
