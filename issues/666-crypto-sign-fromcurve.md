@@ -50,60 +50,61 @@ Two distinct duplications here:
 1. **Make `fromCurve` the complete "curve → signing context" factory** so `sign`
    reads everything it needs from one place and never re-reaches into `c`.
 
-   This is the fuller version of an option raised in review: rather than just
-   swapping `all(q)` for `fromCurve(c)` and *still* hand-pulling the curve pieces,
-   extend `fromCurve`'s **result type** to bundle the curve-derived inputs `sign`
-   uses. Per the review's preference, expose the whole `nf` (which carries `div`
-   and `p` = `q`) rather than just `div`. Note `sign` reaches into the curve for
-   three things — `div` via `nf` (`:186`), `g` (`:172`), and `mul` (`:172`,
+   Rather than just swapping `all(q)` for `fromCurve(c)` and *still* hand-pulling
+   the curve pieces, give `fromCurve` a **composite** result that holds the
+   `q`-only RFC6979 helpers as a named field alongside the curve-derived inputs
+   `sign` uses. Per review, prefer **composition over intersection/deriving** (no
+   `&`) and embed the RFC6979 record as a field. Note `sign` reaches into the curve
+   for three things — `div` via `nf` (`:186`), `g` (`:172`), and `mul` (`:172`,
    `c.mul(k)(g)`):
 
    ```ts
-   export type Signer = All & {
+   export type Signer = {
+       readonly rfc6979: Rfc6979   // the q-only conversions — was `All`
        readonly nf: Curve['nf']    // gives div, and q via nf.p
        readonly mul: Curve['mul']
        readonly g: Curve['g']
    }
    export const fromCurve = (c: Curve): Signer =>
-       ({ ...all(c.nf.p), nf: c.nf, mul: c.mul, g: c.g })
+       ({ rfc6979: all(c.nf.p), nf: c.nf, mul: c.mul, g: c.g })
    ```
 
-   Then `sign` destructures solely from `fromCurve(c)`:
+   (Review also noted `All` deserves a clearer name. Renaming `All` → `Rfc6979`
+   and using that as the field type is suggested; the rename is optional polish and
+   can be split out if it churns proofs/imports.)
+
+   Then `sign` reads from `fromCurve(c)` and passes the embedded record straight to
+   `computeK`:
 
    ```ts
-   const a = fromCurve(c)
-   const { q, bits2int, nf: { div }, mul, g } = a
+   const { rfc6979, nf: { div }, mul, g } = fromCurve(c)
+   const { q, bits2int } = rfc6979
    ...
-   const k = computeK(a)(hf)(x)(m)   // Signer extends All, so this still type-checks
+   const k = computeK(rfc6979)(hf)(x)(m)   // computeK keeps taking the RFC6979 record unchanged
    const rxy = mul(k)(g)
    ```
 
-   ### Why these go on `Signer` (fromCurve's type), not on `All` itself
+   ### Why composition (and why the curve pieces don't go on the RFC6979 record)
 
-   Review asked whether `nf`/`g` can live on `All` directly. They can't, cleanly,
-   for two reasons:
+   Composition keeps the RFC6979 record **completely unchanged**, which matters
+   because it is constructed and consumed on its own, with no curve in sight:
 
-   - **`all` is called with a bare subgroup order, no curve.** `all(q: bigint)`
-     derives the RFC6979 helpers from `q` alone, and is invoked that way both
-     conceptually and in practice — e.g. `fs/crypto/sign/proof.f.ts` has `all(7n)`,
-     `all(17n)`, `all(5n)`, `all(11n)`, `all(q)`. None of those callers has an `nf`
-     or `g` to supply. Putting `nf`/`g` on `All` would force every bare `all(q)`
-     site to invent curve data it doesn't have (or make the fields nullable, which
-     just pushes `undefined` onto `sign`).
+   - **`all` is called with a bare subgroup order.** `all(q: bigint)` derives the
+     RFC6979 helpers from `q` alone, and is invoked that way both conceptually and
+     in practice — e.g. `fs/crypto/sign/proof.f.ts` has `all(7n)`, `all(17n)`,
+     `all(5n)`, `all(11n)`, `all(q)`. None of those callers has an `nf`/`g`/`mul`
+     to supply. So the curve pieces live on `Signer`, not on the RFC6979 record.
    - **`mul` isn't on `nf` anyway.** `mul` is a field of `Curve`
      (`fs/crypto/secp/module.f.ts:44`, `mul: Fold<bigint, Point>`), not of the
-     prime field `nf`. So `nf` + `g` alone still wouldn't cover `sign`'s
-     `c.mul(k)(g)`; the enriched context must add `mul` too.
+     prime field `nf` — so `nf` + `g` alone wouldn't cover `sign`'s `c.mul(k)(g)`.
 
-   So `All` stays the pure `q`-only RFC6979 factory `computeK` consumes, and
-   `Signer = All & { nf, mul, g }` is the curve-aware superset `fromCurve` returns.
-   This answers the review affirmatively in spirit (`fromCurve` *should* carry the
-   curve pieces) while keeping them off the bare-`q` `All` type.
+   `Signer` is therefore a plain record composing the unchanged RFC6979 helpers
+   with `nf`/`mul`/`g`, and `computeK` continues to take just the RFC6979 record.
 
-2. Add a named `bits2intModQ: (b: Vec) => bigint` to the `All` record
+2. Add a named `bits2intModQ: (b: Vec) => bigint` to the RFC6979 record
    (`= b => bits2int(b) % q`), define `bits2octets = b => int2octets(bits2intModQ(b))`
-   in terms of it, and use `a.bits2intModQ(hm)` in `sign`. The single comment about
-   the conditional-subtraction reduction then has one home.
+   in terms of it, and use `rfc6979.bits2intModQ(hm)` in `sign`. The single comment
+   about the conditional-subtraction reduction then has one home.
 
 Part 1 is the separation-of-concerns fix: `fromCurve` already exists but is both
 bypassed by `sign` and too thin to fully serve it; part 2 is a small DRY win
@@ -111,10 +112,11 @@ co-locating the RFC rationale.
 
 ## Tasks
 
-- [ ] extend `fromCurve` to return a `Signer` (`All` + `nf`/`mul`/`g`); keep `all`
-      as the pure `q`-only `All` factory `computeK` uses
-- [ ] `sign` destructures only from `fromCurve(c)` — no direct `c.nf`/`c.mul`/`c.g` access
-- [ ] add `bits2intModQ` to `All`; express `bits2octets` and `sign`'s `h` through it
+- [ ] `fromCurve` returns a composite `Signer = { rfc6979, nf, mul, g }` (no `&`);
+      `all` stays the unchanged `q`-only RFC6979 factory `computeK` uses
+- [ ] `sign` reads only from `fromCurve(c)` — no direct `c.nf`/`c.mul`/`c.g` access
+- [ ] add `bits2intModQ` to the RFC6979 record; express `bits2octets` and `sign`'s `h` through it
+- [ ] (optional) rename `All` → `Rfc6979` for clarity; split out if it churns proofs/imports
 - [ ] confirm `proof.f.ts` still covers all of `all`/`fromCurve`/`sign`
 
 ## Related
