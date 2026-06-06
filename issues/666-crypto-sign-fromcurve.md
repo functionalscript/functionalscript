@@ -51,37 +51,54 @@ Two distinct duplications here:
    reads everything it needs from one place and never re-reaches into `c`.
 
    This is the fuller version of an option raised in review: rather than just
-   swapping `all(q)` for `fromCurve(c)` and *still* hand-pulling `div`/`g` off the
-   curve, extend `fromCurve`'s result to bundle the curve-derived inputs `sign`
-   uses. Note `sign` reaches into the curve for **three** things — `div`
-   (`:186`), `g` and `mul` (`:172`, `c.mul(k)(g)`) — so a half-measure that adds
-   only `div`/`g` would still leave `sign` touching `c` for `mul`. Bundle all three:
+   swapping `all(q)` for `fromCurve(c)` and *still* hand-pulling the curve pieces,
+   extend `fromCurve`'s **result type** to bundle the curve-derived inputs `sign`
+   uses. Per the review's preference, expose the whole `nf` (which carries `div`
+   and `p` = `q`) rather than just `div`. Note `sign` reaches into the curve for
+   three things — `div` via `nf` (`:186`), `g` (`:172`), and `mul` (`:172`,
+   `c.mul(k)(g)`):
 
    ```ts
    export type Signer = All & {
-       readonly div: Curve['nf']['div']
+       readonly nf: Curve['nf']    // gives div, and q via nf.p
        readonly mul: Curve['mul']
        readonly g: Curve['g']
    }
    export const fromCurve = (c: Curve): Signer =>
-       ({ ...all(c.nf.p), div: c.nf.div, mul: c.mul, g: c.g })
+       ({ ...all(c.nf.p), nf: c.nf, mul: c.mul, g: c.g })
    ```
 
    Then `sign` destructures solely from `fromCurve(c)`:
 
    ```ts
    const a = fromCurve(c)
-   const { q, bits2int, div, mul, g } = a
+   const { q, bits2int, nf: { div }, mul, g } = a
    ...
    const k = computeK(a)(hf)(x)(m)   // Signer extends All, so this still type-checks
    const rxy = mul(k)(g)
    ```
 
-   Crucially, **`all(q)` stays the pure, `q`-only RFC6979 factory** (`All`) that
-   `computeK` consumes — `computeK` needs none of `div`/`mul`/`g`, so the focused
-   `All` abstraction is preserved and `fromCurve` becomes the single curve-aware
-   layer on top of it. This answers the review question affirmatively: `fromCurve`
-   *should* provide the curve pieces (`div`, `g`, and `mul`), not just `div`/`g`.
+   ### Why these go on `Signer` (fromCurve's type), not on `All` itself
+
+   Review asked whether `nf`/`g` can live on `All` directly. They can't, cleanly,
+   for two reasons:
+
+   - **`all` is called with a bare subgroup order, no curve.** `all(q: bigint)`
+     derives the RFC6979 helpers from `q` alone, and is invoked that way both
+     conceptually and in practice — e.g. `fs/crypto/sign/proof.f.ts` has `all(7n)`,
+     `all(17n)`, `all(5n)`, `all(11n)`, `all(q)`. None of those callers has an `nf`
+     or `g` to supply. Putting `nf`/`g` on `All` would force every bare `all(q)`
+     site to invent curve data it doesn't have (or make the fields nullable, which
+     just pushes `undefined` onto `sign`).
+   - **`mul` isn't on `nf` anyway.** `mul` is a field of `Curve`
+     (`fs/crypto/secp/module.f.ts:44`, `mul: Fold<bigint, Point>`), not of the
+     prime field `nf`. So `nf` + `g` alone still wouldn't cover `sign`'s
+     `c.mul(k)(g)`; the enriched context must add `mul` too.
+
+   So `All` stays the pure `q`-only RFC6979 factory `computeK` consumes, and
+   `Signer = All & { nf, mul, g }` is the curve-aware superset `fromCurve` returns.
+   This answers the review affirmatively in spirit (`fromCurve` *should* carry the
+   curve pieces) while keeping them off the bare-`q` `All` type.
 
 2. Add a named `bits2intModQ: (b: Vec) => bigint` to the `All` record
    (`= b => bits2int(b) % q`), define `bits2octets = b => int2octets(bits2intModQ(b))`
@@ -94,7 +111,7 @@ co-locating the RFC rationale.
 
 ## Tasks
 
-- [ ] extend `fromCurve` to return a `Signer` (`All` + `div`/`mul`/`g`); keep `all`
+- [ ] extend `fromCurve` to return a `Signer` (`All` + `nf`/`mul`/`g`); keep `all`
       as the pure `q`-only `All` factory `computeK` uses
 - [ ] `sign` destructures only from `fromCurve(c)` — no direct `c.nf`/`c.mul`/`c.g` access
 - [ ] add `bits2intModQ` to `All`; express `bits2octets` and `sign`'s `h` through it
