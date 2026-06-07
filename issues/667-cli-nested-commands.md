@@ -47,5 +47,7 @@ recursive `dispatch`.
 ## Related
 
 - `fs/cli/module.f.ts` — current implementation
-- [665-command-line-parsing-refactor.md](./665-command-line-parsing-refactor.md) — parent issue
-- [667-fjs-run-main-convention.md](./667-fjs-run-main-convention.md) — `fjs r` could detect `main: Commands` vs `main: NodeProgram` and call `dispatch` automatically
+- i665-command-line-parsing-refactor — landed parent issue that introduced `Commands`
+- i667-fjs-run-main-convention — landed `export const main` convention; `fjs r`
+  could detect `main: Commands` vs `main: NodeProgram` and call `dispatch`
+  automatically

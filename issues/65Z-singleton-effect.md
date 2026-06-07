@@ -111,4 +111,4 @@ address the general problem.
 ## Related
 
 - [i65Z-ci-scenario-docker](./65Z-ci-scenario-docker.md) — CI scenario job; duplicate execution is a latent issue when multiple runners scan the same directory
-- [i183](./183-tf-framework-scenario-tests.md) — scenario test infrastructure
+- i183 — scenario test infrastructure

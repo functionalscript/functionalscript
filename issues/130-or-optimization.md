@@ -1,8 +1,7 @@
 # 130. RTTI: `or` Optimization and Normalization
 
 **Priority:** P3
-**Status:** open
-**Blocked by:** [i143](./143-rtti-data.md)
+**Status:** irrelevant
 
 > **Superseded by [143-rtti-data](./143-rtti-data.md).**
 
