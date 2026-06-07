@@ -9,11 +9,11 @@ reporter implementations follow naturally.
 
 ## GitHub Actions reporter
 
-`module.f.ts` currently reads `options.env['GITHUB_ACTION']` at startup and switches
+`module.f.ts` currently reads `options.env['GITHUB_ACTIONS']` at startup and switches
 output format for the entire run:
 
 ```ts
-const isGitHub = options.env['GITHUB_ACTION'] !== undefined
+const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
 if (isGitHub) {
     return csiError(`::error file=${k},line=1,title=${i}()::${r}`)
 } else {
