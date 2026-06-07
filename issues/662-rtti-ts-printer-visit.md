@@ -189,7 +189,7 @@ same module (`:44`, `:55`).
   ([i147](./147-deno-slow-types.md)).
 - **Generic inference.** Unlike `validate`/`parse`, whose visitors return a
   generic `Validate<T>` and lean on a top-level `as any`
-  ([i146](./146-rtti-ts-inference.md)), the printer's visitor is
+  (historically tracked in i146), the printer's visitor is
   monomorphic (`Visitor<string>`), so it should type cleanly with **no**
   cast. If TS nonetheless balks at one of the handler parameter types
   (`Struct`, `Primitive`), prefer fixing the handler signature over
@@ -203,9 +203,8 @@ same module (`:44`, `:55`).
 
 - [i172](./172-rtti-validate-parse-skeleton.md) — unify `validate`/`parse`
   container walks; complementary RTTI consolidation along the same kernel.
-- [i146](./146-rtti-ts-inference.md) — the `Ts<T>` inference / `as any`
-  problem in the generic visitors; the printer's visitor avoids it by being
-  monomorphic.
+- i146 — the `Ts<T>` inference / `as any` problem in the generic visitors;
+  the printer's visitor avoids it by being monomorphic.
 - [i197](./197-djs-unknown-walker.md) — a sibling "adopt a shared visitor"
   proposal, but over runtime `Unknown` *values* rather than the `Type`
   schema ADT; same spirit, different walk.

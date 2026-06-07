@@ -1,8 +1,8 @@
-import defaultExport from './module.f.ts'
+import { main } from './module.f.ts'
 
 export const proof = {
-    default: () => {
-        const program = defaultExport()
+    main: () => {
+        const program = main()
         if (program === undefined) { throw 'expected a program effect' }
     }
 }

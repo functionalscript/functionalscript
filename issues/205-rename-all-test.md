@@ -22,8 +22,8 @@ The `.test.ts` suffix preserves auto-discovery; the `register` prefix communicat
 the file's role.
 
 Note: `loadModuleMap` only matches `*.test.f.ts` / `*.test.f.js`, so `register.test.ts`
-would not be loaded as a test module — no double-load risk, even if [i204](./204-test-ts-js-support.md)
-adds plain `*.test.ts` support (since the guard would need to explicitly exclude
+would not be loaded as a test module — no double-load risk, even if plain
+`*.test.ts` support is added (since the guard would need to explicitly exclude
 `register.test.ts` or use a different mechanism).
 
 ### Option B — keep `all.ts` / `all.test.ts`
@@ -33,6 +33,6 @@ from context.
 
 ## Related
 
-- [i204](./204-test-ts-js-support.md) — new suffix for plain TS/JS FunctionalScript
-  convention files; `all.test.ts` must stay `.test.ts` for framework discovery
-- [i183](./183-tf-framework-scenario-tests.md) — scenario runner that uses this file
+- i204 — new suffix for plain TS/JS FunctionalScript convention files;
+  `all.test.ts` must stay `.test.ts` for framework discovery
+- i183 — scenario runner that uses this file

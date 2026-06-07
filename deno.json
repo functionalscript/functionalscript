@@ -1,6 +1,6 @@
 {
   "name": "@functionalscript/functionalscript",
-  "version": "0.24.0",
+  "version": "0.27.0",
   "license": "MIT",
   "exports": {
     "./fs/asn.1/module.f.ts": "./fs/asn.1/module.f.ts",
@@ -18,6 +18,7 @@
     "./fs/ci/node/module.f.ts": "./fs/ci/node/module.f.ts",
     "./fs/ci/playwright/module.f.ts": "./fs/ci/playwright/module.f.ts",
     "./fs/ci/rust/module.f.ts": "./fs/ci/rust/module.f.ts",
+    "./fs/cli/module.f.ts": "./fs/cli/module.f.ts",
     "./fs/crypto/hmac/module.f.ts": "./fs/crypto/hmac/module.f.ts",
     "./fs/crypto/pow/module.f.ts": "./fs/crypto/pow/module.f.ts",
     "./fs/crypto/secp/module.f.ts": "./fs/crypto/secp/module.f.ts",
@@ -26,6 +27,7 @@
     "./fs/crypto/vdf/module.f.ts": "./fs/crypto/vdf/module.f.ts",
     "./fs/dev/index/module.f.ts": "./fs/dev/index/module.f.ts",
     "./fs/dev/module.f.ts": "./fs/dev/module.f.ts",
+    "./fs/dev/package_json/module.f.ts": "./fs/dev/package_json/module.f.ts",
     "./fs/dev/version/module.f.ts": "./fs/dev/version/module.f.ts",
     "./fs/djs/ast/module.f.ts": "./fs/djs/ast/module.f.ts",
     "./fs/djs/module.f.ts": "./fs/djs/module.f.ts",
@@ -54,6 +56,7 @@
     "./fs/json/schema/module.f.ts": "./fs/json/schema/module.f.ts",
     "./fs/json/serializer/module.f.ts": "./fs/json/serializer/module.f.ts",
     "./fs/json/tokenizer/module.f.ts": "./fs/json/tokenizer/module.f.ts",
+    "./fs/mcp/module.f.ts": "./fs/mcp/module.f.ts",
     "./fs/path/module.f.ts": "./fs/path/module.f.ts",
     "./fs/sul/id/module.f.ts": "./fs/sul/id/module.f.ts",
     "./fs/sul/level/hash/module.f.ts": "./fs/sul/level/hash/module.f.ts",

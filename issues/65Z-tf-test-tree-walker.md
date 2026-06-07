@@ -140,7 +140,7 @@ merge) lives in one place.
 
 ## Related
 
-- [i183](./183-tf-framework-scenario-tests.md) — broader work on the `tf`
+- i183 — broader work on the `tf`
   framework; this is a structural cleanup that lands cleanly alongside it.
 - [i157](./157-json-djs-shared-core.md) — same flavour: two parallel
   walkers over the same static shape, differing in the per-node action.

@@ -13,7 +13,7 @@ import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import { contains } from '../../types/range/module.f.ts'
 import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
-import { jsGrammar } from './module.f.ts'
+import { jsGrammar, parse } from './module.f.ts'
 
 const mapCodePoint = (cp: CodePoint): CodePointMeta<unknown> => [cp, undefined]
 
@@ -930,6 +930,9 @@ export const proof = {
     //         if (result !== '[{"kind":"yield"},{"kind":"eof"}]') { throw result }
     //     },
     // ],
+    throw: {
+        parse: () => { parse('') }
+    },
     // comments: [
     //     () => {
     //         const result = tokenizeString('//singleline comment')

@@ -8,7 +8,8 @@ import { parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { begin, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
-import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp } from '../effects/node/module.f.ts'
+import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
+import { dispatch, type Commands } from '../cli/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 
@@ -92,59 +93,55 @@ export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> 
     })
 }
 
-/**
- * Runs the CAS CLI.
- *
- * Supported subcommands:
- * - `add <path>`: stores file content and prints the hash.
- * - `get <hash> <path>`: restores content by hash into a file.
- * - `list`: prints all known hashes.
- */
-export const main = (args: readonly string[]): Effect<NodeOp, number> => {
+export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
     const c = cas(sha256)(fileKvStore('.'))
-    const [cmd, ...options] = args
-    switch (cmd) {
-        case 'add': {
-            if (options.length !== 1) {
-                return errorExit("'cas add' expects one parameter")
-            }
-            const [path] = options
-            return begin
-                .step(() => readFile(path))
-                .step(v => c.write(unwrap(v)))
-                .step(hash => log(vecToCBase32(hash)))
-                .step(() => pure(0))
-        }
-        case 'get': {
-            if (options.length !== 2) {
-                return errorExit("'cas get' expects two parameters")
-            }
-            const [hashCBase32, path] = options
-            const hash = cBase32ToVec(hashCBase32)
-            if (hash === null) {
-                return errorExit(`invalid hash format: ${hashCBase32}`)
-            }
-            return begin
-                .step(() => c.read(hash))
-                .step(v => {
-                    const result: NodeEffect<number> = v === undefined
-                        ? errorExit(`no such hash: ${hashCBase32}`)
-                        : begin
-                            .step(() => writeFile(path, v))
-                            .step(() => pure(0))
-                    return result
-                })
-        }
-        case 'list': {
-            return begin
-                .step(() => c.list())
-                .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
-                .step(() => pure(0))
-        }
-        case undefined: {
-            return errorExit('Error: CAS command requires subcommand')
-        }
-        default:
-            return errorExit(`Error: Unknown CAS subcommand "${args[0]}"`)
-    }
+    const commands: Commands<NodeOp> = [
+        {
+            names: ['add'],
+            description: 'Store file content and print its hash',
+            handler: ({ args: [path, ...rest] }) => {
+                if (path === undefined || rest.length !== 0) {
+                    return errorExit("'cas add' expects one parameter")
+                }
+                return begin
+                    .step(() => readFile(path))
+                    .step(v => c.write(unwrap(v)))
+                    .step(hash => log(vecToCBase32(hash)))
+                    .step(() => pure(0))
+            },
+        },
+        {
+            names: ['get'],
+            description: 'Restore content by hash into a file',
+            handler: ({ args: [hashCBase32, path, ...rest] }) => {
+                if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
+                    return errorExit("'cas get' expects two parameters")
+                }
+                const hash = cBase32ToVec(hashCBase32)
+                if (hash === null) {
+                    return errorExit(`invalid hash format: ${hashCBase32}`)
+                }
+                return begin
+                    .step(() => c.read(hash))
+                    .step(v => {
+                        const result: Effect<NodeOp, number> = v === undefined
+                            ? errorExit(`no such hash: ${hashCBase32}`)
+                            : begin
+                                .step(() => writeFile(path, v))
+                                .step(() => pure(0))
+                        return result
+                    })
+            },
+        },
+        {
+            names: ['list'],
+            description: 'List all stored content hashes',
+            handler: () =>
+                begin
+                    .step(() => c.list())
+                    .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
+                    .step(() => pure(0)),
+        },
+    ]
+    return dispatch(commands)(options)
 }

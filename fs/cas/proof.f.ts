@@ -5,64 +5,75 @@ import type { Vec } from '../types/bit_vec/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 import { run } from '../effects/mock/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
+import type { NodeProgramOptions } from '../effects/node/module.f.ts'
+
+const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
+    args,
+    env: {},
+    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
+    testContext: { test: async () => {} },
+    bunTestContext: { test: async () => {} },
+    playwrightTestContext: { test: async () => {} },
+    engine: 'node' as const,
+})
 
 export const proof = {
     mainAdd: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: content } }
-        const [finalState, exitCode] = virtual(state)(main(['add', 'myfile']))
+        const [finalState, exitCode] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
         if (finalState.stdout.length === 0) { throw 'expected hash in stdout' }
     },
     mainAddWrongArgs: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(['add']))
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['add'])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },
     mainGetFound: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: content } }
-        const [state1, exitCode1] = virtual(state)(main(['add', 'myfile']))
+        const [state1, exitCode1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         if (exitCode1 !== 0) { throw ['expected add exit 0', exitCode1] }
         const hashStr = state1.stdout.trim()
-        const [, exitCode2] = virtual(state1)(main(['get', hashStr, 'output']))
+        const [, exitCode2] = virtual(state1)(main(makeOptions(['get', hashStr, 'output'])))
         if (exitCode2 !== 0) { throw ['expected get exit 0', exitCode2] }
     },
     mainGetNotFound: () => {
         // valid cBase32 hash that has not been stored
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: content } }
-        const [state1] = virtual(state)(main(['add', 'myfile']))
+        const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
         const hashStr = state1.stdout.trim()
         // use an empty store so the hash is not found
-        const [finalState, exitCode] = virtual(emptyState)(main(['get', hashStr, 'output']))
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get', hashStr, 'output'])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },
     mainGetWrongArgs: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(['get']))
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get'])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },
     mainGetInvalidHash: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(['get', 'not-a-valid-hash', 'output']))
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get', 'not-a-valid-hash', 'output'])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },
     mainList: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: content } }
-        const [state1] = virtual(state)(main(['add', 'myfile']))
-        const [, exitCode] = virtual(state1)(main(['list']))
+        const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        const [, exitCode] = virtual(state1)(main(makeOptions(['list'])))
         if (exitCode !== 0) { throw ['expected exit 0', exitCode] }
     },
     mainNoCmd: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main([]))
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions([])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },
     mainUnknownCmd: () => {
-        const [finalState, exitCode] = virtual(emptyState)(main(['bogus']))
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['bogus'])))
         if (exitCode !== 1) { throw ['expected exit 1', exitCode] }
         if (finalState.stderr.length === 0) { throw 'expected error in stderr' }
     },

@@ -15,6 +15,13 @@ export type Index1 = 0
 
 export type Array2<T> = readonly [T, T]
 
+/**
+ * Currently, TypeScript can't narrow the type of `readonly T[]` to `Array2<T>`
+ * only by checking `a.length === 2`, so we need a user-defined type guard.
+ *
+ * @param a An array of unknown length.
+ * @returns True if `a` has length 2, and `a` is narrowed to `Array2<T>` in that case.
+ */
 export const isArray2 = <T>(a: readonly T[]): a is Array2<T> =>
     a.length === 2
 

@@ -322,7 +322,7 @@ export type NodeEffect<T> = Effect<NodeOp, T>
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
  * compose `error(s).step(() => pure(n))` directly.
  */
-export const errorExit = (s: string): Effect<NodeOp, number> =>
+export const errorExit = (s: string): Effect<Write, number> =>
     begin
         .step(() => error(s))
         .step(() => pure(1))

@@ -9,11 +9,11 @@ reporter implementations follow naturally.
 
 ## GitHub Actions reporter
 
-`module.f.ts` currently reads `options.env['GITHUB_ACTION']` at startup and switches
+`module.f.ts` currently reads `options.env['GITHUB_ACTIONS']` at startup and switches
 output format for the entire run:
 
 ```ts
-const isGitHub = options.env['GITHUB_ACTION'] !== undefined
+const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
 if (isGitHub) {
     return csiError(`::error file=${k},line=1,title=${i}()::${r}`)
 } else {
@@ -42,11 +42,11 @@ destination. Corresponds to the "colored progress bar" item in
 
 A reporter that converts walker events into the corresponding framework's `subTest`
 calls, allowing `module.ts` to reuse the Effects walker instead of maintaining its own
-scan loop. See [i163](./163-reporter-test-method.md) for the `test(throws, f)` addition
+scan loop. The landed i163 work added `test(throws, f)`
 to `Reporter<O>` that enables this.
 
 ## Related
 
 - [i21](./021-test-framework-silent-mode.md) — silent/verbose mode and progress bar
 - i155 — original issue; reporter modes extracted here
-- [i163](./163-reporter-test-method.md) — `test(throws, f)` on `Reporter<O>` enabling the bridge reporter
+- i163 — `test(throws, f)` on `Reporter<O>` enabling the bridge reporter

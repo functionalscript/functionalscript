@@ -5,11 +5,11 @@
 
 ## Problem
 
-We are about to *produce* JSON Schema ([i665-rtti-json-schema](./665-rtti-json-schema.md)'s
-`toJsonSchema`), and an MCP server will eventually *consume* it (a tool's
-`inputSchema` arrives as JSON Schema from a peer). But we have no type for "a JSON
-Schema document" — so `toJsonSchema` would have to return the untyped `json.Unknown`,
-and any consumer would hand-walk a bag of unknown keys.
+We produce JSON Schema from `fs/json/schema/module.f.ts`'s `toJsonSchema`, and
+an MCP server will eventually *consume* it (a tool's `inputSchema` arrives as
+JSON Schema from a peer). But we have no type for "a JSON Schema document" — so
+`toJsonSchema` would have to return the untyped `json.Unknown`, and any consumer
+would hand-walk a bag of unknown keys.
 
 We need a module — `fs/json/schema/module.f.ts` — that names the shape of a JSON
 Schema (draft 2020-12, the dialect MCP uses), at least the subset we use.
@@ -66,7 +66,7 @@ Until that parse requirement is real, Phase 2 is speculative — stay at Phase 1
 
 ## Relationship to the other issues
 
-- [i665-rtti-json-schema](./665-rtti-json-schema.md) — `toJsonSchema` *emits* values
+- `fs/json/schema/module.f.ts` — `toJsonSchema` *emits* values
   of this type; this issue gives that output a name. The two are duals: one rtti
   schema → JSON Schema (printer), this one a type/validator *for* JSON Schema.
 - [i665-mcp](./665-mcp.md) — the consumer that may eventually force Phase 2.
@@ -77,14 +77,14 @@ Until that parse requirement is real, Phase 2 is speculative — stay at Phase 1
   `toJsonSchema` emits (`type`, `const`, `properties`, `required`,
   `additionalProperties`, `items`, `prefixItems`, `anyOf`) and grow on demand.
 - **`integer` vs `number`.** JSON Schema distinguishes them; decide how `bigint` /
-  whole-number rtti types map (ties into i665-rtti-json-schema's `bigint` question).
+  whole-number rtti types map.
 - **Go straight to RTTI?** If a parse need is already on the horizon, Phase 1 and 2
   could collapse — but the default is TS-first to avoid building the full
   meta-schema before it is needed.
 
 ## Related
 
-- [i665-rtti-json-schema](./665-rtti-json-schema.md) · [i665-mcp](./665-mcp.md)
+- `fs/json/schema/module.f.ts` · [i665-mcp](./665-mcp.md)
 - `fs/json/module.f.ts` — `Unknown` (the value type JSON Schema is built from)
 - `fs/types/rtti/module.f.ts` — combinators + recursion (`Ts<>`) for Phase 2
 - [JSON Schema 2020-12](https://json-schema.org/draft/2020-12)

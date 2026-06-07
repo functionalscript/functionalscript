@@ -1,7 +1,8 @@
 {
   "name": "CI",
   "on": {
-    "pull_request": {}
+    "pull_request": {},
+    "merge_group": {}
   },
   "jobs": {
     "ubuntu-intel": {
@@ -36,7 +37,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -123,10 +124,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -210,7 +217,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -291,10 +298,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -378,7 +391,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -459,10 +472,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -546,7 +565,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -627,10 +646,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -714,7 +739,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -801,10 +826,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -888,7 +919,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -966,10 +997,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -1040,10 +1077,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npx tsc"
         },
         {
-          "run": "npm run fst"
+          "run": "npm test"
+        },
+        {
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         }
       ]
     },

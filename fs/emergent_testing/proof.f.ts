@@ -33,7 +33,7 @@ const noopTestContext = { test: todo }
 
 const options = (initCwd: string, github = false): NodeProgramOptions => ({
     args: [],
-    env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTION: 'true' } : {}) },
+    env: { INIT_CWD: initCwd, ...(github ? { GITHUB_ACTIONS: 'true' } : {}) },
     std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
     testContext: noopTestContext,
     bunTestContext: noopTestContext,
