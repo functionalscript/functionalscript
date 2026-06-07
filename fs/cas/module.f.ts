@@ -8,7 +8,7 @@ import { parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { begin, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
-import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type Write } from '../effects/node/module.f.ts'
+import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
@@ -93,13 +93,13 @@ export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> 
     })
 }
 
-export const main = (args: readonly string[]): Effect<NodeOp, number> => {
+export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
     const c = cas(sha256)(fileKvStore('.'))
     const commands: Commands<NodeOp> = [
         {
             names: ['add'],
             description: 'Store file content and print its hash',
-            handler: ([path, ...rest]) => {
+            handler: ({ args: [path, ...rest] }) => {
                 if (path === undefined || rest.length !== 0) {
                     return errorExit("'cas add' expects one parameter")
                 }
@@ -113,7 +113,7 @@ export const main = (args: readonly string[]): Effect<NodeOp, number> => {
         {
             names: ['get'],
             description: 'Restore content by hash into a file',
-            handler: ([hashCBase32, path, ...rest]) => {
+            handler: ({ args: [hashCBase32, path, ...rest] }) => {
                 if (hashCBase32 === undefined || path === undefined || rest.length !== 0) {
                     return errorExit("'cas get' expects two parameters")
                 }
@@ -143,5 +143,5 @@ export const main = (args: readonly string[]): Effect<NodeOp, number> => {
                     .step(() => pure(0)),
         },
     ]
-    return dispatch(commands)(args)
+    return dispatch(commands)(options)
 }

@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `cli`: change `Command<O>.handler` signature from `(args: readonly string[])` to `(options: NodeProgramOptions)`; `dispatch` now accepts and forwards full `NodeProgramOptions` with `args` trimmed to the remainder after the matched command name; `fs/fjs/module.f.ts` `commands` becomes a module-level constant with `main = dispatch(commands)` point-free (i667-cli-handler-options) [#973](https://github.com/functionalscript/functionalscript/pull/973)
 - `fjs`: `fjs r` now looks up `main` instead of `default` on the imported module; update `fs/ci/module.f.ts`, `fs/website/module.f.ts`, and `fs/dev/index/module.f.ts` from `export default` to `export const main` (i667-fjs-run-main-convention) [#972](https://github.com/functionalscript/functionalscript/pull/972)
-- `cli`: add `fs/cli/module.f.ts` — `Command` / `Commands` types and a `dispatch` function that builds a name→command map, auto-generates a `help` / `h` / `?` command with padded column alignment, and includes available commands in error messages for missing or unknown input; replace `switch`-based dispatch in `fs/fjs/module.f.ts` and `fs/cas/module.f.ts` with `Commands` lists; add `fs/cli/proof.f.ts` with 7 proofs ([i665-command-line-parsing-refactor](./issues/665-command-line-parsing-refactor.md)) [#971](https://github.com/functionalscript/functionalscript/pull/971)
+- `cli`: add `fs/cli/module.f.ts` — `Command` / `Commands` types and a `dispatch` function that builds a name→command map, auto-generates a `help` / `h` / `?` command with padded column alignment, and includes available commands in error messages for missing or unknown input; replace `switch`-based dispatch in `fs/fjs/module.f.ts` and `fs/cas/module.f.ts` with `Commands` lists; add `fs/cli/proof.f.ts` with 7 proofs (i665-command-line-parsing-refactor) [#971](https://github.com/functionalscript/functionalscript/pull/971)
 
 ## 0.25.0
 
