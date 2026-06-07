@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- abandon JSR publishing: remove `deno.json`, `fs/dev/index/`, `fs/dev/version/`, and the `index` npm script; replace `deno install` + `deno task` commands in CI with direct `deno test`/`deno run`; remove `deno publish --dry-run` from generated CI and `deno publish` from publish workflow; remove JSR badge from `README.md` ([i667-abandon-jsr](./issues/667-abandon-jsr.md)) [#984](https://github.com/functionalscript/functionalscript/pull/984)
+
 ## 0.26.0
 
 - `fjs`: add `fjs ci` / `fjs i` as first-class commands for the standard CI workflow generator; update this repo's `ci-update` script to call the built-in command through `node ./fs/fjs/module.ts ci` (i667-fjs-ci-command) [#975](https://github.com/functionalscript/functionalscript/pull/975)
