@@ -1,7 +1,8 @@
 {
   "name": "CI",
   "on": {
-    "pull_request": {}
+    "pull_request": {},
+    "merge_group": {}
   },
   "jobs": {
     "ubuntu-intel": {
@@ -123,10 +124,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -291,10 +295,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -459,10 +466,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -627,10 +637,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -801,10 +814,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -966,10 +982,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         },
         {
           "run": "tsgo"
@@ -1040,10 +1059,13 @@
           "run": "npm ci"
         },
         {
-          "run": "npm t"
+          "run": "npm test"
         },
         {
-          "run": "npm run fst"
+          "run": "node --test"
+        },
+        {
+          "run": "npm run cov"
         }
       ]
     },

@@ -23,8 +23,9 @@ export const basicNode = (version: string) => (extra: readonly MetaStep[]): read
 ])
 
 const basicTests = [
-    test({ run: 'npm t' }),
-    test({ run: 'npm run fst' }),
+    test({ run: 'npm test' }),
+    test({ run: 'node --test' }),
+    test({ run: 'npm run cov' }),
 ]
 
 export const nodeTests = (version: string) => (extra: readonly MetaStep[]): readonly MetaStep[] => basicNode(version)([
