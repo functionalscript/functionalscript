@@ -1,18 +1,28 @@
 import { pure } from '../effects/module.f.ts'
-import { type NodeOp } from '../effects/node/module.f.ts'
+import { type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { dispatch, type Commands } from './module.f.ts'
+
+const makeOptions = (args: readonly string[]): NodeProgramOptions => ({
+    args,
+    env: {},
+    std: { stdout: { isTTY: false }, stderr: { isTTY: false } },
+    testContext: { test: async () => {} },
+    bunTestContext: { test: async () => {} },
+    playwrightTestContext: { test: async () => {} },
+    engine: 'node' as const,
+})
 
 const echoCommands: Commands<NodeOp> = [
     {
         names: ['echo', 'e'],
         description: 'Print the first argument',
-        handler: ([arg = '']) => pure(arg.length),
+        handler: ({ args: [arg = ''] }) => pure(arg.length),
     },
 ]
 
 const run = (commands: Commands<NodeOp>) => (args: readonly string[]) =>
-    virtual(emptyState)(dispatch(commands)(args))
+    virtual(emptyState)(dispatch(commands)(makeOptions(args)))
 
 export const proof = {
     knownCommand: () => {
@@ -48,7 +58,7 @@ export const proof = {
         const commands: Commands<NodeOp> = [{
             names: ['grab'],
             description: 'Capture args',
-            handler: (args): import('../effects/module.f.ts').Effect<NodeOp, number> => {
+            handler: ({ args }): import('../effects/module.f.ts').Effect<NodeOp, number> => {
                 captured.push(...args)
                 return pure(0)
             },
