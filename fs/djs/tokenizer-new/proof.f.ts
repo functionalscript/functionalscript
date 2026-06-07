@@ -102,7 +102,6 @@ const filterFunc
     }
 
 const rangeCapitalAF = range('AF')
-const rangeSmallAF = range('af')
 
 type StringDecodeState =
     | { readonly kind: 'normal' }
