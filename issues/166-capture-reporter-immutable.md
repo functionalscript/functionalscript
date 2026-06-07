@@ -47,4 +47,5 @@ Option A is preferred: it keeps events structured, avoids serialization, and int
 
 - `AGENTS.md` — no-mutation rule: avoid `.push`, `.pop`, index assignment, etc. on accumulators.
 - i156 — introduced the capture reporter; the mutable array was a pragmatic shortcut.
-- [i163](./163-reporter-test-method.md) — `Reporter<O>` generic; `O` would become `CaptureOp` for the capture reporter.
+- i163 — landed `Reporter<O>` generic; `O` would become `CaptureOp` for the
+  capture reporter.
