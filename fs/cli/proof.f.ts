@@ -3,7 +3,7 @@ import { type NodeOp } from '../effects/node/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
 import { dispatch, type Commands } from './module.f.ts'
 
-const echoCommands: Commands = [
+const echoCommands: Commands<NodeOp> = [
     {
         names: ['echo', 'e'],
         description: 'Print the first argument',
@@ -11,7 +11,7 @@ const echoCommands: Commands = [
     },
 ]
 
-const run = (commands: Commands) => (args: readonly string[]) =>
+const run = (commands: Commands<NodeOp>) => (args: readonly string[]) =>
     virtual(emptyState)(dispatch(commands)(args))
 
 export const proof = {
@@ -45,7 +45,7 @@ export const proof = {
     },
     handlerReceivesRemainingArgs: () => {
         const captured: string[] = []
-        const commands: Commands = [{
+        const commands: Commands<NodeOp> = [{
             names: ['grab'],
             description: 'Capture args',
             handler: (args): import('../effects/module.f.ts').Effect<NodeOp, number> => {

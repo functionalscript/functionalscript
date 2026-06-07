@@ -8,7 +8,7 @@ import { parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
 import { begin, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
-import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp } from '../effects/node/module.f.ts'
+import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type Write } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
@@ -95,7 +95,7 @@ export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> 
 
 export const main = (args: readonly string[]): Effect<NodeOp, number> => {
     const c = cas(sha256)(fileKvStore('.'))
-    const commands: Commands = [
+    const commands: Commands<NodeOp> = [
         {
             names: ['add'],
             description: 'Store file content and print its hash',
@@ -124,7 +124,7 @@ export const main = (args: readonly string[]): Effect<NodeOp, number> => {
                 return begin
                     .step(() => c.read(hash))
                     .step(v => {
-                        const result: NodeEffect<number> = v === undefined
+                        const result: Effect<NodeOp, number> = v === undefined
                             ? errorExit(`no such hash: ${hashCBase32}`)
                             : begin
                                 .step(() => writeFile(path, v))

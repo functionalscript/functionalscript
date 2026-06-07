@@ -75,4 +75,4 @@ const defaultEffect: Effect<NodeOp, number> = ci({
     ]
 })
 
-export default () => defaultEffect
+export const main = () => defaultEffect

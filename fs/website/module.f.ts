@@ -18,4 +18,4 @@ const program: Effect<WriteFile, number> =
     writeFile('index.html', html)
     .step(() => pure(0))
 
-export default () => program
+export const main = () => program

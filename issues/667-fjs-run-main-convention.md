@@ -1,7 +1,7 @@
 # 667-fjs-run-main-convention. Use `export const main` for FunctionalScript applications
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
