@@ -54,7 +54,7 @@ The two walks are not the *same* algorithm today:
    `Result`) rather than a finished array — which is the fiddly part.
 
 3. **Casts.** Both modules already lean on `as any` to bridge the schema-driven
-   generics (tracked in [i146](./146-rtti-ts-inference.md)). Routing through one
+   generics (historically tracked in i146). Routing through one
    more generic `build` callback is unlikely to remove casts and may add a few.
 
 ## The `getItem` parameter and TS array string-indexing
@@ -114,5 +114,4 @@ allocation.
 - i162 — made `parse` mirror
   `validate`'s factory pair (the precondition for this investigation).
 - [i143](./143-rtti-data.md) — RTTI data form; the likely third consumer.
-- [i146](./146-rtti-ts-inference.md) — the `Ts<T>` inference / `as any` problem
-  both modules work around.
+- i146 — the `Ts<T>` inference / `as any` problem both modules work around.
