@@ -513,6 +513,45 @@ rules; or run full validation in a debug build and trust the schemas in release.
 allocation/short-circuit trade-offs of `validate` vs `parse` are already
 discussed in [i172](./172-rtti-validate-parse-skeleton.md).
 
+### 5.5 Principle: all transformer schemas are validated at parser instantiation
+
+§5.3 lifts *one* check (the list-item/`array` case) to instantiation time. State
+it as a general principle: **every transformer's schema is validated once, when
+the parser is instantiated — not during parsing.** Concretely, instantiation
+verifies, for each actioned rule:
+
+1. **name resolution** — every actioned rule name (and every rule it references)
+   exists in the grammar; and
+2. **shape compatibility** — the transformer's `in` schema matches the rule's
+   *raw-output* shape (the §2 table, including the §2.1 "list" kind), and its
+   `out` matches what the parent consumes (§5.1).
+
+**Why instantiation is the right phase.** The structural analysis this design
+already performs at runtime — cycle detection and the §2.1 tail-position/list
+recognition — runs exactly once, when the parser is built, and is precisely when
+each rule's raw-output shape becomes known. Folding transformer-compatibility
+into that same pass adds no new traversal: it confronts each declared `in`
+against the shape it will actually receive at the one moment both are available.
+
+**Runtime failure here is acceptable — indeed preferable.** A mis-wired
+transformer is a programming error. Failing at construction means it surfaces
+immediately, deterministically, and on *every* run, before any input is parsed —
+not mid-parse on whatever input first reaches the bad branch. The cost is paid
+once per parser (O(actioned rules)), never in the parse hot path, so the check
+can afford to be thorough.
+
+**Relation to the compile-time check.** This *complements*, not replaces, the
+`Ts<>` static check. For statically-written grammars TypeScript already verifies
+most wiring at compile time; the instantiation-time check is the backstop for
+what the type system cannot see — chiefly the structurally-detected "list"
+raw-output kind (TS has no idea a rule is list-like) and any dynamically
+assembled grammar or name-keyed action map.
+
+The *mechanism* for the shape-compatibility half is the schema-vs-schema
+`subset` predicate of §5.3, gated on [i143](./143-rtti-data.md); until it lands,
+the per-node §5.2 form is the fallback and name resolution can still be checked
+at instantiation independently.
+
 ## 6. Worked example: JSON
 
 Using the grammar from `fs/fsc/json.f.ts` (`character`, `escape`, `string`,
@@ -589,10 +628,14 @@ Pursue **(B) transparent `mapRule` + grammar-directed fold (§3)** with the
 **RTTI contract (§5)** as the type-safety mechanism; do **not** attempt to type
 the grammar↔action boundary in TypeScript (§4 shows it cannot survive cyclic
 grammars). Start with the positional elision model and explicit `out` schemas,
-and the per-node boundary check (§5.2). Once the RTTI `subset` predicate from
-[i143](./143-rtti-data.md) exists, lift the boundary check to grammar
-instantiation (§5.3) so it costs O(actioned rules) once and fails at
-construction. Recognize repetition by **structural right-recursion analysis**
+and the per-node boundary check (§5.2). Treat **instantiation-time validation of every transformer schema as a
+principle** (§5.5): the parser already analyzes cycles and list structure once at
+construction, so transformer compatibility is checked in that same pass and fails
+at construction rather than mid-parse (runtime failure is acceptable because it
+is pre-parse). Once the RTTI `subset` predicate from
+[i143](./143-rtti-data.md) exists, lift the shape-compatibility half to grammar
+instantiation (§5.3) so it costs O(actioned rules) once; until then keep the
+per-node §5.2 fallback while still resolving names at construction. Recognize repetition by **structural right-recursion analysis**
 (§2.1) rather than a helper combinator, so hand-written and combinator-built
 list rules flatten identically; gate the flattening on an `array(item)` schema
 opt-in so right-associative trees are preserved. Define evaluation as a
