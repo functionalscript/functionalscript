@@ -1,7 +1,7 @@
 # 667-fjs-ci-command. Add `fjs ci` command to generate CI workflow
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -36,10 +36,13 @@ GitHub Actions workflow with:
 fjs ci
 ```
 
-`package.json` in this repo can simplify its `ci-update` script accordingly:
+Installed projects can call the package bin directly. `package.json` in this repo
+uses the same built-in command through the checked-in Node entry point, because `npm`
+scripts do not put the current package's own `bin` declaration on `PATH` before the
+package is installed:
 
 ```json
-"ci-update": "fjs ci"
+"ci-update": "node ./fs/fjs/module.ts ci"
 ```
 
 ## Customisation

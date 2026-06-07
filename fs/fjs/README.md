@@ -25,8 +25,22 @@ fjs <command> [args]
 | `test`   | `t`   | Run the FunctionalScript test suite |
 | `compile`| `c`   | Compile a FunctionalScript module to JavaScript |
 | `cas`    | `s`   | Content-addressable storage operations |
+| `ci`     | `i`   | Generate the GitHub Actions CI workflow |
 | `run`    | `r`   | Run a FunctionalScript module as a program |
 | `help`   | `h`, `?` | Print available commands |
+
+## `fjs ci` — generating the standard CI workflow
+
+```sh
+fjs ci
+fjs i
+```
+
+`fjs ci` runs the built-in CI generator from `fs/ci/module.f.ts`, writing
+`.github/workflows/ci.yml`. It is the standard entry point for projects that want
+FunctionalScript's default workflow. Projects with custom CI setup code should keep
+using `fjs r <custom-ci-module>`, so their module can call `ci(setup)` with its own
+extra runtime steps.
 
 ## `fjs run` — running a module as a program
 
