@@ -56,6 +56,7 @@
     "./fs/json/serializer/module.f.ts": "./fs/json/serializer/module.f.ts",
     "./fs/json/tokenizer/module.f.ts": "./fs/json/tokenizer/module.f.ts",
     "./fs/mcp/module.f.ts": "./fs/mcp/module.f.ts",
+    "./fs/package_json/module.f.ts": "./fs/package_json/module.f.ts",
     "./fs/path/module.f.ts": "./fs/path/module.f.ts",
     "./fs/sul/id/module.f.ts": "./fs/sul/id/module.f.ts",
     "./fs/sul/level/hash/module.f.ts": "./fs/sul/level/hash/module.f.ts",

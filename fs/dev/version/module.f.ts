@@ -7,18 +7,19 @@ import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { begin, pure, type Effect } from '../../effects/module.f.ts'
 import { all, readFile, writeFile, type All, type ReadFile, type WriteFile } from '../../effects/node/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
+import { validateJsonObject, validatePackageJsonWithVersion, type JsonObject } from '../../package_json/module.f.ts'
 
-const { stringify, parse } = JSON
+const { parse, stringify } = JSON
 
 const jsonFile = (jsonFile: string) => `${jsonFile}.json`
 
 const readJson = (name: string) => begin
     .step(() =>readFile(jsonFile(name)))
-    .step(v => pure(parse(utf8ToString(unwrap(v)))))
+    .step(v => pure(unwrap(validateJsonObject(parse(utf8ToString(unwrap(v)))))))
 
 const writeVersion = (version: string) => (name: string) => begin
     .step(() => readJson(name))
-    .step(json => writeFile(
+    .step((json: JsonObject) => writeFile(
         jsonFile(name),
         utf8(stringify(
             {
@@ -33,7 +34,8 @@ const writeVersion = (version: string) => (name: string) => begin
 export const updateVersion: Effect<ReadFile | WriteFile | All, number> = begin
     .step(() => readJson('package'))
     .step(p => {
-        const w = writeVersion(p.version)
+        const { version } = unwrap(validatePackageJsonWithVersion(p))
+        const w = writeVersion(version)
         return all(w('package'), w('deno'))
     })
     .step(() => pure(0))

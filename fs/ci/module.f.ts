@@ -4,12 +4,7 @@
  * @module
  */
 import { utf8, utf8ToString } from '../text/module.f.ts'
-import type { Unknown } from '../json/module.f.ts'
-import { parse as jsonParse } from '../json/parser/module.f.ts'
-import { tokenize as jsonTokenize } from '../json/tokenizer/module.f.ts'
-import { stringToList } from '../text/utf16/module.f.ts'
-import { option, string } from '../types/rtti/module.f.ts'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
+import { parsePackageJsonText, type PackageJson } from '../package_json/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 import { access, readFile, writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
@@ -43,7 +38,6 @@ export type Setup = {
     readonly bunExtra: readonly MetaStep[],
 }
 
-const packageJsonPath = 'package.json' as const
 const functionalscriptPackageName = 'functionalscript' as const
 
 type PackageInfo = {
@@ -56,28 +50,18 @@ const fallbackPackageInfo: PackageInfo = {
     functionalscript: false,
 }
 
-const packageJson = { name: option(string) } as const
-
-const parsePackageJson = rttiParse(packageJson)
-
-const packageInfoFromValue = (value: Unknown): PackageInfo => {
-    const result = parsePackageJson(value)
-    if (result[0] === 'error') {
-        return fallbackPackageInfo
-    }
-    const { name } = result[1]
-    return name !== undefined
-        ? { name, functionalscript: name === functionalscriptPackageName }
-        : fallbackPackageInfo
-}
+const packageInfoFromPackageJson = ({ name }: PackageJson): PackageInfo =>
+    name !== undefined
+    ? { name, functionalscript: name === functionalscriptPackageName }
+    : fallbackPackageInfo
 
 const packageInfoFromText = (text: string): PackageInfo => {
-    const result = jsonParse(jsonTokenize(stringToList(text)))
-    return result[0] === 'ok' ? packageInfoFromValue(result[1]) : fallbackPackageInfo
+    const result = parsePackageJsonText(text)
+    return result[0] === 'ok' ? packageInfoFromPackageJson(result[1]) : fallbackPackageInfo
 }
 
 const readPackageInfo: Effect<NodeOp, PackageInfo> =
-    readFile(packageJsonPath)
+    readFile('package.json')
     .step(result => pure(result[0] === 'ok' ? packageInfoFromText(utf8ToString(result[1])) : fallbackPackageInfo))
 
 export const ci = ({ nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, number> =>
