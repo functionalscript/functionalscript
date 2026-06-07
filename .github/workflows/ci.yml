@@ -37,7 +37,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -217,7 +217,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -391,7 +391,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -565,7 +565,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -739,7 +739,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -919,7 +919,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260605.1"
+          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
