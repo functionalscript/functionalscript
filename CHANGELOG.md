@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- `cli`: add `fs/cli/module.f.ts` — `Command` / `Commands` types and a `dispatch` function that builds a name→command map, auto-generates a `help` / `h` / `?` command with padded column alignment, and includes available commands in error messages for missing or unknown input; replace `switch`-based dispatch in `fs/fjs/module.f.ts` and `fs/cas/module.f.ts` with `Commands` lists; add `fs/cli/proof.f.ts` with 7 proofs ([i665-command-line-parsing-refactor](./issues/665-command-line-parsing-refactor.md)) [#971](https://github.com/functionalscript/functionalscript/pull/971)
+
 ## 0.25.0
 
 - `ci`: auto-detect Rust by checking for `Cargo.toml` at the repo root — removes the manual `rust: boolean` flag from `Setup`; `access('Cargo.toml')` in the generator determines whether to include Rust steps ([i667-ci-rust-autodetect](./issues/667-ci-rust-autodetect.md)) [#969](https://github.com/functionalscript/functionalscript/pull/969)

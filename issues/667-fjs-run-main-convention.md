@@ -32,7 +32,24 @@ return (v.main as NodeProgram)({ ...options, args })
 
 Any module intended to be run with `fjs r` must export `export const main: NodeProgram` instead of `export default`.
 
+## Extension: `main` as `Commands`
+
+Once `main` is the recognised entry-point name, `fjs r` can also accept a `Commands`
+array instead of a `NodeProgram` function. If `typeof v.main === 'function'` the runner
+calls it as a `NodeProgram`; if it is an array it calls `dispatch(v.main)(args)`.
+This lets a module declare its CLI structure as data:
+
+```ts
+export const main: Commands = [
+    { names: ['add'], description: '...', handler: ... },
+    { names: ['list'], description: '...', handler: ... },
+]
+```
+
+and get help, aliases, and error messages from `dispatch` for free.
+
 ## Related
 
 - `fs/fjs/module.f.ts:28` — current `v.default` lookup
 - `fs/effects/node/module.f.ts` — `NodeProgram` type definition
+- [667-cli-nested-commands.md](./667-cli-nested-commands.md) — nested `Commands` in `Command`
