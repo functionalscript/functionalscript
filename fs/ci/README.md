@@ -78,6 +78,12 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs r <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
+The built-in command reads `package.json` while generating the workflow. The
+FunctionalScript repository keeps an extra demo compile step for
+`issues/demo/data/tree.json`; other packages do not get that repository-specific
+step. The package name is also used when the workflow uninstalls the tarball it
+installed globally during the pack/install self-check.
+
 ## Customisation
 
 `ci` accepts a `Setup` record to inject extra steps per runtime:

@@ -3,9 +3,15 @@
  *
  * @module
  */
-import { utf8 } from '../text/module.f.ts'
+import { utf8, utf8ToString } from '../text/module.f.ts'
+import type { Unknown } from '../json/module.f.ts'
+import { parse as jsonParse } from '../json/parser/module.f.ts'
+import { tokenize as jsonTokenize } from '../json/tokenizer/module.f.ts'
+import { stringToList } from '../text/utf16/module.f.ts'
+import { option, string } from '../types/rtti/module.f.ts'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
-import { access, writeFile, type NodeOp } from '../effects/node/module.f.ts'
+import { access, readFile, writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
 import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, findTgz, os, test, toSteps } from './common/module.f.ts'
 import { rustSteps } from './rust/module.f.ts'
@@ -37,6 +43,43 @@ export type Setup = {
     readonly bunExtra: readonly MetaStep[],
 }
 
+const packageJsonPath = 'package.json' as const
+const functionalscriptPackageName = 'functionalscript' as const
+
+type PackageInfo = {
+    readonly name: string,
+    readonly functionalscript: boolean,
+}
+
+const fallbackPackageInfo: PackageInfo = {
+    name: functionalscriptPackageName,
+    functionalscript: false,
+}
+
+const packageJson = { name: option(string) } as const
+
+const parsePackageJson = rttiParse(packageJson)
+
+const packageInfoFromValue = (value: Unknown): PackageInfo => {
+    const result = parsePackageJson(value)
+    if (result[0] === 'error') {
+        return fallbackPackageInfo
+    }
+    const { name } = result[1]
+    return name !== undefined
+        ? { name, functionalscript: name === functionalscriptPackageName }
+        : fallbackPackageInfo
+}
+
+const packageInfoFromText = (text: string): PackageInfo => {
+    const result = jsonParse(jsonTokenize(stringToList(text)))
+    return result[0] === 'ok' ? packageInfoFromValue(result[1]) : fallbackPackageInfo
+}
+
+const readPackageInfo: Effect<NodeOp, PackageInfo> =
+    readFile(packageJsonPath)
+    .step(result => pure(result[0] === 'ok' ? packageInfoFromText(utf8ToString(result[1])) : fallbackPackageInfo))
+
 export const ci = ({ nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, number> =>
     access('Cargo.toml').step(result => {
         const rust = result[0] === 'ok'
@@ -57,16 +100,21 @@ export const ci = ({ nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, nu
             .step(() => pure(0))
     })
 
-const defaultEffect: Effect<NodeOp, number> = ci({
-    nodeExtra: o => [
-        test({ run: 'npm pack' }),
-        test({ run: `npm install -g ${findTgz(o)}` }),
-        test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
-        test({ run: 'fjs t' }),
-        test({ run: 'npm uninstall functionalscript -g' }),
-    ],
+const demoCompile = test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' })
+const denoDemoCompile = test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' })
+
+const defaultNodeExtra = ({ name, functionalscript }: PackageInfo) => (o: Os): readonly MetaStep[] => [
+    test({ run: 'npm pack' }),
+    test({ run: `npm install -g ${findTgz(o)}` }),
+    ...(functionalscript ? [demoCompile] : []),
+    test({ run: 'fjs t' }),
+    test({ run: `npm uninstall ${name} -g` }),
+]
+
+const defaultEffect = (info: PackageInfo): Effect<NodeOp, number> => ci({
+    nodeExtra: defaultNodeExtra(info),
     denoExtra: [
-        test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
+        ...(info.functionalscript ? [denoDemoCompile] : []),
         test({ run: 'deno task fjs t' }),
         test({ run: 'deno publish --dry-run --allow-slow-types' }),
     ],
@@ -75,4 +123,4 @@ const defaultEffect: Effect<NodeOp, number> = ci({
     ]
 })
 
-export const main = () => defaultEffect
+export const main = () => readPackageInfo.step(defaultEffect)
