@@ -86,6 +86,47 @@ const filterFunc
         }
     }
 
+type StringDecodeState =
+    | { readonly kind: 'normal' }
+    | { readonly kind: 'escape' }
+    | { readonly kind: 'unicode', readonly acc: number, readonly count: number }
+
+const stringDecodeScan
+    : StateScan<number, StringDecodeState, List<number>>
+    = (cp, state) => {
+        switch (state.kind) {
+            case 'escape':
+                switch (cp) {
+                    case 34:  return [[34], { kind: 'normal' }]  // \" → "
+                    case 92:  return [[92], { kind: 'normal' }]  // \\ → \
+                    case 47:  return [[47], { kind: 'normal' }]  // \/ → /
+                    case 98:  return [[8],  { kind: 'normal' }]  // \b → backspace (BS)
+                    case 102: return [[12], { kind: 'normal' }]  // \f → form feed (FF)
+                    case 110: return [[10], { kind: 'normal' }]  // \n → line feed (LF)
+                    case 114: return [[13], { kind: 'normal' }]  // \r → carriage return (CR)
+                    case 116: return [[9],  { kind: 'normal' }]  // \t → horizontal tab (HT)
+                    case 117: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                    default:  return [[cp], { kind: 'normal' }]
+                }
+            case 'unicode': {
+                // convert hex digit char to its numeric value: '0'-'9' (48-57), 'A'-'F' (65-70), 'a'-'f' (97-102)
+                const digit = cp >= 48 && cp <= 57 ? cp - 48
+                    : cp >= 65 && cp <= 70 ? cp - 55   // 'A' - 10
+                    : cp - 87                           // 'a' - 10
+                const acc = (state.acc << 4) | digit
+                if (state.count === 3) return [[acc], { kind: 'normal' }]  // 4th digit: emit code point
+                return [null, { kind: 'unicode', acc, count: state.count + 1 }]
+            }
+            default:
+                if (cp === 92) return [null, { kind: 'escape' }]  // \ → enter escape mode
+                return [[cp], { kind: 'normal' }]
+        }
+    }
+
+const decodeJsonString
+    : (codePoints: readonly number[]) => string
+    = codePoints => String.fromCodePoint(...toArray(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1)))))
+
 const toJsToken
     : (tk: Token) => JsToken | null
     = tk => {
@@ -104,7 +145,7 @@ const toJsToken
             case '\t':
                 return {kind: 'ws'}
             case 'string':
-                return {kind: 'string', value: JSON.parse(String.fromCodePoint(...tk[1]))}
+                return {kind: 'string', value: decodeJsonString(tk[1])}
             default:
                 return null
         }
