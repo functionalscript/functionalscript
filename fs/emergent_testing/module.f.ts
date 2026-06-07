@@ -330,7 +330,7 @@ const fmtResultLine = (file: string, path: Path, color: string, label: string, d
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
  * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
- * `GITHUB_ACTION` is set, failures are emitted as `::error` workflow
+ * `GITHUB_ACTIONS` is set, failures are emitted as `::error` workflow
  * annotations instead of colored lines. Exported as a factory so the
  * GitHub format path can be exercised directly from tests.
  */
@@ -342,7 +342,7 @@ export const defaultReporter = (options: NodeProgramOptions): Reporter<Write|San
     }
     const csiLog = line('stdout')
     const csiError = line('stderr')
-    const isGitHub = options.env['GITHUB_ACTION'] !== undefined
+    const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
     return {
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
         result: (file, path, { result: [s, v], duration }, throws) =>
