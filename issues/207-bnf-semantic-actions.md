@@ -110,6 +110,13 @@ The JSON worked example (§6) uses the positional model.
 
 ### 2.1 List rules: flattening right-recursion
 
+> The unambiguous, schema-free part of this section — detecting 0-or-more
+> right-recursion during `toData` and emitting a `repeat` primitive so the
+> parsers produce a flat AST — is split into
+> [i667-bnf-repeat-flatten](./667-bnf-repeat-flatten.md). The opt-in for the
+> *ambiguous* cases (list vs. right-associative tree) via the `array(itemSchema)`
+> action schema remains here (§5).
+
 "Repeat" is **not** a BNF primitive — the four shapes are only
 `Variant | Sequence | TerminalRange | string`. Only the fixed-count `repeat(n)`
 is flat (it expands to a `Sequence` of `n` copies). Every *unbounded*
