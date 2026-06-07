@@ -3,28 +3,19 @@
  *
  * @module
  */
-import { updateVersion } from './version/module.f.ts'
 import {
     all,
-    both,
     import_,
     readdir,
-    readFile,
-    writeFile,
     type Access,
     type All,
     type Env,
     type Import,
-    type NodeProgram,
     type Readdir
 } from '../effects/node/module.f.ts'
 import { cmp as strCmp } from '../types/string/module.f.ts'
-import { utf8, utf8ToString } from '../text/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
 import { begin, pure, type Effect } from '../effects/module.f.ts'
-import { parse as jsonParse } from '../json/module.f.ts'
-import { record, unknown as rttiUnknown } from '../types/rtti/module.f.ts'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.ts'
 import { relativize, toPosix } from '../path/module.f.ts'
 
 export type Module = {
@@ -121,31 +112,3 @@ export const loadModuleMap = (env: Env): Effect<LoadModuleOperations, ModuleMap>
             .toSorted(([a], [b]) => strCmp(a)(b))
     )))
 }
-
-const denoJson = './deno.json'
-
-const parseDenoJson = rttiParse(record(rttiUnknown))
-
-const index2 =
-    updateVersion
-    .step(() => readFile(denoJson))
-    .step(v => pure(unwrap(parseDenoJson(jsonParse(utf8ToString(unwrap(v)))))))
-
-const allFiles2aa =
-    allFiles('.', v =>
-        v.endsWith('/module.f.ts') ||
-        v.endsWith('/module.ts') ||
-        v.endsWith('/all.test.ts'))
-    .step(files => {
-        const exportsA = files.map(v => [v, `./${v.substring(2)}`] as const)
-        return pure(Object.fromEntries(exportsA))
-    })
-
-const index3 = both(index2)(allFiles2aa)
-    .step(([jsr_json, exports]) => {
-        const json = JSON.stringify({ ...jsr_json, exports }, null, 2)
-        return writeFile(denoJson, utf8(json))
-    })
-    .step(() => pure(0))
-
-export const index4: NodeProgram = () => index3

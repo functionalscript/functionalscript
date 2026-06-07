@@ -89,9 +89,11 @@ const demoCompile = [
     test({ run: 'fjs t' }),
 ] as const
 
+const denoRun = 'deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts'
+
 const denoDemoCompile = [
-    test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
-    test({ run: 'deno task fjs t' }),
+    test({ run: `${denoRun} compile issues/demo/data/tree.json _tree.f.js` }),
+    test({ run: `${denoRun} t` }),
 ] as const
 
 const bunDemoCompile = [
@@ -107,10 +109,7 @@ const defaultNodeExtra = ({ name, functionalscript }: PackageInfo) => (o: Os): r
 
 const defaultEffect = (info: PackageInfo): Effect<NodeOp, number> => ci({
     nodeExtra: defaultNodeExtra(info),
-    denoExtra: [
-        ...(info.functionalscript ? denoDemoCompile : []),
-        test({ run: 'deno publish --dry-run --allow-slow-types' }),
-    ],
+    denoExtra: info.functionalscript ? [...denoDemoCompile] : [],
     bunExtra: info.functionalscript ? bunDemoCompile : [],
 })
 
