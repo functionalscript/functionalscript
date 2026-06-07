@@ -61,6 +61,17 @@ FunctionalScript proofs. Use `cov` for Node's built-in test runner with coverage
 enabled. Keep `npx tsc` passing independently because the generated CI runs it as
 its own step before `npm test`.
 
+For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
+repository must include a Node test entry file, conventionally `all.test.ts`:
+
+```ts
+import 'functionalscript/fs/emergent_testing/all.test.js'
+```
+
+Without that file, third-party test runners discover no FunctionalScript proofs
+and will report zero tests. `fjs t` is the exception: it discovers proof modules
+directly and does not need `all.test.ts`.
+
 **Note,** `npm run ci-update` in this repository runs the same built-in command through the
 checked-in Node entry point, which avoids relying on the package bin before the
 package has been installed. Custom projects that need different runtime setup steps
