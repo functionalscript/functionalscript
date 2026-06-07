@@ -4,7 +4,7 @@
  * @module
  */
 import { utf8, utf8ToString } from '../text/module.f.ts'
-import { validatePackageJsonText, type PackageJson } from '../package_json/module.f.ts'
+import { validatePackageJsonText, type PackageJson } from '../dev/package_json/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 import { access, readFile, writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { images } from './config/module.f.ts'

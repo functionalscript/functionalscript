@@ -4,15 +4,15 @@
  *
  * @module
  */
-import type { Unknown } from '../json/module.f.ts'
-import { parse as jsonParse } from '../json/parser/module.f.ts'
-import { tokenize as jsonTokenize } from '../json/tokenizer/module.f.ts'
-import { stringToList } from '../text/utf16/module.f.ts'
-import { option, record, string } from '../types/rtti/module.f.ts'
-import { validate as rttiValidate } from '../types/rtti/validate/module.f.ts'
-import type { ValidationError } from '../types/rtti/validate/module.f.ts'
-import type { Ts } from '../types/rtti/ts/module.f.ts'
-import { error, ok, type Result } from '../types/result/module.f.ts'
+import type { Unknown } from '../../json/module.f.ts'
+import { parse as jsonParse } from '../../json/parser/module.f.ts'
+import { tokenize as jsonTokenize } from '../../json/tokenizer/module.f.ts'
+import { stringToList } from '../../text/utf16/module.f.ts'
+import { option, record, string } from '../../types/rtti/module.f.ts'
+import { validate as rttiValidate } from '../../types/rtti/validate/module.f.ts'
+import type { ValidationError } from '../../types/rtti/validate/module.f.ts'
+import type { Ts } from '../../types/rtti/ts/module.f.ts'
+import { error, ok, type Result } from '../../types/result/module.f.ts'
 
 export const packageJsonSchema = {
     name: option(string),

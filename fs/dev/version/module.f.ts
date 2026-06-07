@@ -7,7 +7,7 @@ import { utf8, utf8ToString } from '../../text/module.f.ts'
 import { begin, pure, type Effect } from '../../effects/module.f.ts'
 import { all, readFile, writeFile, type All, type ReadFile, type WriteFile } from '../../effects/node/module.f.ts'
 import { unwrap } from '../../types/result/module.f.ts'
-import { validatePackageJson, type PackageJson } from '../../package_json/module.f.ts'
+import { validatePackageJson, type PackageJson } from '../package_json/module.f.ts'
 import { assert } from '../../asserts/module.f.ts'
 
 const { parse, stringify } = JSON

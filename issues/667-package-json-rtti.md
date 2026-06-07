@@ -16,7 +16,7 @@ of the partial view.
 
 ## Design
 
-Create one `fs/package_json` module for the package metadata schema and JSON
+Create one `fs/dev/package_json` module for the package metadata schema and JSON
 text decoding:
 
 - expose a package metadata schema for partial reads;
