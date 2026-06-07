@@ -881,10 +881,8 @@ export const proof = {
     //         if (result !== '[{"kind":"yield"},{"kind":"eof"}]') { throw result }
     //     },
     // ],
-    parseTodo: () => {
-        let threw = false
-        try { parse('') } catch { threw = true }
-        if (!threw) { throw 'expected parse to throw' }
+    throw: {
+        parse: () => { parse('') }
     },
     // comments: [
     //     () => {
