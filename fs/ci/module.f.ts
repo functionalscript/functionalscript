@@ -84,27 +84,34 @@ export const ci = ({ nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, nu
             .step(() => pure(0))
     })
 
-const demoCompile = test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' })
-const denoDemoCompile = test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' })
+const demoCompile = [
+    test({ run: 'fjs compile issues/demo/data/tree.json _tree.f.js' }),
+    test({ run: 'fjs t' }),
+] as const
+
+const denoDemoCompile = [
+    test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
+    test({ run: 'deno task fjs t' }),
+] as const
+
+const bunDemoCompile = [
+    test({ run: 'bun ./fs/fjs/module.ts t' }),
+] as const
 
 const defaultNodeExtra = ({ name, functionalscript }: PackageInfo) => (o: Os): readonly MetaStep[] => [
     test({ run: 'npm pack' }),
     test({ run: `npm install -g ${findTgz(o)}` }),
-    ...(functionalscript ? [demoCompile] : []),
-    test({ run: 'fjs t' }),
+    ...(functionalscript ? demoCompile : []),
     test({ run: `npm uninstall ${name} -g` }),
 ]
 
 const defaultEffect = (info: PackageInfo): Effect<NodeOp, number> => ci({
     nodeExtra: defaultNodeExtra(info),
     denoExtra: [
-        ...(info.functionalscript ? [denoDemoCompile] : []),
-        test({ run: 'deno task fjs t' }),
+        ...(info.functionalscript ? denoDemoCompile : []),
         test({ run: 'deno publish --dry-run --allow-slow-types' }),
     ],
-    bunExtra: [
-        test({ run: 'bun ./fs/fjs/module.ts t' }),
-    ]
+    bunExtra: info.functionalscript ? bunDemoCompile : [],
 })
 
 export const main = () => readPackageInfo.step(defaultEffect)
