@@ -3,13 +3,15 @@ import type { JsToken } from '../../js/tokenizer/module.f.ts'
 import {
     backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
-    digit0, digit9,
-    latinCapitalLetterA, latinCapitalLetterF,
+    digitRange, digit0,
+    latinCapitalLetterA,
     latinSmallLetterA, latinSmallLetterB, latinSmallLetterF,
     latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
+    range,
 } from '../../text/ascii/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
+import { contains } from '../../types/range/module.f.ts'
 import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
 import { jsGrammar } from './module.f.ts'
 
@@ -99,6 +101,9 @@ const filterFunc
         }
     }
 
+const rangeCapitalAF = range('AF')
+const rangeSmallAF = range('af')
+
 type StringDecodeState =
     | { readonly kind: 'normal' }
     | { readonly kind: 'escape' }
@@ -123,12 +128,11 @@ const stringDecodeScan
                 }
             case 'unicode': {
                 // convert hex digit char to its numeric value: '0'-'9', 'A'-'F', 'a'-'f'
-                const digit = cp >= digit0 && cp <= digit9 ? cp - digit0
-                    : cp >= latinCapitalLetterA && cp <= latinCapitalLetterF ? cp - (latinCapitalLetterA - 10)
+                const digit = contains(digitRange)(cp) ? cp - digit0
+                    : contains(rangeCapitalAF)(cp) ? cp - (latinCapitalLetterA - 10)
                     : cp - (latinSmallLetterA - 10)
                 const acc = (state.acc << 4) | digit
-                if (state.count === 3) return [[acc], { kind: 'normal' }]  // 4th digit: emit code point
-                return [null, { kind: 'unicode', acc, count: state.count + 1 }]
+                return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
             }
             default:
                 if (cp === reverseSolidus) return [null, { kind: 'escape' }]  // \ → enter escape mode
