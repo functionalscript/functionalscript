@@ -1,7 +1,17 @@
 import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
 import type { JsToken } from '../../js/tokenizer/module.f.ts'
+import {
+    backspace, ht, lf, ff, cr,
+    quotationMark, solidus, reverseSolidus,
+    digitRange, digit0,
+    latinCapitalLetterA,
+    latinSmallLetterA, latinSmallLetterB, latinSmallLetterF,
+    latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
+    range,
+} from '../../text/ascii/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
+import { contains } from '../../types/range/module.f.ts'
 import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
 import { jsGrammar, parse } from './module.f.ts'
 
@@ -61,19 +71,24 @@ const scanFunc
         return [null, [state[0], concat(state[1])([input])]]
     }
 
+// All operator tag strings produced by the grammar's operator rule
+const operatorTags = new Set<string>([
+    '.', '=>', '===', '==', '=', '!==', '!=', '!',
+    '>>>=', '>>>', '>>=', '>>', '>=', '>',
+    '<<<=', '<<<', '<<=', '<<', '<=', '<',
+    '+=', '++', '+', '-=', '--', '-',
+    '**=', '**', '*=', '*', '/=', '%=', '%',
+    '&&=', '&&', '&=', '&', '||=', '||', '|=', '|',
+    '^=', '^', '~', '??=', '??', '?.', '?',
+    '[', ']', '{', '}', '(', ')', ',', ':'
+])
+
 const filterFunc
     : (tk: FlatToken) => boolean
     = tk => {
         if (typeof tk === 'number')
             return true
-
         switch(tk) {
-            case '{':
-            case '}':
-            case '[':
-            case ']':
-            case ':':
-            case ',':
             case 'number':
             case 'string':
             case '\n':
@@ -82,21 +97,55 @@ const filterFunc
             case '\t':
                 return true
             default:
-                return false
+                return operatorTags.has(tk)
         }
     }
+
+const rangeCapitalAF = range('AF')
+
+type StringDecodeState =
+    | { readonly kind: 'normal' }
+    | { readonly kind: 'escape' }
+    | { readonly kind: 'unicode', readonly acc: number, readonly count: number }
+
+const stringDecodeScan
+    : StateScan<number, StringDecodeState, List<number>>
+    = (cp, state) => {
+        switch (state.kind) {
+            case 'escape':
+                switch (cp) {
+                    case quotationMark:  return [[quotationMark],  { kind: 'normal' }]  // \" → "
+                    case reverseSolidus: return [[reverseSolidus], { kind: 'normal' }]  // \\ → \
+                    case solidus:        return [[solidus],        { kind: 'normal' }]  // \/ → /
+                    case latinSmallLetterB: return [[backspace], { kind: 'normal' }]    // \b → backspace (BS)
+                    case latinSmallLetterF: return [[ff],        { kind: 'normal' }]    // \f → form feed (FF)
+                    case latinSmallLetterN: return [[lf],        { kind: 'normal' }]    // \n → line feed (LF)
+                    case latinSmallLetterR: return [[cr],        { kind: 'normal' }]    // \r → carriage return (CR)
+                    case latinSmallLetterT: return [[ht],        { kind: 'normal' }]    // \t → horizontal tab (HT)
+                    case latinSmallLetterU: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                    default:  return [[cp], { kind: 'normal' }]
+                }
+            case 'unicode': {
+                // convert hex digit char to its numeric value: '0'-'9', 'A'-'F', 'a'-'f'
+                const digit = contains(digitRange)(cp) ? cp - digit0
+                    : contains(rangeCapitalAF)(cp) ? cp - (latinCapitalLetterA - 10)
+                    : cp - (latinSmallLetterA - 10)
+                const acc = (state.acc << 4) | digit
+                return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
+            }
+            default:
+                return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
+        }
+    }
+
+const decodeJsonString
+    : (codePoints: readonly number[]) => string
+    = codePoints => String.fromCodePoint(...toArray(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1)))))
 
 const toJsToken
     : (tk: Token) => JsToken | null
     = tk => {
         switch(tk[0]) {
-            case '{':
-            case '}':
-            case '[':
-            case ']':
-            case ':':
-            case ',':
-                return {kind: tk[0]}
             case '\n':
             case '\r':
                 return {kind: 'nl'}
@@ -104,9 +153,9 @@ const toJsToken
             case '\t':
                 return {kind: 'ws'}
             case 'string':
-                return {kind: 'string', value: String.fromCodePoint(...tk[1].slice(1, -1))}
+                return {kind: 'string', value: decodeJsonString(tk[1])}
             default:
-                return null
+                return {kind: tk[0]} as JsToken
         }
     }
 
@@ -367,18 +416,18 @@ export const proof = {
             const result = tokenizeString('"')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('"\\\\"')
-    //         if (result !== '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('"\\""')
-    //         if (result !== '[{"kind":"string","value":"\\""},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('"\\/"')
-    //         if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"\\\\"')
+            if (result !== '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('"\\""')
+            if (result !== '[{"kind":"string","value":"\\""},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('"\\/"')
+            if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
+        },
         () => {
             const result = tokenizeString('"\\x"')
             if (result !== 'error') { throw result }
@@ -395,18 +444,18 @@ export const proof = {
             const result = tokenizeString('"\n null')
             if (result !== 'error') { throw result }
         },
-    //     () => {
-    //         const result = tokenizeString('"\\b\\f\\n\\r\\t"')
-    //         if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('"\\u1234"')
-    //         if (result !== '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]') { throw result }
-    //     },
-    //     () => {
-    //         const result = tokenizeString('"\\uaBcDEeFf"')
-    //         if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
-    //     },
+        () => {
+            const result = tokenizeString('"\\b\\f\\n\\r\\t"')
+            if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('"\\u1234"')
+            if (result !== '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            const result = tokenizeString('"\\uaBcDEeFf"')
+            if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
+        },
         () => {
             const result = tokenizeString('"\\uEeFg"')
             if (result !== 'error') { throw result }
@@ -584,12 +633,12 @@ export const proof = {
     //         if (result !== 'error') { throw result }
     //     },
     ],
-    // operators:
-    // [
-    //     () => {
-    //         const result = tokenizeString('=')
-    //         if (result !== '[{"kind":"="},{"kind":"eof"}]') { throw result }
-    //     },
+    operators:
+    [
+        () => {
+            const result = tokenizeString('=')
+            if (result !== '[{"kind":"="},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('=a')
     //         if (result !== '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
@@ -664,7 +713,7 @@ export const proof = {
     //         const result = tokenizeString(' \t\n\r ')
     //         if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
     //     },
-    // ],
+    ],
     // id: [
     //     () => {
     //         const result = tokenizeString('err')
