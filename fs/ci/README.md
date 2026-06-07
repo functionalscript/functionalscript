@@ -35,7 +35,33 @@ with the latest matrix of jobs and steps.
 The generator is idempotent — rerunning it without modifying the source produces the
 same workflow file.
 
-`npm run ci-update` in this repository runs the same built-in command through the
+### Expected package scripts
+
+The generated Node CI jobs run these basic checks after `npm ci`:
+
+- `npx tsc`
+- `npm test` (`npm t` is npm's built-in alias)
+- `node --test`
+- `npm run cov`
+
+The commands that must be provided by `package.json` are `test` and `cov`.
+A typical FunctionalScript project can define them like this:
+
+```json
+{
+  "scripts": {
+    "test": "tsc && fjs t",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts"
+  }
+}
+```
+
+Use `test` for the fast local correctness loop: TypeScript type-checking plus
+FunctionalScript proofs. Use `cov` for Node's built-in test runner with coverage
+enabled. Keep `npx tsc` passing independently because the generated CI runs it as
+its own step before `npm test`.
+
+**Note,** `npm run ci-update` in this repository runs the same built-in command through the
 checked-in Node entry point, which avoids relying on the package bin before the
 package has been installed. Custom projects that need different runtime setup steps
 should use `fjs r <custom-ci-module>` and call `ci(setup)` directly instead of
