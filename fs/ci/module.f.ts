@@ -4,8 +4,8 @@
  * @module
  */
 import { utf8 } from '../text/module.f.ts'
-import { begin, pure, type Effect } from '../effects/module.f.ts'
-import { writeFile, type NodeOp } from '../effects/node/module.f.ts'
+import { pure, type Effect } from '../effects/module.f.ts'
+import { access, writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
 import { type Architecture, type GitHubAction, type Job, type Jobs, type MetaStep, type Os, architecture, findTgz, os, test, toSteps } from './common/module.f.ts'
 import { rustSteps } from './rust/module.f.ts'
@@ -32,33 +32,32 @@ const job = (
 }
 
 export type Setup = {
-    readonly rust: boolean,
     readonly nodeExtra: (os: Os) => readonly MetaStep[],
     readonly denoExtra: readonly MetaStep[],
     readonly bunExtra: readonly MetaStep[],
 }
 
-export const ci = ({ rust, nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, number> => {
-    const jobs: Jobs = {
-        ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o), denoExtra, bunExtra)(o)))),
-        ...nodeVersions,
-        playwright: playwrightJob,
-    }
-    const gha: GitHubAction = {
-        name: 'CI',
-        on: {
-            pull_request: {},
-            merge_group: {},
-        },
-        jobs,
-    }
-    return begin
-        .step(() => writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  '))))
-        .step(() => pure(0))
-}
+export const ci = ({ nodeExtra, denoExtra, bunExtra }: Setup): Effect<NodeOp, number> =>
+    access('Cargo.toml').step(result => {
+        const rust = result[0] === 'ok'
+        const jobs: Jobs = {
+            ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o), denoExtra, bunExtra)(o)))),
+            ...nodeVersions,
+            playwright: playwrightJob,
+        }
+        const gha: GitHubAction = {
+            name: 'CI',
+            on: {
+                pull_request: {},
+                merge_group: {},
+            },
+            jobs,
+        }
+        return writeFile('.github/workflows/ci.yml', utf8(JSON.stringify(gha, null, '  ')))
+            .step(() => pure(0))
+    })
 
 const defaultEffect: Effect<NodeOp, number> = ci({
-    rust: true,
     nodeExtra: o => [
         test({ run: 'npm pack' }),
         test({ run: `npm install -g ${findTgz(o)}` }),

@@ -1,7 +1,7 @@
 # 667-test-conventions. Test conventions
 
 **Priority:** P2
-**Status:** open
+**Status:** done
 
 ## Problem
 
