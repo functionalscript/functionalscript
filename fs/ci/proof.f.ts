@@ -1,6 +1,6 @@
 import { ci } from './module.f.ts'
 import { utf8ToString } from '../text/module.f.ts'
-import { isVec } from '../types/bit_vec/module.f.ts'
+import { empty as emptyVec, isVec } from '../types/bit_vec/module.f.ts'
 import { type MetaStep, type Os, test, type GitHubAction, parseGitHubAction } from './common/module.f.ts'
 import { assert } from '../asserts/module.f.ts'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.ts'
@@ -13,13 +13,16 @@ const hasRun = (cmd: string) => (gha: GitHubAction): boolean =>
 const hasRunInJob = (jobId: string, cmd: string) => (gha: GitHubAction): boolean =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false
 
-const githubState = {
+const makeState = (rust: boolean) => ({
     ...emptyState,
-    root: { '.github': { workflows: {} } },
-}
+    root: {
+        '.github': { workflows: {} },
+        ...(rust ? { 'Cargo.toml': emptyVec } : {}),
+    },
+})
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
-    const [state, result] = virtual(githubState)(ci({ rust, nodeExtra, denoExtra: [], bunExtra: [] }))
+    const [state, result] = virtual(makeState(rust))(ci({ nodeExtra, denoExtra: [], bunExtra: [] }))
     assert(result === 0, result)
     const dotGithub = state.root['.github']
     assert(typeof dotGithub === 'object', dotGithub)

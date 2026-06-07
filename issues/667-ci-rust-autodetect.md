@@ -1,7 +1,7 @@
 # 667-ci-rust-autodetect. CI: auto-detect Rust by presence of `Cargo.toml`
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
