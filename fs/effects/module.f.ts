@@ -56,8 +56,6 @@ export const do_ =
     (...param: Param<O>): Effect<O, Return<O>> =>
     doFull(cmd, param as Param<O>, pure)
 
-export const begin: Effect<never, void> = pure(undefined)
-
 /**
  * Sequentially threads a state value through an effect for each item in `items`.
  *

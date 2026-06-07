@@ -12,7 +12,7 @@ import type { Vec } from '../../types/bit_vec/module.f.ts'
 import type { Nominal } from '../../types/nominal/module.f.ts'
 import type { Result } from '../../types/result/module.f.ts'
 import {
-    type Effect, type Func, type Operation, type ToAsyncOperationMap, begin,
+    type Effect, type Func, type Operation, type ToAsyncOperationMap,
     do_, pure
 } from '../module.f.ts'
 
@@ -323,9 +323,7 @@ export type NodeEffect<T> = Effect<NodeOp, T>
  * compose `error(s).step(() => pure(n))` directly.
  */
 export const errorExit = (s: string): Effect<Write, number> =>
-    begin
-        .step(() => error(s))
-        .step(() => pure(1))
+    error(s).step(() => pure(1))
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 

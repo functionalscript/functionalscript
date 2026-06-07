@@ -15,7 +15,7 @@ import {
 } from '../effects/node/module.f.ts'
 import { cmp as strCmp } from '../types/string/module.f.ts'
 import { unwrap } from '../types/result/module.f.ts'
-import { begin, pure, type Effect } from '../effects/module.f.ts'
+import { pure, type Effect } from '../effects/module.f.ts'
 import { relativize, toPosix } from '../path/module.f.ts'
 
 export type Module = {
@@ -50,8 +50,7 @@ const allFiles = (
     s: string,
     predicate: (path: string) => boolean,
 ): Effect<Readdir | All, readonly string[]> => {
-    const load = (p: string): Effect<Readdir | All, readonly string[]> => begin
-        .step(() => readdir(p, {}))
+    const load = (p: string): Effect<Readdir | All, readonly string[]> => readdir(p, {})
         .step(d => {
             let result: readonly Effect<Readdir | All, readonly string[]>[] = []
             for (const i of unwrap(d)) {
