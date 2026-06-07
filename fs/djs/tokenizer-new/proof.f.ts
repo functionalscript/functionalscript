@@ -135,8 +135,7 @@ const stringDecodeScan
                 return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
             }
             default:
-                if (cp === reverseSolidus) return [null, { kind: 'escape' }]  // \ → enter escape mode
-                return [[cp], { kind: 'normal' }]
+                return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
         }
     }
 
