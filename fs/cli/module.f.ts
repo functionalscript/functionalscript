@@ -9,18 +9,22 @@ export type Command = {
 
 export type Commands = readonly Command[]
 
+const helpMeta = { names: ['help'], description: 'Print this help message' }
+
 export const dispatch = (commands: Commands) => (args: readonly string[]): Effect<NodeOp, number> => {
-    const map = Object.fromEntries(commands.flatMap(c => c.names.map(n => [n, c] as const)))
     const [cmd, ...rest] = args
-    const rows = [...commands, { names: ['help'], description: 'Print this help message' }]
+    const rows = [...commands, helpMeta]
     const nameCol = rows.map(c => c.names.join(', '))
     const width = Math.max(...nameCol.map(s => s.length))
     const helpText = ['Available commands:', ...rows.map((c, i) => `  ${nameCol[i].padEnd(width)}  ${c.description}`)].join('\n')
-    switch (cmd) {
-        case undefined:
-            return errorExit(`Error: command is required.\n${helpText}`)
-        case 'help':
-            return log(helpText).step(() => pure(0))
+    const helpCommand: Command = {
+        ...helpMeta,
+        handler: () => log(helpText).step(() => pure(0))
+    }
+    const allCommands = [...commands, helpCommand]
+    const map = Object.fromEntries(allCommands.flatMap(c => c.names.map(n => [n, c] as const)))
+    if (cmd === undefined) {
+        return errorExit(`Error: command is required.\n${helpText}`)
     }
     const found = map[cmd]
     if (found === undefined) {
