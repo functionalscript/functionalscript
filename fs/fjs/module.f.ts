@@ -31,7 +31,7 @@ export const main: NodeProgram = options => {
             description: 'Run a FunctionalScript module as a NodeProgram',
             handler: ([file, ...args]) => import_(file).step(([s, v]) => {
                 if (s === 'error') { throw v }
-                return (v.default as NodeProgram)({ ...options, args })
+                return (v.main as NodeProgram)({ ...options, args })
             }),
         },
     ]
