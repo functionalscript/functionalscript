@@ -137,6 +137,6 @@ allow-list and an optional bigint case removes the duplication.
 
 ## Related
 
-- [i003](./003-djs.md), [i17](./017-djs-extension.md) — DJS design and its
-  relationship to JSON.
+- [i003](./003-djs.md) — DJS design and its relationship to JSON. The old
+  `.d.js` extension conflict has been resolved and cleaned up.
 - [i77](./README.md) — identifier property names, the DJS object-key delta.

@@ -62,4 +62,4 @@ Since FunctionalScript modules are loaded via dynamic import in the test framewo
 
 Non-function exports named `then` (e.g. a string or number) are also problematic because `Promise.resolve()` only checks `typeof value.then === 'function'` — so a function is the critical case, but for clarity the name `then` should be reserved entirely.
 
-See [i65Y-registermodule-thenable](../65Y-registermodule-thenable.md) for the related test-framework issue that surfaced this constraint.
+This constraint was surfaced by the test-framework thenable regression.

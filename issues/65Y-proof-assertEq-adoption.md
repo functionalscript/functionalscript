@@ -144,7 +144,7 @@ it's by far the most common and the lowest-judgement case.
   parallel work on the test framework's effect surface. The helper
   story above is intentionally smaller and orthogonal; it does not
   touch the `Reporter`/`TestEntry`/`testAll` path.
-- [i183](./183-tf-framework-scenario-tests.md) — scenario-style tests
+- i183 — scenario-style tests
   for the test framework itself. If `assertEq` adoption surfaces a
   meaningful failure-message regression, the scenario tests are the
   right place to lock the new behaviour in.
