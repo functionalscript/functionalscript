@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.26.0
+
 - `fjs`: add `fjs ci` / `fjs i` as first-class commands for the standard CI workflow generator; update this repo's `ci-update` script to call the built-in command through `node ./fs/fjs/module.ts ci` (i667-fjs-ci-command) [#975](https://github.com/functionalscript/functionalscript/pull/975)
 - `cli`: change `Command<O>.handler` signature from `(args: readonly string[])` to `(options: NodeProgramOptions)`; `dispatch` now accepts and forwards full `NodeProgramOptions` with `args` trimmed to the remainder after the matched command name; `fs/fjs/module.f.ts` `commands` becomes a module-level constant with `main = dispatch(commands)` point-free (i667-cli-handler-options) [#973](https://github.com/functionalscript/functionalscript/pull/973)
 - `fjs`: `fjs r` now looks up `main` instead of `default` on the imported module; update `fs/ci/module.f.ts`, `fs/website/module.f.ts`, and `fs/dev/index/module.f.ts` from `export default` to `export const main` (i667-fjs-run-main-convention) [#972](https://github.com/functionalscript/functionalscript/pull/972)
