@@ -61,19 +61,24 @@ const scanFunc
         return [null, [state[0], concat(state[1])([input])]]
     }
 
+// All operator tag strings produced by the grammar's operator rule
+const operatorTags = new Set<string>([
+    '.', '=>', '===', '==', '=', '!==', '!=', '!',
+    '>>>=', '>>>', '>>=', '>>', '>=', '>',
+    '<<<=', '<<<', '<<=', '<<', '<=', '<',
+    '+=', '++', '+', '-=', '--', '-',
+    '**=', '**', '*=', '*', '/=', '%=', '%',
+    '&&=', '&&', '&=', '&', '||=', '||', '|=', '|',
+    '^=', '^', '~', '??=', '??', '?.', '?',
+    '[', ']', '{', '}', '(', ')', ',', ':'
+])
+
 const filterFunc
     : (tk: FlatToken) => boolean
     = tk => {
         if (typeof tk === 'number')
             return true
-
         switch(tk) {
-            case '{':
-            case '}':
-            case '[':
-            case ']':
-            case ':':
-            case ',':
             case 'number':
             case 'string':
             case '\n':
@@ -82,7 +87,7 @@ const filterFunc
             case '\t':
                 return true
             default:
-                return false
+                return operatorTags.has(tk)
         }
     }
 
@@ -131,13 +136,6 @@ const toJsToken
     : (tk: Token) => JsToken | null
     = tk => {
         switch(tk[0]) {
-            case '{':
-            case '}':
-            case '[':
-            case ']':
-            case ':':
-            case ',':
-                return {kind: tk[0]}
             case '\n':
             case '\r':
                 return {kind: 'nl'}
@@ -147,7 +145,7 @@ const toJsToken
             case 'string':
                 return {kind: 'string', value: decodeJsonString(tk[1])}
             default:
-                return null
+                return {kind: tk[0]} as JsToken
         }
     }
 
@@ -625,12 +623,12 @@ export const proof = {
     //         if (result !== 'error') { throw result }
     //     },
     ],
-    // operators:
-    // [
-    //     () => {
-    //         const result = tokenizeString('=')
-    //         if (result !== '[{"kind":"="},{"kind":"eof"}]') { throw result }
-    //     },
+    operators:
+    [
+        () => {
+            const result = tokenizeString('=')
+            if (result !== '[{"kind":"="},{"kind":"eof"}]') { throw result }
+        },
     //     () => {
     //         const result = tokenizeString('=a')
     //         if (result !== '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
@@ -705,7 +703,7 @@ export const proof = {
     //         const result = tokenizeString(' \t\n\r ')
     //         if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
     //     },
-    // ],
+    ],
     // id: [
     //     () => {
     //         const result = tokenizeString('err')
