@@ -124,6 +124,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsc"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -293,6 +296,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsc"
         },
         {
           "run": "npm test"
@@ -466,6 +472,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsc"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -635,6 +644,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsc"
         },
         {
           "run": "npm test"
@@ -814,6 +826,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsc"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -982,6 +997,9 @@
           "run": "npm ci"
         },
         {
+          "run": "npx tsc"
+        },
+        {
           "run": "npm test"
         },
         {
@@ -1057,6 +1075,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "npx tsc"
         },
         {
           "run": "npm test"
