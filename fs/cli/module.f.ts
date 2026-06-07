@@ -9,7 +9,7 @@ export type Command = {
 
 export type Commands = readonly Command[]
 
-const helpMeta = { names: ['help'], description: 'Print this help message' }
+const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
 
 export const dispatch = (commands: Commands) => (args: readonly string[]): Effect<NodeOp, number> => {
     const [cmd, ...rest] = args
@@ -19,7 +19,7 @@ export const dispatch = (commands: Commands) => (args: readonly string[]): Effec
     const helpText = ['Available commands:', ...rows.map((c, i) => `  ${nameCol[i].padEnd(width)}  ${c.description}`)].join('\n')
     const helpCommand: Command = {
         ...helpMeta,
-        handler: () => log(helpText).step(() => pure(0))
+        handler: () => log(helpText).step(() => pure(0)),
     }
     const allCommands = [...commands, helpCommand]
     const map = Object.fromEntries(allCommands.flatMap(c => c.names.map(n => [n, c] as const)))
