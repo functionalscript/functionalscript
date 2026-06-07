@@ -1,5 +1,13 @@
 import { descentParser, type AstRuleMeta, type AstSequence, type AstSequenceMeta, type AstTag, type CodePointMeta, type DescentMatch, type DescentMatchResult } from '../../bnf/data/module.f.ts'
 import type { JsToken } from '../../js/tokenizer/module.f.ts'
+import {
+    backspace, ht, lf, ff, cr,
+    quotationMark, solidus, reverseSolidus,
+    digit0, digit9,
+    latinCapitalLetterA, latinCapitalLetterF,
+    latinSmallLetterA, latinSmallLetterB, latinSmallLetterF,
+    latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
+} from '../../text/ascii/module.f.ts'
 import { type CodePoint, stringToCodePointList } from '../../text/utf16/module.f.ts'
 import type { StateScan } from '../../types/function/operator/module.f.ts'
 import { concat, filter, flat, flatMap, map, stateScan, toArray, type List } from '../../types/list/module.f.ts'
@@ -102,28 +110,28 @@ const stringDecodeScan
         switch (state.kind) {
             case 'escape':
                 switch (cp) {
-                    case 34:  return [[34], { kind: 'normal' }]  // \" → "
-                    case 92:  return [[92], { kind: 'normal' }]  // \\ → \
-                    case 47:  return [[47], { kind: 'normal' }]  // \/ → /
-                    case 98:  return [[8],  { kind: 'normal' }]  // \b → backspace (BS)
-                    case 102: return [[12], { kind: 'normal' }]  // \f → form feed (FF)
-                    case 110: return [[10], { kind: 'normal' }]  // \n → line feed (LF)
-                    case 114: return [[13], { kind: 'normal' }]  // \r → carriage return (CR)
-                    case 116: return [[9],  { kind: 'normal' }]  // \t → horizontal tab (HT)
-                    case 117: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                    case quotationMark:  return [[quotationMark],  { kind: 'normal' }]  // \" → "
+                    case reverseSolidus: return [[reverseSolidus], { kind: 'normal' }]  // \\ → \
+                    case solidus:        return [[solidus],        { kind: 'normal' }]  // \/ → /
+                    case latinSmallLetterB: return [[backspace], { kind: 'normal' }]    // \b → backspace (BS)
+                    case latinSmallLetterF: return [[ff],        { kind: 'normal' }]    // \f → form feed (FF)
+                    case latinSmallLetterN: return [[lf],        { kind: 'normal' }]    // \n → line feed (LF)
+                    case latinSmallLetterR: return [[cr],        { kind: 'normal' }]    // \r → carriage return (CR)
+                    case latinSmallLetterT: return [[ht],        { kind: 'normal' }]    // \t → horizontal tab (HT)
+                    case latinSmallLetterU: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
                     default:  return [[cp], { kind: 'normal' }]
                 }
             case 'unicode': {
-                // convert hex digit char to its numeric value: '0'-'9' (48-57), 'A'-'F' (65-70), 'a'-'f' (97-102)
-                const digit = cp >= 48 && cp <= 57 ? cp - 48
-                    : cp >= 65 && cp <= 70 ? cp - 55   // 'A' - 10
-                    : cp - 87                           // 'a' - 10
+                // convert hex digit char to its numeric value: '0'-'9', 'A'-'F', 'a'-'f'
+                const digit = cp >= digit0 && cp <= digit9 ? cp - digit0
+                    : cp >= latinCapitalLetterA && cp <= latinCapitalLetterF ? cp - (latinCapitalLetterA - 10)
+                    : cp - (latinSmallLetterA - 10)
                 const acc = (state.acc << 4) | digit
                 if (state.count === 3) return [[acc], { kind: 'normal' }]  // 4th digit: emit code point
                 return [null, { kind: 'unicode', acc, count: state.count + 1 }]
             }
             default:
-                if (cp === 92) return [null, { kind: 'escape' }]  // \ → enter escape mode
+                if (cp === reverseSolidus) return [null, { kind: 'escape' }]  // \ → enter escape mode
                 return [[cp], { kind: 'normal' }]
         }
     }
