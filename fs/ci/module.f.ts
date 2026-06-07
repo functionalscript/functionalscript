@@ -4,7 +4,7 @@
  * @module
  */
 import { utf8, utf8ToString } from '../text/module.f.ts'
-import { parsePackageJsonText, type PackageJson } from '../package_json/module.f.ts'
+import { validatePackageJsonText, type PackageJson } from '../package_json/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 import { access, readFile, writeFile, type NodeOp } from '../effects/node/module.f.ts'
 import { images } from './config/module.f.ts'
@@ -56,7 +56,7 @@ const packageInfoFromPackageJson = ({ name }: PackageJson): PackageInfo =>
     : fallbackPackageInfo
 
 const packageInfoFromText = (text: string): PackageInfo => {
-    const result = parsePackageJsonText(text)
+    const result = validatePackageJsonText(text)
     return result[0] === 'ok' ? packageInfoFromPackageJson(result[1]) : fallbackPackageInfo
 }
 

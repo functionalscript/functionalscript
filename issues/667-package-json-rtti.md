@@ -16,20 +16,21 @@ of the partial view.
 
 ## Design
 
-Create one `fs/package_json` module for package metadata schemas and JSON text
-decoding:
+Create one `fs/package_json` module for the package metadata schema and JSON
+text decoding:
 
 - expose a package metadata schema for partial reads;
-- expose a required-version schema for version updates;
-- expose full JSON object validation for write-back paths;
-- keep malformed JSON as a normal `Result` error for read-only metadata helpers;
-- let write-back paths validate a native-parsed JSON object so object key order is
+- keep malformed JSON as a normal `Result` error for text helpers;
+- let write-back paths native-parse JSON and validate the original object with
+  the shared package metadata schema before spreading it, so object key order is
   preserved when the file is stringified again.
 
-Read-only callers may use the package metadata parser. Write-back callers must
-validate the original JSON object and then validate the specific fields they need,
-so spreading the object preserves fields that the partial metadata schema does
-not mention.
+Callers validate the JSON object against the shared package metadata schema and
+then validate the specific fields they need, so spreading the original object
+preserves fields that the partial metadata schema does not mention. If a caller
+requires an optional field such as `version`, it checks that field after
+validating the shared package metadata schema instead of defining a second
+package object RTTI.
 
 ## Tasks
 
