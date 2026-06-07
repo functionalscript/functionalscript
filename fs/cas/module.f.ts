@@ -7,7 +7,7 @@ import { computeSync, sha256, type Sha2 } from '../crypto/sha2/module.f.ts'
 import { parse } from '../path/module.f.ts'
 import type { Vec } from '../types/bit_vec/module.f.ts'
 import { cBase32ToVec, vecToCBase32 } from '../cbase32/module.f.ts'
-import { begin, forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
+import { forEachStep, pure, type Effect, type Operation } from '../effects/module.f.ts'
 import { errorExit, log, mkdir, readdir, readFile, writeFile, type Fs, type NodeEffect, type NodeOp, type NodeProgramOptions } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 import { toOption } from '../types/nullable/module.f.ts'
@@ -44,23 +44,20 @@ const toPath = (key: Vec): string => {
  */
 export const fileKvStore = (path: string): KvStore<Fs> => ({
     read: (key: Vec): Effect<Fs, Vec|undefined> =>
-        begin
-            .step(() => readFile(toPath(key)))
+        readFile(toPath(key))
             .step(([status, data]) => pure(status === 'error' ? undefined : data)),
     write: (key: Vec, value: Vec): Effect<Fs, void> => {
         const p = toPath(key)
         const parts = parse(p)
         const dir = `${path}/${parts.slice(0, -1).join('/')}`
         // TODO: error handling
-        return begin
-            .step(() => mkdir(dir, { recursive: true }))
+        return mkdir(dir, { recursive: true })
             .step(() => writeFile(`${path}/${p}`, value))
             .step(() => pure(undefined))
     },
     list: (): Effect<Fs, readonly Vec[]> =>
         // TODO: remove unwrap
-        begin
-            .step(() => readdir('.cas', { recursive: true }))
+        readdir('.cas', { recursive: true })
             .step(r => pure(unwrap(r).flatMap(({ name, parentPath, isFile }) =>
                 toOption(isFile
                     ? cBase32ToVec(parentPath.substring(prefix.length).replaceAll('/', '') + name)
@@ -85,8 +82,7 @@ export const cas = (sha2: Sha2): <O extends Operation>(_: KvStore<O>) => Cas<O> 
         read,
         write: (value: Vec) => {
             const hash = compute([value])
-            return begin
-                .step(() => write(hash, value))
+            return write(hash, value)
                 .step(() => pure(hash))
         },
         list,
@@ -103,8 +99,7 @@ export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                 if (path === undefined || rest.length !== 0) {
                     return errorExit("'cas add' expects one parameter")
                 }
-                return begin
-                    .step(() => readFile(path))
+                return readFile(path)
                     .step(v => c.write(unwrap(v)))
                     .step(hash => log(vecToCBase32(hash)))
                     .step(() => pure(0))
@@ -121,13 +116,11 @@ export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
                 if (hash === null) {
                     return errorExit(`invalid hash format: ${hashCBase32}`)
                 }
-                return begin
-                    .step(() => c.read(hash))
+                return c.read(hash)
                     .step(v => {
                         const result: Effect<NodeOp, number> = v === undefined
                             ? errorExit(`no such hash: ${hashCBase32}`)
-                            : begin
-                                .step(() => writeFile(path, v))
+                            : writeFile(path, v)
                                 .step(() => pure(0))
                         return result
                     })
@@ -137,8 +130,7 @@ export const main = (options: NodeProgramOptions): Effect<NodeOp, number> => {
             names: ['list'],
             description: 'List all stored content hashes',
             handler: () =>
-                begin
-                    .step(() => c.list())
+                c.list()
                     .step(forEachStep<NodeOp, Vec>(j => log(vecToCBase32(j))))
                     .step(() => pure(0)),
         },

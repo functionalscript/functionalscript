@@ -1,7 +1,7 @@
 # 667-effects-remove-begin. Remove `begin` from Effects
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
