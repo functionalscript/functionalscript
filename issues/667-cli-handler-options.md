@@ -1,7 +1,7 @@
 # 667-cli-handler-options. Pass full options to Command handlers
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Background
 
