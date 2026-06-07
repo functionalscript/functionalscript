@@ -28,12 +28,18 @@ with the latest matrix of jobs and steps.
 1. Ensure dependencies are installed with `npm ci`.
 2. Regenerate the workflow definition:
    ```
-   npm run ci-update
+   fjs ci
    ```
 3. Commit the updated `.github/workflows/ci.yml` if it has changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the
 same workflow file.
+
+`npm run ci-update` in this repository runs the same built-in command through the
+checked-in Node entry point, which avoids relying on the package bin before the
+package has been installed. Custom projects that need different runtime setup steps
+should use `fjs r <custom-ci-module>` and call `ci(setup)` directly instead of
+modifying the built-in command.
 
 ## Customisation
 
