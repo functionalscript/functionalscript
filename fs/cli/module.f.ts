@@ -1,23 +1,23 @@
-import { errorExit, log, type NodeOp } from '../effects/node/module.f.ts'
+import { errorExit, log, type NodeOp, type Write } from '../effects/node/module.f.ts'
 import { pure, type Effect } from '../effects/module.f.ts'
 
-export type Command = {
+export type Command<O extends NodeOp> = {
     readonly names: readonly string[]
     readonly description: string
-    readonly handler: (args: readonly string[]) => Effect<NodeOp, number>
+    readonly handler: (args: readonly string[]) => Effect<O, number>
 }
 
-export type Commands = readonly Command[]
+export type Commands<O extends NodeOp> = readonly Command<O>[]
 
 const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
 
-export const dispatch = (commands: Commands) => (args: readonly string[]): Effect<NodeOp, number> => {
+export const dispatch = <O extends NodeOp>(commands: Commands<O>) => (args: readonly string[]): Effect<O | Write, number> => {
     const [cmd, ...rest] = args
     const rows = [...commands, helpMeta]
     const nameCol = rows.map(c => c.names.join(', '))
     const width = Math.max(...nameCol.map(s => s.length))
     const helpText = ['Available commands:', ...rows.map((c, i) => `  ${nameCol[i].padEnd(width)}  ${c.description}`)].join('\n')
-    const helpCommand: Command = {
+    const helpCommand: Command<O | Write> = {
         ...helpMeta,
         handler: () => log(helpText).step(() => pure(0)),
     }

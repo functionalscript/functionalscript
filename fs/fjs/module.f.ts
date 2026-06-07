@@ -6,11 +6,11 @@
 import { compile } from '../djs/module.f.ts'
 import { main as testMain } from '../emergent_testing/module.f.ts'
 import { main as casMain } from '../cas/module.f.ts'
-import { import_, type NodeProgram } from '../effects/node/module.f.ts'
+import { import_, type NodeOp, type NodeProgram } from '../effects/node/module.f.ts'
 import { dispatch, type Commands } from '../cli/module.f.ts'
 
 export const main: NodeProgram = options => {
-    const commands: Commands = [
+    const commands: Commands<NodeOp> = [
         {
             names: ['test', 't'],
             description: 'Run the FunctionalScript test suite',
