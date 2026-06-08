@@ -26,8 +26,15 @@ Confirm whether returning a nested `Proof` from a function is intended runner
 behaviour. If proof functions are only test leaves today, use a narrower
 function branch and document the choice in JSDoc.
 
+An alternative is to define the proof shape as RTTI and derive the TypeScript
+type from it. That would keep runtime validation and the public type in sync,
+but proof leaves are functions, so this requires extern RTTI support for
+function values before it can model the full proof tree.
+
 ## Tasks
 
+- [ ] Decide whether `Proof` should be a direct TypeScript type or derived from
+  RTTI.
 - [ ] Add the `Proof` type in the natural emergent testing module.
 - [ ] Use the type in runner/registering APIs where it reflects existing
   behaviour.
