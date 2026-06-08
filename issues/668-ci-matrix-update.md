@@ -51,8 +51,9 @@ dedicated Node 24 and Node 26 jobs instead of the platform matrix.
 
 ### Canonical Ubuntu ARM Jobs
 
-These jobs may use Docker or Nix to cache the heavier toolchain setup. Decide on
-the cache strategy before implementation.
+The first iteration may use native GitHub runner images. Later iterations may
+use Docker or Nix to cache heavier toolchain setup if install time or external
+tool download reliability becomes the main bottleneck.
 
 - Playwright (one job).
 - WASM (one job, Rust-based):
