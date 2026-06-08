@@ -211,6 +211,10 @@ const runModule =
 
 const { entries } = Object
 
+const proofEntries = (moduleMap: ModuleMap): readonly (readonly [string, unknown])[] =>
+    entries(moduleMap)
+        .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
+
 /**
  * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates
  * pass/fail/time via `reporter`, and returns an exit code (0 = all passed,
@@ -218,8 +222,7 @@ const { entries } = Object
  */
 export const runModuleMap = <O extends Operation>(reporter: Reporter<O>) => (moduleMap: ModuleMap): Effect<O | All, number> => {
     const { summary } = reporter
-    const modules = entries(moduleMap)
-        .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
+    const modules = proofEntries(moduleMap)
     return all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero)))
     .step(m => pure(m.reduce(mergeState, zero)))
     .step(ts => summary(ts.pass, ts.fail, ts.time)
@@ -241,8 +244,7 @@ export const testAll = <O extends Operation>(reporter: Reporter<O>): Program<O |
 const registerModuleMap =
     (ctx: TestContext, star: string) => (moduleMap: ModuleMap): Effect<Test | All | Await, void> =>
 {
-    const modules = entries(moduleMap)
-        .flatMap(([k, v]) => v.proof !== undefined ? [[k, v.proof] as const] : [])
+    const modules = proofEntries(moduleMap)
     if (modules.length === 0) { return pure(undefined) }
     return all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))).step(() => pure(undefined))
 }
