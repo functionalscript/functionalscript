@@ -157,6 +157,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "deno install"
+        },
+        {
           "run": "deno task test"
         },
         {
@@ -323,6 +326,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "deno install"
         },
         {
           "run": "deno task test"
@@ -493,6 +499,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "deno install"
+        },
+        {
           "run": "deno task test"
         },
         {
@@ -659,6 +668,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "deno install"
         },
         {
           "run": "deno task test"
@@ -835,6 +847,9 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
+          "run": "deno install"
+        },
+        {
           "run": "deno task test"
         },
         {
@@ -998,6 +1013,9 @@
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
+        },
+        {
+          "run": "deno install"
         },
         {
           "run": "deno task test"
