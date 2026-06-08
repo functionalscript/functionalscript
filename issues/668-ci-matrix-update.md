@@ -47,17 +47,16 @@ Run:
   - native `cargo test`;
   - 32-bit target checks only on Intel jobs.
 - Node 26:
-  - `npx npm:functionalscript@${fs.version} t`
+  - `npm install functionalscript@{fs.version}`  
+  - `fjs t`
 
-`npx npm:functionalscript@${fs.version} t` exercises FunctionalScript proof discovery, module loading, and
+`fjs t` exercises FunctionalScript proof discovery, module loading, and
 filesystem traversal on each OS/path format. Native `node --test` runs in the
 dedicated Node 24 and Node 26 jobs instead of the platform matrix.
 
 ### Canonical Ubuntu ARM Jobs
 
-The first iteration may use native GitHub runner images. Later iterations may
-use Docker or Nix to cache heavier toolchain setup if install time or external
-tool download reliability becomes the main bottleneck.
+The first iteration may use native GitHub runner images. Later iterations may use Docker or Nix to cache a heavier toolchain setup if install time or external tool download reliability becomes the main bottleneck.
 
 - Playwright (one job).
 - WASM (one job, Rust-based):
@@ -70,8 +69,8 @@ tool download reliability becomes the main bottleneck.
   - `bunx functionalscript@${fs.version} t`,
   - `bun test --coverage`.
 - Node:
-  - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex. Note, we can't use `node --test --experimental-strip-types` because the Node22 doesn't support subtests properly):
-    - `npx npm:functionalscript@${fs.version} t`
+  - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex. Note, we can't use `node --test --experimental-strip-types` because Node22 doesn't support subtests properly):
+    - `fjs t`
   - 24 (one job):
     - `node --test`.
   - 26 (one job):
