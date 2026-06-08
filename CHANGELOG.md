@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.29.0
+
+- add `bun.lock` and `deno.lock` to source control for reproducible builds; pin exact versions in `package.json` devDependencies; use `deno install --frozen` and `bun install --frozen-lockfile` in CI; add `bun install` to `update` script to keep `bun.lock` in sync; replace JSR install instruction in `fs/emergent_testing/README.md` with `deno install npm:functionalscript` [#985](https://github.com/functionalscript/functionalscript/pull/985)
+
 ## 0.28.0
 
 - abandon JSR publishing: remove `deno.json`, `fs/dev/index/`, `fs/dev/version/`, and the `index` npm script; replace `deno install` + `deno task` commands in CI with direct `deno test`/`deno run`; remove `deno publish --dry-run` from generated CI and `deno publish` from publish workflow; remove JSR badge from `README.md` ([i667-abandon-jsr](./issues/667-abandon-jsr.md)) [#984](https://github.com/functionalscript/functionalscript/pull/984)
