@@ -27,10 +27,10 @@ Install from npm:
 npm install functionalscript
 ```
 
-or from JSR (Deno):
+or with Deno:
 
 ```sh
-deno add jsr:@functionalscript/functionalscript
+deno install npm:functionalscript
 ```
 
 ## Running proofs
