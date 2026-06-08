@@ -70,6 +70,8 @@ tool download reliability becomes the main bottleneck.
   - `bunx functionalscript@${fs.version} t`,
   - `bun test --coverage`.
 - Node:
+  - 22 (one job, optional):
+    - `node --test --experimental-strip-types` we can return Node 22 (OpenAI Codex can't use Node 24+). Note, it may require recognition of Node 22 at runtime because it looks like Node 22 doesn't support subtests.
   - 24 (one job):
     - `node --test`.
   - 26 (one job):
@@ -78,7 +80,7 @@ tool download reliability becomes the main bottleneck.
     - `node --test ...coverage...`,
     - `npm publish --dry-run`.
 
-Total: 12 jobs.
+Total: 13 jobs.
 
 ## Related
 
