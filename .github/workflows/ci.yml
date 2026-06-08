@@ -37,7 +37,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm cache add @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -136,7 +136,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "tsgo"
+          "run": "npx npm:@typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "run": "npm pack"
@@ -214,7 +214,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm cache add @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -307,7 +307,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "tsgo"
+          "run": "npx npm:@typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "run": "npm pack"
@@ -385,7 +385,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm cache add @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -478,7 +478,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "tsgo"
+          "run": "npx npm:@typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "run": "npm pack"
@@ -556,7 +556,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm cache add @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -649,7 +649,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "tsgo"
+          "run": "npx npm:@typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "run": "npm pack"
@@ -727,7 +727,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm cache add @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -826,7 +826,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "tsgo"
+          "run": "npx npm:@typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "run": "npm pack"
@@ -904,7 +904,7 @@
           }
         },
         {
-          "run": "npm install -g @typescript/native-preview@7.0.0-dev.20260606.1"
+          "run": "npm cache add @typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "uses": "denoland/setup-deno@v2",
@@ -994,7 +994,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "tsgo"
+          "run": "npx npm:@typescript/native-preview@7.0.0-dev.20260606.1"
         },
         {
           "run": "npm pack"
