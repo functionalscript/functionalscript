@@ -15,7 +15,7 @@
     "ci-update": "node ./fs/fjs/module.ts ci",
     "update": "npx npm-check-updates -u && npm install && deno install && bun install && npm run ci-update",
     "index-html": "node ./fs/fjs/module.ts r ./fs/website/module.f.ts",
-    "website": "npm run prepack &&npm run index-html"
+    "website": "npm run prepack && npm run index-html"
   },
   "engines": {
     "node": ">=24"
