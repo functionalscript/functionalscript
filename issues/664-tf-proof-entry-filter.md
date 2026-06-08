@@ -1,7 +1,7 @@
 # 664-tf-proof-entry-filter. `emergent_testing`: extract the duplicated "modules that export a proof" filter
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ## Problem
 
