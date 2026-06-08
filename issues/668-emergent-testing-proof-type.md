@@ -47,5 +47,7 @@ function values before it can model the full proof tree.
 
 - [i65Z-tf-test-tree-walker](./65Z-tf-test-tree-walker.md) — planned shared
   proof-tree traversal.
+- [i668-rtti-function-types](./668-rtti-function-types.md) — extern RTTI for
+  function-valued proof leaves.
 - [i665-proof-property-tests](./665-proof-property-tests.md) — future proof
   shape extension.
