@@ -47,7 +47,7 @@ Run:
   - native `cargo test`;
   - 32-bit target checks only on Intel jobs.
 - Node 26:
-  - `npm install functionalscript@{fs.version}`  
+  - `npm install -g functionalscript@{fs.version}`  
   - `fjs t`
 
 `fjs t` exercises FunctionalScript proof discovery, module loading, and
