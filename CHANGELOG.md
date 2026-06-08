@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.29.1
 
 - `package`: relax the npm `engines.node` requirement from `>=24` to `>=22` for Node 22 compatibility [#987](https://github.com/functionalscript/functionalscript/pull/987)
+- `types/prime_field`: make `quadRes(0n)` return `true`, compute Euler's exponent from `p - 1`, and document/prove the `p === 2n` behavior [#986](https://github.com/functionalscript/functionalscript/pull/986)
 
 ## 0.29.0
 

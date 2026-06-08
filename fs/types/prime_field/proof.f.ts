@@ -94,8 +94,13 @@ export const proof = {
                 if (f.reduce(-1n) !== p - 1n) { throw [f.reduce(-1n), p - 1n] }
             },
             quadRes: () => {
+                if (!f.quadRes(0n)) { throw 0n }
                 if (!f.quadRes(1n)) { throw 1n }
+                if (!f.quadRes(p)) { throw p }
                 if (f.quadRes(3n)) { throw 3n }
+                const f2 = prime_field(2n)
+                if (!f2.quadRes(0n)) { throw '0 mod 2' }
+                if (!f2.quadRes(1n)) { throw '1 mod 2' }
             },
             modSqrt: () => {
                 const root = modSqrt(f)
