@@ -70,7 +70,7 @@ tool download reliability becomes the main bottleneck.
   - `bunx functionalscript@${fs.version} t`,
   - `bun test --coverage`.
 - Node:
-  - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex):
+  - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex. Note, we can't use `node --test --experimental-strip-types` because the Node22 doesn't support subtests properly):
     - `npx npm:functionalscript@${fs.version} t`
   - 24 (one job):
     - `node --test`.
