@@ -80,6 +80,8 @@ export const prime_field = (p: bigint): PrimeField => {
         return r < 0n ? add(p)(r) : r
     }
     const max = p - 1n
+    // Euler's exponent is `(p - 1) / 2`; use `max`, not `p`, so `p === 2n`
+    // gives exponent `0n` instead of `1n`.
     const powHalf = pow(max >> 1n)
     const quadRes = (x: bigint): boolean => {
         const v = reduce(x)
