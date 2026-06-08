@@ -63,13 +63,15 @@ tool download reliability becomes the main bottleneck.
 - WASM (one job, Rust-based):
   - `wasmer`,
   - `wasmtime`.
-- Deno package-manager check (one job):
-  - `deno run -A npm:functionalscript@${fs.version} t` (*),
+- Deno (one job):
+  - `deno run -A npm:functionalscript@${fs.version} t`,
   - `deno test -A && deno coverage --include='.*module\\.f\\.ts'`.
-- Bun package-manager check (one job):
+- Bun (one job):
   - `bunx functionalscript@${fs.version} t`,
   - `bun test --coverage`.
 - Node:
+  - 22 (one job, for environments that cannot yet use Node 24+, including OpenAI Codex):
+    - `npx npm:functionalscript@${fs.version} t`
   - 24 (one job):
     - `node --test`.
   - 26 (one job):
