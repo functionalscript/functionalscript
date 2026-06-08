@@ -43,8 +43,11 @@ Run:
   - native `cargo test`;
   - 32-bit target checks only on Intel jobs.
 - Node 26:
-  - `npx fjs t` (*),
-  - `node --test`.
+  - `npx fjs t` (*).
+
+`npx fjs t` exercises FunctionalScript proof discovery, module loading, and
+filesystem traversal on each OS/path format. Native `node --test` runs in the
+dedicated Node 24 and Node 26 jobs instead of the platform matrix.
 
 ### Canonical Ubuntu ARM Jobs
 
