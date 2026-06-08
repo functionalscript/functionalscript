@@ -119,7 +119,7 @@ const _errResponse = (id: Id) => (e: RpcError): Response =>
     ({ jsonrpc: _jsonrpc, error: e, id })
 
 const _okResponse = (id: Id) => (result: unknown): Response =>
-    ({ jsonrpc: _jsonrpc, result, id })
+    ({ jsonrpc: _jsonrpc, result: result as Unknown, id })
 
 /** MCP error -32002: the client called a method before `initialize`. */
 export const notInitialized = rpcError(-32002)('Server not initialized')

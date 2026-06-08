@@ -1,6 +1,7 @@
 import { assert, assertEq } from '../asserts/module.f.ts'
 import { pure } from '../effects/module.f.ts'
 import type { Operation, Effect } from '../effects/module.f.ts'
+import type { Unknown } from '../json/module.f.ts'
 import {
     type ToolsListResult, type ToolsCallParams, type ToolsCallResult,
     type McpHandlers, type McpConfig, type McpSessionState,
@@ -26,10 +27,10 @@ const handlers: McpHandlers<Op> = {
 }
 
 const step = (state: McpSessionState) => (value: unknown) =>
-    mcpStep(config)(handlers)(state)(value)
+    mcpStep(config)(handlers)(state)(value as Unknown)
 
 const stepNoTools = (state: McpSessionState) => (value: unknown) =>
-    mcpStep(configNoTools)(handlers)(state)(value)
+    mcpStep(configNoTools)(handlers)(state)(value as Unknown)
 
 // Synchronously extract the value from a pure Effect.
 const run = <T>(e: Effect<never, T>): T => {
