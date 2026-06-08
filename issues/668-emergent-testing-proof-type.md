@@ -1,0 +1,44 @@
+# 668-emergent-testing-proof-type. Add an explicit `Proof` type
+
+**Priority:** P3
+**Status:** open
+
+## Problem
+
+Emergent testing documentation describes proofs as ordinary values, but the code
+does not expose a named `Proof` type for modules to use. This makes the expected
+recursive shape implicit in runner code and prose instead of available as a
+type-level contract.
+
+## Proposal
+
+Add and export a `Proof` type near the emergent testing runner API. The type
+should model the recursive proof tree accepted by the runner:
+
+```ts
+export type Proof =
+    | Readonly<Record<string, Proof>>
+    | readonly Proof[]
+    | (() => Proof | undefined)
+```
+
+Confirm whether returning a nested `Proof` from a function is intended runner
+behaviour. If proof functions are only test leaves today, use a narrower
+function branch and document the choice in JSDoc.
+
+## Tasks
+
+- [ ] Add the `Proof` type in the natural emergent testing module.
+- [ ] Use the type in runner/registering APIs where it reflects existing
+  behaviour.
+- [ ] Document proof-tree invariants in JSDoc and keep the README definition in
+  sync.
+- [ ] Add or update proof coverage for accepted object, array, and function
+  proof shapes.
+
+## Related
+
+- [i65Z-tf-test-tree-walker](./65Z-tf-test-tree-walker.md) — planned shared
+  proof-tree traversal.
+- [i665-proof-property-tests](./665-proof-property-tests.md) — future proof
+  shape extension.
