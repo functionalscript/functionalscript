@@ -7,8 +7,6 @@ We are targeting the following systems:
 
 - JS:
   - [X] NPM
-  - [X] JSR
-  - [ ] https://esm.sh/ optional
 - Rust:
   - [ ] https://crates.io/
 
@@ -19,6 +17,12 @@ Currently,
 - Browsers. `import * from 'https://...'`.
 
 This problem will go away as soon as ECMAScript supports for [Type Annotations](https://github.com/tc39/proposal-type-annotations).
+
+## Alternatives
+
+- JS:
+  - [ ] JSR
+  - [ ] https://esm.sh/ optional
 
 ## Updating Packages
 
