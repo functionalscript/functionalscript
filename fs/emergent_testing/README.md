@@ -32,6 +32,10 @@ Pin a specific package version by adding it after the package name, for example
 `npx npm:functionalscript@0.29.0 t`, `deno run -A npm:functionalscript@0.29.0 t`,
 or `bunx functionalscript@0.29.0 t`.
 
+This only applies to the built-in runner. External runners such as Playwright
+still need FunctionalScript installed so `all.test.ts` can import
+`functionalscript/fs/emergent_testing/all.test.js`.
+
 ## Installation
 
 Install FunctionalScript when your repository imports the package, for example
