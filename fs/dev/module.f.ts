@@ -50,7 +50,8 @@ const allFiles = (
     s: string,
     predicate: (path: string) => boolean,
 ): Effect<Readdir | All, readonly string[]> => {
-    const load = (p: string): Effect<Readdir | All, readonly string[]> => readdir(p, {})
+    const load = (p: string): Effect<Readdir | All, readonly string[]> =>
+        readdir(p, {})
         .step(d => {
             let result: readonly Effect<Readdir | All, readonly string[]>[] = []
             for (const i of unwrap(d)) {
