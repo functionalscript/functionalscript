@@ -8,7 +8,9 @@
 The generated CI currently mixes platform compatibility checks with heavier
 toolchain, coverage, package-manager, browser, and WASM checks in the same
 OS/architecture jobs. This makes Windows and Intel jobs slower because they
-download and install more tools than they need.
+download and install more tools than they need. It also makes CI less reliable:
+VMs where we cannot use Docker/Nix caching, especially Windows, depend more on
+external tool download availability.
 
 ## Currently
 
@@ -24,6 +26,8 @@ download and install more tools than they need.
 Use the six-platform matrix for OS/API compatibility, and move deeper checks to
 separate canonical jobs. Prefer Ubuntu ARM for Linux/Docker-style heavy jobs; use
 macOS ARM only for native macOS checks.
+Keep Windows and other non-Docker-friendly VMs lean by installing the minimum
+tooling needed for platform compatibility.
 
 ### Platform Matrix
 
@@ -81,6 +85,10 @@ Total: 12 jobs.
 itself uses source-tree commands because `fjs` is not available until the package
 is built/installed. This should eventually be replaced by the package self-test
 script convention from [i667-ci-self-test-script](./667-ci-self-test-script.md).
+Another bootstrap option is to run a pinned published package, for example
+`npx npm:functionalscript@0.29.0 t`; that avoids the source-tree special case but
+tests bootstrapping through the last published package before testing the current
+source.
 
 ## Related
 
