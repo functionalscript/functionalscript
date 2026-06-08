@@ -157,7 +157,7 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno install"
+          "run": "deno install --frozen"
         },
         {
           "run": "deno task test"
@@ -167,9 +167,6 @@
         },
         {
           "run": "deno task fjs t"
-        },
-        {
-          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -331,7 +328,7 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno install"
+          "run": "deno install --frozen"
         },
         {
           "run": "deno task test"
@@ -341,9 +338,6 @@
         },
         {
           "run": "deno task fjs t"
-        },
-        {
-          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -505,7 +499,7 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno install"
+          "run": "deno install --frozen"
         },
         {
           "run": "deno task test"
@@ -515,9 +509,6 @@
         },
         {
           "run": "deno task fjs t"
-        },
-        {
-          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -679,7 +670,7 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno install"
+          "run": "deno install --frozen"
         },
         {
           "run": "deno task test"
@@ -689,9 +680,6 @@
         },
         {
           "run": "deno task fjs t"
-        },
-        {
-          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -859,7 +847,7 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno install"
+          "run": "deno install --frozen"
         },
         {
           "run": "deno task test"
@@ -869,9 +857,6 @@
         },
         {
           "run": "deno task fjs t"
-        },
-        {
-          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1030,7 +1015,7 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno install"
+          "run": "deno install --frozen"
         },
         {
           "run": "deno task test"
@@ -1040,9 +1025,6 @@
         },
         {
           "run": "deno task fjs t"
-        },
-        {
-          "run": "deno publish --dry-run --allow-slow-types"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"

@@ -107,10 +107,7 @@ const defaultNodeExtra = ({ name, functionalscript }: PackageInfo) => (o: Os): r
 
 const defaultEffect = (info: PackageInfo): Effect<NodeOp, number> => ci({
     nodeExtra: defaultNodeExtra(info),
-    denoExtra: [
-        ...(info.functionalscript ? denoDemoCompile : []),
-        test({ run: 'deno publish --dry-run --allow-slow-types' }),
-    ],
+    denoExtra: info.functionalscript ? [...denoDemoCompile] : [],
     bunExtra: info.functionalscript ? bunDemoCompile : [],
 })
 

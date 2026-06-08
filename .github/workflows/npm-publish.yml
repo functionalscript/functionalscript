@@ -21,17 +21,11 @@ jobs:
         with:
           node-version: 26
           registry-url: https://registry.npmjs.org/
-      - uses: denoland/setup-deno@v1
-        with:
-          deno-version: 2
       - run: npm ci
-      - run: npm run index
       - run: npm publish --provenance
         continue-on-error: true
         # env:
         #  NODE_AUTH_TOKEN: ${{secrets.npm_token}}
-      - run: deno publish --allow-dirty --allow-slow-types
-        continue-on-error: true
 
 
 
