@@ -4,9 +4,10 @@ This repository contains both Node.js (TypeScript) and Rust code. Check the [./i
 
 ## Requirements
 
-- Use **Node.js 24 or later**.
+- Use **Node.js 22 or later**.
 - Install Node dependencies with `npm ci`.
 - Install Rust dependencies with `cargo fetch`.
+- Install FunctionalScript `npm install -g functionalscript`
 
 If either installation fails, skip all test commands.
 
@@ -17,7 +18,7 @@ It's recommended to run `npm run update` after changing the source code.
 ## Testing
 
 - Run `npx tsc` to type-check using the repository's version of TypeScript.
-- Run `npm test` to test FunctionalScript (`.f.ts`) files with Node 22+.
+- Run `fjs t` to test FunctionalScript (`.f.ts`) files with Node 22+.
 - Run `cargo test` to test the Rust crate in `nanvm-lib`.
 - Run `cargo clippy` to lint the Rust crate.
 - Run `cargo fmt -- --check` to verify formatting.
@@ -82,7 +83,7 @@ where `<...Module documentation...>` should be documentation for the module.
 - Issues are tracked in `./issues/`, not on GitHub. To file a new issue: create `./issues/YMD-{slug}.md` where `YMD` is the current date encoded as three Crockford base32 digits (Y = year offset from 2020, M = month, D = day — see `./issues/README.md` for the encoding table). Use a short kebab-case slug. Do not add an entry to `./issues/README.md` — the directory itself is the index. Do not open GitHub issues.
 - After fixing an issue, mark it **Status: done** in its file. Before marking done, ensure design decisions are captured in the codebase: architectural choices and *why this / why not that* rationale belong in the relevant `README.md` files; API shape and invariants belong in JSDoc on the affected `module.f.ts` exports. Record the decision in the commit message if it was a "will not fix". Done issues are deleted occasionally in a separate cleanup pass — do not delete them immediately after fixing.
 - Reference issues with the `i` prefix as an explicit link, not GitHub's `#` prefix. `#NNN` is reserved for GitHub PR/issue numbers; `iYMD-slug` refers to a file in `./issues/`. Always render the reference as a markdown link pointing to the file, e.g. [i65X-sandbox](./issues/65X-sandbox.md).
-- To add a CHANGELOG entry, first open the PR to obtain its number, then add the entry at the **top** of `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md) using the real PR number. Follow the same `Topic: short description [NNN](url)` style as existing entries; the link must point to the pull request (`/pull/NNN`), not to an issue. You may mention the issue name as plain text (e.g. `i667-fjs-run-main-convention`) but do not link to the issue file — issue files are deleted when done, so those links rot. New entries always go above existing ones. Do not commit the CHANGELOG change — leave it unstaged for the author to review. Only add CHANGELOG entries for code changes — PRs that only touch `issues/`, `AGENTS.md`, or other documentation files do not need a CHANGELOG entry.
+- To add a CHANGELOG entry, first open the PR to obtain its number, then add the entry at the **top** of `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md) using the real PR number. Follow the same `Topic: short description [NNN](url)` style as existing entries; the link must point to the pull request (`/pull/NNN`), not to an issue. You may mention the issue name as plain text (e.g. `i667-fjs-run-main-convention`) but do not link to the issue file — issue files are deleted when done, so those links rot. New entries always go above existing ones. CHANGELOG entries are created after the PR exists because they reference the PR number. Only add CHANGELOG entries for code changes — PRs that only touch `issues/`, `AGENTS.md`, or other documentation files do not need a CHANGELOG entry.
 - When the version is bumped in `deno.json`/`package.json`, create a new `## X.Y.Z` section in `CHANGELOG.md` immediately after `## Unreleased` and move all entries from `## Unreleased` into it, leaving `## Unreleased` empty.
 - Only import other `.f.ts` files from FunctionalScript modules. Avoid references to built-in or external Node modules such as `node:path` in `.f.ts` files.
 - Prefer `.flatMap(e => e !== undefined ? [e] : [])` over `.filter((e): e is T => e !== undefined)` to remove `undefined` entries from an array. Type predicates in `filter` are error-prone: if the element type changes, the predicate silently becomes wrong. `flatMap` narrows correctly without a manual type annotation.

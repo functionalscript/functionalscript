@@ -29,7 +29,13 @@ export type PrimeField = {
     readonly pow3: Unary
     /** Reduces an arbitrary `bigint` into `[0, p)`. */
     readonly reduce: Unary
-    /** Euler criterion: `true` when `x` is a quadratic residue mod `p`. */
+    /**
+     * `true` when `x` is a square modulo `p`, including `0`.
+     *
+     * Nonzero values are tested with Euler's criterion:
+     * `x^((p - 1) / 2) === 1 (mod p)`.
+     * For `p === 2n`, both field elements are squares.
+     */
     readonly quadRes: (x: bigint) => boolean
 }
 
@@ -73,12 +79,19 @@ export const prime_field = (p: bigint): PrimeField => {
         const r = x % p
         return r < 0n ? add(p)(r) : r
     }
-    const half = (p - 1n) / 2n
-    const quadRes = (x: bigint): boolean => pow(half)(reduce(x)) === 1n
+    const max = p - 1n
+    // Euler's exponent is `(p - 1) / 2`; use `max`, not `p`, so `p === 2n`
+    // gives exponent `0n` instead of `1n`.
+    // 0 is a square mod p; Euler's criterion needs a separate case because 0^e = 0.
+    const powHalf = pow(max >> 1n)
+    const quadRes = (x: bigint): boolean => {
+        const v = reduce(x)
+        return v === 0n || powHalf(v) === 1n
+    }
     return {
         p,
         middle,
-        max: p - 1n,
+        max,
         neg: a => a === 0n ? 0n : p - a,
         sub,
         add,

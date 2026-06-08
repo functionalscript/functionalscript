@@ -1,6 +1,6 @@
 {
   "name": "functionalscript",
-  "version": "0.29.0",
+  "version": "0.29.1",
   "type": "module",
   "files": [
     "**/*.js",
@@ -18,7 +18,7 @@
     "website": "npm run prepack && npm run index-html"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "bin": {
     "fjs": "fs/fjs/module.js"

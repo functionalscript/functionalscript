@@ -19,9 +19,27 @@ Three terms are used precisely throughout this document:
   *discovery*: the framework decides what to run by asking "does this module
   export a `proof`?", never by filename alone.
 
+## Running Tests Without DevDependencies
+
+The built-in emergent testing runner can run without adding FunctionalScript to
+`package.json` or `deno.json`:
+
+- Node: `npx npm:functionalscript t`
+- Deno: `deno run -A npm:functionalscript t`
+- Bun: `bunx functionalscript t`
+
+Pin a specific package version by adding it after the package name, for example
+`npx npm:functionalscript@0.29.0 t`, `deno run -A npm:functionalscript@0.29.0 t`,
+or `bunx functionalscript@0.29.0 t`.
+
+This only applies to the built-in runner. External runners such as Playwright
+still need FunctionalScript installed so `all.test.ts` can import
+`functionalscript/fs/emergent_testing/all.test.js`.
+
 ## Installation
 
-Install from npm:
+Install FunctionalScript when your repository imports the package, for example
+to use external runners through `all.test.ts`:
 
 ```sh
 npm install functionalscript
