@@ -47,9 +47,9 @@ Run:
   - native `cargo test`;
   - 32-bit target checks only on Intel jobs.
 - Node 26:
-  - `npx fjs t` (*).
+  - `npx npm:functionalscript@${fs.version} t`
 
-`npx fjs t` exercises FunctionalScript proof discovery, module loading, and
+`npx npm:functionalscript@${fs.version} t` exercises FunctionalScript proof discovery, module loading, and
 filesystem traversal on each OS/path format. Native `node --test` runs in the
 dedicated Node 24 and Node 26 jobs instead of the platform matrix.
 
@@ -64,10 +64,10 @@ tool download reliability becomes the main bottleneck.
   - `wasmer`,
   - `wasmtime`.
 - Deno package-manager check (one job):
-  - `deno run -A npm:functionalscript t` (*),
+  - `deno run -A npm:functionalscript@${fs.version} t` (*),
   - `deno test -A && deno coverage --include='.*module\\.f\\.ts'`.
 - Bun package-manager check (one job):
-  - `bunx fjs t` (*),
+  - `bunx functionalscript@${fs.version} t`,
   - `bun test --coverage`.
 - Node:
   - 24 (one job):
@@ -79,16 +79,6 @@ tool download reliability becomes the main bottleneck.
     - `npm publish --dry-run`.
 
 Total: 12 jobs.
-
-(*) Consumer-package checks use installed commands such as `npx fjs`,
-`deno run npm:functionalscript`, and `bunx fjs`. The FunctionalScript repository
-itself uses source-tree commands because `fjs` is not available until the package
-is built/installed. This should eventually be replaced by the package self-test
-script convention from [i667-ci-self-test-script](./667-ci-self-test-script.md).
-Another bootstrap option is to run a pinned published package, for example
-`npx npm:functionalscript@0.29.0 t`; that avoids the source-tree special case but
-tests bootstrapping through the last published package before testing the current
-source.
 
 ## Related
 
