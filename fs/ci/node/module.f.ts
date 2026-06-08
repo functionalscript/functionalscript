@@ -46,8 +46,9 @@ export const nodeVersions: Jobs = Object.fromEntries(node.others.map(v => [
 
 export const nodeMainSteps = (extra: readonly MetaStep[]): readonly MetaStep[] => nodeTests(node.default)([
     // TypeScript Preview
-    install({ run: `npm install -g @typescript/native-preview@${tsgo}`}),
-    test({ run: 'tsgo' }),
+    // install({ run: `npm cache add ${tsgoName}`})
+    // install({ run: `npm install -g @typescript/native-preview@${tsgo}`}),
+    test({ run: `npx npm:@typescript/native-preview@${tsgo}` }),
     // extra
     ...extra,
 ])
