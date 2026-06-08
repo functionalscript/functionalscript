@@ -1,32 +1,14 @@
 /**
- * CI step builder for Bun: installs the pinned Bun version (with a PowerShell
- * fallback for Windows ARM) and runs `bun install` and `bun test`.
+ * CI step builder for Bun: installs the pinned Bun version and runs the
+ * FunctionalScript package smoke test plus Bun coverage in one canonical job.
  *
  * @module
  */
 import { bun } from '../config/module.f.ts'
-import { type Architecture, type MetaStep, type Os, type Step, clean, install, test, uses } from '../common/module.f.ts'
+import { type MetaStep, clean, install, test, uses } from '../common/module.f.ts'
 
-type Tool = {
-    readonly def: Step
-    readonly name: string
-    readonly path: string
-}
-
-const installOnWindowsArm = ({ def, name, path }: Tool) => (v: Os) => (a: Architecture): MetaStep =>
-    install(v === 'windows' && a === 'arm'
-        ? { run: `irm ${path}/install.ps1 | iex; "$env:USERPROFILE\\.${name}\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append` }
-        : def)
-
-const installBun = installOnWindowsArm({
-    def: uses('oven-sh/setup-bun', { 'bun-version': bun }),
-    name: 'bun',
-    path: 'bun.sh',
-})
-
-export const bunSteps = (extra: readonly MetaStep[]) => (v: Os, a: Architecture): readonly MetaStep[] => clean([
-    installBun(v)(a),
-    test({ run: 'bun install --frozen-lockfile' }),
-    test({ run: 'bun test --timeout 20000' }),
-    ...extra,
+export const bunSteps = (version: string): readonly MetaStep[] => clean([
+    install(uses('oven-sh/setup-bun', { 'bun-version': bun })),
+    test({ run: `bunx functionalscript@${version} t` }),
+    test({ run: 'bun test --coverage' }),
 ])

@@ -34,7 +34,7 @@ const workflow = (state: State): GitHubAction => {
 }
 
 const run = (rust: boolean, nodeExtra: (o: Os) => readonly MetaStep[] = () => []): GitHubAction => {
-    const [state, result] = virtual(makeState(rust))(ci({ nodeExtra, denoExtra: [], bunExtra: [] }))
+    const [state, result] = virtual(makeState(rust))(ci({ version: '0.0.0', nodeExtra }))
     assert(result === 0, result)
     return workflow(state)
 }
@@ -46,6 +46,13 @@ const runDefault = (packageJson?: string): GitHubAction => {
 }
 
 export const proof = {
+    matrixShape: () => {
+        const gha = run(true)
+        assert(Object.keys(gha.jobs).length === 13, 'expected 13 CI jobs')
+        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
+        assert(hasRunInJob('wasm', 'cargo clippy -- -D warnings')(gha), 'expected canonical Rust lint')
+        assert(hasRunInJob('node22', 'fjs t')(gha), 'expected Node 22 FunctionalScript smoke test')
+    },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')
     },
@@ -76,42 +83,40 @@ export const proof = {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected fjs demo compile')
             assert(hasRun('fjs t')(gha), 'expected fjs self-test')
-            assert(hasRun('deno task fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected deno demo compile')
-            assert(hasRun('deno task fjs t')(gha), 'expected deno self-test')
-            assert(hasRun('bun ./fs/fjs/module.ts t')(gha), 'expected bun self-test')
+            assert(hasRun('deno run -A npm:functionalscript@latest t')(gha), 'expected deno self-test')
+            assert(hasRun('bunx functionalscript@latest t')(gha), 'expected bun self-test')
         },
         otherPackageNoDemo: () => {
             const gha = runDefault('{"name":"other-package"}')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(!hasRun('fjs t')(gha), 'unexpected fjs self-test')
-            assert(!hasRun('deno task fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected deno demo compile')
-            assert(!hasRun('deno task fjs t')(gha), 'unexpected deno self-test')
-            assert(!hasRun('bun ./fs/fjs/module.ts t')(gha), 'unexpected bun self-test')
+            assert(hasRun('deno run -A npm:functionalscript@latest t')(gha), 'expected canonical deno self-test')
+            assert(hasRun('bunx functionalscript@latest t')(gha), 'expected canonical bun self-test')
         },
-        uninstallPackageName: () => {
-            const gha = runDefault('{"name":"other-package"}')
-            assert(hasRun('npm uninstall other-package -g')(gha), 'expected package-specific uninstall')
-            assert(!hasRun('npm uninstall functionalscript -g')(gha), 'unexpected functionalscript uninstall')
+        packageVersion: () => {
+            const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
+            assert(hasRun('npm install -g functionalscript@1.2.3')(gha), 'expected package-version platform install')
+            assert(hasRun('deno run -A npm:functionalscript@1.2.3 t')(gha), 'expected package-version deno install')
+            assert(hasRun('bunx functionalscript@1.2.3 t')(gha), 'expected package-version bun install')
         },
         malformedPackageJsonFallback: () => {
             const gha = runDefault('{')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
+            assert(hasRun('npm install -g functionalscript@latest')(gha), 'expected fallback install')
         },
         missingPackageJsonFallback: () => {
             const gha = runDefault()
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
+            assert(hasRun('npm install -g functionalscript@latest')(gha), 'expected fallback install')
         },
         missingNameFallback: () => {
             const gha = runDefault('{"version":"1.0.0"}')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
+            assert(hasRun('npm install -g functionalscript@1.0.0')(gha), 'expected package-version fallback install')
         },
         nonObjectFallback: () => {
             const gha = runDefault('[]')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
-            assert(hasRun('npm uninstall functionalscript -g')(gha), 'expected fallback uninstall')
+            assert(hasRun('npm install -g functionalscript@latest')(gha), 'expected fallback install')
         },
     },
 }

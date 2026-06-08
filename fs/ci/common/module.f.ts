@@ -96,4 +96,9 @@ export const ubuntu = (ms: readonly MetaStep[]): Job => ({
     steps: toSteps(ms)
 })
 
+export const ubuntuArm = (ms: readonly MetaStep[]): Job => ({
+    'runs-on': images.ubuntu.arm,
+    steps: toSteps(ms)
+})
+
 export const findTgz = (v: Os) => v === 'windows' ? '(Get-ChildItem *.tgz).FullName' : './*.tgz'

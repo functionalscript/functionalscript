@@ -33,7 +33,8 @@ export const playwright = '1.60.0'
 // https://nodejs.org/en/download
 export const node = {
     default: '26.3.0',
-    others: ['24.16.0'],
+    node22: '22.22.2',
+    node24: '24.16.0',
 } as const
 
 // https://github.com/bytecodealliance/wasmtime/releases

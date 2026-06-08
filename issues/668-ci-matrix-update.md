@@ -1,7 +1,7 @@
 # 668-ci-matrix-update. Update generated CI matrix
 
 **Priority:** P3
-**Status:** open
+**Status:** done
 
 ## Problem
 
