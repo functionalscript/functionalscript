@@ -89,11 +89,9 @@ const demoCompile = [
     test({ run: 'fjs t' }),
 ] as const
 
-const denoRun = 'deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts'
-
 const denoDemoCompile = [
-    test({ run: `${denoRun} compile issues/demo/data/tree.json _tree.f.js` }),
-    test({ run: `${denoRun} t` }),
+    test({ run: 'deno task fjs compile issues/demo/data/tree.json _tree.f.js' }),
+    test({ run: 'deno task fjs t' }),
 ] as const
 
 const bunDemoCompile = [

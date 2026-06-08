@@ -76,16 +76,16 @@ export const proof = {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected fjs demo compile')
             assert(hasRun('fjs t')(gha), 'expected fjs self-test')
-            assert(hasRun('deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected deno demo compile')
-            assert(hasRun('deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t')(gha), 'expected deno self-test')
+            assert(hasRun('deno task fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'expected deno demo compile')
+            assert(hasRun('deno task fjs t')(gha), 'expected deno self-test')
             assert(hasRun('bun ./fs/fjs/module.ts t')(gha), 'expected bun self-test')
         },
         otherPackageNoDemo: () => {
             const gha = runDefault('{"name":"other-package"}')
             assert(!hasRun('fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected fjs demo compile')
             assert(!hasRun('fjs t')(gha), 'unexpected fjs self-test')
-            assert(!hasRun('deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected deno demo compile')
-            assert(!hasRun('deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t')(gha), 'unexpected deno self-test')
+            assert(!hasRun('deno task fjs compile issues/demo/data/tree.json _tree.f.js')(gha), 'unexpected deno demo compile')
+            assert(!hasRun('deno task fjs t')(gha), 'unexpected deno self-test')
             assert(!hasRun('bun ./fs/fjs/module.ts t')(gha), 'unexpected bun self-test')
         },
         uninstallPackageName: () => {

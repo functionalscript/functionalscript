@@ -157,13 +157,13 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno test --allow-read --allow-env"
+          "run": "deno task test"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t"
+          "run": "deno task fjs t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -325,13 +325,13 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno test --allow-read --allow-env"
+          "run": "deno task test"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t"
+          "run": "deno task fjs t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -493,13 +493,13 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno test --allow-read --allow-env"
+          "run": "deno task test"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t"
+          "run": "deno task fjs t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -661,13 +661,13 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno test --allow-read --allow-env"
+          "run": "deno task test"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t"
+          "run": "deno task fjs t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -835,13 +835,13 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno test --allow-read --allow-env"
+          "run": "deno task test"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t"
+          "run": "deno task fjs t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
@@ -1000,13 +1000,13 @@
           "run": "git reset --hard HEAD && git clean -fdx"
         },
         {
-          "run": "deno test --allow-read --allow-env"
+          "run": "deno task test"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts compile issues/demo/data/tree.json _tree.f.js"
+          "run": "deno task fjs compile issues/demo/data/tree.json _tree.f.js"
         },
         {
-          "run": "deno run --allow-read --allow-write --allow-env --allow-net ./fs/fjs/module.ts t"
+          "run": "deno task fjs t"
         },
         {
           "run": "git reset --hard HEAD && git clean -fdx"
