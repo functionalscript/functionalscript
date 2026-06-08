@@ -26,7 +26,7 @@ const installBun = installOnWindowsArm({
 
 export const bunSteps = (extra: readonly MetaStep[]) => (v: Os, a: Architecture): readonly MetaStep[] => clean([
     installBun(v)(a),
-    test({ run: 'bun install' }),
+    test({ run: 'bun install --frozen-lockfile' }),
     test({ run: 'bun test --timeout 20000' }),
     ...extra,
 ])
